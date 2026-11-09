@@ -20,6 +20,7 @@ var split: BoxContainer
 var details: ScrollContainer
 var preview: SubViewportContainer
 var edit_button: Button
+var delete_button: Button
 var name_field: LineEdit
 var name_heading: Label
 var message: Label
@@ -98,6 +99,9 @@ func build(owner_game: Node) -> void:
 	actions.add_child(spacer)
 	edit_button = _button("Edit Character", "palette", _editor.bind(false))
 	actions.add_child(edit_button)
+	delete_button = _button("Delete Character", "close", _confirm_delete)
+	delete_button.theme_type_variation = "DangerButton"
+	actions.add_child(delete_button)
 	var create := _button("Create New Character", "plus", _editor.bind(true))
 	create.theme_type_variation = "PrimaryButton"
 	actions.add_child(create)
@@ -150,6 +154,7 @@ func _refresh() -> void:
 	name_heading.text = chosen
 	name_field.text = game.characters.display_name()
 	edit_button.disabled = id.is_empty()
+	delete_button.disabled = id.is_empty() or game.front.in_game
 	message.text = "Starter appearance" if id.is_empty() else "✓ Selected"
 
 func _card(profile: Dictionary, display: String, active: bool, look: Dictionary) -> void:
@@ -264,6 +269,25 @@ func _editor(create_new: bool) -> void:
 	var result: String = game.characters.edit(create_new)
 	if not result.is_empty():
 		message.text = result
+
+func _confirm_delete() -> void:
+	var id: String = game.characters.selected
+	if id.is_empty() or game.front.in_game:
+		return
+	var dialog := ConfirmationDialog.new()
+	dialog.title = "Delete Character"
+	dialog.dialog_text = "Permanently delete %s and its saved appearance?" % game.characters.display_name()
+	dialog.ok_button_text = "Delete Character"
+	add_child(dialog)
+	dialog.confirmed.connect(func():
+		var result: String = game.characters.delete_profile(id)
+		message.text = "Character deleted." if result.is_empty() else result
+	)
+	dialog.popup_centered()
+	dialog.visibility_changed.connect(func():
+		if not dialog.visible:
+			dialog.queue_free()
+	)
 
 func _scroll(parent: Node) -> ScrollContainer:
 	var scroll := ScrollContainer.new()

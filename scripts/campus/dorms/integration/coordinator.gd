@@ -68,7 +68,12 @@ func is_owner(identity: String,room: String) -> bool:
 func can_enter(identity: String,room: String) -> bool:
 	if not multiplayer.is_server():return identity in snapshot.get("access",{}).get(room,[])
 	var owner := owner_identity(room)
-	return not owner.is_empty() and Dorm.may_enter(_profile(owner).get("dorm",{}),owner,identity)
+	if owner.is_empty() or not Dorm.identity_ok(identity):return false
+	if Dorm.may_enter(_profile(owner).get("dorm",{}),owner,identity):return true
+	if open_doors.has(_bay_for(room)):return true
+	for peer in occupants:
+		if occupants[peer] == room and authenticated_identity(int(peer)) == identity:return true
+	return false
 func room_for_peer(peer: int) -> String:
 	var identity := authenticated_identity(peer)
 	if not multiplayer.is_server():return "dorm_"+identity if not identity.is_empty() else ""
@@ -156,8 +161,7 @@ func _process(delta: float) -> void:
 		var pos: Vector3=game.player.global_position if int(peer)==1 else game.session.poses.get(peer,{}).get("position",Vector3.INF)
 		for contract in hall.room_contracts:
 			if contract.dorm_id==bay and not AABB(contract.bounds_min,contract.bounds_max-contract.bounds_min).grow(.5).has_point(pos):occupants.erase(peer)
-	# A physically open door cannot confer access. Recheck authorization against
-	# host poses, including tailgating and policy changes while visitors are inside.
+	# Open doors permit entry. Visitors already inside may leave after a door closes.
 	for peer in game.session.roster:
 		var pos: Vector3=game.player.global_position if int(peer)==1 else game.session.poses.get(peer,{}).get("position",Vector3.INF)
 		for contract in hall.room_contracts:
@@ -267,6 +271,8 @@ func _request_for(peer: int,action: Dictionary) -> void:
 		if bay.is_empty():return
 		_publish();return
 	if action.get("op") != "toggle_door":return
+	var owner := owner_identity(room)
+	if owner.is_empty() or not Dorm.may_enter(_profile(owner).get("dorm",{}), owner, identity):return
 	var bay := _bay_for(room)
 	for contract in hall.room_contracts:
 		if contract.dorm_id != bay:continue

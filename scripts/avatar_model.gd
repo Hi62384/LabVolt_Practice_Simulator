@@ -23,6 +23,21 @@ static func build(bytes: PackedByteArray) -> Node3D:
 	if document.append_from_buffer(bytes,"",state)!=OK:return null
 	var model := document.generate_scene(state)
 	if model==null:return null
+	# The bundled fallback GLB lost its limb animation tracks during export.
+	# Restore the procedural rig's animations while preserving its visible model.
+	if bytes == FileAccess.get_file_as_bytes("res://assets/default_avatar.glb"):
+		var old_player := model.get_node_or_null("AnimationPlayer")
+		if old_player != null and model.has_node("LegL") and model.has_node("LegR") and model.has_node("Body/Head"):
+			model.remove_child(old_player)
+			old_player.free()
+			preload("res://scripts/toon_character.gd")._animations(model)
+			var restored: AnimationPlayer = model.get_node("AnimationPlayer")
+			restored.owner = model
+			for animation_name in restored.get_animation_list():
+				var animation := restored.get_animation(animation_name)
+				for track in range(animation.get_track_count() - 1, -1, -1):
+					if not model.has_node(NodePath(animation.track_get_path(track).get_concatenated_names())):
+						animation.remove_track(track)
 	model.rotation.y=PI
 	var packed := PackedScene.new()
 	if packed.pack(model)==OK:

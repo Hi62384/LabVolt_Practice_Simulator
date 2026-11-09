@@ -607,6 +607,8 @@ func upgrade_capacity() -> String:
 func accept_authority(snapshot: Dictionary) -> Error:
 	if not snapshot.get("ok",false) or not snapshot.get("profile") is Dictionary or not valid(snapshot.profile):return ERR_INVALID_DATA
 	if int(snapshot.get("revision",-1))<authority_revision:return ERR_INVALID_DATA
+	if authority_revision < 0 and not same(data.get("inventory", {}), snapshot.profile.get("inventory", {})):
+		return ERR_BUSY
 	var before := data.duplicate(true);var revision_before := authority_revision
 	var credentials: Dictionary=data.get("authority_credentials",{}).duplicate(true)
 	if authority_revision<0 and not path.is_empty():

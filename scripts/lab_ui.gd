@@ -77,6 +77,7 @@ func build(owner_game: Node) -> void:
 	var cross := crosshair
 	cross.position = Vector2(634,342)
 	menu = panel(Vector2(160,30),Vector2(0,0))
+	menu.hide()
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation",8)
 	menu.add_child(box)

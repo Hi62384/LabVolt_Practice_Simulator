@@ -8,6 +8,7 @@ var sync_pass := false
 var late_pass := false
 var server_left := false
 var failures := 0
+var code_file := OS.get_environment("LABVOLT_TEST_ROOM_FILE")
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -27,6 +28,36 @@ func expect(ok: bool,text: String) -> void:
 		printerr("FAIL "+role+": "+text)
 	else:
 		print("PASS "+role+": "+text)
+
+func host() -> bool:
+	if code_file.is_empty():
+		return session.host_game("Host", 24991) == OK
+	var peer := Session.RelayPeer.new()
+	if peer.open(Session.relay_endpoint()) != OK:
+		return false
+	while peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING:
+		await process_frame
+		peer.poll()
+	if peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		printerr(peer.failure)
+		return false
+	session.start_relay_host(peer, "Host")
+	var file := FileAccess.open(code_file, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(peer.room_code)
+	return true
+
+func join(player_name: String) -> bool:
+	if code_file.is_empty():
+		return session.join_game("127.0.0.1", player_name, 24991) == OK
+	for i in range(100):
+		if FileAccess.file_exists(code_file):
+			var code := FileAccess.get_file_as_string(code_file).strip_edges()
+			if code.length() == 10:
+				return session.join_relay(code, player_name) == OK
+		await pause(.1)
+	return false
 
 func run() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -49,7 +80,7 @@ func run() -> void:
 	)
 	session.initialize(Fixture.ids(),Fixture.locations())
 	if role=="host":
-		expect(session.host_game("Host",24991)==OK,"ENet host created")
+		expect(await host(),"host created")
 		for i in range(100):
 			await pause(.1)
 			if session.lab.completed().size()==1:
@@ -75,7 +106,7 @@ func run() -> void:
 		await pause(1)
 		session.leave()
 	elif role=="client":
-		expect(session.join_game("127.0.0.1","Client",24991)==OK,"ENet client initiated")
+		expect(await join("Client"),"client initiated")
 		for i in range(60):
 			await pause(.1)
 			if session.roster.size()==2:
@@ -103,7 +134,7 @@ func run() -> void:
 		await pause(1)
 		session.leave()
 	else:
-		expect(session.join_game("127.0.0.1","Late",24991)==OK,"late ENet client initiated")
+		expect(await join("Late"),"late client initiated")
 		for i in range(60):
 			await pause(.1)
 			if latest.get("cables",[]).size()>=2 and latest.get("powered",false):

@@ -3,6 +3,7 @@ const MenuTheme = preload("res://scripts/ui/design_system/theme.gd")
 const MenuTokens = preload("res://scripts/ui/design_system/tokens.gd")
 const MenuWidgets = preload("res://scripts/ui/design_system/widgets.gd")
 const Session = preload("res://scripts/session.gd")
+const RelayAccount = preload("res://scripts/relay_account.gd")
 const JOIN_HISTORY := "user://join_history.cfg"
 var campus_adapter: Object
 var campus_dashboard: Control
@@ -24,12 +25,25 @@ var menu_page: Control
 var menu_scroll: ScrollContainer
 var join_address: LineEdit
 var join_port: LineEdit
+var join_code: LineEdit
+var direct_join: CheckButton
+var pending_host: MultiplayerPeer
+var relay_account := RelayAccount.new()
+var relay_identity := {}
+var relay_onboarding_url := ""
+var relay_setup_waiting := false
+var relay_login_pending := false
+var room_notice: Label
+var notice_time := 0.0
+var quota_peer: MultiplayerPeer
+var quota_tick := 0.0
 var join_connect: Button
 var join_back: Button
 var join_spinner: ProgressBar
 var join_timeout: Timer
 func build(owner_game: Node) -> void:
 	game=owner_game
+	add_child(relay_account)
 	layer=20
 	screen=Control.new()
 	screen.theme=MenuTheme.create()
@@ -91,9 +105,10 @@ func build(owner_game: Node) -> void:
 			_set_join_pending(false)
 		elif game.session.roster.has(multiplayer.get_unique_id()):
 			var history := ConfigFile.new()
-			history.set_value("connection", "address", _join_host(join_address.text))
-			history.set_value("connection", "port", int(join_port.text.strip_edges()))
-			history.save(JOIN_HISTORY)
+			if _joining_direct():
+				history.set_value("connection", "address", _join_host(join_address.text))
+				history.set_value("connection", "port", int(join_port.text.strip_edges()))
+				history.save(JOIN_HISTORY)
 			_set_join_pending(false)
 			status.text = "Connected."
 			game.capture()
@@ -106,7 +121,7 @@ func build(owner_game: Node) -> void:
 		if not joining:return
 		_set_join_pending(false)
 		game.session.leave()
-		status.text = "Connection timed out. Check the host address and port, then try again.")
+		status.text = "Connection timed out. Check the address and port." if _joining_direct() else "Connection timed out. Ask the host to check the room code.")
 	home()
 	call_deferred("_refresh_initial_home")
 func _refresh_initial_home() -> void:
@@ -120,7 +135,7 @@ func clear(next_page: String,heading: String) -> void:
 	page=next_page
 	body.add_theme_constant_override("separation", 7 if next_page=="home" else 12)
 	title.text=heading
-	menu_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED if next_page in ["home","characters","join","pause"] else ScrollContainer.SCROLL_MODE_AUTO
+	menu_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED if next_page in ["home","characters","join"] else ScrollContainer.SCROLL_MODE_AUTO
 	title.add_theme_font_size_override("font_size", 30 if next_page in ["join","host","singleplayer"] else 38)
 	for child in body.get_children():
 		body.remove_child(child)
@@ -141,7 +156,7 @@ func _layout_menu() -> void:
 		panel.size = Vector2(minf(456.0, available.x - 32), minf(448.0, available.y - 16))
 		panel.position.y = maxf(16, (screen.size.y - panel.size.y) * .5)
 		return
-	var target_height := panel.get_combined_minimum_size().y if page == "pause" else minf(620, available.y-16)
+	var target_height := minf(620, available.y-16)
 	panel.size=Vector2(maxf(1,minf(target_width,available.x-32)),maxf(1,target_height))
 func _action_icon(value: String) -> String:
 	if "Back" in value or "Leave" in value:return "back"
@@ -173,6 +188,10 @@ func field(value: String,hint: String) -> LineEdit:
 	body.add_child(input)
 	return input
 func home() -> void:
+	if pending_host != null:
+		pending_host.close()
+		pending_host = null
+		game.menu_campus.hold(false)
 	if joining:
 		_set_join_pending(false)
 		game.session.leave()
@@ -197,11 +216,20 @@ func network_page(join: bool) -> void:
 func _build_join() -> void:
 	text("Connect to a hosted college session.")
 	var fields := _session_form()
+	var room_fields := VBoxContainer.new()
+	fields.add_child(room_fields)
+	join_code = _join_field(room_fields, "Room code", "", "Enter your host’s code")
+	join_code.max_length = 85
+	direct_join = CheckButton.new()
+	direct_join.text = "Use direct IP"
+	fields.add_child(direct_join)
+	var address_fields := VBoxContainer.new()
+	fields.add_child(address_fields)
 	var history := ConfigFile.new()
 	history.load(JOIN_HISTORY)
-	join_address = _join_field(fields, "Host address", str(history.get_value("connection", "address", "")), "IP or hostname, e.g. 192.168.1.20")
+	join_address = _join_field(address_fields, "Host address", str(history.get_value("connection", "address", "")), "IP or hostname, e.g. 192.168.1.20")
 	join_address.max_length = 253
-	join_port = _join_field(fields, "Port", str(history.get_value("connection", "port", Session.PORT)), str(Session.PORT))
+	join_port = _join_field(address_fields, "Port", str(history.get_value("connection", "port", Session.PORT)), str(Session.PORT))
 	join_port.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	join_port.custom_minimum_size.x = 110
 	join_port.max_length = 5
@@ -216,7 +244,13 @@ func _build_join() -> void:
 	join_spinner.hide()
 	join_address.text_submitted.connect(func(_value: String): _connect_to_host())
 	join_port.text_submitted.connect(func(_value: String): _connect_to_host())
-	join_address.grab_focus.call_deferred()
+	join_code.text_submitted.connect(func(_value: String): _connect_to_host())
+	address_fields.hide()
+	direct_join.toggled.connect(func(direct: bool):
+		room_fields.visible = not direct
+		address_fields.visible = direct
+	)
+	join_code.grab_focus.call_deferred()
 
 func _session_form() -> VBoxContainer:
 	var form := PanelContainer.new()
@@ -241,51 +275,152 @@ func _session_actions(caption: String, icon: String, action: Callable) -> HBoxCo
 func _build_play(offline: bool) -> void:
 	text("Explore the campus on your own." if offline else "Host a college session for other players to join.")
 	var fields := _session_form()
-	var port: LineEdit
-	var forwarding: CheckButton
 	if not offline:
-		var advanced := MenuWidgets.action("Advanced Settings", "settings", Callable())
-		advanced.toggle_mode = true
-		fields.add_child(advanced)
-		var options := VBoxContainer.new()
-		fields.add_child(options)
-		options.hide()
-		port = _join_field(options, "Port", str(Session.PORT), str(Session.PORT))
-		port.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		port.custom_minimum_size.x = 110
-		port.max_length = 5
-		forwarding = CheckButton.new()
-		forwarding.text = "Try automatic internet port forwarding (UPnP)"
-		options.add_child(forwarding)
-		_host_label("For internet play, share your public IP and UDP port. If automatic forwarding fails, forward the port on your router.", options, 14)
-		advanced.toggled.connect(func(open: bool): options.visible = open)
-		port.text_submitted.connect(func(_value: String): _start_play(false, port, forwarding))
-	_session_actions("Play", "play", _start_play.bind(offline, port, forwarding))
+		var connected := relay_account.connected()
+		var caption := "Relay account · Connected" if connected else "Relay account · Not connected"
+		fields.add_child(MenuWidgets.action(caption, "settings", relay_account_page))
+	var actions := _session_actions("Play", "play", _start_play.bind(offline))
+	actions.get_child(1).disabled = not offline and not relay_account.connected() and Session.relay_endpoint().is_empty()
 
-func _start_play(offline: bool, port: LineEdit, forwarding: CheckButton) -> void:
+func relay_account_page() -> void:
+	clear("relay_account", "RELAY ACCOUNT")
+	if relay_login_pending:
+		text("Complete Cloudflare verification in your browser. To use a different email, cancel sign in, then switch users on the Cloudflare website.")
+		button("Cancel Sign In", _relay_cancel_login)
+	elif relay_account.connected():
+		text("Connected · " + str(relay_account.identity.get("name", "Cloudflare")))
+		text(str(relay_account.identity.get("email", "")))
+		button("View Cloudflare Account", func(): OS.shell_open(RelayAccount.dashboard(relay_account.identity.account_id)))
+		button("Log Out", _relay_logout)
+	elif relay_identity.has("accounts"):
+		if not relay_onboarding_url.is_empty():
+			text("Finish Cloudflare Workers setup in your browser. LabVolt will connect the relay automatically when it is ready.")
+			button("Open Cloudflare Workers Setup", func(): OS.shell_open(relay_onboarding_url))
+		else:
+			text("Choose the Cloudflare account to use for hosting.")
+		for account: Dictionary in relay_identity.accounts:
+			button(str(account.get("name", "Cloudflare")), _relay_deploy.bind(account))
+		button("Sign In Again", _relay_login)
+	else:
+		text("Authorize LabVolt in your browser. You can create a Cloudflare account there if needed.")
+		button("Log In with Cloudflare", _relay_login)
+	if not relay_account.connected():
+		button("Open Cloudflare Dashboard", func(): OS.shell_open("https://dash.cloudflare.com/"))
+	button("Back", network_page.bind(false))
+
+func _relay_cancel_login() -> void:
+	var error := relay_account.cancel_login()
+	status.text = "Cancelling Cloudflare sign in…" if error == OK else "Could not cancel Cloudflare sign in: " + error_string(error)
+
+func _relay_login() -> void:
+	if relay_account.busy or relay_setup_waiting:
+		status.text = "Cloudflare setup is already running."
+		return
+	relay_login_pending = true
+	relay_account_page()
+	status.text = "Preparing Cloudflare tools. Your browser will open if sign-in is needed."
+	relay_onboarding_url = ""
+	var result := await relay_account.run("login")
+	relay_login_pending = false
+	relay_identity = result if result.ok else {}
+	if page != "relay_account":
+		return
+	relay_account_page()
+	if not result.ok:
+		status.text = result.error
+	elif relay_identity.accounts.size() == 1:
+		_relay_deploy(relay_identity.accounts[0])
+
+func _relay_deploy(account: Dictionary) -> void:
+	if relay_account.busy or relay_setup_waiting:
+		return
+	status.text = "Setting up your relay…"
+	var result := await relay_account.run("deploy", str(account.id))
+	for attempt in range(3):
+		if not result.get("needs_onboarding", false):
+			break
+		# A new Workers account can become ready shortly after the first attempt.
+		await get_tree().create_timer(2.0).timeout
+		result = await relay_account.run("deploy", str(account.id))
+	if result.get("needs_onboarding", false):
+		relay_onboarding_url = result.onboarding_url
+		if page == "relay_account":
+			relay_account_page()
+			OS.shell_open(relay_onboarding_url)
+			relay_setup_waiting = true
+			status.text = "Waiting for Cloudflare Workers setup…"
+			for attempt in range(20):
+				await get_tree().create_timer(15.0).timeout
+				if page != "relay_account":
+					break
+				result = await relay_account.run("deploy", str(account.id))
+				if not result.get("needs_onboarding", false):
+					break
+			relay_setup_waiting = false
+			if page == "relay_account" and result.get("needs_onboarding", false):
+				status.text = "Cloudflare Workers setup is still incomplete. Select your account to try again."
+		if result.get("needs_onboarding", false):
+			return
+	if result.ok:
+		relay_onboarding_url = ""
+		result["name"] = account.get("name", "Cloudflare")
+		result["email"] = relay_identity.get("email", "")
+		if relay_account.set_identity(result) != OK:
+			result = {"ok": false, "error": "Could not save your relay account."}
+	if page == "relay_account":
+		relay_account_page()
+		status.text = "Relay connected. You can now host a game." if result.ok else result.error
+	elif page == "host":
+		network_page(false)
+
+func _relay_logout() -> void:
+	if relay_account.busy:
+		return
+	var result := await relay_account.run("logout")
+	if result.ok and relay_account.set_identity({}) == OK:
+		relay_identity.clear()
+		if page == "relay_account":
+			relay_account_page()
+		elif page == "host":
+			network_page(false)
+	elif page == "relay_account":
+		status.text = str(result.get("error", "Could not clear your saved relay account."))
+
+func _start_play(offline: bool) -> void:
+	if pending_host != null:
+		return
+	if not offline and not relay_account.connected() and Session.relay_endpoint().is_empty():
+		return
 	var id: String = game.characters.selected
 	if not id.is_empty() and not game.characters.profiles.any(func(profile): return profile.id == id):
 		status.text = "Select an available character before playing."
 		return
-	var port_number := Session.PORT
-	if not offline:
-		var value := port.text.strip_edges()
-		if not value.is_valid_int() or int(value) < 1024 or int(value) > 65535:
-			status.text = "Enter a port between 1024 and 65535."
-			port.grab_focus()
-			return
-		port_number = int(value)
 	var player_name: String = game.characters.display_name()
 	game.menu_campus.hold(true)
 	if offline:
 		game.session.local_name = player_name
 		game.session.leave()
 	else:
-		var error: Error = game.session.host_game(player_name, port_number, forwarding.button_pressed)
-		if error != OK:
+		var peer := Session.RelayPeer.new()
+		var endpoint := relay_account.endpoint() if relay_account.connected() else Session.relay_endpoint()
+		var error := peer.open(endpoint, "", str(relay_account.identity.get("host_key", "")))
+		if error == OK:
+			pending_host = peer
+			status.text = "Creating a room…"
+			while pending_host == peer and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTING:
+				await get_tree().process_frame
+				peer.poll()
+			if pending_host != peer:
+				return
+			pending_host = null
+		if error != OK or peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 			game.menu_campus.hold(false)
-			status.text = "Could not host on port %d. %s" % [port_number, error_string(error)]
+			status.text = peer.failure if error == OK else error_string(error)
 			return
+		game.session.start_relay_host(peer, player_name)
+		if relay_account.connected():
+			peer.room_code = RelayAccount.invite(str(relay_account.identity.host), peer.room_code)
+			quota_peer = peer
 	var result: Dictionary = game.school.start_activity({"mode": "Freeplay"})
 	if not result.get("ok", false):
 		game.session.leave()
@@ -295,6 +430,8 @@ func _start_play(offline: bool, port: LineEdit, forwarding: CheckButton) -> void
 	game.ui.name_input.text = player_name
 	if offline:game.dc_lab.restore_carried_pcbs(1)
 	game.capture()
+	if not game.session.room_code().is_empty():
+		_show_room_notice(game.session.room_code())
 
 func _join_field(parent: VBoxContainer, caption: String, value: String, placeholder: String) -> LineEdit:
 	_host_label(caption, parent, 14)
@@ -306,11 +443,28 @@ func _join_field(parent: VBoxContainer, caption: String, value: String, placehol
 	parent.add_child(input)
 	return input
 
+func _joining_direct() -> bool:
+	return direct_join.button_pressed
+
 func _connect_to_host() -> void:
 	if joining:return
 	var id: String = game.characters.selected
 	if not id.is_empty() and not game.characters.profiles.any(func(profile):return profile.id == id):
 		status.text = "Select an available character before connecting."
+		return
+	if not _joining_direct():
+		var invite := RelayAccount.parse_invite(join_code.text, Session.relay_endpoint())
+		if invite.is_empty():
+			status.text = "Paste the full room code from your host."
+			return
+		var name: String = game.characters.display_name()
+		var error: Error = game.session.join_relay(invite.code, name, invite.endpoint)
+		if error != OK:
+			status.text = "Could not connect to the relay. " + error_string(error)
+			return
+		game.ui.name_input.text = name
+		_set_join_pending(true)
+		status.text = "Connecting…"
 		return
 	var address := _join_host(join_address.text)
 	if address.is_empty():
@@ -335,6 +489,8 @@ func _set_join_pending(value: bool) -> void:
 	joining = value
 	if not is_instance_valid(join_connect):return
 	join_connect.disabled = value
+	join_code.editable = not value
+	direct_join.disabled = value
 	join_address.editable = not value
 	join_port.editable = not value
 	join_back.text = "Cancel" if value else "Back"
@@ -411,6 +567,21 @@ func pause_menu() -> void:
 	game.release_mouse()
 	screen.show()
 	clear("pause","MENU")
+	var code: String = game.session.room_code()
+	if not code.is_empty():
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		body.add_child(row)
+		var code_label := _host_label("Room code  " + code, row, 16)
+		code_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		code_label.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+		var copy := Button.new()
+		copy.text = "Copy"
+		row.add_child(copy)
+		copy.pressed.connect(func():
+			DisplayServer.clipboard_set(code)
+			copy.text = "Copied"
+		)
 	button("Resume",func():game.capture())
 	button("View Courses",view_courses_page)
 	button("Settings",settings_page)
@@ -419,6 +590,9 @@ func leave_game() -> void:
 	if leaving_game:return
 	leaving_game=true
 	joining=false
+	notice_time = 0.0
+	_save_relay_usage()
+	quota_peer = null
 	_campus_navigate("")
 	game._stand_from_chair()
 	game.session.leave()
@@ -445,7 +619,38 @@ func characters_page() -> void:
 	clear("characters","Your Characters")
 	_mount_page(preload("res://scripts/campus/ui/character_selector.gd").new(), game)
 
+func _show_room_notice(code: String) -> void:
+	if not is_instance_valid(room_notice):
+		room_notice = Label.new()
+		room_notice.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		room_notice.add_theme_font_size_override("font_size", 22)
+		room_notice.add_theme_color_override("font_shadow_color", Color.BLACK)
+		room_notice.add_theme_constant_override("shadow_offset_x", 2)
+		room_notice.add_theme_constant_override("shadow_offset_y", 2)
+		add_child(room_notice)
+	room_notice.text = "Room code  " + code
+	notice_time = 5.0
+
+func _save_relay_usage() -> void:
+	if quota_peer == null:
+		return
+	relay_account.record_usage(quota_peer.metered_connections, quota_peer.metered_messages)
+	quota_peer.metered_connections = 0
+	quota_peer.metered_messages = 0
+
 func _process(delta: float) -> void:
+	if quota_peer != null:
+		quota_tick += delta
+		if quota_tick >= 5.0:
+			quota_tick = 0.0
+			_save_relay_usage()
+		if quota_peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
+			_save_relay_usage()
+			quota_peer = null
+	if is_instance_valid(room_notice):
+		notice_time = maxf(0, notice_time - delta)
+		room_notice.visible = notice_time > 0 and in_game and not screen.visible
+		room_notice.position = Vector2((get_viewport().get_visible_rect().size.x - room_notice.size.x) * 0.5, 24)
 	campus_tick+=delta
 	if is_instance_valid(campus_hud):
 		campus_hud.visible=in_game and not screen.visible and game.client_preferences.values.hud

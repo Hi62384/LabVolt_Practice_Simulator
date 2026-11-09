@@ -1,6 +1,8 @@
 extends SceneTree
 
 # Run only with an isolated user-data directory after the startup import gate.
+const RelayAccount = preload("res://scripts/relay_account.gd")
+const Session = preload("res://scripts/session.gd")
 var failures: Array[String] = []
 
 func _initialize() -> void:
@@ -43,10 +45,34 @@ func _run() -> void:
 		await process_frame
 		_check(front.page == ("singleplayer" if offline else "host"), label + " did not open Play options")
 		var play := _button(front.body, "Play")
+		if not offline and Session.relay_endpoint().is_empty():
+			_usable(_button(front.body, "Relay account · Not connected"), viewport_rect, "Relay account setup")
+			_check(is_instance_valid(play) and play.disabled, "Hosting must require a relay account")
+			front.home()
+			continue
 		_usable(play, viewport_rect, label + " Play")
 		if is_instance_valid(play):
 			play.pressed.emit()
 			await process_frame
+			if not offline and not Session.relay_endpoint().is_empty():
+				var deadline := Time.get_ticks_msec() + 12000
+				while not front.in_game and front.pending_host != null and Time.get_ticks_msec() < deadline:
+					await process_frame
+				_check(game.session.room_code().length() == 10, "Relay host did not receive a room code")
+				_check(front.notice_time > 0, "Host room code notice missing")
+				front.pause_menu()
+				front.settings_page()
+				await process_frame
+				var host_server := _button(front.screen, "Host Server")
+				_usable(host_server, viewport_rect, "Host Server settings")
+				if is_instance_valid(host_server):
+					host_server.pressed.emit()
+					await process_frame
+					_usable(_button(front.screen, "Copy Room Code"), viewport_rect, "Copy Room Code")
+				front.pause_menu()
+				var resume := _button(front.body, "Resume")
+				if is_instance_valid(resume): resume.pressed.emit()
+				await process_frame
 			_check(front.in_game and not front.screen.visible and game.player.enabled,
 				"%s Play failed to enter gameplay (%s)" % [label, front.status.text])
 			_check(game.session.online == not offline, label + " started the wrong session type")
@@ -65,6 +91,10 @@ func _run() -> void:
 		if is_instance_valid(back):back.pressed.emit();await process_frame
 		_check(front.page == "home", route.label + " Back did not return home")
 		_usable(_button(front.body, "Host Game"), viewport_rect, "Host Game after Back")
+	var personal_code := RelayAccount.invite("labvolt-relay.example-team.workers.dev", "ABCDEFGHJK")
+	var invite := RelayAccount.parse_invite(personal_code, "")
+	_check(invite == {"code": "ABCDEFGHJK", "endpoint": "wss://labvolt-relay.example-team.workers.dev"}, "Personal room code did not route to its relay")
+	_check(RelayAccount.parse_invite("ABCDEFGHJK@example.com/path", "").is_empty(), "Invalid room relay address accepted")
 	_check_food_icons()
 	_finish()
 

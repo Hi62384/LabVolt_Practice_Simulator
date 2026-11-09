@@ -6,6 +6,7 @@ const DEFAULTS := {
 	"display_mode": 0, "width": 0, "height": 0, "vsync": true, "fps": 60, "fov": 72.0,
 	"master": 1.0, "effects": 1.0, "ambience": 1.0, "interface": 1.0,
 	"prompts": true, "notifications": true, "room_names": true, "hud": true, "assists": true,
+	"relay_pose_rate": 10, "relay_skip_idle": true,
 	"ui_scale": 1.0, "high_contrast": false, "analyzer_shapes": false, "reduced_motion": false,
 }
 var values := DEFAULTS.duplicate()
@@ -27,6 +28,7 @@ func load_settings(owner: Node) -> void:
 	values.display_mode = clampi(values.display_mode, 0, 2)
 	values.width = clampi(values.width, 0, 3840)
 	values.height = clampi(values.height, 0, 2160)
+	values.relay_pose_rate = clampi(values.relay_pose_rate, 5, 20)
 	values.fps = clampi(values.fps, 0, 360)
 	values.fov = clampf(values.fov, 55, 95)
 	values.ui_scale = clampf(values.ui_scale, 0.85, 1.25)

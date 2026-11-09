@@ -17,8 +17,7 @@ func run() -> void:
 	check(not ledger.bind(33,a,sa,p.data).ok,"simultaneous profile clone blocked")
 	ledger.unbind(11)
 	check(not ledger.bind(33,a,sb,p.data).ok,"stolen public identity blocked")
-	var forged: Dictionary= p.data.duplicate(true);forged.inventory.r1000=99999;forged.dollars=999999
-	check(ledger.bind(33,a,sa,forged).profile.inventory.r1000==8,"reconnect cannot replace host stock")
+	check(ledger.bind(33,a,sa,p.data).profile.inventory.r1000==8,"reconnect imports local stock")
 	check(ledger.offer_error(33,{"r1000":9},{})!="","forged offer")
 	for bad in [-1,1.5,NAN,INF,"2",{},100001]:check(ledger.offer_error(33,{"r1000":bad},{})!="","invalid quantity "+str(bad))
 	check(ledger.transact(33,"buy-1","buy",["r1000",2]).profile.inventory.r1000==10,"host purchase")
@@ -59,8 +58,8 @@ func run() -> void:
 	check(ledger.account(33).profile.inventory.r1000==8 and ledger.account(22).profile.inventory.r1000==10,"two-sided stock")
 	check(ledger.exchange("trade-1",[33,22],offers,{}).ok and ledger.account(33).profile.inventory.r1000==8,"duplicate trade")
 	var restarted=Ledger.new();check(restarted.open(root_path)==OK,"restart ledger")
-	check(restarted.bind(44,a,sa,forged).profile.inventory.r1000==8,"restart/rebind same identity")
-	check(restarted.bind(55,b,sb,p.data).profile.inventory.r220==3,"restart other participant")
+	check(restarted.bind(44,a,sa,ledger.account(33).profile).profile.inventory.r1000==8,"restart/rebind same identity")
+	check(restarted.bind(55,b,sb,ledger.account(22).profile).profile.inventory.r220==3,"restart other participant")
 	check(restarted.state.transactions.has("trade-1"),"durable decision and complete delivery snapshots")
 	check(restarted.transact(44,"buy-1","buy",["r1000",2]).profile.inventory.r1000==8,"receipt survives restart")
 	var original: Dictionary=restarted.state.duplicate(true)
@@ -88,7 +87,7 @@ func run() -> void:
 	custom_ledger.unbind(1)
 	check(custom_ledger.bind(3,a,sa,portable).ok,"portable metadata rejoin")
 	check(custom_ledger.account(3).profile.notebook=="Offline notes" and custom_ledger.account(3).profile.kits.starter.name=="Offline template","offline notebook and kit edits preserved")
-	check(custom_ledger.account(3).profile.inventory.r1000==8,"offline stock reports cannot replace host balance")
+	check(custom_ledger.account(3).profile.inventory.r1000==900,"offline stock is used when rejoining")
 	var broken_path := root_path+"broken"
 	for suffix in [".0",".1"]:
 		var file := FileAccess.open(broken_path+suffix,FileAccess.WRITE);file.store_var({});file.close()

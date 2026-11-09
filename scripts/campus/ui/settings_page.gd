@@ -8,7 +8,7 @@ const Widgets = preload("res://scripts/ui/design_system/widgets.gd")
 const T = preload("res://scripts/ui/design_system/tokens.gd")
 const CATEGORIES := {
 	"Graphics & Display":"meter", "Audio":"volume", "Controls":"keyboard",
-	"Gameplay":"play", "Accessibility":"user"}
+	"Gameplay":"play", "Accessibility":"user", "Host Server":"network"}
 const RESOLUTIONS := [Vector2i.ZERO, Vector2i(1280,720), Vector2i(1366,768), Vector2i(1600,900), Vector2i(1920,1080), Vector2i(2560,1440)]
 const RESERVED := [KEY_F, KEY_Q, KEY_Z, KEY_P, KEY_C, KEY_F8, KEY_F11, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_R, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]
 
@@ -98,6 +98,27 @@ func build(owner: Node) -> void:
 	_reflow()
 	_select(active)
 
+func _host_server_controls() -> void:
+	var code: String = game.session.room_code()
+	if code.is_empty():
+		_label(body, "Room code appears here while you are hosting.", 15)
+	else:
+		var room_code := _label(body, "Room code  " + code, 17)
+		room_code.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_button(body, "Copy Room Code", "", func(): DisplayServer.clipboard_set(code))
+	var account = game.front.relay_account
+	if account.connected():
+		_label(body, "Estimated daily requests left · %d / %d" % [account.estimated_remaining(), account.DAILY_REQUESTS], 16)
+		var note := _label(body, "Counts this installation’s relay traffic. Account-wide usage and compute limits are in Cloudflare. Resets at midnight UTC.", 14)
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_button(body, "View Cloudflare Usage", "meter", func(): OS.shell_open("https://dash.cloudflare.com/" + str(account.identity.account_id) + "/workers-and-pages"))
+	else:
+		_label(body, "Connect a relay account from Host Game to track usage.", 15)
+	_label(body, "Multiplayer optimization", 18)
+	_slider("Movement updates per second", 5, 20, 1, prefs.values.relay_pose_rate,
+		func(value: float): _preference(int(value), "relay_pose_rate"), "%.0f", 1)
+	_toggle("Skip unchanged movement updates", prefs.values.relay_skip_idle, _preference.bind("relay_skip_idle"))
+
 func _reflow() -> void:
 	layout.vertical = size.x < 760
 	nav.vertical = not layout.vertical
@@ -121,6 +142,7 @@ func _select(category: String) -> void:
 			for spec in [["Master volume","master"],["Sound effects","effects"],["Environmental ambience","ambience"],["UI sounds","interface"]]:
 				_slider(spec[0], 0, 1, .01, prefs.values[spec[1]], _preference.bind(spec[1]), "%.0f%%", 100)
 		"Controls": _input_controls()
+		"Host Server": _host_server_controls()
 		"Gameplay":
 			for spec in [["Show interaction prompts","prompts"],["Show notifications","notifications"],["Show room names","room_names"],["Show HUD","hud"],["Terminal assistance","assists"]]:
 				_toggle(spec[0], prefs.values[spec[1]], _preference.bind(spec[1]))

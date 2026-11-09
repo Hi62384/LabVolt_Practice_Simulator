@@ -7,6 +7,7 @@ var ledger=Ledger.new()
 var game: Node
 var host := ""
 var bound := false
+var inventory_conflict := false
 var healthy := false
 var clock := 0.0
 var pending := []
@@ -38,7 +39,7 @@ func ensure_host_store() -> bool:
 func reset() -> void:
 	game.electronics.clear_bundle_reveals()
 	game.cosmetic_appearances.clear()
-	bound=false;pending.clear();world_requests.clear();last_send.clear();ledger.bindings.clear();bound_host=""
+	bound=false;inventory_conflict=false;pending.clear();world_requests.clear();last_send.clear();ledger.bindings.clear();bound_host=""
 	game.electronics.profile.authority_submit=Callable()
 	game.electronics.profile.authority_revision=-1
 	if multiplayer.is_server() and healthy:healthy=ledger.reset_world()
@@ -94,7 +95,7 @@ func _process(delta: float) -> void:
 					if not (record.get("score") is float or record.get("score") is int):continue
 					var result: Dictionary=ledger.award(peer,str(id),float(record.score),int(record.get("difficulty",0)),bool(record.get("lesson",false)))
 					send_snapshot(peer,result)
-	if not bound:
+	if not bound and not inventory_conflict:
 		if multiplayer.is_server():hello(1)
 		elif multiplayer.multiplayer_peer.get_connection_status()==MultiplayerPeer.CONNECTION_CONNECTED:request_hello.rpc_id(1)
 	else:flush()
@@ -203,7 +204,12 @@ func receive_snapshot(result: Dictionary) -> void:
 	var id := str(result.get("request_id",""))
 	var previous_profile: Dictionary=game.electronics.profile.data
 	if result.get("ok",false):
-		if game.electronics.profile.accept_authority(result)!=OK:return # Keep retrying on local save failure.
+		var error: Error = game.electronics.profile.accept_authority(result)
+		if error == ERR_BUSY:
+			inventory_conflict = true
+			game.ui.log_message("Inventory mismatch with host. Your saved inventory was kept; inventory actions are paused.")
+			return
+		if error != OK:return # Keep retrying on local save failure.
 		game.electronics.profile.set_meta("economy_display",result.get("economy",{}).duplicate(true))
 		if game.electronics.profile.reconciliation_backup!="":
 			game.ui.log_message("Host inventory restored. Previous local progress retained at "+game.electronics.profile.reconciliation_backup)

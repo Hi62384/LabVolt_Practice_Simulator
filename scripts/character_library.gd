@@ -240,6 +240,40 @@ func duplicate_selected() -> void:
 	refresh()
 	select_profile(id)
 
+func delete_profile(id: String) -> String:
+	if id.is_empty() or id != selected or not profiles.any(func(profile): return profile.id == id):
+		return "Select a saved character to delete."
+	var game := get_parent()
+	if is_instance_valid(game) and is_instance_valid(game.get("front")) and game.front.in_game:
+		return "Return to the main menu before deleting a character."
+	var directory := ProjectSettings.globalize_path(ROOT.path_join(id))
+	var cfg := ConfigFile.new()
+	cfg.load("user://character_selection.cfg")
+	cfg.set_value("character", "selected", "")
+	if cfg.has_section_key("names", id):
+		cfg.erase_section_key("names", id)
+	var error := cfg.save("user://character_selection.cfg")
+	if error != OK:
+		return "Could not update character selection: " + error_string(error)
+	selected = ""
+	var folder := DirAccess.open(directory)
+	if folder == null:
+		refresh()
+		return "Could not open the character folder."
+	for file in folder.get_files():
+		error = DirAccess.remove_absolute(directory.path_join(file))
+		if error != OK:
+			refresh()
+			return "Could not delete every character file: " + error_string(error)
+	error = DirAccess.remove_absolute(directory)
+	refresh()
+	if error != OK:
+		return "Could not remove the character folder: " + error_string(error)
+	var cosmetics := _profile_path(id)
+	if FileAccess.file_exists(cosmetics):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(cosmetics))
+	return ""
+
 func display_name() -> String:
 	for profile in profiles:
 		if profile.id == selected:

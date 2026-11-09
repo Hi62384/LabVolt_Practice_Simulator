@@ -36,23 +36,18 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 		if other!=peer and bindings[other]==identity:return failure("Profile is already connected")
 	if state.accounts.has(identity):
 		if state.accounts[identity].credential!=secret.sha256_text():return failure("Profile credential mismatch")
-		if not bindings.has(peer) and Profile.valid(initial):
-			# Notebook, designs and template edits remain portable local data. Economic
-			# balances and transaction decisions always come from the host on rejoin.
-			var merged: Dictionary=state.accounts[identity].profile.duplicate(true)
-			for key in ["kits","equipped","notebook","programs","favorites"]:
-				if initial.has(key):merged[key]=initial[key]
-			var library: Dictionary=merged.get("blueprints",{}).duplicate(true)
-			for id in initial.get("blueprints",{}):
-				if library.has(id) and not Profile.same(library[id],initial.blueprints[id]):return failure("Blueprint identity conflict on rejoin")
-				library[id]=initial.blueprints[id]
-			_sync_upgraded_templates(merged)
-			# Preserve valid legacy saves with no optional blueprint library.
-			if merged.has("blueprints") or initial.has("blueprints"):merged.blueprints=library
-			if not Profile.same(merged,state.accounts[identity].profile):
+		if not bindings.has(peer):
+			if var_to_bytes(initial).size()>1048576 or not Profile.valid(initial) or not initial.get("pending_trade",{}).is_empty():return failure("Invalid local profile or unresolved legacy trade")
+			if not state.accounts[identity].deployment.is_empty():return failure("Previous deployed inventory is still being recovered")
+			var imported := initial.duplicate(true)
+			imported.erase("authority_credentials")
+			var migrated: Dictionary=Dorm.migrate(imported,identity)
+			if not migrated.ok:return failure(migrated.error)
+			imported=migrated.profile
+			if not Profile.same(imported,state.accounts[identity].profile):
 				var next := state.duplicate(true)
-				next.accounts[identity].profile=merged;next.accounts[identity].revision+=1
-				if not persist(next):return failure("Host metadata save failed")
+				next.accounts[identity].profile=imported;next.accounts[identity].revision+=1
+				if not persist(next):return failure("Host inventory save failed")
 	else:
 		# Local saves are explicitly trusted ONCE, never accepted as subsequent stock reports.
 		if var_to_bytes(initial).size()>1048576 or not Profile.valid(initial) or not initial.get("pending_trade",{}).is_empty():return failure("Invalid initial profile or unresolved legacy trade")

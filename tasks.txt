@@ -3,10 +3,10 @@
 
 -breadboard placeableAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 -breadboard can connect to lab devicesAAAAAAAAAAAAAAAAAAAAA
--placing pcbs and connecting pcb to lab devices
--ensure the lab devices work
+-placing pcbs and connecting pcb to lab devicesAAAAAAAAAAAA
+-ensure the lab devices workAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 -freeplay as defaultAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
--game launcher and multiplayer test
+-game launcher and multiplayer testAAAAAAAAAAAAAAAAAAAAAAAA
 
 -lost in found for items you dont pick up before leaving
 

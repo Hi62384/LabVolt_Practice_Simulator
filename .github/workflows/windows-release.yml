@@ -40,6 +40,30 @@ jobs:
           tar.exe -xf "$engineDir/templates.tpz" -C $templates --strip-components 1 templates/windows_release_x86_64.exe
           if ($LASTEXITCODE) { throw 'Windows export template extraction failed' }
           "GODOT=$engineDir/$($engine.Replace('.exe','_console.exe'))" >> $env:GITHUB_ENV
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Bundle the Cloudflare account tools
+        shell: pwsh
+        run: |
+          npm install --prefix relay --no-save --no-package-lock wrangler@4.158.0 @napi-rs/keyring@1.3.0
+          if ($LASTEXITCODE) { throw 'Wrangler install failed' }
+          $tools = "$env:RUNNER_TEMP/relay-tools"
+          New-Item -ItemType Directory -Force $tools | Out-Null
+          Copy-Item (Get-Command node.exe).Source "$tools/node.exe"
+          Copy-Item relay/account.mjs,relay/worker.mjs,relay/wrangler.jsonc $tools
+          Copy-Item relay/node_modules "$tools/node_modules" -Recurse
+          Compress-Archive -Path "$tools/*" -DestinationPath relay/relay-tools-4.158.0.zip
+          $relay = Start-Process node.exe -ArgumentList 'relay/node_modules/wrangler/bin/wrangler.js dev --config relay/wrangler.jsonc --ip 127.0.0.1 --port 8787' -WindowStyle Hidden -PassThru
+          for ($i = 0; $i -lt 60; $i++) {
+            if ($relay.HasExited) { throw 'Local relay exited' }
+            try {
+              if ((Invoke-RestMethod http://127.0.0.1:8787/health -TimeoutSec 2) -eq 'LabVolt relay v1') { break }
+            } catch {}
+            Start-Sleep -Seconds 1
+          }
+          if ($i -eq 60) { throw 'Local relay did not start' }
+          'LABVOLT_RELAY_URL=ws://127.0.0.1:8787' >> $env:GITHUB_ENV
       - name: Verify Play and export Windows game
         shell: pwsh
         run: |
@@ -47,12 +71,18 @@ jobs:
           New-Item -ItemType Directory -Force $game | Out-Null
           & $env:GODOT --headless --path . --import
           if ($LASTEXITCODE) { throw 'Godot import failed' }
+          $originalAppData = $env:APPDATA
+          $env:APPDATA = "$env:RUNNER_TEMP/menu-smoke-source"
+          New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
           & $env:GODOT --headless --path . --script res://tests/menu_startup/test_menu_routes.gd
+          $env:APPDATA = $originalAppData
           if ($LASTEXITCODE) { throw 'Play route verification failed' }
           & $env:GODOT --headless --path . --export-release "Windows Desktop" "$game/LabVolt.exe"
           if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck")) { throw 'Windows export failed' }
           $smoke = Join-Path $PWD 'tests/menu_startup/test_menu_routes.gd'
           $log = "$env:RUNNER_TEMP/exported-play.log"
+          $env:APPDATA = "$env:RUNNER_TEMP/menu-smoke-export"
+          New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
           & $env:GODOT --headless --path $game --main-pack "$game/LabVolt.pck" --script $smoke --log-file $log
           if ($LASTEXITCODE -or !(Select-String -Path $log -SimpleMatch 'MENU_ROUTES PASS') -or (Select-String -Path $log -Pattern 'ERROR:' | Where-Object { $_.Line -notlike '*Failed to read the root certificate store*' })) { throw 'Exported game failed Play verification' }
       - name: Build launcher and package the game

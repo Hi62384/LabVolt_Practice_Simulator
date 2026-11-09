@@ -62,6 +62,7 @@ var ui: CanvasLayer
 var snapshot := {}
 var avatars := {}
 var avatar_targets := {}
+var avatar_last_movement := {}
 var physical_readouts := {}
 var meter_targets := {}
 var telemetry := false
@@ -823,7 +824,10 @@ func _physics_process(delta: float) -> void:
 			ui.prompt.text = facility_hint
 	_update_chair_network(delta)
 	network_clock += delta
-	if network_clock >= .05:
+	var relay_active: bool = session.uses_relay()
+	session.relay_pose_interval = 1.0 / float(client_preferences.values.relay_pose_rate)
+	session.relay_skip_idle = client_preferences.values.relay_skip_idle
+	if network_clock >= (session.relay_pose_interval if relay_active else .05):
 		network_clock = 0
 		session.send_pose({"position":player.position,"yaw":player.rotation.y,"pitch":camera.rotation.x,"crouch":player.crouched,"seated":player.seated!=null})
 	for id in avatars:
@@ -833,7 +837,8 @@ func _physics_process(delta: float) -> void:
 			avatars[id].rotation.y = lerp_angle(avatars[id].rotation.y,target.yaw,1-exp(-12*delta))
 			var model=avatars[id].get_node_or_null("CharacterModel")
 			if model!=null:
-				preload("res://scripts/avatar_model.gd").animate(model,avatars[id].position.distance_to(target.position)>.035,target.get("seated",false),target.get("resting",false))
+				var walking: bool = avatar_last_movement.has(id) and Time.get_ticks_msec() - int(avatar_last_movement[id]) < 350
+				preload("res://scripts/avatar_model.gd").animate(model,walking,target.get("seated",false),target.get("resting",false))
 			avatars[id].scale.y=lerpf(avatars[id].scale.y,.65 if target.crouch and not target.get("seated",false) else 1.0,1-exp(-12*delta))
 	for key in meter_targets:
 		needle_bodies[key].rotation.z = lerpf(needle_bodies[key].rotation.z,meter_targets[key],1-exp(-8*delta))
@@ -1084,6 +1089,11 @@ func _roster_changed() -> void:
 			avatars[id].queue_free()
 			avatars.erase(id)
 			avatar_targets.erase(id)
+			avatar_last_movement.erase(id)
+		else:
+			var nameplate: Label3D = avatars[id].get_node_or_null("PlayerName")
+			if is_instance_valid(nameplate):
+				nameplate.text = str(session.roster[id].get("name", "Student"))
 
 func _receive_pose(id: int,data: Dictionary) -> void:
 	interaction_presentation.set_local_peer(multiplayer.get_unique_id())
@@ -1094,7 +1104,22 @@ func _receive_pose(id: int,data: Dictionary) -> void:
 		add_child(avatar)
 		avatar.position = data.position
 		_set_avatar_model(id,avatar)
+		var nameplate := Label3D.new()
+		nameplate.name = "PlayerName"
+		nameplate.position = Vector3(0, 2.1, 0)
+		nameplate.text = str(session.roster.get(id, {}).get("name", "Student"))
+		nameplate.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		nameplate.font_size = 40
+		nameplate.pixel_size = 0.004
+		nameplate.outline_size = 8
+		avatar.add_child(nameplate)
 		avatars[id] = avatar
+	if avatar_targets.has(id):
+		var previous: Vector3 = avatar_targets[id].position
+		var displacement: Vector3 = data.position - previous
+		displacement.y = 0.0
+		if displacement.length() > 0.01:
+			avatar_last_movement[id] = Time.get_ticks_msec()
 	avatar_targets[id] = data
 	interaction_presentation.reconcile(snapshot)
 

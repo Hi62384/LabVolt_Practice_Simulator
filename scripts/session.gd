@@ -67,12 +67,27 @@ func _campus_profiles_reset() -> void:
 	campus_public_replication=preload("res://scripts/campus/social/profile_replication.gd").new()
 	campus_public_profiles_changed.emit()
 
+const RelayPeer = preload("res://scripts/lab_relay_peer.gd")
+
+static func relay_endpoint() -> String:
+	var override := OS.get_environment("LABVOLT_RELAY_URL").strip_edges()
+	return override if not override.is_empty() else str(ProjectSettings.get_setting("network/labvolt/relay_url", ""))
+
+func room_code() -> String:
+	var transport = multiplayer.multiplayer_peer
+	return transport.room_code if transport is RelayPeer and was_host else ""
+
 func _ready() -> void:
 	# Every game message is host mediated; the explicit roster handles peer presence.
 	if multiplayer is SceneMultiplayer:multiplayer.server_relay=false
 	multiplayer.peer_disconnected.connect(_left)
 	multiplayer.connected_to_server.connect(func(): register.rpc_id(1,local_name))
-	multiplayer.connection_failed.connect(func(): leave(); message_received.emit("Connection failed. Check host IP, UDP port and firewall."))
+	multiplayer.connection_failed.connect(func():
+		var transport = multiplayer.multiplayer_peer
+		var reason: String = transport.failure if transport is RelayPeer else "Connection failed. Check host IP, UDP port and firewall."
+		leave()
+		message_received.emit(reason)
+	)
 	multiplayer.server_disconnected.connect(func(): leave(true); message_received.emit("Host disconnected. Returned to local laboratory."))
 
 func initialize(ids: Array, locations: Dictionary) -> void:
@@ -119,7 +134,37 @@ func join_game(address: String, player_name: String, selected_port := PORT) -> E
 	roster_changed.emit()
 	return OK
 
+func start_relay_host(peer: MultiplayerPeer, player_name: String) -> void:
+	leave()
+	local_name = player_name.strip_edges().left(24)
+	if local_name.is_empty():
+		local_name = "Student"
+	multiplayer.multiplayer_peer = peer
+	online = true
+	was_host = true
+	roster[1] = {"name":local_name,"ready":false}
+	roster_changed.emit()
+
+func join_relay(code: String, player_name: String, endpoint := "") -> Error:
+	var peer := RelayPeer.new()
+	var error := peer.open(relay_endpoint() if endpoint.is_empty() else endpoint, code)
+	if error != OK:
+		return error
+	leave()
+	local_name = player_name.strip_edges().left(24)
+	if local_name.is_empty():
+		local_name = "Student"
+	multiplayer.multiplayer_peer = peer
+	online = true
+	was_host = false
+	roster.clear()
+	roster_changed.emit()
+	return OK
+
 func leave(authority_lost := false) -> void:
+	last_local_pose.clear()
+	relay_pose_dirty = false
+	relay_pose_clock = 0.0
 	internet_port = 0
 	interaction_sequence=0
 	var transport: MultiplayerPeer=multiplayer.multiplayer_peer
@@ -164,6 +209,7 @@ func register(player_name: String) -> void:
 	poses[id] = {"position":(Vector3(13,0,-18) if campus_enabled else Vector3(0,0,1.75)),"yaw":0.0,"pitch":0.0,"crouch":false}
 	_send_connected("_roster",[roster])
 	_snapshot.rpc_id(id,world_snapshot())
+	if uses_relay(): relay_pose_dirty = true
 	for peer in appearances:
 		_queue_appearance(id,int(peer),appearances[peer])
 	_send_connected("_chat",["%s joined the laboratory." % roster[id].name])
@@ -305,8 +351,26 @@ func _snapshot(data: Dictionary) -> void:
 func _notice(value: String) -> void:
 	message_received.emit(value)
 
+var relay_pose_interval := 0.1
+var relay_skip_idle := true
+var relay_pose_dirty := false
+var relay_pose_clock := 0.0
+var last_local_pose := {}
+var last_local_pose_time := 0
+
+func uses_relay() -> bool:
+	return online and multiplayer.multiplayer_peer is RelayPeer
+
 func send_pose(data: Dictionary) -> void:
 	data=data.duplicate();data["pose_epoch"]=local_pose_epoch
+	if uses_relay() and relay_skip_idle:
+		var now := Time.get_ticks_msec()
+		var acknowledged: Dictionary = poses.get(multiplayer.get_unique_id(), {})
+		var accepted_position: Vector3 = acknowledged.get("position", Vector3.INF)
+		if data == last_local_pose and now - last_local_pose_time < 2000 and accepted_position.distance_to(data.position) < 0.05:
+			return
+		last_local_pose = data
+		last_local_pose_time = now
 	if online and multiplayer.multiplayer_peer.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED:
 		return
 	if online and not multiplayer.is_server():
@@ -357,7 +421,9 @@ func accept_pose(id: int,data: Dictionary) -> void:
 	poses[id] = clean
 	last_pose[id] = now
 	pose_received.emit(id,clean)
-	if online:
+	if uses_relay():
+		relay_pose_dirty = true
+	elif online:
 		_send_connected("_poses",[poses])
 
 @rpc("authority","call_remote","unreliable_ordered",1)
@@ -424,8 +490,15 @@ func set_appearance(data: PackedByteArray) -> void:
 func _queue_appearance(target: int,peer: int,data: PackedByteArray) -> void:
 	appearance_queue.append({"target":target,"peer":peer,"data":data,"offset":0})
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_poll_internet_mapping()
+	if uses_relay() and was_host:
+		relay_pose_clock = minf(relay_pose_clock + delta, relay_pose_interval)
+		if relay_pose_dirty and relay_pose_clock >= relay_pose_interval:
+			relay_pose_dirty = false
+			relay_pose_clock = 0.0
+			if not connected_peers().is_empty():
+				_poses.rpc(poses)
 	if online and was_host and multiplayer.multiplayer_peer.get_connection_status()==MultiplayerPeer.CONNECTION_DISCONNECTED:
 		leave()
 		return
@@ -534,6 +607,8 @@ func connected_peers() -> Array:
 	var result: Array=[]
 	if not online:return result
 	var transport: MultiplayerPeer=multiplayer.multiplayer_peer
+	if transport is RelayPeer:
+		return Array(multiplayer.get_peers())
 	if not transport is ENetMultiplayerPeer:return result
 	for peer in multiplayer.get_peers():
 		var endpoint: ENetPacketPeer=transport.get_peer(int(peer))

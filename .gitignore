@@ -2,3 +2,7 @@
 /runtime/*.exe
 /launcher/dist/
 /launcher/__pycache__/
+
+.wrangler/
+/relay/relay-tools-*.zip
+/relay/node_modules/
