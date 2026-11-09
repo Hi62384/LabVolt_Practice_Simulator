@@ -1,0 +1,10 @@
+--- a/scripts/campus/world/campus_world.gd
++++ b/scripts/campus/world/campus_world.gd
+@@ -224,7 +224,9 @@
+ 	mm.mesh=box_mesh
+ 	mm.instance_count=20
+ 	for i in range(20):
+-		mm.set_instance_transform(i,Transform3D(Basis.IDENTITY.scaled(Vector3(.9,.02,.9)),Vector3(8+(i%10),-.01,-23+(i/10)*2)))
++		# Tiles crossing x[10,16] overlap the ground corridor z[-25,68].
++		# Their old top y=0 was coplanar with that slab. Visual only; no collision.
++		mm.set_instance_transform(i,Transform3D(Basis.IDENTITY.scaled(Vector3(.9,.02,.9)),Vector3(8+(i%10),.015,-23+(i/10)*2)))

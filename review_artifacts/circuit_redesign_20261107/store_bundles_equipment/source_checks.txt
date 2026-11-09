@@ -1,0 +1,4 @@
+section filter: bundles = guaranteed/random; equipment = analyzer/capacity
+receipt callbacks: purchase_bundle, buy_box, buy_analyzer, upgrade_capacity
+source: Catalog.all and profile.BOXES; no new RNG, currency, or inventory mutation
+module sha256: 5d3ca2028ce457b8a4ffa0fbe990331e2fe531be99c553905b4669c483bec72b

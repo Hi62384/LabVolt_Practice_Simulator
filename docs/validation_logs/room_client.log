@@ -1,0 +1,8 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+PASS ROOM: client started
+PASS ROOM: late join receives third bench state
+PASS ROOM: client seated after host claim
+PASS ROOM: client receives moving chair
+PASS ROOM: client stays standing after updates
+ROOM NETWORK client: 0 failures

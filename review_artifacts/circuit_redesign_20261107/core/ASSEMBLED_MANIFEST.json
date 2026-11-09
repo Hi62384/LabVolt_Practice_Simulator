@@ -1,0 +1,115 @@
+{
+  "production_preimages": [
+    {
+      "path": "scripts/electronics_ui.gd",
+      "preimage_sha256": "2ae602395705705a0e32c26c0226befe8539bca6da7a98010dd6fc1abfbd62f0",
+      "candidate_sha256": "3967a3a993f7184cf34ee5c9f2e03a1b12b0e35afcfa1db7f9259eeb3e7acc65"
+    },
+    {
+      "path": "scripts/breadboard_canvas.gd",
+      "preimage_sha256": "7f0b635b0deaae10591c3b3b87dd8624a999e0324ec67f4f0b5b5bac6357e8a7",
+      "candidate_sha256": "41fa336c1d889743514ca900d99580b23fa3cdc835878225cf55f7e8a0c0d3ea"
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/builder_window.gd",
+      "preimage_sha256": "a6ceb0c9f8e2f71be0d4021a352645e196b994de7217c4ae75ebc65535f5c761"
+    }
+  ],
+  "files": [
+    {
+      "target": "scripts/electronics/circuit_workspace/host_adapter.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\core\\modules\\host_adapter.gd",
+      "sha256": "b90483a699ac335fcb62023529f0558f91a5cf3754c71bd48c9df73b677455f9"
+    },
+    {
+      "target": "scripts/electronics/circuit_workspace/package_mount.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\core\\modules\\package_mount.gd",
+      "sha256": "927ec0ad5181b885b8b2927324f12ff3f7d127c3581de17700f3576db0da201d"
+    },
+    {
+      "target": "scripts/electronics/circuit_workspace/placement.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\core\\modules\\placement.gd",
+      "sha256": "cec675df1e974b9a88a583ecd00998c7b2aad882781c785d80aecd3fc3625c99"
+    },
+    {
+      "target": "scripts/electronics/circuit_workspace/workspace.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\core\\modules\\workspace.gd",
+      "sha256": "30c48903cbd9b1b07c60d08c11a2abd867174e9b8d4fb89d25c1df7344d41d65"
+    },
+    {
+      "target": "scripts/electronics/circuit_workspace/workspace_canvas.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\core\\modules\\workspace_canvas.gd",
+      "sha256": "786ab6a421b40688dd7a39809eff39d4a179bb89088c0fad3e9c275e53a6c967"
+    },
+    {
+      "target": "scripts/electronics/contextual_panels/analyzer_panel.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\contextual_panels\\analyzer_panel.gd",
+      "sha256": "91036d4cedd070247fc2200ae529e44e3941beb59dab3b3030b324c08ea5ce58"
+    },
+    {
+      "target": "scripts/electronics/contextual_panels/bench_connections.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\contextual_panels\\bench_connections.gd",
+      "sha256": "df53f25976ff537c0db73a00348de94d0be94e85cbcd7b7bc3be17b669ff3336"
+    },
+    {
+      "target": "scripts/electronics/contextual_panels/component_picker.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\contextual_panels\\component_picker.gd",
+      "sha256": "28285fbda909ab0205f6ea15b11941f5ae0328dbcfb87bebddcbea3cbcbf16f9"
+    },
+    {
+      "target": "scripts/electronics/contextual_panels/panel_host.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\contextual_panels\\panel_host.gd",
+      "sha256": "51c1e797adc740a44658462de09bfc0a1ca4215b1ce8697075ac19014bc951ab"
+    },
+    {
+      "target": "scripts/electronics/contextual_panels/selection_inspector.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\contextual_panels\\selection_inspector.gd",
+      "sha256": "d57b350b289e1c97e5b9af0ae40a186e3f0abc1cb3e9fbcf197e5467c97dfcc7"
+    },
+    {
+      "target": "scripts/electronics/contextual_panels/status_help.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\contextual_panels\\status_help.gd",
+      "sha256": "a6cb704239d9abc9505bef087ece914c9ce88268e20b369874d8f956da5691b2"
+    },
+    {
+      "target": "scripts/electronics/ic_pcb_editor/package_editor.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\ic_pcb_editor\\modules\\package_editor.gd",
+      "sha256": "bb27b7736af42c36101a8f1bd26c4127729d33d9ae49280b225e8abb8d58a22d"
+    },
+    {
+      "target": "scripts/electronics/ic_pcb_editor/package_pin_model.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\ic_pcb_editor\\modules\\package_pin_model.gd",
+      "sha256": "f8982d1ae0a609c283e1dbad8a8bb0d1a9dddd3d08ff44a876bed612799b391a"
+    },
+    {
+      "target": "scripts/electronics/ic_pcb_editor/package_preview.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\ic_pcb_editor\\modules\\package_preview.gd",
+      "sha256": "9b45a97192e3c9b7758c60c422c7c03858557727c99c5ffd8ef811eb8d9712f3"
+    },
+    {
+      "target": "scripts/electronics_ui.gd",
+      "origin": "core exact-preimage candidate",
+      "sha256": "75218919192948704531a64b4692774500f4726183e4eab82570355cbc06bc25"
+    },
+    {
+      "target": "scripts/breadboard_canvas.gd",
+      "origin": "core exact-preimage candidate",
+      "sha256": "41fa336c1d889743514ca900d99580b23fa3cdc835878225cf55f7e8a0c0d3ea"
+    },
+    {
+      "target": "scripts/campus/facilities/circuit_studio/builder_window.gd",
+      "origin": "builder_window exact preimage",
+      "sha256": "e6c6107f90cdeaf0bafb255471bc1503a5cc251b7028c7143b22271edfb2a9a0"
+    },
+    {
+      "target": "tests/circuit_redesign/core_model_fixture.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\core\\model_fixture.gd",
+      "sha256": "41a18c9abd4c21e93a766ce2201cff5a5b8ef05d9749fc50c48370d848cb445e"
+    },
+    {
+      "target": "tests/circuit_redesign/package_model_fixture.gd",
+      "origin": "review_artifacts\\circuit_redesign_20261107\\ic_pcb_editor\\tests\\package_model_fixture.gd",
+      "sha256": "b58f8c8da708b6e4d39965c703480393586f342343e5dc698ea51792fe1f8ab0"
+    }
+  ]
+}

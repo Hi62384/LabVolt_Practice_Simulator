@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "policy": "STAGED ONLY. Do not apply across owner changes. Each complete file SHA must match before any mutation; dry-run every edit first. Preserve source newline/BOM. No partial application.",
+  "patches": [
+    {
+      "path": "scripts/lab_ui.gd",
+      "owner": "main / HUD pause",
+      "source_sha256": "f8d6a03b7e96f27b45a4ddb76b75c431713e081313f64116fd8e4572e483a5a4",
+      "normalized_before_sha256": "f8d6a03b7e96f27b45a4ddb76b75c431713e081313f64116fd8e4572e483a5a4",
+      "normalized_after_sha256": "a14142bb4ab37ccfa9bc7f6bf1dad8dcbc0a9698014e40837b0712e91cb41326",
+      "edits": [
+        {
+          "before": "\tnode.custom_minimum_size.y = 34\n",
+          "after": "\tnode.custom_minimum_size.y = 44\n\tpreload(\"res://scripts/ui/design_system/widgets.gd\").style_button(node, preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(text))\n"
+        },
+        {
+          "before": "\tnode.position = position\n",
+          "after": "\tnode.theme = preload(\"res://scripts/ui/design_system/theme.gd\").create()\n\tnode.position = position\n"
+        },
+        {
+          "before": "settings.theme=preload(\"res://scripts/campus/ui/campus_theme.gd\").create()",
+          "after": "settings.theme=preload(\"res://scripts/ui/design_system/theme.gd\").create()"
+        }
+      ]
+    },
+    {
+      "path": "scripts/dc_ui.gd",
+      "owner": "main / instruments",
+      "source_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+      "normalized_before_sha256": "b3bf40884a0b378dc80cd36bcff44a6bebe811a4e0287bbc664485f25ea504a3",
+      "normalized_after_sha256": "c7c7041c930f36bffcd9419201c52afe7b50ac2de6254fde41b62ec39d35dced",
+      "edits": [
+        {
+          "before": "\tadd_child(screen);screen.hide()\n",
+          "after": "\tadd_child(screen);screen.hide()\n\tscreen.theme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        },
+        {
+          "before": "var b := Button.new();b.text=label;b.custom_minimum_size.y=34;",
+          "after": "var b := Button.new();b.text=label;preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(b,preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(label));"
+        }
+      ]
+    },
+    {
+      "path": "scripts/electronics_ui.gd",
+      "owner": "main / electronics shared helper",
+      "source_sha256": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+      "normalized_before_sha256": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+      "normalized_after_sha256": "7c8643602e870649b9a961ac1d0676ee7745a2f5a2df47213bb950051ffcc871",
+      "edits": [
+        {
+          "before": "\tscreen.add_theme_stylebox_override(\"panel\",skin)\n",
+          "after": "\tscreen.add_theme_stylebox_override(\"panel\",skin)\n\tscreen.theme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        },
+        {
+          "before": "var b := Button.new();b.text=text;b.custom_minimum_size.y=34;",
+          "after": "var b := Button.new();b.text=text;preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(b,preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(text));"
+        }
+      ]
+    },
+    {
+      "path": "scripts/lab_chat.gd",
+      "owner": "main / HUD chat",
+      "source_sha256": "2e990e99a8c07573072af718a40bbf6eb70d84027f6ab326fc4c1d07622ef3fc",
+      "normalized_before_sha256": "2e990e99a8c07573072af718a40bbf6eb70d84027f6ab326fc4c1d07622ef3fc",
+      "normalized_after_sha256": "66e6f251c531b7e1756c2e21c816d65be856c98a2d89ea75314dc702d85e9b0f",
+      "edits": [
+        {
+          "before": "\tvar style := StyleBoxFlat.new();",
+          "after": "\tpanel.theme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n\tgame.ui.chat_input.theme=panel.theme\n\tvar style := StyleBoxFlat.new();"
+        }
+      ]
+    },
+    {
+      "path": "scripts/package_editor/package_form.gd",
+      "owner": "circuit package form",
+      "source_sha256": "36b17e474ae019f5f6028217a8a1ca07225ba513514b6a2f79fd5804797e4673",
+      "normalized_before_sha256": "36b17e474ae019f5f6028217a8a1ca07225ba513514b6a2f79fd5804797e4673",
+      "normalized_after_sha256": "44c832bfb99da86837da09fbed1c994443ed8161af5bfc2310813f98108e0aae",
+      "edits": [
+        {
+          "before": "func build(profile: RefCounted,draft: Dictionary) -> void:\n",
+          "after": "func build(profile: RefCounted,draft: Dictionary) -> void:\n\ttheme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        },
+        {
+          "before": "var button := Button.new();button.text=title;",
+          "after": "var button := Button.new();button.text=title;preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(button,preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(title));"
+        }
+      ]
+    },
+    {
+      "path": "scripts/pcb_design/editor.gd",
+      "owner": "circuit PCB toolbar",
+      "source_sha256": "2bf350de1e4b802c7cc78e5fbcaa75ca23298b0465a79dc0796b9ad8b1d844f9",
+      "normalized_before_sha256": "22daa935a663aa7804e1947d103a73231cf4fc528468b170c60aae9448a2988f",
+      "normalized_after_sha256": "5701183bbb47bb5a1844e0c9816445e85abb868ae6c0ef28a6946adce53ed5ef",
+      "edits": [
+        {
+          "before": "func build(profile: RefCounted,bp: Dictionary) -> void:\n",
+          "after": "func build(profile: RefCounted,bp: Dictionary) -> void:\n\ttheme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        },
+        {
+          "before": "var b:=Button.new();b.text=title;b.custom_minimum_size.y=34;",
+          "after": "var b:=Button.new();b.text=title;preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(b,preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(title));"
+        }
+      ]
+    },
+    {
+      "path": "scripts/firmware_ide.gd",
+      "owner": "firmware IDE",
+      "source_sha256": "eb42389410429c7a031426502b7529bbbd9edb8e9101949af7e0aa8b4b335751",
+      "normalized_before_sha256": "eb42389410429c7a031426502b7529bbbd9edb8e9101949af7e0aa8b4b335751",
+      "normalized_after_sha256": "0522a3c8b062a59caffd5068c1dfa07ef7abecc5ee1bb4e31a520aef5736746a",
+      "edits": [
+        {
+          "before": "func build(studio: Node) -> void:\n",
+          "after": "func build(studio: Node) -> void:\n\ttheme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        }
+      ]
+    },
+    {
+      "path": "scripts/firmware_backends/native_ide.gd",
+      "owner": "firmware native IDE",
+      "source_sha256": "f0384833c4891ee4a8aef057b4cd8675fe6750c9e78bd604b33805aa5fc0ac52",
+      "normalized_before_sha256": "f0384833c4891ee4a8aef057b4cd8675fe6750c9e78bd604b33805aa5fc0ac52",
+      "normalized_after_sha256": "4cbfd417f9184e9f672f4e035b8fb450db49a8d0c4bcc25e446cdeddbf78f552",
+      "edits": [
+        {
+          "before": "func apply_studio_theme() -> void:\n\tvar skin := Theme.new();skin.default_font_size=15\n\tfor kind in [\"Label\",\"Button\",\"LineEdit\",\"TextEdit\",\"CodeEdit\"]:skin.set_color(\"font_color\",kind,Color(\"e1edf1\"))\n\tfor state in [\"normal\",\"hover\",\"pressed\",\"focus\"]:\n\t\tvar box := StyleBoxFlat.new();box.bg_color=Color(\"1a3543\") if state==\"normal\" else Color(\"285263\");box.set_corner_radius_all(5)\n\t\tbox.content_margin_left=12;box.content_margin_right=12;box.content_margin_top=6;box.content_margin_bottom=6\n\t\tif state==\"focus\":box.set_border_width_all(1);box.border_color=Color(\"80ddbd\")\n\t\tskin.set_stylebox(state,\"Button\",box)\n\tfor kind in [\"TextEdit\",\"CodeEdit\",\"LineEdit\"]:\n\t\tvar box := StyleBoxFlat.new();box.bg_color=Color(\"0b1b25\");box.set_corner_radius_all(5);box.content_margin_left=10;box.content_margin_top=6\n\t\tskin.set_stylebox(\"normal\",kind,box);skin.set_color(\"background_color\",kind,Color(\"0b1b25\"))\n\ttheme=skin\n",
+          "after": "func apply_studio_theme() -> void:\n\tvar skin := preload(\"res://scripts/ui/design_system/theme.gd\").create()\n\t# Keep a dedicated, legible code surface; the shared theme owns the chrome.\n\tskin.set_color(\"font_color\",\"CodeEdit\",Color(\"edf6fa\"))\n\tskin.set_color(\"background_color\",\"CodeEdit\",Color(\"0b1b25\"))\n\tskin.set_stylebox(\"normal\",\"CodeEdit\",preload(\"res://scripts/ui/design_system/tokens.gd\").surface(Color(\"0b1b25\")))\n\ttheme=skin\n"
+        },
+        {
+          "before": "var item := Button.new();item.custom_minimum_size.y=34;item.text=text;",
+          "after": "var item := Button.new();item.text=text;preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(item,preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(text));"
+        },
+        {
+          "before": "compile_button.custom_minimum_size.y=34;",
+          "after": "preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(compile_button,\"check\",true);"
+        }
+      ]
+    },
+    {
+      "path": "scripts/campus/facilities/facility_panel.gd",
+      "owner": "facilities owner",
+      "source_sha256": "b63bdc7b51c60f477f37768ef1a576ccbeb618801e4ab8c5a9233e8b9c9a25d0",
+      "normalized_before_sha256": "b63bdc7b51c60f477f37768ef1a576ccbeb618801e4ab8c5a9233e8b9c9a25d0",
+      "normalized_after_sha256": "6006f2abfe98dcbeae99e5d21181200ebcca5fa57bca3713ee0350fba160ea77",
+      "edits": [
+        {
+          "before": "func _ready() -> void:\n",
+          "after": "func _ready() -> void:\n\ttheme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        },
+        {
+          "before": "var node:=Button.new();node.text=text;node.custom_minimum_size.y=38",
+          "after": "var node:=Button.new();node.text=text;preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(node,preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(text))"
+        }
+      ]
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "owner": "existing clothing store owner",
+      "source_sha256": "74f50a378f3eaed1902704e3801de4db3e3577bc5e2687bf206a91fa464ffdef",
+      "normalized_before_sha256": "74f50a378f3eaed1902704e3801de4db3e3577bc5e2687bf206a91fa464ffdef",
+      "normalized_after_sha256": "0e33f284179f8f92f73d18e624cfcc8279a16fff12dffe47c0304e35cf7cdbb1",
+      "edits": [
+        {
+          "before": "func _ready() -> void:\n",
+          "after": "func _ready() -> void:\n\ttheme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        },
+        {
+          "before": "close.text = \"Close\";",
+          "after": "close.text = \"Close\"; preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(close,\"close\");"
+        },
+        {
+          "before": "tab.text = pair[0];",
+          "after": "tab.text = pair[0]; preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(tab,\"palette\");"
+        },
+        {
+          "before": "buy_button.text = \"Select an item\";",
+          "after": "buy_button.text = \"Select an item\"; preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(buy_button,\"cart\",true);"
+        }
+      ]
+    }
+  ]
+}

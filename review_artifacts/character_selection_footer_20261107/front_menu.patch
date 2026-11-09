@@ -1,0 +1,23 @@
+*** Begin Patch
+*** Update File: scripts/front_menu.gd
+@@
+ var menu_scroll: ScrollContainer
++var character_actions: HFlowContainer
+@@
+ func clear(next_page: String,heading: String) -> void:
+ 	responsive_rows.clear()
++	if is_instance_valid(character_actions):character_actions.queue_free()
++	character_actions=null
+@@
+ 	var actions := HFlowContainer.new()
+-	body.add_child(actions)
++	character_actions=actions
++	actions.size_flags_horizontal=Control.SIZE_EXPAND_FILL
++	actions.add_theme_constant_override("h_separation",8)
++	actions.add_theme_constant_override("v_separation",8)
++	menu_scroll.get_parent().add_child(actions)
++	menu_scroll.get_parent().move_child(actions,menu_scroll.get_index()+1)
+@@
+ 	var scroll := ScrollContainer.new()
+-	scroll.custom_minimum_size=Vector2(0,300)
++	scroll.custom_minimum_size=Vector2.ZERO

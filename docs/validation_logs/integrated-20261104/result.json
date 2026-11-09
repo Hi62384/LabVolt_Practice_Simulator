@@ -1,0 +1,72 @@
+[
+  {
+    "name": "electrical",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "instruments",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "extended",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "school",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "new_features",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "campus_live",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "campus_facilities",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "academics",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "current_sources",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "native_programming",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "physical_resistors",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "owned_eeprom",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "io_epochs",
+    "passed": true,
+    "errors": []
+  },
+  {
+    "name": "public_device_state",
+    "passed": true,
+    "errors": []
+  }
+]

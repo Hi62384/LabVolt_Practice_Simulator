@@ -1,0 +1,8 @@
+--- a/scripts/shop_room.gd
++++ b/scripts/shop_room.gd
+@@ -27,7 +27,7 @@
+ 	var physical_ready: bool=component_fitout.activation_contract_valid()
+ 	if physical_ready:physical_stations.trade.position=Vector3(26,0,-1)
+ 	else:component_fitout.queue_free();component_fitout=null
+-	for row in [[Vector3(22,0,1),"COMPONENT SHOP","shop"],[Vector3(30,0,1),"KIT WORKSHOP","kits"],[Vector3(22,0,5),"CUSTOM CIRCUITS","ics"],[Vector3(30,0,5),"LOADOUT & NOTES","inventory"],[Vector3(26,0,-1),"PLAYER TRADING","trade"],[Vector3(26,0,7),"CAMPUS / RETURN","exit"]]:
++	for row in [[Vector3(22,0,1),"COMPONENT SHOP","shop"],[Vector3(30,0,1),"KIT WORKSHOP","kits"],[Vector3(22,0,5),"CUSTOM CIRCUITS","ics"],[Vector3(30,0,5),"LOADOUT & NOTES","inventory"],[Vector3(26,0,-1),"PLAYER TRADING","trade"]]:

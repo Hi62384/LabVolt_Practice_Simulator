@@ -1,0 +1,50 @@
+diff --git a/scripts/game.gd b/scripts/game.gd
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@ -832,10 +832,6 @@ func _roster_changed() -> void:
+ 			avatars[id].queue_free()
+ 			avatars.erase(id)
+ 			avatar_targets.erase(id)
+-		else:
+-			for child in avatars[id].get_children():
+-				if child is Label3D:
+-					child.text=session.roster[id].name
+@@ -845,8 +843,6 @@
+ 		avatar.position = data.position
+ 		_set_avatar_model(id,avatar)
+-		var label := _text3(avatar,str(session.roster.get(id,{}).get("name","Student")),Vector3(0,1.98,0),.06,TEXT_LIGHT)
+-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+ 		avatars[id] = avatar
+diff --git a/scripts/lab_chat.gd b/scripts/lab_chat.gd
+--- a/scripts/lab_chat.gd
++++ b/scripts/lab_chat.gd
+@@ -8,7 +8,6 @@
+ var lines: Array[String]=[]
+ var expires := 0.0
+-var bubbles := {}
+@@ -35,14 +34,6 @@ func receive(peer: int,sender: String,message: String) -> void:
+ 	if lines.size()>40:lines.pop_front()
+ 	log_view.text="\n".join(lines);expires=Time.get_ticks_msec()/1000.0+12
+-	if bubbles.has(peer) and is_instance_valid(bubbles[peer].node):bubbles[peer].node.queue_free()
+-	if peer==multiplayer.get_unique_id():return
+-	if not game.avatars.has(peer):return
+-	var bubble := Label3D.new();bubble.text=message; bubble.font_size=40;bubble.pixel_size=.0018;bubble.width=500
+-	bubble.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;bubble.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+-	bubble.outline_size=10;bubble.outline_modulate=Color("142431");bubble.modulate=Color("fff8e4")
+-	bubble.position=Vector3(0,2.3,0);game.avatars[peer].add_child(bubble)
+-	bubbles[peer]={"node":bubble,"until":Time.get_ticks_msec()/1000.0+6}
+@@ -49,6 +40,3 @@ func _process(_delta: float) -> void:
+ 	if panel.visible and now>expires and not game.ui.chat_input.visible:log_view.text="T  ·  Team chat"
+ 	elif panel.visible:log_view.text="\n".join(lines) if not lines.is_empty() else "T  ·  Team chat"
+-	for peer in bubbles.keys():
+-		if not is_instance_valid(bubbles[peer].node):bubbles.erase(peer)
+-		elif now>bubbles[peer].until:bubbles[peer].node.queue_free();bubbles.erase(peer)
+diff --git a/scripts/school_world.gd b/scripts/school_world.gd
+--- a/scripts/school_world.gd
++++ b/scripts/school_world.gd
+@@ -33,8 +33,6 @@ func build(owner_game: Node) -> void:
+ 	target.add_child(shape)
+ 	teacher.add_child(target)
+-	var badge: Label3D=game._text3(teacher,"INSTRUCTOR",Vector3(0,1.98,0),.09,Color("e0f6ec"))
+-	badge.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+ 	whiteboard_panel=game._box(self,Vector3(0,2,9.75),Vector3(5.7,2.5,.08),Color("f3f2e6"))

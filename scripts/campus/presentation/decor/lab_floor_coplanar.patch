@@ -1,0 +1,10 @@
+--- a/scripts/equipment_builder.gd
++++ b/scripts/equipment_builder.gd
+@@ -135,7 +135,9 @@
+ 	soft_light.omni_range = 12.0
+ 	add_child(soft_light)
+-	_box(self, Vector3(0, -0.04, 0), Vector3(25, 0.08, 17), Color("6a717b"), 0.0)
++	# Visual fallback sits below the campus shell floor (top y=0), avoiding
++	# co-planar depth competition across the AC lab. It has no collision.
++	_box(self, Vector3(0, -0.14, 0), Vector3(25, 0.08, 17), Color("6a717b"), 0.0)
+ 	_box(self, Vector3(0, 2.3, -3.65), Vector3(15, 7, .20), Color("bdc4ca"), 0.0)

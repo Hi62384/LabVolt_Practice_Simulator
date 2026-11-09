@@ -1,0 +1,14 @@
+[
+  {
+    "file": "scripts/school_session.gd",
+    "preimage_sha256": "694115d4e00e8dc81997b3b0b84ea2d010a30b0cbe89def4786123919e17797c",
+    "old": "\telif op==\"guide\":\n\t\tif not _near(peer,teacher_position):return",
+    "new": "\telif op==\"guide\":\n\t\tif not preload(\"res://review_artifacts/open_lab_instructor_20261107/tutorials/formal_guide_policy.gd\").allowed(mode,activity):return\n\t\tif not _near(peer,teacher_position):return"
+  },
+  {
+    "file": "scripts/paper_ui.gd",
+    "preimage_sha256": "8e7de0a376da6aa3f466731d25f0585bb50a3e41910e01662bd86b35bc695ca7",
+    "old": "\t\t_button(column,\"Equipment guide\",func():school.request({\"op\":\"guide\"});close())",
+    "new": "\t\tif preload(\"res://review_artifacts/open_lab_instructor_20261107/tutorials/formal_guide_policy.gd\").allowed(school.mode,assigned):_button(column,\"Equipment guide\",func():school.request({\"op\":\"guide\"});close())"
+  }
+]

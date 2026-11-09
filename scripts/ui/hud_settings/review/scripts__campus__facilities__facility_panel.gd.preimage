@@ -1,0 +1,75 @@
+extends PanelContainer
+## Bind controller; open_for(nearest_station, kind) from the existing interaction UI.
+var controller: Node
+var state:={}
+var station_id:=""
+var station_kind:=""
+var body:=VBoxContainer.new()
+var status: Label
+var pending:=false
+var last_error:=""
+
+func _ready() -> void:
+	custom_minimum_size=Vector2(420,300)
+	add_child(body)
+	var style:=StyleBoxFlat.new();style.bg_color=Color("142631");style.set_corner_radius_all(14)
+	style.content_margin_left=20;style.content_margin_right=20;style.content_margin_top=18;style.content_margin_bottom=18
+	add_theme_stylebox_override("panel",style)
+	body.add_theme_constant_override("separation",10)
+
+func bind(value: Node) -> void:
+	controller=value
+	controller.owner_result.connect(receive)
+
+func open_for(id: String,kind: String) -> void:
+	station_id=id;station_kind=kind;visible=true
+	controller.refresh()
+
+func receive(result: Dictionary) -> void:
+	pending=false
+	if result.has("state"):state=result.state
+	if not result.get("ok",false):last_error=str(result.get("error","Unavailable"))
+	redraw()
+	if not result.get("ok",false):
+		# Failed requests do not advance the sequence. Refresh to recover from reconnect/replay.
+		controller.refresh()
+
+func button(text: String,request: Dictionary) -> void:
+	var node:=Button.new();node.text=text;node.custom_minimum_size.y=38
+	node.disabled=pending
+	node.pressed.connect(func():
+		if pending or state.is_empty():return
+		pending=true
+		last_error=""
+		var value:=request.duplicate(true);value.sequence=int(state.profile.last_sequence)+1
+		controller.request(value))
+	body.add_child(node)
+
+func redraw() -> void:
+	for child in body.get_children():body.remove_child(child);child.queue_free()
+	var title:=Label.new();title.text="Campus facilities";title.add_theme_font_size_override("font_size",24);body.add_child(title)
+	status=Label.new();status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;body.add_child(status)
+	if state.is_empty():status.text="Connecting to campus host…";return
+	status.text="Gym level %d • %d XP"%[state.level,state.profile.xp]
+	var a: Dictionary=state.get("active",{})
+	if a.get("type","")=="exercise":
+		status.text+="\n%s • %d reps\nFollow a steady rhythm; press each half repetition."%[str(a.exercise).capitalize(),a.reps]
+		button("Lower" if int(a.phase)==0 else "Raise",{"op":"beat"})
+		button("Finish set and save",{"op":"finish"})
+		button("Cancel set",{"op":"cancel"})
+	elif not a.is_empty():button("Stand / stop",{"op":"stop"})
+	elif station_kind.begins_with("counter:"):
+		var venue:=station_kind.trim_prefix("counter:")
+		for item in state.menu:
+			var entry: Dictionary=state.menu[item]
+			if entry.venue==venue:button("%s • $%d"%[entry.name,entry.price],{"op":"buy","station":station_id,"item":item})
+	elif station_kind in ["pushup","pullup","benchpress","squat","curl"]:button("Start "+station_kind.capitalize(),{"op":"start","station":station_id})
+	elif station_kind=="seat":button("Sit",{"op":"sit","station":station_id})
+	var held: Dictionary=state.profile.get("held",{})
+	if not held.is_empty():
+		button("Drink / eat • %d remaining"%held.servings,{"op":"consume"})
+		if str(held.station)!="":button("Pick up",{"op":"pickup"})
+		elif station_kind=="seat":button("Place on table",{"op":"place","station":station_id})
+	for emote in state.profile.unlocks:button("Emote • "+str(emote).capitalize(),{"op":"emote","emote":emote})
+	var close:=Button.new();close.text="Close";close.pressed.connect(func():hide());body.add_child(close)
+	if last_error!="":status.text+="\n"+last_error

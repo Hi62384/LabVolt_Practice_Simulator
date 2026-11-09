@@ -1,0 +1,25 @@
+{
+  "reference": "MTH147NGG.pdf, Library libfile_3f0fb4f92c3c8191893d68e706c0361a",
+  "local_original_installed": false,
+  "transfer_status": "Supported Library materialization failed: library file transfer failed: download failed. No metadata bypass and no fabricated local original.",
+  "worker_basis": "Reconciled user requirements and coordinator mth147-course-queue.json read directly. Coordinator reports supported reference text retrieval for all nine units; worker does not claim direct exhaustive PDF inspection.",
+  "coordinator_visual_review": "Coordinator reports representative pages170 and192 checked; worker has not viewed original page pixels. No exhaustive visual review claim.",
+  "unit_start_pages": [
+    1,
+    14,
+    37,
+    63,
+    98,
+    121,
+    150,
+    167,
+    191
+  ],
+  "reviews_not_extra_weeks": [
+    "136-149",
+    "205-212"
+  ],
+  "source_use": "Topics/methods/complexity/notation only. Original procedural content; reference answers never used for grading.",
+  "diagrams": "Original geometry/function descriptors independently verified against coordinates; no copied images.",
+  "licenses": "New icon and content authored for this task. No additional fonts, network services or CAS runtime bundled."
+}

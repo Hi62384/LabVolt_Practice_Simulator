@@ -1,0 +1,215 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Bracelet",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Bracelet",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "canvas",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.82
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "accent",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.15,
+        "roughnessFactor": 0.4
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/canvas_albedo.png"
+    },
+    {
+      "uri": "../materials/canvas_orm.png"
+    },
+    {
+      "uri": "../materials/canvas_normal.png"
+    },
+    {
+      "uri": "../materials/accent_albedo.png"
+    },
+    {
+      "uri": "../materials/accent_orm.png"
+    },
+    {
+      "uri": "../materials/accent_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "reference_bracelet.bin",
+      "byteLength": 55296
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 3456
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3456,
+      "byteLength": 3456
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6912,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 9216,
+      "byteLength": 17280
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 26496,
+      "byteLength": 17280
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 43776,
+      "byteLength": 11520
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 288,
+      "type": "VEC3",
+      "min": [
+        -0.085,
+        -0.40700000000000003,
+        -0.085
+      ],
+      "max": [
+        0.085,
+        -0.401,
+        0.085
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 288,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 288,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 1440,
+      "type": "VEC3",
+      "min": [
+        -0.095,
+        -0.41500000000000004,
+        -0.09113346478731714
+      ],
+      "max": [
+        0.095,
+        -0.393,
+        0.09113346478731714
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 1440,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 1440,
+      "type": "VEC2"
+    }
+  ]
+}

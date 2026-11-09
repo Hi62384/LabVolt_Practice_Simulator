@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "baseline": "Snapshot H",
+  "initial_dollars": 1000,
+  "buy": {
+    "type": "r1000",
+    "quantity": 2,
+    "unit_price": 1,
+    "start_quantity": 8
+  },
+  "history": {
+    "operations": 128,
+    "unit_price": 1,
+    "type": "r1000"
+  },
+  "physical": {
+    "type": "r1000_t1_w25",
+    "nominal": 1000,
+    "tolerance": 0.01,
+    "watts": 0.25
+  },
+  "eeprom": {
+    "type": "eeprom25",
+    "memory": {
+      "0": 0,
+      "17": 123,
+      "255": 255,
+      "32767": 42
+    },
+    "status": 140
+  },
+  "program": "mode D0 out\nwrite D0 1\nhalt",
+  "stages": [
+    {
+      "id": "local",
+      "peers": 0,
+      "timeout_seconds": 45,
+      "engine_processes": 1,
+      "status": "requires_lease"
+    },
+    {
+      "id": "peers2",
+      "peers": 2,
+      "timeout_seconds": 90,
+      "engine_processes": 2,
+      "port": 27100,
+      "status": "design_only"
+    },
+    {
+      "id": "peers4",
+      "peers": 4,
+      "timeout_seconds": 120,
+      "engine_processes": 4,
+      "port": 27101,
+      "status": "design_only"
+    },
+    {
+      "id": "soak",
+      "peers": 4,
+      "timeout_seconds": 600,
+      "engine_processes": 4,
+      "port": 27102,
+      "status": "design_only"
+    }
+  ]
+}

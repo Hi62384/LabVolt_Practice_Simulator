@@ -1,0 +1,33 @@
+HISTORICAL CHECKPOINT — superseded by README.md and ELECTRONICS_STATUS.txt for current startup/integration state. Statements below describe the earlier checkpoint only.
+
+LABVOLT — COMBINED ELECTRONICS INTEGRATION CHECKPOINT
+
+Run: extract LabVolt_Integrated_Windows.zip and open LabVolt.exe. The editable live project remains C:\Users\User1\Documents\GodotProjects\LabVolt_Practice_Simulator.
+Two-window multiplayer: Host Game in the first window; Join Game at 127.0.0.1 and the same port (default24842) in the second. Use distinct character profiles. One writer per hosting character/save directory is supported.
+
+INTEGRATED
+Host-authoritative stock, currency, purchases, reservations and durable trades/reconnect recovery; bounded per-physical-instance EEPROM persistence; 29 additional educational component models; 15 interactive I/O modules; improved analyzer and IC/PCB forms with up to64 indexed pins; raised component art and electrical audio; richer LVScript source tabs/includes/debugging; generation-bound shared I/O acknowledgments and actor release cleanup; shared AC/DC supplies, RLC banks, meters, DAQ and transformer coupling.
+Local profiles are trusted at first admission. Returning economic state is authoritative for that host ledger. This is not a global account service or protection against a malicious host. Existing offline APIs remain supported.
+
+VALIDATION
+- 353 original assertions/checks passed.
+- 47 focused electronics suites and four real ENet cases passed, including late clients, PCB trade and rejected/accepted I/O ACKs/disconnect cleanup.
+- 779 component-model checks passed in the integrated catalog.
+- Authority runner passed140 direct checks, six regressions, hostile live deployment/reservation/disconnect admission and cancellation/trade/killed-host/reconnect recovery.
+- Six firmware suites passed, including actual externally compiled Arduino C++ machine code.
+- Combined editor/analyzer/package/I/O and presentation tests passed; physical PCB rendered and inspected. Physical canvas mapping fixed to1000x440. Additional combined64-pin test verifies named positions and X64 wiring.
+- Actual active/passive audio-bus checks pass; subjective speaker hardware listening is not claimed.
+These are executed checks, not claims that every expansion requirement is finished.
+
+NATIVE FIRMWARE STATUS — STAGED, NOT LIVE CATALOG SUPPORT
+AVR8js/RP2040js execute real machine code. A tested core barrier waits for all native replies and replays cycle-timestamped GPIO edges into real LED circuit solves. Live native-board placement, upload/debug UI wiring and full station orchestration are still unfinished; native boards are not silently added to the production catalog. SPI/I2C slave electrical coupling is unfinished; current bus controllers report open-bus/NACK. Pico bootROM/MicroPython/USB/multicore/fullSDK and other platforms are unsupported. External compilation is required; no untrusted in-game compiler is supplied.
+Trusted Node.js20.19+ is required for native development tests and is not bundled. Node path is host configuration, never player save data. Native backend/vendor files are shipped loose with licenses for development use. Do not call this a finished Arduino/Pico game feature.
+
+LIMITS / REMAINING MANDATORY WORK
+Existing electrical budgets remain96 solver primitives,64 expanded board primitives,48 placed parts/96 jumpers, eight nesting levels and bounded firmware/audio sampling. Semiconductor and motor models are educational approximations; read per-part ratings/model limits. No manufacturer calibration or hardware certification claim.
+Host profiles remain1MiB aggregate; this can reject large Pico images instead of truncating them. Programmed-instance crafting currently refuses to consume saved units; erase/repackage workflow is unfinished. Same-character simultaneous hosting lacks an interprocess writer lock. Long-running compaction/performance/2–8player soak is still required.
+General AC motor/IGBT transient coupling and requested additional device families remain incomplete. Independent PCB trace routing and arbitrary board outlines remain unsupported staged work. No unbounded component-count claim.
+Campus/Freeplay/OpenLab/formal courses, facilities and ETY155 expansion are queued after this checkpoint and profiling, not implemented here. Preserve ELM253. New curriculum keys require source/topology and solver verification; cloud visual review is partial and desktop original transfer remains blocked.
+
+REPRODUCE
+Python3 tests/electronics/run_acceptance.py uses isolated profiles and bounded processes. Authority --core-hooks runner has its own documented25350/25351 port range; run with separate save roots. Worker and integration evidence remain in the editable project/tests and development work logs. Source and compiler licenses/notices accompany the source/runtime.

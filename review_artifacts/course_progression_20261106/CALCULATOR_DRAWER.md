@@ -1,0 +1,13 @@
+# Calculator drawer mount
+
+`res://scripts/ui/paper_workspace/calculator/drawer.gd` extends `Control`. Add it as a full-viewport child of the paper overlay, then call `configure(existing_scientific_calculator)`. The drawer reparents the same calculator instance and does not evaluate expressions or copy its state. Call `configure` before or after adding the drawer to the scene tree.
+
+Set `anchor_y` to the intended top edge below the pencil case (default 280 px). It measures the existing calculator and shows a 36 px peek at the right edge. On hover it opens with 20 px right margin. `close()` cancels drag, clears pin, and hides the drawer; `open()` shows it again. Hide the whole drawer when assessment policy disables calculator. Set `reduced_motion = true` to move instantly. Minimum intended viewport is 360 × 500 px.
+
+`revealed_changed(open: bool)` and `locked_changed(locked: bool)` report state. The Pin button holds it open and enables dragging from the top handle. Unpin returns to its original right-edge anchor. Dragging and resizing clamp its position to viewport margins. Ctrl+Shift+C opens or closes it from the keyboard; Ctrl+Shift+L pins or unpins it. The calculator's own LineEdit and button keyboard behavior remains intact.
+
+The root uses `MOUSE_FILTER_IGNORE`, so the full-screen overlay does not take mouse input from paper. Its calculator child still receives input. Hover compares against the settled open rectangle, avoiding a repeated reveal/stow cycle while the panel animates beneath a stationary pointer. The keyboard close shortcut suppresses hover until the pointer leaves the activation area.
+
+For a page rebuild, capture `snapshot_state()` before freeing the current drawer and call `restore_state(snapshot)` on the new one after `configure()`. This preserves pin state and drag location; the workspace still owns preserving the scientific calculator's expression, result, angle mode, answer, and memory. The current `paper_ui.gd` captures the calculator values but queues the drawer for deletion in `_clear()` and does not yet capture drawer state. Its `close()` hides `screen` without calling drawer `close()`; hidden-tree checks prevent further shortcut and hover activity, but the workspace should call `drawer.close()` when it wants an explicit reset. Rebuilding constructs a new calculator, so its LineEdit caret and any future history outside the currently captured fields would need copying or reuse by the workspace.
+
+Offline review: `anchor_position` and `clamp_position` are pure geometry functions. Engine validation is deferred while the user's active game session must remain untouched.

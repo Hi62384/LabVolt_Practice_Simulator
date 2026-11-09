@@ -1,0 +1,212 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "High Ponytail short",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "High Ponytail short",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      }
+    },
+    {
+      "name": "hair_highlight",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.62
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_orm.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "hair_ponytail_short.bin",
+      "byteLength": 1114368
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 378144
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 378144,
+      "byteLength": 378144
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 756288,
+      "byteLength": 252096
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1008384,
+      "byteLength": 39744
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1048128,
+      "byteLength": 39744
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1087872,
+      "byteLength": 26496
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 31512,
+      "type": "VEC3",
+      "min": [
+        -0.23422539472627174,
+        -0.08150475599848608,
+        -0.30480215621884693
+      ],
+      "max": [
+        0.23422539472627174,
+        0.27264325030612907,
+        0.1741304
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 31512,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 31512,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 3312,
+      "type": "VEC3",
+      "min": [
+        -0.08611048519474895,
+        -0.08150475599848607,
+        -0.30480215621884693
+      ],
+      "max": [
+        0.10911949874619675,
+        0.2839925482012018,
+        0.13635647246783578
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 3312,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 3312,
+      "type": "VEC2"
+    }
+  ]
+}

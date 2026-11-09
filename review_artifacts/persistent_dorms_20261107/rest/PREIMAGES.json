@@ -1,0 +1,22 @@
+[
+  {
+    "path": "scripts/first_person.gd",
+    "sha256": "00c91d81b3b4d91eb2548f2a735958a1838323f2c9679bdb28a47e74c1f069d0"
+  },
+  {
+    "path": "scripts/avatar_model.gd",
+    "sha256": "cb6b505711d55edb0ac47bd7cc6d876b0d8afb28b6b3a4164e78ee6004230a4a"
+  },
+  {
+    "path": "scripts/session.gd",
+    "sha256": "92c6c6977fc60fe2d2f0c5934c251d06bdb1b689cecb62737714da17f4cf7d84"
+  },
+  {
+    "path": "scripts/game.gd",
+    "sha256": "2789f79475f8ac482fcf7b22966065a175d56695a2b082c6dcc39ad85d36bfbd"
+  },
+  {
+    "path": "scripts/campus/facilities/avatar_activity.gd",
+    "sha256": "e5fe431256ab039897278a3aefd0f630799929c6a946f985c97b6d58fa1ad744"
+  }
+]

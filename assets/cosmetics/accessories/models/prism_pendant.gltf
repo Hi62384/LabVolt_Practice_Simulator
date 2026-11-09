@@ -1,0 +1,215 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Prism Pendant",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Prism Pendant",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "gold",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.92,
+        "roughnessFactor": 0.18
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "glass",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.18,
+        "roughnessFactor": 0.12
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/gold_albedo.png"
+    },
+    {
+      "uri": "../materials/gold_orm.png"
+    },
+    {
+      "uri": "../materials/gold_normal.png"
+    },
+    {
+      "uri": "../materials/glass_albedo.png"
+    },
+    {
+      "uri": "../materials/glass_orm.png"
+    },
+    {
+      "uri": "../materials/glass_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "prism_pendant.bin",
+      "byteLength": 381696
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 140832
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 140832,
+      "byteLength": 140832
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 281664,
+      "byteLength": 93888
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 375552,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 377856,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 380160,
+      "byteLength": 1536
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 11736,
+      "type": "VEC3",
+      "min": [
+        -0.09496844372495129,
+        1.136425382915658,
+        -0.08285528703587511
+      ],
+      "max": [
+        0.09496844372495129,
+        1.3649759138967679,
+        0.166
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 11736,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 11736,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3",
+      "min": [
+        -0.018,
+        1.146,
+        0.1605
+      ],
+      "max": [
+        0.018,
+        1.182,
+        0.1695
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC2"
+    }
+  ]
+}

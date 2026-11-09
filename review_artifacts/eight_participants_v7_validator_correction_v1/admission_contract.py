@@ -1,0 +1,79 @@
+"""Pure exact admission checks for the V7 parser and four serial courses."""
+from pathlib import Path
+import hashlib
+import json
+
+PARSER_NAME = "CLASSROOM-EIGHT-V7-PARSER1"
+PARSER_ARGUMENTS = ["--headless", "--check-only", "--script", "res://tests/acceptance/classroom_network/peer.gd"]
+COURSES = {
+    "ELM253": ("CLASSROOM-EIGHT-V7-ELM253-LIFECYCLE1", 27096, 1, "lab", None),
+    "ETY155": ("CLASSROOM-EIGHT-V7-ETY155-LIFECYCLE1", 27097, 1, "lab", "CLASSROOM-EIGHT-V7-ELM253-LIFECYCLE1"),
+    "MTH147": ("CLASSROOM-EIGHT-V7-MTH147-LIFECYCLE1", 27098, 6, "lecture", "CLASSROOM-EIGHT-V7-ETY155-LIFECYCLE1"),
+    "MTH255": ("CLASSROOM-EIGHT-V7-MTH255-LIFECYCLE1", 27099, 1, "lecture", "CLASSROOM-EIGHT-V7-MTH147-LIFECYCLE1"),
+}
+
+
+def envelope(plan):
+    if plan["scenario"] == "parser":
+        actual = (plan["scope"], plan["participants"], plan["total_engine_jobs"], plan["budget_seconds"],
+                  plan["engine_limit_seconds"], plan["arguments"])
+        expected = ("ENGINE_ONLY_CLASSROOM_EIGHT_PARSER", 1, 1, 30, 8, PARSER_ARGUMENTS)
+        if actual != expected:
+            raise ValueError("exact parser envelope required")
+        if plan["name"] != PARSER_NAME or plan.get("port") is not None or plan.get("course") not in (None, ""):
+            raise ValueError("parser identity/port/course mismatch")
+        if plan.get("previous_name") is not None or plan.get("previous_result") is not None:
+            raise ValueError("parser predecessor forbidden")
+    elif plan["scenario"] == "lifecycle":
+        if (plan["scope"], plan["participants"], plan["total_engine_jobs"], plan["budget_seconds"]) != ("ENGINE_ONLY_CLASSROOM_EIGHT", 8, 8, 300):
+            raise ValueError("exact eight-engine lifecycle envelope required")
+        course = plan.get("course")
+        if course not in COURSES:
+            raise ValueError("unsupported V7 course")
+        name, port, week, kind, previous = COURSES[course]
+        actual = (plan.get("name"), plan.get("port"), plan.get("week"), plan.get("kind"), plan.get("difficulty"), plan.get("previous_name"))
+        expected = (name, port, week, kind, 0, previous)
+        if actual != expected:
+            raise ValueError("exact course/name/port/week/kind/predecessor tuple required")
+        if previous is None and plan.get("previous_result") is not None:
+            raise ValueError("first course must not bind a predecessor result")
+        if previous is not None and not isinstance(plan.get("previous_result"), str):
+            raise ValueError("later course predecessor result required")
+    else:
+        raise ValueError("unsupported admission scenario")
+    if plan["per_job_process_limit"] != 1:
+        raise ValueError("one engine per owned Job required")
+
+
+def validate_parser_receipt(plan, grant, receipt, actual_sha):
+    if grant.get("parser_result_sha256") != actual_sha:
+        raise ValueError("fresh grant must bind exact parser result")
+    expected = {"name": PARSER_NAME, "plan_sha256": plan["parser_plan_sha256"],
+        "source_cache_lock_sha256": plan["source_cache_lock_sha256"], "engine_sha256": plan["engine_sha256"],
+        "backend_binding_sha256": plan["backend_binding_sha256"], "accepted": True,
+        "resource_hold_remains": False, "overrun": False, "total_engine_jobs": 1,
+        "per_job_process_limit": 1, "parser_scope": "FIXTURE_PARSE_ONLY", "main_startup_tested": False,
+        "Godot_result": "PASS_FOR_THIS_EXACT_CASE_ONLY"}
+    for key, value in expected.items():
+        if type(receipt.get(key)) is not type(value) or receipt[key] != value:
+            raise ValueError("parser receipt mismatch: " + key)
+    if receipt.get("errors") or receipt.get("source_cache_entries_verified_after") != 1224 or receipt.get("parser_copy_entries_verified_after") != 1224:
+        raise ValueError("parser source/cache stability proof missing")
+    backend = receipt.get("backend", {})
+    clean = backend.get("cleanup", {})
+    if backend.get("normal_exit") != 0 or backend.get("errors") or any(clean.get(k) is not True for k in ("stop_verified", "engine_exit_verified", "owned_job_empty_verified")) or clean.get("resource_hold_remains") is not False or clean.get("errors"):
+        raise ValueError("parser normal0/owned Job0 proof missing")
+    names = [event.get("event") for event in backend.get("events", [])]
+    required = ["job_created", "engine_created_suspended", "atomic_job_assignment_verified_before_resume", "actual_engine_image_verified", "resumed", "owned_job_empty_verified"]
+    try:
+        positions = [names.index(key) for key in required]
+    except ValueError as error:
+        raise ValueError("parser atomic launch/cleanup events missing") from error
+    if positions != sorted(positions):
+        raise ValueError("parser launch/cleanup events out of order")
+
+
+def require_parser(plan, grant):
+    path = Path(plan["parser_result"])
+    raw = path.read_bytes()
+    validate_parser_receipt(plan, grant, json.loads(raw), hashlib.sha256(raw).hexdigest())

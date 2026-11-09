@@ -1,0 +1,22 @@
+# Component values API — integration contract
+
+Implementation: `res://scripts/electronics/component_values/values.gd` (pure static RefCounted; no save, network, engine launch, or profile mutation).
+
+- `fields(entry: Dictionary) -> Dictionary`: supported numeric settings, keyed by existing simulation field name, each with `label`, `unit`, `minimum`, `maximum`, `default`. Nominal `value` differs from resistor `power_rating_w` and `resistance_tolerance`. Only actual supported catalog/model parameters are exposed. Structural metadata, prose-only ratings and hardcoded model internals are not editable.
+- `parse(raw: Variant, unit: String = "") -> Dictionary`: `{ok,value,canonical}` or `{ok:false,error}`. SI prefixes k/M/m/u/µ/μ/n/p, scientific notation, optional exact units; case matters. Numeric JSON variants are accepted; bool, NaN, infinity and malformed inputs rejected.
+- `format_value(value: float, unit: String = "") -> String`: shortest round-tripping decimal with a readable SI prefix and unit (identity never uses rounded display).
+- `configure(base_id: String, settings: Variant, catalog: Dictionary) -> Dictionary`: `{ok,id,base_id,settings,entry}`. Overrides must be supported; defaults omitted from canonical identity. Matching catalog variants reuse the existing ID. Otherwise a reversible `cv1:` ID carries normalized settings. No preset-only restriction.
+- `resolve(id: String, catalog: Dictionary) -> Dictionary`: validates/reconstructs a variant from host built-ins. Legacy IDs resolve unchanged. Never trusts submitted entry/price/rarity/pins.
+- `augment(catalog: Dictionary, ids: Array) -> Dictionary`: copy with valid procedural IDs resolved. Use when constructing profile/board/custom catalogs, including internal custom-circuit part IDs. Does not change global catalog or legacy IDs.
+- `quantity(raw: Variant) -> Dictionary`: strictly positive integer; accepts integer JSON numbers and ASCII digit text. Maximum 100000 (existing profile stack bound); per-buy 100 restriction is superseded by stack/resource headroom.
+- `intent(base_id, settings, amount, catalog, owned=0, free_space=-1) -> Dictionary`: complete validated purchase plan `{ok,id,entry,quantity,unit_price,total_price,space_required,...}`; checks existing stack 100000, integer cost bound 1000000000, and optional supplied capacity. Master inventory has no capacity limit; kit capacity applies when equipping. No mutation, debit or authority decision.
+
+UI sends only `[base_id, settings, quantity]` using receipt-backed `buy_configured`. Host repeats `intent` using its own catalog and inventory. Never accept client `entry`, `price`, cost, rarity or ownership. Main integrator must commit inventory and `temporary_playtest/policy.gd.purchase_debit` result together through existing ledger receipt/persist rollback, and include this op in success checks. Retry same receipt is idempotent; changed contents with same receipt rejected by current ledger digest.
+
+Sort owner uses `parse(search, fields(entry).value.unit)` then absolute difference against resolved `entry.value`; deterministic ID tie-break. Resolve owned IDs before filtering by kind. Do not merge or rewrite legacy stock to canonical IDs.
+
+Physical resistor constraints retain current persistence bounds: nominal >0 through 1e9 Ω, tolerance >0 through 0.2 (fraction; UI can present `%`), watts >0 through 100 W. No true zero-ohm resistor: existing solver clamps resistance to 1 mΩ. Plain R allows 1 mΩ minimum; physical R additionally respects manufacturing schema. Other positive storage/model parameters use finite representational bounds, with documented dimension-specific relationships checked. Unsupported text-only voltage/watt ratings remain informational.
+
+The shop-shaped pure bridge is `shop_services.gd`: `describe(id,catalog)` returns `{fields:[{key,label,unit,default,help,...}]}`; `quote(id,settings,amount,catalog,inventory)` returns `{ok,unit_price,total,id,intent:{op:"buy_configured",args:[base_id,settings,quantity]}}`. Injected shop callbacks may call these directly. Custom ICs retain the existing host-computed material-price purchase path.
+
+Offline fixtures and source checks are under `tests/electronics/component_values/`; eight source/data checks passed. Deferred `test_values.gd` and `test_authority.gd` require a future authorized engine test window. No GDScript, visual, runtime, purchase, or user-save acceptance is claimed. See `HANDOFF.md` for the exact staged shared edits.

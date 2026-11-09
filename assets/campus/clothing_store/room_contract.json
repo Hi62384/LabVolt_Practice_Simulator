@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "id": "clothing_store",
+  "title": "Harbor Outfitters",
+  "kind": "clothing_store",
+  "local_bounds_min": [-9.0, 0.0, -8.0],
+  "local_bounds_max": [9.0, 4.2, 8.0],
+  "door_local": [0.0, 0.0, 8.0],
+  "interaction_anchors": {
+    "catalog": [-5.7, 0.0, 2.2],
+    "mirror": [7.55, 0.0, 0.2],
+    "checkout": [4.9, 0.0, 4.45]
+  },
+  "catalog_sources": [
+    "res://assets/cosmetics/footwear/catalog.json",
+    "res://assets/cosmetics/clothing/catalog.json",
+    "res://assets/cosmetics/accessories/catalog.json",
+    "res://assets/cosmetics/faces_hair/catalog.json"
+  ]
+}

@@ -1,0 +1,556 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "shoes.velocity_runner",
+      "name": "Velocity Runner",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/running_sneaker.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/running_sneaker.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "athletic"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "fabric"
+        ],
+        "secondary_regions": [
+          "canvas"
+        ],
+        "sole_regions": [
+          "rubber",
+          "rubber_light"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "3E5673"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "E8DDBE"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "E3E1D9"
+        },
+        "finish": {
+          "type": "enum",
+          "default": "fabric",
+          "values": [
+            "fabric",
+            "weatherproof"
+          ]
+        }
+      }
+    },
+    {
+      "id": "shoes.beacon_hightop",
+      "name": "Beacon High-Top",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/high_top.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/high_top.png",
+      "price": 180,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "streetwear",
+        "ankle_high"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "leather_dark"
+        ],
+        "sole_regions": [
+          "rubber",
+          "rubber_light"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "D3CAB2"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "231816"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "DCDACF"
+        }
+      }
+    },
+    {
+      "id": "shoes.foundry_boot",
+      "name": "Foundry Work Boot",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/work_boot.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/work_boot.png",
+      "price": 340,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "boot",
+        "ankle_high",
+        "safety"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.02,
+          1.0,
+          1.02
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "secondary_regions": [
+          "leather_dark",
+          "metal"
+        ],
+        "sole_regions": [
+          "rubber"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "6E3F26"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "34383D"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "23282E"
+        },
+        "finish": {
+          "type": "enum",
+          "default": "oiled",
+          "values": [
+            "oiled",
+            "matte",
+            "worn"
+          ]
+        }
+      }
+    },
+    {
+      "id": "shoes.oxford",
+      "name": "Oxford Dress Shoe",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/dress_shoe.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/dress_shoe.png",
+      "price": 285,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "formal"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          0.98,
+          1.0,
+          1.0
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "secondary_regions": [
+          "leather_dark"
+        ],
+        "sole_regions": [
+          "leather_dark"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "542B1B"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "231816"
+        },
+        "finish": {
+          "type": "enum",
+          "default": "polished",
+          "values": [
+            "polished",
+            "satin"
+          ]
+        }
+      }
+    },
+    {
+      "id": "shoes.trail_sandal",
+      "name": "Trail Sandal",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/sandal.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/sandal.png",
+      "price": 125,
+      "starter": false,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "open_toe"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.0,
+          0.98,
+          1.0
+        ],
+        "offset": [
+          0.0,
+          -0.002,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "secondary_regions": [
+          "cork",
+          "metal"
+        ],
+        "sole_regions": [
+          "rubber"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "6E3F26"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "A47644"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "23282E"
+        }
+      }
+    },
+    {
+      "id": "shoes.ionstep",
+      "name": "Ionstep Future Shoe",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/future_shoe.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/future_shoe.png",
+      "price": 650,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "futuristic",
+        "emissive",
+        "ankle_high"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.0,
+          1.0,
+          1.02
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "metal"
+        ],
+        "secondary_regions": [
+          "neon"
+        ],
+        "sole_regions": [
+          "rubber"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "697480"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "26E0D9"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "23282E"
+        },
+        "glow": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 2.0
+        }
+      }
+    },
+    {
+      "id": "shoes.marina_canvas",
+      "name": "Marina Canvas Low",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/marina_canvas.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/marina_canvas.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "athletic"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "fabric"
+        ],
+        "secondary_regions": [
+          "canvas"
+        ],
+        "sole_regions": [
+          "rubber",
+          "rubber_light"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "477f83"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "f1d398"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "E3E1D9"
+        },
+        "finish": {
+          "type": "enum",
+          "default": "fabric",
+          "values": [
+            "fabric",
+            "weatherproof"
+          ]
+        }
+      }
+    },
+    {
+      "id": "shoes.campus_loafer",
+      "name": "Campus Penny Loafer",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/campus_loafer.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/campus_loafer.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "athletic"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "secondary_regions": [
+          "metal"
+        ],
+        "sole_regions": [
+          "leather_dark"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "845039"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "bd9467"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "433329"
+        },
+        "finish": {
+          "type": "enum",
+          "default": "fabric",
+          "values": [
+            "fabric",
+            "weatherproof"
+          ]
+        }
+      }
+    },
+    {
+      "id": "shoes.meteor_platform",
+      "name": "Meteor Platform Boots",
+      "category": "shoes",
+      "slot": "footwear",
+      "scene": "res://assets/cosmetics/footwear/models/meteor_platform.gltf",
+      "thumbnail": "res://assets/cosmetics/footwear/thumbnails/meteor_platform.png",
+      "price": 920,
+      "starter": false,
+      "rarity": "legendary",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "footwear",
+        "boot",
+        "ankle_high",
+        "safety"
+      ],
+      "conflicts": [],
+      "fit": {
+        "scale": [
+          1.02,
+          1.0,
+          1.02
+        ],
+        "offset": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "secondary_regions": [
+          "leather_dark",
+          "metal"
+        ],
+        "sole_regions": [
+          "rubber"
+        ]
+      },
+      "parameters": {
+        "base_color": {
+          "type": "color",
+          "default": "6E3F26"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "34383D"
+        },
+        "sole_color": {
+          "type": "color",
+          "default": "23282E"
+        },
+        "finish": {
+          "type": "enum",
+          "default": "oiled",
+          "values": [
+            "oiled",
+            "matte",
+            "worn"
+          ]
+        }
+      }
+    }
+  ]
+}

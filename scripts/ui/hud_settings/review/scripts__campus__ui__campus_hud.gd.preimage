@@ -1,0 +1,22 @@
+extends HBoxContainer
+const Signage = preload("res://scripts/campus/presentation/signage/campus_signage.gd")
+# Caller supplies already-authoritative activity and locally resolved registry room.
+var location: Label
+var activity: Label
+var timer: Label
+var guidance: Label
+var last_text := ""
+func _ready() -> void:
+	mouse_filter=Control.MOUSE_FILTER_IGNORE
+	for field in ["location","activity","timer","guidance"]:
+		var label := Label.new(); label.add_theme_color_override("font_color",Color("c0eee0")); label.add_theme_font_size_override("font_size",15); add_child(label); set(field,label)
+	add_theme_constant_override("separation",22)
+func update_state(room: Dictionary, state: Dictionary, remaining_seconds: float, destination: Dictionary={}) -> void:
+	location.text=Signage.room_hud_identity(room)
+	activity.text=str(state.get("mode","Freeplay"))+" · "+str(state.get("course_id",""))
+	timer.text="%02d:%02d"%[int(maxf(remaining_seconds,0))/60,int(maxf(remaining_seconds,0))%60] if remaining_seconds>=0 else ""
+	guidance.text=""
+	if destination.get("enabled",not destination.is_empty()):
+		guidance.text=("Arrived · " if destination.get("arrived",false) else "→ ")+str(destination.get("number",""))
+		if destination.has("distance") and not destination.get("arrived",false):
+			guidance.text+=" · "+str(destination.get("direction","Next"))+" %.0f m"%float(destination.distance)

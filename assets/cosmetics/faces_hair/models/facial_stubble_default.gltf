@@ -1,0 +1,133 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Fine Stubble default",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Fine Stubble default",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "facial_stubble_default.bin",
+      "byteLength": 1177344
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 441504
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 441504,
+      "byteLength": 441504
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 883008,
+      "byteLength": 294336
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 36792,
+      "type": "VEC3",
+      "min": [
+        -0.17413967449642712,
+        -0.17561748769311505,
+        0.05106401282202071
+      ],
+      "max": [
+        0.17485023683966566,
+        -0.060848316732524325,
+        0.14995132222531216
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 36792,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 36792,
+      "type": "VEC2"
+    }
+  ]
+}

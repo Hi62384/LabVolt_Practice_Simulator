@@ -1,0 +1,16 @@
+# Guarded collectible persistence verification
+
+Entry points (run serially with the project's existing headless GDScript test invocation after the shared runtime owner completes import/parse):
+
+- `res://tests/avatar_cosmetics/persistence/test_profile_adapter.gd` expects `AVATAR_PERSISTENCE checks=... failures=0`, exit 0.
+- `res://tests/avatar_cosmetics/persistence/test_character_reconciliation.gd` expects `CHARACTER_RECONCILIATION failures=0`, exit 0.
+
+Both use synthetic dictionaries and in-memory save doubles. They read the four checked-in catalog JSON files; they never open a `user://` profile or connect a peer. The profile suite exercises migration, authority, malformed inputs, purchase idempotence, current unlimited economy balance preservation, body/equipment edits and save rollback. The reconciliation suite exercises distinct character IDs, original legacy ownership and balances, missing catalog IDs, default grants, real catalog/core hydration, and the compact sanitized appearance bound. Estimated memory is under 100 MiB beyond Godot startup; no scene rendering is requested.
+
+Production integration read from `CharacterLibrary.select_profile()` and `inventory_authority/network.gd`: the former calls `hydrate()` then saves the selected profile before changing `selected`; the latter builds a catalog-resolved appearance packet and receives it through reliable authority RPC. These fixture suites do not instantiate the live character library or network node.
+
+An executable test of the actual `CharacterLibrary.select_profile()` cannot safely inject failure today: it constructs `ElectronicsProfile` internally, calls `open(id)` against the fixed `user://electronics_<hash>.json`, reads legacy JSON below the fixed `user://characters`, and saves a new `ConfigFile` to fixed `user://character_selection.cfg`. Its `ROOT` is a constant. A test that invokes it in the user's project data directory could modify real saves before an assertion runs. The smallest testability seam for main is an optional injected profile factory, legacy loader and selection-config writer (production defaults retain the current calls), plus a configurable character root for fixtures. With these, a test can instantiate the real CharacterLibrary, inject in-memory profiles and fail the profile save or config save separately, then reconstruct it against the synthetic store to assert restart selection. No production shared file was changed here.
+
+Current source order exposes a concrete two-file boundary: when `target.save()` succeeds and `cfg.save()` fails, `selected` stays at the prior ID in memory but the target's migration has already reached its profile file. This is an idempotent grant today, but it is not a single atomic transaction across files. A fully atomic switch would stage the target profile and selection record under one existing transaction or introduce a recoverable selection journal; the injection seam above enables the failure test before policy is chosen.
+
+The fixtures cannot prove real client reconnect, late join, rendered avatar synchronization, or the two-file failure boundary. They do cover failed local purchase and editor persistence, as well as rejection of online mirror purchases. Those remaining cases belong to guarded runtime acceptance with isolated stores and simulated or real peers.

@@ -1,0 +1,133 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Van Dyke",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Van Dyke",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "facial_van_dyke_default.bin",
+      "byteLength": 128256
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 48096
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 48096,
+      "byteLength": 48096
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 96192,
+      "byteLength": 32064
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4008,
+      "type": "VEC3",
+      "min": [
+        -0.09360912252631119,
+        -0.23955273422684062,
+        -0.0043986556370796456
+      ],
+      "max": [
+        0.09360912252631119,
+        -0.07941649112545328,
+        0.16120893091980207
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4008,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4008,
+      "type": "VEC2"
+    }
+  ]
+}

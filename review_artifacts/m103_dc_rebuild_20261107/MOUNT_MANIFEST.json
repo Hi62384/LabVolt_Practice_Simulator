@@ -1,0 +1,7 @@
+{
+  "target": "scripts/dc_lab.gd",
+  "preimage_sha256": "97d82d0bc88320e372cea44f503e608a1db8659328338decaf434324e7f81104",
+  "proposed_sha256": "cafa5a943d541bbe5ac30028125e7dd6e85d681344fbef6b33d8b2584f619803",
+  "dependency": "res://scripts/ui/instrument_panels/physical_binding.gd from binding owner",
+  "status": "staged only; main integrates after binding script and asset import checks"
+}

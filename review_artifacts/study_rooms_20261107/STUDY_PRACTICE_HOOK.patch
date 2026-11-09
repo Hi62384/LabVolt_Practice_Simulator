@@ -1,0 +1,24 @@
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ in apply(peer,a), immediately before `elif op=="new":`; review current preimage
++	elif op=="study_practice":
++		# Library/Quiet Study entry, independent of the lab instructor.
++		# Course and room claims from the client are never trusted.
++		if mode=="Class" or not game.session.roster.has(peer) or str(identities.get(peer,""))=="":return
++		var pose: Variant=game.session.poses.get(peer,{}).get("position")
++		if not pose is Vector3:return
++		if not room_bridge.contains("library",pose) and not room_bridge.contains("study",pose):return
++		var course_id := str(a.get("course_id",""))
++		if not course_id in ["ELM253","ETY155"]:return
++		var service=preload("res://review_artifacts/open_lab_instructor_20261107/practice/practice_service.gd")
++		var practice: Dictionary=service.issue_for_course(course_id,course_bridge,random.randi())
++		if practice.has("error"):_notice(peer,str(practice.error));return
++		_give(peer,practice,true,false)
+
+Prerequisite: academic practice owner SCHOOL_HOOK.patch official-grade, lesson-reward
+and _give scope guards must already be applied and verified. This patch intentionally
+does not use `teacher_position` or `activity.room.id`: M204/M205 are separate rooms.
+It does not accept client coordinates or a client room ID. The host checks roster,
+identity and authoritative pose in either registered room, then calls the published
+issue_for_course API and existing private _give. The service currently supports
+ELM253 and ETY155 only; no fabricated MTH practice button is exposed.

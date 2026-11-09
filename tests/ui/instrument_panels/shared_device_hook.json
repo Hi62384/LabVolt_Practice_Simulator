@@ -1,0 +1,7 @@
+{
+  "file": "scripts/electronics_ui.gd",
+  "observed_file_sha256": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+  "apply_policy": "Owner reviews and applies only if exact old snippet still matches; do not overwrite whole shared file. No patch applied.",
+  "old": "\tbutton(tools,\"Interact with I/O\",func():canvas.selected_type=\"interact\")",
+  "new": "\tvar io_action := button(tools,\"Interact with I/O\",func():canvas.selected_type=\"interact\")\n\tpreload(\"res://scripts/ui/design_system/widgets.gd\").style_button(io_action,\"switch\")\n\tio_action.tooltip_text=\"Operate the selected device controls on this board. Direct gestures retain the device command/acknowledgment path.\""
+}

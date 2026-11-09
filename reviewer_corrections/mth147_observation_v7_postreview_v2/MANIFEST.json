@@ -1,0 +1,13 @@
+{
+  "classification": "REVIEWER_CORRECTION_PROPOSAL_SOURCE_ONLY_NOT_AUTHORIZATION",
+  "source_package_modified": false,
+  "runtime": "NOT_RUN",
+  "grants_created": false,
+  "files": {
+    "README.md": "464ab17977dcb7e4cec35fdaca72436fa4355c87c953db9ecbb95554b5d0b8ed",
+    "admission_readiness_v2.py": "3d37a7df8b390e9174d8d25c4d6db9a91ff062042950c9cd95a239f6cb21694e",
+    "test_admission_readiness_v2.py": "0784b6841f783b5374205c990ea129a7b6d43e0d6c86ec328296f50baf3f99e8"
+  },
+  "focused_tests_passed": 5,
+  "excluded_self": "MANIFEST.json"
+}

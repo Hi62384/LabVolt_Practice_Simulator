@@ -1,0 +1,653 @@
+{
+  "schema": 1,
+  "units": "metres",
+  "front": "+Z",
+  "devices": {
+    "psu": {
+      "origin": [
+        -1.5,
+        1.258,
+        -0.1
+      ],
+      "size": [
+        1.46,
+        0.7,
+        0.53
+      ],
+      "front_z": 0.0
+    },
+    "meter": {
+      "origin": [
+        0,
+        1.078,
+        -0.18
+      ],
+      "size": [
+        1.05,
+        0.34,
+        0.4
+      ],
+      "front_z": 0.0
+    },
+    "generator": {
+      "origin": [
+        0,
+        1.446,
+        -0.18
+      ],
+      "size": [
+        1.05,
+        0.34,
+        0.44
+      ],
+      "front_z": 0.0
+    },
+    "scope": {
+      "origin": [
+        1.5,
+        1.283,
+        -0.1
+      ],
+      "size": [
+        1.45,
+        0.75,
+        0.55
+      ],
+      "front_z": 0.0
+    },
+    "deck": {
+      "origin": [
+        0,
+        1.018,
+        0.65
+      ],
+      "size": [
+        4.3,
+        0.22,
+        0.32
+      ],
+      "front_z": 0.0
+    }
+  },
+  "ports": [
+    {
+      "id": "CH1+",
+      "device": "psu",
+      "xyz": [
+        -0.54,
+        -0.24,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "CH1 +"
+    },
+    {
+      "id": "CH1-",
+      "device": "psu",
+      "xyz": [
+        -0.36,
+        -0.24,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "CH1 −"
+    },
+    {
+      "id": "CH2+",
+      "device": "psu",
+      "xyz": [
+        -0.09,
+        -0.24,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "CH2 +"
+    },
+    {
+      "id": "CH2-",
+      "device": "psu",
+      "xyz": [
+        0.09,
+        -0.24,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "CH2 −"
+    },
+    {
+      "id": "CH3+",
+      "device": "psu",
+      "xyz": [
+        0.36,
+        -0.24,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "CH3 +"
+    },
+    {
+      "id": "CH3-",
+      "device": "psu",
+      "xyz": [
+        0.54,
+        -0.24,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "CH3 −"
+    },
+    {
+      "id": "VΩ",
+      "device": "meter",
+      "xyz": [
+        -0.31,
+        -0.105,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "VΩ"
+    },
+    {
+      "id": "COM",
+      "device": "meter",
+      "xyz": [
+        0,
+        -0.105,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "COM"
+    },
+    {
+      "id": "A",
+      "device": "meter",
+      "xyz": [
+        0.31,
+        -0.105,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "A"
+    },
+    {
+      "id": "GEN",
+      "device": "generator",
+      "xyz": [
+        -0.27,
+        -0.105,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "OUT"
+    },
+    {
+      "id": "REF",
+      "device": "generator",
+      "xyz": [
+        0.27,
+        -0.105,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "REF"
+    },
+    {
+      "id": "S1",
+      "device": "scope",
+      "xyz": [
+        -0.43,
+        -0.27,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "yellow",
+      "label": "S1"
+    },
+    {
+      "id": "S2",
+      "device": "scope",
+      "xyz": [
+        0,
+        -0.27,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "cyan",
+      "label": "S2"
+    },
+    {
+      "id": "GND",
+      "device": "scope",
+      "xyz": [
+        0.43,
+        -0.27,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "GND"
+    },
+    {
+      "id": "IS+",
+      "device": "deck",
+      "xyz": [
+        -1.98,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "IS+"
+    },
+    {
+      "id": "IS-",
+      "device": "deck",
+      "xyz": [
+        -1.54,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "IS-"
+    },
+    {
+      "id": "IS2+",
+      "device": "deck",
+      "xyz": [
+        -1.1,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "IS2+"
+    },
+    {
+      "id": "IS2-",
+      "device": "deck",
+      "xyz": [
+        -0.66,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "IS2-"
+    },
+    {
+      "id": "IS3+",
+      "device": "deck",
+      "xyz": [
+        -0.22,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "IS3+"
+    },
+    {
+      "id": "IS3-",
+      "device": "deck",
+      "xyz": [
+        0.22,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "IS3-"
+    },
+    {
+      "id": "IS4+",
+      "device": "deck",
+      "xyz": [
+        0.66,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "IS4+"
+    },
+    {
+      "id": "IS4-",
+      "device": "deck",
+      "xyz": [
+        1.1,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "IS4-"
+    },
+    {
+      "id": "R1a",
+      "device": "deck",
+      "xyz": [
+        1.54,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "R1a"
+    },
+    {
+      "id": "R1b",
+      "device": "deck",
+      "xyz": [
+        1.98,
+        0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "R1b"
+    },
+    {
+      "id": "R2a",
+      "device": "deck",
+      "xyz": [
+        -1.98,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "R2a"
+    },
+    {
+      "id": "R2b",
+      "device": "deck",
+      "xyz": [
+        -1.54,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "R2b"
+    },
+    {
+      "id": "Ca",
+      "device": "deck",
+      "xyz": [
+        -1.1,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "Ca"
+    },
+    {
+      "id": "Cb",
+      "device": "deck",
+      "xyz": [
+        -0.66,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "Cb"
+    },
+    {
+      "id": "Da",
+      "device": "deck",
+      "xyz": [
+        -0.22,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "red",
+      "label": "Da"
+    },
+    {
+      "id": "Db",
+      "device": "deck",
+      "xyz": [
+        0.22,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "Db"
+    },
+    {
+      "id": "B1",
+      "device": "deck",
+      "xyz": [
+        0.66,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "B1"
+    },
+    {
+      "id": "B2",
+      "device": "deck",
+      "xyz": [
+        1.1,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "B2"
+    },
+    {
+      "id": "B3",
+      "device": "deck",
+      "xyz": [
+        1.54,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "B3"
+    },
+    {
+      "id": "B4",
+      "device": "deck",
+      "xyz": [
+        1.98,
+        -0.055,
+        0.0
+      ],
+      "normal": [
+        0,
+        0,
+        1
+      ],
+      "face_z": 0.0,
+      "color": "black",
+      "label": "B4"
+    }
+  ],
+  "movable_breadboard_ports": "X1..X64; omitted from this fixed fixture"
+}

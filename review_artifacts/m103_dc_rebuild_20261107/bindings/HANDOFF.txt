@@ -1,0 +1,86 @@
+READY PRIVATE BINDINGS — main integrator applies production changes only
+
+control_adapter.gd: pure host action dictionary construction for every existing supply voltage/limit/
+enable, four current-source current/compliance/enable settings, meter modes/ranges/fuse, six generator
+waveforms and all six numeric generator settings, scope acquisition/timebase/trigger/channel settings.
+Reverse gestures decrement knobs and cycle backward. Uses existing station apply validation unchanged.
+
+device_binding.gd: configure once per bench index 0..2. Bind colliders with existing action specs;
+action_for preserves the current dc_lab.interact convention, which sends through lab.request exactly
+once. Alternatively activate() performs the request itself; NEVER call both paths for one gesture.
+Bind display callbacks to meter, master, s0/s1/s2, generator, scope, samples, scope_acquisition,
+scope_probe, error. Supply dictionaries include actual solver V/A/W, CV/CC/OFF mode and setpoints.
+Scope display callbacks must refresh the existing real scope trace with samples/settings/acquisition,
+never synthesize a waveform. Knob paths refer to snapshot settings and rotate relative to rest pose.
+observe() is at most 10 Hz while relevant; readout callbacks only run on actual value changes. Solver
+cadence, network broadcasts, save paths and authority checks remain entirely in existing dc_lab.
+
+socket_registry.gd: each stable electrical ID maps to ONE physical-owner Marker3D opening. Parent
+the visible socket and centered picking body beneath that marker; register_socket verifies body
+ancestry and zero translation. Both picking metadata and cable anchor use that exact marker. Keep
+socket collision centered there, and use its global_transform for plug orientation. Do not add the
+old +basis.z*.04 endpoint offset. Preserve all Station.PORTS, including dynamic board X pins owned
+by physical_breadboard; registry handles instrument and mounted distribution sockets only. Pass
+port_positions through the physical fixture's existing method. Hover highlight delegates to a
+marker set_highlighted method if supplied; physical model owner must expose that affordance.
+
+moving_endpoints.patch.json: surgical exact-snippet patch for main. Refresh instrument anchors before
+wire rendering and invalidate drawn revisions if a model moves. Existing physical-board port update
+remains; fixtures must not register its dynamic X/B anchors where physical_breadboard owns them.
+It uses the existing cable mesh/plug path and host wire state. No new electrical wire API.
+
+electrical_fixture.gd: actual Station solver/apply fixture for approved isolated runtime. Tests supply
+voltage, series shunt current, current limiting/CC, energized ohmmeter refusal, passive resistance,
+all waveform numeric controls, scope control validation, restored scope, invalid IDs and independent
+bench states. NOT EXECUTED. Multiplayer distance/permission/save/event behavior must also be exercised
+through existing dc_lab authority paths in the guarded integration runtime; fixture does not fake an
+authorization test or claim networking validation. Socket global transforms and visible plugs require
+the physical model hierarchy and guarded camera acceptance.
+
+verify.py runs bounded resource/action/source checks and immutable AC baseline guard, records hashes
+and produces the staged patch. No engine, CUA, imports, active saves, caches or production source edits.
+ASSEMBLED MODEL INTEGRATION (supersedes the initial pending-contract note)
+Read packet-root CONTRACT.md and HANDOFF.md and actual physical_models/fixture.gd/ports.json/plug.gd.
+physical_binding.gd implements bind(lab,index,physical), action_for and observe against all actual
+control_mounts/display_mounts. 27 physical controls map to existing real action dictionaries. Six
+display mounts receive real readings/actual sample trace; all three supply channels remain isolated.
+Scope uses existing scope_trace, settings and measurements with two channel scales, timebase, trigger,
+run state and real Vpp/RMS/frequency readouts. State snapshots drive knob rotation and switch depth.
+All on-device text is within authored display mounts; no new floating explanatory label.
+
+For each of 34 fixed ports, the adapter derives ElectricalOpening directly from the model's own
+socket_surface_position(id). Original offset pick shape is disabled; new pick body/collision centre
+is exactly at that opening. Row/device parent continues to drive the socket mesh and its opening.
+Halo hover feedback is 10 Hz with a 3.6 m ray, geometry-only and independent of electrical requests.
+Registry maps IDs to live opening transforms, so device motion updates all anchors together.
+Dynamic X breadboard endpoints remain with physical_breadboard and are not invented/reparented.
+
+cable_binding.gd draws DC plugs at exact opening transforms, with existing routed cable beginning at
+the .16 m strain-relief tails. AC endpoints receive no DC plug or transform offset. No M101 resource,
+shared mesh or game.gd change. Existing host wire actions/state/network events are untouched.
+
+MAIN: apply bindings/dc_lab.patch ONLY, after matching integration_manifest.json preimage SHA-256.
+This combined patch supersedes root dc_lab_mount.patch and moving_endpoints.patch.json; do NOT stack
+them. It mounts the PRIVATE physical_binding.gd directly (no missing production script dependency),
+refreshes live socket positions, invalidates cable drawing on movement and uses the DC plug renderer
+for local/external links. dc_lab.assembled.gd is ready source for review, never active production.
+All other dc_lab functions, including authority/peer/range checks, requests, RPCs and saves compare
+identically in the bounded source validator. Main alone integrates; packet paths remain valid as-is.
+
+assembled_fixture.gd is a guarded-runtime fixture building the actual three models/bindings, checking
+34 endpoints/picks, all 27 controls through real Station.apply, moved-model endpoint agreement and
+independent 6 m bench placement. electrical_fixture.gd remains the real solver regression fixture.
+Neither ran. verify.py now checks the root contract, exact 34-port ID and device-parent sets, resource
+paths, AC baseline, model offline validator, source hashes and unchanged authority function bodies.
+It preserves the existing dc_lab.preimage pin and refuses regeneration against different production.
+
+Remaining acceptance: Godot parse/import, executing both guarded fixtures, host/client authorization
+and wire synchronization, saved-circuit reload, visual/collision/plug/camera/screenshots/performance.
+No engine, CUA, active-save, cache or production source operation was performed for this assembly.
+
+LATEST GUARD RESULT: FAILED — functions:scripts/game.gd::activate differs from immutable AC baseline.
+The guard passed earlier in this assembly, then detected the outside-owned production change during
+final verification. This binding owner made no game.gd or baseline writes. Main must reconcile that
+exact function before integration; baseline was not updated or bypassed. All independent binding,
+34-port, resource, model-validator and unchanged-authority-body checks completed; verify.py exits 1
+and validation.json preserves the failed AC guard. No integration approval is implied.

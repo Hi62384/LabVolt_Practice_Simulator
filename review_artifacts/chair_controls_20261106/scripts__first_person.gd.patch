@@ -1,0 +1,82 @@
+--- a/scripts/first_person.gd
++++ b/scripts/first_person.gd
+@@ -4,6 +4,8 @@
+ var facility_movement_locked: Callable
+ var inspecting := false
+ var seated: CharacterBody3D
++var seated_look = preload("res://scripts/campus/seating/chair_controls/look_state.gd").new()
++var chair_entry_position := Vector3.ZERO
+ var sensitivity := 0.00225
+ var enabled := false
+ var head_bob := false
+@@ -37,7 +39,12 @@
+ 	return enabled and Input.is_physical_key_pressed(keys[action])
+ 
+ func look(relative: Vector2) -> void:
+-	yaw_target -= relative.x*sensitivity
++	var horizontal := -relative.x*sensitivity
++	if is_instance_valid(seated):
++		seated_look.look(horizontal, down("crouch"))
++		yaw_target = seated_look.chair_turn
++	else:
++		yaw_target += horizontal
+ 	pitch_target = clampf(pitch_target-relative.y*sensitivity,-1.46,1.46)
+ 
+ func _physics_process(delta: float) -> void:
+@@ -48,7 +55,7 @@
+ 	if inspecting:velocity=Vector3.ZERO;return
+ 	if is_instance_valid(seated):
+ 		global_position=seated.global_position
+-		rotation.y=seated.swivel.rotation.y
++		rotation.y=seated_look.world_yaw(seated.swivel.rotation.y)
+ 		eyes.rotation.x=lerpf(eyes.rotation.x,pitch_target,1-exp(-25*delta))
+ 		eyes.position.y=lerpf(eyes.position.y,1.16,1-exp(-16*delta))
+ 		velocity=Vector3.ZERO
+@@ -104,24 +111,42 @@
+ func sit(chair: CharacterBody3D) -> void:
+ 	if seated!=null or chair.rider!=null:
+ 		return
++	chair_entry_position=global_position
+ 	seated=chair
+ 	chair.rider=self
++	chair.swivel.rotation.y=rotation.y
++	seated_look.enter(chair.swivel.rotation.y)
++	yaw_target=seated_look.chair_turn
+ 	chair.previous_turn_target=yaw_target
+ 	chair.turn_target=yaw_target
+-	chair.swivel.rotation.y=rotation.y
+ 	collider.disabled=true
+ 
+ func stand_up() -> void:
+ 	if not is_instance_valid(seated):
+ 		return
+-	for offset in [Vector3(0,0,1),Vector3(1,0,0),Vector3(-1,0,0),Vector3(0,0,-1)]:
+-		var destination: Vector3=seated.global_position+offset
+-		destination.y=maxf(destination.y,0.02)
++	var candidates: Array[Vector3]=[]
++	if chair_entry_position.distance_to(seated.global_position)<3.0:
++		candidates.append(chair_entry_position)
++	for radius in [0.8,1.1,1.5,2.0]:
++		for step in range(16):
++			var angle := TAU*float(step)/16.0
++			candidates.append(seated.global_position+Vector3(sin(angle)*radius,0,cos(angle)*radius))
++	for candidate in candidates:
++		var floor_query := PhysicsRayQueryParameters3D.create(candidate+Vector3.UP*0.4,candidate-Vector3.UP*1.4,1,[get_rid(),seated.get_rid()])
++		var floor_hit := get_world_3d().direct_space_state.intersect_ray(floor_query)
++		if floor_hit.is_empty() or floor_hit.normal.dot(Vector3.UP)<0.7:
++			continue
++		var destination: Vector3=floor_hit.position+Vector3.UP*0.03
++		if not SafeRecovery.is_known_walkable(destination):
++			continue
+ 		var query := PhysicsShapeQueryParameters3D.new()
+ 		query.shape=collider.shape
+ 		query.transform=Transform3D(Basis.IDENTITY,destination+Vector3(0,.85,0))
+ 		query.collision_mask=1
+-		if get_world_3d().direct_space_state.intersect_shape(query).is_empty():
++		query.exclude=[get_rid(),seated.get_rid()]
++		if get_world_3d().direct_space_state.intersect_shape(query,8).is_empty():
++			yaw_target=seated_look.leave(seated.swivel.rotation.y)
++			rotation.y=yaw_target
+ 			seated.rider=null
+ 			seated=null
+ 			global_position=destination

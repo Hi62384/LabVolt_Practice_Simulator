@@ -1,0 +1,22 @@
+[
+  {
+    "source": "modules/host_adapter.gd",
+    "target": "scripts/electronics/circuit_workspace/host_adapter.gd",
+    "sha256": "5a5ec533d45b162903686b98856d679db875d2902927fa90d2b58ffdc009c624"
+  },
+  {
+    "source": "modules/placement.gd",
+    "target": "scripts/electronics/circuit_workspace/placement.gd",
+    "sha256": "cec675df1e974b9a88a583ecd00998c7b2aad882781c785d80aecd3fc3625c99"
+  },
+  {
+    "source": "modules/workspace.gd",
+    "target": "scripts/electronics/circuit_workspace/workspace.gd",
+    "sha256": "30c48903cbd9b1b07c60d08c11a2abd867174e9b8d4fb89d25c1df7344d41d65"
+  },
+  {
+    "source": "modules/workspace_canvas.gd",
+    "target": "scripts/electronics/circuit_workspace/workspace_canvas.gd",
+    "sha256": "786ab6a421b40688dd7a39809eff39d4a179bb89088c0fad3e9c275e53a6c967"
+  }
+]

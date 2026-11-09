@@ -1,0 +1,75 @@
+--- a/scripts/dc_lab.gd
++++ b/scripts/dc_lab.gd
+@@ -6,6 +6,7 @@
+ var benches: Array=[]
+ var states: Array=[]
+ var displays: Array=[]
++var instrument_fixtures: Array=[]
+ var physical_boards: Array=[]
+ var ports: Array=[]
+ var wire_roots: Array=[]
+@@ -77,35 +78,15 @@
+ 	table.set_meta("role","table");table.set_meta("label","DC work surface")
+ 	game.cable_obstacles.append(AABB(table.global_position-Vector3(2.4,.06,.8),Vector3(4.8,.12,1.6)))
+ 	for x in [-2.05,2.05]:game.cable_obstacles.append(AABB(origin.to_global(Vector3(x,.4,0))-Vector3(.06,.4,.65),Vector3(.12,.8,1.3)))
+-	game._box(origin,Vector3(0,1.3,-.45),Vector3(4.5,.8,.5),Color("d2d9d5"))
+-	game._box(origin,Vector3(0,1.3,-.19),Vector3(4.42,.73,.025),Color("263d47"))
+-	game._text3(origin,"DC ELECTRONICS  /  %02d"%(index+1),Vector3(0,1.84,-.35),.085,Color("a6e7dc"))
+-	var display: Label3D=game._text3(origin,"OUTPUTS OFF",Vector3(-1.25,1.42,-.16),.045,Color("8ceac4"))
++	var fixture := preload("res://scripts/instruments/physical/bench_instruments.gd").new()
++	origin.add_child(fixture)
++	fixture.build(self,index)
++	instrument_fixtures.append(fixture)
++	var display := Label3D.new()
++	origin.add_child(display)
++	display.visible=false
+ 	displays.append(display)
+-	game._text3(origin,"3 × 30 V / 1 A\nISOLATED CV / CC",Vector3(-1.25,1.17,-.16),.04,Color("dee8e8"))
+-	game._text3(origin,"DMM · 10 MΩ\nV / A / Ω / DIODE",Vector3(.1,1.38,-.16),.042,Color("e5d080"))
+-	game._text3(origin,"GENERATOR + SCOPE\n2 CHANNEL / COMMON GND",Vector3(1.3,1.38,-.16),.04,Color("8bdce5"))
+-	var panel := StaticBody3D.new();origin.add_child(panel);panel.position=Vector3(0,1.38,-.1)
+-	var collider := CollisionShape3D.new();var hit := BoxShape3D.new();hit.size=Vector3(4.3,.5,.12);collider.shape=hit;panel.add_child(collider)
+-	panel.set_meta("role","dc_panel");panel.set_meta("dc_station",index);panel.set_meta("label","DC station controls")
+-	var locations := {}
+-	for n in range(Station.PORTS.size()):
+-		var id: String=Station.PORTS[n]
+-		if id.begins_with("X"):continue
+-		var row := n/13;var col := n%13
+-		var pos := Vector3(-2.1+col*.35,1.02-row*.13,.03+row*.35)
+-		if id.begins_with("IS"):
+-			var pair := int(id.trim_prefix("IS").trim_suffix("+").trim_suffix("-"));pair=0 if pair==0 else pair-1
+-			pos=Vector3(-1.9+pair*.95+(.35 if id.ends_with("-") else 0),1.65,-.1)
+-		var color := Color("df745e") if id.contains("+") else Color("58c2d1") if id in ["S1","S2","GEN"] else Color("d1b66b") if n>=14 else Color("929ba7")
+-		var ring: MeshInstance3D=game._cylinder(origin,pos,.027,.035,color);ring.rotation.x=PI/2
+-		var socket := StaticBody3D.new();origin.add_child(socket);socket.position=pos
+-		var sphere := SphereShape3D.new();sphere.radius=.045
+-		var cs := CollisionShape3D.new();cs.shape=sphere;socket.add_child(cs)
+-		socket.set_meta("role","dc_port");socket.set_meta("dc_station",index);socket.set_meta("dc_port",id);socket.set_meta("label",id)
+-		game._text3(origin,id,pos+Vector3(0,.053,0),.027,Color("f4f1de"))
+-		locations[id]=origin.to_global(pos+Vector3(0,0,.04))
+-	ports.append(locations)
++	ports.append(fixture.port_positions())
+ 	var wires_node := Node3D.new();add_child(wires_node);wire_roots.append(wires_node)
+ 
+ func held_board(peer: int=-1) -> int:
+@@ -148,6 +129,10 @@
+ 	if target.get_meta("role")=="dc_board":
+ 		if right:request(index,{"op":"carry_board"})
+ 		else:game.electronics.open("board",index)
++		return true
++	if target.get_meta("role")=="dc_instrument_control":
++		var physical_action: Dictionary=instrument_fixtures[index].action_for(target,right,states[index])
++		if not physical_action.is_empty():request(index,physical_action)
+ 		return true
+ 	if target.get_meta("role")=="dc_panel":ui.open(index);return true
+ 	var port := str(target.get_meta("dc_port"))
+@@ -349,7 +334,8 @@
+ 		physical_boards[index].update_state(state)
+ 		for id in physical_boards[index].external_ports:ports[index][id]=physical_boards[index].to_global(physical_boards[index].external_ports[id])
+ 		var display_relevant: bool=displays[index].is_visible_in_tree() and displays[index].global_position.distance_squared_to(game.camera.global_position)<=1225.
+-		campus_readouts.observe(str(index),state,displays[index],display_relevant)
++		var fixture_relevant: bool=instrument_fixtures[index].global_position.distance_squared_to(game.camera.global_position)<=144.0
++		instrument_fixtures[index].observe(state,delta,fixture_relevant)
+ 		if state.revision!=drawn_revisions[index]:
+ 			drawn_revisions[index]=state.revision
+ 			for c in wire_roots[index].get_children():wire_roots[index].remove_child(c);c.queue_free()

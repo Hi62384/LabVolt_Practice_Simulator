@@ -1,0 +1,151 @@
+{
+  "review_date": "2026-11-04",
+  "ety155": {
+    "original": "C:/Users/User1/Downloads/ETY155NGG.pdf",
+    "bytes": 11705178,
+    "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+    "physical_pages": 190,
+    "provenance": "Pre-existing user-supplied file created Nov 3; independently authorized by coordinator. Not a repaired Library download or fabricated original.",
+    "text": "All 190 pages locally extracted. Complete supplied 6839-line source-text audit also consulted; page102 is schematic-rich and has no canonical extracted text.",
+    "readably_inspected_local_pages": [
+      1,
+      6,
+      8,
+      11,
+      13,
+      18,
+      28,
+      52,
+      102,
+      116,
+      132,
+      169,
+      178,
+      185,
+      186,
+      188,
+      190
+    ],
+    "remaining_pages_without_local_readable_inspection": 173,
+    "parent_prior_inspection": [
+      6,
+      11,
+      13,
+      18,
+      28,
+      52,
+      102,
+      116,
+      178,
+      185,
+      186,
+      188
+    ],
+    "exhaustive_visual_verification": false,
+    "gated": "No unseen source question is reconstructed. The original randomized generators are accepted through independent numerical/equipment invariants and representative semantic diagrams. Historical readable page coverage is evidence, not a completion gate.",
+    "confirmed_corrections": [
+      "p6: 12.14V/15kOhm=809.333microA, not8.093microA",
+      "p8: five bands use THREE significant digits, multiplier and tolerance",
+      "p11 Q11a: red-black-black-red-brown=20kOhm +/-1%",
+      "p18: general parallel formula is reciprocal sum; product/sum is only two resistors",
+      "p28 Q18b: 2.7kOhm||1kOhm=729.7297Ohm, not729.7kOhm",
+      "p52(e): drawing labels voltmeter A; actual function is parallel voltage measurement with reversed polarity",
+      "p185-186 Q129: load bridges left and right upper nodes. Left open voltage8V; right-6V; Vth14V. Rth=(3k||6k)+2k=4kOhm. Pmax12.25mW at4kOhm. Printed topology simplification is invalid.",
+      "p188 Q130: second contribution7/(2200+1000||3300)=2.358934mA, not2.596mA; full signed source topology must remain explicit."
+    ]
+  },
+  "elm253": {
+    "originals": "User Downloads ELM253.docx, Labs1-7, supplied sinusoidal/phasor/series-parallel/three-phase/magnetism/motor/transformer/inverter PDFs",
+    "text_extraction": "21 PDF files including duplicate copies extracted with pypdf; ELM253.docx extracted from original OOXML. Full Lab1-7 procedures read. Topic formulas cross-checked with lecture text, source assumptions and independent calculations.",
+    "sequence": "Proposed11lecture/8lab simulator sequence. Lab8 is an original capstone using supplied Labs2-7 concepts, not a fabricated official lab. Lab6 retains the supplied basic AC practical-test basis.",
+    "cautions": [
+      "Some supplied filenames say ELM253 while internal legacy handout headers say ELM453; preserve filenames and do not infer an official timetable.",
+      "ELM253.docx contains rough student notes and errors (including swapped strong/weak force descriptions). It informs topic coverage, not answer keys.",
+      "Legacy ideal theory and physical instrument models differ through finite source/shunt/voltmeter impedances. Practical marks must use host equipment results.",
+      "Motor, transformer and inverter theory content does not certify all equipment-specific practical behaviors."
+    ]
+  },
+  "copyright": "Runtime teaching, examples and diagrams are original concise instructional work. No source PDF images or page scans are distributed in course assets.",
+  "source_files_unchanged": true,
+  "course_randomization_policy": {
+    "authority": "course-randomization-policy.json / latest user clarification",
+    "source_role": "Topic/style/conventions and representative diagram references, not a question-transcription list",
+    "acceptance": "Seeded randomized calculation scenarios, independently checked keys/invariants, units and actual equipment buildability",
+    "full190page_readable_review_required": false,
+    "historical_173page_coverage_is_completion_gate": false
+  },
+  "representative_topic_coverage": [
+    {
+      "week": 1,
+      "source_pages": "1-7",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 2,
+      "source_pages": "8-12",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 3,
+      "source_pages": "1-2,13-16",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 4,
+      "source_pages": "17-24,40-45",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 5,
+      "source_pages": "25-39,45-50",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 6,
+      "source_pages": "50-77",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 7,
+      "source_pages": "78-101",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 8,
+      "source_pages": "102-115",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 9,
+      "source_pages": "116-131",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 10,
+      "source_pages": "132-168",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 11,
+      "source_pages": "169-177",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    },
+    {
+      "week": 12,
+      "source_pages": "178-190",
+      "generator": "dc.v3",
+      "validation": "Independent test-only MNA/closed-form oracle plus actual DC equipment tests"
+    }
+  ]
+}

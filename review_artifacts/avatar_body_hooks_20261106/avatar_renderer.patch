@@ -1,0 +1,36 @@
+--- a/scripts/avatar_cosmetics/core/avatar_renderer.gd
++++ b/scripts/avatar_cosmetics/core/avatar_renderer.gd
+@@ -1,4 +1,6 @@
+ extends RefCounted
++const BodyFit = preload("res://scripts/avatar_cosmetics/body_deformation/body_fit.gd")
++const BodyDeformation = preload("res://scripts/avatar_cosmetics/body_deformation/rig_adapter.gd")
+ const Toon = preload("res://scripts/toon_character.gd")
+ const Core = preload("res://scripts/avatar_cosmetics/core/avatar_core.gd")
+ const Footwear = preload("res://scripts/avatar_cosmetics/footwear/footwear_provider.gd")
+@@ -10,7 +12,8 @@
+ 	var body := Core.sanitize_body(state.get("body",{}))
+ 	var legacy: Dictionary=state.get("legacy_character",{}).duplicate(true)
+ 	for pair in [["height","height"],["width","build"],["head","head"],["head_width","face_width"],["head_height","face_height"],["shoulders","shoulders"],["waist","waist"],["arm_length","arm_length"],["hands","hand_size"],["leg_length","leg_length"],["feet","shoe_size"],["skin","skin"]]:legacy[pair[1]]=body[pair[0]]
+-	var avatar := Toon.build(legacy)
++	var avatar := Toon.build(legacy,body)
++	body = BodyFit.provider_context(body,Toon.sanitize(legacy))
+ 	var entry = state.get("equipped",{}).get("footwear",{})
+ 	if entry is Dictionary and catalog.has(entry.get("id","")):
+ 		var definition: Dictionary=catalog[entry.id]
+@@ -42,7 +45,16 @@
+ 		if "hair_covering" in definition.get("tags",[]):
+ 			var hair = avatar.get_node_or_null("Body/Head/Hair")
+ 			if hair!=null:hair.hide()
++	BodyDeformation.finish(avatar)
+ 	return avatar
++
++static func save_glb(state: Dictionary,catalog: Dictionary,path: String) -> Error:
++	var model := render_avatar(state,catalog)
++	var document := GLTFDocument.new(); var gltf_state := GLTFState.new()
++	var error := document.append_from_scene(model,gltf_state)
++	if error==OK: error=document.write_to_filesystem(gltf_state,path)
++	model.free()
++	return error
+ 
+ static func _hide_matching(parent: Node,prefixes: Array) -> void:
+ 	for child in parent.get_children():

@@ -1,0 +1,18 @@
+[
+  {
+    "path": "scripts/toon_character.gd",
+    "sha256": "1174337a2c4cfbfdd636e55f48d057e9eadb7e01e7625fb6ffb9f59f76b12531"
+  },
+  {
+    "path": "scripts/avatar_cosmetics/core/avatar_renderer.gd",
+    "sha256": "674c45633ed036bde17ffd81bc89085746129c43c002a16f5a9a982922f9bab4"
+  },
+  {
+    "path": "scripts/avatar_cosmetics/clothing/clothing_provider.gd",
+    "sha256": "775c5d302ce8ac87c92b702fa2cd7d24abe13ff63c49e767964001e7de4b83dd"
+  },
+  {
+    "path": "scripts/avatar_cosmetics/accessories/accessory_provider.gd",
+    "sha256": "be54bf5c50064e2bbd49eda95cf74c097298f57b8f64ef37bbd484104f1f8a53"
+  }
+]

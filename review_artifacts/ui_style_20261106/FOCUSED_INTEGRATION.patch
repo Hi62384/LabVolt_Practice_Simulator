@@ -1,0 +1,70 @@
+--- a/scripts/electronics_ui.gd
++++ b/scripts/electronics_ui.gd
+@@ -2,6 +2,7 @@
+ const Catalog=preload("res://scripts/electronics_catalog.gd")
+ const Board=preload("res://scripts/breadboard_model.gd")
+ var game: Node
++var shop_adapter=preload("res://scripts/electronics/component_shop_ui/shop_adapter.gd").new()
+ var profile=preload("res://scripts/electronics_profile.gd").new()
+ var screen: PanelContainer
+ var body: VBoxContainer
+@@ -75,11 +76,12 @@
+ 	for child in screen.get_children():screen.remove_child(child);child.queue_free()
+ 	var column := VBoxContainer.new();screen.add_child(column)
+ 	var bar := HBoxContainer.new();column.add_child(bar)
+-	var title := label(bar,"ELECTRONICS STUDIO");title.add_theme_font_size_override("font_size",26);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
++	var title := label(bar,"COMPONENTS" if page=="shop" else "ELECTRONICS STUDIO");title.add_theme_font_size_override("font_size",26);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ 	var economy: Dictionary=profile.get_meta("economy_display",{}) if profile.authority_submit.is_valid() else preload("res://scripts/economy/temporary_playtest/policy.gd").display_snapshot(true)
+ 	label(bar,"Unlimited" if economy.get("unlimited_purchases",false) else "$%d"%profile.data.dollars);button(bar,"Close",close)
+ 	var tabs := HBoxContainer.new();column.add_child(tabs)
+-	for entry in [["inventory","Hotbar"],["shop","Components"],["kits","My kits"],["board","Breadboard"],["notes","Notebook"],["ics","IC / PCB builder"],["code","Code"],["trade","Trade"]]:button(tabs,entry[1],func():open(entry[0],bench))
++	if page!="shop":
++		for entry in [["inventory","Hotbar"],["shop","Components"],["kits","My kits"],["board","Breadboard"],["notes","Notebook"],["ics","IC / PCB builder"],["code","Code"],["trade","Trade"]]:button(tabs,entry[1],func():open(entry[0],bench))
+ 	status=label(column,"Creative access · ordinary inventory unchanged" if creative else "Kits are templates. Ownership is counted only in your master inventory.")
+ 	var scroll := ScrollContainer.new();page_scroll=scroll;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(scroll)
+ 	body=VBoxContainer.new();body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(body)
+@@ -100,6 +102,7 @@
+ 	_show_kit_name_notice()
+ 	restore_view.call_deferred(page,panel_generation)
+ func shop() -> void:
++	shop_adapter.build(self,body,{"economy":profile.get_meta("economy_display",{})})
+ 	button(body,"Circuit Analyzer · owned" if profile.data.get("analyzer",false) else "Unlock Circuit Analyzer · $75",func():var message: String=profile.buy_analyzer();open("shop",bench);status.text=message)
+ 	label(body,"Assortment boxes · guaranteed contents · 20% bundle discount")
+ 	for bundle in [{"name":"Resistor box","items":{"r1000":10,"r220":10,"r10000":10}},{"name":"Capacitor box","items":{"c0.1":4,"c1.0":4,"c10.0":4}},{"name":"Semiconductor starter","items":{"diode":6,"led":6}}]:
+@@ -126,17 +129,6 @@
+ 			if error!="":status.text=error;return
+ 			game.characters.changed.emit();status.text="Accessory equipped and shared with the laboratory."
+ 		)
+-	var search := LineEdit.new();search.placeholder_text="Search component name or category";search.text=shop_search;search.max_length=100;body.add_child(search)
+-	var entries := VBoxContainer.new();body.add_child(entries)
+-	for id in Catalog.all():
+-		var c: Dictionary=Catalog.all()[id];var row := HBoxContainer.new();entries.add_child(row);row.set_meta("search",(c.name+" "+c.category).to_lower())
+-		var description := label(row,"%s · %s · owned %d\n%s"%[c.name,c.category,profile.data.inventory.get(id,0),c.rating]);description.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+-		button(row,"Buy $%d"%c.price,func():var message: String=profile.buy(id,1);open("shop",bench);status.text=message)
+-	search.text_changed.connect(func(value):
+-		shop_search=value.left(100)
+-		for row in entries.get_children():row.visible=shop_search.to_lower() in str(row.get_meta("search"))
+-	)
+-	search.text_changed.emit(shop_search)
+ 	button(body,"Capacity +20 · $50",func():
+ 		var message: String=profile.upgrade_capacity()
+ 		open("shop",bench);status.text=message
+
+--- a/scripts/inventory_authority/network.gd
++++ b/scripts/inventory_authority/network.gd
+@@ -49,6 +49,7 @@
+ 		args=args.duplicate(true);args[0].erase("authority_credentials")
+ 	pending.append({"id":Crypto.new().generate_random_bytes(16).hex_encode(),"op":op,"args":args.duplicate(true)})
+ 	if not metadata.is_empty() and game.electronics.has_method("kit_names_submitted"):game.electronics.kit_names_submitted(str(pending.back().id),args[0])
++	if op in ["buy","buy_configured"] and is_instance_valid(game.electronics.shop_adapter):game.electronics.shop_adapter.submitted(str(pending.back().id),op)
+ 	flush()
+ func flush() -> void:
+ 	if not bound or pending.is_empty():return
+@@ -180,6 +181,7 @@
+ 	elif not result.get("error","").is_empty():game.ui.log_message(str(result.error))
+ 	if game.electronics.has_method("kit_names_result"):game.electronics.kit_names_result(id,bool(result.get("ok",false)),result.get("profile",{}) if result.get("profile",{}) is Dictionary else {},str(result.get("error","Host rejected metadata")))
+ 	if not pending.is_empty() and pending[0].id==id:
++		if str(pending[0].get("op","")) in ["buy","buy_configured"] and is_instance_valid(game.electronics.shop_adapter):game.electronics.shop_adapter.received(id,result)
+ 		operation_result.emit(str(pending[0].get("op","")),result)
+ 		pending.pop_front()
+ 	if result.get("message","")!="":game.ui.log_message(str(result.message))

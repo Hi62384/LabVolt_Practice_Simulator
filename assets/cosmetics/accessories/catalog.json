@@ -1,0 +1,1930 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "accessory.head.campus_cap",
+      "name": "Campus Five-Panel Cap",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/campus_cap.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/campus_cap.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "headwear",
+        "cap",
+        "hair_covering"
+      ],
+      "conflicts": [
+        "hair_volume_high",
+        "headwear_locked"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": [
+          "accent"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "E5AF3D"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.92,
+          "max": 1.08
+        },
+        "finish": {
+          "type": "enum",
+          "default": "matte",
+          "values": [
+            "matte",
+            "satin"
+          ]
+        }
+      }
+    },
+    {
+      "id": "accessory.head.harbor_beanie",
+      "name": "Harbor Knit Beanie",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/harbor_beanie.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/harbor_beanie.png",
+      "price": 90,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "headwear",
+        "beanie",
+        "hair_covering"
+      ],
+      "conflicts": [
+        "hair_volume_high",
+        "headwear_locked"
+      ],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": [
+          "dark_metal"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE5157"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "29303B"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        }
+      }
+    },
+    {
+      "id": "accessory.head.field_brim",
+      "name": "Field Brim Hat",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/field_brim.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/field_brim.png",
+      "price": 260,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "headwear",
+        "brimmed",
+        "hair_covering"
+      ],
+      "conflicts": [
+        "hair_volume_high",
+        "headwear_locked"
+      ],
+      "materials": {
+        "primary_regions": [
+          "felt"
+        ],
+        "metal_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "5C4331"
+        },
+        "metal_color": {
+          "type": "color",
+          "default": "BE8F34"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.92,
+          "max": 1.08
+        },
+        "finish": {
+          "type": "enum",
+          "default": "matte",
+          "values": [
+            "matte",
+            "satin"
+          ]
+        }
+      }
+    },
+    {
+      "id": "accessory.face.round_study",
+      "name": "Round Study Glasses",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/round_glasses.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/round_glasses.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "eyewear",
+        "glasses"
+      ],
+      "conflicts": [
+        "face_full_mask"
+      ],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "finish": {
+          "type": "enum",
+          "default": "satin",
+          "values": [
+            "matte",
+            "satin",
+            "polished"
+          ]
+        }
+      }
+    },
+    {
+      "id": "accessory.face.aurora_visor",
+      "name": "Aurora Visor",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/aurora_visor.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/aurora_visor.png",
+      "price": 390,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "eyewear",
+        "visor",
+        "tech"
+      ],
+      "conflicts": [
+        "face_full_mask"
+      ],
+      "materials": {
+        "primary_regions": [
+          "glass"
+        ],
+        "accent_regions": [
+          "accent"
+        ],
+        "metal_regions": [
+          "dark_metal"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "1F6F84"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "E5AF3D"
+        },
+        "metal_color": {
+          "type": "color",
+          "default": "29303B"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        }
+      }
+    },
+    {
+      "id": "accessory.ears.orbit_hoops",
+      "name": "Orbit Hoop Earrings",
+      "category": "accessories",
+      "slot": "ears",
+      "scene": "res://assets/cosmetics/accessories/models/gold_hoops.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/gold_hoops.png",
+      "price": 120,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "ear_item",
+        "paired_earrings"
+      ],
+      "conflicts": [
+        "ear_covering"
+      ],
+      "materials": {
+        "metal_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "metal_color": {
+          "type": "color",
+          "default": "BE8F34"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.9,
+          "max": 1.1
+        },
+        "finish": {
+          "type": "enum",
+          "default": "polished",
+          "values": [
+            "satin",
+            "polished"
+          ]
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.prism_pendant",
+      "name": "Prism Pendant",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/prism_pendant.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/prism_pendant.png",
+      "price": 175,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "necklace",
+        "pendant"
+      ],
+      "conflicts": [
+        "neck_covering_high"
+      ],
+      "materials": {
+        "metal_regions": [
+          "gold"
+        ],
+        "accent_regions": [
+          "glass"
+        ]
+      },
+      "parameters": {
+        "metal_color": {
+          "type": "color",
+          "default": "BE8F34"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "1F6F84"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        }
+      }
+    },
+    {
+      "id": "accessory.wrist.bench_timer",
+      "name": "Bench Timer Watch",
+      "category": "accessories",
+      "slot": "wrist_left",
+      "scene": "res://assets/cosmetics/accessories/models/bench_watch.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/bench_watch.png",
+      "price": 210,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "watch",
+        "wrist_item"
+      ],
+      "conflicts": [
+        "glove_long_left"
+      ],
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "metal_regions": [
+          "silver"
+        ],
+        "accent_regions": [
+          "glass"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "5B3722"
+        },
+        "metal_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "1F6F84"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.92,
+          "max": 1.08
+        }
+      }
+    },
+    {
+      "id": "accessory.back.utility_pack",
+      "name": "Campus Utility Pack",
+      "category": "accessories",
+      "slot": "back",
+      "scene": "res://assets/cosmetics/accessories/models/utility_pack.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/utility_pack.png",
+      "price": 320,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "cosmetic_backpack",
+        "back_item"
+      ],
+      "conflicts": [
+        "physical_backpack_visible",
+        "back_rigid_large"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fabric",
+          "canvas"
+        ],
+        "accent_regions": [
+          "accent"
+        ],
+        "metal_regions": [
+          "leather"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "314153"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "E5AF3D"
+        },
+        "metal_color": {
+          "type": "color",
+          "default": "5B3722"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.92,
+          "max": 1.08
+        },
+        "finish": {
+          "type": "enum",
+          "default": "matte",
+          "values": [
+            "matte",
+            "satin"
+          ]
+        }
+      }
+    },
+    {
+      "id": "accessory.ears.studio_studs",
+      "name": "Studio Stud Earrings",
+      "category": "accessories",
+      "slot": "ears",
+      "scene": "res://assets/cosmetics/accessories/models/studio_studs.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/studio_studs.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "ear_item",
+        "paired_earrings"
+      ],
+      "conflicts": [
+        "ear_covering"
+      ],
+      "materials": {
+        "metal_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "metal_color": {
+          "type": "color",
+          "default": "cddce1"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.9,
+          "max": 1.1
+        },
+        "finish": {
+          "type": "enum",
+          "default": "polished",
+          "values": [
+            "satin",
+            "polished"
+          ]
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.campus_medallion",
+      "name": "Campus Medallion",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/campus_medallion.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/campus_medallion.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "necklace",
+        "pendant"
+      ],
+      "conflicts": [
+        "neck_covering_high"
+      ],
+      "materials": {
+        "metal_regions": [
+          "gold"
+        ],
+        "accent_regions": [
+          "glass"
+        ]
+      },
+      "parameters": {
+        "metal_color": {
+          "type": "color",
+          "default": "BE8F34"
+        },
+        "accent_color": {
+          "type": "color",
+          "default": "1F6F84"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_baseball_cap",
+      "name": "Baseball Cap",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_baseball_cap.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_baseball_cap.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "hair_covering"
+      ],
+      "conflicts": [
+        "hair_volume_high",
+        "headwear_locked"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_beanie",
+      "name": "Beanie",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_beanie.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_beanie.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "hair_covering"
+      ],
+      "conflicts": [
+        "hair_volume_high",
+        "headwear_locked"
+      ],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE5157"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_bucket_hat",
+      "name": "Bucket Hat",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_bucket_hat.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_bucket_hat.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "hair_covering"
+      ],
+      "conflicts": [
+        "hair_volume_high",
+        "headwear_locked"
+      ],
+      "materials": {
+        "primary_regions": [
+          "felt"
+        ],
+        "accent_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "5C4331"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_headband",
+      "name": "Headband",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_headband.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_headband.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_bandana",
+      "name": "Bandana",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_bandana.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_bandana.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_visor",
+      "name": "Visor",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_visor.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_visor.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_earmuffs",
+      "name": "Earmuffs",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_earmuffs.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_earmuffs.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": [
+          "accent",
+          "canvas"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE5157"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_headphones",
+      "name": "Headphones",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_headphones.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_headphones.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ],
+        "accent_regions": [
+          "accent",
+          "canvas"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_gaming_headset",
+      "name": "Gaming Headset",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_gaming_headset.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_gaming_headset.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ],
+        "accent_regions": [
+          "accent",
+          "canvas"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_flower_crown",
+      "name": "Flower Crown",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_flower_crown.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_flower_crown.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": [
+          "knit",
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_crown",
+      "name": "Crown",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_crown.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_crown.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": [
+          "accent"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_halo_headband",
+      "name": "Halo Headband",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_halo_headband.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_halo_headband.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.reference_hair_clips",
+      "name": "Hair Clips",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_hair_clips.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_hair_clips.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": [
+          "accent"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_round_glasses",
+      "name": "Round Glasses",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_round_glasses.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_round_glasses.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_square_glasses",
+      "name": "Square Glasses",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_square_glasses.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_square_glasses.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_aviators",
+      "name": "Aviators",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_aviators.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_aviators.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_heart_sunglasses",
+      "name": "Heart Sunglasses",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_heart_sunglasses.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_heart_sunglasses.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "accent"
+        ],
+        "accent_regions": [
+          "dark_metal"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "E5AF3D"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_sports_sunglasses",
+      "name": "Sports Sunglasses",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_sports_sunglasses.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_sports_sunglasses.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "glass"
+        ],
+        "accent_regions": [
+          "dark_metal",
+          "accent"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "1F6F84"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_monocle",
+      "name": "Monocle",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_monocle.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_monocle.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_eye_patch",
+      "name": "Eye Patch",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_eye_patch.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_eye_patch.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_face_mask",
+      "name": "Face Mask",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_face_mask.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_face_mask.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": [
+          "canvas"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE5157"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_bandana_mask",
+      "name": "Bandana Mask",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_bandana_mask.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_bandana_mask.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE5157"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_nose_ring",
+      "name": "Nose Ring",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_nose_ring.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_nose_ring.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_eyebrow_piercing",
+      "name": "Eyebrow Piercing",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_eyebrow_piercing.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_eyebrow_piercing.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.reference_lip_piercing",
+      "name": "Lip Piercing",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_lip_piercing.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_lip_piercing.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_simple_necklace",
+      "name": "Simple Necklace",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_simple_necklace.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_simple_necklace.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_chain_necklace",
+      "name": "Chain Necklace",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_chain_necklace.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_chain_necklace.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_pendant_necklace",
+      "name": "Pendant Necklace",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_pendant_necklace.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_pendant_necklace.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": [
+          "glass"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_choker",
+      "name": "Choker",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_choker.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_choker.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ],
+        "accent_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_scarf",
+      "name": "Scarf",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_scarf.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_scarf.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE5157"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_bow_tie",
+      "name": "Bow Tie",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_bow_tie.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_bow_tie.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_tie",
+      "name": "Tie",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_tie.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_tie.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.reference_decorative_pins",
+      "name": "Decorative Pins",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_decorative_pins.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_decorative_pins.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": [
+          "accent"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.ears.reference_hoop_earrings",
+      "name": "Hoop Earrings",
+      "category": "accessories",
+      "slot": "ears",
+      "scene": "res://assets/cosmetics/accessories/models/reference_hoop_earrings.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_hoop_earrings.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.ears.reference_stud_earrings",
+      "name": "Stud Earrings",
+      "category": "accessories",
+      "slot": "ears",
+      "scene": "res://assets/cosmetics/accessories/models/reference_stud_earrings.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_stud_earrings.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": [
+          "glass"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.ears.reference_dangling_earrings",
+      "name": "Dangling Earrings",
+      "category": "accessories",
+      "slot": "ears",
+      "scene": "res://assets/cosmetics/accessories/models/reference_dangling_earrings.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_dangling_earrings.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.wrist_left.reference_smartwatch",
+      "name": "Smartwatch",
+      "category": "accessories",
+      "slot": "wrist_left",
+      "scene": "res://assets/cosmetics/accessories/models/reference_smartwatch.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_smartwatch.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "accent_regions": [
+          "silver",
+          "glass"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "5B3722"
+        }
+      }
+    },
+    {
+      "id": "accessory.wrist_left.reference_bracelet",
+      "name": "Bracelet",
+      "category": "accessories",
+      "slot": "wrist_left",
+      "scene": "res://assets/cosmetics/accessories/models/reference_bracelet.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_bracelet.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": [
+          "accent"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.wrist_left.reference_bangle",
+      "name": "Bangle",
+      "category": "accessories",
+      "slot": "wrist_left",
+      "scene": "res://assets/cosmetics/accessories/models/reference_bangle.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_bangle.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.wrist_left.reference_wrist_sweatband",
+      "name": "Wrist Sweatband",
+      "category": "accessories",
+      "slot": "wrist_left",
+      "scene": "res://assets/cosmetics/accessories/models/reference_wrist_sweatband.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_wrist_sweatband.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE5157"
+        }
+      }
+    },
+    {
+      "id": "accessory.face.sunburst_frames",
+      "name": "Sunburst Frames",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/sunburst_frames.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/sunburst_frames.png",
+      "price": 530,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "eyewear",
+        "glasses"
+      ],
+      "conflicts": [
+        "face_full_mask"
+      ],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "29303B"
+        },
+        "scale": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "finish": {
+          "type": "enum",
+          "default": "satin",
+          "values": [
+            "matte",
+            "satin",
+            "polished"
+          ]
+        }
+      }
+    },
+    {
+      "id": "accessory.head.studio_monitor",
+      "name": "Studio Monitor Headphones",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_headphones.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_headphones.png",
+      "price": 380,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "dark_metal"
+        ],
+        "accent_regions": [
+          "accent",
+          "canvas"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "43526C"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.tideline_bucket",
+      "name": "Tideline Bucket Hat",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_bucket_hat.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_bucket_hat.png",
+      "price": 170,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "hair_covering"
+      ],
+      "conflicts": [
+        "hair_volume_high",
+        "headwear_locked"
+      ],
+      "materials": {
+        "primary_regions": [
+          "felt"
+        ],
+        "accent_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "49847F"
+        }
+      }
+    },
+    {
+      "id": "accessory.head.orchard_crown",
+      "name": "Orchard Flower Crown",
+      "category": "accessories",
+      "slot": "head",
+      "scene": "res://assets/cosmetics/accessories/models/reference_flower_crown.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_flower_crown.png",
+      "price": 475,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "accent_regions": [
+          "knit",
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "376676"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.coastline_aviators",
+      "name": "Coastline Aviators",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_aviators.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_aviators.png",
+      "price": 310,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.eyewear.gilt_monocle",
+      "name": "Gilt Monocle",
+      "category": "accessories",
+      "slot": "eyewear",
+      "scene": "res://assets/cosmetics/accessories/models/reference_monocle.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_monocle.png",
+      "price": 610,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "gold"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "BE8F34"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.harbour_scarf",
+      "name": "Harbour Knit Scarf",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_scarf.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_scarf.png",
+      "price": 155,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "knit"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "7A3845"
+        }
+      }
+    },
+    {
+      "id": "accessory.neck.silver_link",
+      "name": "Silver Link Necklace",
+      "category": "accessories",
+      "slot": "neck",
+      "scene": "res://assets/cosmetics/accessories/models/reference_chain_necklace.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_chain_necklace.png",
+      "price": 365,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.ears.tideglass_drops",
+      "name": "Tideglass Drops",
+      "category": "accessories",
+      "slot": "ears",
+      "scene": "res://assets/cosmetics/accessories/models/reference_dangling_earrings.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_dangling_earrings.png",
+      "price": 285,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "silver"
+        ],
+        "accent_regions": [
+          "gold"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AEB8BF"
+        }
+      }
+    },
+    {
+      "id": "accessory.wrist_left.meridian_watch",
+      "name": "Meridian Smartwatch",
+      "category": "accessories",
+      "slot": "wrist_left",
+      "scene": "res://assets/cosmetics/accessories/models/reference_smartwatch.gltf",
+      "thumbnail": "res://assets/cosmetics/accessories/thumbnails/reference_smartwatch.png",
+      "price": 560,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "leather"
+        ],
+        "accent_regions": [
+          "silver",
+          "glass"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "5B3722"
+        }
+      }
+    }
+  ]
+}

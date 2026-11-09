@@ -1,0 +1,3265 @@
+{
+  "note": "Source inventory, not proof of runtime reachability. Resource references are exact string matches; routing via methods is documented in ADOPTION_MATRIX.md. Concurrent source may change after snapshot.",
+  "cp1252_fallbacks": [],
+  "surfaces": [
+    {
+      "path": "scripts/breadboard_canvas.gd",
+      "base": "Control",
+      "sha256": "7f0b635b0deaae10591c3b3b87dd8624a999e0324ec67f4f0b5b5bac6357e8a7",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 36
+        },
+        {
+          "name": "_process",
+          "line": 40
+        },
+        {
+          "name": "refresh_io_surfaces",
+          "line": 42
+        },
+        {
+          "name": "release_io_capture",
+          "line": 45
+        },
+        {
+          "name": "has_pending_io",
+          "line": 47
+        },
+        {
+          "name": "acknowledge_io",
+          "line": 49
+        },
+        {
+          "name": "_notification",
+          "line": 51
+        },
+        {
+          "name": "at",
+          "line": 53
+        },
+        {
+          "name": "hole_at",
+          "line": 66
+        },
+        {
+          "name": "commit",
+          "line": 72
+        },
+        {
+          "name": "undo",
+          "line": 75
+        },
+        {
+          "name": "redo",
+          "line": 78
+        },
+        {
+          "name": "_gui_input",
+          "line": 81
+        },
+        {
+          "name": "_draw",
+          "line": 173
+        },
+        {
+          "name": "draw_analyzer",
+          "line": 250
+        },
+        {
+          "name": "draw_capture",
+          "line": 305
+        },
+        {
+          "name": "accept_measurements",
+          "line": 320
+        },
+        {
+          "name": "inspection_text",
+          "line": 324
+        },
+        {
+          "name": "style",
+          "line": 357
+        },
+        {
+          "name": "transform_selected",
+          "line": 360
+        },
+        {
+          "name": "delete_selected",
+          "line": 386
+        },
+        {
+          "name": "resize_board",
+          "line": 389
+        },
+        {
+          "name": "copy_selected",
+          "line": 394
+        },
+        {
+          "name": "paste_selected",
+          "line": 396
+        },
+        {
+          "name": "pcb_rect",
+          "line": 413
+        },
+        {
+          "name": "layout_point",
+          "line": 419
+        },
+        {
+          "name": "draw_pcb",
+          "line": 431
+        },
+        {
+          "name": "exposed_controls",
+          "line": 475
+        },
+        {
+          "name": "surface_devices",
+          "line": 485
+        },
+        {
+          "name": "_collect_surface",
+          "line": 493
+        },
+        {
+          "name": "_nested_rect",
+          "line": 500
+        },
+        {
+          "name": "_collect_exposed",
+          "line": 507
+        },
+        {
+          "name": "_draw_nested",
+          "line": 517
+        },
+        {
+          "name": "draw_display",
+          "line": 533
+        },
+        {
+          "name": "native_rect",
+          "line": 544
+        },
+        {
+          "name": "draw_native_board",
+          "line": 549
+        },
+        {
+          "name": "pcb_child_point",
+          "line": 560
+        },
+        {
+          "name": "pcb_child_pins",
+          "line": 566
+        },
+        {
+          "name": "draw_routed_substrate",
+          "line": 570
+        },
+        {
+          "name": "pcb_child_end_point",
+          "line": 580
+        },
+        {
+          "name": "pcb_child_center",
+          "line": 583
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/electronics_ui.gd",
+          "line": 279,
+          "code": "canvas=preload(\"res://scripts/breadboard_canvas.gd\").new();canvas.board=kit.board.duplicate(true)"
+        },
+        {
+          "source": "scripts/electronics_ui.gd",
+          "line": 526,
+          "code": "canvas=preload(\"res://scripts/breadboard_canvas.gd\").new();canvas.board=profile.data.kits[profile.data.equipped].board.duplicate(true);canvas.read_only=true;body.add_child(canvas)"
+        },
+        {
+          "source": "scripts/physical_breadboard.gd",
+          "line": 44,
+          "code": "drawing=preload(\"res://scripts/breadboard_canvas.gd\").new();view.add_child(drawing);drawing.custom_minimum_size=Vector2.ZERO;drawing.size=Vector2(1000,440);drawing.mouse_filter=Control.MOUSE_FILTER_IGNORE"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/carry_hotbar.gd",
+      "base": "CanvasLayer",
+      "sha256": "93e2d6e7a536a038d4f227fd4331104a79930e88f50e9ec89d1e921abe5ea340",
+      "functions": [
+        {
+          "name": "build",
+          "line": 11
+        },
+        {
+          "name": "title",
+          "line": 17
+        },
+        {
+          "name": "add_item",
+          "line": 26
+        },
+        {
+          "name": "_process",
+          "line": 32
+        },
+        {
+          "name": "stow",
+          "line": 47
+        },
+        {
+          "name": "select_slot",
+          "line": 63
+        },
+        {
+          "name": "manager",
+          "line": 76
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 187,
+          "code": "hotbar=preload(\"res://scripts/carry_hotbar.gd\").new();add_child(hotbar);hotbar.build(self)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/dc_ui.gd",
+      "base": "CanvasLayer",
+      "sha256": "24a4aac3778520fdfa7efc57e7dc43385f56c1aa22711576b55b8acbc4816013",
+      "functions": [
+        {
+          "name": "build",
+          "line": 26
+        },
+        {
+          "name": "close",
+          "line": 32
+        },
+        {
+          "name": "button",
+          "line": 34
+        },
+        {
+          "name": "label",
+          "line": 37
+        },
+        {
+          "name": "number",
+          "line": 39
+        },
+        {
+          "name": "choice",
+          "line": 43
+        },
+        {
+          "name": "send",
+          "line": 50
+        },
+        {
+          "name": "open",
+          "line": 52
+        },
+        {
+          "name": "refresh",
+          "line": 141
+        },
+        {
+          "name": "_watch",
+          "line": 170
+        },
+        {
+          "name": "_sync_controls",
+          "line": 173
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/dc_lab.gd",
+          "line": 44,
+          "code": "ui=preload(\"res://scripts/dc_ui.gd\").new();add_child(ui);ui.build(self)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/electronics_trade.gd",
+      "base": "Node",
+      "sha256": "ac1d5612dbf80613bd82cbcbbea64a46a036be720a3d8eb2f538243bb4ace9b1",
+      "functions": [
+        {
+          "name": "build",
+          "line": 9
+        },
+        {
+          "name": "profile",
+          "line": 20
+        },
+        {
+          "name": "request",
+          "line": 21
+        },
+        {
+          "name": "command",
+          "line": 27
+        },
+        {
+          "name": "accept",
+          "line": 29
+        },
+        {
+          "name": "publish",
+          "line": 72
+        },
+        {
+          "name": "receive",
+          "line": 77
+        },
+        {
+          "name": "prepare",
+          "line": 81
+        },
+        {
+          "name": "prepared_reply",
+          "line": 86
+        },
+        {
+          "name": "prepared",
+          "line": 88
+        },
+        {
+          "name": "save_journal",
+          "line": 103
+        },
+        {
+          "name": "deliver",
+          "line": 108
+        },
+        {
+          "name": "commit",
+          "line": 126
+        },
+        {
+          "name": "ack",
+          "line": 137
+        },
+        {
+          "name": "acknowledge",
+          "line": 139
+        },
+        {
+          "name": "cancel",
+          "line": 147
+        },
+        {
+          "name": "abort",
+          "line": 153
+        },
+        {
+          "name": "clean_disconnected",
+          "line": 158
+        },
+        {
+          "name": "_process",
+          "line": 163
+        },
+        {
+          "name": "menu",
+          "line": 172
+        },
+        {
+          "name": "recover_request",
+          "line": 175
+        },
+        {
+          "name": "recover",
+          "line": 177
+        },
+        {
+          "name": "authoritative_commit",
+          "line": 185
+        },
+        {
+          "name": "offer_definitions",
+          "line": 192
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 190,
+          "code": "electronics_trade=preload(\"res://scripts/electronics_trade.gd\").new();add_child(electronics_trade);electronics_trade.build(self)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/electronics_ui.gd",
+      "base": "CanvasLayer",
+      "sha256": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+      "functions": [
+        {
+          "name": "build",
+          "line": 36
+        },
+        {
+          "name": "button",
+          "line": 50
+        },
+        {
+          "name": "label",
+          "line": 57
+        },
+        {
+          "name": "close",
+          "line": 61
+        },
+        {
+          "name": "open",
+          "line": 69
+        },
+        {
+          "name": "shop",
+          "line": 101
+        },
+        {
+          "name": "kits",
+          "line": 143
+        },
+        {
+          "name": "_queue_kit_name",
+          "line": 165
+        },
+        {
+          "name": "_kit_name_text",
+          "line": 172
+        },
+        {
+          "name": "_tick_kit_names",
+          "line": 175
+        },
+        {
+          "name": "_flush_kit_names",
+          "line": 179
+        },
+        {
+          "name": "kit_names_submitted",
+          "line": 204
+        },
+        {
+          "name": "kit_names_submission_failed",
+          "line": 215
+        },
+        {
+          "name": "kit_names_result",
+          "line": 223
+        },
+        {
+          "name": "_reset_kit_name_requests",
+          "line": 239
+        },
+        {
+          "name": "_show_kit_name_notice",
+          "line": 247
+        },
+        {
+          "name": "_kit_name_editor_state",
+          "line": 255
+        },
+        {
+          "name": "_restore_kit_name_editor",
+          "line": 259
+        },
+        {
+          "name": "_flush_kit_name_navigation",
+          "line": 266
+        },
+        {
+          "name": "breadboard",
+          "line": 272
+        },
+        {
+          "name": "deploy",
+          "line": 363
+        },
+        {
+          "name": "notes",
+          "line": 377
+        },
+        {
+          "name": "_notebook_current",
+          "line": 384
+        },
+        {
+          "name": "open_notebook",
+          "line": 386
+        },
+        {
+          "name": "remember_view",
+          "line": 406
+        },
+        {
+          "name": "restore_view",
+          "line": 412
+        },
+        {
+          "name": "save_notebook",
+          "line": 419
+        },
+        {
+          "name": "custom_ics",
+          "line": 426
+        },
+        {
+          "name": "view_path",
+          "line": 456
+        },
+        {
+          "name": "load_view",
+          "line": 457
+        },
+        {
+          "name": "_process",
+          "line": 472
+        },
+        {
+          "name": "prepare_standalone",
+          "line": 506
+        },
+        {
+          "name": "pcb_inspector",
+          "line": 515
+        },
+        {
+          "name": "edit_package",
+          "line": 534
+        },
+        {
+          "name": "analyzer_tools",
+          "line": 558
+        },
+        {
+          "name": "inspect_package",
+          "line": 578
+        },
+        {
+          "name": "wire_io_canvas",
+          "line": 592
+        },
+        {
+          "name": "apply_preview_io",
+          "line": 607
+        },
+        {
+          "name": "retire_io_canvas",
+          "line": 630
+        },
+        {
+          "name": "refresh_retired_io",
+          "line": 639
+        },
+        {
+          "name": "acknowledge_io_input",
+          "line": 652
+        },
+        {
+          "name": "open_pcb_routing",
+          "line": 657
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 186,
+          "code": "electronics=preload(\"res://scripts/electronics_ui.gd\").new();add_child(electronics);electronics.build(self)"
+        }
+      ],
+      "dialog_constructors": [
+        {
+          "line": 579,
+          "code": "var dialog := AcceptDialog.new();dialog.title=str(bp.get(\"name\",\"Package\"));screen.add_child(dialog)"
+        }
+      ]
+    },
+    {
+      "path": "scripts/firmware_ide.gd",
+      "base": "VBoxContainer",
+      "sha256": "79d693f6435d3e063200e8642104a42d7220ddaebea2a0cb47d3751cb322d314",
+      "functions": [
+        {
+          "name": "build",
+          "line": 19
+        },
+        {
+          "name": "kit",
+          "line": 120
+        },
+        {
+          "name": "part",
+          "line": 121
+        },
+        {
+          "name": "remember",
+          "line": 134
+        },
+        {
+          "name": "load_source",
+          "line": 138
+        },
+        {
+          "name": "capture_file",
+          "line": 146
+        },
+        {
+          "name": "word_at_caret",
+          "line": 148
+        },
+        {
+          "name": "refresh_tabs",
+          "line": 156
+        },
+        {
+          "name": "validate",
+          "line": 162
+        },
+        {
+          "name": "upload",
+          "line": 172
+        },
+        {
+          "name": "set_running",
+          "line": 178
+        },
+        {
+          "name": "_process",
+          "line": 183
+        },
+        {
+          "name": "_exit_tree",
+          "line": 188
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/electronics_ui.gd",
+          "line": 95,
+          "code": "var ide=preload(\"res://scripts/firmware_ide.gd\").new();body.add_child(ide);ide.build(self)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/front_menu.gd",
+      "base": "CanvasLayer",
+      "sha256": "5f3ce5924f1091def9ee842af6cdc2aaa96d5a218f69519768b0a22259800790",
+      "functions": [
+        {
+          "name": "build",
+          "line": 43
+        },
+        {
+          "name": "_refresh_initial_home",
+          "line": 116
+        },
+        {
+          "name": "clear",
+          "line": 118
+        },
+        {
+          "name": "_layout_menu",
+          "line": 134
+        },
+        {
+          "name": "_menu_icon",
+          "line": 142
+        },
+        {
+          "name": "_action_icon",
+          "line": 144
+        },
+        {
+          "name": "button",
+          "line": 154
+        },
+        {
+          "name": "text",
+          "line": 158
+        },
+        {
+          "name": "field",
+          "line": 164
+        },
+        {
+          "name": "home",
+          "line": 172
+        },
+        {
+          "name": "resume_class_page",
+          "line": 187
+        },
+        {
+          "name": "network_page",
+          "line": 208
+        },
+        {
+          "name": "_ensure_campus_adapter",
+          "line": 225
+        },
+        {
+          "name": "_host_label",
+          "line": 232
+        },
+        {
+          "name": "_host_button",
+          "line": 235
+        },
+        {
+          "name": "_build_host_page",
+          "line": 242
+        },
+        {
+          "name": "_refresh_host_details",
+          "line": 255
+        },
+        {
+          "name": "_focus_selected_course",
+          "line": 270
+        },
+        {
+          "name": "_course_id",
+          "line": 275
+        },
+        {
+          "name": "_course_title",
+          "line": 276
+        },
+        {
+          "name": "_course_subject",
+          "line": 277
+        },
+        {
+          "name": "_academic_menu_catalog",
+          "line": 279
+        },
+        {
+          "name": "_build_class_selection",
+          "line": 286
+        },
+        {
+          "name": "_build_course_details",
+          "line": 323
+        },
+        {
+          "name": "_build_week_panel",
+          "line": 347
+        },
+        {
+          "name": "view_courses_page",
+          "line": 364
+        },
+        {
+          "name": "_build_host_options",
+          "line": 371
+        },
+        {
+          "name": "_update_host_start",
+          "line": 385
+        },
+        {
+          "name": "_start_host_selection",
+          "line": 392
+        },
+        {
+          "name": "set_campus_adapter",
+          "line": 404
+        },
+        {
+          "name": "_campus_navigate",
+          "line": 409
+        },
+        {
+          "name": "campus_page",
+          "line": 415
+        },
+        {
+          "name": "settings_page",
+          "line": 428
+        },
+        {
+          "name": "pause_menu",
+          "line": 433
+        },
+        {
+          "name": "leave_game",
+          "line": 449
+        },
+        {
+          "name": "entered",
+          "line": 460
+        },
+        {
+          "name": "escape",
+          "line": 464
+        },
+        {
+          "name": "characters_page",
+          "line": 471
+        },
+        {
+          "name": "_open_editor",
+          "line": 488
+        },
+        {
+          "name": "_portrait",
+          "line": 491
+        },
+        {
+          "name": "_profiles_changed",
+          "line": 525
+        },
+        {
+          "name": "_process",
+          "line": 582
+        },
+        {
+          "name": "experiment_page",
+          "line": 599
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 99,
+          "code": "front=preload(\"res://scripts/front_menu.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/kit_world.gd",
+      "base": "Node3D",
+      "sha256": "e6e539382e99bd6b4c34e3f635b98ac51d4c8564ef05ea02a77cf3d7021e72ca",
+      "functions": [
+        {
+          "name": "build",
+          "line": 5
+        },
+        {
+          "name": "held",
+          "line": 14
+        },
+        {
+          "name": "request",
+          "line": 15
+        },
+        {
+          "name": "command",
+          "line": 20
+        },
+        {
+          "name": "apply",
+          "line": 22
+        },
+        {
+          "name": "sync",
+          "line": 59
+        },
+        {
+          "name": "receive",
+          "line": 63
+        },
+        {
+          "name": "_process",
+          "line": 64
+        },
+        {
+          "name": "interact",
+          "line": 82
+        },
+        {
+          "name": "menu",
+          "line": 99
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 189,
+          "code": "kit_world=preload(\"res://scripts/kit_world.gd\").new();add_child(kit_world);kit_world.build(self)"
+        }
+      ],
+      "dialog_constructors": [
+        {
+          "line": 107,
+          "code": "var confirm := ConfirmationDialog.new();confirm.dialog_text=\"Close the kit and recall its breadboard? External leads will disconnect. The saved circuit stays in your kit.\";ui.add_child(confirm);confirm.confirmed.connect(func():request({\"op\":\"close\",\"recall\":true});confirm.queue_free();ui.close());confirm.canceled.connect(confirm.queue_free);confirm.popup_centered()"
+        }
+      ]
+    },
+    {
+      "path": "scripts/lab_chat.gd",
+      "base": "CanvasLayer",
+      "sha256": "b89e7b32a51c307def32df0a75cba4a06dc1c5bde13ef6073cc84ae4419f87e8",
+      "functions": [
+        {
+          "name": "build",
+          "line": 11
+        },
+        {
+          "name": "_fit_chat",
+          "line": 30
+        },
+        {
+          "name": "receive",
+          "line": 34
+        },
+        {
+          "name": "_process",
+          "line": 46
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 192,
+          "code": "var chat_panel=preload(\"res://scripts/lab_chat.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/lab_ui.gd",
+      "base": "CanvasLayer",
+      "sha256": "27100eb702e332dc22b6b179f5893e2652a575100a4c9dc1e0abff02e03b2a78",
+      "functions": [
+        {
+          "name": "label",
+          "line": 37
+        },
+        {
+          "name": "button",
+          "line": 44
+        },
+        {
+          "name": "panel",
+          "line": 49
+        },
+        {
+          "name": "build",
+          "line": 58
+        },
+        {
+          "name": "_fit_layout",
+          "line": 239
+        },
+        {
+          "name": "update_records",
+          "line": 253
+        },
+        {
+          "name": "update_roster",
+          "line": 277
+        },
+        {
+          "name": "log_message",
+          "line": 289
+        },
+        {
+          "name": "refresh",
+          "line": 296
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 6,
+          "code": "const Interface = preload(\"res://scripts/lab_ui.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/paper_annotations.gd",
+      "base": "Control",
+      "sha256": "10b9b169147db20eb186b8c26411bc43231b5a6663f82e1c37f749cdea68fa8f",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 14
+        },
+        {
+          "name": "set_tool",
+          "line": 17
+        },
+        {
+          "name": "find_item",
+          "line": 20
+        },
+        {
+          "name": "_gui_input",
+          "line": 24
+        },
+        {
+          "name": "update_selected",
+          "line": 46
+        },
+        {
+          "name": "paint",
+          "line": 78
+        },
+        {
+          "name": "_draw",
+          "line": 92
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/paper_ui.gd",
+          "line": 208,
+          "code": "annotation_layer=preload(\"res://scripts/paper_annotations.gd\").new();annotation_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);annotation_layer.writable=_editable(paper);annotation_layer.items=paper.get(\"annotations\",{}).get(str(page_index),[]).duplicate(true);page_view.add_child(annotation_layer);annotation_layer.ink_color=pencil_color;annotation_layer.set_tool(paper_tool)"
+        },
+        {
+          "source": "scripts/school_world.gd",
+          "line": 143,
+          "code": "var annotations=preload(\"res://scripts/paper_annotations.gd\").new();annotations.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);annotations.writable=false;annotations.items=paper.get(\"annotations\",{}).get(str(paper.page),[]).duplicate(true);page.add_child(annotations)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/paper_ink.gd",
+      "base": "Control",
+      "sha256": "01b7466a2cecf0342b3b083c2307b5d5cfb30dbd9a33ff67316954c91244becf",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 11
+        },
+        {
+          "name": "_gui_input",
+          "line": 13
+        },
+        {
+          "name": "finish",
+          "line": 29
+        },
+        {
+          "name": "_draw",
+          "line": 33
+        },
+        {
+          "name": "erase_at",
+          "line": 43
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_course_paper.gd",
+          "line": 37,
+          "code": "ink=preload(\"res://scripts/paper_ink.gd\").new();ink.background=false;ink.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);ink.editable=writable"
+        },
+        {
+          "source": "scripts/worksheet_page.gd",
+          "line": 98,
+          "code": "ink=preload(\"res://scripts/paper_ink.gd\").new();ink.background=false;ink.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);ink.editable=writable;ink.strokes=paper.strokes.get(str(page),[]).duplicate(true);ink.stroke_finished.connect(func(stroke):stroke_added.emit(stroke));add_child(ink);set_drawing(false)"
+        },
+        {
+          "source": "scripts/math_ui/math_paper_page.gd",
+          "line": 71,
+          "code": "ink=preload(\"res://scripts/paper_ink.gd\").new();ink.background=false;ink.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);ink.editable=writable;ink.strokes=paper.get(\"strokes\",{}).get(str(page),[]).duplicate(true);ink.stroke_finished.connect(func(stroke):stroke_added.emit(stroke));add_child(ink);set_drawing(false)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/paper_ui.gd",
+      "base": "CanvasLayer",
+      "sha256": "f40bf67573967a0bad7411dac2311b6738fb05dc1cd05a6eb845d2188bb55a8c",
+      "functions": [
+        {
+          "name": "build",
+          "line": 40
+        },
+        {
+          "name": "_clear",
+          "line": 63
+        },
+        {
+          "name": "_label",
+          "line": 75
+        },
+        {
+          "name": "_button",
+          "line": 83
+        },
+        {
+          "name": "close",
+          "line": 93
+        },
+        {
+          "name": "teacher",
+          "line": 101
+        },
+        {
+          "name": "open_sheet",
+          "line": 149
+        },
+        {
+          "name": "_editable",
+          "line": 159
+        },
+        {
+          "name": "_reader_copy",
+          "line": 161
+        },
+        {
+          "name": "_reader_current",
+          "line": 169
+        },
+        {
+          "name": "_queue_answer",
+          "line": 171
+        },
+        {
+          "name": "_reader_request",
+          "line": 174
+        },
+        {
+          "name": "_build_reader",
+          "line": 179
+        },
+        {
+          "name": "remember_view",
+          "line": 254
+        },
+        {
+          "name": "apply_zoom",
+          "line": 263
+        },
+        {
+          "name": "restore_view",
+          "line": 267
+        },
+        {
+          "name": "turn_page",
+          "line": 278
+        },
+        {
+          "name": "flush",
+          "line": 285
+        },
+        {
+          "name": "_updated",
+          "line": 294
+        },
+        {
+          "name": "_process",
+          "line": 306
+        },
+        {
+          "name": "daq_page",
+          "line": 327
+        },
+        {
+          "name": "edit_annotation",
+          "line": 352
+        },
+        {
+          "name": "confirm_abandon",
+          "line": 373
+        },
+        {
+          "name": "activity_menu",
+          "line": 381
+        },
+        {
+          "name": "_reader_key",
+          "line": 422
+        },
+        {
+          "name": "_load_reader_views",
+          "line": 430
+        },
+        {
+          "name": "safety_demo_menu",
+          "line": 453
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/game.gd",
+          "line": 175,
+          "code": "paper_ui=preload(\"res://scripts/paper_ui.gd\").new()"
+        }
+      ],
+      "dialog_constructors": [
+        {
+          "line": 374,
+          "code": "var dialog := ConfirmationDialog.new()"
+        }
+      ]
+    },
+    {
+      "path": "scripts/scientific_calculator.gd",
+      "base": "PanelContainer",
+      "sha256": "c826aa0ffd95078ee27871a5086fec42b973824390cada1e79d3f33dee84bb1a",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 9
+        },
+        {
+          "name": "press",
+          "line": 29
+        },
+        {
+          "name": "_insert",
+          "line": 50
+        },
+        {
+          "name": "evaluate",
+          "line": 52
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/paper_ui.gd",
+          "line": 241,
+          "code": "calculator_widget=preload(\"res://scripts/scientific_calculator.gd\").new();side.add_child(calculator_widget);calculator=calculator_widget.display;calculator.text=calculator_state"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/scope_trace.gd",
+      "base": "Control",
+      "sha256": "36db3ede0af4a9d0445b6928221634c908fd579fa8471d9e22517ab290190935",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 11
+        },
+        {
+          "name": "_gui_input",
+          "line": 14
+        },
+        {
+          "name": "_move_cursor",
+          "line": 21
+        },
+        {
+          "name": "bounds",
+          "line": 25
+        },
+        {
+          "name": "visible_samples",
+          "line": 31
+        },
+        {
+          "name": "cursor_readings",
+          "line": 34
+        },
+        {
+          "name": "_at_time",
+          "line": 42
+        },
+        {
+          "name": "channel_segments",
+          "line": 54
+        },
+        {
+          "name": "_draw",
+          "line": 73
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/dc_scope/scope_panel.gd",
+          "line": 22,
+          "code": "trace=preload(\"res://scripts/scope_trace.gd\").new(); trace.name=\"Waveform\"; trace.size_flags_vertical=Control.SIZE_EXPAND_FILL; view.add_child(trace)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/toon_editor.gd",
+      "base": "Control",
+      "sha256": "3d60cd7941606d143af1bda3d159304059aa8cd82df767fd9ed76dd2a13f02b4",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 29
+        },
+        {
+          "name": "label",
+          "line": 79
+        },
+        {
+          "name": "button",
+          "line": 81
+        },
+        {
+          "name": "_options",
+          "line": 83
+        },
+        {
+          "name": "_preset_card",
+          "line": 117
+        },
+        {
+          "name": "_choices",
+          "line": 130
+        },
+        {
+          "name": "_slider",
+          "line": 135
+        },
+        {
+          "name": "_color",
+          "line": 142
+        },
+        {
+          "name": "_toggle",
+          "line": 152
+        },
+        {
+          "name": "_remember",
+          "line": 154
+        },
+        {
+          "name": "_set_value",
+          "line": 157
+        },
+        {
+          "name": "_undo",
+          "line": 159
+        },
+        {
+          "name": "_redo",
+          "line": 162
+        },
+        {
+          "name": "_shuffle",
+          "line": 165
+        },
+        {
+          "name": "_schedule_rebuild",
+          "line": 168
+        },
+        {
+          "name": "_rebuild",
+          "line": 171
+        },
+        {
+          "name": "_turn",
+          "line": 175
+        },
+        {
+          "name": "_camera",
+          "line": 177
+        },
+        {
+          "name": "_animate",
+          "line": 180
+        },
+        {
+          "name": "_preview_input",
+          "line": 182
+        },
+        {
+          "name": "_save",
+          "line": 187
+        },
+        {
+          "name": "_cancel",
+          "line": 194
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/character_library.gd",
+          "line": 51,
+          "code": "editor_studio=preload(\"res://scripts/toon_editor.gd\").new()"
+        }
+      ],
+      "dialog_constructors": [
+        {
+          "line": 196,
+          "code": "var dialog := ConfirmationDialog.new();dialog.title=\"Discard changes?\";dialog.dialog_text=\"Your saved character will stay unchanged.\";dialog.ok_button_text=\"Discard changes\";dialog.confirmed.connect(func():finished.emit(false));dialog.canceled.connect(dialog.queue_free);add_child(dialog);dialog.popup_centered()"
+        }
+      ]
+    },
+    {
+      "path": "scripts/worksheet_diagram.gd",
+      "base": "Control",
+      "sha256": "a5b081f8f984cf247faab8c8057f273db42fc228aed23972f27a2fa94e90179e",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 6
+        },
+        {
+          "name": "wire",
+          "line": 10
+        },
+        {
+          "name": "text",
+          "line": 12
+        },
+        {
+          "name": "symbol",
+          "line": 14
+        },
+        {
+          "name": "_draw",
+          "line": 27
+        },
+        {
+          "name": "_box",
+          "line": 100
+        },
+        {
+          "name": "_draw_netlist",
+          "line": 103
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/worksheet_page.gd",
+          "line": 49,
+          "code": "var diagram := preload(\"res://scripts/worksheet_diagram.gd\").new();diagram.topic=int(p.topic);diagram.course_id=str(p.get(\"course_id\",\"ELM253\"));diagram.descriptor=p.get(\"diagram\",{});body.add_child(diagram)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/worksheet_page.gd",
+      "base": "Control",
+      "sha256": "8127d3c4193b31eb25d81c794adda6ba012071483239eabd35d441582a122848",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 11
+        },
+        {
+          "name": "_process",
+          "line": 99
+        },
+        {
+          "name": "text",
+          "line": 103
+        },
+        {
+          "name": "set_drawing",
+          "line": 105
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/paper_ui.gd",
+          "line": 204,
+          "code": "page_view=(preload(\"res://scripts/math_course_paper.gd\").new() if paper.project.get(\"course_id\", \"\") in [\"MTH147\", \"MTH255\"] else preload(\"res://scripts/worksheet_page.gd\").new());page_view.paper=paper.duplicate(true);page_view.page=page_index;page_view.writable=_editable(paper)"
+        },
+        {
+          "source": "scripts/school_world.gd",
+          "line": 139,
+          "code": "var page = preload(\"res://scripts/math_course_paper.gd\").new() if paper.project.get(\"course_id\", \"\") in [\"MTH147\", \"MTH255\"] else preload(\"res://scripts/worksheet_page.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/avatar_cosmetics/core/editor_host.gd",
+      "base": "Control",
+      "sha256": "07ef831901e9d185addfdd1c6c28a8f558db7631abc42fb71b7c744ee6940d81",
+      "functions": [
+        {
+          "name": "open_profile",
+          "line": 15
+        },
+        {
+          "name": "request_apply",
+          "line": 39
+        },
+        {
+          "name": "acknowledge_apply",
+          "line": 46
+        }
+      ],
+      "resource_references": [],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/customizer_panel.gd",
+      "base": "Control",
+      "sha256": "d48e1cdbfa063f294b18b5281733bb78e5166884ca6699261fd395f36237fe43",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 30
+        },
+        {
+          "name": "configure",
+          "line": 58
+        },
+        {
+          "name": "is_dirty",
+          "line": 68
+        },
+        {
+          "name": "atomic_edit_intent",
+          "line": 71
+        },
+        {
+          "name": "revert_draft",
+          "line": 74
+        },
+        {
+          "name": "acknowledge_apply",
+          "line": 80
+        },
+        {
+          "name": "_cancel",
+          "line": 86
+        },
+        {
+          "name": "select_category",
+          "line": 99
+        },
+        {
+          "name": "_refresh",
+          "line": 109
+        },
+        {
+          "name": "_select_item",
+          "line": 134
+        },
+        {
+          "name": "_change_parameter",
+          "line": 145
+        },
+        {
+          "name": "_resolve_and_publish",
+          "line": 161
+        },
+        {
+          "name": "_rebuild_preview",
+          "line": 188
+        }
+      ],
+      "resource_references": [],
+      "dialog_constructors": [
+        {
+          "line": 90,
+          "code": "var dialog := ConfirmationDialog.new()"
+        }
+      ]
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/item_grid.gd",
+      "base": "ScrollContainer",
+      "sha256": "e4ded447d29f674745821c0b4a8ef4ba313450307432e4785f011547c6841bf4",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 13
+        },
+        {
+          "name": "configure",
+          "line": 22
+        },
+        {
+          "name": "show_items",
+          "line": 34
+        },
+        {
+          "name": "_append_batch",
+          "line": 45
+        },
+        {
+          "name": "_exit_tree",
+          "line": 71
+        },
+        {
+          "name": "_on_thumbnail_ready",
+          "line": 78
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus/facilities/clothing_store/store_panel.gd",
+          "line": 7,
+          "code": "const ItemGrid = preload(\"res://scripts/avatar_cosmetics/ui/item_grid.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/live_preview.gd",
+      "base": "SubViewportContainer",
+      "sha256": "e0e554619e48a1bc2ca2eed2fdd0873c674e3e0234089e89d8a2897a4f593d0d",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 13
+        },
+        {
+          "name": "set_avatar",
+          "line": 41
+        },
+        {
+          "name": "focus_category",
+          "line": 49
+        },
+        {
+          "name": "reset_camera",
+          "line": 53
+        },
+        {
+          "name": "_apply_camera",
+          "line": 57
+        },
+        {
+          "name": "_preview_input",
+          "line": 65
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus/facilities/clothing_store/store_panel.gd",
+          "line": 9,
+          "code": "const LivePreview = preload(\"res://scripts/avatar_cosmetics/ui/live_preview.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/parameter_panel.gd",
+      "base": "ScrollContainer",
+      "sha256": "ccd514cb016c5da91da101bbc18b6bd2fb05c0fe04f73fcb39e8cfe12e190b86",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 8
+        },
+        {
+          "name": "show_schema",
+          "line": 15
+        },
+        {
+          "name": "_add_field",
+          "line": 25
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus/facilities/clothing_store/store_panel.gd",
+          "line": 13,
+          "code": "const Parameters = preload(\"res://scripts/avatar_cosmetics/ui/parameter_panel.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/courses/course_diagram.gd",
+      "base": "Control",
+      "sha256": "0f5d815978a50cde642c2c18137da483c592d53cb361197011834ec2f6321706",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 7
+        },
+        {
+          "name": "_ready",
+          "line": 11
+        },
+        {
+          "name": "label_at",
+          "line": 14
+        },
+        {
+          "name": "_draw",
+          "line": 24
+        },
+        {
+          "name": "_panel",
+          "line": 55
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/worksheet_diagram.gd",
+          "line": 123,
+          "code": "text(Vector2(235,y+25),str(part.get(\"id\",\"\"))+\" \u00b7 \"+preload(\"res://scripts/campus/courses/course_diagram.gd\").display_value(part),18)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/dorms/interactions/personal_station_router.gd",
+      "base": "Node",
+      "sha256": "1213c45e91f19ac01b1fc20304195cd6c14020cfa70c0f7e1deaf447c1f6a417",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 28
+        },
+        {
+          "name": "register_station",
+          "line": 33
+        },
+        {
+          "name": "unregister_station",
+          "line": 43
+        },
+        {
+          "name": "interact",
+          "line": 47
+        },
+        {
+          "name": "prompt_for",
+          "line": 63
+        },
+        {
+          "name": "replacements_ready_for_local_owner",
+          "line": 69
+        },
+        {
+          "name": "shop_page_has_dorm_replacement",
+          "line": 79
+        },
+        {
+          "name": "reconcile_assignment",
+          "line": 82
+        },
+        {
+          "name": "assignment_changed",
+          "line": 88
+        },
+        {
+          "name": "_process",
+          "line": 93
+        },
+        {
+          "name": "_exit_tree",
+          "line": 96
+        },
+        {
+          "name": "_close_owned_ui",
+          "line": 99
+        },
+        {
+          "name": "_local_peer_owns",
+          "line": 107
+        },
+        {
+          "name": "_local_peer_id",
+          "line": 116
+        },
+        {
+          "name": "_provider_string",
+          "line": 120
+        },
+        {
+          "name": "_provider_revision",
+          "line": 124
+        },
+        {
+          "name": "_notice",
+          "line": 129
+        },
+        {
+          "name": "_prompt_for",
+          "line": 134
+        }
+      ],
+      "resource_references": [],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/facilities/facility_panel.gd",
+      "base": "PanelContainer",
+      "sha256": "3ad96358253c3c59eaa7ba2ee8c828f9805ea7b360d55b882e30a3a4431c15d7",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 16
+        },
+        {
+          "name": "bind",
+          "line": 29
+        },
+        {
+          "name": "open_for",
+          "line": 33
+        },
+        {
+          "name": "receive",
+          "line": 38
+        },
+        {
+          "name": "button",
+          "line": 47
+        },
+        {
+          "name": "redraw",
+          "line": 61
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus_integration.gd",
+          "line": 48,
+          "code": "facility_panel=preload(\"res://scripts/campus/facilities/facility_panel.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/builder_window.gd",
+      "base": "Window",
+      "sha256": "a6ceb0c9f8e2f71be0d4021a352645e196b994de7217c4ae75ebc65535f5c761",
+      "functions": [
+        {
+          "name": "open_station",
+          "line": 10
+        },
+        {
+          "name": "_rebuild",
+          "line": 19
+        },
+        {
+          "name": "_edit_board",
+          "line": 66
+        },
+        {
+          "name": "_inspect",
+          "line": 72
+        },
+        {
+          "name": "_button",
+          "line": 78
+        },
+        {
+          "name": "_close",
+          "line": 81
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus/facilities/circuit_studio/interaction_adapter.gd",
+          "line": 33,
+          "code": "builder_window=preload(\"res://scripts/campus/facilities/circuit_studio/builder_window.gd\").new()"
+        }
+      ],
+      "dialog_constructors": [
+        {
+          "line": 73,
+          "code": "var dialog:=AcceptDialog.new();dialog.title=str(blueprint.get(\"name\",\"Package\"));add_child(dialog)"
+        }
+      ]
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/interaction_adapter.gd",
+      "base": "Node",
+      "sha256": "ba8f04fdbb130df70c1617031bde64c796056218487dbf72af181a0ba28d326e",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 9
+        },
+        {
+          "name": "register_station",
+          "line": 13
+        },
+        {
+          "name": "interact",
+          "line": 23
+        },
+        {
+          "name": "prompt_for",
+          "line": 40
+        },
+        {
+          "name": "prompt_for_action",
+          "line": 44
+        },
+        {
+          "name": "route_complete",
+          "line": 53
+        },
+        {
+          "name": "_electronics_ready",
+          "line": 56
+        },
+        {
+          "name": "_notice",
+          "line": 61
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus/facilities/circuit_studio/studio_room.gd",
+          "line": 5,
+          "code": "const Adapter=preload(\"res://scripts/campus/facilities/circuit_studio/interaction_adapter.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "base": "PanelContainer",
+      "sha256": "40c63328e44904912b04b98f7c4395ceeed67904f878f073aa1a87ed5b85d8ce",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 32
+        },
+        {
+          "name": "open_profile",
+          "line": 74
+        },
+        {
+          "name": "accept_purchase",
+          "line": 82
+        },
+        {
+          "name": "_refresh",
+          "line": 86
+        },
+        {
+          "name": "_select",
+          "line": 94
+        },
+        {
+          "name": "_buy",
+          "line": 100
+        },
+        {
+          "name": "_state_changed",
+          "line": 110
+        },
+        {
+          "name": "_restore_preview",
+          "line": 120
+        },
+        {
+          "name": "_render_selection",
+          "line": 123
+        },
+        {
+          "name": "_unhandled_key_input",
+          "line": 134
+        }
+      ],
+      "resource_references": [],
+      "dialog_constructors": [
+        {
+          "line": 62,
+          "code": "confirmation = ConfirmationDialog.new(); confirmation.title = \"Confirm purchase\"; add_child(confirmation)"
+        }
+      ]
+    },
+    {
+      "path": "scripts/campus/performance/profiling_overlay.gd",
+      "base": "CanvasLayer",
+      "sha256": "4bd18f8066e40e9ef00f128f806c4b14265a02590b1bb70b12db868880bee427",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 10
+        },
+        {
+          "name": "_process",
+          "line": 22
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus/performance/runtime.gd",
+          "line": 6,
+          "code": "const Overlay = preload(\"res://scripts/campus/performance/profiling_overlay.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/ui/campus_dashboard.gd",
+      "base": "Control",
+      "sha256": "c94d99f6ee84933add83a28f3b6a87982d1fda6a577fed2607692dd28988a230",
+      "functions": [
+        {
+          "name": "build",
+          "line": 17
+        },
+        {
+          "name": "_label",
+          "line": 34
+        },
+        {
+          "name": "_select",
+          "line": 36
+        },
+        {
+          "name": "_build_courses",
+          "line": 40
+        },
+        {
+          "name": "_course_details",
+          "line": 56
+        },
+        {
+          "name": "_week_details",
+          "line": 104
+        },
+        {
+          "name": "_update_progress",
+          "line": 107
+        },
+        {
+          "name": "_build_directory",
+          "line": 116
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/front_menu.gd",
+          "line": 424,
+          "code": "campus_dashboard=preload(\"res://scripts/campus/ui/campus_dashboard.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/ui/campus_hud.gd",
+      "base": "HBoxContainer",
+      "sha256": "967644e248d5621735acf10e17844bb3cab50b57752581c26bc0eb0535693fe7",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 12
+        },
+        {
+          "name": "update_state",
+          "line": 32
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/front_menu.gd",
+          "line": 408,
+          "code": "campus_hud=preload(\"res://scripts/campus/ui/campus_hud.gd\").new(); campus_hud.position=Vector2(28,128); add_child(campus_hud)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/ui/campus_map.gd",
+      "base": "Control",
+      "sha256": "ec4b54d034befb653cda8ec708e603c450ebd9121823e9f83fa3bcab7bce7078",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 6
+        },
+        {
+          "name": "_draw",
+          "line": 11
+        },
+        {
+          "name": "_gui_input",
+          "line": 26
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus/ui/campus_dashboard.gd",
+          "line": 120,
+          "code": "var map := preload(\"res://scripts/campus/ui/campus_map.gd\").new(); map.rooms=adapter.call(\"rooms\",\"\"); box.add_child(map)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/ui/graphics_settings.gd",
+      "base": "Node",
+      "sha256": "c92eb8834999b099f91369dc9a8587a1bf6ee2c2fe0b78b2caccda03b7419451",
+      "functions": [
+        {
+          "name": "attach",
+          "line": 17
+        },
+        {
+          "name": "load_settings",
+          "line": 21
+        },
+        {
+          "name": "save_settings",
+          "line": 25
+        },
+        {
+          "name": "_validate",
+          "line": 29
+        },
+        {
+          "name": "set_option",
+          "line": 42
+        },
+        {
+          "name": "preset",
+          "line": 46
+        },
+        {
+          "name": "set_crowd_adapter",
+          "line": 52
+        },
+        {
+          "name": "apply",
+          "line": 54
+        },
+        {
+          "name": "_material_copy",
+          "line": 72
+        },
+        {
+          "name": "register_node",
+          "line": 76
+        },
+        {
+          "name": "build_controls",
+          "line": 118
+        },
+        {
+          "name": "_fine_detail",
+          "line": 145
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/lab_ui.gd",
+          "line": 148,
+          "code": "graphics_controller=preload(\"res://scripts/campus/ui/graphics_settings.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/ui/profile_inspector.gd",
+      "base": "PanelContainer",
+      "sha256": "e2fe1483df7b125b48bb4aa2ea9da3ee83e17aca6713e8040507ccd376f35ca0",
+      "functions": [
+        {
+          "name": "show_profile",
+          "line": 6
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/campus_social.gd",
+          "line": 19,
+          "code": "inspector=preload(\"res://scripts/campus/ui/profile_inspector.gd\").new();layer.add_child(inspector);inspector.position=Vector2(60,60);inspector.hide()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/campus/ui/profile_visibility.gd",
+      "base": "RefCounted",
+      "sha256": "fdb44d69aa0c92cdca8e6853a504aac86df32861c5216eccdfc416c68715a00b",
+      "functions": [
+        {
+          "name": "load_settings",
+          "line": 7
+        },
+        {
+          "name": "save_settings",
+          "line": 11
+        },
+        {
+          "name": "build_controls",
+          "line": 15
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/lab_ui.gd",
+          "line": 154,
+          "code": "public_visibility=preload(\"res://scripts/campus/ui/profile_visibility.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/dc_scope/scope_panel.gd",
+      "base": "VBoxContainer",
+      "sha256": "e862cb55f4c2747231a1807b36fe9af1b326a3f4bacf41f2cbbdb62d29c27389",
+      "functions": [
+        {
+          "name": "build",
+          "line": 16
+        },
+        {
+          "name": "_label",
+          "line": 62
+        },
+        {
+          "name": "_button",
+          "line": 64
+        },
+        {
+          "name": "_key",
+          "line": 66
+        },
+        {
+          "name": "_send",
+          "line": 67
+        },
+        {
+          "name": "_number",
+          "line": 73
+        },
+        {
+          "name": "_option",
+          "line": 78
+        },
+        {
+          "name": "refresh",
+          "line": 85
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/dc_ui.gd",
+          "line": 115,
+          "code": "scope_panel=preload(\"res://scripts/dc_scope/scope_panel.gd\").new(); scope_panel.size_flags_vertical=Control.SIZE_EXPAND_FILL; osc.add_child(scope_panel)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/store_panel.gd",
+      "base": "VBoxContainer",
+      "sha256": "72d7de66ef121602b76153eb1d49980c4b4c6d4a3d38525cb4b08ffcdc0432cf",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 28
+        },
+        {
+          "name": "_label",
+          "line": 38
+        },
+        {
+          "name": "_button",
+          "line": 44
+        },
+        {
+          "name": "_build",
+          "line": 49
+        },
+        {
+          "name": "_icon",
+          "line": 94
+        },
+        {
+          "name": "_filter",
+          "line": 99
+        },
+        {
+          "name": "_select",
+          "line": 110
+        },
+        {
+          "name": "_requote",
+          "line": 141
+        },
+        {
+          "name": "_review_or_purchase",
+          "line": 155
+        },
+        {
+          "name": "complete_purchase",
+          "line": 170
+        },
+        {
+          "name": "_set_pending",
+          "line": 176
+        },
+        {
+          "name": "_message",
+          "line": 183
+        },
+        {
+          "name": "refresh_snapshot",
+          "line": 187
+        },
+        {
+          "name": "_refresh_ownership",
+          "line": 195
+        },
+        {
+          "name": "_resize_layout",
+          "line": 200
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/electronics/component_shop_ui/shop_adapter.gd",
+          "line": 5,
+          "code": "const Panel = preload(\"res://scripts/electronics/component_shop_ui/store_panel.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/electronics/inventory_value_search/picker.gd",
+      "base": "VBoxContainer",
+      "sha256": "244022e199e0ae9b94c388c21d8bd350adc0e6aa38dddd7c0dbbdf73093ee827",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 19
+        },
+        {
+          "name": "set_inventory",
+          "line": 30
+        },
+        {
+          "name": "_refresh_families",
+          "line": 37
+        },
+        {
+          "name": "_family_name",
+          "line": 55
+        },
+        {
+          "name": "_family_selected",
+          "line": 64
+        },
+        {
+          "name": "_refresh",
+          "line": 71
+        },
+        {
+          "name": "_row_selected",
+          "line": 89
+        }
+      ],
+      "resource_references": [],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/firmware_backends/native_ide.gd",
+      "base": "VBoxContainer",
+      "sha256": "a72c0ac4939a3fd35cf23ccc7268a685c63b6e4b8fbf4df25ebdd60c78c593bb",
+      "functions": [
+        {
+          "name": "build",
+          "line": 29
+        },
+        {
+          "name": "add_source",
+          "line": 132
+        },
+        {
+          "name": "button",
+          "line": 147
+        },
+        {
+          "name": "source_files",
+          "line": 150
+        },
+        {
+          "name": "program",
+          "line": 154
+        },
+        {
+          "name": "validate_program",
+          "line": 158
+        },
+        {
+          "name": "choose_image",
+          "line": 162
+        },
+        {
+          "name": "set_snapshot",
+          "line": 176
+        },
+        {
+          "name": "apply_studio_theme",
+          "line": 188
+        },
+        {
+          "name": "active_editor",
+          "line": 191
+        },
+        {
+          "name": "compile_sources",
+          "line": 199
+        },
+        {
+          "name": "compile_finished",
+          "line": 213
+        },
+        {
+          "name": "select_diagnostic",
+          "line": 227
+        },
+        {
+          "name": "breakpoint_at_source",
+          "line": 236
+        },
+        {
+          "name": "choose_sources",
+          "line": 248
+        },
+        {
+          "name": "remove_active_source",
+          "line": 262
+        },
+        {
+          "name": "_process",
+          "line": 269
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/firmware_backends/native_studio.gd",
+          "line": 35,
+          "code": "editor=preload(\"res://scripts/firmware_backends/native_ide.gd\").new();add_child(editor);editor.build(choice.board,firmware,sources)"
+        }
+      ],
+      "dialog_constructors": [
+        {
+          "line": 163,
+          "code": "var dialog := FileDialog.new();dialog.file_mode=FileDialog.FILE_MODE_OPEN_FILE;dialog.access=FileDialog.ACCESS_FILESYSTEM"
+        },
+        {
+          "line": 249,
+          "code": "var dialog := FileDialog.new();dialog.file_mode=FileDialog.FILE_MODE_OPEN_FILES;dialog.access=FileDialog.ACCESS_FILESYSTEM"
+        }
+      ]
+    },
+    {
+      "path": "scripts/firmware_backends/native_studio.gd",
+      "base": "VBoxContainer",
+      "sha256": "a7687b651009bf80b5a39e93b85da1aaf3b17ff2d77692e696f8e8f37b7fe727",
+      "functions": [
+        {
+          "name": "build",
+          "line": 11
+        },
+        {
+          "name": "select",
+          "line": 25
+        },
+        {
+          "name": "save_program",
+          "line": 61
+        },
+        {
+          "name": "live_owner",
+          "line": 72
+        },
+        {
+          "name": "_process",
+          "line": 74
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/firmware_ide.gd",
+          "line": 24,
+          "code": "var native_panel := preload(\"res://scripts/firmware_backends/native_studio.gd\").new();add_child(native_panel);native_panel.build(studio)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/io_devices/surface.gd",
+      "base": "Control",
+      "sha256": "08dcd7c564b0b7207e9193dd97ab67133dbd01267b116da1dc21cf61153a3ce2",
+      "functions": [
+        {
+          "name": "present",
+          "line": 15
+        },
+        {
+          "name": "submit",
+          "line": 25
+        },
+        {
+          "name": "pump",
+          "line": 30
+        },
+        {
+          "name": "acknowledge",
+          "line": 37
+        },
+        {
+          "name": "_gui_input",
+          "line": 40
+        },
+        {
+          "name": "release_capture",
+          "line": 70
+        },
+        {
+          "name": "_draw",
+          "line": 76
+        },
+        {
+          "name": "panel",
+          "line": 134
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/io_devices/physical_surface.gd",
+          "line": 3,
+          "code": "const Surface=preload(\"res://scripts/io_devices/surface.gd\")"
+        },
+        {
+          "source": "scripts/package_editor/io_surface_adapter.gd",
+          "line": 12,
+          "code": "if ResourceLoader.exists(\"res://scripts/io_devices/surface.gd\") and ResourceLoader.exists(\"res://scripts/io_devices/catalog.gd\") and ResourceLoader.exists(\"res://scripts/io_devices/controls.gd\"):"
+        },
+        {
+          "source": "scripts/package_editor/io_surface_adapter.gd",
+          "line": 13,
+          "code": "surface_script=load(\"res://scripts/io_devices/surface.gd\");controls_script=load(\"res://scripts/io_devices/controls.gd\");catalog_script=load(\"res://scripts/io_devices/catalog.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/lab_challenges/panel.gd",
+      "base": "CanvasLayer",
+      "sha256": "f98b4fe0749154e507a00753a2585200eb5aedb0792bba9a6de10270792171a8",
+      "functions": [
+        {
+          "name": "build",
+          "line": 20
+        },
+        {
+          "name": "show_at",
+          "line": 59
+        },
+        {
+          "name": "_send",
+          "line": 61
+        },
+        {
+          "name": "_label",
+          "line": 62
+        },
+        {
+          "name": "_button",
+          "line": 64
+        },
+        {
+          "name": "_role_title",
+          "line": 67
+        },
+        {
+          "name": "_progress",
+          "line": 69
+        },
+        {
+          "name": "update_frame",
+          "line": 74
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/lab_challenges/bridge.gd",
+          "line": 30,
+          "code": "panel=preload(\"res://scripts/lab_challenges/panel.gd\").new();add_child(panel);panel.build();panel.request.connect(_request);panel.closed.connect(func():game.capture())"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/math_ui/diagram_view.gd",
+      "base": "Control",
+      "sha256": "40b45156dd6b3303716eaf56caf0b71909ff0281d5b1b5385224a9e1d490e664",
+      "functions": [
+        {
+          "name": "_init",
+          "line": 13
+        },
+        {
+          "name": "configure",
+          "line": 17
+        },
+        {
+          "name": "_draw",
+          "line": 27
+        },
+        {
+          "name": "_triangle",
+          "line": 36
+        },
+        {
+          "name": "_circuit",
+          "line": 70
+        },
+        {
+          "name": "_gui_input",
+          "line": 97
+        },
+        {
+          "name": "_probability",
+          "line": 116
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_course_paper.gd",
+          "line": 34,
+          "code": "var view=load(\"res://scripts/mth255/impedance_view.gd\").new() if descriptor.get(\"kind\",\"\")==\"circuit\" and ResourceLoader.exists(\"res://scripts/mth255/impedance_view.gd\") else preload(\"res://scripts/math_ui/diagram_view.gd\").new()"
+        },
+        {
+          "source": "scripts/math_whiteboard.gd",
+          "line": 40,
+          "code": "var view=load(\"res://scripts/mth255/impedance_view.gd\").new() if diagram.get(\"kind\",\"\")==\"circuit\" and ResourceLoader.exists(\"res://scripts/mth255/impedance_view.gd\") else preload(\"res://scripts/math_ui/diagram_view.gd\").new();view.custom_minimum_size=Vector2(650,400);row.add_child(view);view.configure(diagram)"
+        },
+        {
+          "source": "scripts/math_ui/workspace.gd",
+          "line": 7,
+          "code": "const Diagram = preload(\"res://scripts/math_ui/diagram_view.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/math_ui/expression_editor.gd",
+      "base": "VBoxContainer",
+      "sha256": "5062a05cc426939660426099d96fb63f501ed1e5e5e5b4631dfca85701583982",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 16
+        },
+        {
+          "name": "configure",
+          "line": 50
+        },
+        {
+          "name": "set_value",
+          "line": 55
+        },
+        {
+          "name": "value",
+          "line": 60
+        },
+        {
+          "name": "_node",
+          "line": 63
+        },
+        {
+          "name": "_select",
+          "line": 71
+        },
+        {
+          "name": "_remember",
+          "line": 79
+        },
+        {
+          "name": "_replace",
+          "line": 84
+        },
+        {
+          "name": "_edit_leaf",
+          "line": 91
+        },
+        {
+          "name": "insert_template",
+          "line": 101
+        },
+        {
+          "name": "_refresh",
+          "line": 138
+        },
+        {
+          "name": "selection_label",
+          "line": 159
+        },
+        {
+          "name": "_unhandled_key_input",
+          "line": 174
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_ui/workspace.gd",
+          "line": 4,
+          "code": "const Editor = preload(\"res://scripts/math_ui/expression_editor.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/math_ui/expression_view.gd",
+      "base": "Control",
+      "sha256": "33a1bc0b27287c8966cb1cf599d62a5737e2b83f387844b432231a9a7c677cc2",
+      "functions": [
+        {
+          "name": "_init",
+          "line": 13
+        },
+        {
+          "name": "set_expression",
+          "line": 18
+        },
+        {
+          "name": "_text",
+          "line": 26
+        },
+        {
+          "name": "_shift",
+          "line": 31
+        },
+        {
+          "name": "_layout",
+          "line": 37
+        },
+        {
+          "name": "_draw",
+          "line": 134
+        },
+        {
+          "name": "_gui_input",
+          "line": 143
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_whiteboard.gd",
+          "line": 36,
+          "code": "var expression=preload(\"res://scripts/math_ui/expression_view.gd\").new();explanation.add_child(expression);expression.set_expression(ast)"
+        },
+        {
+          "source": "scripts/math_ui/expression_editor.gd",
+          "line": 2,
+          "code": "const View = preload(\"res://scripts/math_ui/expression_view.gd\")"
+        },
+        {
+          "source": "scripts/math_ui/math_paper_page.gd",
+          "line": 4,
+          "code": "const View = preload(\"res://scripts/math_ui/expression_view.gd\")"
+        },
+        {
+          "source": "scripts/math_ui/workspace.gd",
+          "line": 5,
+          "code": "const View = preload(\"res://scripts/math_ui/expression_view.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/math_ui/graph_canvas.gd",
+      "base": "Control",
+      "sha256": "734e24ec08dc60a3c273b10cf75eb25b957eff37d50c0c57be22d8e396e45a48",
+      "functions": [
+        {
+          "name": "_init",
+          "line": 20
+        },
+        {
+          "name": "configure",
+          "line": 26
+        },
+        {
+          "name": "plot_rect",
+          "line": 38
+        },
+        {
+          "name": "to_pixel",
+          "line": 41
+        },
+        {
+          "name": "to_math",
+          "line": 45
+        },
+        {
+          "name": "snapshot",
+          "line": 49
+        },
+        {
+          "name": "restore",
+          "line": 52
+        },
+        {
+          "name": "answer",
+          "line": 61
+        },
+        {
+          "name": "add_point",
+          "line": 64
+        },
+        {
+          "name": "zoom",
+          "line": 71
+        },
+        {
+          "name": "_rebuild",
+          "line": 81
+        },
+        {
+          "name": "_draw",
+          "line": 128
+        },
+        {
+          "name": "_gui_input",
+          "line": 205
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_ui/workspace.gd",
+          "line": 6,
+          "code": "const Graph = preload(\"res://scripts/math_ui/graph_canvas.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/math_ui/math_paper_page.gd",
+      "base": "Control",
+      "sha256": "3cdd7bdf756d50da401b309044089fdadab29c748ef2dbc6ccf51fd011517bae",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 17
+        },
+        {
+          "name": "_text",
+          "line": 74
+        },
+        {
+          "name": "_solution",
+          "line": 77
+        },
+        {
+          "name": "_seed_answer",
+          "line": 91
+        },
+        {
+          "name": "_resize",
+          "line": 98
+        },
+        {
+          "name": "set_drawing",
+          "line": 103
+        },
+        {
+          "name": "fit_preview",
+          "line": 106
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_course_paper.gd",
+          "line": 1,
+          "code": "extends \"res://scripts/math_ui/math_paper_page.gd\""
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/math_ui/table_editor.gd",
+      "base": "VBoxContainer",
+      "sha256": "ed1a6da484f1531937cc0af8125174c2fd60e894432ebb767d8a737b584d8314",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 9
+        },
+        {
+          "name": "_build",
+          "line": 23
+        },
+        {
+          "name": "sort_column",
+          "line": 58
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_ui/workspace.gd",
+          "line": 8,
+          "code": "const Table = preload(\"res://scripts/math_ui/table_editor.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/math_ui/workspace.gd",
+      "base": "VBoxContainer",
+      "sha256": "9ec1005269b907ef54537d4b9b9bef717b45a5970ad736a40c5b811b575ce51d",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 44
+        },
+        {
+          "name": "_field",
+          "line": 120
+        },
+        {
+          "name": "_complex_input",
+          "line": 129
+        },
+        {
+          "name": "_complex_visibility",
+          "line": 144
+        },
+        {
+          "name": "_graph_answer_input",
+          "line": 153
+        },
+        {
+          "name": "_add_root",
+          "line": 169
+        },
+        {
+          "name": "_add_triangle",
+          "line": 181
+        },
+        {
+          "name": "_diagram",
+          "line": 196
+        },
+        {
+          "name": "_demonstration",
+          "line": 240
+        },
+        {
+          "name": "_reference",
+          "line": 268
+        },
+        {
+          "name": "_list",
+          "line": 288
+        },
+        {
+          "name": "answer",
+          "line": 302
+        },
+        {
+          "name": "snapshot",
+          "line": 347
+        },
+        {
+          "name": "restore",
+          "line": 356
+        },
+        {
+          "name": "_notify",
+          "line": 400
+        },
+        {
+          "name": "save_error",
+          "line": 403
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_ui/paper_adapter.gd",
+          "line": 3,
+          "code": "const Workspace = preload(\"res://scripts/math_ui/workspace.gd\")"
+        },
+        {
+          "source": "scripts/mth255/worksheet_adapter.gd",
+          "line": 15,
+          "code": "if not ResourceLoader.exists(\"res://scripts/math_ui/workspace.gd\"):"
+        },
+        {
+          "source": "scripts/mth255/worksheet_adapter.gd",
+          "line": 24,
+          "code": "workspace=load(\"res://scripts/math_ui/workspace.gd\").new();add_child(workspace)"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/mth255/impedance_view.gd",
+      "base": "Control",
+      "sha256": "90c29f4835140d8f14052dfef24da1282d09b04d9164d31b959dc629bb6c1b79",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 5
+        },
+        {
+          "name": "_wire",
+          "line": 7
+        },
+        {
+          "name": "_text",
+          "line": 9
+        },
+        {
+          "name": "_impedance",
+          "line": 11
+        },
+        {
+          "name": "_draw",
+          "line": 15
+        },
+        {
+          "name": "_series_parallel",
+          "line": 35
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_course_paper.gd",
+          "line": 34,
+          "code": "var view=load(\"res://scripts/mth255/impedance_view.gd\").new() if descriptor.get(\"kind\",\"\")==\"circuit\" and ResourceLoader.exists(\"res://scripts/mth255/impedance_view.gd\") else preload(\"res://scripts/math_ui/diagram_view.gd\").new()"
+        },
+        {
+          "source": "scripts/math_whiteboard.gd",
+          "line": 40,
+          "code": "var view=load(\"res://scripts/mth255/impedance_view.gd\").new() if diagram.get(\"kind\",\"\")==\"circuit\" and ResourceLoader.exists(\"res://scripts/mth255/impedance_view.gd\") else preload(\"res://scripts/math_ui/diagram_view.gd\").new();view.custom_minimum_size=Vector2(650,400);row.add_child(view);view.configure(diagram)"
+        },
+        {
+          "source": "scripts/mth255/worksheet_adapter.gd",
+          "line": 3,
+          "code": "const Circuit=preload(\"res://scripts/mth255/impedance_view.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/mth255/worksheet_adapter.gd",
+      "base": "VBoxContainer",
+      "sha256": "8dad93f16fb4fdfa8c998e3aab0e971e78912b4b95d984c3747955c39e9b6512",
+      "functions": [
+        {
+          "name": "configure",
+          "line": 11
+        },
+        {
+          "name": "answer",
+          "line": 30
+        },
+        {
+          "name": "snapshot",
+          "line": 36
+        },
+        {
+          "name": "restore",
+          "line": 39
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/math_ui/paper_adapter.gd",
+          "line": 9,
+          "code": "if public_problem.get(\"course\",\"\")==\"MTH255\" and ResourceLoader.exists(\"res://scripts/mth255/worksheet_adapter.gd\"):"
+        },
+        {
+          "source": "scripts/math_ui/paper_adapter.gd",
+          "line": 10,
+          "code": "owner_view=load(\"res://scripts/mth255/worksheet_adapter.gd\").new()"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/package_editor/package_form.gd",
+      "base": "VBoxContainer",
+      "sha256": "49c98dcecf528d338c3b5cb958b672c67e7a7c1a169cf3b71a7fb9a4c098cc58",
+      "functions": [
+        {
+          "name": "text_field",
+          "line": 7
+        },
+        {
+          "name": "spin",
+          "line": 9
+        },
+        {
+          "name": "option",
+          "line": 11
+        },
+        {
+          "name": "note",
+          "line": 15
+        },
+        {
+          "name": "action",
+          "line": 17
+        },
+        {
+          "name": "build",
+          "line": 19
+        },
+        {
+          "name": "values",
+          "line": 106
+        },
+        {
+          "name": "fill",
+          "line": 108
+        },
+        {
+          "name": "swap",
+          "line": 110
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/electronics_ui.gd",
+          "line": 435,
+          "code": "var form=preload(\"res://scripts/package_editor/package_form.gd\").new();body.add_child(form);form.build(profile,draft)"
+        },
+        {
+          "source": "scripts/campus/facilities/circuit_studio/builder_window.gd",
+          "line": 3,
+          "code": "const Form=preload(\"res://scripts/package_editor/package_form.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/pcb_design/editor.gd",
+      "base": "VBoxContainer",
+      "sha256": "3ce24d1cb9c8dc534c760dfabceadfbdcc46a86b0a755d0597c69035bd2a8806",
+      "functions": [
+        {
+          "name": "button",
+          "line": 21
+        },
+        {
+          "name": "field_label",
+          "line": 23
+        },
+        {
+          "name": "feedback_message",
+          "line": 25
+        },
+        {
+          "name": "refresh_vertex_controls",
+          "line": 28
+        },
+        {
+          "name": "refresh",
+          "line": 37
+        },
+        {
+          "name": "change_mode",
+          "line": 44
+        },
+        {
+          "name": "build",
+          "line": 52
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/electronics_ui.gd",
+          "line": 661,
+          "code": "var editor=preload(\"res://scripts/pcb_design/editor.gd\").new()"
+        },
+        {
+          "source": "scripts/campus/facilities/circuit_studio/builder_window.gd",
+          "line": 4,
+          "code": "const Editor=preload(\"res://scripts/pcb_design/editor.gd\")"
+        }
+      ],
+      "dialog_constructors": []
+    },
+    {
+      "path": "scripts/pcb_design/route_canvas.gd",
+      "base": "Control",
+      "sha256": "2ac1a4dffcbb95756b2206a288e39bfb1e72e5df8d6c152d1d4f5248bb88aa17",
+      "functions": [
+        {
+          "name": "_ready",
+          "line": 18
+        },
+        {
+          "name": "rect",
+          "line": 22
+        },
+        {
+          "name": "grid_point",
+          "line": 23
+        },
+        {
+          "name": "nearest",
+          "line": 27
+        },
+        {
+          "name": "set_outline_mode",
+          "line": 33
+        },
+        {
+          "name": "cancel_outline_drag",
+          "line": 35
+        },
+        {
+          "name": "nearest_vertex",
+          "line": 37
+        },
+        {
+          "name": "select_vertex",
+          "line": 43
+        },
+        {
+          "name": "move_selected",
+          "line": 46
+        },
+        {
+          "name": "add_vertex_after",
+          "line": 52
+        },
+        {
+          "name": "remove_selected_vertex",
+          "line": 64
+        },
+        {
+          "name": "add_vertex_at",
+          "line": 73
+        },
+        {
+          "name": "_notification",
+          "line": 89
+        },
+        {
+          "name": "_outline_input",
+          "line": 93
+        },
+        {
+          "name": "_gui_input",
+          "line": 122
+        },
+        {
+          "name": "_draw",
+          "line": 148
+        }
+      ],
+      "resource_references": [
+        {
+          "source": "scripts/pcb_design/editor.gd",
+          "line": 108,
+          "code": "view=preload(\"res://scripts/pcb_design/route_canvas.gd\").new();view.document=document;add_child(view)"
+        }
+      ],
+      "dialog_constructors": []
+    }
+  ]
+}

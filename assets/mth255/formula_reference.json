@@ -1,0 +1,2302 @@
+{
+  "course": "MTH255",
+  "requires_host_permission_in_tests": true,
+  "sections": [
+    {
+      "id": "1",
+      "title": "Complex numbers",
+      "entries": [
+        {
+          "title": "The imaginary unit",
+          "formula": "j^n=j^(n mod 4)",
+          "definitions": "j²=-1 extends real arithmetic. Powers repeat every four: 1,j,-1,-j. A negative exponent follows the same cycle because j is nonzero."
+        },
+        {
+          "title": "Coordinates and quadrants",
+          "formula": "r=sqrt(a²+b²)",
+          "definitions": "In a+jb, a is the horizontal real coordinate and b the vertical imaginary coordinate. Magnitude is distance from the origin, never a signed length."
+        },
+        {
+          "title": "Phase and units",
+          "formula": "theta=atan2(b,a); 180 degrees=pi radians",
+          "definitions": "Use atan2(b,a); atan(b/a) loses quadrant information and fails when a=0. The zero vector has no unique argument. A full revolution changes the phase representation but not the number."
+        },
+        {
+          "title": "Equivalent representations",
+          "formula": "a+jb=r*(cos(theta)+j*sin(theta))=r*exp(j*theta)",
+          "definitions": "Euler links a rotating unit vector to a complex exponential. Polar and exponential representations use the same magnitude and phase. Explicitly label degrees or radians."
+        },
+        {
+          "title": "Try and explain",
+          "formula": "theta and theta+2*pi give the same vector",
+          "definitions": "Move the vector across an axis. Predict which component changes sign and which quadrant contains the result. Explain why adding a full turn changes neither component."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "Imaginary unit: j is the imaginary unit, with j²=-1.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "pow",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "j"
+                  },
+                  {
+                    "op": "num",
+                    "value": "2"
+                  }
+                ]
+              },
+              {
+                "op": "num",
+                "value": "-1"
+              }
+            ]
+          }
+        },
+        {
+          "text": "Magnitude r of x+jy is a nonnegative distance.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "r"
+              },
+              {
+                "op": "sqrt",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "pow",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          },
+                          {
+                            "op": "num",
+                            "value": "2"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "pow",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "y"
+                          },
+                          {
+                            "op": "num",
+                            "value": "2"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Argument uses both coordinates; undefined at x=y=0. Choose and state angle units.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "theta"
+              },
+              {
+                "op": "atan2",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "y"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "x"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Rectangular coordinates: theta is in radians in the exponential form.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "z"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "r"
+                  },
+                  {
+                    "op": "exp",
+                    "args": [
+                      {
+                        "op": "mul",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "j"
+                          },
+                          {
+                            "op": "symbol",
+                            "name": "theta"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Polar multiplication adds phases and multiplies magnitudes.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "z1 z2"
+              },
+              {
+                "op": "complex_polar",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "r1"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "r2"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "theta1"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "theta2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "All nth roots: k=0,...,n-1; z is nonzero. For zero the only distinct root is zero.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "z_k"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "root",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "n"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "r"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "exp",
+                    "args": [
+                      {
+                        "op": "mul",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "j"
+                          },
+                          {
+                            "op": "div",
+                            "args": [
+                              {
+                                "op": "add",
+                                "args": [
+                                  {
+                                    "op": "symbol",
+                                    "name": "theta"
+                                  },
+                                  {
+                                    "op": "mul",
+                                    "args": [
+                                      {
+                                        "op": "mul",
+                                        "args": [
+                                          {
+                                            "op": "num",
+                                            "value": "2"
+                                          },
+                                          {
+                                            "op": "symbol",
+                                            "name": "pi"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "op": "symbol",
+                                        "name": "k"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "op": "symbol",
+                                "name": "n"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "title": "Trigonometry and angle conversion",
+      "entries": [
+        {
+          "title": "The unit circle",
+          "formula": "sin²(theta)+cos²(theta)=1",
+          "definitions": "Cosine is the horizontal coordinate and sine the vertical coordinate on a unit circle. Quadrant signs come from coordinates, not memorized decimal approximations."
+        },
+        {
+          "title": "Related angles and reciprocals",
+          "formula": "sin(-x)=-sin(x); cos(-x)=cos(x); tan(x)=sin(x)/cos(x)",
+          "definitions": "Sine is odd and cosine is even. Tangent is sine divided by cosine where cosine is nonzero. Reciprocal functions introduce their own denominator restrictions."
+        },
+        {
+          "title": "Addition and subtraction",
+          "formula": "sin(A±B)=sin(A)cos(B)±cos(A)sin(B)",
+          "definitions": "Expand with the angle-sum formulas before simplifying. For a difference, replace the second angle by its negative and track the signs."
+        },
+        {
+          "title": "Double and half angles",
+          "formula": "sin(2x)=2sin(x)cos(x); cos(2x)=cos²(x)-sin²(x); sin²(x/2)=(1-cos(x))/2",
+          "definitions": "Double-angle forms can trade products for sums or vice versa. A half-angle square root needs a sign chosen from the half-angle quadrant, not always the positive sign."
+        },
+        {
+          "title": "A structured proof",
+          "formula": "1+tan²(x)=sec²(x), cos(x)≠0",
+          "definitions": "Transform one side using justified equalities until it matches the other. An identity holds throughout its common domain; checking a few angles is not a proof. State all denominator restrictions."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "Degree d to radian theta conversion; a full revolution is 360° or 2π rad.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "theta"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "d"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "pi"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "num",
+                    "value": "180"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Pythagorean identity on all real angles.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "pow",
+                    "args": [
+                      {
+                        "op": "sin",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "num",
+                        "value": "2"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "pow",
+                    "args": [
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "num",
+                        "value": "2"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "num",
+                "value": "1"
+              }
+            ]
+          }
+        },
+        {
+          "text": "Quotient identity requires cos(x)≠0.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "tan",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "x"
+                  }
+                ]
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "sin",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "cos",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Angle-sum identity. Difference follows by replacing y by -y.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "sin",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "sin",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "y"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "sin",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "y"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Cosine angle-sum identity.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "cos",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "sub",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "y"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "sin",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "sin",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "y"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Double-angle sine identity.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "sin",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "num",
+                    "value": "2"
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "sin",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Double-angle cosine identity.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "cos",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "sub",
+                "args": [
+                  {
+                    "op": "pow",
+                    "args": [
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "num",
+                        "value": "2"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "pow",
+                    "args": [
+                      {
+                        "op": "sin",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "num",
+                        "value": "2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Half-angle squared identity. A square root requires the correct quadrant sign.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "pow",
+                "args": [
+                  {
+                    "op": "sin",
+                    "args": [
+                      {
+                        "op": "div",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          },
+                          {
+                            "op": "num",
+                            "value": "2"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "num",
+                    "value": "2"
+                  }
+                ]
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "sub",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "1"
+                      },
+                      {
+                        "op": "cos",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "x"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "num",
+                    "value": "2"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "title": "Waveforms and phasors",
+      "entries": [
+        {
+          "title": "All angle families",
+          "formula": "sin(u)=sin(alpha): u=alpha+2*pi*k or pi-alpha+2*pi*k",
+          "definitions": "An inverse sine gives only one principal value. Include the second angle family and complete turns, divide by any angle multiplier, then filter the requested interval."
+        },
+        {
+          "title": "Read a waveform",
+          "formula": "v=A*sin(omega*t+phi); T=2*pi/omega; f=1/T; shift=-phi/omega",
+          "definitions": "Amplitude is nonnegative peak displacement from the offset. Period, frequency and angular frequency have different units. A phase angle is not a time shift."
+        },
+        {
+          "title": "From function to graph",
+          "formula": "omega*t+phi=0,pi/2,pi,3*pi/2,2*pi",
+          "definitions": "Generate critical times from the angle, then evaluate the actual function. Label time in seconds and the vertical physical quantity. Plot at least a full period."
+        },
+        {
+          "title": "Combine equal frequencies",
+          "formula": "A*sin(w*t)+B*cos(w*t)=R*sin(w*t+phi); R=sqrt(A²+B²); phi=atan2(B,A)",
+          "definitions": "Expand the target sine form and match coefficients. atan2 preserves the quadrant even when the sine coefficient is negative. Opposite equal waves can cancel completely."
+        },
+        {
+          "title": "Thresholds and timing",
+          "formula": "delta_t=delta_phi/omega",
+          "definitions": "Solve both angle families, retain times in the requested domain, and distinguish earliest positive from nonnegative. Positive phase leads the unshifted reference; lead time=phi/omega."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "A≥0 is amplitude, omega>0 is angular frequency in rad/s, phi phase in radians, t time in seconds.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "v"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "A"
+                  },
+                  {
+                    "op": "sin",
+                    "args": [
+                      {
+                        "op": "add",
+                        "args": [
+                          {
+                            "op": "mul",
+                            "args": [
+                              {
+                                "op": "symbol",
+                                "name": "omega"
+                              },
+                              {
+                                "op": "symbol",
+                                "name": "t"
+                              }
+                            ]
+                          },
+                          {
+                            "op": "symbol",
+                            "name": "phi"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "T is period in seconds.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "T"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "pi"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "omega"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Frequency f in Hz.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "f"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "omega"
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "pi"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Horizontal shift in seconds; positive phase gives a negative shift.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "shift"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "neg",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "phi"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "omega"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Combine A*sin(omega*t)+B*cos(omega*t) as R*sin(omega*t+phi).",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "R"
+              },
+              {
+                "op": "sqrt",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "pow",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "A"
+                          },
+                          {
+                            "op": "num",
+                            "value": "2"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "pow",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "B"
+                          },
+                          {
+                            "op": "num",
+                            "value": "2"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Use atan2 to preserve the resultant quadrant; zero resultant has no unique phase.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "phi"
+              },
+              {
+                "op": "atan2",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "B"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "A"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Series ideal impedances; all phasors use the same frequency.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "Z"
+              },
+              {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "Z1"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "Z2"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Parallel ideal impedances; denominator must be nonzero.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "Z"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "Z1"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "Z2"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "Z1"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "Z2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Ideal phasor Ohm law; Z is nonzero, V in RMS volts, I in RMS amperes.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "I"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "V"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "Z"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "title": "Exponential models",
+      "entries": [
+        {
+          "title": "Growth and decay",
+          "formula": "y(0)=A; y=A*exp(k*t)",
+          "definitions": "For y=A*exp(k*t), A>0, positive k gives growth and negative k decay. The mathematical domain is all real t and range is positive; elapsed physical time is often t≥0."
+        },
+        {
+          "title": "Inverse relationships",
+          "formula": "t=ln(y/A)/k, k≠0",
+          "definitions": "Divide by the initial value before taking logarithms. A positive exponential cannot equal a nonpositive target over the reals."
+        },
+        {
+          "title": "Time constants",
+          "formula": "tau=RC for an ideal RC circuit; tau=L/R for an ideal RL circuit",
+          "definitions": "For decay exp(-t/tau), tau must be positive. At one tau the remaining fraction is exp(-1); an ideal asymptote is approached, not reached at finite time."
+        },
+        {
+          "title": "Correct circuit quantities",
+          "formula": "vC=E*(1-exp(-t/RC)); iR=(E/R)*exp(-t/RC)",
+          "definitions": "A charging capacitor voltage rises toward the source while the series current decays. A discharging capacitor voltage and resistor-current magnitude decay. An RL step current rises on L/R."
+        },
+        {
+          "title": "Graph and check",
+          "formula": "R in ohms, C in farads, t and tau in seconds",
+          "definitions": "Change R or C to stretch time without changing the voltage asymptote. Check initial value, long-time value and unit conversions before interpreting the curve."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "Exponential model: A is initial value, k is signed inverse-time rate.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "y"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "A"
+                  },
+                  {
+                    "op": "exp",
+                    "args": [
+                      {
+                        "op": "mul",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "k"
+                          },
+                          {
+                            "op": "symbol",
+                            "name": "t"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Ideal RC time constant: R in ohms, C in farads, tau in seconds.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "tau"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "R"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "C"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Initially uncharged ideal capacitor connected to constant source E through R; vC in volts.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "vC"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "E"
+                  },
+                  {
+                    "op": "sub",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "1"
+                      },
+                      {
+                        "op": "exp",
+                        "args": [
+                          {
+                            "op": "div",
+                            "args": [
+                              {
+                                "op": "neg",
+                                "args": [
+                                  {
+                                    "op": "symbol",
+                                    "name": "t"
+                                  }
+                                ]
+                              },
+                              {
+                                "op": "mul",
+                                "args": [
+                                  {
+                                    "op": "symbol",
+                                    "name": "R"
+                                  },
+                                  {
+                                    "op": "symbol",
+                                    "name": "C"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "RC series current decays after the step. Its initial value is E/R amperes.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "i"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "div",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "E"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "R"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "exp",
+                    "args": [
+                      {
+                        "op": "div",
+                        "args": [
+                          {
+                            "op": "neg",
+                            "args": [
+                              {
+                                "op": "symbol",
+                                "name": "t"
+                              }
+                            ]
+                          },
+                          {
+                            "op": "mul",
+                            "args": [
+                              {
+                                "op": "symbol",
+                                "name": "R"
+                              },
+                              {
+                                "op": "symbol",
+                                "name": "C"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Ideal RL step current, R>0, L>0, initially zero current.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "i"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "div",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "E"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "R"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "sub",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "1"
+                      },
+                      {
+                        "op": "exp",
+                        "args": [
+                          {
+                            "op": "div",
+                            "args": [
+                              {
+                                "op": "neg",
+                                "args": [
+                                  {
+                                    "op": "mul",
+                                    "args": [
+                                      {
+                                        "op": "symbol",
+                                        "name": "R"
+                                      },
+                                      {
+                                        "op": "symbol",
+                                        "name": "t"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "op": "symbol",
+                                "name": "L"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "title": "Logarithms and decibels",
+      "entries": [
+        {
+          "title": "Definition and domain",
+          "formula": "log_b(A)=y iff b^y=A",
+          "definitions": "A logarithm asks for an exponent. Its real argument must be positive and its base positive and unequal to one. Natural logs use base e; common logs use base ten."
+        },
+        {
+          "title": "Laws and change of base",
+          "formula": "log_b(M*N)=log_b(M)+log_b(N); log_b(A)=ln(A)/ln(b)",
+          "definitions": "Products become sums, quotients differences, and powers coefficients on the stated positive domain. A log of a sum cannot be split into logs of its terms."
+        },
+        {
+          "title": "Solve and validate",
+          "formula": "log_b(x-h)+log_b(x+h) has domain x>h for h>0",
+          "definitions": "Write every argument restriction before combining logs. Algebra may give multiple roots, but each must satisfy the original arguments and equation."
+        },
+        {
+          "title": "Decibel gain",
+          "formula": "Gp=10*log10(Pout/Pin); Gv=20*log10(Vout/Vin)",
+          "definitions": "Power gain uses ten times the common logarithm. RMS voltage gain uses twenty times the logarithm when equal positive resistive impedances are assumed. Negative gain means attenuation."
+        },
+        {
+          "title": "Invert a gain",
+          "formula": "Pout=Pin*10^(G/10); Vout=Vin*10^(G/20)",
+          "definitions": "Exponentiate to recover a ratio. Keep the sign of gain and convert mW or mV consistently on both sides. Do not mix a power ratio with a voltage formula."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "Change of base: argument x>0, base b>0 and b≠1.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "log",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "x"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "b"
+                  }
+                ]
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "ln",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "ln",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "b"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Product rule requires x,y>0.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "ln",
+                "args": [
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "add",
+                "args": [
+                  {
+                    "op": "ln",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "ln",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Quotient rule requires x,y>0.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "ln",
+                "args": [
+                  {
+                    "op": "div",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "y"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "sub",
+                "args": [
+                  {
+                    "op": "ln",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "ln",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "y"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Power rule on x>0.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "ln",
+                "args": [
+                  {
+                    "op": "pow",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "a"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "a"
+                  },
+                  {
+                    "op": "ln",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "x"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Signed power gain in dB; positive input and output power in the same units.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "G"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "num",
+                    "value": "10"
+                  },
+                  {
+                    "op": "log",
+                    "args": [
+                      {
+                        "op": "div",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "Pout"
+                          },
+                          {
+                            "op": "symbol",
+                            "name": "Pin"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "num",
+                        "value": "10"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Signed RMS voltage gain in dB assumes equal positive resistive impedances.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "G"
+              },
+              {
+                "op": "mul",
+                "args": [
+                  {
+                    "op": "num",
+                    "value": "20"
+                  },
+                  {
+                    "op": "log",
+                    "args": [
+                      {
+                        "op": "div",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "Vout"
+                          },
+                          {
+                            "op": "symbol",
+                            "name": "Vin"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "num",
+                        "value": "10"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "title": "Statistics",
+      "entries": [
+        {
+          "title": "Order and count",
+          "formula": "n=sum(frequency)",
+          "definitions": "Sort a copy of the observations. Retain repeated values because their frequencies affect the mean, median and quartiles. Count the observations before calculating."
+        },
+        {
+          "title": "Mean and frequency tables",
+          "formula": "mean=sum(x)/n=sum(f*x)/sum(f)",
+          "definitions": "Arithmetic mean is total divided by count. For a frequency table multiply every distinct value by its count before summing."
+        },
+        {
+          "title": "Median and modes",
+          "formula": "Q2=median",
+          "definitions": "The median is the middle value for odd n and average of two middle values for even n. Return every value tied for greatest frequency. In this course all-unique data have no mode."
+        },
+        {
+          "title": "Quartile convention",
+          "formula": "IQR=Q3-Q1",
+          "definitions": "Use medians of the lower and upper halves. Include the central observation in both halves when n is odd. The worksheet states this rule because common conventions can differ."
+        },
+        {
+          "title": "Interpret measurements",
+          "formula": "min(data)≤mean≤max(data)",
+          "definitions": "Mean summarizes center but does not describe every reading. Keep measurement units and precision; a repeated reading is not necessarily a mistake. Verify weighted totals against expanded data."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "Mean is sum of observations divided by observation count n>0.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "mean"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "sum(x)"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "n"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Frequency weighted mean; f counts observations, not distinct values.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "mean"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "sum(f*x)"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "sum(f)"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Quartiles: median of halves; include central observation in both halves when n odd. Q2 is median.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "IQR"
+              },
+              {
+                "op": "sub",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "Q3"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "Q1"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "title": "Probability",
+      "entries": [
+        {
+          "title": "Sample spaces",
+          "formula": "P(A)=favorable outcomes/total outcomes",
+          "definitions": "Specify the experiment, then count ordered equally likely elementary outcomes. Dice sums are not equally likely. Probability lies from zero through one."
+        },
+        {
+          "title": "Dice and complements",
+          "formula": "P(not A)=1-P(A)",
+          "definitions": "For n fair independent six-sided dice there are 6^n ordered face tuples. Enumerate the tuples matching a sum or event. Complementary events partition the entire sample space."
+        },
+        {
+          "title": "Coins: exactly versus at least",
+          "formula": "P(exactly k)=choose(n,k)/2^n",
+          "definitions": "For n independent fair tosses there are 2^n ordered strings. Exactly k heads selects one count; at least k includes every count k through n."
+        },
+        {
+          "title": "Cards and replacement",
+          "formula": "P(all eligible, no replacement)=m/52*(m-1)/51*...",
+          "definitions": "Use a standard 52-card deck without jokers. Multiple draws explicitly state replacement. Without replacement, draw probabilities change; with replacement the original counts return."
+        },
+        {
+          "title": "Comprehensive strategy",
+          "formula": "Complex → quadratic → trig → exp/log → statistics/probability",
+          "definitions": "For a mixed problem first identify its unit, domain, representation and units. Draw a diagram where useful, solve, and substitute or recount independently. Practice results do not enter official averages."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "For finite equally likely elementary outcomes.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "P",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "A"
+                  }
+                ]
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "favorable"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "total"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Complement.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "P",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "not A"
+                  }
+                ]
+              },
+              {
+                "op": "sub",
+                "args": [
+                  {
+                    "op": "num",
+                    "value": "1"
+                  },
+                  {
+                    "op": "P",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "A"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Exactly k heads in n independent fair tosses.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "P",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "k heads"
+                  }
+                ]
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "choose",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "n"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "k"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "pow",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "n"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Inclusive union; subtract the overlap once.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "P",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "A or B"
+                  }
+                ]
+              },
+              {
+                "op": "sub",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "P",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "A"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "P",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "B"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "P",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "A and B"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "Quadratic equations",
+      "entries": [
+        {
+          "title": "Put the equation in standard form",
+          "formula": "a*x²+b*x+c=0, a≠0",
+          "definitions": "Expand brackets and move every term to one side before reading a,b,c. The quadratic coefficient must be nonzero. Incomplete equations can be easier to solve directly."
+        },
+        {
+          "title": "Factoring and zero product",
+          "formula": "a*(x-r1)*(x-r2)=0",
+          "definitions": "A product is zero when at least one factor is zero. A repeated factor gives one distinct solution with multiplicity two. Never divide by x without checking x=0."
+        },
+        {
+          "title": "Complete the square",
+          "formula": "(x+b/(2a))²=(b²-4ac)/(4a²)",
+          "definitions": "Divide by the leading coefficient, then add the square of half the linear coefficient to both sides. This transforms the equation without losing roots."
+        },
+        {
+          "title": "Quadratic formula and discriminant",
+          "formula": "x=(-b±sqrt(b²-4ac))/(2a)",
+          "definitions": "A positive discriminant gives two distinct real roots, zero gives one repeated real root, and a negative discriminant gives two conjugate nonreal roots. Keep exact radicals when requested."
+        },
+        {
+          "title": "Substitute to check",
+          "formula": "a*r²+b*r+c=0",
+          "definitions": "Evaluate the original left and right sides for every candidate. The sign before a square root creates two candidates, unless the square root is zero."
+        }
+      ],
+      "formulas": [
+        {
+          "text": "Standard form, a≠0. The discriminant classifies roots.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "D"
+              },
+              {
+                "op": "sub",
+                "args": [
+                  {
+                    "op": "pow",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "b"
+                      },
+                      {
+                        "op": "num",
+                        "value": "2"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "4"
+                      },
+                      {
+                        "op": "mul",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "a"
+                          },
+                          {
+                            "op": "symbol",
+                            "name": "c"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Quadratic formula: plus root. Use D=b²-4ac and a≠0; a negative D gives complex conjugate roots.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "subscript",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "x"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "+"
+                  }
+                ]
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "neg",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "b"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "sqrt",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "D"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "a"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Quadratic formula: minus root. Both signs are required unless D=0, where the roots coincide.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "subscript",
+                "args": [
+                  {
+                    "op": "symbol",
+                    "name": "x"
+                  },
+                  {
+                    "op": "symbol",
+                    "name": "−"
+                  }
+                ]
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "sub",
+                    "args": [
+                      {
+                        "op": "neg",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "b"
+                          }
+                        ]
+                      },
+                      {
+                        "op": "sqrt",
+                        "args": [
+                          {
+                            "op": "symbol",
+                            "name": "D"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "a"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "text": "Vertex horizontal coordinate; substitute into original y for its vertical coordinate.",
+          "ast": {
+            "op": "equation",
+            "args": [
+              {
+                "op": "symbol",
+                "name": "h"
+              },
+              {
+                "op": "div",
+                "args": [
+                  {
+                    "op": "neg",
+                    "args": [
+                      {
+                        "op": "symbol",
+                        "name": "b"
+                      }
+                    ]
+                  },
+                  {
+                    "op": "mul",
+                    "args": [
+                      {
+                        "op": "num",
+                        "value": "2"
+                      },
+                      {
+                        "op": "symbol",
+                        "name": "a"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

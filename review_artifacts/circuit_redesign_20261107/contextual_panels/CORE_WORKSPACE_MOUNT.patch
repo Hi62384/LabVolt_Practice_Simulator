@@ -1,0 +1,14 @@
+--- a/review_artifacts/circuit_redesign_20261107/core/modules/workspace.gd
++++ b/review_artifacts/circuit_redesign_20261107/core/modules/workspace.gd
+@@ -30,8 +30,11 @@
+ 	canvas.size_flags_horizontal=Control.SIZE_EXPAND_FILL;canvas.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ 	add_child(canvas)
+ 	canvas.design_changed.connect(func(candidate):design_changed.emit(candidate))
+ 	canvas.selection_updated.connect(func(ids):selection_changed.emit(ids))
++	var contextual := preload("res://scripts/electronics/contextual_panels/panel_host.gd").new()
++	canvas.add_child(contextual)
++	contextual.configure(self,callbacks.get("panel_data",{}),callbacks.get("panel_actions",{}))
+ 
+ func choose_component(type_id: String) -> void:
+ 	canvas.first="";canvas.selected_type=type_id;canvas.grab_focus()
+ 

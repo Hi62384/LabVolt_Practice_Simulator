@@ -1,0 +1,90 @@
+[
+  {
+    "topic": "Accepted-host-only gesture projection",
+    "path": "scripts/interaction_presentation/accepted_event.gd",
+    "line": 2,
+    "needle": "Call ONLY at Session",
+    "current_main_sha256": "35126b026d02c7fbb165b271857fb40ccea35efd72a0fb657d5616a7dd9aa2c6",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "Cosmetic event dispatch",
+    "path": "scripts/interaction_presentation/bridge.gd",
+    "line": 99,
+    "needle": "func accepted(",
+    "current_main_sha256": "f32ecadd2fff48fc80669dab3ba0060995be35bab9c5f43249b62d6b5286c7d4",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "First-person v1.3 pose",
+    "path": "scripts/interaction_presentation/actor.gd",
+    "line": 105,
+    "needle": "Camera-attached shoulder stays below view",
+    "current_main_sha256": "99c6da455eb5e24211e920135aa01a62f7db38147aaf1fbb4121ba80f58aeb5b",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "Saved hands setting",
+    "path": "scripts/campus/ui/graphics_settings.gd",
+    "line": 4,
+    "needle": "\"interaction_hands\":true",
+    "current_main_sha256": "99c9e109912c161845904e81bac6828ebe3155e82792bd0a622aa02fe01270ef",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "Archive budgets and receipt structure",
+    "path": "scripts/inventory_authority/receipt_archive/format.gd",
+    "line": 4,
+    "needle": "const HOT_PER_ACCOUNT",
+    "current_main_sha256": "abb5e5bc0407570858b220196bd1c26d8e67a79ea2e11d241a6c5f5fc4a71608",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "Archive cold replay check",
+    "path": "scripts/inventory_authority/receipt_archive/coordinator.gd",
+    "line": 44,
+    "needle": "func lookup_op(",
+    "current_main_sha256": "6395896ffa03573f7bb87586000929a3eba5ae6d865b44248df61f6b518d5d79",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "Backup before migration",
+    "path": "scripts/inventory_authority/receipt_archive/coordinator.gd",
+    "line": 71,
+    "needle": "Preserve exact original on-disk generation bytes",
+    "current_main_sha256": "6395896ffa03573f7bb87586000929a3eba5ae6d865b44248df61f6b518d5d79",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "Immutable archive blob storage",
+    "path": "scripts/inventory_authority/receipt_archive/blob_store.gd",
+    "line": 51,
+    "needle": "func put_segment(",
+    "current_main_sha256": "eb66f403c091ea8cd27f55225f984ae6d1dfda5573b0e9ec77ab25e047e2b4d4",
+    "scope": "Read-only actual integrated Main source; not a J baseline claim."
+  },
+  {
+    "topic": "Final simulation span",
+    "path": "scripts/dc_lab.gd",
+    "needle": "trace.begin_span(\"dc_lab_simulation\")",
+    "scope": "Actual integrated final-three instrumentation; no performance pass inferred.",
+    "line": 317,
+    "current_main_sha256": "b3d2b932f3f31da13086a9095601f55b49cc4c53323c57f320cd962d538e4ac8"
+  },
+  {
+    "topic": "Final snapshot/UI span",
+    "path": "scripts/dc_lab.gd",
+    "needle": "trace.begin_span(\"dc_lab_snapshot_ui\")",
+    "scope": "Actual integrated final-three instrumentation; no performance pass inferred.",
+    "line": 337,
+    "current_main_sha256": "b3d2b932f3f31da13086a9095601f55b49cc4c53323c57f320cd962d538e4ac8"
+  },
+  {
+    "topic": "Final presentation span",
+    "path": "scripts/dc_lab.gd",
+    "needle": "trace.begin_span(\"dc_lab_presentation\")",
+    "scope": "Actual integrated final-three instrumentation; no performance pass inferred.",
+    "line": 341,
+    "current_main_sha256": "b3d2b932f3f31da13086a9095601f55b49cc4c53323c57f320cd962d538e4ac8"
+  }
+]

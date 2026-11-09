@@ -1,0 +1,30 @@
+--- a/scripts/shop_room.gd
++++ b/scripts/shop_room.gd
+@@ -20,29 +20,23 @@
+ 		for z in [-2.,8.]:_shop_solid(Vector3(26,2,z),Vector3(12,4,.2),Color("9aadaa"))
+-	component_fitout=preload("res://scripts/campus/presentation/decor/component_shop_fitout.gd").new()
++	component_fitout=preload("res://scripts/campus/presentation/decor/component_shop_fitout_candidate.gd").new()
+ 	add_child(component_fitout)
+ 	var physical_stations: Dictionary=component_fitout.build()
+ 	var physical_ready: bool=component_fitout.activation_contract_valid()
+-	if physical_ready:physical_stations.trade.position=Vector3(26,0,-1)
++	if physical_ready:physical_stations.trade.position=Vector3(30,0,5)
+ 	else:component_fitout.queue_free();component_fitout=null
+-	for row in [[Vector3(22,0,1),"COMPONENT SHOP","shop"],[Vector3(30,0,1),"KIT WORKSHOP","kits"],[Vector3(22,0,5),"CUSTOM CIRCUITS","ics"],[Vector3(30,0,5),"LOADOUT & NOTES","inventory"],[Vector3(26,0,-1),"PLAYER TRADING","trade"],[Vector3(26,0,7),"CAMPUS / RETURN","exit"]]:
+-		if physical_ready and row[2] in ["shop","trade"]:continue
++	# Dorm and circuit-studio replacements are built during Game._ready before
++	# input is enabled. Their routes remain in their own rooms; M102 has two targets.
++	for row in [[Vector3(22,0,1),"COMPONENT SHOP","shop"],[Vector3(30,0,5),"PLAYER TRADING","trade"]]:
++		if physical_ready:continue
+ 		var pos: Vector3=row[0]
+ 		_shop_solid(pos+Vector3(0,.55,0),Vector3(2.4,1.1,.7),Color("244e59"))
+ 		var body := StaticBody3D.new();body.collision_layer=4;body.collision_mask=0;body.position=pos+Vector3(0,1.35,0);add_child(body)
+ 		var shape := CollisionShape3D.new();var box := BoxShape3D.new();box.size=Vector3(2.4,.5,.2);shape.shape=box;body.add_child(shape)
+ 		body.set_meta("role","shop_station");body.set_meta("page",row[2]);body.set_meta("label",row[1])
+ 		game._box(body,Vector3.ZERO,Vector3(2.4,.5,.08),Color("152e37"))
+-		var title=game._text3(body,row[1],Vector3(0,0,.06),.07,Color("9ae7cf"));title.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+-	for x in ([] if campus_mode else [23.,29.]):
+-		var light := OmniLight3D.new();light.position=Vector3(x,3.5,3);light.light_energy=1.2;light.omni_range=9;add_child(light)
+-	game._text3(self,"ELECTRONICS WORKSHOP",Vector3(26,2.9,-1.85),.18,Color("173a43"))
++	for x in [22.,30.]:
++		var light := OmniLight3D.new();light.position=Vector3(x,3.45,3);light.light_energy=.45;light.omni_range=5;light.shadow_enabled=false;add_child(light)

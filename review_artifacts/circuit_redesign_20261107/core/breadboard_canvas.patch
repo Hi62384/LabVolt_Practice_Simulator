@@ -1,0 +1,12 @@
+--- a/scripts/breadboard_canvas.gd
++++ b/scripts/breadboard_canvas.gd
+@@ -18,7 +18,8 @@
+ var current_overlay := true
+ var timing_visible := false:
+ 	set(value):
+-		timing_visible=value;custom_minimum_size.y=590 if value else 500
++		timing_visible=value
++		if not get_meta("workspace_embedded",false):custom_minimum_size.y=590 if value else 500
+ var first := ""
+ var history: Array=[]
+ var future: Array=[]

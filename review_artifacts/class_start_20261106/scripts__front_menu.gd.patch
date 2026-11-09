@@ -1,0 +1,15 @@
+--- a/scripts/front_menu.gd
++++ b/scripts/front_menu.gd
+@@ -429,6 +429,12 @@
+ 	clear("settings","SETTINGS")
+ 	text("Make the laboratory feel right for you.")
+ 	settings_host.show()
++	if in_game and multiplayer.is_server() and game.school.can_choose_next_activity():
++		var expected_epoch: int=game.school.activity_epoch
++		button("Choose next campus activity",func():
++			if not multiplayer.is_server() or not game.school.can_choose_next_activity() or game.school.activity_epoch!=expected_epoch:return
++			screen.hide()
++			game.paper_ui.activity_menu(expected_epoch))
+ 	button("Back",pause_menu if in_game else home)
+ func pause_menu() -> void:
+ 	game.release_mouse()

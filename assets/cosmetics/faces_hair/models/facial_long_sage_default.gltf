@@ -1,0 +1,133 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Long Sage Beard",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Long Sage Beard",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "facial_long_sage_default.bin",
+      "byteLength": 57600
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 21600
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 21600,
+      "byteLength": 21600
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 43200,
+      "byteLength": 14400
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1800,
+      "type": "VEC3",
+      "min": [
+        -0.10641238929526986,
+        -0.3030438951431773,
+        0.0173470421333066
+      ],
+      "max": [
+        0.10641238929526986,
+        -0.07248119300406863,
+        0.17269551854287246
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1800,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1800,
+      "type": "VEC2"
+    }
+  ]
+}

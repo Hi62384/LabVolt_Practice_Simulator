@@ -1,0 +1,17 @@
+[
+  {
+    "path": "scripts/first_person.gd",
+    "preimage_sha256": "ca4e245f1157294275c3c07e7e8a8c47422d4a54118f22ee39b1f4c604691028",
+    "proposed_sha256": "32a9afdc50b03e73a4466c24615935b868d209052de69eddb5202f826603f17b"
+  },
+  {
+    "path": "scripts/game.gd",
+    "preimage_sha256": "68a4c0be302d116a392d1d33ba88791d105442993752aadc698b2841458db5fd",
+    "proposed_sha256": "4d403368bce7f07defbf7c65a5572dba26438652812d3b7f9046cedb3be1327d"
+  },
+  {
+    "path": "scripts/rolling_chair.gd",
+    "preimage_sha256": "b7b6ec74083d08d577f1588886997c0bb3c546c3127a1e5115b7023a7d9c57ab",
+    "proposed_sha256": "f2b85492a08ae458e84bf2b1a76a4e3fe01eee64a1cc68610c3a74758d46aa39"
+  }
+]

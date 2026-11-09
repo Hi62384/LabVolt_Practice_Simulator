@@ -1,0 +1,14 @@
+[
+  {
+    "file": "scripts/dc_lab.gd",
+    "preimage_sha256": "6dd835b12ee26d6da2cd3f74c4175385e303710948a7de8418f0f6bb3ce7b36d",
+    "proposed_sha256": "97d82d0bc88320e372cea44f503e608a1db8659328338decaf434324e7f81104",
+    "patch": "dc_lab.gd.patch"
+  },
+  {
+    "file": "scripts/game.gd",
+    "preimage_sha256": "f451fba3d1132a5e7616df4b4ff34ffa5f81d42f95a68a12a633354981beb251",
+    "proposed_sha256": "65d81ad1fd1c8187309e1a6cf533750ad81e6c7bed7d9557dbdb1b9a923e1296",
+    "patch": "game.gd.patch"
+  }
+]

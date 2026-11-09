@@ -1,0 +1,129 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Scarf",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Scarf",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "knit",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.9
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/knit_albedo.png"
+    },
+    {
+      "uri": "../materials/knit_orm.png"
+    },
+    {
+      "uri": "../materials/knit_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "reference_scarf.bin",
+      "byteLength": 35712
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 13392
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 13392,
+      "byteLength": 13392
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 26784,
+      "byteLength": 8928
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1116,
+      "type": "VEC3",
+      "min": [
+        -0.129,
+        0.9899999999999999,
+        -0.12829332450250727
+      ],
+      "max": [
+        0.1335,
+        1.3439999999999999,
+        0.16049999999999998
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1116,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1116,
+      "type": "VEC2"
+    }
+  ]
+}

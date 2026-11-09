@@ -1,0 +1,62 @@
+# College Simulator — Future Development Tasks
+
+
+-breadboard placeableAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+-breadboard can connect to lab devicesAAAAAAAAAAAAAAAAAAAAA
+-placing pcbs and connecting pcb to lab devices
+-ensure the lab devices work
+-freeplay as defaultAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+-game launcher and multiplayer test
+
+-lost in found for items you dont pick up before leaving
+
+
+## 1. Inventory, Items & Facilities
+1. **Multi-Subject Items and Crafting** — More equipment for different courses and the ability to create things beyond electronics.
+2. **Backpack and Inventory System**
+3. **Store and Player Trading Room**
+4. **Customizable Dorms and Personal Storage** — Dorms contain players' main possessions, equipment, and projects.
+5. **Study Rooms with Shared Whiteboards**
+6. **IC and PCB Design/Manufacturing Room**
+7. **Advanced Electronics and Computer Building** — Complex chips, Arduino, programmable components, and functional computers.
+
+## 2. Communication, Computers & Devices
+8. **Student Voice and Text Chat**
+9. **Interactive Campus Computers with Web Browsers**
+10. **Personal Filesystem and Virtual USB Storage**
+11. **Smartphones with Cameras, Browsers, and Apps**
+
+## 3. Teachers & NPCs
+12. **Unique and Procedurally Generated Teachers** — Different personalities, appearances, and teaching styles.
+13. **Teacher Interaction and Assistance** — Conversations, asking for help, calling teachers to your location, and contextual interactions.
+14. **Microphone-Aware Teacher Behavior** — Teachers detecting students talking or making noises when they shouldn't.
+15. **NPC Student Personalities, Interactions, and Relationships** — Conversations, friendships, rivalries, and reputation.
+
+## 4. Interactive Classes & Campus Gameplay
+16. **Interactive Lectures and Dynamic Classroom Events** — Class participation, surprise activities, teacher reactions, getting angry, warnings, and punishments.
+17. **Classroom Learning Games** — Kahoot-style quizzes, a custom Prodigy-style game on computers, and other educational minigames.
+18. **Cooperative Learning and Team Activities** — Group assignments, experiments, and challenges.
+19. **Campus Mischief and Pranks** — Students causing trouble in classrooms and throughout campus.
+20. **Principal and Disciplinary System** — Getting caught, sent to the principal's office, and receiving consequences.
+21. **Campus Announcement System** — Principal announcements, calling students to the office, and students sneaking in to use the speakers themselves.
+22. **Dynamic Campus Events** — Food events, special activities, and other campus happenings.
+23. **Educational Escape Rooms**
+24. **Exam Window-Switch Detection**
+
+## 5. Progression & Additional Activities
+25. **Course Completion Tracking** — Completed courses appear on player profiles after finishing every weekly lesson.
+26. **Student Clubs and Competitions** — Educational clubs, activities, and competitions against NPCs and players.
+27. **Campus Jobs and Paid Projects**
+28. **Course-Based Co-op Placements** — Higher-paying jobs with practical projects and learning opportunities unlocked through completed courses.
+
+## 6. AI Integration & Generated Content
+29. **ChatGPT Account Integration** — Optional host-connected ChatGPT access.
+30. **AI-Powered Teachers and Advanced Teaching** — Intelligent conversations, better explanations, interactive gameplay, and generated visual demonstrations.
+31. **Teacher Text-to-Speech and Student Speech-to-Text**
+32. **AI Computer and Browser Agent** — AI assistance with computer tasks, browser interaction, and file creation.
+33. **AI Course Generator and Importer** — Generate courses from existing online materials or create entirely new courses.
+34. **AI-Generated Clubs and Competitions**
+35. **AI-Generated Co-op Jobs and Projects**
+
+
+-massive multiplayer always online server

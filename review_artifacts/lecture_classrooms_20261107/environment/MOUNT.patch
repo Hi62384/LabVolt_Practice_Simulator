@@ -1,0 +1,11 @@
+--- a/scripts/school_world.gd
++++ b/scripts/school_world.gd
+@@ -223,6 +223,7 @@
+ 			var desk := StaticBody3D.new();desk.position=position-Vector3(0,.035,0);desk.set_meta("role","table");desk.set_meta("label",str(room.number)+" student desk");furniture.add_child(desk)
+ 			var hit := CollisionShape3D.new();var shape := BoxShape3D.new();shape.size=Vector3(1.7,.07,.8);hit.shape=shape;desk.add_child(hit)
+ 			game._box(desk,Vector3.ZERO,shape.size,Color("85705a"))
+ 			for x in [-.68,.68]:
+ 				for z in [-.28,.28]:game._box(desk,Vector3(x,-.41,z),Vector3(.045,.8,.045),Color("4c5961"))
++			preload("res://review_artifacts/lecture_classrooms_20261107/environment/classroom_furniture_skin.gd").dress_desk(desk)
+ 			game._add_chair(school.room_bridge.point(seats[index]) if index<seats.size() else position+Vector3(0,-.895,-.9))
++			preload("res://review_artifacts/lecture_classrooms_20261107/environment/classroom_chair_skin.gd").dress(game.chairs.back())

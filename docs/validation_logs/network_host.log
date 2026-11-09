@@ -1,0 +1,12 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+PASS host: ENet host created
+PASS host: client created shared wire
+host message: Client: SYNC_PASS
+PASS host: host solves cross-player circuit
+host message: Late: LATE_PASS
+PASS host: client confirms identical readings and switches
+PASS host: late join confirms complete current state
+PASS host: installed leads survive client disconnect
+PASS host: disconnect releases carried lead and preserves attached end
+NETWORK host: 0 failures

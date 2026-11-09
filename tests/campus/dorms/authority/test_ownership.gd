@@ -1,0 +1,27 @@
+extends SceneTree
+const Ownership=preload("res://scripts/campus/dorms/authority/ownership.gd")
+var failed:=false
+func check(value:bool,label:String)->void:
+	if not value: failed=true;push_error(label)
+func _init()->void:
+	var a=Ownership.new();check(a.configure(["d0","d1","d2"],3,41).ok,"configure exact capacity")
+	check(not Ownership.new().configure(["d0"],2,1).ok,"room count mismatch rejected")
+	check(a.join_authenticated(1).room_id=="d0" and a.join_authenticated(2).room_id=="d1" and a.join_authenticated(3).room_id=="d2","full capacity deterministic")
+	check(not a.join_authenticated(4).ok,"over capacity rejected")
+	check(not a.join_authenticated(2).changed and a.assignments.size()==3,"duplicate join idempotent")
+	check(a.leave_authenticated(2).changed and not a.doors.d1,"leave closes and releases")
+	check(a.join_authenticated(4).room_id=="d1","released room reclaimed")
+	var forged=a.request_door(1,{"epoch":41,"sequence":0,"open":true,"room_id":"d1"},1000)
+	check(not forged.ok and not a.doors.d1,"forged room rejected")
+	var opened=a.request_door(1,{"epoch":41,"sequence":0,"open":true},1000)
+	check(opened.ok and a.doors.d0 and a.may_enter("d0"),"owner opens and anyone may enter")
+	check(a.request_door(1,{"epoch":41,"sequence":0,"open":true},1001)==opened,"replay returns cached result")
+	check(not a.request_door(1,{"epoch":40,"sequence":1,"open":false},1200).ok,"stale session rejected")
+	check(not a.request_door(1,{"epoch":41,"sequence":1,"open":false},1050).ok,"rate limit enforced")
+	check(a.request_door(1,{"epoch":41,"sequence":1,"open":false},1100).ok and not a.may_enter("d0"),"owner closes")
+	var snap=a.snapshot();check(snap.assignments.size()==3 and snap.open_doors.is_empty() and not JSON.stringify(snap).contains("profile"),"compact privacy-safe snapshot")
+	check(a.reconcile_authenticated_peers([4,1]).ok and a.assignments.size()==2 and not a.assignments.has(3),"disconnect reconciliation cleanup")
+	var b=Ownership.new();b.configure(["a","b","c"],3,9);b.reconcile_authenticated_peers([9,3,7])
+	check(b.room_for(3)=="a" and b.room_for(7)=="b" and b.room_for(9)=="c","simultaneous joins sorted")
+	print(JSON.stringify({"suite":"dorm_ownership","ok":not failed,"checks":"capacity duplicate ordering leave reclaim owner forge stale replay snapshots cleanup privacy"}))
+	quit(1 if failed else 0)

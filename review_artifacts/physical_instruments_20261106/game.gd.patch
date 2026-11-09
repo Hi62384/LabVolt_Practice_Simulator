@@ -1,0 +1,11 @@
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@ -574,6 +574,8 @@
+ 			hint="E / click: "+str(current_target.get_meta("label","Open"))
+ 		elif role=="dc_panel":
+ 			hint="E / click: DC instruments"
++		elif role=="dc_instrument_control":
++			hint="Click: "+str(current_target.get_meta("label","Instrument control"))
+ 		elif role=="dc_port":
+ 			hint=str(current_target.get_meta("dc_port"))+" · Click: connect lead · Right click: disconnect"
+ 		elif role=="teacher":

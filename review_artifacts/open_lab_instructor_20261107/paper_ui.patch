@@ -1,0 +1,88 @@
+--- a/scripts/paper_ui.gd
++++ b/scripts/paper_ui.gd
+@@ -17,6 +17,7 @@
+ var save_timer := 0.0
+ var calculator: LineEdit
+ var reading := false
++var open_lab_instructor_visible := false
+ var page_view: Control
+ var pencil_mode := false
+ var pencil_color := Color("263743")
+@@ -101,6 +102,9 @@
+ 	parent.add_child(b)
+ 	return b
+ func close() -> void:
++	open_lab_instructor_visible=false
++	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
++	screen.offset_left=40;screen.offset_top=20;screen.offset_right=-40;screen.offset_bottom=-20
+ 	remember_view()
+ 	flush()
+ 	Input.set_custom_mouse_cursor(null,Input.CURSOR_ARROW)
+@@ -111,6 +115,10 @@
+ 	restoring_view=false
+ 	game.capture()
+ func teacher() -> void:
++	open_lab_instructor_visible=school.mode in ["Open Lab","Freeplay","Creative Freeplay"]
++	if open_lab_instructor_visible:
++		_show_open_lab_instructor()
++		return
+ 	flush()
+ 	reading=false
+ 	_clear()
+@@ -126,7 +134,7 @@
+ 		elif school.phase=="lesson":_label(column,str(school.teaching_stage().get("title","Teaching in progress")))
+ 		elif school.phase=="assignment":_label(column,"Complete your assigned work before the deadline.")
+ 		if school.phase=="assignment" and school.held(multiplayer.get_unique_id())==0:_button(column,"Replace missing Class sheet",func():school.request({"op":"replacement"});close())
+-		_button(column,"Equipment guide",func():school.request({"op":"guide"});close())
++		if preload("res://review_artifacts/open_lab_instructor_20261107/tutorials/formal_guide_policy.gd").allowed(school.mode,assigned):_button(column,"Equipment guide",func():school.request({"op":"guide"});close())
+ 	else:
+ 		_build_freeplay_teacher_controls()
+ 	if multiplayer.is_server() and not school.formal_active():_button(column,"Earthing demonstration",safety_demo_menu)
+@@ -138,6 +146,37 @@
+ 		if paper.mark.is_empty():_button(column,"Hand in held assignment",func():school.request({"op":"submit","id":held_id});close())
+ 		_button(column,"Read held sheet",func():open_sheet(held_id))
+ 	_button(column,"Back to lab",close)
++func _show_open_lab_instructor() -> void:
++	flush()
++	reading=false
++	_clear()
++	game.release_mouse()
++	screen.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
++	screen.custom_minimum_size=Vector2(480,260)
++	screen.size=Vector2(480,260)
++	screen.position=(get_viewport().get_visible_rect().size-screen.size)*0.5
++	screen.show()
++	preload("res://review_artifacts/open_lab_instructor_20261107/open_lab_panel.gd").mount(column,_request_open_lab_practice,_open_lab_tutorial,close)
++	var first := column.find_children("*","Button",true,false)[0] as Button
++	first.grab_focus()
++
++func _request_open_lab_practice() -> void:
++	if school.mode!="Open Lab":return
++	school.request({"op":"practice_lesson"})
++	close()
++
++func _open_lab_tutorial() -> void:
++	if school.mode!="Open Lab":return
++	if game.has_method("open_lab_equipment_tutorial"):
++		close()
++		game.call("open_lab_equipment_tutorial")
++	else:_label(column,"Equipment tutorial is unavailable in this laboratory.")
++
++func _unhandled_key_input(event: InputEvent) -> void:
++	if open_lab_instructor_visible and screen.visible and event.is_action_pressed("ui_cancel"):
++		get_viewport().set_input_as_handled()
++		close()
++
+ func _build_freeplay_teacher_controls() -> void:
+ 	_label(column,"Practice assignments and lessons never change official course marks.")
+ 	var row := HBoxContainer.new()
+@@ -163,6 +202,9 @@
+ 	_button(buttons,"Take lesson",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"week":topics.selected+1,"difficulty":level.selected,"lesson":true});close())
+ func open_sheet(id: int) -> void:
+ 	if not school.papers.has(id):return
++	open_lab_instructor_visible=false
++	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
++	screen.offset_left=40;screen.offset_top=20;screen.offset_right=-40;screen.offset_bottom=-20
+ 	flush()
+ 	document_id=id
+ 	page_index=clampi(int(view_states.get(_reader_key(school.papers[id]),{}).get("page",school.papers[id].page)),0,_page_count(school.papers[id])-1)

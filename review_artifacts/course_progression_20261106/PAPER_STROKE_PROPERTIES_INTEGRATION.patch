@@ -1,0 +1,9 @@
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ stroke request validation
+-				if paper.strokes[key].size()<100:paper.strokes[key].append({"points":points,"color":color,"width":clampf(width,1.,8.)})
++				var hardness := float(a.get("hardness",1.0));var opacity := float(a.get("opacity",1.0))
++				if not is_finite(hardness) or not is_finite(opacity):return
++				if paper.strokes[key].size()<100:paper.strokes[key].append({"points":points,"color":color,"width":clampf(width,1.,8.),"hardness":clampf(hardness,0.,1.),"opacity":clampf(opacity,.05,1.)})
+
+Main applies at a safe boundary. Old strokes default to hardness=1 and opacity=1 in the renderer. Until host adoption, current-session strokes render with properties locally but restored strokes retain only original color/width.

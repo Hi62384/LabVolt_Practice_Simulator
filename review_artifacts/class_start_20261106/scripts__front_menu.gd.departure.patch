@@ -1,0 +1,30 @@
+--- a/scripts/front_menu.gd
++++ b/scripts/front_menu.gd
+@@ -190,27 +190,6 @@
+ 	button("Electronics · Shop & Kits",func():game.shop_room.enter())
+ 	button("Settings",settings_page)
+ 	button("Quit",func():game.get_tree().quit())
+-func resume_class_page() -> void:
+-	clear("resume_class","RESUME SAVED CLASS")
+-	var summary: Dictionary=preload("res://scripts/campus_recovery_journal.gd").summary(game.school.local_identity)
+-	if not summary.get("ok",false):
+-		text(str(summary.get("error","Saved class unavailable.")));button("Back",home);return
+-	text("%s · %s · Week %d"%[summary.course_id,str(summary.kind).capitalize(),summary.week])
+-	text("Your work returns with its original deadline. Other students can rejoin using their saved characters.")
+-	var alone := CheckBox.new();alone.text="Play alone";alone.button_pressed=true;body.add_child(alone)
+-	text("Multiplayer port")
+-	var port := SpinBox.new();port.min_value=1024;port.max_value=65535;port.value=24842;body.add_child(port)
+-	button("Resume class",func():
+-		if alone.button_pressed:game.session.leave()
+-		else:
+-			var error: int=game.session.host_game(game.characters.display_name(),int(port.value))
+-			if error!=OK:status.text=error_string(error);return
+-		var restored: Dictionary=game.school.recover_activity()
+-		if not restored.get("ok",false):status.text=str(restored.get("error","Unable to resume."));return
+-		game.school.activity_started.emit(game.school.room_bridge.point(game.school.activity.room.get("entrance",Vector3.ZERO)))
+-		game.capture()
+-	)
+-	button("Back",home)
+ func network_page(join: bool) -> void:
+ 	clear("join" if join else "host","JOIN GAME" if join else "HOST GAME")
+ 	if join:

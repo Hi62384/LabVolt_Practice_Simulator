@@ -1,0 +1,66 @@
+extends SceneTree
+## Deferred: requires root's exact resource lease. Never launched by test_pure.py.
+const Timeline = preload("res://scripts/interaction_presentation/timeline.gd")
+const Events = preload("res://scripts/interaction_presentation/accepted_event.gd")
+const Actor = preload("res://scripts/interaction_presentation/actor.gd")
+const Bridge = preload("res://scripts/interaction_presentation/bridge.gd")
+var failures = 0
+func check(value: bool, label: String) -> void:
+	if not value:
+		push_error(label)
+		failures += 1
+func _initialize() -> void:
+	call_deferred("run")
+func run() -> void:
+	var timeline = Timeline.new()
+	check(not timeline.active(),"idle inactive")
+	check(timeline.accept({"kind":"insert","sequence":1}),"accept")
+	timeline.advance(0.15)
+	check(float(timeline.sample()["reach"])>0.9,"contact reach")
+	timeline.cancel()
+	check(not timeline.active(),"cancel idle")
+	timeline.reconcile_hold({"station":0,"cable":7,"end":1})
+	timeline.set_suspended(true)
+	timeline.reset()
+	check(not timeline.suspended and timeline.hold.is_empty(),"reconnect clears suspension")
+	var before = {"cables":[{"id":7,"a":"P","b":"","owner":2}]}
+	var after = {"revision":3,"cables":[{"id":7,"a":"P","b":"Q","owner":0}]}
+	var event = Events.project(2,0,{"op":"plug"},before,after,{"Q":Vector3(0,1,-1)},1)
+	check(event.get("kind","")=="insert" and event.get("end",-1)==1,"real plug diff")
+	check(Events.project(2,0,{"op":"plug"},after,after,{},2).is_empty(),"no-op stays empty")
+	var visual = Node3D.new()
+	var arm = Node3D.new()
+	arm.name = "ArmR"
+	visual.add_child(arm)
+	var hand = Node3D.new()
+	hand.name = "Hand2"
+	hand.position = Vector3(0,-0.48,0)
+	arm.add_child(hand)
+	root.add_child(visual)
+	var actor = Actor.new()
+	root.add_child(actor)
+	check(actor.bind_visual(visual),"default GLB arm node mapping")
+	actor.reconcile_hold({"station":0,"cable":7,"end":1})
+	actor._process(0.01)
+	check(not arm.transform.is_equal_approx(Transform3D.IDENTITY),"held arm pose")
+	actor.set_suspended(true)
+	check(not actor.is_processing(),"emote priority stops writes")
+	check(arm.transform.is_equal_approx(Transform3D.IDENTITY),"cancel restores arm")
+	actor.reset()
+	actor.reconcile_hold({"station":0,"cable":7,"end":1})
+	check(actor.is_processing(),"reconnect hold resumes")
+	actor.set_enabled(false)
+	check(not actor.is_processing(),"display off inactive")
+	actor.free()
+	visual.free()
+	var bridge = Bridge.new()
+	root.add_child(bridge)
+	bridge.facility_event(2,{"activity":"emote"})
+	bridge.facility_event(2,{"activity":"holding","item":"coffee"})
+	bridge.facility_event(2,{"activity":"idle"})
+	check(bool(bridge.facility_food.get(2,false)),"food retains priority independently")
+	bridge.reset()
+	check(bridge.facility_food.is_empty() and bridge.facility_activities.is_empty(),"bridge reconnect reset")
+	bridge.free()
+	print("interaction_presentation engine checks failures=",failures)
+	quit(1 if failures else 0)

@@ -1,0 +1,46 @@
+{
+  "scripts/dc_station.gd": [
+    {
+      "old": "var scope := {\"running\":true,\"single\":false,\"trigger\":0.0,\"edge\":\"Rising\",\"source\":0,\"armed\":false,\"timebase\":.01,\"scale\":2.0,\"coupling\":\"DC\",\"attenuation\":1.0}",
+      "new": "const ScopeSettings = preload(\"res://scripts/dc_scope/settings.gd\")\nconst ScopeAcquisition = preload(\"res://scripts/dc_scope/acquisition.gd\")\nvar scope := ScopeSettings.defaults()\nvar scope_capture := ScopeAcquisition.new()"
+    },
+    {
+      "old": "func source_value(t: float) -> float:",
+      "new": "func _init() -> void:\n\tscope_capture.configure(scope)\nfunc restore_scope(saved: Dictionary) -> void:\n\tscope=ScopeSettings.normalize(saved)\n\tscope_capture.configure(scope)\nfunc _capture_scope() -> void:\n\tscope_capture.push([solver.time,difference(\"S1\",\"GND\"),difference(\"S2\",\"GND\"),difference(\"V\u03a9\",\"COM\"),float(result.get(\"i\",{}).get(\"ammeter\",0))])\n\tsamples=scope_capture.display\n\tscope.running=scope_capture.running; scope.single=scope_capture.single; scope.armed=scope_capture.armed\n\nfunc source_value(t: float) -> float:"
+    },
+    {
+      "old": "\tif not result.ok:meter=\"ERROR\";return",
+      "new": "\tif not result.ok:meter=\"ERROR\";return\n\t_capture_scope()"
+    },
+    {
+      "old": "\tif scope.running:\n\t\tvar signal_value := difference(\"S1\" if int(scope.source)==0 else \"S2\",\"GND\")\n\t\tvar crossing: bool=(previous<float(scope.trigger) and signal_value>=float(scope.trigger)) if scope.edge==\"Rising\" else (previous>float(scope.trigger) and signal_value<=float(scope.trigger))\n\t\tif scope.armed and crossing:scope.armed=false;capture_remaining=256;samples.clear()\n\t\tprevious=signal_value\n\t\tif not scope.armed:\n\t\t\t# Keep bounded record, sampled from the electrical solution, never generated art.\n\t\t\tsamples.append([solver.time,difference(\"S1\",\"GND\"),difference(\"S2\",\"GND\"),v,float(result.i.get(\"ammeter\",0))])\n\t\t\tif samples.size()>512:samples.pop_front()\n\t\t\tif scope.single:\n\t\t\t\tcapture_remaining-=1\n\t\t\t\tif capture_remaining<=0:scope.running=false;scope.single=false\n",
+      "new": ""
+    },
+    {
+      "old": "\t\t\"scope\":\n\t\t\tvar key := str(action.get(\"key\",\"\"));var value=action.get(\"value\")\n\t\t\tif key==\"single\":scope.running=true;scope.single=true;scope.armed=true\n\t\t\telif key==\"running\":scope.running=bool(value);scope.armed=false;scope.single=false\n\t\t\telif key==\"coupling\" and str(value) in [\"AC\",\"DC\"]:scope.coupling=value\n\t\t\telif key==\"edge\" and str(value) in [\"Rising\",\"Falling\"]:scope.edge=value\n\t\t\telif key in [\"trigger\",\"timebase\",\"scale\",\"attenuation\",\"source\"]:\n\t\t\t\tvar bounds := {\"trigger\":[-60,60],\"timebase\":[.001,.05],\"scale\":[.01,20],\"attenuation\":[1,10],\"source\":[0,1]}\n\t\t\t\tif not is_finite(float(value)):return \"Invalid scope setting\"\n\t\t\t\tscope[key]=clampf(float(value),bounds[key][0],bounds[key][1])\n\t\t\telse:return \"Unknown scope control\"",
+      "new": "\t\t\"scope\":\n\t\t\tvar controls: Array=[action]\n\t\t\tif str(action.get(\"key\",\"\"))==\"autoset\":\n\t\t\t\tif not action.get(\"value\") is bool or action.get(\"value\")!=true or samples.size()<2:return \"Acquire samples before Autoset\"\n\t\t\t\tcontrols=preload(\"res://scripts/dc_scope/autoset.gd\").actions(samples,scope)\n\t\t\tvar next_scope: Dictionary=scope\n\t\t\tfor control in controls:\n\t\t\t\tvar changed := ScopeSettings.change(next_scope,control)\n\t\t\t\tif not changed.ok:return str(changed.error)\n\t\t\t\tnext_scope=changed.settings\n\t\t\tscope=next_scope\n\t\t\tscope_capture.configure(scope,str(action.get(\"key\",\"\"))==\"single\")"
+    },
+    {
+      "old": "solver.reset();samples.clear()",
+      "new": "solver.reset();samples.clear();scope_capture.reset();scope_capture.configure(scope)"
+    },
+    {
+      "old": "\"scope\":scope.duplicate(true),\"revision\":revision",
+      "new": "\"scope\":scope.duplicate(true),\"scope_acquisition\":scope_capture.status(),\"scope_probe\":preload(\"res://scripts/dc_scope/probe_connections.gd\").describe(wires,linked),\"revision\":revision"
+    }
+  ],
+  "scripts/dc_lab.gd": [
+    {
+      "old": "var station = Station.new();benches.append(station);states.append(station.snapshot())",
+      "new": "var station = Station.new();station.restore_scope(preload(\"res://scripts/dc_scope/settings_store.gd\").restore(i) if multiplayer.is_server() else {});benches.append(station);states.append(station.snapshot())"
+    },
+    {
+      "old": "var station=Station.new();benches.append(station);states.append(station.snapshot());drawn_revisions[i]=-1",
+      "new": "var station=Station.new();station.restore_scope(preload(\"res://scripts/dc_scope/settings_store.gd\").restore(i) if multiplayer.is_server() else {});benches.append(station);states.append(station.snapshot());drawn_revisions[i]=-1"
+    },
+    {
+      "old": "\tstates[index]=benches[index].snapshot();broadcast()",
+      "new": "\tif message==\"\" and op==\"scope\":\n\t\tvar scope_save_error := preload(\"res://scripts/dc_scope/settings_store.gd\").persist(index,station.scope)\n\t\tif scope_save_error!=OK:game.ui.log_message(\"Scope settings could not be saved: \"+error_string(scope_save_error))\n\tstates[index]=benches[index].snapshot();broadcast()"
+    }
+  ]
+}

@@ -1,0 +1,6470 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "faces.friendly",
+      "name": "Openhearted",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_friendly.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_friendly.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.serious",
+      "name": "Steady Focus",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_serious.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_serious.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.sleepy",
+      "name": "Soft Morning",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_sleepy.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_sleepy.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.bright",
+      "name": "Bright Grin",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_bright.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_bright.png",
+      "price": 160,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.determined",
+      "name": "Determined",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_determined.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_determined.png",
+      "price": 220,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.goofy",
+      "name": "Mischief",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_goofy.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_goofy.png",
+      "price": 310,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.curious",
+      "name": "Curious Glance",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_curious.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_curious.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.confident",
+      "name": "Quiet Confidence",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_confident.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_confident.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.kindly",
+      "name": "Kind Eyes",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_kindly.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_kindly.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.surprised",
+      "name": "Wide Awake",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_surprised.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_surprised.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.relaxed",
+      "name": "Easygoing",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_relaxed.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_relaxed.png",
+      "price": 120,
+      "starter": false,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.cheerful",
+      "name": "Sunny Smile",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_cheerful.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_cheerful.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.stoic",
+      "name": "Stone Calm",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_stoic.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_stoic.png",
+      "price": 160,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.scholar",
+      "name": "Deep in Thought",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_scholar.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_scholar.png",
+      "price": 150,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.big_laugh",
+      "name": "Belly Laugh",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_big_laugh.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_big_laugh.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.deadpan",
+      "name": "Deadpan",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_deadpan.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_deadpan.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.side_smirk",
+      "name": "Side-Eye Smirk",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_side_smirk.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_side_smirk.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.stage_fright",
+      "name": "Stage Fright",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_stage_fright.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_stage_fright.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.arched_crook",
+      "name": "Sly Smile",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_arched_crook.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_arched_crook.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.hooded_grin",
+      "name": "Midnight Grin",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_hooded_grin.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_hooded_grin.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.classic_smile",
+      "name": "Classic Smile",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_classic_smile.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_classic_smile.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.dimpled_grin",
+      "name": "Double Take",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_dimpled_grin.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_dimpled_grin.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.imp_grin",
+      "name": "Impish Grin",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_imp_grin.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_imp_grin.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "a6bc43"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.half_lid",
+      "name": "Unbothered",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_half_lid.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_half_lid.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.quick_wink",
+      "name": "Quick Wink",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_quick_wink.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_quick_wink.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.shocked",
+      "name": "Speechless",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_shocked.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_shocked.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.fed_up",
+      "name": "Fed Up",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_fed_up.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_fed_up.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.storm_chaser",
+      "name": "Storm Chaser",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_storm_chaser.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_storm_chaser.png",
+      "price": 480,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "faces.starstruck",
+      "name": "Starstruck",
+      "category": "faces",
+      "slot": "face",
+      "scene": "res://assets/cosmetics/faces_hair/models/face_starstruck.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/face_starstruck.png",
+      "price": 940,
+      "starter": false,
+      "rarity": "legendary",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "face_preset"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "eye_color": {
+          "type": "color",
+          "default": "397A83"
+        },
+        "eyebrow_color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "lip_color": {
+          "type": "color",
+          "default": "763B44"
+        },
+        "eye_size": {
+          "type": "float",
+          "default": 1,
+          "min": 0.85,
+          "max": 1.12
+        },
+        "brow_height": {
+          "type": "float",
+          "default": 0,
+          "min": -0.013,
+          "max": 0.013
+        },
+        "mouth_width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.14
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "hair.buzz",
+      "name": "Buzz Cut",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_buzz_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_buzz.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 8,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "40313b"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.crop",
+      "name": "Classic Crop",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_crop_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_crop.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 1,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "342730"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "886457"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.bob",
+      "name": "Short Bob",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_bob_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_bob.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 11,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "503848"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "da648e"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_bob_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_bob_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_bob_long.glb"
+      }
+    },
+    {
+      "id": "hair.long_waves",
+      "name": "Wavy Long",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_long_waves_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_long_waves.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 15,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "6f4439"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_long_waves_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_long_waves_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_long_waves_long.glb"
+      }
+    },
+    {
+      "id": "hair.ponytail",
+      "name": "High Ponytail",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_ponytail_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_ponytail.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 20,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "dfab6e"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "66abd3"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_ponytail_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_ponytail_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_ponytail_long.glb"
+      }
+    },
+    {
+      "id": "hair.curly",
+      "name": "Cloud Curls",
+      "category": "hair",
+      "slot": "hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_curly_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_curly.png",
+      "price": 320,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "head_hair",
+        "short_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "68504A"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.35,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      },
+      "legacy": true
+    },
+    {
+      "id": "hair.bun",
+      "name": "Top Bun",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_bun_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_bun.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "catalog_order": 26,
+      "tags": [
+        "head_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "5d403e"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "e0ab69"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.side_part",
+      "name": "Side Part",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_side_part_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_side_part.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 5,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "44313a"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.crew",
+      "name": "Campus Crew Cut",
+      "category": "hair",
+      "slot": "hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_crew_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_crew.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "head_hair",
+        "short_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "68504A"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.35,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      },
+      "legacy": true
+    },
+    {
+      "id": "hair.windswept",
+      "name": "Windswept Fringe",
+      "category": "hair",
+      "slot": "hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_windswept_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_windswept.png",
+      "price": 175,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "head_hair",
+        "short_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "68504A"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.35,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      },
+      "legacy": true
+    },
+    {
+      "id": "hair.short_curls",
+      "name": "Short Fade",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_short_curls_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_short_curls.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 3,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "32242b"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "62434a"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.braids",
+      "name": "Braided Pigtails",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_braids_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_braids.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 23,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "634139"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "e0a75f"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_braids_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_braids_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_braids_long.glb"
+      }
+    },
+    {
+      "id": "hair.quiff",
+      "name": "Textured Quiff",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_quiff_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_quiff.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 7,
+      "tags": [
+        "head_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "50373b"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "edba83"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.mohawk",
+      "name": "Razor Crest",
+      "category": "hair",
+      "slot": "hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_mohawk_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_mohawk.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "head_hair",
+        "short_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "68504A"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.35,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      },
+      "legacy": true
+    },
+    {
+      "id": "hair.twin_puffs",
+      "name": "Twin Puffs",
+      "category": "hair",
+      "slot": "hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_twin_puffs_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_twin_puffs.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "head_hair",
+        "short_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "68504A"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.35,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      },
+      "legacy": true
+    },
+    {
+      "id": "facial_hair.clean",
+      "name": "Clean Shaven",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_clean_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_clean.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.stubble",
+      "name": "Fine Stubble",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_stubble_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_stubble.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.short_beard",
+      "name": "Short Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_short_beard_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_short_beard.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.full_beard",
+      "name": "Full Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_full_beard_short.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_full_beard.png",
+      "price": 230,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        },
+        "length": {
+          "type": "enum",
+          "default": "short",
+          "values": [
+            "short",
+            "long"
+          ]
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/facial_full_beard_short.gltf",
+        "long": "res://assets/cosmetics/faces_hair/models/facial_full_beard_long.gltf"
+      }
+    },
+    {
+      "id": "facial_hair.goatee",
+      "name": "Trim Goatee",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_goatee_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_goatee.png",
+      "price": 170,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.handlebar",
+      "name": "Handlebar",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_handlebar_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_handlebar.png",
+      "price": 285,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.pencil",
+      "name": "Pencil Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_pencil_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_pencil.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.chevron",
+      "name": "Chevron Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_chevron_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_chevron.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.jawline",
+      "name": "Jawline Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_jawline_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_jawline.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.boxed",
+      "name": "Boxed Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_boxed_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_boxed.png",
+      "price": 180,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.pointed",
+      "name": "Pointed Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_pointed_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_pointed.png",
+      "price": 220,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.anchor",
+      "name": "Anchor Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_anchor_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_anchor.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.mutton_chops",
+      "name": "Mutton Chops",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_mutton_chops_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_mutton_chops.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.soul_patch",
+      "name": "Soul Patch",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_soul_patch_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_soul_patch.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.imperial",
+      "name": "Imperial Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_imperial_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_imperial.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.forked",
+      "name": "Forked Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_forked_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_forked.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.thin_moustache",
+      "name": "Thin Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_thin_moustache_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_thin_moustache.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.thick_moustache",
+      "name": "Thick Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_thick_moustache_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_thick_moustache.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.curled_moustache",
+      "name": "Curled Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_curled_moustache_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_curled_moustache.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.pencil_moustache",
+      "name": "Pencil Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_pencil_moustache_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_pencil_moustache.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.sheet_stubble",
+      "name": "Stubble",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_sheet_stubble_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_sheet_stubble.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.chin_strap",
+      "name": "Chin Strap",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_chin_strap_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_chin_strap.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.sheet_soul_patch",
+      "name": "Soul Patch",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_sheet_soul_patch_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_sheet_soul_patch.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.sheet_goatee",
+      "name": "Goatee",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_sheet_goatee_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_sheet_goatee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.extended_goatee",
+      "name": "Extended Goatee",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_extended_goatee_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_extended_goatee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.short_boxed_beard",
+      "name": "Short Boxed Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_short_boxed_beard_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_short_boxed_beard.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.sheet_full_beard",
+      "name": "Full Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_sheet_full_beard_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_sheet_full_beard.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.rounded_beard",
+      "name": "Rounded Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_rounded_beard_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_rounded_beard.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.van_dyke",
+      "name": "Van Dyke",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_van_dyke_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_van_dyke.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.friendly_trimmed_beard",
+      "name": "Friendly Trimmed Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_friendly_trimmed_beard_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_friendly_trimmed_beard.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.rugged_medium_beard",
+      "name": "Rugged Medium Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_rugged_medium_beard_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_rugged_medium_beard.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.french_curl",
+      "name": "French Curl Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_french_curl_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_french_curl.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.western_droop",
+      "name": "Western Droop Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_western_droop_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_western_droop.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.toothbrush",
+      "name": "Toothbrush Moustache",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_toothbrush_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_toothbrush.png",
+      "price": 1250,
+      "starter": false,
+      "rarity": "legendary",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.long_sage",
+      "name": "Long Sage Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_long_sage_default.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_long_sage.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "hair.messy_spiky",
+      "name": "Messy Spiky",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_messy_spiky_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_messy_spiky.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 2,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "5b3c36"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.undercut_sweep",
+      "name": "Undercut Sweep",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_undercut_sweep_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_undercut_sweep.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 4,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "483239"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "e2ad76"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.center_part",
+      "name": "Center Part",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_center_part_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_center_part.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 6,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "3f2f38"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.pixie",
+      "name": "Pixie Cut",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_pixie_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_pixie.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 9,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "743a4d"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.bald",
+      "name": "Bald",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_bald_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_bald.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 10,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {}
+    },
+    {
+      "id": "hair.wavy_bob",
+      "name": "Wavy Bob",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_wavy_bob.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 12,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "db9d59"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_long.glb"
+      }
+    },
+    {
+      "id": "hair.lob",
+      "name": "Lob (Long Bob)",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_lob_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_lob.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 13,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "503842"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "e3ad75"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_lob_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_lob_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_lob_long.glb"
+      }
+    },
+    {
+      "id": "hair.straight_long",
+      "name": "Straight Long",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_straight_long_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_straight_long.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "catalog_order": 14,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "412e40"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "9261ac"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_straight_long_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_straight_long_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_straight_long_long.glb"
+      }
+    },
+    {
+      "id": "hair.curly_long",
+      "name": "Curly Long",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_curly_long_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_curly_long.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 16,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "503343"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_curly_long_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_curly_long_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_curly_long_long.glb"
+      }
+    },
+    {
+      "id": "hair.layered",
+      "name": "Layered Medium",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_layered_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_layered.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 17,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "343143"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "77a7d3"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_layered_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_layered_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_layered_long.glb"
+      }
+    },
+    {
+      "id": "hair.wolf",
+      "name": "Shag / Wolf Cut",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_wolf_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_wolf.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 18,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "a95244"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "f1b985"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_wolf_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_wolf_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_wolf_long.glb"
+      }
+    },
+    {
+      "id": "hair.half_bun",
+      "name": "Half-Up Bun",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_half_bun_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_half_bun.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 19,
+      "tags": [
+        "head_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "533740"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "a76c56"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_half_bun_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_half_bun_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_half_bun_long.glb"
+      }
+    },
+    {
+      "id": "hair.low_ponytail",
+      "name": "Low Ponytail",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_low_ponytail_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_low_ponytail.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 21,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "503740"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "d3a071"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_low_ponytail_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_low_ponytail_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_low_ponytail_long.glb"
+      }
+    },
+    {
+      "id": "hair.twin_pigtails",
+      "name": "Twin Pigtails",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_twin_pigtails.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 22,
+      "tags": [
+        "head_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "b34d77"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "efc385"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_long.glb"
+      }
+    },
+    {
+      "id": "hair.single_braid",
+      "name": "Single Braid",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_single_braid_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_single_braid.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "uncommon",
+      "catalog_order": 24,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "593b3a"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "c2925e"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_single_braid_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_single_braid_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_single_braid_long.glb"
+      }
+    },
+    {
+      "id": "hair.crown_braid",
+      "name": "Crown Braid",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_crown_braid_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_crown_braid.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "catalog_order": 25,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "daa465"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "f6cb89"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.double_buns",
+      "name": "Double Buns",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_double_buns_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_double_buns.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "catalog_order": 27,
+      "tags": [
+        "head_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "4c324e"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "ac69d5"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.dreadlocks",
+      "name": "Dreadlocks",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_dreadlocks.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "catalog_order": 28,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "382a30"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "d8a36d"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_long.glb"
+      }
+    },
+    {
+      "id": "hair.cornrows",
+      "name": "Cornrows",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_cornrows_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_cornrows.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "catalog_order": 29,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "392930"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "735049"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.multicolor_spiky",
+      "name": "Multicolor Spiky",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_multicolor_spiky_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_multicolor_spiky.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "rare",
+      "catalog_order": 30,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "332a41"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "65c7e5"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "tip_color": {
+          "type": "color",
+          "default": "df5c96"
+        }
+      }
+    },
+    {
+      "id": "hair.comet_crest",
+      "name": "Comet Crest",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_comet_crest.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_comet_crest.png",
+      "price": 540,
+      "starter": false,
+      "rarity": "epic",
+      "catalog_order": 1,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "342730"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "886457"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.crown_braids",
+      "name": "Crown Braids",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_crown_braids.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_crown_braids.png",
+      "price": 980,
+      "starter": false,
+      "rarity": "legendary",
+      "catalog_order": 1,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "342730"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "886457"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "facial_hair.duelist_whiskers",
+      "name": "Duelist Whiskers",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_duelist_whiskers.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_duelist_whiskers.png",
+      "price": 510,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "facial_hair.twin_braid_beard",
+      "name": "Twin Braid Beard",
+      "category": "facial_hair",
+      "slot": "facial_hair",
+      "scene": "res://assets/cosmetics/faces_hair/models/facial_twin_braid_beard.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/facial_twin_braid_beard.png",
+      "price": 990,
+      "starter": false,
+      "rarity": "legendary",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "facial_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "352B31"
+        },
+        "density": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.6,
+          "max": 1.0
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.2,
+          "min": 0.0,
+          "max": 1.0
+        },
+        "width": {
+          "type": "float",
+          "default": 1,
+          "min": 0.84,
+          "max": 1.1
+        },
+        "depth": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "highlight": {
+          "type": "color",
+          "default": "4d3b38"
+        }
+      },
+      "materials": {
+        "color_regions": [
+          "hair",
+          "hair_highlight",
+          "brow",
+          "iris",
+          "lip",
+          "skin_detail"
+        ]
+      }
+    },
+    {
+      "id": "hair.skyline_quiff",
+      "name": "Skyline Quiff",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_quiff_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_quiff.png",
+      "price": 245,
+      "starter": false,
+      "rarity": "uncommon",
+      "catalog_order": 7,
+      "tags": [
+        "head_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "442820"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "edba83"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.midnight_wolf",
+      "name": "Midnight Wolf Cut",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_wolf_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_wolf.png",
+      "price": 485,
+      "starter": false,
+      "rarity": "rare",
+      "catalog_order": 18,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "252332"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "f1b985"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_wolf_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_wolf_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_wolf_long.glb"
+      }
+    },
+    {
+      "id": "hair.copper_waves",
+      "name": "Copper Wave Bob",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_wavy_bob.png",
+      "price": 230,
+      "starter": false,
+      "rarity": "uncommon",
+      "catalog_order": 12,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "963E24"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_wavy_bob_long.glb"
+      }
+    },
+    {
+      "id": "hair.ember_locks",
+      "name": "Ember Locs",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_dreadlocks.png",
+      "price": 430,
+      "starter": false,
+      "rarity": "rare",
+      "catalog_order": 28,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "442B22"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "d8a36d"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_dreadlocks_long.glb"
+      }
+    },
+    {
+      "id": "hair.festival_twin_tails",
+      "name": "Festival Twin Tails",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_medium.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_twin_pigtails.png",
+      "price": 420,
+      "starter": false,
+      "rarity": "rare",
+      "catalog_order": 22,
+      "tags": [
+        "head_hair",
+        "hair_volume_high"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "3D2432"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "efc385"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        },
+        "length": {
+          "type": "enum",
+          "default": "medium",
+          "values": [
+            "short",
+            "medium",
+            "long"
+          ]
+        }
+      },
+      "variants": {
+        "short": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_short.glb",
+        "medium": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_medium.glb",
+        "long": "res://assets/cosmetics/faces_hair/models/studio_twin_pigtails_long.glb"
+      }
+    },
+    {
+      "id": "hair.onyx_cornrows",
+      "name": "Onyx Cornrows",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_cornrows_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_cornrows.png",
+      "price": 380,
+      "starter": false,
+      "rarity": "rare",
+      "catalog_order": 29,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "232128"
+        },
+        "highlight": {
+          "type": "color",
+          "default": "735049"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.platinum_pixie",
+      "name": "Platinum Pixie",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/studio_pixie_default.glb",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/studio_pixie.png",
+      "price": 340,
+      "starter": false,
+      "rarity": "rare",
+      "catalog_order": 9,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "D7C6A9"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    },
+    {
+      "id": "hair.midnight_dress_part",
+      "name": "Midnight Dress Part",
+      "category": "hair",
+      "slot": "hair",
+      "rig": "labvolt_toon_v1",
+      "scene": "res://assets/cosmetics/faces_hair/models/hair_midnight_dress_part.gltf",
+      "thumbnail": "res://assets/cosmetics/faces_hair/thumbnails/hair_midnight_dress_part.png",
+      "price": 1500,
+      "starter": false,
+      "rarity": "legendary",
+      "catalog_order": 5,
+      "tags": [
+        "head_hair"
+      ],
+      "conflicts": [],
+      "parameters": {
+        "color": {
+          "type": "color",
+          "default": "251D1C"
+        },
+        "volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.9,
+          "max": 1.12
+        },
+        "shine": {
+          "type": "float",
+          "default": 0.25,
+          "min": 0,
+          "max": 1
+        },
+        "crown_lift": {
+          "type": "float",
+          "default": 1,
+          "min": 0.8,
+          "max": 1.25
+        },
+        "side_volume": {
+          "type": "float",
+          "default": 1,
+          "min": 0.95,
+          "max": 1.1
+        }
+      }
+    }
+  ]
+}

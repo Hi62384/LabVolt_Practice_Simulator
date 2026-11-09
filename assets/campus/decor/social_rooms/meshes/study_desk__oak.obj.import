@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://bw1s3cda1l7av"
+path="res://.godot/imported/study_desk__oak.obj-7e23c31e41e727c5de2745da768855a5.mesh"
+
+[deps]
+
+files=["res://.godot/imported/study_desk__oak.obj-7e23c31e41e727c5de2745da768855a5.mesh"]
+
+source_file="res://assets/campus/decor/social_rooms/meshes/study_desk__oak.obj"
+dest_files=["res://.godot/imported/study_desk__oak.obj-7e23c31e41e727c5de2745da768855a5.mesh", "res://.godot/imported/study_desk__oak.obj-7e23c31e41e727c5de2745da768855a5.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

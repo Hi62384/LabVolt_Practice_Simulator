@@ -1,0 +1,29 @@
+--- a/scripts/rolling_chair.gd
++++ b/scripts/rolling_chair.gd
+@@ -72,6 +72,7 @@
+ 	if swivel==null:
+ 		return
++	var has_turn_input := false
+ 	if not multiplayer.is_server() and not is_instance_valid(rider):
+ 		if network_ready:
+ 			position=position.lerp(network_target,1-exp(-18*delta))
+@@ -90,12 +91,20 @@
+ 		# Mouse displacement supplies angular impulse, rather than a target angle
+ 		# that would automatically pull the chair back after coasting.
+ 		var turn_input := wrapf(turn_target-previous_turn_target,-PI,PI)
++		has_turn_input=absf(turn_input)>0.00001
+ 		var braking := turn_input*spin<0
+ 		spin_goal=clampf(spin_goal+turn_input*(7.0 if braking else 3.0),-5.5,5.5)
+ 	previous_turn_target=turn_target
+-	spin_goal=move_toward(spin_goal,0,.18*delta)
++	if not has_turn_input:
++		# The same decay applies on the occupant client and authoritative host.
++		# Damp both target and actual velocity so release cannot keep accelerating.
++		spin_goal*=exp(-6.0*delta)
+ 	var angular_acceleration := 2.8 if spin_goal*spin<0 or absf(spin_goal)<absf(spin) else .9
+ 	spin=move_toward(spin,spin_goal,angular_acceleration*delta)
++	if not has_turn_input:
++		spin*=exp(-2.0*delta)
++		if absf(spin_goal)<0.002:spin_goal=0.0
++		if absf(spin)<0.002:spin=0.0
+ 	swivel.rotation.y+=spin*delta

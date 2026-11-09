@@ -1,0 +1,8 @@
+Shared mathematics UI for MTH147 and MTH255.
+Entrypoints: scripts/math_ui/workspace.gd for one problem; paper_adapter.gd for mounting and callback binding; math_paper_page.gd as optional physical paper branch.
+Pass the shared MTH147 parser Callable. No local symbolic solver or grading is supplied here. Public problems must be stripped by the provider before transmission. Reference diagram points never prefill student answers. Public sampled curves avoid sending hidden function parameters for inference questions.
+Formula sections: [{id,title,formulas:[{text,ast}]}]; host formula_allowed controls whether reference can open and is rechecked on restore. Do not use this UI policy as the host authority guard.
+Snapshot version1 uses immutable question_id, structured answer, inputs, graph view/points, page, and opaque legacy drawing state. Existing paper_ink remains separate and is never automatically graded.
+Use answer_codec.decode only after existing host owner/session/deadline/seat guards. Store decoded.answer for grading and decoded.state for reopen. Never truncate envelopes to the old160character limit.
+Teaching controls emit demonstration_changed / demonstration_parameters_changed; the provider owns mathematical model recalculation, stage release and network synchronization. Widgets do not mutate grades, rewards, course records or assessment seeds.
+No external fonts, copied PDF diagrams, screenshots, downloads or runtime setup required. All graphics are native Godot vector commands from function/coordinate/table descriptors.

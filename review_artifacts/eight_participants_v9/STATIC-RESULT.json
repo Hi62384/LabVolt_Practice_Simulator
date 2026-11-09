@@ -1,0 +1,38 @@
+{
+  "status": "PASS_FILE_ONLY_PREFLIGHT",
+  "tests": 28,
+  "v7_tests": 11,
+  "v8_tests": 11,
+  "v9_tests": 6,
+  "runtime_executed": false,
+  "network_executed": false,
+  "grants_created": false,
+  "ports_reserved": false,
+  "behavioral_acceptance": "UNRUN",
+  "source_cache_lock_sha256": "22a12bb82684e3d834d94b6afc9496ce5fe4e3b6e87951cb0e61e63661852997",
+  "backend_binding_sha256": "c0e49ef49d19b760090ec6b5308ec1ada6610e43831a7c685dcb6fde48ef0ef7",
+  "commands_sha256": "2dd8236668bc9736bb48f5ae4d487e22421b2a5ec56e5537c1e45f8f95305287",
+  "run_j_sha256": "c0fc88626471f736a70a70d3cc2b8bcaef6adc90b704bd4aefea5f85d96857b1",
+  "path_contract_sha256": "fe74fd9b75a80977e164f142b457456aa64f28651e5715f71ecd984e1c96f1d5",
+  "admission_contract_sha256": "f68fe711d782d7885e499409f3c48c9e9b38f156ed84436efc049fb0b14d3a7c",
+  "review_correction_sha256": "1d59b419a688759911418af18d38ae9393c7be7aae95d5cebe1e7e244ad35722",
+  "ownership_sha256": "025d522e2262c27732559f1aad23eef38c894f936051a4c7b2b53ef04f8b04dd",
+  "next_parser": {
+    "name": "CLASSROOM-EIGHT-V7-PARSER1",
+    "plan_sha256": "786e3a08faad758601ab19d3dcc394f77271f4dffa4aabeeb62d041d22567ead",
+    "budget_seconds": 30,
+    "total_engine_jobs": 1,
+    "port": null,
+    "argv": [
+      "C:\\Users\\User1\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\run_j.py",
+      "--execute",
+      "--plan",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\plans\\CLASSROOM-EIGHT-V7-PARSER1.json",
+      "--plan-sha256",
+      "786e3a08faad758601ab19d3dcc394f77271f4dffa4aabeeb62d041d22567ead",
+      "--grant",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\root-grants\\CLASSROOM-EIGHT-V7-PARSER1.json"
+    ]
+  }
+}

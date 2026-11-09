@@ -1,0 +1,38 @@
+{
+  "scope": "Completed owned source extension candidate; full live-game acceptance requires sole-writer integration and visual/multiplayer validation",
+  "implemented": [
+    "53 algorithmic families plus structural difficulty variants, all 10 week menus and all 5 difficulties",
+    "Independent generator verification before issuance; exact proof through shared core where supported",
+    "Bounded shared parser facade; no second production parser or CAS",
+    "Complete unordered root sets, original denominator/log/radical constraints, exact radicals and fractions",
+    "Required complex representations/equivalent tagged phase units, explicit significant-figure grading",
+    "Structured partial credit and per-field feedback, host-only grading adapter",
+    "Seed/version/JSON roundtrip stability; private assignment redaction",
+    "Generated complex/wave plots, course-specific root/wave/RC demo descriptors, ideal impedance schematic renderer",
+    "50 progressive teaching stages plus generated worked examples and practice",
+    "45 navigable formula ASTs with definitions and host-policy flag",
+    "Adapter for lecture-only catalog/weeks/generation/lessons/grade/practice/AI context",
+    "Existing ac_network.gd MNA cross-check for two- and three-impedance applications",
+    "Host-only asynchronous precomputation and cancellation; official timer starts only in integrator lifecycle",
+    "Frequency-table construction with per-row credit, exact measurement ticks for comparisons",
+    "Exponentials fitted from observations, RC unknown-capacitance recovery, logarithm graph descriptors",
+    "Freeplay unit/subtopic/mixed routing through the same provider; no grade/reward mutation",
+    "Opaque public ids, recursive key/seed projection, function-free sampled public curves, public projection idempotence",
+    "45 actual two-dimensional formula AST definitions with host reference-access checks"
+  ],
+  "remaining_engine": [],
+  "remaining_integrator": [
+    "Actual menu/catalog routing and same-classroom registry",
+    "Paper/whiteboard shared workspace mount and last-page desk visuals",
+    "Official host ledger, independent MTH255 averages, practice exclusion, idempotent reward calls",
+    "Saved attempt/deadline reconnect and actual multi-client tests",
+    "Freeplay/AI menu routing and host formula policy"
+  ],
+  "remaining_content": [],
+  "remaining_validation": [
+    "Representative source PDF diagram pixels",
+    "Rendered shared UI/teacher/circuit tests (fresh coordinator lease required)",
+    "Live-game regression/performance/multiplayer checks by sole writer"
+  ],
+  "acceptance_30_checks": "Not claimed complete; owned source functionality and independent tests only."
+}

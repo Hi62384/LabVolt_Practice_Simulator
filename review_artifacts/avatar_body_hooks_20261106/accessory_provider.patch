@@ -1,0 +1,41 @@
+--- a/scripts/avatar_cosmetics/accessories/accessory_provider.gd
++++ b/scripts/avatar_cosmetics/accessories/accessory_provider.gd
+@@ -1,5 +1,6 @@
+ class_name AccessoryProvider
+ extends RefCounted
++const BodyFit = preload("res://scripts/avatar_cosmetics/body_deformation/body_fit.gd")
+ 
+ const FIT_MIN := 0.65
+ const FIT_MAX := 1.4
+@@ -34,30 +35,7 @@
+ 	legacy_hair.visible = not (tags is Array and "hair_covering" in tags)
+ 
+ static func _apply_fit(item: Node3D, slot: String, parameters: Dictionary, body: Dictionary) -> void:
+-	var user_scale := clampf(float(parameters.get("scale", 1.0)), 0.9, 1.1)
+-	var width := clampf(float(body.get("width", 1.0)), FIT_MIN, FIT_MAX)
+-	var neck_width := clampf(float(body.get("neck_width", 1.0)), FIT_MIN, FIT_MAX)
+-	var shoulders := clampf(float(body.get("shoulders", 1.0)), FIT_MIN, FIT_MAX)
+-	var torso_width := clampf(float(body.get("torso_width", 1.0)), FIT_MIN, FIT_MAX)
+-	var torso_length := clampf(float(body.get("torso_length", 1.0)), FIT_MIN, FIT_MAX)
+-	var arm_length := clampf(float(body.get("arm_length", 1.0)), FIT_MIN, FIT_MAX)
+-	var arm_width := clampf(float(body.get("arm_width", 1.0)), FIT_MIN, FIT_MAX)
+-	match slot:
+-		# Head attachments inherit head/head_width/head_height from Body/Head.
+-		"head", "eyewear", "ears": item.scale = Vector3.ONE * user_scale
+-		"neck":
+-			item.scale = Vector3(neck_width * width, 1.0, neck_width) * user_scale
+-			item.position.y = (torso_length - 1.0) * 0.30
+-		"back":
+-			var back_width := width * lerpf(1.0, shoulders, 0.65) * lerpf(1.0, torso_width, 0.70)
+-			item.scale = Vector3(back_width, 1.0, width) * user_scale
+-			item.position.y = (torso_length - 1.0) * 0.30
+-		"wrist_left", "wrist_right":
+-			# Parent Arm scale moves the wrist with arm length. Counter-scale only the
+-			# baked model, then offset its root so its center still reaches the wrist.
+-			item.scale = Vector3(arm_width * user_scale, user_scale / arm_length, arm_width * user_scale)
+-			item.position.y = -0.405 * (arm_length - 1.0) / arm_length
+-		_: item.scale = Vector3.ONE * user_scale
++	BodyFit.fit_accessory(item,slot,body,parameters)
+ 
+ static func _apply_instance_materials(root: Node, regions: Dictionary, parameters: Dictionary) -> void:
+ 	var colors := {"primary_regions":str(parameters.get("primary_color", "FFFFFF")), "accent_regions":str(parameters.get("accent_color", "FFFFFF")), "metal_regions":str(parameters.get("metal_color", "FFFFFF"))}

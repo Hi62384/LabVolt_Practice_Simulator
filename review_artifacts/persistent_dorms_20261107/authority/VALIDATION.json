@@ -1,0 +1,19 @@
+{
+  "production_modified": false,
+  "engine_invoked": false,
+  "live_profiles_accessed": false,
+  "denied_operations": 0,
+  "candidate_files": 17,
+  "checks": {
+    "stage.py": "passed",
+    "test_source.py": "11 passed; source/preimage/resource/geometry checks only",
+    "git apply --check --ignore-space-change integration.patch": "passed",
+    "test_authority_memory.gd": "prepared; not parsed or executed",
+    "gameplay_multiplayer_physics_visual_disk_acceptance": "not run; reserved for integrator safe resources"
+  },
+  "sha256": {
+    "integration.patch": "282f8e1fd71a3cf4ca676318af42b7538edefdd1a75c9d55faba5d020dddb8c2",
+    "PATCHES.json": "4e1fc1458c52130efef3181172c22feb86b1e3b132f32326791a57a1accc598d",
+    "DEPENDENCIES.json": "4050ab5792f28ca19b3ebc33d3d20d2996c2cd39878c3fcd1c2f8c01c4445e90"
+  }
+}

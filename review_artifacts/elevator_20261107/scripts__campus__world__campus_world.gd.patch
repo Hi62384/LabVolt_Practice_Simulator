@@ -1,0 +1,66 @@
+--- a/scripts/campus/world/campus_world.gd
++++ b/scripts/campus/world/campus_world.gd
+@@ -1,7 +1,7 @@
+ extends Node3D
+ ## A single persistent campus shell. No mode owns or duplicates its geometry.
+ signal zone_activation_changed(room_id: String, active: bool)
+-signal elevator_requested(actor: Node3D, destination: Vector3)
++signal elevator_control_requested(floor_id: int, button: int)
+ const Registry = preload("res://scripts/campus/world/room_registry.gd")
+ const Streamer = preload("res://scripts/campus/world/zone_streamer.gd")
+ const Signage = preload("res://scripts/campus/presentation/signage/campus_signage.gd")
+@@ -19,7 +19,7 @@
+ var shell_built := false
+ var build_usec := 0
+ var solid_count := 0
+-var elevator_validator: Callable
++var elevator_geometry: Node3D
+ var viewer_actor: Node3D
+ var viewer_clock := 0.0
+ @export var enable_occlusion := true
+@@ -197,37 +197,16 @@
+ 	sign_text(self,"STAIRS  ↑  FLOOR 2",Vector3(11.5,2.8,50),PI,32)
+ 
+ func _elevator() -> void:
+-	# Two stops in one shaft. Core validates travel/assessment/ownership before granting.
+-	for floor in [0,1]:
+-		var y := float(floor)*5
+-		box(self,Vector3(20,y-.12,59),Vector3(8,.24,6),"657b7d")
+-		for z in [56.,62.]: box(self,Vector3(20,y+2,z),Vector3(8,4,.16),"a6b9b4")
+-		box(self,Vector3(24,y+2,59),Vector3(.16,4,6),"a6b9b4")
+-		var target := StaticBody3D.new()
+-		target.position=Vector3(15.8,y+1.2,59)
+-		target.collision_layer=4
+-		target.collision_mask=0
+-		target.set_meta("role","elevator_station")
+-		target.set_meta("label","Elevator · "+("Floor 2" if floor==0 else "Floor 1"))
+-		target.set_meta("destination",Vector3(14.5,5 if floor==0 else 0,59))
+-		var cs := CollisionShape3D.new()
+-		var shape := BoxShape3D.new()
+-		shape.size=Vector3(.25,.5,.5)
+-		cs.shape=shape
+-		target.add_child(cs)
+-		add_child(target)
+-		box(target,Vector3.ZERO,Vector3(.15,.4,.35),"d6bd77",false)
+-		sign_text(self,"LIFT  ↕\nFLOOR "+str(floor+1),Vector3(15.7,y+2.3,59),PI/2,32)
+-	# Cut the east corridor shaft entrance from z58..60: _circulation skips this segment.
++	elevator_geometry = preload("res://scripts/campus/elevator/elevator_geometry.gd").new()
++	elevator_geometry.name = "ElevatorGeometry"
++	add_child(elevator_geometry)
++	elevator_geometry.mount(self)
+ 
+ func interact(target: Node, actor: Node3D) -> bool:
+-	if not is_instance_valid(target) or target.get_meta("role","")!="elevator_station": return false
+-	if not is_instance_valid(actor) or actor.global_position.distance_to(target.global_position)>3: return true
+-	var destination: Vector3=target.get_meta("destination")
+-	elevator_requested.emit(actor,destination)
+-	if elevator_validator.is_valid() and elevator_validator.call(actor,destination):
+-		actor.global_position=destination
+-		if actor is CharacterBody3D: actor.velocity=Vector3.ZERO
++	if not is_instance_valid(target) or target.get_meta("role", "") != "elevator_control": return false
++	if not elevator_geometry.is_ancestor_of(target): return false
++	if not is_instance_valid(actor) or actor.global_position.distance_to(target.global_position) > 3: return true
++	elevator_control_requested.emit(int(target.get_meta("floor")), int(target.get_meta("button")))
+ 	return true
+ 
+ func _paving() -> void:

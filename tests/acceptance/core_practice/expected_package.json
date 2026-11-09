@@ -1,0 +1,55 @@
+{
+  "package_id": "ic:405f3755075617f59bc6c1dc",
+  "inventory": 1,
+  "pins": [
+    {
+      "connector": "male_header",
+      "id": "pin_1",
+      "name": "IN",
+      "node": "L2",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "role": "unspecified"
+    },
+    {
+      "connector": "male_header",
+      "id": "pin_2",
+      "name": "OUT",
+      "node": "R2",
+      "position": {
+        "x": 1,
+        "y": 0
+      },
+      "role": "unspecified"
+    },
+    {
+      "connector": "male_header",
+      "id": "pin_3",
+      "name": "CTRL",
+      "node": "L5",
+      "position": {
+        "x": 0,
+        "y": 5
+      },
+      "role": "unspecified"
+    },
+    {
+      "connector": "male_header",
+      "id": "pin_4",
+      "name": "RETURN",
+      "node": "R5",
+      "position": {
+        "x": 1,
+        "y": 5
+      },
+      "role": "unspecified"
+    }
+  ],
+  "identity": "",
+  "original_profile_basename": "electronics_e3b0c44298fc1c149afbf4c8.json",
+  "input_sha256": "2c64c0c2b4e0788ebbe8f85e15644a7e9a4dbb5625ac016f5b06e21dd27f3ac8",
+  "original_source_expected_positions": "PackageForm casts x/y to int; PackageStore duplicate preserves them. Reconstruct ONLY expected integer grid fields from original source contract; never coerce actual reloaded fields.",
+  "capture_timing": "Savedbytefixture isendofJ2run afterHC04stage;notuncapturedfieldtypesattheoriginalassertion."
+}

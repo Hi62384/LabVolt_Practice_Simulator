@@ -1,0 +1,20 @@
+Candidate only. Apply against scripts/campus/presentation/lighting/campus_lighting_rig.gd
+Preimage SHA-256: D7EC875AD15BCC99FC1DC27288EF0C1B45C99577BA3961F5B7488DDD013F8164
+
+--- a/scripts/campus/presentation/lighting/campus_lighting_rig.gd
++++ b/scripts/campus/presentation/lighting/campus_lighting_rig.gd
+@@
+-const DAY_SKY_TOP := Color("3c83c9")
+-const DAY_SKY_HORIZON := Color("b8d9ee")
++const DAY_SKY_TOP := Color("6899bd")
++const DAY_SKY_HORIZON := Color("c7dae1")
+@@
+-	sun.light_energy = lerpf(0.035, 1.05, day_mix) * brightness_scale
+-	interior_fill.light_energy = lerpf(0.18, 0.32, day_mix) * brightness_scale
++	sun.light_energy = lerpf(0.035, 0.88, day_mix) * brightness_scale
++	interior_fill.light_energy = lerpf(0.16, 0.24, day_mix) * brightness_scale
+@@
+-	world_environment.environment.background_energy_multiplier = lerpf(0.18, 0.92, day_mix) * brightness_scale
+-	world_environment.environment.ambient_light_energy = lerpf(0.28, 0.72, day_mix) * brightness_scale
++	world_environment.environment.background_energy_multiplier = lerpf(0.18, 0.84, day_mix) * brightness_scale
++	world_environment.environment.ambient_light_energy = lerpf(0.28, 0.64, day_mix) * brightness_scale

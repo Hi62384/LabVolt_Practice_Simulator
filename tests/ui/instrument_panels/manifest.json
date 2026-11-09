@@ -1,0 +1,20 @@
+[
+  {
+    "file": "scripts/dc_ui.gd",
+    "preimage_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "new_sha256": "26cac2d763d7e78e0c84c0c0a0bc3f984486fa50b8d5606e8ddd756ab8176768",
+    "backup": "tests\\ui\\instrument_panels\\dc_ui.gd.preimage",
+    "revision1_sha256": "b778ea348fde6d58a81b123949349cc98111ceb3121d627bc2607c6af468812e",
+    "revision2_sha256": "9583a230f1efb0eb7cb063567808a0b829c6a56df64a6a736958385f583aa86b",
+    "revision3_sha256": "24a4aac3778520fdfa7efc57e7dc43385f56c1aa22711576b55b8acbc4816013"
+  },
+  {
+    "file": "scripts/dc_scope/scope_panel.gd",
+    "preimage_sha256": "7c65b00af1695395d5274c3f98bd80de90bd40f1254645589008f67e3215354e",
+    "new_sha256": "0c66cf02c3af3d63d4d52a8e064746ff04a364babf76ee98942984bdc102739a",
+    "backup": "tests\\ui\\instrument_panels\\scope_panel.gd.preimage",
+    "revision1_sha256": "4d2a0a0511731468742aa08588b516e7ee193ef5bd0c58007a3c421589927df7",
+    "revision2_sha256": "3daa2a8554a310f7c7f8e68752e3874ee7b29420fb0b18cf820defae44b31947",
+    "revision3_sha256": "e862cb55f4c2747231a1807b36fe9af1b326a3f4bacf41f2cbbdb62d29c27389"
+  }
+]

@@ -1,0 +1,8 @@
+Reviewer-owned V9 focused correction suite
+Command: Python311 python.exe -B -m unittest -v test_v9_contract.py
+Initial diagnostic exposed that Python equality accepted False and 0.0 as equal to integer 0.
+Guard corrected to require type(difficulty) is int and difficulty == 0; all dependent hashes regenerated.
+Final run:
+Ran 6 tests in 0.584s
+
+OK

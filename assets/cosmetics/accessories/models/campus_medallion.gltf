@@ -1,0 +1,301 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Campus Medallion",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Campus Medallion",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1
+        },
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 7,
+            "TEXCOORD_0": 8
+          },
+          "material": 2
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "gold",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.92,
+        "roughnessFactor": 0.18
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "accent",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.15,
+        "roughnessFactor": 0.4
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "dark_metal",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 6
+        },
+        "metallicRoughnessTexture": {
+          "index": 7
+        },
+        "metallicFactor": 0.75,
+        "roughnessFactor": 0.24
+      },
+      "normalTexture": {
+        "index": 8,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/gold_albedo.png"
+    },
+    {
+      "uri": "../materials/gold_orm.png"
+    },
+    {
+      "uri": "../materials/gold_normal.png"
+    },
+    {
+      "uri": "../materials/accent_albedo.png"
+    },
+    {
+      "uri": "../materials/accent_orm.png"
+    },
+    {
+      "uri": "../materials/accent_normal.png"
+    },
+    {
+      "uri": "../materials/dark_metal_albedo.png"
+    },
+    {
+      "uri": "../materials/dark_metal_orm.png"
+    },
+    {
+      "uri": "../materials/dark_metal_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    },
+    {
+      "source": 6
+    },
+    {
+      "source": 7
+    },
+    {
+      "source": 8
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "campus_medallion.bin",
+      "byteLength": 14976
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 2880
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2880,
+      "byteLength": 2880
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5760,
+      "byteLength": 1920
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 7680,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 9984,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 12288,
+      "byteLength": 1536
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 13824,
+      "byteLength": 432
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 14256,
+      "byteLength": 432
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 14688,
+      "byteLength": 288
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 240,
+      "type": "VEC3",
+      "min": [
+        -0.034,
+        1.131,
+        0.152
+      ],
+      "max": [
+        0.034,
+        1.199,
+        0.166
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 240,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 240,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3",
+      "min": [
+        -0.028,
+        1.137,
+        0.164
+      ],
+      "max": [
+        0.028,
+        1.193,
+        0.17400000000000002
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3",
+      "min": [
+        -0.01,
+        1.1605,
+        0.1735
+      ],
+      "max": [
+        0.01,
+        1.1695,
+        0.1785
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC2"
+    }
+  ]
+}

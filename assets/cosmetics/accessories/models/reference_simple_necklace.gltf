@@ -1,0 +1,215 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Simple Necklace",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Simple Necklace",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "silver",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.95,
+        "roughnessFactor": 0.16
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "gold",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.92,
+        "roughnessFactor": 0.18
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/silver_albedo.png"
+    },
+    {
+      "uri": "../materials/silver_orm.png"
+    },
+    {
+      "uri": "../materials/silver_normal.png"
+    },
+    {
+      "uri": "../materials/gold_albedo.png"
+    },
+    {
+      "uri": "../materials/gold_orm.png"
+    },
+    {
+      "uri": "../materials/gold_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "reference_simple_necklace.bin",
+      "byteLength": 16128
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 4320
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4320,
+      "byteLength": 4320
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 8640,
+      "byteLength": 2880
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 11520,
+      "byteLength": 1728
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 13248,
+      "byteLength": 1728
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 14976,
+      "byteLength": 1152
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 360,
+      "type": "VEC3",
+      "min": [
+        -0.129,
+        1.262,
+        -0.12829332450250727
+      ],
+      "max": [
+        0.129,
+        1.2679999999999998,
+        0.12829332450250727
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 360,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 360,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 144,
+      "type": "VEC3",
+      "min": [
+        -0.021,
+        1.203,
+        0.127
+      ],
+      "max": [
+        0.021,
+        1.2449999999999999,
+        0.139
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 144,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 144,
+      "type": "VEC2"
+    }
+  ]
+}

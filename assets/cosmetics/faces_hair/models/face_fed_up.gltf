@@ -1,0 +1,307 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Fed Up",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Fed Up",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 7,
+            "TEXCOORD_0": 8
+          },
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "brow",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.78
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "skin_detail",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.67
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "lip",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 6
+        },
+        "metallicRoughnessTexture": {
+          "index": 7
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.55
+      },
+      "normalTexture": {
+        "index": 8,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/brow_albedo.png"
+    },
+    {
+      "uri": "../materials/brow_orm.png"
+    },
+    {
+      "uri": "../materials/brow_normal.png"
+    },
+    {
+      "uri": "../materials/skin_detail_albedo.png"
+    },
+    {
+      "uri": "../materials/skin_detail_orm.png"
+    },
+    {
+      "uri": "../materials/skin_detail_normal.png"
+    },
+    {
+      "uri": "../materials/lip_albedo.png"
+    },
+    {
+      "uri": "../materials/lip_orm.png"
+    },
+    {
+      "uri": "../materials/lip_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    },
+    {
+      "source": 6
+    },
+    {
+      "source": 7
+    },
+    {
+      "source": 8
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "face_fed_up.bin",
+      "byteLength": 139776
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 29952
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 29952,
+      "byteLength": 29952
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 59904,
+      "byteLength": 19968
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 79872,
+      "byteLength": 10368
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 90240,
+      "byteLength": 10368
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 100608,
+      "byteLength": 6912
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 107520,
+      "byteLength": 12096
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 119616,
+      "byteLength": 12096
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 131712,
+      "byteLength": 8064
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2496,
+      "type": "VEC3",
+      "min": [
+        -0.1327489721904301,
+        0.019056414190290378,
+        0.12128936671621199
+      ],
+      "max": [
+        0.1327489721904301,
+        0.1312320713641692,
+        0.17164103594423932
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2496,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2496,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 864,
+      "type": "VEC3",
+      "min": [
+        -0.028,
+        -0.06299595010934882,
+        0.14364004145936746
+      ],
+      "max": [
+        0.028,
+        -0.013004049890651178,
+        0.18501164463570555
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 864,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 864,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 1008,
+      "type": "VEC3",
+      "min": [
+        -0.06286027671906547,
+        -0.15047402030655724,
+        0.11883146069555985
+      ],
+      "max": [
+        0.06286027671906547,
+        -0.11649999999999999,
+        0.1553142857142857
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 1008,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 1008,
+      "type": "VEC2"
+    }
+  ]
+}

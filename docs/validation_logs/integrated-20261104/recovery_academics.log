@@ -1,0 +1,43 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+PASS: Start ETY155 through shared flow
+PASS: Walking phase is untimed
+PASS: Physical room slips are practice-only
+PASS: Active formal class blocks ordinary switching
+PASS: Host starts when students reach room
+PASS: Timeline begins correct stage
+PASS: Timeline advances from synchronized elapsed time
+PASS: Teaching issues timed assessment
+PASS: One official sheet per participant
+PASS: Timeout retains completed credit and zeros unanswered parts
+PASS: Duplicate marking is idempotent
+PASS: Intentional active abandonment is zero
+PASS: All submitted or abandoned completes class
+PASS: ETY155 never changes ELM253 marks
+PASS: Unattempted lecture category is missing, not zero
+PASS: Missing category is omitted from overall
+PASS: Equal weighting separates categories and excludes practice
+PASS: Configurable course weighting
+PASS: Open Lab uses same course architecture
+PASS: Practice cannot enter official gradebook
+PASS: Repeated week creates a fresh attempt
+PASS: Trusted host recovers local journal
+PASS: Recovery preserves original deadline
+PASS: Recovery restores answers and ink
+PASS: Other students' answers are private
+PASS: Private solver answer keys never broadcast
+PASS: Eight students use three real bench groups
+PASS: Unrelated groups cannot edit assigned benches through guard
+PASS: Practical grading matches electrical nodes and actual solver, not object IDs
+PASS: Visually adjacent disconnected components fail practical
+PASS: Self-reported procedure cannot earn verified credit
+PASS: Capture actual DC supply/resistor/DMM voltage measurement
+PASS: Capture actual in-series DMM current measurement
+PASS: Real instrument observations, suitable range and actual operating circuit earn 80% practical credit
+PASS: Authority-verified transitions complete the practical rubric
+PASS: Ammeter across source fails and cannot manufacture measurement credit
+PASS: Expired host interruption safely ends unresolved class
+PASS: Host downtime creates no student zero marks
+ACADEMICS_RESULT checks=38 failures=0

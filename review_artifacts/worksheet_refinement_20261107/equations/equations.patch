@@ -1,0 +1,178 @@
+--- a/scripts/ui/paper_workspace/equations/parser.gd
++++ b/scripts/ui/paper_workspace/equations/parser.gd
+@@ -3,6 +3,7 @@
+ const MAX_LENGTH := 512
+ const MAX_TOKENS := 256
+ const MAX_DEPTH := 24
++const FUNCTIONS := ["sqrt", "sin", "cos", "tan", "asin", "acos", "atan", "ln", "log", "exp", "abs"]
+ var _tokens: Array[Dictionary] = []
+ var _at := 0
+ var _error := ""
+@@ -27,7 +28,7 @@
+ 			var start := i
+ 			while i < source.length() and (source[i].to_lower() in "abcdefghijklmnopqrstuvwxyz" or source[i] in "πθφΩαβγΔΣμ∞"): i += 1
+ 			_tokens.append({"kind":"atom", "text":source.substr(start, i - start), "pos":start})
+-		elif c in "+-*/^_()=,×÷−":
++		elif c in "+-*/^_()=,;[]×÷−":
+ 			_tokens.append({"kind":{"×":"*","÷":"/","−":"-"}.get(c,c), "text":c, "pos":i}); i += 1
+ 		else: return _result(source, {}, "Unsupported character '%s' at character %d." % [c, i + 1])
+ 		if _tokens.size() > MAX_TOKENS: return _result(source, {}, "Equation has too many symbols (limit 256).")
+@@ -55,7 +56,39 @@
+ 		var child := _expr(25, depth + 1)
+ 		left = {"op":"prefix", "sign":kind, "child":child}
+ 	elif kind == "atom":
+-		left = {"op":"atom", "text":_token().text}; _at += 1
++		var atom: String = _token().text
++		_at += 1
++		if atom in FUNCTIONS and _kind() == "(":
++			var function_position: int = _token().pos
++			_at += 1
++			if _kind() == ")" or _kind() == "end": _error = "Missing argument for %s at character %d." % [atom, function_position + 1]; return {}
++			var argument := _expr(0, depth + 1)
++			if not _error.is_empty(): return {}
++			if _kind() != ")": _error = "Missing ')' for %s at character %d." % [atom, function_position + 1]; return {}
++			_at += 1
++			left = {"op":"function", "name":atom, "child":argument}
++		else: left = {"op":"atom", "text":atom}
++	elif kind == "[":
++		var matrix_position: int = _token().pos
++		_at += 1
++		var rows: Array = []
++		var row: Array = []
++		if _kind() == "]" or _kind() == "end": _error = "Matrix needs cells at character %d." % (matrix_position + 1); return {}
++		while _error.is_empty():
++			row.append(_expr(11, depth + 1))
++			if not _error.is_empty(): return {}
++			if row.size() > 8: _error = "Matrix exceeds 8 columns."; return {}
++			if _kind() == ",": _at += 1; continue
++			rows.append(row)
++			if rows.size() > 8: _error = "Matrix exceeds 8 rows."; return {}
++			if _kind() == ";": row = []; _at += 1; continue
++			break
++		if _kind() != "]": _error = "Missing ']' for matrix at character %d." % (matrix_position + 1); return {}
++		_at += 1
++		var columns: int = rows[0].size()
++		for cells in rows:
++			if cells.size() != columns: _error = "Matrix rows must have the same number of cells."; return {}
++		left = {"op":"matrix", "rows":rows}
+ 	elif kind == "(":
+ 		var opening_position: int = _token().pos
+ 		_at += 1
+@@ -71,7 +104,7 @@
+ 		return {}
+ 	while _error.is_empty():
+ 		kind = _kind()
+-		var implicit := kind in ["atom", "("]
++		var implicit := kind in ["atom", "(", "["]
+ 		var bp := 10 if kind in ["=", ","] else (20 if kind in ["+", "-"] else (30 if kind in ["*", "/"] or implicit else (40 if kind in ["^", "_"] else -1)))
+ 		if bp < min_bp: break
+ 		var operator := "*" if implicit else kind
+--- a/scripts/ui/paper_workspace/equations/layout.gd
++++ b/scripts/ui/paper_workspace/equations/layout.gd
+@@ -55,7 +55,24 @@
+ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dictionary:
+ 	if depth > Parser.MAX_DEPTH: return _text("?", font, size)
+ 	var op: String = node.op
+-	if op == "atom": return _text(node.text, font, size)
++	if op == "atom":
++		var names := {"alpha":"α", "beta":"β", "gamma":"γ", "delta":"δ", "theta":"θ", "lambda":"λ", "mu":"μ", "pi":"π", "rho":"ρ", "sigma":"σ", "phi":"φ", "omega":"ω", "infty":"∞"}
++		return _text(str(names.get(node.text, node.text)), font, size)
++	if op == "function":
++		var argument := _layout(node.child, font, size, depth+1)
++		if node.name == "sqrt":
++			var root := _text("√", font, size)
++			var clearance := maxf(2.0, float(size)*0.12)
++			var line_y := clearance
++			var body_y := clearance + maxf(1.25, float(size)*0.055)
++			var root_y := maxf(0.0, body_y + argument.baseline - root.baseline)
++			var commands := _shift(root.commands, Vector2(0,root_y))
++			commands.append_array(_shift(argument.commands, Vector2(root.size.x + 2.0,body_y)))
++			commands.append({"kind":"line", "a":Vector2(root.size.x,line_y), "b":Vector2(root.size.x + argument.size.x + 4.0,line_y), "width":maxf(1.25,float(size)*0.055)})
++			return {"size":Vector2(root.size.x+argument.size.x+4.0,maxf(root_y+root.size.y,body_y+argument.size.y)), "baseline":body_y+argument.baseline, "commands":commands}
++		var function_name: String = str(node.name)
++		return _row([_text(function_name + "(",font,size),argument,_text(")",font,size)])
++	if op == "matrix": return _matrix(node.rows, font, size, depth+1)
+ 	if op == "group": return _row([_text("(",font,size), _layout(node.child,font,size,depth+1), _text(")",font,size)])
+ 	if op == "prefix": return _row([_text(node.sign,font,size), _layout(node.child,font,size,depth+1)])
+ 	var left := _layout(node.left,font,size,depth+1)
+@@ -82,3 +99,52 @@
+ 		return {"size":Vector2(width,denominator_y+right.size.y), "baseline":rule_y, "commands":commands}
+ 	var symbol: String = "" if bool(node.get("implicit",false)) else str({"*":" × ","+":" + ","-":" − ","=":" = ",",":", "}.get(op," ? "))
+ 	return _row([left,_text(symbol,font,size),right]) if not symbol.is_empty() else _row([left,right],maxf(2.0,float(size)*0.12))
++
++static func _matrix(rows: Array, font: Font, size: int, depth: int) -> Dictionary:
++	var cell_gap := maxf(6.0,float(size)*0.30)
++	var row_gap := maxf(4.0,float(size)*0.20)
++	var columns: int = rows[0].size()
++	var widths: Array[float] = []
++	var heights: Array[float] = []
++	var baselines: Array[float] = []
++	var measured: Array = []
++	for column in range(columns): widths.append(0.0)
++	for row in rows:
++		var cells: Array = []
++		var baseline := 0.0
++		var descent := 0.0
++		for column in range(columns):
++			var cell: Dictionary = _layout(row[column],font,size,depth+1)
++			cells.append(cell)
++			widths[column] = maxf(widths[column],cell.size.x)
++			baseline = maxf(baseline,cell.baseline)
++			descent = maxf(descent,cell.size.y-cell.baseline)
++		measured.append(cells)
++		baselines.append(baseline)
++		heights.append(baseline+descent)
++	var content_width := 0.0
++	for width in widths: content_width += width + cell_gap
++	content_width -= cell_gap
++	var content_height := 0.0
++	for height in heights: content_height += height + row_gap
++	content_height -= row_gap
++	var bracket_width := maxf(5.0,float(size)*0.22)
++	var padding := maxf(4.0,float(size)*0.16)
++	var total_width := content_width + 2.0*(bracket_width+padding)
++	var total_height := content_height + 2.0*padding
++	var commands := []
++	var y := padding
++	for row_index in range(rows.size()):
++		var x := bracket_width + padding
++		for column in range(columns):
++			var cell: Dictionary = measured[row_index][column]
++			commands.append_array(_shift(cell.commands,Vector2(x+(widths[column]-cell.size.x)*0.5,y+baselines[row_index]-cell.baseline)))
++			x += widths[column]+cell_gap
++		y += heights[row_index]+row_gap
++	var stroke := maxf(1.25,float(size)*0.055)
++	for edge_x in [0.0,total_width]:
++		var tip_x: float = bracket_width if edge_x == 0.0 else total_width-bracket_width
++		commands.append({"kind":"line", "a":Vector2(edge_x,0), "b":Vector2(tip_x,0), "width":stroke})
++		commands.append({"kind":"line", "a":Vector2(edge_x,total_height), "b":Vector2(tip_x,total_height), "width":stroke})
++		commands.append({"kind":"line", "a":Vector2(edge_x,0), "b":Vector2(edge_x,total_height), "width":stroke})
++	return {"size":Vector2(total_width,total_height), "baseline":total_height*0.5, "commands":commands}
+--- a/scripts/ui/paper_workspace/equations/test_equations.gd
++++ b/scripts/ui/paper_workspace/equations/test_equations.gd
+@@ -44,6 +44,25 @@
+ 	_check(clamped.ok and clamped.size.x <= Layout.MAX_EXTENT and clamped.size.y <= Layout.MAX_EXTENT, "huge font request is clamped", failures)
+ 	_check(Layout.build("a/b",font,-100).ok, "negative font request is clamped", failures)
+ 	_check(Layout.build("(x+y)/(z^2)",font,24).source == "(x+y)/(z^2)", "exact source roundtrip", failures)
++	var radical: Dictionary = Layout.build("sqrt(x^2+y^2)",font,24)
++	var radical_rules := 0
++	for command in radical.commands:
++		if command.kind == "line": radical_rules += 1
++	_check(radical.ok and radical_rules == 1 and radical.size.y > 0, "radical has measured overbar", failures)
++	var greek: Dictionary = Layout.build("alpha+omega=i",font,24)
++	var greek_text := ""
++	for command in greek.commands:
++		if command.kind == "text": greek_text += command.text
++	_check(greek.ok and "α" in greek_text and "ω" in greek_text, "named Greek glyphs", failures)
++	var matrix: Dictionary = Layout.build("[1,2;3,4]",font,24)
++	var matrix_lines := 0
++	for command in matrix.commands:
++		if command.kind == "line": matrix_lines += 1
++	_check(matrix.ok and matrix_lines == 6 and matrix.size.x > 0, "two by two matrix brackets", failures)
++	_check(not Parser.new().parse("[1,2;3]").ok, "unequal matrix rows rejected", failures)
++	_check(not Parser.new().parse("sqrt()").ok, "empty function rejected", failures)
++	_check(not Parser.new().parse("[1,2").ok, "open matrix rejected", failures)
++	_check(Layout.build("[1,2;3,4]",font,24).source == "[1,2;3,4]", "matrix exact source roundtrip", failures)
+ 	return failures
+ 
+ static func _check(condition: bool, label: String, failures: Array[String]) -> void:

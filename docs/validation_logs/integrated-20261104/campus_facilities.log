@@ -1,0 +1,17 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+PASS live movement hooks installed
+PASS gym and both restaurants use real campus rooms
+PASS real counter and seats registered
+PASS buy coffee through actual authority and physical counter
+PASS same profile money debited atomically
+PASS food and money saved together
+PASS physical seat locks authoritative translation
+PASS host rejects movement while seated
+PASS stand restores movement
+PASS active class prevents facility bypass
+PASS stale pre-teleport movement packet rejected
+PASS AC solver answer key excluded from unmarked public worksheet
+LIVE FACILITIES failures=0

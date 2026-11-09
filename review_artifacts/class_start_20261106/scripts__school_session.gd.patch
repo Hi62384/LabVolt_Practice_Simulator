@@ -1,0 +1,204 @@
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ -12,6 +12,7 @@
+ var phase := "freeplay"
+ var remaining := 0.0
+ var round_id := 0
++var activity_epoch := 0
+ var project := {}
+ var next_id := 1
+ var teacher_position := Vector3(0,0,5)
+@@ -26,6 +27,8 @@
+ const GradePolicy = preload("res://scripts/campus/academics/grade_policy.gd")
+ const CourseProgression = preload("res://scripts/campus/academics/course_progression_adapter.gd")
+ const Attendance = preload("res://scripts/campus/academics/attendance_ledger.gd")
++const ClassStartClock = preload("res://scripts/campus/academics/class_start/class_start_clock.gd")
++var class_start = ClassStartClock.new()
+ var attendance_archive := {}
+ var local_attendance := {}
+ const Benches = preload("res://scripts/campus/academics/bench_allocator.gd")
+@@ -58,6 +61,7 @@
+ 	game.characters.changed.connect(_identity_changed)
+ 	_identity_changed()
+ func _reset_session() -> void:
++	class_start.cancel()
+ 	sent_identity=false
+ 	papers.clear()
+ 	identities.clear()
+@@ -92,6 +96,8 @@
+ 	if formal_active():
+ 		_notice(1,"Finish or explicitly abandon the active assessment before changing activities.")
+ 		return
++	class_start.cancel()
++	activity_epoch+=1
+ 	activity={}
+ 	presentation={}
+ 	allocation={}
+@@ -135,6 +141,8 @@
+ 	elif game.session.online:_identity_accepted.rpc_id(peer,token,archive.get(token,{}))
+ 	if mode=="Class":
+ 		if class_students.has(token):
++			if phase in ["travel","lesson"]:class_start.arrive(token,Time.get_ticks_usec())
++			if phase=="lesson":_record_attendance(peer)
+ 			var record: Dictionary=class_students[token]
+ 			if record.has("saved"):
+ 				var paper: Dictionary=record.saved.duplicate(true)
+@@ -145,6 +153,8 @@
+ 			elif phase=="assignment" and not record.done:_give(peer,project,false,true)
+ 		elif phase in ["travel","lesson"]:
+ 			class_students[token]={"done":false}
++			class_start.arrive(token,Time.get_ticks_usec())
++			if phase=="lesson":_record_attendance(peer)
+ 			_individual_project(token)
+ 			if activity.get("kind","")=="lab" and not allocation.has(token):
+ 				var counts := [0,0,0]
+@@ -248,13 +258,11 @@
+ 	if recent.count>80:return
+ 	var op := str(a.get("op",""))
+ 	if op=="activity":
+-		if peer==1:
++		if peer==1 and can_choose_next_activity() and int(a.get("expected_epoch",-1))==activity_epoch:
+ 			var response := start_activity(a.get("config",{}))
+ 			if not response.ok:_notice(peer,str(response.error))
+ 		return
+-	if op=="begin_lesson":
+-		if peer==1:begin_lesson()
+-		return
++	if op=="begin_lesson":return
+ 	if op=="abandon":
+ 		if bool(a.get("confirmed",false)):abandon(peer)
+ 		return
+@@ -277,6 +285,7 @@
+ 		var id := _give(peer,preload("res://scripts/equipment_guide.gd").project(),true,false)
+ 		if id!=0:papers[id].guide=true
+ 	elif op=="new":
++		if mode=="Class":return
+ 		if not _near(peer,teacher_position):return
+ 		var topic := clampi(int(a.get("topic",0)),0,Course.TOPICS.size()-1)
+ 		if bool(a.get("random",false)):topic=random.randi_range(0,Course.TOPICS.size()-1)
+@@ -490,7 +499,10 @@
+ 	var token := str(identities.get(peer,""))
+ 	var result := Attendance.record_authoritative(attendance_archive,true,assessment_id,token,str(activity.get("course_id","")),str(activity.get("kind","")),int(activity.get("week",0)),Time.get_datetime_string_from_system(),course_ids())
+ 	if not result.get("ok",false):return
+-	if result.get("created",false):_save("user://teacher_attendance.json",attendance_archive)
++	if result.get("created",false):
++		result.event["late"]=bool(class_start.arrivals.get(token,false))
++		attendance_archive[result.id]=result.event.duplicate(true)
++		_save("user://teacher_attendance.json",attendance_archive)
+ 	if peer==1:_receive_attendance(result.event)
+ 	elif game.session.roster.has(peer):_receive_attendance.rpc_id(peer,result.event)
+ 
+@@ -575,7 +587,17 @@
+ 	broadcast()
+ 	checkpoint()
+ func _process(delta: float) -> void:
+-	if game==null or not multiplayer.is_server() or not game.front.in_game:return
++	if game==null or not multiplayer.is_server():return
++	if phase=="travel" and not suspended:
++		var now_usec := Time.get_ticks_usec()
++		remaining=class_start.remaining(now_usec)
++		if class_start.begin_if_due(now_usec):
++			phase="lesson"
++			remaining=teaching_seconds
++			for peer in identities:_record_attendance(int(peer))
++			broadcast()
++			checkpoint()
++	if not game.front.in_game:return
+ 	advance(delta)
+ 	if phase=="lesson" and str(activity.get("course_id","")).begins_with("MTH"):
+ 		var stage_key: String=assessment_id+":"+str(teaching_stage().get("index",0))
+@@ -686,11 +708,14 @@
+ 	if equipment!=null:equipment_adapter=equipment
+ 
+ func formal_active() -> bool:
+-	return mode=="Class" and phase in ["travel","lesson","assignment"] and not class_students.is_empty()
++	return mode=="Class" and phase in ["travel","lesson","assignment"]
++
++func can_choose_next_activity() -> bool:
++	return multiplayer.is_server() and ((mode in ["Freeplay","Creative Freeplay"] and phase=="freeplay") or (mode=="Class" and phase=="complete"))
+ 
+ func start_activity(config: Dictionary) -> Dictionary:
+ 	if not multiplayer.is_server():return {"ok":false,"error":"Only the host chooses the activity."}
+-	if formal_active():return {"ok":false,"error":"Finish the current class before switching activities."}
++	if game.front.in_game and not can_choose_next_activity():return {"ok":false,"error":"The next activity is available to the host in Freeplay or after class ends."}
+ 	var selected := str(config.get("mode","Freeplay"))
+ 	var course := str(config.get("course_id","ELM253"))
+ 	var kind := str(config.get("kind","lecture"))
+@@ -720,6 +745,8 @@
+ 		var capability: Dictionary=equipment_adapter.call("supports",assignment)
+ 		if not capability.get("ok",false):return capability
+ 	_clear_earthing_demo()
++	class_start.cancel()
++	activity_epoch+=1
+ 	papers.clear()
+ 	class_students.clear()
+ 	round_id+=1
+@@ -747,6 +774,10 @@
+ 			class_students[token]={"done":false}
+ 			if _individual_project(token).is_empty():return {"ok":false,"error":"Individual assessment generation failed."}
+ 	allocation=Benches.allocate(class_students.keys()) if kind=="lab" else {}
++	if selected=="Course":
++		class_start.arm(assessment_id,Time.get_ticks_usec())
++		for token in class_students:class_start.arrive(str(token),Time.get_ticks_usec())
++		remaining=class_start.remaining(Time.get_ticks_usec())
+ 	for peer in identities:_give_slip(int(peer))
+ 	activity_started.emit(room_bridge.point(room.get("entrance",Vector3.ZERO)))
+ 	broadcast()
+@@ -758,7 +789,7 @@
+ 	var room: Dictionary=activity.room
+ 	var title := "Open Lab room slip" if mode=="Open Lab" else "Classroom assignment"
+ 	var lines := "%s · %s\nBuilding %s · Floor %s\n%s\n%s · Week %d\nPractice only — no official marks."%[str(room.get("number",room.get("room_number",""))),str(room.get("name","")),str(room.get("building","")),str(room.get("floor","")),str(room.get("directions","Follow the hallway signs.")),str(activity.course_id),int(activity.week)]
+-	if mode=="Class":lines=lines.replace("Practice only — no official marks.","Walk to the assigned room. The host begins teaching once students are ready.")
++	if mode=="Class":lines=lines.replace("Practice only — no official marks.","Walk to the assigned room. Teaching begins automatically two minutes after Class starts.")
+ 	var token := str(identities.get(peer,""))
+ 	if allocation.has(token):lines+="\nAssigned laboratory bench %d. Share this group's real circuit; record and submit your own answers."%(int(allocation[token].bench)+1)
+ 	var pages: Array=[]
+@@ -786,18 +817,8 @@
+ 	return false
+ 
+ func begin_lesson() -> bool:
+-	if not multiplayer.is_server() or phase!="travel":return false
+-	for peer in identities:
+-		if not class_students.has(identities[peer]):continue
+-		if not _in_room(int(peer)) or (activity.get("kind","")=="lecture" and not _seated(int(peer))):
+-			_notice(1,"All participating students must reach their room and lecture students must be seated.")
+-			return false
+-	phase="lesson"
+-	for peer in identities:_record_attendance(int(peer))
+-	remaining=teaching_seconds
+-	broadcast()
+-	checkpoint()
+-	return true
++	# Legacy callers cannot start scheduled teaching early.
++	return false
+ 
+ func teaching_stage() -> Dictionary:
+ 	if presentation.get("current_only",false):return presentation.get("stages",[{}])[0] if not presentation.get("stages",[]).is_empty() else {}
+@@ -869,7 +890,7 @@
+ 
+ func checkpoint() -> void:
+ 	if not multiplayer.is_server() or activity.is_empty() or mode!="Class":return
+-	var data := {"schema":1,"host_identity":local_identity,"activity":activity,"project":project,"presentation":presentation,"papers":papers,"students":class_students,"identities":identities,"allocation":allocation,"phase":phase,"remaining":remaining,"round_id":round_id,"next_id":next_id,"assessment_id":assessment_id,"deadline":assessment_deadline,"saved_at":_academic_now()}
++	var data := {"schema":1,"host_identity":local_identity,"activity":activity,"project":project,"presentation":presentation,"papers":papers,"students":class_students,"identities":identities,"allocation":allocation,"phase":phase,"remaining":remaining,"round_id":round_id,"next_id":next_id,"assessment_id":assessment_id,"deadline":assessment_deadline,"saved_at":_academic_now(),"class_start_remaining":class_start.remaining(Time.get_ticks_usec()) if phase=="travel" else 0.0,"class_start_wall_cap":_academic_now()+class_start.remaining(Time.get_ticks_usec()) if phase=="travel" else 0.0,"class_start_arrivals":class_start.arrivals.duplicate(true)}
+ 	if equipment_adapter!=null and equipment_adapter.has_method("recovery_state"):data.equipment=equipment_adapter.call("recovery_state")
+ 	var path := "user://campus_academic_recovery.dat"
+ 	var file := FileAccess.open(path+".tmp",FileAccess.WRITE)
+@@ -889,8 +910,18 @@
+ 	activity=data.activity;project=data.project;presentation=data.presentation;class_students=data.students;allocation=data.allocation
+ 	if equipment_adapter!=null and equipment_adapter.has_method("restore_recovery"):equipment_adapter.call("restore_recovery",data.get("equipment",{}))
+ 	phase=str(data.phase);round_id=int(data.round_id);next_id=int(data.next_id);assessment_id=str(data.assessment_id);assessment_deadline=float(data.deadline)
++	activity_epoch=maxi(activity_epoch+1,int(data.get("activity_epoch",0))+1)
+ 	teaching_seconds=float(activity.teaching_seconds);assessment_seconds=float(activity.assessment_seconds)
+ 	remaining=maxf(0,float(data.remaining))
++	class_start.cancel()
++	if phase=="travel":
++		var saved_wait := float(data.get("class_start_remaining",0.0))
++		var wall_cap := float(data.get("class_start_wall_cap",0.0))
++		remaining=minf(saved_wait,maxf(0.0,wall_cap-_academic_now()))
++		class_start.restore(assessment_id,remaining,Time.get_ticks_usec(),data.get("class_start_arrivals",{}))
++	if phase=="lesson":
++		class_start.restore(assessment_id,0.0,Time.get_ticks_usec(),data.get("class_start_arrivals",{}))
++		class_start.begin_if_due(Time.get_ticks_usec())
+ 	# Neither clock rollback nor restart may increase the saved time budget.
+ 	if phase=="assignment":remaining=minf(remaining,maxf(0,assessment_deadline-_academic_now()))
+ 	# Journal peer IDs cannot authorize a newly connected peer. Bind restored work by identity.

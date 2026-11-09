@@ -1,0 +1,31 @@
+# target: scripts/campus/world/campus_world.gd
+# preimage-sha256: F20169B74740813BF9D075C3C30376572EB48E10B777846232B9B56FCE912161
+# applied-postimage-sha256: 7DADA66F0D8F30EB0DE950A6366476B45CD039FED8850198DD693717C9ABA37E
+--- a/scripts/campus/world/campus_world.gd
++++ b/scripts/campus/world/campus_world.gd
+@@ -4,6 +4,7 @@ signal elevator_requested(actor: Node3D, destination: Vector3)
+ const Registry = preload("res://scripts/campus/world/room_registry.gd")
+ const Streamer = preload("res://scripts/campus/world/zone_streamer.gd")
++const HallwayGeometry = preload("res://scripts/campus/presentation/navigation_safety/hallway_geometry.gd")
+ var registry = Registry.new()
+ var streamer = Streamer.new()
+ var room_roots: Dictionary = {}
+@@ -31,6 +32,7 @@ func build() -> void:
+ 	streamer.zone_activation_changed.connect(func(id: String, enabled: bool): zone_activation_changed.emit(id,enabled))
+ 	_circulation()
+ 	for room in registry.rooms.values(): _room(room)
++	_close_hallway_voids()
+ 	_stairs()
+ 	_elevator()
+ 	_paving()
+@@ -165,6 +167,12 @@ func _circulation() -> void:
+ 	fixtures.material_override=material("f5edd3")
+ 	add_child(fixtures)
+ 
++func _close_hallway_voids() -> void:
++	# Room shells intentionally own their doors. These sections cover only the
++	# unsupported seams between shells, with matching visible/collision geometry.
++	for closure in HallwayGeometry.edge_closures():
++		box(self,closure.position,closure.size,HallwayGeometry.WALL_COLOR)
++
+ func _stairs() -> void:

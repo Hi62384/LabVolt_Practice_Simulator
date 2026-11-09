@@ -1,0 +1,14 @@
+{
+  "schema": "eight-participants-v9-reviewer-correction",
+  "owner_v8_preserved": true,
+  "changes": [
+    "lifecycle admission tuple binds difficulty exactly to integer 0 for every course",
+    "parser path guard forbids parser_result, previous_result, previous_name, and answer_fixture"
+  ],
+  "actual_call_path": "run_j.py calls validate_paths and envelope before fixture/grant loading",
+  "valid_plans": 5,
+  "v7_tests": 11,
+  "v8_tests": 11,
+  "v9_tests": 6,
+  "behavioral_acceptance": "UNRUN"
+}

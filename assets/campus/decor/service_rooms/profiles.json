@@ -1,0 +1,1629 @@
+{
+  "schema": 1,
+  "authorship": "Original mathematical geometry authored for this project; no external assets",
+  "materials": {
+    "oak": [
+      "b99160",
+      0.78,
+      0
+    ],
+    "oak_light": [
+      "cda977",
+      0.8,
+      0
+    ],
+    "ink": [
+      "253a44",
+      0.7,
+      0.12
+    ],
+    "steel": [
+      "9baaad",
+      0.32,
+      0.7
+    ],
+    "porcelain": [
+      "ecede5",
+      0.24,
+      0
+    ],
+    "teal": [
+      "317a7d",
+      0.76,
+      0
+    ],
+    "rubber": [
+      "30383b",
+      0.95,
+      0
+    ],
+    "line": [
+      "ece6d3",
+      0.8,
+      0
+    ],
+    "mirror": [
+      "b3d4d5",
+      0.16,
+      0.8
+    ],
+    "leaf": [
+      "4e7161",
+      0.9,
+      0
+    ],
+    "terracotta": [
+      "b16d51",
+      0.82,
+      0
+    ],
+    "paper": [
+      "e1d5b8",
+      0.9,
+      0
+    ]
+  },
+  "profiles": {
+    "gym": {
+      "origin": [
+        0,
+        0,
+        33
+      ],
+      "groups": [
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_ink.obj",
+          "material": "ink",
+          "triangles": 1056
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_line.obj",
+          "material": "line",
+          "triangles": 540
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_oak.obj",
+          "material": "oak",
+          "triangles": 192
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_oak_light.obj",
+          "material": "oak_light",
+          "triangles": 180
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_paper.obj",
+          "material": "paper",
+          "triangles": 72
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_rubber.obj",
+          "material": "rubber",
+          "triangles": 1152
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_steel.obj",
+          "material": "steel",
+          "triangles": 1368
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_teal.obj",
+          "material": "teal",
+          "triangles": 192
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/gym_terracotta.obj",
+          "material": "terracotta",
+          "triangles": 720
+        }
+      ],
+      "objects": [
+        {
+          "name": "maple_course_00",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -5.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -5.453
+          ]
+        },
+        {
+          "name": "maple_course_01",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -5.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -4.953
+          ]
+        },
+        {
+          "name": "maple_course_02",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -4.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -4.453
+          ]
+        },
+        {
+          "name": "maple_course_03",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -4.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -3.9530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_04",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -3.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -3.4530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_05",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -3.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -2.9530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_06",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -2.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -2.4530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_07",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -2.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -1.9530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_08",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -1.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -1.4530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_09",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -1.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -0.9530000000000002
+          ]
+        },
+        {
+          "name": "maple_course_10",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -0.9470000000000002
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -0.4530000000000002
+          ]
+        },
+        {
+          "name": "maple_course_11",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -0.4470000000000002
+          ],
+          "max": [
+            9.825,
+            0.015,
+            0.04699999999999982
+          ]
+        },
+        {
+          "name": "maple_course_12",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            0.052999999999999825
+          ],
+          "max": [
+            9.825,
+            0.015,
+            0.5469999999999998
+          ]
+        },
+        {
+          "name": "maple_course_13",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            0.5529999999999998
+          ],
+          "max": [
+            9.825,
+            0.015,
+            1.0469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_14",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            1.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            1.5469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_15",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            1.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            2.0469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_16",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            2.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            2.5469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_17",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            2.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            3.0469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_18",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            3.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            3.5469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_19",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            3.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            4.047
+          ]
+        },
+        {
+          "name": "maple_course_20",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            4.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            4.547
+          ]
+        },
+        {
+          "name": "maple_course_21",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            4.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            5.047
+          ]
+        },
+        {
+          "name": "maple_course_22",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            5.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            5.547
+          ]
+        },
+        {
+          "name": "training_court_linework",
+          "role": "surface",
+          "min": [
+            -8.0225,
+            0.016,
+            -4.7225
+          ],
+          "max": [
+            8.0225,
+            0.022,
+            4.7225
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-6_-4.9",
+          "role": "wall",
+          "min": [
+            -7.1,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            -4.9,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-3_-4.9",
+          "role": "wall",
+          "min": [
+            -4.1,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            -1.9,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_0_-4.9",
+          "role": "wall",
+          "min": [
+            -1.1,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            1.1,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_3_-4.9",
+          "role": "wall",
+          "min": [
+            1.9,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            4.1,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_6_-4.9",
+          "role": "wall",
+          "min": [
+            4.9,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            7.1,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-6_4.9",
+          "role": "wall",
+          "min": [
+            -7.1,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            -4.9,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-3_4.9",
+          "role": "wall",
+          "min": [
+            -4.1,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            -1.9,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_0_4.9",
+          "role": "wall",
+          "min": [
+            -1.1,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            1.1,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_3_4.9",
+          "role": "wall",
+          "min": [
+            1.9,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            4.1,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_6_4.9",
+          "role": "wall",
+          "min": [
+            4.9,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            7.1,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "ventilated_locker_-4",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            -4.44
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            -3.56
+          ]
+        },
+        {
+          "name": "ventilated_locker_-3",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            -3.44
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            -2.56
+          ]
+        },
+        {
+          "name": "ventilated_locker_-2",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            -2.44
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            -1.56
+          ]
+        },
+        {
+          "name": "ventilated_locker_2",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            1.56
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            2.44
+          ]
+        },
+        {
+          "name": "ventilated_locker_3",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            2.56
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            3.44
+          ]
+        },
+        {
+          "name": "ventilated_locker_4",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            3.56
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            4.44
+          ]
+        },
+        {
+          "name": "slatted_team_bench_-5.6",
+          "role": "furniture",
+          "min": [
+            -6.699999999999999,
+            0.075,
+            4.8475
+          ],
+          "max": [
+            -4.5,
+            1.04,
+            5.38
+          ]
+        },
+        {
+          "name": "slatted_team_bench_4.8",
+          "role": "furniture",
+          "min": [
+            3.6999999999999997,
+            0.075,
+            4.8475
+          ],
+          "max": [
+            5.9,
+            1.04,
+            5.38
+          ]
+        },
+        {
+          "name": "bench_round_weight_plates",
+          "role": "equipment_detail",
+          "min": [
+            2.803,
+            0.96,
+            -3.09
+          ],
+          "max": [
+            5.197000000000001,
+            1.54,
+            -2.51
+          ]
+        },
+        {
+          "name": "squat_round_weight_plates",
+          "role": "equipment_detail",
+          "min": [
+            -6.197000000000001,
+            1.06,
+            2.71
+          ],
+          "max": [
+            -3.803,
+            1.6400000000000001,
+            3.29
+          ]
+        },
+        {
+          "name": "curl_dumbbell_-1.2",
+          "role": "equipment_detail",
+          "min": [
+            -1.44,
+            0.6599999999999999,
+            2.1399999999999997
+          ],
+          "max": [
+            -0.96,
+            0.98,
+            2.46
+          ]
+        },
+        {
+          "name": "curl_dumbbell_-0.5",
+          "role": "equipment_detail",
+          "min": [
+            -0.74,
+            0.6599999999999999,
+            2.1399999999999997
+          ],
+          "max": [
+            -0.26,
+            0.98,
+            2.46
+          ]
+        },
+        {
+          "name": "curl_dumbbell_0.2",
+          "role": "equipment_detail",
+          "min": [
+            -0.039999999999999994,
+            0.6599999999999999,
+            2.1399999999999997
+          ],
+          "max": [
+            0.44,
+            0.98,
+            2.46
+          ]
+        },
+        {
+          "name": "open_ball_storage",
+          "role": "furniture",
+          "min": [
+            6.265,
+            0.07,
+            4.415
+          ],
+          "max": [
+            8.335,
+            1.65,
+            5.135
+          ]
+        }
+      ],
+      "triangles": 5472
+    },
+    "washroom_1": {
+      "origin": [
+        0,
+        0,
+        47
+      ],
+      "groups": [
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_ink.obj",
+          "material": "ink",
+          "triangles": 1176
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_mirror.obj",
+          "material": "mirror",
+          "triangles": 48
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_oak.obj",
+          "material": "oak",
+          "triangles": 48
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_paper.obj",
+          "material": "paper",
+          "triangles": 280
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_porcelain.obj",
+          "material": "porcelain",
+          "triangles": 3292
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_steel.obj",
+          "material": "steel",
+          "triangles": 2136
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_teal.obj",
+          "material": "teal",
+          "triangles": 252
+        }
+      ],
+      "objects": [
+        {
+          "name": "gridded_terrazzo_floor",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002,
+            -5.825
+          ],
+          "max": [
+            9.825,
+            0.018000000000000002,
+            5.825
+          ]
+        },
+        {
+          "name": "private_cubicle_0",
+          "role": "furniture",
+          "min": [
+            -8.635,
+            0.03,
+            2.438
+          ],
+          "max": [
+            -4.965,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "private_cubicle_1",
+          "role": "furniture",
+          "min": [
+            -4.4350000000000005,
+            0.03,
+            2.438
+          ],
+          "max": [
+            -0.765,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "private_cubicle_2",
+          "role": "furniture",
+          "min": [
+            -0.23499999999999996,
+            0.03,
+            2.438
+          ],
+          "max": [
+            3.4350000000000005,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "private_cubicle_3",
+          "role": "furniture",
+          "min": [
+            3.965,
+            0.03,
+            2.438
+          ],
+          "max": [
+            7.635,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_-6",
+          "role": "furniture",
+          "min": [
+            -7.35,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            -4.65,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_-2",
+          "role": "furniture",
+          "min": [
+            -3.35,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            -0.6499999999999999,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_2",
+          "role": "furniture",
+          "min": [
+            0.6499999999999999,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            3.35,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_6",
+          "role": "furniture",
+          "min": [
+            4.65,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            7.35,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "entry_privacy_return",
+          "role": "furniture",
+          "min": [
+            8.155,
+            0.1499999999999999,
+            2.65
+          ],
+          "max": [
+            8.245,
+            2.25,
+            4.65
+          ]
+        },
+        {
+          "name": "towel_dispenser_-9",
+          "role": "furniture",
+          "min": [
+            -9.11,
+            0.86,
+            -4.075
+          ],
+          "max": [
+            -8.89,
+            1.5750000000000002,
+            -3.725
+          ]
+        },
+        {
+          "name": "towel_dispenser_9",
+          "role": "furniture",
+          "min": [
+            8.89,
+            0.86,
+            -4.075
+          ],
+          "max": [
+            9.11,
+            1.5750000000000002,
+            -3.725
+          ]
+        }
+      ],
+      "triangles": 7232
+    },
+    "washroom_2": {
+      "origin": [
+        26,
+        5,
+        33
+      ],
+      "groups": [
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_ink.obj",
+          "material": "ink",
+          "triangles": 1176
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_mirror.obj",
+          "material": "mirror",
+          "triangles": 48
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_oak.obj",
+          "material": "oak",
+          "triangles": 48
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_paper.obj",
+          "material": "paper",
+          "triangles": 280
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_porcelain.obj",
+          "material": "porcelain",
+          "triangles": 3292
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_steel.obj",
+          "material": "steel",
+          "triangles": 2136
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/washroom_teal.obj",
+          "material": "teal",
+          "triangles": 252
+        }
+      ],
+      "objects": [
+        {
+          "name": "gridded_terrazzo_floor",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002,
+            -5.825
+          ],
+          "max": [
+            9.825,
+            0.018000000000000002,
+            5.825
+          ]
+        },
+        {
+          "name": "private_cubicle_0",
+          "role": "furniture",
+          "min": [
+            -8.635,
+            0.03,
+            2.438
+          ],
+          "max": [
+            -4.965,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "private_cubicle_1",
+          "role": "furniture",
+          "min": [
+            -4.4350000000000005,
+            0.03,
+            2.438
+          ],
+          "max": [
+            -0.765,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "private_cubicle_2",
+          "role": "furniture",
+          "min": [
+            -0.23499999999999996,
+            0.03,
+            2.438
+          ],
+          "max": [
+            3.4350000000000005,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "private_cubicle_3",
+          "role": "furniture",
+          "min": [
+            3.965,
+            0.03,
+            2.438
+          ],
+          "max": [
+            7.635,
+            2.425,
+            5.699999999999999
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_-6",
+          "role": "furniture",
+          "min": [
+            -7.35,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            -4.65,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_-2",
+          "role": "furniture",
+          "min": [
+            -3.35,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            -0.6499999999999999,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_2",
+          "role": "furniture",
+          "min": [
+            0.6499999999999999,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            3.35,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "floating_basin_mirror_6",
+          "role": "furniture",
+          "min": [
+            4.65,
+            0.6771406741025067,
+            -5.789999999999999
+          ],
+          "max": [
+            7.35,
+            2.535,
+            -4.75
+          ]
+        },
+        {
+          "name": "entry_privacy_return",
+          "role": "furniture",
+          "min": [
+            8.155,
+            0.1499999999999999,
+            2.65
+          ],
+          "max": [
+            8.245,
+            2.25,
+            4.65
+          ]
+        },
+        {
+          "name": "towel_dispenser_-9",
+          "role": "furniture",
+          "min": [
+            -9.11,
+            0.86,
+            -4.075
+          ],
+          "max": [
+            -8.89,
+            1.5750000000000002,
+            -3.725
+          ]
+        },
+        {
+          "name": "towel_dispenser_9",
+          "role": "furniture",
+          "min": [
+            8.89,
+            0.86,
+            -4.075
+          ],
+          "max": [
+            9.11,
+            1.5750000000000002,
+            -3.725
+          ]
+        }
+      ],
+      "triangles": 7232
+    },
+    "circulation_0": {
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "groups": [
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_ink.obj",
+          "material": "ink",
+          "triangles": 456
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_leaf.obj",
+          "material": "leaf",
+          "triangles": 252
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_oak.obj",
+          "material": "oak",
+          "triangles": 120
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_paper.obj",
+          "material": "paper",
+          "triangles": 216
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_steel.obj",
+          "material": "steel",
+          "triangles": 36
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_teal.obj",
+          "material": "teal",
+          "triangles": 2088
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_terracotta.obj",
+          "material": "terracotta",
+          "triangles": 240
+        }
+      ],
+      "objects": [
+        {
+          "name": "framed_campus_print_10.09_10",
+          "role": "wall",
+          "min": [
+            10.0725,
+            1.275,
+            10.25
+          ],
+          "max": [
+            10.135499999999999,
+            2.625,
+            12.75
+          ]
+        },
+        {
+          "name": "framed_campus_print_15.91_10",
+          "role": "wall",
+          "min": [
+            15.864500000000001,
+            1.275,
+            10.25
+          ],
+          "max": [
+            15.9275,
+            2.625,
+            12.75
+          ]
+        },
+        {
+          "name": "framed_campus_print_10.09_25",
+          "role": "wall",
+          "min": [
+            10.0725,
+            1.275,
+            25.125
+          ],
+          "max": [
+            10.135499999999999,
+            2.625,
+            26.875
+          ]
+        },
+        {
+          "name": "framed_campus_print_15.91_25",
+          "role": "wall",
+          "min": [
+            15.864500000000001,
+            1.275,
+            25.125
+          ],
+          "max": [
+            15.9275,
+            2.625,
+            26.875
+          ]
+        },
+        {
+          "name": "framed_campus_print_10.09_39",
+          "role": "wall",
+          "min": [
+            10.0725,
+            1.275,
+            39.125
+          ],
+          "max": [
+            10.135499999999999,
+            2.625,
+            40.875
+          ]
+        },
+        {
+          "name": "framed_campus_print_15.91_39",
+          "role": "wall",
+          "min": [
+            15.864500000000001,
+            1.275,
+            39.125
+          ],
+          "max": [
+            15.9275,
+            2.625,
+            40.875
+          ]
+        },
+        {
+          "name": "lift_alcove_bench",
+          "role": "furniture",
+          "min": [
+            18.9,
+            0.075,
+            61.097500000000004
+          ],
+          "max": [
+            21.1,
+            1.04,
+            61.650846888888665
+          ]
+        },
+        {
+          "name": "lift_alcove_plant",
+          "role": "furniture",
+          "min": [
+            22.468268557871173,
+            0.03,
+            60.712071111228646
+          ],
+          "max": [
+            23.54,
+            1.5,
+            61.77145519933661
+          ]
+        },
+        {
+          "name": "lift_jamb_58.03",
+          "role": "wall",
+          "min": [
+            16.040000000000003,
+            0.0,
+            58.0
+          ],
+          "max": [
+            16.16,
+            2.9,
+            58.06
+          ]
+        },
+        {
+          "name": "lift_jamb_59.97",
+          "role": "wall",
+          "min": [
+            16.040000000000003,
+            0.0,
+            59.94
+          ],
+          "max": [
+            16.16,
+            2.9,
+            60.0
+          ]
+        },
+        {
+          "name": "lift_header",
+          "role": "wall",
+          "min": [
+            16.040000000000003,
+            2.9,
+            58.0
+          ],
+          "max": [
+            16.16,
+            2.98,
+            60.0
+          ]
+        }
+      ],
+      "triangles": 3408
+    },
+    "circulation_1": {
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "groups": [
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_ink.obj",
+          "material": "ink",
+          "triangles": 456
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_leaf.obj",
+          "material": "leaf",
+          "triangles": 252
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_oak.obj",
+          "material": "oak",
+          "triangles": 120
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_paper.obj",
+          "material": "paper",
+          "triangles": 216
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_steel.obj",
+          "material": "steel",
+          "triangles": 36
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_teal.obj",
+          "material": "teal",
+          "triangles": 2088
+        },
+        {
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_terracotta.obj",
+          "material": "terracotta",
+          "triangles": 240
+        }
+      ],
+      "objects": [
+        {
+          "name": "framed_campus_print_10.09_9",
+          "role": "wall",
+          "min": [
+            10.0725,
+            6.275,
+            9.75
+          ],
+          "max": [
+            10.135499999999999,
+            7.625,
+            12.25
+          ]
+        },
+        {
+          "name": "framed_campus_print_15.91_9",
+          "role": "wall",
+          "min": [
+            15.864500000000001,
+            6.275,
+            9.75
+          ],
+          "max": [
+            15.9275,
+            7.625,
+            12.25
+          ]
+        },
+        {
+          "name": "framed_campus_print_10.09_25",
+          "role": "wall",
+          "min": [
+            10.0725,
+            6.275,
+            25.125
+          ],
+          "max": [
+            10.135499999999999,
+            7.625,
+            26.875
+          ]
+        },
+        {
+          "name": "framed_campus_print_15.91_25",
+          "role": "wall",
+          "min": [
+            15.864500000000001,
+            6.275,
+            25.125
+          ],
+          "max": [
+            15.9275,
+            7.625,
+            26.875
+          ]
+        },
+        {
+          "name": "framed_campus_print_10.09_41",
+          "role": "wall",
+          "min": [
+            10.0725,
+            6.275,
+            41.75
+          ],
+          "max": [
+            10.135499999999999,
+            7.625,
+            44.25
+          ]
+        },
+        {
+          "name": "framed_campus_print_15.91_41",
+          "role": "wall",
+          "min": [
+            15.864500000000001,
+            6.275,
+            41.75
+          ],
+          "max": [
+            15.9275,
+            7.625,
+            44.25
+          ]
+        },
+        {
+          "name": "lift_alcove_bench",
+          "role": "furniture",
+          "min": [
+            18.9,
+            5.075,
+            61.097500000000004
+          ],
+          "max": [
+            21.1,
+            6.04,
+            61.650846888888665
+          ]
+        },
+        {
+          "name": "lift_alcove_plant",
+          "role": "furniture",
+          "min": [
+            22.468268557871173,
+            5.03,
+            60.712071111228646
+          ],
+          "max": [
+            23.54,
+            6.5,
+            61.77145519933661
+          ]
+        },
+        {
+          "name": "lift_jamb_58.03",
+          "role": "wall",
+          "min": [
+            16.040000000000003,
+            5.0,
+            58.0
+          ],
+          "max": [
+            16.16,
+            7.9,
+            58.06
+          ]
+        },
+        {
+          "name": "lift_jamb_59.97",
+          "role": "wall",
+          "min": [
+            16.040000000000003,
+            5.0,
+            59.94
+          ],
+          "max": [
+            16.16,
+            7.9,
+            60.0
+          ]
+        },
+        {
+          "name": "lift_header",
+          "role": "wall",
+          "min": [
+            16.040000000000003,
+            7.8999999999999995,
+            58.0
+          ],
+          "max": [
+            16.16,
+            7.9799999999999995,
+            60.0
+          ]
+        }
+      ],
+      "triangles": 3408
+    }
+  }
+}

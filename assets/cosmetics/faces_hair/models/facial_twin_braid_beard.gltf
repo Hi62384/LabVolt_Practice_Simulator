@@ -1,0 +1,220 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Twin Braid Beard",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Twin Braid Beard",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "hair_highlight",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.62
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_orm.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "facial_twin_braid_beard.bin",
+      "byteLength": 344064
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 64512
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 64512,
+      "byteLength": 64512
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 129024,
+      "byteLength": 43008
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 172032,
+      "byteLength": 64512
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 236544,
+      "byteLength": 64512
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 301056,
+      "byteLength": 43008
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC3",
+      "min": [
+        -0.068,
+        -0.2939961121049749,
+        0.027355885335610373
+      ],
+      "max": [
+        0.068,
+        -0.12600388789502512,
+        0.18010433192410794
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC3",
+      "min": [
+        -0.0695,
+        -0.3139961121049749,
+        0.03057665801981805
+      ],
+      "max": [
+        0.0695,
+        -0.1460038878950251,
+        0.1747071020335375
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC2"
+    }
+  ]
+}

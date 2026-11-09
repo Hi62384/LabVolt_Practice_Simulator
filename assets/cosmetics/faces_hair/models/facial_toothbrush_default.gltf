@@ -1,0 +1,133 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Toothbrush Moustache",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Toothbrush Moustache",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "facial_toothbrush_default.bin",
+      "byteLength": 28800
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 10800
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 10800,
+      "byteLength": 10800
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 21600,
+      "byteLength": 7200
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 900,
+      "type": "VEC3",
+      "min": [
+        -0.02170633909777092,
+        -0.0933076923076923,
+        0.15308230028120656
+      ],
+      "max": [
+        0.02170633909777092,
+        -0.0646923076923077,
+        0.1716814814814815
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 900,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 900,
+      "type": "VEC2"
+    }
+  ]
+}

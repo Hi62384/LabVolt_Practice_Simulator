@@ -1,0 +1,12 @@
+[
+  {
+    "path": "scripts/electronics_ui.gd",
+    "preimage_sha256": "2ae602395705705a0e32c26c0226befe8539bca6da7a98010dd6fc1abfbd62f0",
+    "candidate_sha256": "3967a3a993f7184cf34ee5c9f2e03a1b12b0e35afcfa1db7f9259eeb3e7acc65"
+  },
+  {
+    "path": "scripts/breadboard_canvas.gd",
+    "preimage_sha256": "7f0b635b0deaae10591c3b3b87dd8624a999e0324ec67f4f0b5b5bac6357e8a7",
+    "candidate_sha256": "41fa336c1d889743514ca900d99580b23fa3cdc835878225cf55f7e8a0c0d3ea"
+  }
+]

@@ -1,0 +1,25 @@
+PRIVATE TUTORIAL CONTRACT (freeplay/open-lab only)
+
+Catalog.devices(lab_id) -> ordered Array of device cards with id,title,purpose,output,
+controls,ports,steps,mistakes,detail and cue keys. Stable lab IDs: ac_lab -> ELM253,
+dc_lab -> ETY155. Unknown IDs return no devices.
+
+Session.new().configure(peer_id,lab_id,bench_index) owns only this player's device/step/skip state.
+choose(device_id), skip(), restart(), exit(), view() are local tutorial operations.
+observe(event, snapshot) advances a step only after a matching real action or solver
+observation. event carries peer_id, lab_id, bench_index, op, key/index/value, port
+and optional accepted flag from existing host result. Other peers' events are ignored.
+
+Projection.cue(session_view, camera, world_target) is client HUD data only: label,
+screen position and visibility. UI owner draws an overlay outside protected AC
+equipment subtree. It never edits AC resources/materials/colliders/terminals.
+
+No tutorial function changes equipment, grades, worksheets, assignments or saves.
+Main owns integration into instructor UI. Device list/tour is inside Equipment Tutorial.
+
+Controller.open(game) resolves the stable room from school.room_bridge.registry.locate(player
+position). It accepts Open Lab, Freeplay and Creative Freeplay only while physically in
+ac_lab or dc_lab. game.open_lab_equipment_tutorial() is staged in game_hooks.json.
+Controller.record_intent() is called on the local AC/DC request path after existing guards;
+controller polls authoritative snapshot revision plus the exact affected field/lead before
+advancing. F6 reopens tutorial steps during hands-on practice; Escape exits locally.

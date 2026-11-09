@@ -1,0 +1,49 @@
+diff --git a/scripts/campus/world/campus_world.gd b/scripts/campus/world/campus_world.gd
+--- a/scripts/campus/world/campus_world.gd
++++ b/scripts/campus/world/campus_world.gd
+@@ -3,6 +3,7 @@ signal zone_activation_changed(room_id: String, active: bool)
+ signal elevator_requested(actor: Node3D, destination: Vector3)
+ const Registry = preload("res://scripts/campus/world/room_registry.gd")
+ const Streamer = preload("res://scripts/campus/world/zone_streamer.gd")
++const Signage = preload("res://scripts/campus/presentation/signage/campus_signage.gd")
+ var registry = Registry.new()
+ var streamer = Streamer.new()
+@@ -69,18 +70,9 @@ func box(parent: Node3D, pos: Vector3, size: Vector3, color: String, solid: bool=
+ 	return node
+ 
+ func sign_text(parent: Node3D, text: String, point: Vector3, yaw: float=0.0, font_size: int=56) -> Label3D:
+-	var label := Label3D.new()
+-	label.text=text
+-	label.font_size=font_size
+-	label.pixel_size=.006
+-	label.position=point
+-	label.rotation.y=yaw
+-	label.modulate=Color("e7f5ef")
+-	label.outline_modulate=Color("193e47")
+-	label.no_depth_test=false
+-	label.visibility_range_end=24
++	var label := Signage.create_label(text,point,yaw,font_size)
+ 	parent.add_child(label)
+ 	return label
+@@ -104,8 +96,7 @@ func _room(room: Dictionary) -> void:
+ 	for direction in [-1,1]:
+ 		box(root,Vector3(wall_x,center.y+2,center.z+direction*(float(room.door_width)/2+side/2)),Vector3(.16,4,side),"a6b9b4")
+ 	box(root,door+Vector3(0,3.5,0),Vector3(.16,1,float(room.door_width)),"34606a")
+-	sign_text(root,str(room.number)+"\n"+str(room.title),door+Vector3(.12 if west else -.12,3.5,0),-PI/2 if west else PI/2,36)
+-	sign_text(root,str(room.number),door+Vector3(-.12 if west else .12,3.5,0),PI/2 if west else -PI/2,42)
++	Signage.add_room_number_faces(root,room,door,west)
+ 	var marker := Marker3D.new()
+diff --git a/scripts/campus/ui/campus_hud.gd b/scripts/campus/ui/campus_hud.gd
+--- a/scripts/campus/ui/campus_hud.gd
++++ b/scripts/campus/ui/campus_hud.gd
+@@ -1,4 +1,5 @@
+ extends HBoxContainer
++const Signage = preload("res://scripts/campus/presentation/signage/campus_signage.gd")
+ # Caller supplies already-authoritative activity and locally resolved registry room.
+ var location: Label
+@@ -11,7 +12,7 @@ func _ready() -> void:
+ 	add_theme_constant_override("separation",22)
+ func update_state(room: Dictionary, state: Dictionary, remaining_seconds: float, destination: Dictionary={}) -> void:
+-	location.text=str(room.get("number","Campus"))+" · "+str(room.get("title",""))
++	location.text=Signage.room_hud_identity(room)
+ 	activity.text=str(state.get("mode","Freeplay"))+" · "+str(state.get("course_id",""))

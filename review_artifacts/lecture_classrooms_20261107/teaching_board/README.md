@@ -1,0 +1,15 @@
+# Teaching board integration contract
+
+This is a read-only render adapter. `school_session.gd` owns lesson timing, authority, public presentation filtering, grades, and worksheets. During `phase == "lesson"`, pass only `school.teaching_stage()` to `show_content()`. For all other phases, pass a text stage. Call `set_room_active(false)` when the local player is not in the assigned lecture room; its viewport then stops rendering. The viewport updates once per distinct stage or status value.
+
+The renderer accepts released stage fields `title`, `text` or `caption`, `formulas`, `worked`, `math` (AST or parseable notation), `problem.ast`, `diagram` or `problem.diagram`, and up to four `steps`. The diagram format is the existing `graph_canvas.gd`, `diagram_view.gd`, `course_diagram.gd` netlist, or `table_editor.gd` descriptor. Images require a project texture path under `res://assets/`. Unknown diagram formats display their caption only. Nothing reaches assessment answer keys through this adapter.
+
+Existing electrical presentation stages contain text, formulas, and worked examples; math stages contain notation and diagrams. Some electrical assignments contain a public netlist but their lecture stages do not. The integrator may attach an already public, course appropriate diagram to a released stage when that presentation calls for it. Do not attach private reference parts, result, answer keys, or future math stages.
+
+`diagram_action_requested` is a hook for future host validated demonstrations. Current board output is read only. Do not connect this signal to a local authoritative lesson mutation. Instructor interaction remains the existing teacher target in `school_world.gd`.
+
+## M203 computer teaching display
+
+M203 can mount the same `teaching_board.gd` instance at its own display anchor, then call `set_room_active(local_player_in_m203)` and `show_public_content({"course_id": id, "phase": phase, "heading": title, "stage": released_stage, "status": time_label})` on a change to the host's public teaching state. During a lecture, `released_stage` must be the current `school.teaching_stage()` value, or the equivalent single host-published current stage from M203's session adapter. This method is only a field adapter to `show_content`; it creates no second renderer or authority path. During nonlesson phases, provide a status text stage such as `{"text": "Class begins in 01:30"}`. Student desktops, private files, drafts, answer keys, and per-user worksheets must never be placed in this payload. Room owner supplies the actual display mount transform; session owner supplies public stage and phase; desktop UI owner keeps student data in each student's own view.
+
+The board texture is 1600 × 700 pixels over 5.55 × 2.43 m. Main headings are 39 px, lesson text 30 px and diagram labels inherit existing canvas fonts. Check the integrated board at the farthest real student seat and change its physical size or seat layout if needed. The supplied patch uses the current moving board position; the classroom environment integrator should use each room's published board anchor instead.

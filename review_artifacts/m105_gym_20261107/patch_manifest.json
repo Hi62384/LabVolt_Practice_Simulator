@@ -1,0 +1,18 @@
+{
+  "scripts/campus/facilities/facility_host.gd": {
+    "preimage_sha256": "b127b6cb72accc276d6125edfc8d15385237c2b4c8a4279e9f46b72d3876086f",
+    "patch": "facility_host.gd.patch"
+  },
+  "scripts/campus/facilities/facility_panel.gd": {
+    "preimage_sha256": "be53693fe7a3357b7370aecc85524fce4d5e73973e98d3bb126cc2eee48cabb3",
+    "patch": "facility_panel.gd.patch"
+  },
+  "scripts/campus/facilities/facility_room.gd": {
+    "preimage_sha256": "1ded4bbe3aa6db7ede49b88b7f5415a39bf10584b69ea6d88f90410a2f60dd76",
+    "patch": "facility_room.gd.patch"
+  },
+  "scripts/campus_integration.gd": {
+    "preimage_sha256": "90de50b3d38b1d90e81e8b24defcb9b55877bbf1ba0d6754614bfb028162695e",
+    "patch": "campus_integration.gd.patch"
+  }
+}

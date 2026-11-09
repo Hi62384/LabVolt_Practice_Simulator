@@ -1,0 +1,6026 @@
+{
+  "schema": 1,
+  "coordinates": "room-local metres, centered on registry center; yaw degrees; no parent anchor offset",
+  "palette": {
+    "oak": {
+      "color": "b88b5a",
+      "roughness": 0.66
+    },
+    "walnut": {
+      "color": "644437",
+      "roughness": 0.7
+    },
+    "metal": {
+      "color": "303e46",
+      "roughness": 0.4,
+      "metallic": 0.65
+    },
+    "sage": {
+      "color": "55806b",
+      "roughness": 0.85
+    },
+    "red": {
+      "color": "a83e42",
+      "roughness": 0.8
+    },
+    "cream": {
+      "color": "eee2c7",
+      "roughness": 0.65
+    },
+    "leaf": {
+      "color": "367657",
+      "roughness": 0.9
+    },
+    "brass": {
+      "color": "bd9956",
+      "roughness": 0.38,
+      "metallic": 0.7
+    },
+    "blue": {
+      "color": "607c99",
+      "roughness": 0.8
+    },
+    "bread": {
+      "color": "d8a15e",
+      "roughness": 0.93
+    },
+    "window": {
+      "color": "b3d3d4",
+      "roughness": 0.3
+    },
+    "glow": {
+      "color": "f5dda9",
+      "roughness": 0.65,
+      "emission": 0.35
+    }
+  },
+  "meshes": {
+    "dining_table__oak": {
+      "mesh": "dining_table__oak",
+      "material": "oak",
+      "triangles": 96,
+      "bounds_min": [
+        -0.75,
+        0.7,
+        -0.5
+      ],
+      "bounds_max": [
+        0.75,
+        0.8,
+        0.5
+      ],
+      "sha256": "8b0df1b93a9de83e6b547c2bbcbd105a1a766a49fb93057c58df8d1952467d1a"
+    },
+    "dining_table__metal": {
+      "mesh": "dining_table__metal",
+      "material": "metal",
+      "triangles": 240,
+      "bounds_min": [
+        -0.43,
+        0.02,
+        -0.43
+      ],
+      "bounds_max": [
+        0.43,
+        0.7,
+        0.43
+      ],
+      "sha256": "9da85d833ad47c7c29ddee1226447b7dab7ccf3b714d4fd9327e2a273a54023c"
+    },
+    "chair__sage": {
+      "mesh": "chair__sage",
+      "material": "sage",
+      "triangles": 228,
+      "bounds_min": [
+        -0.3288924172750679,
+        0.39,
+        -0.29
+      ],
+      "bounds_max": [
+        0.3288924172750679,
+        0.96,
+        0.43
+      ],
+      "sha256": "e992f7181d577bbd7ed6fc2a371f4741d87cdd8de2c61b0b839b7ddd406f65cd"
+    },
+    "chair__metal": {
+      "mesh": "chair__metal",
+      "material": "metal",
+      "triangles": 160,
+      "bounds_min": [
+        -0.3015512594141128,
+        0.014229891118472837,
+        -0.280607134872897
+      ],
+      "bounds_max": [
+        0.3015512594141128,
+        0.41577010888152716,
+        0.280607134872897
+      ],
+      "sha256": "0e184df5a15ad687f9fd23551de24ab8cfb8f7e361d9610628cddef2d1af6ce7"
+    },
+    "counter__sage": {
+      "mesh": "counter__sage",
+      "material": "sage",
+      "triangles": 96,
+      "bounds_min": [
+        -3.0,
+        0.06,
+        -0.38
+      ],
+      "bounds_max": [
+        3.0,
+        1.08,
+        0.38
+      ],
+      "sha256": "f6bc0a7436e767ea2b0a860fb517b17924d169ebc2358dcd09fd7b71405b50aa"
+    },
+    "counter__cream": {
+      "mesh": "counter__cream",
+      "material": "cream",
+      "triangles": 96,
+      "bounds_min": [
+        -3.1000000000000005,
+        1.08,
+        -0.5
+      ],
+      "bounds_max": [
+        3.1000000000000005,
+        1.18,
+        0.5
+      ],
+      "sha256": "11d93de01fad28e7e52a0823faa231a1e5800e4aa848f9b526f2f0802eafb9b6"
+    },
+    "counter__metal": {
+      "mesh": "counter__metal",
+      "material": "metal",
+      "triangles": 96,
+      "bounds_min": [
+        -2.8,
+        0.14,
+        0.37
+      ],
+      "bounds_max": [
+        2.8,
+        0.2,
+        0.41000000000000003
+      ],
+      "sha256": "dd0db9ab7280cf65e281db4573a26123c6584ab989ec923abc5aed39ca7f8619"
+    },
+    "counter__oak": {
+      "mesh": "counter__oak",
+      "material": "oak",
+      "triangles": 736,
+      "bounds_min": [
+        -2.665,
+        0.25,
+        0.367
+      ],
+      "bounds_max": [
+        2.664999999999999,
+        0.98,
+        0.41700000000000004
+      ],
+      "sha256": "4dcbf9480e51ca387ce990927b4fc390538b214f46b87d226f01534784f0bac3"
+    },
+    "tray_setting__metal": {
+      "mesh": "tray_setting__metal",
+      "material": "metal",
+      "triangles": 96,
+      "bounds_min": [
+        -0.215,
+        0,
+        -0.15
+      ],
+      "bounds_max": [
+        0.215,
+        0.025,
+        0.15
+      ],
+      "sha256": "00ded19f9269407ff40f413cc3b3d321f43c2f703bd09cd795e6a9a10c049c79"
+    },
+    "tray_setting__cream": {
+      "mesh": "tray_setting__cream",
+      "material": "cream",
+      "triangles": 272,
+      "bounds_min": [
+        -0.17,
+        0.025,
+        -0.115
+      ],
+      "bounds_max": [
+        0.19,
+        0.17,
+        0.115
+      ],
+      "sha256": "3bbc7b01ca2e07b5c4fd9501475e53918b0927031e3cfd14720312def051bae1"
+    },
+    "tray_setting__bread": {
+      "mesh": "tray_setting__bread",
+      "material": "bread",
+      "triangles": 128,
+      "bounds_min": [
+        -0.132,
+        0.05,
+        -0.077
+      ],
+      "bounds_max": [
+        0.022,
+        0.12,
+        0.077
+      ],
+      "sha256": "d8b2e65ffd978620731df803d98d2561bfb8035881fbc55918bc5bc63986ffd1"
+    },
+    "tray_stack__metal": {
+      "mesh": "tray_stack__metal",
+      "material": "metal",
+      "triangles": 672,
+      "bounds_min": [
+        -0.23,
+        0.0,
+        -0.165
+      ],
+      "bounds_max": [
+        0.23,
+        0.126,
+        0.165
+      ],
+      "sha256": "03b92c329c8d9a4a03f70aa57a5a299f48ed13d57db9386ec8720d202506a306"
+    },
+    "recycling__metal": {
+      "mesh": "recycling__metal",
+      "material": "metal",
+      "triangles": 192,
+      "bounds_min": [
+        -0.31,
+        0.02,
+        -0.29
+      ],
+      "bounds_max": [
+        0.31,
+        0.848,
+        0.29
+      ],
+      "sha256": "7f4e7698a1596fc17d8fb15a336f78d1a25672485b07c29f4ba3f87cbdf63b54"
+    },
+    "recycling__sage": {
+      "mesh": "recycling__sage",
+      "material": "sage",
+      "triangles": 96,
+      "bounds_min": [
+        -0.33,
+        0.78,
+        -0.31
+      ],
+      "bounds_max": [
+        0.33,
+        0.84,
+        0.31
+      ],
+      "sha256": "e99afe83c30b577502d28eaee96f97f29470eb564093bd723ae6e5a418e10766"
+    },
+    "planter__cream": {
+      "mesh": "planter__cream",
+      "material": "cream",
+      "triangles": 288,
+      "bounds_min": [
+        -0.36,
+        0.02,
+        -0.36
+      ],
+      "bounds_max": [
+        0.36,
+        0.52,
+        0.36
+      ],
+      "sha256": "61d57696ffda3e58c540f56ed25db22e3b65307a7378adb0502bda6c99548d6e"
+    },
+    "planter__leaf": {
+      "mesh": "planter__leaf",
+      "material": "leaf",
+      "triangles": 352,
+      "bounds_min": [
+        -0.4729810961122519,
+        0.4415147186257614,
+        -0.4782420548916003
+      ],
+      "bounds_max": [
+        0.48,
+        1.6,
+        0.4642556589817534
+      ],
+      "sha256": "70d00a28a69b06eb3f74cbf5e3920a4f3fd356bd9f2df3fccedeaac72a1dc99c"
+    },
+    "pendant__brass": {
+      "mesh": "pendant__brass",
+      "material": "brass",
+      "triangles": 240,
+      "bounds_min": [
+        -0.34,
+        0,
+        -0.34
+      ],
+      "bounds_max": [
+        0.34,
+        0.32,
+        0.34
+      ],
+      "sha256": "b323bf67a2a0286bf5a91a26bd93ec5b0204b5de0510162fe49838f9d23df824"
+    },
+    "pendant__glow": {
+      "mesh": "pendant__glow",
+      "material": "glow",
+      "triangles": 96,
+      "bounds_min": [
+        -0.29,
+        0.004,
+        -0.29
+      ],
+      "bounds_max": [
+        0.29,
+        0.018,
+        0.29
+      ],
+      "sha256": "704751fa8ab1c6371cd9604dc9ebed3d782d9feefa3348d102ca33096ce5abb5"
+    },
+    "pendant__metal": {
+      "mesh": "pendant__metal",
+      "material": "metal",
+      "triangles": 40,
+      "bounds_min": [
+        -0.012,
+        0.32,
+        -0.011412678195541844
+      ],
+      "bounds_max": [
+        0.012,
+        0.72,
+        0.011412678195541844
+      ],
+      "sha256": "6b3837ac335b615d90f91a0229eba90720c6dea52fea9bae281b9812a9446a47"
+    },
+    "window_inset__window": {
+      "mesh": "window_inset__window",
+      "material": "window",
+      "triangles": 96,
+      "bounds_min": [
+        -1.7,
+        0.8,
+        -0.0225
+      ],
+      "bounds_max": [
+        1.7,
+        2.85,
+        0.022500000000000003
+      ],
+      "sha256": "a233112daabc829ec85c83140e867c9dfb2640deedd02d14ad0e065f14b1e27b"
+    },
+    "window_inset__oak": {
+      "mesh": "window_inset__oak",
+      "material": "oak",
+      "triangles": 296,
+      "bounds_min": [
+        -1.9,
+        0.6649999999999999,
+        -0.16
+      ],
+      "bounds_max": [
+        1.9,
+        3.0050000000000003,
+        0.16
+      ],
+      "sha256": "de3e91de219effc0db07197287a5b5b7bed7e8ff4247acbaf3fd0056fa42544b"
+    },
+    "bookcase__oak": {
+      "mesh": "bookcase__oak",
+      "material": "oak",
+      "triangles": 672,
+      "bounds_min": [
+        -0.91,
+        0,
+        -0.21
+      ],
+      "bounds_max": [
+        0.91,
+        2.25,
+        0.21
+      ],
+      "sha256": "357b4e1e1e7ff364a91a0c4ce00cdb336ad380dea5808cdd9e05796895b1f803"
+    },
+    "bookcase__red": {
+      "mesh": "bookcase__red",
+      "material": "red",
+      "triangles": 1152,
+      "bounds_min": [
+        -0.7625,
+        0.19,
+        -0.105
+      ],
+      "bounds_max": [
+        0.5674999999999999,
+        2.05,
+        0.135
+      ],
+      "sha256": "4c2fe5b4a47573fc57e868743f960c9ae5d487e6684300595cf32dc19a506a84"
+    },
+    "bookcase__sage": {
+      "mesh": "bookcase__sage",
+      "material": "sage",
+      "triangles": 1152,
+      "bounds_min": [
+        -0.7625,
+        0.19,
+        -0.105
+      ],
+      "bounds_max": [
+        0.5674999999999999,
+        2.05,
+        0.135
+      ],
+      "sha256": "f2a00dc55ae0d76d00289f4d1443e7fd45d99c0ef0838985da81ad2408113967"
+    },
+    "bookcase__blue": {
+      "mesh": "bookcase__blue",
+      "material": "blue",
+      "triangles": 1152,
+      "bounds_min": [
+        -0.7625,
+        0.19,
+        -0.105
+      ],
+      "bounds_max": [
+        0.5674999999999999,
+        2.0149999999999997,
+        0.135
+      ],
+      "sha256": "1da08a2a9c913b8ec96635ccaf41cebf5e6da88db82f110acb44f281c22019d6"
+    },
+    "bookcase__cream": {
+      "mesh": "bookcase__cream",
+      "material": "cream",
+      "triangles": 1152,
+      "bounds_min": [
+        -0.7625,
+        0.19,
+        -0.105
+      ],
+      "bounds_max": [
+        0.5674999999999999,
+        2.05,
+        0.135
+      ],
+      "sha256": "4741dd47463f92a67c9aa777698b968177efc2f863f2c7859770177619f3679e"
+    },
+    "study_desk__oak": {
+      "mesh": "study_desk__oak",
+      "material": "oak",
+      "triangles": 96,
+      "bounds_min": [
+        -0.75,
+        0.72,
+        -0.42499999999999993
+      ],
+      "bounds_max": [
+        0.75,
+        0.79,
+        0.42499999999999993
+      ],
+      "sha256": "84f112362ccce3a431bd70d6b1997542c62537339b85c23fdff352a3600d2dea"
+    },
+    "study_desk__metal": {
+      "mesh": "study_desk__metal",
+      "material": "metal",
+      "triangles": 160,
+      "bounds_min": [
+        -0.636,
+        0.02,
+        -0.324727469423674
+      ],
+      "bounds_max": [
+        0.636,
+        0.72,
+        0.324727469423674
+      ],
+      "sha256": "b22f46aa0d211ce1f9ca30d7174fbc13539cd49321b4aa33146ea19d5dfdb042"
+    },
+    "study_desk__sage": {
+      "mesh": "study_desk__sage",
+      "material": "sage",
+      "triangles": 96,
+      "bounds_min": [
+        -0.75,
+        0.79,
+        -0.42750000000000005
+      ],
+      "bounds_max": [
+        0.75,
+        1.18,
+        -0.3725
+      ],
+      "sha256": "1c462008d688ce98028db933d1e6ca4b4d9f0e722ac7954d2261c83273afc100"
+    },
+    "study_desk__cream": {
+      "mesh": "study_desk__cream",
+      "material": "cream",
+      "triangles": 96,
+      "bounds_min": [
+        -0.45,
+        0.794,
+        -0.27
+      ],
+      "bounds_max": [
+        -0.14999999999999997,
+        0.817,
+        0.11
+      ],
+      "sha256": "b5c5ad26ad21dae593d4578e20a39a85c6a5970943ca8bd5b5d2ff2dca14ab8e"
+    },
+    "study_desk__brass": {
+      "mesh": "study_desk__brass",
+      "material": "brass",
+      "triangles": 136,
+      "bounds_min": [
+        0.33999999999999997,
+        0.79,
+        -0.38
+      ],
+      "bounds_max": [
+        0.62,
+        1.2200000000000002,
+        -0.09999999999999998
+      ],
+      "sha256": "a4e523ba544399f65c45d65a2ea26b3712adc8537360037bdaa65c650d707746"
+    },
+    "lounge_chair__blue": {
+      "mesh": "lounge_chair__blue",
+      "material": "blue",
+      "triangles": 384,
+      "bounds_min": [
+        -0.44,
+        0.25,
+        -0.43
+      ],
+      "bounds_max": [
+        0.44,
+        1.02,
+        0.45
+      ],
+      "sha256": "a73a89724543df95ca047a9b0972464b263006a11e96b94323bf45369e3dbafd"
+    },
+    "lounge_chair__oak": {
+      "mesh": "lounge_chair__oak",
+      "material": "oak",
+      "triangles": 160,
+      "bounds_min": [
+        -0.33499999999999996,
+        0.02,
+        -0.3132869780703304
+      ],
+      "bounds_max": [
+        0.33499999999999996,
+        0.3,
+        0.3132869780703304
+      ],
+      "sha256": "e76deb1622868c8829e9dd6abfc9917c25806877dc04c2692e7c19a600b007e2"
+    },
+    "coffee_machine__metal": {
+      "mesh": "coffee_machine__metal",
+      "material": "metal",
+      "triangles": 192,
+      "bounds_min": [
+        -0.375,
+        0,
+        -0.24
+      ],
+      "bounds_max": [
+        0.375,
+        0.71,
+        0.24
+      ],
+      "sha256": "ad4decf1591c91f19148686da604054556220c9d9b0c5de97e52891f821496e2"
+    },
+    "coffee_machine__cream": {
+      "mesh": "coffee_machine__cream",
+      "material": "cream",
+      "triangles": 224,
+      "bounds_min": [
+        -0.25,
+        0.08,
+        0.18000000000000002
+      ],
+      "bounds_max": [
+        0.25,
+        0.24,
+        0.38
+      ],
+      "sha256": "b4720c164c45917fae85cecc25a05da767550a88ecf0271323f3276aa9a27e0e"
+    },
+    "coffee_machine__brass": {
+      "mesh": "coffee_machine__brass",
+      "material": "brass",
+      "triangles": 80,
+      "bounds_min": [
+        -0.22,
+        0.24762121247052057,
+        0.2255580812156073
+      ],
+      "bounds_max": [
+        0.22,
+        0.3423787875294795,
+        0.31444191878439265
+      ],
+      "sha256": "6a82d8825aa93348ddd1894a9a0c2a6facbc264581b8ac51cffa5b5808ebb06e"
+    },
+    "food_display__metal": {
+      "mesh": "food_display__metal",
+      "material": "metal",
+      "triangles": 216,
+      "bounds_min": [
+        -0.9,
+        0,
+        -0.26
+      ],
+      "bounds_max": [
+        0.9,
+        0.497,
+        0.26
+      ],
+      "sha256": "3d9a3f44ef634d4c7e8ab9baed8aa60ed80001e671ca23a53505a6e22cc78934"
+    },
+    "food_display__cream": {
+      "mesh": "food_display__cream",
+      "material": "cream",
+      "triangles": 384,
+      "bounds_min": [
+        -0.865,
+        0.065,
+        -0.19
+      ],
+      "bounds_max": [
+        0.865,
+        0.09,
+        0.19
+      ],
+      "sha256": "ca60640b651a239b354df92cec3e68757e8320635bac446df56da2178763d0a1"
+    },
+    "food_display__bread": {
+      "mesh": "food_display__bread",
+      "material": "bread",
+      "triangles": 512,
+      "bounds_min": [
+        -0.81,
+        0.09,
+        -0.13
+      ],
+      "bounds_max": [
+        0.81,
+        0.23,
+        0.13
+      ],
+      "sha256": "c034445051a00f31e6eba05ee0740ec4733c9786bc4bdaf7f05fe6570acfc6e6"
+    },
+    "acoustic_panel__sage": {
+      "mesh": "acoustic_panel__sage",
+      "material": "sage",
+      "triangles": 96,
+      "bounds_min": [
+        -1.3,
+        0,
+        -0.07
+      ],
+      "bounds_max": [
+        1.3,
+        1,
+        0.07000000000000002
+      ],
+      "sha256": "3010cadfc84874742f43f9e6c3de1388c9564016a720bafa1c0daee8431e64fe"
+    },
+    "acoustic_panel__oak": {
+      "mesh": "acoustic_panel__oak",
+      "material": "oak",
+      "triangles": 576,
+      "bounds_min": [
+        -1.212,
+        0.08,
+        0.018000000000000002
+      ],
+      "bounds_max": [
+        1.2120000000000004,
+        0.92,
+        0.062
+      ],
+      "sha256": "13ed6b6295813d431b9d6433699f46f0ef1b52f10a5658de5effb953dbb69d4f"
+    }
+  },
+  "rooms": {
+    "cafeteria": {
+      "center": [
+        26,
+        0,
+        19
+      ],
+      "number": "M104",
+      "groups": [
+        {
+          "mesh": "dining_table__oak",
+          "material": "oak",
+          "items": [
+            [
+              -5.2,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "dining_table__metal",
+          "material": "metal",
+          "items": [
+            [
+              -5.2,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__sage",
+          "material": "sage",
+          "items": [
+            [
+              -5.2,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__metal",
+          "material": "metal",
+          "items": [
+            [
+              -5.2,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3.0,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              -2.3499999999999996,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              -4.25,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              4.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.0,
+              0,
+              2.3499999999999996,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__metal",
+          "material": "metal",
+          "items": [
+            [
+              -5.4,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.4,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.4,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.4,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              6.8,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              6.8,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__cream",
+          "material": "cream",
+          "items": [
+            [
+              -5.4,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.4,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.4,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.4,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              6.8,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              6.8,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__bread",
+          "material": "bread",
+          "items": [
+            [
+              -5.4,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.4,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.4,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.4,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              6.8,
+              0.805,
+              -3.3,
+              20,
+              1,
+              1,
+              1
+            ],
+            [
+              6.8,
+              0.805,
+              3.3,
+              20,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__sage",
+          "material": "sage",
+          "items": [
+            [
+              4.0,
+              0,
+              -0.05,
+              90,
+              0.85,
+              0.85,
+              0.85
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__cream",
+          "material": "cream",
+          "items": [
+            [
+              4.0,
+              0,
+              -0.05,
+              90,
+              0.85,
+              0.85,
+              0.85
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__metal",
+          "material": "metal",
+          "items": [
+            [
+              4.0,
+              0,
+              -0.05,
+              90,
+              0.85,
+              0.85,
+              0.85
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__oak",
+          "material": "oak",
+          "items": [
+            [
+              4.0,
+              0,
+              -0.05,
+              90,
+              0.85,
+              0.85,
+              0.85
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__metal",
+          "material": "metal",
+          "items": [
+            [
+              4,
+              1.01,
+              -1.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__cream",
+          "material": "cream",
+          "items": [
+            [
+              4,
+              1.01,
+              -1.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__bread",
+          "material": "bread",
+          "items": [
+            [
+              4,
+              1.01,
+              -1.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_stack__metal",
+          "material": "metal",
+          "items": [
+            [
+              4,
+              1.01,
+              1.4,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "coffee_machine__metal",
+          "material": "metal",
+          "items": [
+            [
+              5.5,
+              0,
+              4.4,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "coffee_machine__cream",
+          "material": "cream",
+          "items": [
+            [
+              5.5,
+              0,
+              4.4,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "coffee_machine__brass",
+          "material": "brass",
+          "items": [
+            [
+              5.5,
+              0,
+              4.4,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "recycling__metal",
+          "material": "metal",
+          "items": [
+            [
+              -1,
+              0,
+              5.42,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              5.42,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              1,
+              0,
+              5.42,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "recycling__sage",
+          "material": "sage",
+          "items": [
+            [
+              -1,
+              0,
+              5.42,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              5.42,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              1,
+              0,
+              5.42,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__window",
+          "material": "window",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__oak",
+          "material": "oak",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__cream",
+          "material": "cream",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__leaf",
+          "material": "leaf",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__brass",
+          "material": "brass",
+          "items": [
+            [
+              -5.2,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__glow",
+          "material": "glow",
+          "items": [
+            [
+              -5.2,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__metal",
+          "material": "metal",
+          "items": [
+            [
+              -5.2,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -5.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7,
+              3.05,
+              -3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      ],
+      "signs": [
+        {
+          "text": "CAMPUS COMMONS",
+          "position": [
+            0,
+            2.9,
+            5.83
+          ],
+          "yaw": 180,
+          "color": "cream"
+        },
+        {
+          "text": "FRESH TODAY  /  SERVING",
+          "position": [
+            4,
+            2.65,
+            -0.05
+          ],
+          "yaw": 90,
+          "color": "cream"
+        },
+        {
+          "text": "RETURN  /  RECYCLE  /  COMPOST",
+          "position": [
+            0,
+            1.5,
+            5.72
+          ],
+          "yaw": 180,
+          "color": "sage"
+        }
+      ],
+      "seat_visuals": [
+        [
+          -5.2,
+          0,
+          -2.3499999999999996,
+          0
+        ],
+        [
+          -5.2,
+          0,
+          -4.25,
+          180
+        ],
+        [
+          -5.2,
+          0,
+          4.25,
+          0
+        ],
+        [
+          -5.2,
+          0,
+          2.3499999999999996,
+          180
+        ],
+        [
+          -1.2,
+          0,
+          -2.3499999999999996,
+          0
+        ],
+        [
+          -1.2,
+          0,
+          -4.25,
+          180
+        ],
+        [
+          -1.2,
+          0,
+          4.25,
+          0
+        ],
+        [
+          -1.2,
+          0,
+          2.3499999999999996,
+          180
+        ],
+        [
+          3.0,
+          0,
+          -2.3499999999999996,
+          0
+        ],
+        [
+          3.0,
+          0,
+          -4.25,
+          180
+        ],
+        [
+          3.0,
+          0,
+          4.25,
+          0
+        ],
+        [
+          3.0,
+          0,
+          2.3499999999999996,
+          180
+        ],
+        [
+          7.0,
+          0,
+          -2.3499999999999996,
+          0
+        ],
+        [
+          7.0,
+          0,
+          -4.25,
+          180
+        ],
+        [
+          7.0,
+          0,
+          4.25,
+          0
+        ],
+        [
+          7.0,
+          0,
+          2.3499999999999996,
+          180
+        ]
+      ],
+      "protected": [
+        [
+          -9.9,
+          -1.25,
+          2.2,
+          2.5
+        ],
+        [
+          -7.7,
+          -1.15,
+          10.5,
+          2.3
+        ]
+      ],
+      "coverage": [
+        "16 dining chair places",
+        "8 pedestal dining tables",
+        "ribbed serving island",
+        "meal trays / bread / cups",
+        "tray return and three sorting bins",
+        "window insets",
+        "leaf planters",
+        "pendant rhythm"
+      ],
+      "theme": "sunlit social commons / oak, celadon and warm linen"
+    },
+    "tim_hortons": {
+      "center": [
+        26,
+        0,
+        33
+      ],
+      "number": "M106",
+      "groups": [
+        {
+          "mesh": "dining_table__oak",
+          "material": "oak",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "dining_table__metal",
+          "material": "metal",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__sage",
+          "material": "red",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__metal",
+          "material": "metal",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__metal",
+          "material": "metal",
+          "items": [
+            [
+              -4.5,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__cream",
+          "material": "cream",
+          "items": [
+            [
+              -4.5,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__bread",
+          "material": "bread",
+          "items": [
+            [
+              -4.5,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__sage",
+          "material": "red",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__cream",
+          "material": "cream",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__metal",
+          "material": "metal",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__oak",
+          "material": "oak",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "coffee_machine__metal",
+          "material": "metal",
+          "items": [
+            [
+              1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "coffee_machine__cream",
+          "material": "cream",
+          "items": [
+            [
+              1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "coffee_machine__brass",
+          "material": "brass",
+          "items": [
+            [
+              1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__metal",
+          "material": "metal",
+          "items": [
+            [
+              -1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__cream",
+          "material": "cream",
+          "items": [
+            [
+              -1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__bread",
+          "material": "bread",
+          "items": [
+            [
+              -1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_stack__metal",
+          "material": "metal",
+          "items": [
+            [
+              0,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__brass",
+          "material": "brass",
+          "items": [
+            [
+              4,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__glow",
+          "material": "glow",
+          "items": [
+            [
+              4,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__metal",
+          "material": "metal",
+          "items": [
+            [
+              4,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "recycling__metal",
+          "material": "metal",
+          "items": [
+            [
+              9.43,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "recycling__sage",
+          "material": "red",
+          "items": [
+            [
+              9.43,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__window",
+          "material": "window",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__oak",
+          "material": "oak",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__cream",
+          "material": "cream",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__leaf",
+          "material": "leaf",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      ],
+      "signs": [
+        {
+          "text": "TIM HORTONS  /  COFFEE & BAKED FRESH",
+          "position": [
+            0,
+            3.15,
+            -5.82
+          ],
+          "yaw": 0,
+          "color": "red"
+        }
+      ],
+      "seat_visuals": [
+        [
+          -4.5,
+          0,
+          1.9,
+          0
+        ],
+        [
+          -0.2999999999999998,
+          0,
+          1.9,
+          0
+        ],
+        [
+          -4.5,
+          0,
+          4.6000000000000005,
+          0
+        ],
+        [
+          -0.2999999999999998,
+          0,
+          4.6000000000000005,
+          0
+        ]
+      ],
+      "protected": [
+        [
+          -9.9,
+          -1.25,
+          2.2,
+          2.5
+        ],
+        [
+          -7.7,
+          -0.9,
+          10.5,
+          1.8
+        ],
+        [
+          -3.2,
+          -1.4,
+          6.4,
+          0.9
+        ]
+      ],
+      "coverage": [
+        "four exact existing functional seat/table positions",
+        "matching 6m counter silhouette",
+        "barista equipment",
+        "window insets",
+        "sorting",
+        "food and cups"
+      ],
+      "theme": "warm red coffeehouse"
+    },
+    "subway": {
+      "center": [
+        26,
+        0,
+        47
+      ],
+      "number": "M108",
+      "groups": [
+        {
+          "mesh": "dining_table__oak",
+          "material": "cream",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "dining_table__metal",
+          "material": "metal",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__sage",
+          "material": "sage",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__metal",
+          "material": "metal",
+          "items": [
+            [
+              -4.5,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              1.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0,
+              4.65,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__metal",
+          "material": "metal",
+          "items": [
+            [
+              -4.5,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__cream",
+          "material": "cream",
+          "items": [
+            [
+              -4.5,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_setting__bread",
+          "material": "bread",
+          "items": [
+            [
+              -4.5,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              1.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -4.5,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.2999999999999998,
+              0.805,
+              3.7,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__sage",
+          "material": "sage",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__cream",
+          "material": "cream",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__metal",
+          "material": "metal",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "counter__oak",
+          "material": "cream",
+          "items": [
+            [
+              0,
+              0,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__metal",
+          "material": "metal",
+          "items": [
+            [
+              1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__cream",
+          "material": "cream",
+          "items": [
+            [
+              1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "food_display__bread",
+          "material": "bread",
+          "items": [
+            [
+              1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.5,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "tray_stack__metal",
+          "material": "metal",
+          "items": [
+            [
+              0,
+              1.18,
+              -2.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__brass",
+          "material": "brass",
+          "items": [
+            [
+              4,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__glow",
+          "material": "glow",
+          "items": [
+            [
+              4,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__metal",
+          "material": "metal",
+          "items": [
+            [
+              4,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              3.05,
+              3.3,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "recycling__metal",
+          "material": "metal",
+          "items": [
+            [
+              9.43,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "recycling__sage",
+          "material": "sage",
+          "items": [
+            [
+              9.43,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__window",
+          "material": "window",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__oak",
+          "material": "cream",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__cream",
+          "material": "cream",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__leaf",
+          "material": "leaf",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      ],
+      "signs": [
+        {
+          "text": "SUBWAY  /  FRESHLY MADE",
+          "position": [
+            0,
+            3.15,
+            -5.82
+          ],
+          "yaw": 0,
+          "color": "sage"
+        }
+      ],
+      "seat_visuals": [
+        [
+          -4.5,
+          0,
+          1.9,
+          0
+        ],
+        [
+          -0.2999999999999998,
+          0,
+          1.9,
+          0
+        ],
+        [
+          -4.5,
+          0,
+          4.6000000000000005,
+          0
+        ],
+        [
+          -0.2999999999999998,
+          0,
+          4.6000000000000005,
+          0
+        ]
+      ],
+      "protected": [
+        [
+          -9.9,
+          -1.25,
+          2.2,
+          2.5
+        ],
+        [
+          -7.7,
+          -0.9,
+          10.5,
+          1.8
+        ],
+        [
+          -3.2,
+          -1.4,
+          6.4,
+          0.9
+        ]
+      ],
+      "coverage": [
+        "four exact existing functional seat/table positions",
+        "matching 6m counter silhouette",
+        "sandwich ingredient display",
+        "window insets",
+        "sorting",
+        "food and cups"
+      ],
+      "theme": "green fresh sandwich market"
+    },
+    "library": {
+      "center": [
+        26,
+        5,
+        19
+      ],
+      "number": "M204",
+      "groups": [
+        {
+          "mesh": "study_desk__oak",
+          "material": "oak",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "study_desk__metal",
+          "material": "metal",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "study_desk__cream",
+          "material": "cream",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "study_desk__brass",
+          "material": "brass",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__sage",
+          "material": "sage",
+          "items": [
+            [
+              -6.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__metal",
+          "material": "metal",
+          "items": [
+            [
+              -6.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__oak",
+          "material": "oak",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              0.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              5.0,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__red",
+          "material": "red",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              0.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              5.0,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__sage",
+          "material": "sage",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              0.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              5.0,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__blue",
+          "material": "blue",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              0.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              5.0,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__cream",
+          "material": "cream",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              0.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              5.0,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              7.2,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "lounge_chair__blue",
+          "material": "blue",
+          "items": [
+            [
+              5.4,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.3,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "lounge_chair__oak",
+          "material": "oak",
+          "items": [
+            [
+              5.4,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.3,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "dining_table__oak",
+          "material": "oak",
+          "items": [
+            [
+              6.35,
+              0,
+              2.2,
+              0,
+              1.2,
+              1.2,
+              1.2
+            ]
+          ]
+        },
+        {
+          "mesh": "dining_table__metal",
+          "material": "metal",
+          "items": [
+            [
+              6.35,
+              0,
+              2.2,
+              0,
+              1.2,
+              1.2,
+              1.2
+            ]
+          ]
+        },
+        {
+          "mesh": "acoustic_panel__sage",
+          "material": "sage",
+          "items": [
+            [
+              -5.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "acoustic_panel__oak",
+          "material": "oak",
+          "items": [
+            [
+              -5.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__window",
+          "material": "window",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__oak",
+          "material": "oak",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__cream",
+          "material": "cream",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__leaf",
+          "material": "leaf",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__brass",
+          "material": "brass",
+          "items": [
+            [
+              -5,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__glow",
+          "material": "glow",
+          "items": [
+            [
+              -5,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__metal",
+          "material": "metal",
+          "items": [
+            [
+              -5,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      ],
+      "signs": [
+        {
+          "text": "LIBRARY  /  DISCOVER \u00b7 READ \u00b7 REFLECT",
+          "position": [
+            0,
+            3.15,
+            -5.81
+          ],
+          "yaw": 0,
+          "color": "cream"
+        }
+      ],
+      "seat_visuals": [
+        [
+          -6.6,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          -6.6,
+          0,
+          3.95,
+          0
+        ],
+        [
+          -3.6,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          -3.6,
+          0,
+          3.95,
+          0
+        ],
+        [
+          -0.6,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          -0.6,
+          0,
+          3.95,
+          0
+        ],
+        [
+          2.4,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          2.4,
+          0,
+          3.95,
+          0
+        ]
+      ],
+      "protected": [
+        [
+          -9.9,
+          -1.25,
+          2.2,
+          2.5
+        ],
+        [
+          -7.7,
+          -0.25,
+          15.4,
+          1.0
+        ],
+        [
+          7.7,
+          -1.25,
+          2.2,
+          2.5
+        ]
+      ],
+      "coverage": [
+        "eight screened desks / task lamps / notebooks",
+        "eight curved reading chairs",
+        "seven populated open bookcases",
+        "paired reading armchairs",
+        "acoustic slat panels",
+        "window insets",
+        "leaf planters"
+      ],
+      "theme": "reference collections / shared reading and research"
+    },
+    "study": {
+      "center": [
+        0,
+        5,
+        33
+      ],
+      "number": "M205",
+      "groups": [
+        {
+          "mesh": "study_desk__oak",
+          "material": "oak",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "study_desk__metal",
+          "material": "metal",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "study_desk__sage",
+          "material": "sage",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "study_desk__cream",
+          "material": "cream",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "study_desk__brass",
+          "material": "brass",
+          "items": [
+            [
+              -6.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -3.2,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__sage",
+          "material": "sage",
+          "items": [
+            [
+              -6.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "chair__metal",
+          "material": "metal",
+          "items": [
+            [
+              -6.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -0.6,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              -2.25,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              2.4,
+              0,
+              3.95,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__oak",
+          "material": "oak",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__red",
+          "material": "red",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__sage",
+          "material": "sage",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__blue",
+          "material": "blue",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "bookcase__cream",
+          "material": "cream",
+          "items": [
+            [
+              -6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -3.8,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1.6,
+              0,
+              -5.5,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "lounge_chair__blue",
+          "material": "blue",
+          "items": [
+            [
+              5.4,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.3,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "lounge_chair__oak",
+          "material": "oak",
+          "items": [
+            [
+              5.4,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              7.3,
+              0,
+              3.7,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "dining_table__oak",
+          "material": "oak",
+          "items": [
+            [
+              6.35,
+              0,
+              2.2,
+              0,
+              0.65,
+              0.65,
+              0.65
+            ]
+          ]
+        },
+        {
+          "mesh": "dining_table__metal",
+          "material": "metal",
+          "items": [
+            [
+              6.35,
+              0,
+              2.2,
+              0,
+              0.65,
+              0.65,
+              0.65
+            ]
+          ]
+        },
+        {
+          "mesh": "acoustic_panel__sage",
+          "material": "sage",
+          "items": [
+            [
+              -5.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.2,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              6.2,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "acoustic_panel__oak",
+          "material": "oak",
+          "items": [
+            [
+              -5.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              3.4,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              -6.2,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ],
+            [
+              6.2,
+              1.65,
+              5.78,
+              180,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__window",
+          "material": "window",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "window_inset__oak",
+          "material": "oak",
+          "items": [
+            [
+              9.78,
+              0,
+              -3.4,
+              90,
+              1,
+              1,
+              1
+            ],
+            [
+              9.78,
+              0,
+              3.4,
+              90,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__cream",
+          "material": "cream",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "planter__leaf",
+          "material": "leaf",
+          "items": [
+            [
+              -8.8,
+              0,
+              -4.9,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              8.7,
+              0,
+              4.9,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__brass",
+          "material": "brass",
+          "items": [
+            [
+              -5,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__glow",
+          "material": "glow",
+          "items": [
+            [
+              -5,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        },
+        {
+          "mesh": "pendant__metal",
+          "material": "metal",
+          "items": [
+            [
+              -5,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              -1,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ],
+            [
+              3,
+              3.05,
+              0,
+              0,
+              1,
+              1,
+              1
+            ]
+          ]
+        }
+      ],
+      "signs": [
+        {
+          "text": "QUIET STUDY  /  PLEASE SILENCE DEVICES",
+          "position": [
+            0,
+            3.15,
+            -5.81
+          ],
+          "yaw": 0,
+          "color": "cream"
+        }
+      ],
+      "seat_visuals": [
+        [
+          -6.6,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          -6.6,
+          0,
+          3.95,
+          0
+        ],
+        [
+          -3.6,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          -3.6,
+          0,
+          3.95,
+          0
+        ],
+        [
+          -0.6,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          -0.6,
+          0,
+          3.95,
+          0
+        ],
+        [
+          2.4,
+          0,
+          -2.25,
+          0
+        ],
+        [
+          2.4,
+          0,
+          3.95,
+          0
+        ]
+      ],
+      "protected": [
+        [
+          -9.9,
+          -1.25,
+          2.2,
+          2.5
+        ],
+        [
+          -7.7,
+          -0.25,
+          15.4,
+          1.0
+        ],
+        [
+          7.7,
+          -1.25,
+          2.2,
+          2.5
+        ]
+      ],
+      "coverage": [
+        "eight screened desks / task lamps / notebooks",
+        "eight curved reading chairs",
+        "seven populated open bookcases",
+        "paired reading armchairs",
+        "acoustic slat panels",
+        "window insets",
+        "leaf planters"
+      ],
+      "theme": "quiet carrels / independent focus and lounge"
+    }
+  },
+  "license": "Original authored procedural geometry. No downloaded assets, logos, textures or third-party reference imagery."
+}

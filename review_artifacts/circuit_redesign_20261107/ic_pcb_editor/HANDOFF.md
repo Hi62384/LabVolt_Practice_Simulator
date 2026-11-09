@@ -1,0 +1,13 @@
+# IC and PCB editor candidate
+
+Private candidate; live source is untouched. `modules/package_editor.gd` is a large visual pin editor with a contextual inspector and optional compact advanced pin table. `package_pin_model.gd` validates through production `package_geometry.gd` and `breadboard_model.gd`, then saves through production `package_store.gd`. It preserves existing pin IDs and resolves stored electrical nodes to editable source holes. `package_preview.gd` handles click, drag, add and selection. Resize, color, thickness, body height, orientation marker, package rotation, pin names, connectors, roles and node mappings reach the model.
+
+Preimages SHA-256: `scripts/package_editor/package_form.gd` `49C98DCECF528D338C3B5CB958B672C67E7A7FB9A4C098CC58`; `scripts/package_editor/package_store.gd` `9E964471AB12F2A8A394CCFD20A513EF43ACD18FC84739608043FDEC18C53378`; `scripts/campus/facilities/circuit_studio/builder_window.gd` `A6CEB0C9F8E2F71BE0D4021A352645E196B994DE7217C4AE75EBC65535F5C761`.
+
+Integration: copy the candidate module trio into `res://scripts/electronics/ic_pcb_editor/` and rewrite their three candidate `res://review_artifacts/...` preload paths accordingly. Main owns the project shell. Opening an IC project passes its source board and saved `package_draft` to `PackageEditor.open_project(profile,board,draft,"IC")`; opening PCB passes `"PCB"`, then the existing `pcb_design/editor.gd` handles outline/copper for a saved PCB blueprint. Replace the old `package_form.gd` embedding in `builder_window.gd` only after project model handoff is ready. Keep `package_form.gd` as fallback during staged mount. The physical station adapter remains with the studio owner.
+
+Contract with core workspace: no shared navigation bar; project shell chooses editor by project type. Package panel emits `saved(message)`. Editor never mutates profile data until production save succeeds. PCB outline/copper stay with `pcb_design/document.gd` and `pcb_design/editor.gd`; they must not be represented by a fake preview.
+
+The core `workspace.gd` contract accepts a board and action callbacks, and emits `panel_requested`; it does not own package-specific state. Main should take the accepted board from that workspace, then open this package editor with the matching profile draft and project kind. A successful package save emits the production result string. `tests/package_model_fixture.gd` exercises stable IDs, node reconstruction, collision rejection, rotation, connector preservation and production save round trip. Prepared but not run while engine access is reserved for the runtime owner.
+
+Static candidate only. Godot parse/render and save round-trip fixtures must be run by the runtime owner after the safety gate; do not claim acceptance yet.

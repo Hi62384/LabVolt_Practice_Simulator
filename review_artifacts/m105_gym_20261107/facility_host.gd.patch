@@ -1,0 +1,38 @@
+--- a/scripts/campus/facilities/facility_host.gd
++++ b/scripts/campus/facilities/facility_host.gd
+@@ -2,6 +2,7 @@
+ ## Server-only deterministic facility rules. Transport authenticates peer; adapters own saves.
+ signal public_event(room_id: String, peer: int, state: Dictionary)
+ const EXERCISES := {"pushup":1400,"pullup":1800,"benchpress":1800,"squat":1600,"curl":1400}
++const WEIGHTS := {"pushup":[0],"pullup":[0],"benchpress":[10,20,40],"squat":[10,20,40],"curl":[5,10,20]}
+ const EMOTES := {"wave":1800,"cheer":2200,"flex":2200,"victory":2600}
+ var menu := {
+ 	"coffee":{"venue":"tim_hortons","name":"Coffee","price":3,"servings":3,"kind":"drink"},
+@@ -141,8 +142,10 @@
+ 		if not current.is_empty() or not p.held.is_empty() or not reachable(c,station):return fail("Equipment unavailable")
+ 		var exercise:=str(anchors[station].get("kind",""))
+ 		if not EXERCISES.has(exercise) or seats.has(station):return fail("Equipment occupied")
+-		next_active={"type":"exercise","exercise":exercise,"station":station,"position":c.position,"room_id":c.room_id,"started":t,"last_beat":t,"phase":0,"reps":0}
+-		event={"activity":"exercise","exercise":exercise,"phase":0,"reps":0,"station":station}
++		var weight: Variant=request.get("weight",WEIGHTS[exercise][0])
++		if not weight is int or not weight in WEIGHTS[exercise]:return fail("Unsupported exercise weight")
++		next_active={"type":"exercise","exercise":exercise,"station":station,"position":c.position,"room_id":c.room_id,"started":t,"last_beat":t,"phase":0,"reps":0,"weight":weight}
++		event={"activity":"exercise","exercise":exercise,"phase":0,"reps":0,"weight":weight,"station":station}
+ 	elif op=="beat":
+ 		if current.get("type","")!="exercise" or not activity_valid(c,current):return fail("Start an exercise first")
+ 		var gap:=t-int(current.last_beat)
+@@ -155,12 +158,12 @@
+ 		next_active.last_beat=t
+ 		next_active.phase=1-int(current.phase)
+ 		if int(next_active.phase)==0:next_active.reps+=1
+-		event={"activity":"exercise","exercise":current.exercise,"phase":next_active.phase,"reps":next_active.reps,"station":current.station}
++		event={"activity":"exercise","exercise":current.exercise,"phase":next_active.phase,"reps":next_active.reps,"weight":current.weight,"station":current.station}
+ 	elif op=="finish":
+ 		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.reps)<1:return fail("Complete a repetition first")
+ 		var reps:=int(current.reps)
+ 		if t-int(current.started)<reps*(int(EXERCISES[current.exercise])-300):return fail("Invalid exercise timing")
+-		next.xp=mini(1000000000,int(p.xp)+reps*5)
++		next.xp=mini(1000000000,int(p.xp)+reps*(5+int(current.get("weight",0))/20))
+ 		var old: Dictionary=p.records.get(current.exercise,{"reps":0})
+ 		if reps>int(old.reps):next.records[current.exercise]={"reps":reps}
+ 		for unlock in [[100,"cheer"],[300,"flex"],[600,"victory"]]:

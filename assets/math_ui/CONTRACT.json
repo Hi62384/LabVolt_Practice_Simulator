@@ -1,0 +1,132 @@
+{
+  "contract": "MATH-UI.v1",
+  "status": "early contract; additive extensions",
+  "cwd": "C:\\Users\\User1\\Documents\\Codex\\2026-11-04\\labvolt-math-ui",
+  "private_project": "C:\\Users\\User1\\Documents\\Codex\\2026-11-04\\labvolt-math-ui\\project-c",
+  "ownership": [
+    "scripts/math_ui/**",
+    "assets/math_ui/**",
+    "tests/math_ui/**"
+  ],
+  "baseline": {
+    "files": 818,
+    "manifestSHA256": "448f90c706d3d7a0438febc6007387f8b49d5b0127452542c2d3114ffc5f5ecd",
+    "copy": "C:\\Users\\User1\\Documents\\Codex\\2026-11-04\\labvolt-math-ui\\project-c",
+    "verified": true
+  },
+  "engine_contract": "MTH147.engine.v1",
+  "entry": "res://scripts/math_ui/workspace.gd",
+  "api": {
+    "configure(problem,editable,policy,parse_callable)": "Build appropriate structured widget; parse_callable is shared bounded engine parser, no duplicate parser or solver",
+    "snapshot()": "JSON-safe persistent answer/page/drawing/view state",
+    "restore(state)": "Restore identical question widget state without regenerating questions",
+    "answer()": "Structured engine-compatible answer; no grading locally",
+    "changed(state)": "Owner integration autosaves privately",
+    "reference_requested(section)": "Host-controlled formula presentation hook",
+    "answer_codec.decode(text,question_id)": "bounded JSON envelope <=65536 UTF8 bytes, exact question/version, whitelist state keys; called only AFTER host peer/assessment/deadline ownership guards; returns separate answer/state",
+    "paper_adapter.mount(...)": "mount workspace and save callback(question_id,structured_answer,state_json); existing ink/paper remains integrator-owned",
+    "demonstration_parameters_changed(parameters)": "Generic teaching controls (e.g. R/C/time constant) emit values to host provider; provider recomputes descriptor. No UI physical solver.",
+    "math_paper_page": "Drop-in control compatible with paper_ui and school_world; overview + one question/page + marked page; keeps existing paper_ink. Source patch separate.",
+    "demonstration_changed(data)": "Read-only whiteboard teaching interactions emit updated coordinate/geometry/table descriptors for host synchronization. They do not submit test answers."
+  },
+  "ast": "MTH147.engine.v1 input_ast; num/symbol/add/sub/mul/div/pow/neg/functions; UI-only matrix/determinant/subscript/complex_polar/equation display nodes. Parser supplied by engine. Unsupported nodes fail visibly.",
+  "answers": {
+    "scalar": "text, or engine AST when parse succeeds",
+    "solutions": "{values:[text]}",
+    "system": "{x:text,y:text,z:text} or {classification:none|infinite}",
+    "rational": "{expression:text,excluded:[text]}",
+    "structured": "{field_id:text}",
+    "matrix": "rows of scalar text",
+    "graph": "{points:[{x,y,role}],function?:descriptor,period?:number}",
+    "triangle": "{solutions:[{A,B,C,a,b,c}]}",
+    "table": "{rows:[[text]]}",
+    "complex_roots": "alias roots; {values:[{real:text,imag:text}]}",
+    "nested_fields": "input.fields entries with kind solutions/multiple/restrictions serialize arrays"
+  },
+  "descriptors": {
+    "graph": {
+      "kind": "sinusoid|graph|complex_plane|unit_circle",
+      "function": "{kind:sin|cos|exponential|log|quadratic,amplitude?,period?,phase?,offset?,base?,rate?,a?,b?,c?}",
+      "curves": "array of same functions with label/color",
+      "domain": "[xmin,xmax]",
+      "range": "[ymin,ymax]",
+      "points": "[{x,y,role,label?}]",
+      "markers": "[{x,label}]",
+      "angle_unit": "degrees|radians; phase has x-axis units; period controls full cycle independent of display angle unit",
+      "polar": "bool",
+      "samples": "Public inference curves may be {kind:samples,label,points:[{x,y}]} <=2048; renders only sampled coordinates without host function parameters",
+      "student_points": "Editable graphs initialize student points empty. Diagram/reference points are never submitted as student answers. Provider must strip private required points/functions as appropriate.",
+      "phasors": "optional [{magnitude,angle,angle_unit}] derived by authoritative teaching provider; display only"
+    },
+    "triangle": "{kind:triangle,vertices:[{x,y,label}],sides:{a,b,c},angles:{A,B,C},given:[],unknown:[]}; coordinates are authoritative geometry",
+    "table": "{kind:statistics,columns:[id/label],rows:[[values]],highlight:[row indices]}",
+    "probability": "{kind:probability,mode:dice|coins|cards|tree,outcomes:[{label,favorable,weight}],branches?:[{from,to,label}]}"
+  },
+  "persistence": {
+    "version": 1,
+    "question_id": "immutable instance id",
+    "answer": "structured payload",
+    "page": 0,
+    "drawing": "opaque existing ink state; never auto-graded",
+    "view": "domain/range/polar",
+    "reference_section": "id; permission rechecked on restore"
+  },
+  "hooks": [
+    "paper mounts workspace for math input and privately persists changed snapshot under existing owner check",
+    "whiteboard mounts read-only descriptor/rendered AST and staged steps",
+    "calculator remains integrator-owned; toolbar provides notation only, no solver",
+    "dashboard uses existing course result APIs; UI never mutates grades/rewards",
+    "formula policy supplied by host; hide and deny references for tests unless allowed"
+  ],
+  "blockers": [
+    "Heavy Godot render/import tests require fresh coordinator lease",
+    "Source representative diagram pixels unavailable; no local originals installed",
+    "Shared paper/whiteboard/course/network integration belongs to original integrator"
+  ],
+  "ports": [
+    26250,
+    26299
+  ],
+  "implementation_status": "FROZEN SOURCE CANDIDATE math-ui-v3; complete notation visual acceptance pending fresh lease",
+  "ui_limits": {
+    "envelope_utf8_bytes": 65536,
+    "user_graph_points": 256,
+    "sampled_curve_points": 2048,
+    "curves": 8,
+    "root_entries": 16,
+    "triangle_solutions": 2,
+    "table_rows": 128,
+    "table_columns": 8,
+    "matrix_editor_dimension": 6
+  },
+  "testing": {
+    "core-v1": {
+      "ui_checks": 397,
+      "shared_checks": 11,
+      "failures": 0
+    },
+    "core-v2": {
+      "ui_checks": 397,
+      "shared_checks": 20,
+      "failures": 0
+    },
+    "independent_plot_oracle": {
+      "samples": 2000,
+      "failures": 0
+    },
+    "graphical_captures": 4,
+    "visual_acceptance": "not complete: v2 supplementary card clipped; v3 responsive fixed-size fixture awaits fresh lease",
+    "proposal_patch": "applies + 3 core parse checks in disposable scratch only",
+    "core-v3": {
+      "ui_checks": 399,
+      "shared_checks": 24,
+      "failures": 0
+    },
+    "ui-v3/core-v5": {
+      "ui_checks": 403,
+      "shared_checks": 24,
+      "layout_bounds_assertions": 14,
+      "failures": 0
+    }
+  }
+}

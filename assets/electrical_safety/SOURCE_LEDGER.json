@@ -1,0 +1,13 @@
+{
+  "review_date":"2026-11-04",
+  "original_requirement":"00-base-task.txt section10: grounding/earthing behavior where applicable, with real-world safety distinguished from game consequences",
+  "references":[
+    {"publisher":"Festo Didactic / LabVolt","url":"https://lvsim.labvolt.com/help/helpEms.pdf","reviewed":"Physical PDF pages32-33, source topology/control and overcurrent sections","supports":"Multiple AC/DC sections and existing overcurrent control behavior","does_not_establish":"Exact internal neutral-PE/rack/chassis bond or trainer fault-loop impedance"},
+    {"publisher":"OSHA","url":"https://www.osha.gov/laws-regs/regulations/standardnumber/1910/1910.304","reviewed":"Conductor distinction, source-dependent connection and grounding-path sections","supports":"Educational separation of neutral, equipment protective conductor and an effective return path","does_not_establish":"This game's compliance, safe touch voltage or protective-device timing"}
+  ],
+  "local_evidence":["equipment_builder.gd: EARTH and IGBT_EARTH physical terminals","circuit_solver.gd: existing RMS AC MNA, source current evidence and15A/5A game protection","ac_network.gd: floating islands use explicit local numerical references, no artificial leakage conductance"],
+  "assumptions":["Explicit optional conductive chassis","Finite PE/line-fault/source-bond resistances","Instantaneous existing game thresholds only"],
+  "hardware_configuration_uncertain":true,
+  "no_automatic_neutral_pe_bond":true,
+  "certified":false
+}

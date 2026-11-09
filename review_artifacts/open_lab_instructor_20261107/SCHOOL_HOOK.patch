@@ -1,0 +1,28 @@
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ authoritative request dispatcher, directly before `elif op=="new":`
++	elif op=="practice_lesson":
++		if mode!="Open Lab" or activity.is_empty() or not activity.get("room") is Dictionary:return
++		var room_id := str(activity.room.get("id",""))
++		var pose: Variant=game.session.poses.get(peer,{}).get("position")
++		if not pose is Vector3 or not room_bridge.contains(room_id,pose) or not _near(peer,teacher_position):return
++		if str(identities.get(peer,""))=="" or not game.session.roster.has(peer):return
++		var service=preload("res://review_artifacts/open_lab_instructor_20261107/practice/practice_service.gd")
++		var course := service.course_for_room(room_id)
++		if course=="" or course!=str(activity.get("course_id","")):return
++		var practice: Dictionary=service.issue_for_room(room_id,course_bridge,random.randi())
++		if practice.has("error"):_notice(peer,str(practice.error));return
++		_give(peer,practice,true,false)
+@@ official grade boundary
+-	return not bool(paper.get("lesson",true)) and int(paper.get("class_round",0))!=0
++	return not bool(paper.get("lesson",true)) and int(paper.get("class_round",0))!=0 and str(paper.get("project",{}).get("practice_scope",""))!="ungraded"
+@@ practice feedback archive/reward boundary
+ func _lesson_reward(paper: Dictionary) -> void:
++	if str(paper.get("project",{}).get("practice_scope",""))=="ungraded":return
+ 	if mode=="Creative Freeplay":return
+@@ _give entry
+ func _give(peer: int,assignment: Dictionary,lesson: bool,class_copy: bool) -> int:
++	if str(assignment.get("practice_scope",""))=="ungraded" and (class_copy or not lesson):return 0
+	if class_copy:
+
+Main applies these exact hunks after reviewing current preimage. Stable activity.room.id comes from host room registry; pose comes from host's authenticated peer session and is checked against room_bridge.contains plus teacher proximity. No client room/course/position is accepted. `_give` retains private physical possession/owner logic. Practice cannot enter official settlement or lesson reward/archive even if a later caller accidentally flips its lesson/class flags. Optional `lesson_check` still gives sheet-local feedback. Do not alter formal class or M101 equipment.

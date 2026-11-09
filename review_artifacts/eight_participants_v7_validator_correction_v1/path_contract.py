@@ -1,0 +1,62 @@
+"""Fail-closed canonical path validation for the private V7 stage."""
+from pathlib import Path
+
+
+def validate_paths(plan, base):
+    base = Path(base).resolve()
+    project = (base / "project").resolve()
+    run_data = (base / "run-data").resolve()
+    grants = (base / "root-grants").resolve()
+
+    def exact(field, expected, *, must_exist=False, must_be_file=False):
+        value = plan.get(field)
+        if not isinstance(value, str) or not value:
+            raise ValueError("missing canonical V7 path: " + field)
+        actual = Path(value).resolve()
+        expected = Path(expected).resolve()
+        if actual != expected or not actual.is_relative_to(base):
+            raise ValueError("noncanonical V7 path: " + field)
+        if must_exist and not actual.exists():
+            raise ValueError("missing V7 path: " + field)
+        if must_be_file and not actual.is_file():
+            raise ValueError("missing V7 file: " + field)
+        return actual
+
+    if Path(plan["project"]).resolve() != project or not project.is_dir():
+        raise ValueError("noncanonical V7 project")
+    exact("runner", base / "run_j.py", must_exist=True, must_be_file=True)
+    exact("source_cache_lock", base / "SOURCE-CACHE-LOCK.json", must_exist=True, must_be_file=True)
+    exact("backend_binding", base / "BACKEND-BINDING.json", must_exist=True, must_be_file=True)
+    exact("output", run_data / plan["name"])
+    exact("required_root_grant", grants / (plan["name"] + ".json"))
+
+    if plan["scenario"] == "parser":
+        if plan.get("answer_fixture") is not None or plan.get("parser_result") is not None:
+            raise ValueError("parser has unexpected course paths")
+        if plan.get("previous_name") is not None or plan.get("previous_result") is not None:
+            raise ValueError("parser has unexpected predecessor")
+    elif plan["scenario"] == "lifecycle":
+        exact("answer_fixture", base / "fixtures" / (plan["course"] + ".json"), must_exist=True, must_be_file=True)
+        exact("parser_result", run_data / "CLASSROOM-EIGHT-V7-PARSER1" / "RESULT.json")
+        previous = plan.get("previous_name")
+        if previous is None:
+            if plan.get("previous_result") is not None:
+                raise ValueError("unexpected previous result")
+        else:
+            exact("previous_result", run_data / previous / "RESULT.json")
+    else:
+        raise ValueError("unsupported V7 scenario")
+
+    for field in ("source_sha256", "cache_sha256"):
+        root = project if field == "source_sha256" else project / ".godot"
+        for relative in plan.get(field, {}):
+            relative_path = Path(relative)
+            target = (root / relative_path).resolve()
+            if relative_path.is_absolute() or not target.is_relative_to(root.resolve()) or not target.is_file():
+                raise ValueError("missing/outside " + field + ": " + str(relative))
+
+    for raw in plan.get("bound_files", {}):
+        path = Path(raw).resolve()
+        if not path.is_relative_to(base) or not path.is_file():
+            raise ValueError("outside/missing bound file: " + str(raw))
+    return True

@@ -1,0 +1,23 @@
+--- a/scripts/campus_integration.gd
++++ b/scripts/campus_integration.gd
+@@ -8,6 +8,7 @@
+ var prompt: Label
+ var binding_key := ""
+ var refresh_clock := 0.0
++var gym_motion: Node3D
+ var social: Node
+ var equipment_optimizer: RefCounted
+ var social_decor: Node3D
+@@ -53,6 +54,12 @@
+ 		facility_panel.hide()
+ 	)
+ 	for id in ["gym","tim_hortons","subway"]:facilities.mount_room(id,game.campus)
++	gym_motion=preload("res://scripts/campus/presentation/decor/m105/gym_equipment_motion.gd").new()
++	gym_motion.name="GymEquipmentMotion";game.campus.add_child(gym_motion)
++	facilities.controller.room_event.connect(gym_motion.on_room_event)
++	var gym_decor=preload("res://scripts/campus/presentation/decor/m105/m105_decor.gd").new()
++	game.campus.add_child(gym_decor)
++	gym_decor.mount(game.campus)
+ 	m101_environment=preload("res://scripts/campus/presentation/decor/m101_environment.gd").new()
+ 	add_child(m101_environment)
+ 	room_finish_results.m101=m101_environment.mount(game.campus,game.campus.registry)

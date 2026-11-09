@@ -1,0 +1,2 @@
+PASS: 5 exact preimage/new hashes; 43 behavior methods unchanged; protected build statements; balanced source delimiters; local resources; pin-row and source-tab index contracts.
+Source-only checks; no Godot parsing, runtime tests or visual acceptance performed.

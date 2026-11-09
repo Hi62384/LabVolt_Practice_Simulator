@@ -1,0 +1,17 @@
+--- a/scripts/front_menu.gd
++++ b/scripts/front_menu.gd
+@@
+ func _ensure_campus_adapter() -> bool:
+-	if not is_instance_valid(campus_adapter) and ResourceLoader.exists("res://scripts/campus/world/room_registry.gd") and ResourceLoader.exists("res://scripts/campus/courses/course_provider.gd"):
++	if not is_instance_valid(campus_adapter) and ResourceLoader.exists("res://scripts/campus/world/room_registry.gd") and ResourceLoader.exists("res://scripts/campus_course_provider.gd"):
+ 		campus_adapter=preload("res://scripts/campus/ui/campus_adapter.gd").new()
+-		campus_adapter.configure(game.school,load("res://scripts/campus/world/room_registry.gd").new(),load("res://scripts/campus/courses/course_provider.gd").new())
++		campus_adapter.configure(game.school,load("res://scripts/campus/world/room_registry.gd").new(),load("res://scripts/campus_course_provider.gd").new())
+@@
+ func campus_page() -> void:
+-	if not is_instance_valid(campus_adapter) and ResourceLoader.exists("res://scripts/campus/world/room_registry.gd") and ResourceLoader.exists("res://scripts/campus/courses/course_provider.gd"):
+-		campus_adapter=preload("res://scripts/campus/ui/campus_adapter.gd").new()
+-		campus_adapter.configure(game.school,load("res://scripts/campus/world/room_registry.gd").new(),load("res://scripts/campus/courses/course_provider.gd").new())
+-		set_campus_adapter(campus_adapter)
+-	if not is_instance_valid(campus_adapter):
++	if not _ensure_campus_adapter():

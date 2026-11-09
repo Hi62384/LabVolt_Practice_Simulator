@@ -1,0 +1,69 @@
+Native firmware backend dependencies and export notes
+
+Vendored runtime engines:
+- AVR8js 0.21.0, https://github.com/wokwi/avr8js , MIT (Uri Shaked).
+  npm tarball: https://registry.npmjs.org/avr8js/-/avr8js-0.21.0.tgz
+  npm integrity: sha512-kjFzxorERow5YFFV25ElhscG57TJqpT6M0m5GDDbXiMYoBmG6K99MQcq6AU1Ly4L+uB1g1o79dMmBNb5O+toxQ==
+- RP2040js 1.3.3, https://github.com/wokwi/rp2040js , MIT (Uri Shaked).
+  npm tarball: https://registry.npmjs.org/rp2040js/-/rp2040js-1.3.3.tgz
+  npm integrity: sha512-6uE6/Ht8L654aF3fB8HS6ICmywzEq1KN71XZq45RR0BUs9SUitPoy+mySoLEHPso6mu2695RCS1hKnchRlGhMA==
+The unmodified npm dist/cjs trees and both MIT license texts are under
+scripts/firmware_backends/vendor. No install scripts are used. Preserve their
+license texts and copyright headers in all redistributions.
+
+Required trusted host runtime: Node.js 20.19 or newer. Tested with 22.15.0.
+Node is NOT included. Configure its absolute executable path on the host, never
+from a player-controlled saved program. A future bundled Node distribution needs
+its own license and third-party notices. The backend never installs packages,
+downloads firmware, opens a listener, or runs compilers during gameplay.
+
+Export: Node cannot read Godot PCK resources. Ship bridge.cjs, machine.cjs and the
+vendor trees as loose files beside the exported game; supply that absolute
+directory to NativeRuntime.load_program(..., backend_directory). Do not assume
+Godot's default export filter includes .cjs/.js/.d.ts/LICENSE files. The project
+was NOT exported or integrated into the live game by this worker.
+
+External Arduino C++ verification tools (not redistributed here):
+- Official AVR GCC 7.3.0-atmel3.6.1-arduino7 Windows archive:
+  https://downloads.arduino.cc/tools/avr-gcc-7.3.0-atmel3.6.1-arduino7-i686-w64-mingw32.zip
+  SHA256 a54f64755fff4cb792a1495e5defdd789902a2a3503982e81b898299cf39800e
+- ArduinoCore-avr 1.8.6:
+  https://github.com/arduino/ArduinoCore-avr/tree/1.8.6
+  Core license obligations apply when redistributing linked core code. The
+  generated compiled Arduino HEX/ELF and downloaded tools/core remain in worker
+  scratch space and are deliberately not in this source delivery.
+- UnoBlink.ino and the handwritten toggle machine-code fixtures are worker
+  examples. No Arduino/Pico SDK, proprietary firmware, or boot ROM is vendored.
+
+Board references:
+https://docs.arduino.cc/resources/pinouts/A000066-full-pinout.pdf
+https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf
+https://github.com/wokwi/avr8js/blob/main/demo/src/execute.ts
+https://github.com/wokwi/rp2040js/blob/main/demo/emulator-run.ts
+
+This is staged native instruction execution, not a claim of complete boards:
+Uno: ATmega328P at 16 MHz, 32 KiB flash, 2 KiB SRAM; GPIO, ADC, 3 timers/PWM,
+external interrupts through engine pin inputs, USART; disconnected SPI/I2C
+produce open-bus 0xff / NACK. No ATmega16U2 USB bridge, EEPROM persistence,
+bootloader upload protocol, VIN regulator, current/thermal damage, or analog
+comparator validation.
+Pico: one Cortex-M0+ core at a fixed 125 MHz; 2 MiB loaded flash limit; raw flash
+image plus vector offset (default 256). GPIO, ADC, PWM, UART tested. No boot ROM
+is loaded; firmware must not call ROM routines. No MicroPython/Pico SDK blanket
+compatibility claim, USB transport, second core, wireless, Pico 2/RP2350, PIO or
+DMA validation. Pico accepts 3V3 logic rail input, not 5V GPIO or VSYS power.
+GP23/24/25/29 are internal Pico signals, not extra header pads. Physical header
+placement, regulators, internal board wiring and onboard LED circuits require
+integrator-owned board models. The adapter's node list is a logical interface.
+
+UART monitor is a peripheral byte endpoint, not an electrical UART wire model.
+SPI/I2C events are observations of disconnected controllers; external electrical
+bus slaves, pin-edge serialization, arbitration and bus loading are unfinished.
+Do not use these transaction events to update a screen through unwired signals.
+Native timing is instruction-driven; electrical input voltages are sampled once
+per requested slice. Output edges carry cycle timestamps. The host must gate
+circuit time until the reply arrives and replay edges or reduce its timestep.
+The default 0.5 ms solver cannot resolve all MCU PWM/SPI rates. NativeRuntime
+fails closed if output-event or instruction limits would silently lose data.
+Electrical drivers: explicitly approximate 40-ohm outputs, 30k pulls, 1e12-ohm
+inputs, 1k logic-rail load. No manufacturer-characterized silicon model.

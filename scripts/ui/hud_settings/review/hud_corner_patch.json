@@ -1,0 +1,14 @@
+[
+  {
+    "target": "scripts/campus/ui/campus_hud.gd",
+    "before_sha256": "73f10617b049a171a750928299142363604849a37d81d0ddc3acc19acd68ad2d",
+    "after_sha256": "df4d6abf9a3ba8d3a843139d6f905517fa5535a9b3a7d7b0250ea53899b0e16b",
+    "replacements": [
+      {
+        "old": "func _ready() -> void:\n\tmouse_filter=Control.MOUSE_FILTER_IGNORE",
+        "new": "func _ready() -> void:\n\tmouse_filter=Control.MOUSE_FILTER_IGNORE\n\t# front_menu assigns a lower legacy offset before add_child; pin this HUD to the viewport corner.\n\tposition=Vector2(12,12)",
+        "count": 1
+      }
+    ]
+  }
+]

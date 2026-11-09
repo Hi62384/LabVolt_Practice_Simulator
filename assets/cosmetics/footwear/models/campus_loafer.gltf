@@ -1,0 +1,307 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original footwear authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Campus Penny Loafer",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Campus Penny Loafer",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 7,
+            "TEXCOORD_0": 8
+          },
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "leather",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.36
+      },
+      "normalTexture": {
+        "index": 1,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "leather_dark",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 5
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.28
+      },
+      "normalTexture": {
+        "index": 4,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "metal",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 6
+        },
+        "metallicRoughnessTexture": {
+          "index": 8
+        },
+        "metallicFactor": 0.78,
+        "roughnessFactor": 0.22
+      },
+      "normalTexture": {
+        "index": 7,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/leather_albedo.png"
+    },
+    {
+      "uri": "../materials/leather_normal.png"
+    },
+    {
+      "uri": "../materials/leather_orm.png"
+    },
+    {
+      "uri": "../materials/leather_dark_albedo.png"
+    },
+    {
+      "uri": "../materials/leather_dark_normal.png"
+    },
+    {
+      "uri": "../materials/leather_dark_orm.png"
+    },
+    {
+      "uri": "../materials/metal_albedo.png"
+    },
+    {
+      "uri": "../materials/metal_normal.png"
+    },
+    {
+      "uri": "../materials/metal_orm.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    },
+    {
+      "source": 6
+    },
+    {
+      "source": 7
+    },
+    {
+      "source": 8
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "campus_loafer.bin",
+      "byteLength": 8064
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 864
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 864,
+      "byteLength": 864
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1728,
+      "byteLength": 576
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2304,
+      "byteLength": 1728
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4032,
+      "byteLength": 1728
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5760,
+      "byteLength": 1152
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6912,
+      "byteLength": 432
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 7344,
+      "byteLength": 432
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 7776,
+      "byteLength": 288
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 72,
+      "type": "VEC3",
+      "min": [
+        -0.095,
+        -0.025,
+        -0.155
+      ],
+      "max": [
+        0.095,
+        0.13,
+        0.175
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 72,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 72,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 144,
+      "type": "VEC3",
+      "min": [
+        -0.1,
+        -0.11,
+        -0.18
+      ],
+      "max": [
+        0.1,
+        0.08900000000000001,
+        0.18
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 144,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 144,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3",
+      "min": [
+        -0.0525,
+        0.06799999999999999,
+        0.0014999999999999996
+      ],
+      "max": [
+        0.0525,
+        0.08,
+        0.028499999999999998
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 36,
+      "type": "VEC2"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "state": "staged_only_for_core_owner",
+  "path": "review_artifacts/circuit_redesign_20261107/core/modules/workspace.gd",
+  "sha256": "b4de7c8c04cb26b726f1902dc2f95f8714d774ae76e04d97f071ed5a82ebce96",
+  "old": "\tcanvas.selection_updated.connect(func(ids):selection_changed.emit(ids))\n",
+  "new": "\tcanvas.selection_updated.connect(func(ids):selection_changed.emit(ids))\n\tvar contextual := preload(\"res://scripts/electronics/contextual_panels/panel_host.gd\").new()\n\tcanvas.add_child(contextual)\n\tcontextual.configure(self,callbacks.get(\"panel_data\",{}),callbacks.get(\"panel_actions\",{}))\n",
+  "normalized_after_sha256": "867518bd1c113b67b440c7c3571e60d8b0aacd04934aa9e5d1a258ea0c7b74c5"
+}

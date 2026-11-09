@@ -1,0 +1,6 @@
+{
+  "path": "scripts\\electronics_ui.gd",
+  "sha256": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+  "old": "\tlabel(body,\"Your notebook is the same paper you carry in the laboratory. Writing, drawings and the last page are saved with your character.\")\n\tbutton(body,\"Open my notebook\",open_notebook)",
+  "new": "\tpreload(\"res://scripts/ui/personal_inventory/panels.gd\").notebook_intro(body,open_notebook)"
+}

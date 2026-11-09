@@ -1,0 +1,82 @@
+IO WORKER MODEL CONTRACT — version 1
+
+All new models are explicitly educational, not manufacturer-verified components.
+Catalog IDs and pin order are authoritative in scripts/io_devices/catalog.gd.
+No existing button, toggle, potentiometer, seven-segment, SPI text display,
+active buzzer or passive-speaker model is replaced. No new board identities.
+
+INPUTS
+io_encoder: dry contacts A/B to COM, Gray sequence 00,01,11,10. Positive
+one-detent command queues four transitions. Transition rate is one per fixed
+simulation step; turn commands bounded +/-16 detents, total +/-100000. This
+retains all intermediate quadrature phases even when the player turns quickly.
+io_keypad: row-major keys 1 2 3 / 4 5 6 / 7 8 9 / * 0 #. Key index = row*3+col.
+Each active key electrically joins its row and column; no isolation diodes.
+io_slider: x=0 places W at B; x=1 places W at A. Total track 10 kOhm.
+io_joystick: two such tracks using shared VREF/GND; separate dry push switch.
+io_selector: position 0/1/2 joins COM to terminal 1/2/3; other contacts open.
+All closed dry contacts 0.01 Ohm; open leakage resistance 1e12 Ohm. No bounce.
+Default control positions are mechanical initial conditions, not fake readings.
+
+VISUAL OUTPUTS
+RGB: three independent junctions R/G/B to K. External resistors mandatory.
+Bar: four independent anodes to K. Matrix: anode rows, cathode columns.
+Brightness = actual solved forward branch current / 20 mA, clamped to [0,1].
+This is instantaneous at fixed-step resolution; no human persistence model.
+Matrix scanning integration should publish an averaged visible level for
+high-rate scans if desired; electrical state never changes for rendering.
+
+LV GRAPHIC PROTOCOL (not SSD1306/HD44780)
+Pins VCC GND DATA CLK /CS. 3 to 5.5 V supply. Logic high >=70% VCC;
+CS active <30% VCC. Rising clocks sample MSB first. First byte is byte-address
+modulo32. Remaining bytes write a 16x16 one-bit framebuffer, auto-increment
+and wrap. Row-major, two bytes per row, bit7 left. CS high aborts partial byte
+and resets address parsing, retaining complete framebuffer writes. Power loss
+or invalid supply clears volatile display memory. Content can only change by
+clocked pin data; there is no magic text/framebuffer API.
+Example wire bytes [0,128,1] lights the leftmost and rightmost pixels of row0.
+Clock periods must exceed the simulation timestep; existing LVScript wait 1
+per half-clock is tested. This is not a hardware-compatible SPI timing claim.
+
+LV CLOCKED PIXEL PROTOCOL (not WS2812/APA102)
+Same five pins, power and clock thresholds. First byte is pixel address modulo8.
+Then R,G,B bytes. Each full RGB triplet latches one pixel and increments/wraps.
+CS high aborts partial byte/triplet and resets parser. A partial RGB triplet
+never changes a pixel. Payload is 8 RGB pixels, 8 bits/channel. Supply load
+uses 2 mA idle plus 20 mA * each normalized color channel, as an approximate
+5V-equivalent resistance. Disconnected or invalid supply blanks the strip.
+
+ACTUATORS
+DC motor: R=20 Ohm; ke=kt=0.02 SI; J=1e-5 kg m2; b=2e-5 N m s.
+MNA includes actual back EMF (ke*omega) in series with the winding. Solved
+winding current produces torque kt*I. Exact viscous integration for a held
+step current, followed by angular integration; no inductance, saturation,
+brush losses, external shaft load, thermal trip or calibrated commercial RPM.
+At 5V the independent equilibrium is 125 rad/s. Disconnected motor coasts;
+shorted motor dynamically brakes through the electrical network. The model
+can regenerate into a connected supply; this is not an arbitrary RPM flag.
+Vibration: same dynamics, 0.5g eccentric mass at 2mm; force=m*r*omega^2.
+Servo: VCC 4.5 to6V; finite 10M input load; 1-2ms pulse width at 10-30ms
+period commands0-180deg; at most360deg/s; timeout60ms. With 0.5ms steps,
+only three nominal widths resolve. Approximate resistive supply load changes
+with position error. No shaft torque, stall mechanics or manufacturer claim.
+Relay: coil125 Ohm; pull-in3.5V/release1.5V; SPDT contact resistance0.05Ohm.
+No coil inductance, contact arcing/bounce or flyback voltage model.
+H bridge: powered2-6V; input1/2 individually select VCC/GND for output1/2
+through2Ohm resistance. Same inputs brake through common rail. Off is1e12Ohm.
+No dead time, current protection, shoot-through, flyback or commercial IC label.
+
+STATE AND OWNERSHIP
+Only the host calls tick, using one successful electrical result per fixed
+step. Failed solve or invalid dt freezes prior state. IDs retain the caller's
+full hierarchical prefix. Both views consume the same host state; switching
+views never resets electronics. Runtime is JSON/Variant serializable.
+Rendering adapters expose commands and do not apply them to electrical state.
+The surface queues releases behind acknowledged presses and coalesces drag
+motion. Feed every accepted/rejected host response back via acknowledge(), or
+present() with an increased authoritative input revision. On disconnect the
+host must release that actor's captured momentary controls independently of
+whether a view still exists. Hide surface nodes/hit areas for unexposed IC I/O.
+
+All code and procedural visual assets are newly authored for this project;
+no added third-party packages, media or redistribution license dependencies.

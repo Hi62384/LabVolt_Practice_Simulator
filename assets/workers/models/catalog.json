@@ -1,0 +1,1712 @@
+{
+  "schottky": {
+    "name": "Schottky diode \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "diode",
+    "pins": [
+      "A",
+      "K"
+    ],
+    "unit": "V",
+    "rating": "Piecewise-linear forward diode; no reverse recovery, temperature or destructive avalanche.",
+    "price": 8,
+    "space": 1,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DO-41",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "vf": 0.3,
+    "ron": 1,
+    "worker_model_version": 1
+  },
+  "rectifier": {
+    "name": "Rectifier diode \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "diode",
+    "pins": [
+      "A",
+      "K"
+    ],
+    "unit": "V",
+    "rating": "Piecewise-linear forward diode; no reverse recovery, temperature or destructive avalanche.",
+    "price": 8,
+    "space": 1,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DO-41",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "vf": 0.7,
+    "ron": 1,
+    "worker_model_version": 1
+  },
+  "zener5v1": {
+    "name": "5.1 V Zener \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "zener",
+    "pins": [
+      "A",
+      "K"
+    ],
+    "unit": "V",
+    "rating": "0.7 V forward, 5.1 V reverse knee with 5 ohm dynamic resistance; no thermal failure.",
+    "price": 8,
+    "space": 1,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DO-35",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "vz": 5.1,
+    "ron": 5.0,
+    "worker_model_version": 1
+  },
+  "tvs12": {
+    "name": "12 V bidirectional TVS \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "tvs",
+    "pins": [
+      "1",
+      "2"
+    ],
+    "unit": "V",
+    "rating": "Symmetric 12.7 V clamp knee (12 V plus 0.7 V); no pulse-energy failure.",
+    "price": 8,
+    "space": 1,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DO-201",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "vz": 12.0,
+    "ron": 1.0,
+    "worker_model_version": 1
+  },
+  "bridge": {
+    "name": "Full-wave bridge \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "bridge",
+    "pins": [
+      "~1",
+      "~2",
+      "+",
+      "-"
+    ],
+    "unit": "V",
+    "rating": "Four 0.7 V / 1 ohm diodes; AC1, AC2, positive, negative. No reverse recovery.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "module",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "vf": 0.7,
+    "ron": 1.0,
+    "worker_model_version": 1
+  },
+  "nmos": {
+    "name": "MOSFET N channel \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "mosfet",
+    "pins": [
+      "D",
+      "G",
+      "S"
+    ],
+    "unit": "V",
+    "rating": "Sampled square-law enhancement channel, threshold magnitude 2 V; body diode and 1 Tohm gate. Generic D/G/S teaching pinout, not a manufacturer pinout. No capacitance/thermal model.",
+    "price": 8,
+    "space": 2,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "TO-220 teaching pinout",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "polarity": "N",
+    "vth": 2.0,
+    "ron": 0.2,
+    "worker_model_version": 1
+  },
+  "njfet": {
+    "name": "JFET N channel \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "jfet",
+    "pins": [
+      "D",
+      "G",
+      "S"
+    ],
+    "unit": "V",
+    "rating": "Sampled square-law depletion channel, pinch-off magnitude 4 V, zero-bias small-signal 100 ohm; two gate junctions. Generic D/G/S pinout. No noise/capacitance/thermal model.",
+    "price": 8,
+    "space": 2,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "TO-92 teaching pinout",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "polarity": "N",
+    "pinch": -4.0,
+    "ron": 100.0,
+    "worker_model_version": 1
+  },
+  "pmos": {
+    "name": "MOSFET P channel \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "mosfet",
+    "pins": [
+      "D",
+      "G",
+      "S"
+    ],
+    "unit": "V",
+    "rating": "Sampled square-law enhancement channel, threshold magnitude 2 V; body diode and 1 Tohm gate. Generic D/G/S teaching pinout, not a manufacturer pinout. No capacitance/thermal model.",
+    "price": 8,
+    "space": 2,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "TO-220 teaching pinout",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "polarity": "P",
+    "vth": 2.0,
+    "ron": 0.2,
+    "worker_model_version": 1
+  },
+  "pjfet": {
+    "name": "JFET P channel \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "jfet",
+    "pins": [
+      "D",
+      "G",
+      "S"
+    ],
+    "unit": "V",
+    "rating": "Sampled square-law depletion channel, pinch-off magnitude 4 V, zero-bias small-signal 100 ohm; two gate junctions. Generic D/G/S pinout. No noise/capacitance/thermal model.",
+    "price": 8,
+    "space": 2,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "TO-92 teaching pinout",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "polarity": "P",
+    "pinch": -4.0,
+    "ron": 100.0,
+    "worker_model_version": 1
+  },
+  "fuse0_1": {
+    "name": "0.1 A fuse \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "fuse",
+    "pins": [
+      "1",
+      "2"
+    ],
+    "unit": "V",
+    "rating": "Non-resetting excess-I2t fuse, 50 milliohm intact, 1 Tohm blown. Replace instance/state to replace fuse; no arc.",
+    "price": 8,
+    "space": 1,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "module",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "current": 0.1,
+    "i2t": 0.0010000000000000002,
+    "ron": 0.05,
+    "worker_model_version": 1
+  },
+  "fuse1_0": {
+    "name": "1.0 A fuse \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "fuse",
+    "pins": [
+      "1",
+      "2"
+    ],
+    "unit": "V",
+    "rating": "Non-resetting excess-I2t fuse, 50 milliohm intact, 1 Tohm blown. Replace instance/state to replace fuse; no arc.",
+    "price": 8,
+    "space": 1,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "module",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "current": 1.0,
+    "i2t": 0.1,
+    "ron": 0.05,
+    "worker_model_version": 1
+  },
+  "relay5": {
+    "name": "5 V SPDT relay \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "relay",
+    "pins": [
+      "Coil+",
+      "Coil-",
+      "COM",
+      "NC",
+      "NO"
+    ],
+    "unit": "V",
+    "rating": "125 ohm / 0.2 H coil, 28 mA pickup / 12 mA release, 10 ms mechanical delay, isolated SPDT contacts. External flyback diode required; no contact bounce/arcing.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "module",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "resistance": 125.0,
+    "pickup": 0.028,
+    "release": 0.012,
+    "delay": 0.01,
+    "worker_model_version": 1,
+    "coil_inductance": 0.2
+  },
+  "reg3_3": {
+    "name": "3.3 V linear regulator \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "regulator",
+    "pins": [
+      "IN",
+      "GND",
+      "OUT"
+    ],
+    "unit": "V",
+    "rating": "Positive linear regulator, 2 V dropout, 0.5 A current limit, 0.1 ohm output. Input current follows previous solved load plus 5 mA. No reverse/thermal shutdown; generic IN/GND/OUT teaching pinout.",
+    "price": 8,
+    "space": 2,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "TO-220 teaching pinout",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "target": 3.3,
+    "dropout": 2.0,
+    "limit": 0.5,
+    "iq": 0.005,
+    "worker_model_version": 1
+  },
+  "reg5_0": {
+    "name": "5.0 V linear regulator \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "regulator",
+    "pins": [
+      "IN",
+      "GND",
+      "OUT"
+    ],
+    "unit": "V",
+    "rating": "Positive linear regulator, 2 V dropout, 0.5 A current limit, 0.1 ohm output. Input current follows previous solved load plus 5 mA. No reverse/thermal shutdown; generic IN/GND/OUT teaching pinout.",
+    "price": 8,
+    "space": 2,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "TO-220 teaching pinout",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "target": 5.0,
+    "dropout": 2.0,
+    "limit": 0.5,
+    "iq": 0.005,
+    "worker_model_version": 1
+  },
+  "reg12_0": {
+    "name": "12.0 V linear regulator \u00b7 educational",
+    "category": "Basic",
+    "kind": "worker_model",
+    "worker_model": "regulator",
+    "pins": [
+      "IN",
+      "GND",
+      "OUT"
+    ],
+    "unit": "V",
+    "rating": "Positive linear regulator, 2 V dropout, 0.5 A current limit, 0.1 ohm output. Input current follows previous solved load plus 5 mA. No reverse/thermal shutdown; generic IN/GND/OUT teaching pinout.",
+    "price": 8,
+    "space": 2,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "TO-220 teaching pinout",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 0,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number."
+    },
+    "target": 12.0,
+    "dropout": 2.0,
+    "limit": 0.5,
+    "iq": 0.005,
+    "worker_model_version": 1
+  },
+  "hc02": {
+    "name": "74HC02 quad NOR \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "nor",
+    "pins": [
+      "1Y",
+      "1A",
+      "1B",
+      "2Y",
+      "2A",
+      "2B",
+      "GND",
+      "3A",
+      "3B",
+      "3Y",
+      "4A",
+      "4B",
+      "4Y",
+      "VCC"
+    ],
+    "unit": "V",
+    "rating": "74HC02 pin order; 2-6 V, 0.3/0.7 rail thresholds, 40 ohm outputs. Undefined input releases corresponding output.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP14",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 6,
+    "supply": 13,
+    "vmin": 2.0,
+    "vmax": 6.0,
+    "worker_model_version": 1
+  },
+  "hc14": {
+    "name": "74HC14 Schmitt inverter \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "schmitt",
+    "pins": [
+      "1A",
+      "1Y",
+      "2A",
+      "2Y",
+      "3A",
+      "3Y",
+      "GND",
+      "4Y",
+      "4A",
+      "5Y",
+      "5A",
+      "6Y",
+      "6A",
+      "VCC"
+    ],
+    "unit": "V",
+    "rating": "74HC14 pin order; 2-6 V, educational 0.35/0.65 rail hysteresis, 40 ohm outputs. Not manufacturer threshold calibration.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP14",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 6,
+    "supply": 13,
+    "vmin": 2.0,
+    "vmax": 6.0,
+    "worker_model_version": 1
+  },
+  "hc165": {
+    "name": "74HC165 parallel input register \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "shift165",
+    "pins": [
+      "/PL",
+      "CP",
+      "D4",
+      "D5",
+      "D6",
+      "D7",
+      "/Q7",
+      "GND",
+      "Q7",
+      "DS",
+      "D0",
+      "D1",
+      "D2",
+      "D3",
+      "/CE",
+      "VCC"
+    ],
+    "unit": "V",
+    "rating": "74HC165 pin order; 2-6 V, async parallel load, OR-gated clock/inhibit, complementary serial outputs. One edge per host step.",
+    "price": 8,
+    "space": 4,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP16",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          0,
+          17.78
+        ],
+        [
+          7.62,
+          17.78
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 7,
+    "supply": 15,
+    "vmin": 2.0,
+    "vmax": 6.0,
+    "worker_model_version": 1
+  },
+  "cd4017": {
+    "name": "CD4017 decade counter \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "counter4017",
+    "pins": [
+      "Q5",
+      "Q1",
+      "Q0",
+      "Q2",
+      "Q6",
+      "Q7",
+      "Q3",
+      "VSS",
+      "Q8",
+      "Q4",
+      "Q9",
+      "CARRY",
+      "INHIBIT",
+      "CLK",
+      "RESET",
+      "VDD"
+    ],
+    "unit": "V",
+    "rating": "CD4017 pin order; 3-15 V selected educational range, async reset, clock inhibit, decoded outputs/carry; 200 ohm drivers. No nanosecond timing.",
+    "price": 8,
+    "space": 4,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP16",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          0,
+          17.78
+        ],
+        [
+          7.62,
+          17.78
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 7,
+    "supply": 15,
+    "vmin": 3.0,
+    "vmax": 15.0,
+    "driver": 200.0,
+    "worker_model_version": 1
+  },
+  "cd4066": {
+    "name": "CD4066 bilateral switches \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "switch4066",
+    "pins": [
+      "1A",
+      "1B",
+      "2B",
+      "2A",
+      "2CTL",
+      "3CTL",
+      "VSS",
+      "3A",
+      "3B",
+      "4B",
+      "4A",
+      "4CTL",
+      "1CTL",
+      "VDD"
+    ],
+    "unit": "V",
+    "rating": "CD4066 pin order; 3-15 V, bilateral 470 ohm on / 1 Tohm off approximation. Signals must stay within power rails; rail injection not modeled.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP14",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 6,
+    "supply": 13,
+    "vmin": 3.0,
+    "vmax": 15.0,
+    "ron": 470.0,
+    "worker_model_version": 1
+  },
+  "cd4051": {
+    "name": "CD4051 analog multiplexer \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "mux4051",
+    "pins": [
+      "X4",
+      "X6",
+      "COM",
+      "X7",
+      "X5",
+      "INH",
+      "VEE",
+      "VSS",
+      "C",
+      "B",
+      "A",
+      "X3",
+      "X0",
+      "X1",
+      "X2",
+      "VDD"
+    ],
+    "unit": "V",
+    "rating": "CD4051 pin order; 3-15 V VDD-VSS, bilateral 470 ohm path, inhibit and A/B/C address. VEE must be externally tied to the desired low analog rail; no rail-injection model.",
+    "price": 8,
+    "space": 4,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP16",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          0,
+          17.78
+        ],
+        [
+          7.62,
+          17.78
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 7,
+    "supply": 15,
+    "vmin": 3.0,
+    "vmax": 15.0,
+    "ron": 470.0,
+    "worker_model_version": 1
+  },
+  "lm393": {
+    "name": "LM393 dual comparator \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "comparator",
+    "pins": [
+      "1OUT",
+      "1IN-",
+      "1IN+",
+      "GND",
+      "2IN+",
+      "2IN-",
+      "2OUT",
+      "VCC"
+    ],
+    "unit": "V",
+    "rating": "LM393 pin order; 2-30 V, valid input common mode 0 to VCC-1.5 V. Open collector 40 ohm sink; external pullup required. No input offset/delay calibration.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP8",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 3,
+    "supply": 7,
+    "vmin": 2.0,
+    "vmax": 30.0,
+    "worker_model_version": 1
+  },
+  "uln2003": {
+    "name": "ULN2003 seven sink drivers \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "uln2003",
+    "pins": [
+      "1B",
+      "2B",
+      "3B",
+      "4B",
+      "5B",
+      "6B",
+      "7B",
+      "E",
+      "COM",
+      "7C",
+      "6C",
+      "5C",
+      "4C",
+      "3C",
+      "2C",
+      "1C"
+    ],
+    "unit": "V",
+    "rating": "ULN2003 pin order; 2.7 kohm input loads, 1.4 V switching threshold, 2 ohm sink approximation, real clamp diodes to COM. Not Darlington VCE calibration; no 500 mA destructive limit.",
+    "price": 8,
+    "space": 4,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP16",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          0,
+          17.78
+        ],
+        [
+          7.62,
+          17.78
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 7,
+    "worker_model_version": 1
+  },
+  "l293d": {
+    "name": "L293D dual H bridge \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "l293d",
+    "pins": [
+      "1,2EN",
+      "1A",
+      "1Y",
+      "GND1",
+      "GND2",
+      "2Y",
+      "2A",
+      "VS",
+      "3,4EN",
+      "3A",
+      "3Y",
+      "GND3",
+      "GND4",
+      "4Y",
+      "4A",
+      "VSS"
+    ],
+    "unit": "V",
+    "rating": "L293D pin order; logic 4.5-5.5 V, separate motor VS, paired enables, tri-state output, 3 ohm drivers and flyback diodes. No motor physics, thermal/current shutdown or calibrated VCE.",
+    "price": 8,
+    "space": 4,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP16",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          0,
+          17.78
+        ],
+        [
+          7.62,
+          17.78
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 3,
+    "supply": 15,
+    "vmin": 4.5,
+    "vmax": 5.5,
+    "worker_model_version": 1
+  },
+  "mcp3008": {
+    "name": "MCP3008 10-bit ADC \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "adc3008",
+    "pins": [
+      "CH0",
+      "CH1",
+      "CH2",
+      "CH3",
+      "CH4",
+      "CH5",
+      "CH6",
+      "CH7",
+      "DGND",
+      "/CS",
+      "DIN",
+      "DOUT",
+      "CLK",
+      "AGND",
+      "VREF",
+      "VDD"
+    ],
+    "unit": "V",
+    "rating": "MCP3008 pin order; 2.7-5.5 V, 10-bit quantization, single-ended/pseudo-differential SPI mode 0. External AGND/DGND/VREF; no sample-capacitor settling or mode-3 support.",
+    "price": 8,
+    "space": 4,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP16",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          0,
+          17.78
+        ],
+        [
+          7.62,
+          17.78
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 8,
+    "supply": 15,
+    "vmin": 2.7,
+    "vmax": 5.5,
+    "worker_model_version": 1
+  },
+  "mcp4921": {
+    "name": "MCP4921 12-bit DAC \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "dac4921",
+    "pins": [
+      "VDD",
+      "/CS",
+      "SCK",
+      "SDI",
+      "/LDAC",
+      "VREF",
+      "VSS",
+      "VOUT"
+    ],
+    "unit": "V",
+    "rating": "MCP4921 pin order; 2.7-5.5 V, 16-bit mode-0 command, 12-bit code, 1x/2x gain, shutdown and LDAC, rail clipping, 50 ohm output. Sampled supply-current load; no reference buffer/settling calibration.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP8",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 6,
+    "supply": 0,
+    "vmin": 2.7,
+    "vmax": 5.5,
+    "worker_model_version": 1
+  },
+  "eeprom25": {
+    "name": "25LC256 SPI EEPROM \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "eeprom25",
+    "pins": [
+      "/CS",
+      "SO",
+      "/WP",
+      "VSS",
+      "SI",
+      "SCK",
+      "/HOLD",
+      "VCC"
+    ],
+    "unit": "V",
+    "rating": "25LC256 pin order; 2.5-5.5 V, mode-0 SPI, 32 KiB sparse erased-FF array, 64-byte page wrap, WREN/WRDI/RDSR/WRSR/READ/WRITE/HOLD, BP/WPEN, 5 ms busy. No endurance/wear or atomic power-loss emulation.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP8",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 3,
+    "supply": 7,
+    "vmin": 2.5,
+    "vmax": 5.5,
+    "worker_model_version": 1
+  },
+  "pcf8574": {
+    "name": "PCF8574 I2C I/O expander \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "pcf8574",
+    "pins": [
+      "A0",
+      "A1",
+      "A2",
+      "P0",
+      "P1",
+      "P2",
+      "P3",
+      "VSS",
+      "P4",
+      "P5",
+      "P6",
+      "P7",
+      "/INT",
+      "SCL",
+      "SDA",
+      "VDD"
+    ],
+    "unit": "V",
+    "rating": "PCF8574 pin order; selected 2.5-5.5 V range, I2C 0x20-0x27, read/write/ACK, open-drain SDA/INT, 50 kohm released-port pullups and 40 ohm sinks. External bus pullups required; no stretching/multimaster arbitration.",
+    "price": 8,
+    "space": 4,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP16",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          0,
+          10.16
+        ],
+        [
+          0,
+          12.7
+        ],
+        [
+          0,
+          15.24
+        ],
+        [
+          0,
+          17.78
+        ],
+        [
+          7.62,
+          17.78
+        ],
+        [
+          7.62,
+          15.24
+        ],
+        [
+          7.62,
+          12.7
+        ],
+        [
+          7.62,
+          10.16
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 7,
+    "supply": 15,
+    "vmin": 2.5,
+    "vmax": 5.5,
+    "worker_model_version": 1
+  },
+  "rs485": {
+    "name": "SN75176 differential transceiver \u00b7 educational",
+    "category": "IC",
+    "kind": "worker_model",
+    "worker_model": "rs485",
+    "pins": [
+      "R",
+      "/RE",
+      "DE",
+      "D",
+      "GND",
+      "A",
+      "B",
+      "VCC"
+    ],
+    "unit": "V",
+    "rating": "SN75176 pin order; 4.75-5.25 V, DE and /RE, differential +/-0.2 V receiver threshold with retained indeterminate state, 12 kohm receiver pin loads, 25 ohm bus drivers. Not common-mode/line-length/failsafe or RS485 compliance validation.",
+    "price": 8,
+    "space": 3,
+    "rarity": "Uncommon",
+    "footprint": {
+      "package": "DIP8",
+      "pitch_mm": 2.54,
+      "numbering": "Top view, counterclockwise for DIP",
+      "row_spacing_mm": 7.62,
+      "orientation": "Pin 1 marker; pin names listed in increasing physical pin number.",
+      "pin_positions_mm": [
+        [
+          0,
+          0.0
+        ],
+        [
+          0,
+          2.54
+        ],
+        [
+          0,
+          5.08
+        ],
+        [
+          0,
+          7.62
+        ],
+        [
+          7.62,
+          7.62
+        ],
+        [
+          7.62,
+          5.08
+        ],
+        [
+          7.62,
+          2.54
+        ],
+        [
+          7.62,
+          0.0
+        ]
+      ]
+    },
+    "ground": 4,
+    "supply": 7,
+    "vmin": 4.75,
+    "vmax": 5.25,
+    "worker_model_version": 1
+  }
+}

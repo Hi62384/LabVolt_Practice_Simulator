@@ -1,0 +1,46 @@
+{
+  "requirements": {
+    "file": "labvolt-coordination/requirements/00-base-task.txt",
+    "sections": [
+      "8 Cooperative Challenges",
+      "9 Progression and Replayability"
+    ],
+    "covered_examples": [
+      "incorrect wiring",
+      "open phase",
+      "low PF",
+      "unbalanced load",
+      "three-phase power",
+      "faulty instrument reference",
+      "induction motor diagnosis"
+    ]
+  },
+  "actual_model_sources": {
+    "scripts/equipment_catalog.gd": {
+      "R_ohms": [
+        1200,
+        600,
+        300
+      ],
+      "L_henry": [
+        3.2,
+        1.6,
+        0.8
+      ],
+      "C_farad": [
+        2.2e-06,
+        4.4e-06,
+        8.8e-06
+      ],
+      "nominal_load_rms_volts": 120
+    },
+    "scripts/circuit_solver.gd": "Production AC RMS phasor solver, finite current/watt/voltage input loads and source protection; unchanged.",
+    "scripts/induction_motor.gd": "Illustrative4pole perphase equivalent with minimum-winding-voltage/balance/slip/RPM behavior. Not a manufacturer single-phasing/thermal model."
+  },
+  "independent_test_oracles": [
+    "Balanced resistive Wye P=3V_phase\u00b2/R, phase current\u2248V_phase/R with instrument loading tolerance.",
+    "PF capacitor matching Q_L=V\u00b2/(2\u03c0fL), Q_C=\u2212V\u00b22\u03c0fC using real discrete banks.",
+    "4pole synchronous speed120f/4=1800RPM; actual solved model must run below synchronous speed with balanced windings."
+  ],
+  "cosmetics": "Original preauthored text/standard geometric plaques at fixed existing AC backboards; no third-party media."
+}

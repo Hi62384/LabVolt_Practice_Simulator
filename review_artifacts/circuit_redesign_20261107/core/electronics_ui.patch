@@ -1,0 +1,96 @@
+--- a/scripts/electronics_ui.gd
++++ b/scripts/electronics_ui.gd
+@@ -82,6 +82,10 @@
+ 	status=label(column,"Creative access · ordinary inventory unchanged" if creative else "Kits are templates. Ownership is counted only in your master inventory.")
+ 	var scroll := ScrollContainer.new();page_scroll=scroll;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(scroll)
+ 	body=VBoxContainer.new();body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(body)
++	if page in ["board","design"]:
++		scroll.remove_child(body);column.remove_child(scroll);scroll.queue_free();page_scroll=null
++		body.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(body)
++		title.text="Circuit workspace";status.hide()
+ 	if not profile.data.get("pending_trade",{}).is_empty() and page!="trade":
+ 		label(body,"A trade is being saved. Reconnect to the same host if interrupted; your inventory stays reserved until its decision is recovered.");return
+ 	match page:
+@@ -261,78 +265,10 @@
+ 	_flush_kit_names()
+ 	active=true
+ func breadboard() -> void:
+-	if profile.data.kits[profile.data.equipped].board.get("standalone",false):pcb_inspector();return
+-	var kit: Dictionary=profile.data.kits[profile.data.equipped]
+-	if designing:label(body,"CIRCUIT DESIGN · Live isolated preview: add a battery to power your circuit. Deployment requires components in your kit.")
+-	label(body,"Click two holes to place a component or jumper. Middle drag: pan · Wheel: zoom · Right click: cancel")
+-	var tools := HFlowContainer.new();body.add_child(tools)
+-	kit.board.definitions=profile.data.get("blueprints",{}).duplicate(true)
+-	canvas=preload("res://scripts/breadboard_canvas.gd").new();canvas.board=kit.board.duplicate(true)
+-	wire_io_canvas(canvas)
+-	var analyzer := CheckButton.new();analyzer.text="Circuit Analyzer";analyzer.disabled=not (creative or designing or profile.data.get("analyzer",false));analyzer.button_pressed=designing;canvas.analyzer_enabled=designing;tools.add_child(analyzer)
+-	analyzer.tooltip_text="Probe two holes for differential voltage, inspect signed branch currents and sampled timing. No measurements are invented." if not analyzer.disabled else "Unlock in Components ($75); free in Creative Freeplay."
+-	analyzer.toggled.connect(func(on):canvas.analyzer_enabled=on;canvas.queue_redraw())
+-	analyzer_tools(tools,analyzer)
+-	var choice := OptionButton.new();tools.add_child(choice)
+-	for tool in [["probe+","Analyzer + probe"],["probe-","Analyzer − probe"],["wire","Jumper wire"],["remove","Remove"],["interact","Interact"],["select","Select"]]:
+-		choice.add_item(tool[1]);choice.set_item_metadata(choice.item_count-1,tool[0])
+-	choice.item_selected.connect(func(i):canvas.first="";canvas.selected_type=str(choice.get_item_metadata(i)))
+-	# Keep non-numeric parts (batteries, switches, modules) available beside value search.
+-	var values = preload("res://scripts/electronics/component_values/values.gd")
+-	for id in profile.catalog():
+-		var part: Dictionary=profile.catalog()[id]
+-		if values.fields(part).has("value"):continue
+-		if not (creative or designing) and int(kit.items.get(id,0))<=0:continue
+-		choice.add_item(str(part.name));choice.set_item_metadata(choice.item_count-1,id)
+-	var picker := preload("res://scripts/electronics/inventory_value_search/picker.gd").new()
+-	body.add_child(picker)
+-	picker.set_inventory(profile.data,profile.catalog(),{},{} if creative or designing else kit.items)
+-	picker.choice_changed.connect(func(type_id: String,_instance: String):canvas.first="";canvas.selected_type=type_id if type_id!="" else "select")
+-	button(tools,"Undo",func():canvas.undo());button(tools,"Redo",func():canvas.redo())
+-	button(tools,"Deploy to DC bench",deploy)
+-	button(tools,"Carry board",func():
+-		if bench>=0:game.dc_lab.request(bench,{"op":"carry_board"});close();game.ui.log_message("Right click a table to place the board. R rotates it. Disconnect B1–B4 leads before moving.")
+-	)
+-	button(tools,"Recall / disconnect",func():
+-		if bench>=0:game.dc_lab.request(bench,{"op":"recall"})
+-	)
+-	var edits := HFlowContainer.new();body.add_child(edits)
+-	for operation in [["←",-1,0],["→",1,0],["↑",0,-1],["↓",0,1]]:button(edits,operation[0],func():canvas.transform_selected(operation[1],operation[2]))
+-	button(edits,"Rotate 90°",func():canvas.transform_selected(0,0,true))
+-	button(edits,"Delete selected",func():canvas.delete_selected())
+-	button(edits,"Copy",func():canvas.copy_selected())
+-	button(edits,"Paste",func():
+-		if not canvas.paste_selected():status.text="No free holes for this copy. Move parts or enlarge the board."
+-	)
+-	var rows := OptionButton.new();edits.add_child(rows)
+-	for count in [10,20,30,40]:rows.add_item(str(count)+" rows");rows.set_item_metadata(rows.item_count-1,count)
+-	rows.select([10,20,30,40].find(int(kit.board.rows)))
+-	rows.item_selected.connect(func(i):
+-		if not canvas.resize_board(int(rows.get_item_metadata(i))):status.text="Move components, wires and ports inside the smaller board first."
+-		rows.select([10,20,30,40].find(int(canvas.board.rows)))
+-	)
+-	body.add_child(canvas)
+-	if is_instance_valid(analyzer_details):body.move_child(analyzer_details,body.get_child_count()-1)
+-	if board_view.has(profile.data.equipped):canvas.zoom=board_view[profile.data.equipped].zoom;canvas.pan=board_view[profile.data.equipped].pan
+-	canvas.design_changed.connect(func(design):
+-		canvas.capture.samples.clear()
+-		var selection_error: String=picker.selection.bind_new_parts(design,kit.board)
+-		if selection_error!="":canvas.board=kit.board.duplicate(true);canvas.queue_redraw();status.text=selection_error;return
+-		var error: String=Board.validate(design,kit.items,creative or designing)
+-		if error!="":canvas.board=kit.board.duplicate(true);canvas.queue_redraw();status.text=error;return
+-		kit.board=design.duplicate(true)
+-		if profile.save()!=OK:status.text="Save failed";return
+-		status.text="Design saved"
+-		if not designing and bench>=0 and game.dc_lab.states[bench].get("board_owner",0)==multiplayer.get_unique_id():deploy()
+-	)
+-	var ports := HBoxContainer.new();body.add_child(ports)
+-	for i in range(4):
+-		label(ports,"B%d →"%(i+1));var field := LineEdit.new();field.text=kit.board.ports[i];field.custom_minimum_size.x=60;ports.add_child(field)
+-		field.text_submitted.connect(func(v):
+-			if Board.node(v.to_upper(),int(kit.board.rows))=="":status.text="Unknown hole";return
+-			kit.board.ports[i]=v.to_upper();canvas.board=kit.board.duplicate(true);profile.save()
+-		)
+-	label(body,"A–E share a terminal strip per numbered row; F–J share the other. P/N rails split halfway.\nB1–B4 are real bench connection posts. Use the DC instrument Leads tab or click the posts in the room.")
++	var adapter=preload("res://scripts/electronics/circuit_workspace/host_adapter.gd").new()
++	var workspace: Control=adapter.mount(self)
++	workspace.set_meta("host_adapter",adapter)
++
+ func deploy() -> void:
+ 	if not game.front.in_game:status.text="Start a laboratory and walk to a DC bench to deploy.";return
+ 	if bench<0:

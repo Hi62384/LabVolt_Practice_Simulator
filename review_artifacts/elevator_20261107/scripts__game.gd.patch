@@ -1,0 +1,11 @@
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@ -586,6 +586,8 @@
+ 			hint="Right click: place kit"
+ 		elif role in ["shop_station","dc_board"]:
+ 			hint="E / click: "+str(current_target.get_meta("label","Open"))
++		elif role=="elevator_control":
++			hint="E / click: "+str(current_target.get_meta("label","Elevator"))
+ 		elif role=="dc_panel":
+ 			hint="E / click: DC instruments"
+ 		elif role=="dc_instrument_control":

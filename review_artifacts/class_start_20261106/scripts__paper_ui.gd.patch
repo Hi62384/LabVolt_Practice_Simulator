@@ -1,0 +1,99 @@
+--- a/scripts/paper_ui.gd
++++ b/scripts/paper_ui.gd
+@@ -118,35 +118,38 @@
+ 	screen.show()
+ 	_label(column,"LAB INSTRUCTOR",30)
+ 	_label(column,school.average())
+-	_label(column,"Practice assignments and lessons never change official course marks.")
+-	var row := HBoxContainer.new()
+-	column.add_child(row)
+-	var practice_course := OptionButton.new()
+-	for value in school.course_ids():practice_course.add_item(value)
+-	practice_course.select(maxi(school.course_ids().find(str(school.activity.get("course_id","ELM253"))),0))
+-	row.add_child(practice_course)
+-	var topics := OptionButton.new();row.add_child(topics)
+-	var refresh_topics := func():
+-		topics.clear()
+-		for week in school.course_bridge.weeks(practice_course.get_item_text(practice_course.selected),school.practice_kind(practice_course.get_item_text(practice_course.selected))):topics.add_item("Week %d · %s"%[int(week.get("week",topics.item_count+1)),str(week.get("title",""))])
+-	practice_course.item_selected.connect(func(_index):refresh_topics.call())
+-	refresh_topics.call()
+-	var level := OptionButton.new()
+-	for difficulty in ["Beginner","Easy","Normal","Hard","Expert"]:level.add_item(difficulty)
+-	row.add_child(level)
+-	var buttons := HBoxContainer.new()
+-	column.add_child(buttons)
+-	_button(buttons,"Take assignment",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"week":topics.selected+1,"difficulty":level.selected});close())
+-	_button(buttons,"Random assignment",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"random":true,"difficulty":level.selected});close())
+-	_button(buttons,"Equipment guide",func():school.request({"op":"guide"});close())
+-	_button(buttons,"Take lesson",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"week":topics.selected+1,"difficulty":level.selected,"lesson":true});close())
+ 	if school.mode=="Class":
+-		_label(column,"CLASS • %s • %02d:%02d remaining"%[school.phase.capitalize(),int(school.remaining)/60,int(school.remaining)%60])
+-		_label(column,"Join during the lesson to take part. Join during a lab for ungraded practice, then start the next round. Rejoining restores your current work and original deadline. At the deadline, completed answers are marked and unanswered parts receive no credit.")
+-		_button(column,"Replace missing Class sheet",func():school.request({"op":"replacement"});close())
++		_label(column,"%s · Week %d · %s"%[str(school.activity.get("course_id","")),int(school.activity.get("week",0)),str(school.activity.get("kind","")).capitalize()])
++		_label(column,"%s · %02d:%02d"%[school.phase.capitalize(),int(school.remaining)/60,int(school.remaining)%60])
++		if school.phase=="travel":_label(column,"Find your assigned room. Teaching begins automatically when the countdown ends.")
++		elif school.phase=="lesson":_label(column,str(school.teaching_stage().get("title","Teaching in progress")))
++		elif school.phase=="assignment":_label(column,"Your assigned work is ready. Complete it before the deadline.")
++		if school.phase=="assignment" and school.held(multiplayer.get_unique_id())==0:_button(column,"Replace missing Class sheet",func():school.request({"op":"replacement"});close())
++		_button(column,"Equipment guide",func():school.request({"op":"guide"});close())
++	else:
++		_label(column,"Practice assignments and lessons never change official course marks.")
++		var row := HBoxContainer.new()
++		column.add_child(row)
++		var practice_course := OptionButton.new()
++		for value in school.course_ids():practice_course.add_item(value)
++		practice_course.select(maxi(school.course_ids().find(str(school.activity.get("course_id","ELM253"))),0))
++		row.add_child(practice_course)
++		var topics := OptionButton.new();row.add_child(topics)
++		var refresh_topics := func():
++			topics.clear()
++			for week in school.course_bridge.weeks(practice_course.get_item_text(practice_course.selected),school.practice_kind(practice_course.get_item_text(practice_course.selected))):topics.add_item("Week %d · %s"%[int(week.get("week",topics.item_count+1)),str(week.get("title",""))])
++		practice_course.item_selected.connect(func(_index):refresh_topics.call())
++		refresh_topics.call()
++		var level := OptionButton.new()
++		for difficulty in ["Beginner","Easy","Normal","Hard","Expert"]:level.add_item(difficulty)
++		row.add_child(level)
++		var buttons := HBoxContainer.new()
++		column.add_child(buttons)
++		_button(buttons,"Take assignment",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"week":topics.selected+1,"difficulty":level.selected});close())
++		_button(buttons,"Random assignment",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"random":true,"difficulty":level.selected});close())
++		_button(buttons,"Equipment guide",func():school.request({"op":"guide"});close())
++		_button(buttons,"Take lesson",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"week":topics.selected+1,"difficulty":level.selected,"lesson":true});close())
+ 	if multiplayer.is_server():
+-		if school.phase=="travel":_button(column,"Begin teaching when everyone is ready",func():school.request({"op":"begin_lesson"});close())
+-		_button(column,"Choose next campus activity",activity_menu)
+ 		if not school.formal_active():_button(column,"Earthing demonstration",safety_demo_menu)
+ 	if school.mode=="Class" and school.phase=="assignment":
+ 		_button(column,"Abandon my active assessment…",func():confirm_abandon())
+@@ -414,9 +417,6 @@
+ 	if flushing:
+ 		_updated.call_deferred()
+ 		return
+-	if multiplayer.is_server() and school.phase=="complete" and completed_popup_round!=school.round_id and game.front.in_game:
+-		completed_popup_round=school.round_id
+-		activity_menu.call_deferred()
+ 	if not screen.visible or not reading:return
+ 	if not school.papers.has(document_id):close();return
+ 	var paper: Dictionary=school.papers[document_id]
+@@ -498,8 +498,8 @@
+ 	dialog.canceled.connect(dialog.queue_free)
+ 	add_child(dialog);dialog.popup_centered(Vector2i(560,180))
+ 
+-func activity_menu() -> void:
+-	if not multiplayer.is_server():return
++func activity_menu(expected_epoch: int) -> void:
++	if not multiplayer.is_server() or not school.can_choose_next_activity() or school.activity_epoch!=expected_epoch:return
+ 	flush();reading=false;_clear();game.release_mouse();screen.show()
+ 	_label(column,"CAMPUS ACTIVITY",30)
+ 	_label(column,"Class complete. Choose the next activity; everyone stays connected." if school.phase=="complete" else "The host chooses a shared campus activity.")
+@@ -530,6 +530,9 @@
+ 	var deadline := SpinBox.new();deadline.min_value=1;deadline.max_value=120;deadline.value=30;deadline.suffix=" assessment minutes";column.add_child(deadline)
+ 	var result_label := _label(column,"")
+ 	_button(column,"Start activity",func():
++		if not school.can_choose_next_activity() or school.activity_epoch!=expected_epoch:
++			result_label.text="This activity menu has expired."
++			return
+ 		var result: Dictionary=school.start_activity({"mode":mode_select.get_item_text(mode_select.selected),"course_id":course_select.get_item_text(course_select.selected),"kind":kind_select.get_item_text(kind_select.selected),"week":week_select.selected+1,"difficulty":level.selected,"assessment_seconds":deadline.value*60})
+ 		if result.ok:close()
+ 		else:result_label.text=str(result.error))

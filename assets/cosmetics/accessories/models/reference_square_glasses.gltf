@@ -1,0 +1,129 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Square Glasses",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Square Glasses",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "dark_metal",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.75,
+        "roughnessFactor": 0.24
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/dark_metal_albedo.png"
+    },
+    {
+      "uri": "../materials/dark_metal_orm.png"
+    },
+    {
+      "uri": "../materials/dark_metal_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "reference_square_glasses.bin",
+      "byteLength": 21504
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 8064
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 8064,
+      "byteLength": 8064
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 16128,
+      "byteLength": 5376
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 672,
+      "type": "VEC3",
+      "min": [
+        -0.22432112377853122,
+        -0.042,
+        0.010743859366706044
+      ],
+      "max": [
+        0.22432112377853122,
+        0.07200000000000001,
+        0.21245581510326628
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 672,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 672,
+      "type": "VEC2"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+--- a/scripts/school_world.gd
++++ b/scripts/school_world.gd
+@@ -86,7 +86,7 @@
+ 		if school.phase=="lesson":
+ 			var stage: Dictionary=school.teaching_stage()
+ 			value+="%d / %d · %s\n%s"%[int(stage.get("index",0))+1,int(stage.get("count",1)),str(stage.get("title","")),str(stage.get("text",stage.get("caption","")))]
+-		elif school.phase=="travel":value+="Find your assigned room, then sit for a lecture. The host starts teaching when participants are ready."
++		elif school.phase=="travel":value+="Find your assigned room. Teaching begins automatically when the two-minute countdown ends; arrivals afterward are late."
+ 		elif school.phase=="assignment":value+="Complete your sheet and submit it. At the deadline, completed answers are marked; unanswered parts receive no credit."
+ 		else:value+="Class complete. The host can select the next activity without reconnecting."
+ 	if not school.activity.is_empty():

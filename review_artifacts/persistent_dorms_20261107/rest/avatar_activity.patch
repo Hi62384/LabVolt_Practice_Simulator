@@ -1,0 +1,16 @@
+--- a/scripts/campus/facilities/avatar_activity.gd
++++ b/scripts/campus/facilities/avatar_activity.gd
+@@ -42,11 +42,13 @@
+ 	food.add_child(mesh)
+ 
+ func restore() -> void:
++	if is_instance_valid(visual) and visual.has_meta(&"dorm_rest_pose"):return
+ 	if is_instance_valid(visual):visual.transform=original
+ 	for arm in arms.values():
+ 		if is_instance_valid(arm.node):arm.node.transform=arm.transform
+ 
+ func _process(delta: float) -> void:
++	if is_instance_valid(visual) and visual.has_meta(&"dorm_rest_pose"):return
+ 	if not is_instance_valid(visual):set_process(false);return
+ 	elapsed+=delta
+ 	if state.get("activity","")=="emote":

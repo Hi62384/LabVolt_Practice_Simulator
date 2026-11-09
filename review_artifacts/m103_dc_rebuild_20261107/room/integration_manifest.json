@@ -1,0 +1,7 @@
+{
+  "target": "scripts/campus_integration.gd",
+  "preimage_sha256": "90de50b3d38b1d90e81e8b24defcb9b55877bbf1ba0d6754614bfb028162695e",
+  "proposed_sha256": "2fde870d2e04ab4365f66fe24c3e9d78de663bd82505b386050b33cc61169377",
+  "candidate": "review_artifacts/m103_dc_rebuild_20261107/room/m103_room_finish.gd",
+  "requires_exact_preimage": true
+}

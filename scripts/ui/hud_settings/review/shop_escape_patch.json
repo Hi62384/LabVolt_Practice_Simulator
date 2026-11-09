@@ -1,0 +1,8 @@
+{
+  "target": "scripts/game.gd",
+  "before_sha256": "f451fba3d1132a5e7616df4b4ff34ffa5f81d42f95a68a12a633354981beb251",
+  "after_sha256": "4c8cead93f9276599333cd884df11b32c0755b3a5cae48ac82fdbc136ad9cb2b",
+  "old": "\t\tif is_instance_valid(shop_room) and shop_room.active:shop_room.leave();return",
+  "new": "\t\tif is_instance_valid(shop_room) and shop_room.active:\n\t\t\tfront.pause_menu()\n\t\t\tget_viewport().set_input_as_handled()\n\t\t\treturn",
+  "reason": "Active shop room Escape opens pause without running shop_room.leave. Visible Electronics panel still follows earlier close branch."
+}

@@ -1,0 +1,3591 @@
+{
+  "schema": 1,
+  "threadId": "01a1b762-2d72-7b00-9b91-89ec52d1fc67",
+  "title": "UI and 3D design",
+  "source": "Supported codex_app.read_thread pagination",
+  "note": "Complete user-message text and returned attachment references. References are indexed, not proof their bytes have been read. User owns testing; no assistant tests.",
+  "userMessages": [
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b762-3f9f-7372-9e60-4a97c439ad27",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-15e6cc17-a90f-4b9f-84c7-46f25844c810.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-15e6cc17-a90f-4b9f-84c7-46f25844c810.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Completely Redesign View Courses into a College Course Gradebook…\": C:\\Users\\User1\\.codex/attachments/4c4a1423-6530-4798-8aa0-abfd3cdce21e/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-15e6cc17-a90f-4b9f-84c7-46f25844c810.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b764-6e40-7241-8878-18443029623f",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-9161e15b-a69f-4af2-a6e9-695d1fc2b727.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-9161e15b-a69f-4af2-a6e9-695d1fc2b727.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Replace Main Menu Background with a Cinematic Campus Flythrough …\": C:\\Users\\User1\\.codex/attachments/3825da39-b254-4087-8afe-3a1e6a59e6fc/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-9161e15b-a69f-4af2-a6e9-695d1fc2b727.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b767-4a06-7b43-bfe7-a2051d4c2205",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-eefafe8a-010e-4026-bffc-d080f2ae1395.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-eefafe8a-010e-4026-bffc-d080f2ae1395.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign Character Selection UI and Fix Off-Screen Buttons Compl…\": C:\\Users\\User1\\.codex/attachments/dcd4f4b7-75f9-4f8e-a5d2-b56a04939969/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-eefafe8a-010e-4026-bffc-d080f2ae1395.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b76b-f772-7101-83b4-7c3eac30eb1b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-2db5e37b-8719-4475-9834-14ad651cae32.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2db5e37b-8719-4475-9834-14ad651cae32.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Simplify and Redesign the Host Game Menu Redesign the **Host Gam…\": C:\\Users\\User1\\.codex/attachments/982de61d-75eb-4381-80df-b275ee3cd51e/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2db5e37b-8719-4475-9834-14ad651cae32.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b770-edea-77c1-9626-62dc383325cd",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-3595f110-5c31-4c5b-8e7d-f2f70d768c20.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-3595f110-5c31-4c5b-8e7d-f2f70d768c20.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nblurry viewport\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-3595f110-5c31-4c5b-8e7d-f2f70d768c20.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b771-f903-73d3-9507-a5eeb08ef5c6",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign Host Game Class Selection and Add Mathematics Courses C…\": C:\\Users\\User1\\.codex/attachments/f3be65db-3957-4f4c-a438-eb2ade8f79eb/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b772-6cac-7ad0-8429-3109fae67339",
+      "content": [
+        {
+          "type": "text",
+          "text": "also add a singleplayer option in main menu which is the exact same menu as host but without the hosting options, like port and username\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b776-9f91-77a1-bda6-2e8601f7f4a2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-193f7854-e331-4393-9a2b-8ca143623b7b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-193f7854-e331-4393-9a2b-8ca143623b7b.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Simplify Avatar Studio UI and Fix Inverted Character Rotation Im…\": C:\\Users\\User1\\.codex/attachments/9d11a106-d8e1-4771-bddd-b1ae88ab0cd1/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-193f7854-e331-4393-9a2b-8ca143623b7b.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b778-3497-78e1-bb3b-8295e5d305e1",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-9f2d4fbb-52ee-4557-8566-0cf8218c0f72.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-9f2d4fbb-52ee-4557-8566-0cf8218c0f72.png\nImage attachment: true\n\n## codex-clipboard-d2265be3-affb-41eb-852f-65eea3551ac0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d2265be3-affb-41eb-852f-65eea3551ac0.png\nImage attachment: true\n\n## codex-clipboard-ef3d2b5a-7f23-4018-b2ce-65515b950aa8.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-ef3d2b5a-7f23-4018-b2ce-65515b950aa8.png\nImage attachment: true\n\n## codex-clipboard-4b538d8b-4445-4bae-9d0d-3cc23b2ceb0a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4b538d8b-4445-4bae-9d0d-3cc23b2ceb0a.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe panels for the items you own are awful. first off they look terrible and they dont even show a picture of what the thing looks like. like the icons are just a bunch of simple boring 2d shapes\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-9f2d4fbb-52ee-4557-8566-0cf8218c0f72.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d2265be3-affb-41eb-852f-65eea3551ac0.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-ef3d2b5a-7f23-4018-b2ce-65515b950aa8.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4b538d8b-4445-4bae-9d0d-3cc23b2ceb0a.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b779-0e15-7091-bbf0-515360c194b6",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-437fe766-aaf7-475e-b0d9-58ee72832a22.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-437fe766-aaf7-475e-b0d9-58ee72832a22.png\nImage attachment: true\n\n## codex-clipboard-dacc3f05-c021-4b68-a731-0d0342953b5a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-dacc3f05-c021-4b68-a731-0d0342953b5a.png\nImage attachment: true\n\n## codex-clipboard-d7b4de47-f189-4f77-bd63-6a2c71d8a103.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d7b4de47-f189-4f77-bd63-6a2c71d8a103.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfaces are extremely broken looking\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-437fe766-aaf7-475e-b0d9-58ee72832a22.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-dacc3f05-c021-4b68-a731-0d0342953b5a.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d7b4de47-f189-4f77-bd63-6a2c71d8a103.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b779-c5fe-7871-a43e-5eedf207e43c",
+      "content": [
+        {
+          "type": "text",
+          "text": "also you can choose to have nothing selected in any of the categories and itll choose a default. it should always have something selected, like a face or a top, and it would just select one by default for all characters\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b77b-13cd-7c61-b7ba-d1f8a62f7da5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6dc736c1-fc24-47ea-bb24-b00df28b7d65.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6dc736c1-fc24-47ea-bb24-b00df28b7d65.png\nImage attachment: true\n\n## codex-clipboard-1bcfdc02-b5dc-45cf-b8e9-8cad8b3c124b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-1bcfdc02-b5dc-45cf-b8e9-8cad8b3c124b.png\nImage attachment: true\n\n## codex-clipboard-442a6b56-f1e7-41d1-bee1-e3b3c506b463.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-442a6b56-f1e7-41d1-bee1-e3b3c506b463.png\nImage attachment: true\n\n## codex-clipboard-70670b7d-a627-40f4-a8d1-25fea68d888d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-70670b7d-a627-40f4-a8d1-25fea68d888d.png\nImage attachment: true\n\n## codex-clipboard-c917777b-8f7c-4d10-af55-4b46ac0d0970.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c917777b-8f7c-4d10-af55-4b46ac0d0970.png\nImage attachment: true\n\n## codex-clipboard-590b8afc-2a8e-4fc7-b528-bc72f0ac5bd3.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-590b8afc-2a8e-4fc7-b528-bc72f0ac5bd3.png\nImage attachment: true\n\n## codex-clipboard-fc282a76-942f-4c8c-91e2-f4d28e697771.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-fc282a76-942f-4c8c-91e2-f4d28e697771.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nhairs are also broken\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6dc736c1-fc24-47ea-bb24-b00df28b7d65.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-1bcfdc02-b5dc-45cf-b8e9-8cad8b3c124b.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-442a6b56-f1e7-41d1-bee1-e3b3c506b463.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-70670b7d-a627-40f4-a8d1-25fea68d888d.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c917777b-8f7c-4d10-af55-4b46ac0d0970.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-590b8afc-2a8e-4fc7-b528-bc72f0ac5bd3.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-fc282a76-942f-4c8c-91e2-f4d28e697771.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b77b-d727-77c0-8cfd-d69df57f9cee",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a67802af-5cf3-44a9-a76f-a80f69e52b06.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a67802af-5cf3-44a9-a76f-a80f69e52b06.png\nImage attachment: true\n\n## codex-clipboard-a4c90e5b-89d1-4ad7-aefd-4f511e5ba19e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a4c90e5b-89d1-4ad7-aefd-4f511e5ba19e.png\nImage attachment: true\n\n## codex-clipboard-4dbc6223-5eb0-4731-a38a-860a1044ac4f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4dbc6223-5eb0-4731-a38a-860a1044ac4f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfacial hair too\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a67802af-5cf3-44a9-a76f-a80f69e52b06.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a4c90e5b-89d1-4ad7-aefd-4f511e5ba19e.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4dbc6223-5eb0-4731-a38a-860a1044ac4f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b77d-13dd-7770-82f8-2068e97ada95",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f958f61e-0d53-49e2-9749-bf8421cd1617.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f958f61e-0d53-49e2-9749-bf8421cd1617.png\nImage attachment: true\n\n## codex-clipboard-bba4ee86-2ccf-482d-9b7b-3649425f63de.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bba4ee86-2ccf-482d-9b7b-3649425f63de.png\nImage attachment: true\n\n## codex-clipboard-bc62c7c9-a743-49bd-95fb-7c1d6d7f80da.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bc62c7c9-a743-49bd-95fb-7c1d6d7f80da.png\nImage attachment: true\n\n## codex-clipboard-57f6feb8-719e-4fcd-92f5-a559a1acd99e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-57f6feb8-719e-4fcd-92f5-a559a1acd99e.png\nImage attachment: true\n\n## codex-clipboard-31d9973d-adfd-4e0c-b191-d63457ae445e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-31d9973d-adfd-4e0c-b191-d63457ae445e.png\nImage attachment: true\n\n## codex-clipboard-7a402c04-2ecb-47fa-88fa-53c181d5bb3d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-7a402c04-2ecb-47fa-88fa-53c181d5bb3d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nclothing is ultra broken and you can wear multiple tops at once\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f958f61e-0d53-49e2-9749-bf8421cd1617.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bba4ee86-2ccf-482d-9b7b-3649425f63de.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bc62c7c9-a743-49bd-95fb-7c1d6d7f80da.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-57f6feb8-719e-4fcd-92f5-a559a1acd99e.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-31d9973d-adfd-4e0c-b191-d63457ae445e.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-7a402c04-2ecb-47fa-88fa-53c181d5bb3d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b77e-06f3-79c3-a4af-c321f354f4dd",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-1ef92dd6-68f1-4ddf-9cb9-a8c4bbfa3a38.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-1ef92dd6-68f1-4ddf-9cb9-a8c4bbfa3a38.png\nImage attachment: true\n\n## codex-clipboard-3165d01d-5076-48e8-92d2-bd1a0bb9c7ee.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-3165d01d-5076-48e8-92d2-bd1a0bb9c7ee.png\nImage attachment: true\n\n## codex-clipboard-3eaa4517-964a-44e4-890f-b0f7e32e14bf.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-3eaa4517-964a-44e4-890f-b0f7e32e14bf.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nand accessories too\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-1ef92dd6-68f1-4ddf-9cb9-a8c4bbfa3a38.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-3165d01d-5076-48e8-92d2-bd1a0bb9c7ee.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-3eaa4517-964a-44e4-890f-b0f7e32e14bf.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b77e-661e-7db2-84da-063a2d99b002",
+      "content": [
+        {
+          "type": "text",
+          "text": "fix the look of everything broken, make everything look much better and add many many more items, like much more faces, facial hair, tops, etc\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b77f-b9df-7252-a6c0-37539c1987c5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-9bef4cab-8523-4bae-9984-fa60726c3bac.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-9bef4cab-8523-4bae-9984-fa60726c3bac.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwheres ETY155 and MTH255\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-9bef4cab-8523-4bae-9984-fa60726c3bac.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b780-d1a9-7941-9f0b-85d3a28a6017",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6918be48-e282-4ea2-9ca2-320500341f2a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6918be48-e282-4ea2-9ca2-320500341f2a.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Completely Rebuild the College Simulator Settings Menu Redesign …\": C:\\Users\\User1\\.codex/attachments/e1b12e64-a913-4f79-8eec-9b4c1e97841a/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6918be48-e282-4ea2-9ca2-320500341f2a.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b787-c630-7e60-9474-83c7ac942b29",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-45bf0c75-47b6-4b67-8444-402847b6fbc9.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-45bf0c75-47b6-4b67-8444-402847b6fbc9.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nin the main menu panel, move \"Join Game\" up 1 and remove \"Electronics Shop and kits\"\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-45bf0c75-47b6-4b67-8444-402847b6fbc9.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b78b-7b77-79d3-b451-2e081fcbe320",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-737dc0fd-359b-43b3-a099-9661d1b9941d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-737dc0fd-359b-43b3-a099-9661d1b9941d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nupdate the ingame menu as well. remove team troubleshooting, remove \"Campus course and maps\", remove \"character customerizer\", remove \"Electronics shop and kits\" and remove \"Read held sheet\"\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-737dc0fd-359b-43b3-a099-9661d1b9941d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b78d-4bdd-7483-9e02-c2afe97aa80e",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-1e0d1950-4a96-40ee-a972-53851724af71.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-1e0d1950-4a96-40ee-a972-53851724af71.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ntheres no electronics workshop room. this is what it should look like. also make the games lighting and visual style match this image\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-1e0d1950-4a96-40ee-a972-53851724af71.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b78d-d826-7cb1-b252-d29092ddc520",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f02168d7-fbe2-4a3d-9c91-20af70f07645.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f02168d7-fbe2-4a3d-9c91-20af70f07645.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe entrance to M208 and M207 are blocked\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f02168d7-fbe2-4a3d-9c91-20af70f07645.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b78f-560a-7f92-9bb2-c37d94519123",
+      "content": [
+        {
+          "type": "text",
+          "text": "also make sure the ic/pcb builder are in the electronics workshop. do not put the component counter in the pcb workshop\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b78f-db96-7220-afe9-28c58a885f06",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-9947d201-f35b-44ff-a5d9-e609915922fa.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-9947d201-f35b-44ff-a5d9-e609915922fa.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Completely Redesign the Electronics Studio UI Redesign the Elect…\": C:\\Users\\User1\\.codex/attachments/31454158-09e7-498f-ac40-50ad18141d1c/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-9947d201-f35b-44ff-a5d9-e609915922fa.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b790-8aec-7cc2-8fa4-e9bc4552f4b5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign Electronics Workshop UI and Completely Rebuild the Circ…\": C:\\Users\\User1\\.codex/attachments/c05a3aa8-ff2d-477d-874b-b099c80f0668/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b790-b698-7c51-a4e0-ea7dd12a3ce9",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Completely Redesign the Component Counter Store UI Redesign the …\": C:\\Users\\User1\\.codex/attachments/3c798d30-4136-4f6d-8a5d-9b9a6ce181d6/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b790-ddfc-76f1-b3aa-f5c3b44ab254",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-9e06f9ff-9688-4a2c-80cb-7fca610f6c21.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-9e06f9ff-9688-4a2c-80cb-7fca610f6c21.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign the Main Campus Entrance and Exterior Completely improv…\": C:\\Users\\User1\\.codex/attachments/2d1b0680-11a8-4a4e-87da-6b0e265eea01/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-9e06f9ff-9688-4a2c-80cb-7fca610f6c21.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b791-1a61-7520-84a4-091baa2ef723",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f5dcf97f-07d2-424b-aa5c-0b9faf1b6caf.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f5dcf97f-07d2-424b-aa5c-0b9faf1b6caf.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign the College Campus Hallways Improve the appearance of t…\": C:\\Users\\User1\\.codex/attachments/8bfeb751-310b-4e4b-93e8-308baef08eb1/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f5dcf97f-07d2-424b-aa5c-0b9faf1b6caf.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b791-3ea7-7d00-b2f1-e101e58b3a7d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-e25de346-572c-40dc-bd9b-561381edd310.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e25de346-572c-40dc-bd9b-561381edd310.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Improve the M101 AC Electrical Laboratory Without Changing Any A…\": C:\\Users\\User1\\.codex/attachments/a802feda-622e-4689-b518-71c79d831936/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e25de346-572c-40dc-bd9b-561381edd310.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-850f-7280-81f4-b85ebba4306d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6f5be396-c161-447c-8fa5-c1f4a56b6f3d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6f5be396-c161-447c-8fa5-c1f4a56b6f3d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M104 Cafeteria to Match the Campus Visual Style Improve…\": C:\\Users\\User1\\.codex/attachments/f6383ae9-1098-4099-95b2-aedcbfc65488/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6f5be396-c161-447c-8fa5-c1f4a56b6f3d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-8575-7112-85d1-c046fc070864",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-623a8c8e-6a18-478e-8a62-7e3cfe61c5ba.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-623a8c8e-6a18-478e-8a62-7e3cfe61c5ba.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M103 DC Laboratory and Completely Rebuild the DC Equipm…\": C:\\Users\\User1\\.codex/attachments/c017b293-b236-45f6-ac2e-99b4f636bbc1/Pasted text.txt\n\n## My request:\nalso make the dc equipment wiring the exact same way as the ac equipment wiring\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-623a8c8e-6a18-478e-8a62-7e3cfe61c5ba.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-85f1-76a1-a4ec-8eced2b8cab8",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-47897f1d-581c-4f4c-a3da-8f21a4064564.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-47897f1d-581c-4f4c-a3da-8f21a4064564.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M105 Gym and Improve Interactive Exercise Equipment Imp…\": C:\\Users\\User1\\.codex/attachments/3adb8270-9c74-4607-ac49-1e6be0f3041c/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-47897f1d-581c-4f4c-a3da-8f21a4064564.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-8650-7e61-a079-3b8b80c186e4",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-da5c50bb-cfb2-43e8-80af-5bdf0ce8ba8b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-da5c50bb-cfb2-43e8-80af-5bdf0ce8ba8b.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M107 Campus Washrooms Improve **M107 — Washrooms, Floor…\": C:\\Users\\User1\\.codex/attachments/2a68e046-12ca-4d63-b0bb-643c3fbc33c9/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-da5c50bb-cfb2-43e8-80af-5bdf0ce8ba8b.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-8688-7882-be72-916ce938a69d",
+      "content": [
+        {
+          "type": "text",
+          "text": "do both bathrooms\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-86d6-7a41-b7ad-a2f24ebbdd67",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-3c543517-686a-43dc-a14e-4a9ae7a88d15.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-3c543517-686a-43dc-a14e-4a9ae7a88d15.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M106 Tim Hortons Café Improve **M106 — Tim Hortons** in…\": C:\\Users\\User1\\.codex/attachments/97b4a7c9-197e-46a4-83b6-dce527268280/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-3c543517-686a-43dc-a14e-4a9ae7a88d15.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-8734-7001-ba57-8738da7f1665",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c745ed00-0974-499f-b899-2fa5fbe9ef8b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c745ed00-0974-499f-b899-2fa5fbe9ef8b.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M108 Subway Restaurant Improve **M108 — Subway** in my …\": C:\\Users\\User1\\.codex/attachments/43c76e02-a45c-47a3-ba33-346fd83d32a4/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c745ed00-0974-499f-b899-2fa5fbe9ef8b.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-8799-7d31-9880-2381e3f29905",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-03010b1b-e911-4435-9d9c-59f76d25ca34.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-03010b1b-e911-4435-9d9c-59f76d25ca34.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign All Lecture Classrooms with a Reusable, Interactive Cla…\": C:\\Users\\User1\\.codex/attachments/35064f2a-51a4-410a-923a-f9e515163da7/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-03010b1b-e911-4435-9d9c-59f76d25ca34.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-880e-7141-a58f-08223e928f9e",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5b095834-d58a-4c78-891b-f16264c2bba5.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5b095834-d58a-4c78-891b-f16264c2bba5.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Build and Improve M203 Computer Classroom and Other Computer Lab…\": C:\\Users\\User1\\.codex/attachments/93bcabd6-beb5-482b-b297-28baa62f60ed/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5b095834-d58a-4c78-891b-f16264c2bba5.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-9f6d-72a2-932c-ca925620ccdf",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c994c53c-2abb-47e9-8a26-ba0ce9659658.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c994c53c-2abb-47e9-8a26-ba0ce9659658.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M205 Quiet Study and Improve Study Interactions Improve…\": C:\\Users\\User1\\.codex/attachments/5e080f07-1e03-493a-87ea-f1af95e0eee9/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c994c53c-2abb-47e9-8a26-ba0ce9659658.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-cdcb-7ec2-971e-71157f74bbac",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-4160f964-581b-4299-91c0-e07644139410.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4160f964-581b-4299-91c0-e07644139410.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign M204 Library / Study Lounge Improve **M204 — Library / …\": C:\\Users\\User1\\.codex/attachments/08d5cb36-6162-4224-822e-e19e08d21dc8/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4160f964-581b-4299-91c0-e07644139410.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b793-f561-7c70-a10a-e29fec077eb0",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5adcfa92-1b4d-4a38-8365-0c89eaec5810.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5adcfa92-1b4d-4a38-8365-0c89eaec5810.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign the Dormitory Hallways and Prepare Player-Owned Dorm Ro…\": C:\\Users\\User1\\.codex/attachments/156ee654-e0c9-46f3-ba6f-bddfe5e5ebf1/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5adcfa92-1b4d-4a38-8365-0c89eaec5810.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b794-1c98-7ea2-8743-4300e9bd2fa4",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-256bf54e-688b-41bd-9e03-b7773d029bef.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-256bf54e-688b-41bd-9e03-b7773d029bef.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign Player Dorm Rooms and Fix Missing Dorm Assignments Impr…\": C:\\Users\\User1\\.codex/attachments/6d670490-ac0e-431e-ad98-504f8dbdd306/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-256bf54e-688b-41bd-9e03-b7773d029bef.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b795-3334-7e90-9d4d-2452093265ce",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Simplify the Open Lab Instructor and Improve Equipment Teaching …\": C:\\Users\\User1\\.codex/attachments/25362a28-478f-4102-92d7-91dc5b453f28/Pasted text.txt\n\n## My request:\nalso for practice sheet you should be able to choose what week lab and what difficulty\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b762-3da9-7a53-8c2a-ff6bf4833906",
+      "turnStartedAt": 1794078031,
+      "type": "userMessage",
+      "id": "01a1b795-744f-7ec2-9603-c9bea9bae550",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-256dd192-6001-49cb-a995-6977fe3fb845.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-256dd192-6001-49cb-a995-6977fe3fb845.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Completely Redesign the Worksheet UI with a Physical Pencil Case…\": C:\\Users\\User1\\.codex/attachments/a17a3129-2b2d-48dd-b776-c557d292edcc/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-256dd192-6001-49cb-a995-6977fe3fb845.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7c7-36c8-74f2-95b5-347f53e66514",
+      "content": [
+        {
+          "type": "text",
+          "text": "if any work is left, finish it all\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7c7-eef6-7260-b939-35506de4fb3c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-e940ae4e-cfd8-435d-b81e-78ad34e41bee.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e940ae4e-cfd8-435d-b81e-78ad34e41bee.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ncreated a new character, all the normals are flipped\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e940ae4e-cfd8-435d-b81e-78ad34e41bee.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7c9-7310-7d50-bdff-86522c8a6136",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c8b9254d-0f24-4b41-a95a-9080899efd14.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c8b9254d-0f24-4b41-a95a-9080899efd14.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe skin button thing should show the colors value on it, not some gray color\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c8b9254d-0f24-4b41-a95a-9080899efd14.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ca-c661-7af3-9014-c3da259c3f96",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a5116b2d-38c8-4eb4-b796-fccce09f2945.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a5116b2d-38c8-4eb4-b796-fccce09f2945.png\nImage attachment: true\n\n## codex-clipboard-c061bdb5-98be-42d3-b495-f5f6b7c0e978.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c061bdb5-98be-42d3-b495-f5f6b7c0e978.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nalso sometimes the characters arms are down, and sometimes its held up. just add options to select the characters pose\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a5116b2d-38c8-4eb4-b796-fccce09f2945.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c061bdb5-98be-42d3-b495-f5f6b7c0e978.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7cb-3516-7991-a262-2c0f69dd9521",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-41429aaf-49d9-432c-a839-fcc331126f45.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-41429aaf-49d9-432c-a839-fcc331126f45.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfix the color button for everything not just skin\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-41429aaf-49d9-432c-a839-fcc331126f45.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ce-722f-7663-9e9a-d5aa98070efb",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-eb2e1c33-8767-43ff-9d2c-cbc5b28cbeae.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-eb2e1c33-8767-43ff-9d2c-cbc5b28cbeae.png\nImage attachment: true\n\n## codex-clipboard-df990174-a98b-4cc3-b78e-b92ec983aa6c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-df990174-a98b-4cc3-b78e-b92ec983aa6c.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe faces dont have enough variation. make the faces variations more like the second image (but keep them 3d, not 2d images plastered on). also the preview should be an extremely simple image, not a laggy render preview\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-eb2e1c33-8767-43ff-9d2c-cbc5b28cbeae.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-df990174-a98b-4cc3-b78e-b92ec983aa6c.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7cf-165a-7b73-a201-bef1bc8ed21f",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6cba6b05-c1fc-4dd5-ba85-58b8d9da5196.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6cba6b05-c1fc-4dd5-ba85-58b8d9da5196.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nall the other icon previews should also be a simple image instead of a laggy 3d render preview\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6cba6b05-c1fc-4dd5-ba85-58b8d9da5196.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d0-0d39-75d3-bca5-5b1edfdf209b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-031abcf1-0557-4a94-8e02-b73c0b3c3ff1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-031abcf1-0557-4a94-8e02-b73c0b3c3ff1.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ndifferent rarity items should have different colors. also make the right panel extend above so theres more space for it\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-031abcf1-0557-4a94-8e02-b73c0b3c3ff1.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d1-44df-7c10-b56a-feb42c231a74",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-672e0a48-d70f-4c2d-b40f-b980a0e53b7a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-672e0a48-d70f-4c2d-b40f-b980a0e53b7a.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhatever colors hair has, you should be able to change them all. like this hair has 2 different colors. there should be option for color 1 and color 2\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-672e0a48-d70f-4c2d-b40f-b980a0e53b7a.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d1-c25a-7d90-8614-12aafbf342e6",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-79b3b129-2a0c-40ab-9fa7-755b23b7e14e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-79b3b129-2a0c-40ab-9fa7-755b23b7e14e.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ninstead of a dropdown for short/long, add a slider for it\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-79b3b129-2a0c-40ab-9fa7-755b23b7e14e.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d2-fc6e-7920-830b-3327f27410ba",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-47f4d6cc-dc19-47da-82e0-480da8d90cd0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-47f4d6cc-dc19-47da-82e0-480da8d90cd0.png\nImage attachment: true\n\n## codex-clipboard-d3e38154-afc7-4c8b-8f24-27fd7001e26b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d3e38154-afc7-4c8b-8f24-27fd7001e26b.png\nImage attachment: true\n\n## codex-clipboard-de98ee98-df95-4653-9ecb-86b4c8625c97.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-de98ee98-df95-4653-9ecb-86b4c8625c97.png\nImage attachment: true\n\n## codex-clipboard-e2f2e326-8dbe-48ff-bac2-14fdcaf1e27c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e2f2e326-8dbe-48ff-bac2-14fdcaf1e27c.png\nImage attachment: true\n\n## codex-clipboard-7caa4251-135c-4855-b8ef-cc8533fa701e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-7caa4251-135c-4855-b8ef-cc8533fa701e.png\nImage attachment: true\n\n## codex-clipboard-54013442-880e-4d30-80a5-08f793f7dc30.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-54013442-880e-4d30-80a5-08f793f7dc30.png\nImage attachment: true\n\n## codex-clipboard-1e907094-dd0e-49f3-8498-9a8d7b53c940.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-1e907094-dd0e-49f3-8498-9a8d7b53c940.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nalso my brother in christs these hairs all look so boring and basic and simple AND THEY ALL LOOK THE SAME\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-47f4d6cc-dc19-47da-82e0-480da8d90cd0.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d3e38154-afc7-4c8b-8f24-27fd7001e26b.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-de98ee98-df95-4653-9ecb-86b4c8625c97.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e2f2e326-8dbe-48ff-bac2-14fdcaf1e27c.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-7caa4251-135c-4855-b8ef-cc8533fa701e.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-54013442-880e-4d30-80a5-08f793f7dc30.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-1e907094-dd0e-49f3-8498-9a8d7b53c940.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d3-6003-74b2-bd31-92e98b988044",
+      "content": [
+        {
+          "type": "text",
+          "text": "add more optiosn for everything as well, like more faces, more hairs, more facial hair, etc\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d3-fa7d-72b1-843c-d2bfad89cbad",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-860cb68a-8893-4b70-b2c8-a46c2c97dbf0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-860cb68a-8893-4b70-b2c8-a46c2c97dbf0.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhy does density just change the color\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-860cb68a-8893-4b70-b2c8-a46c2c97dbf0.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d4-ca82-71f3-b392-75bd1a8279a7",
+      "content": [
+        {
+          "type": "text",
+          "text": "also facial hairs also look kind of boring and basic and a lot of them look the same\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d4-fd9e-70d0-a4f9-c73d500fb58d",
+      "content": [
+        {
+          "type": "text",
+          "text": "also add more editable properties for items like faces, hair, facial hair, etc\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d5-e264-7222-8ae0-e78c850162ee",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-aa8509eb-f25b-4f37-aa79-c0ad6669d16a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-aa8509eb-f25b-4f37-aa79-c0ad6669d16a.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nclothes also look boring and basic and blocky lighting. make them look MUCH BETTER\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-aa8509eb-f25b-4f37-aa79-c0ad6669d16a.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d6-22b1-7ed1-9ff0-d8dcae8bde70",
+      "content": [
+        {
+          "type": "text",
+          "text": "use blender if you have to dont just use basic shapes\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d7-5586-7bf2-a856-1b75a4d3ebe8",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a3a33da1-611e-4367-a4ba-d4e45b47f88c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a3a33da1-611e-4367-a4ba-d4e45b47f88c.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\npendant is behind the character mesh\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a3a33da1-611e-4367-a4ba-d4e45b47f88c.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7d9-64ae-7420-9318-ad5110393ed2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-aa20718a-2280-4ade-8370-8ff6221970f6.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-aa20718a-2280-4ade-8370-8ff6221970f6.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign and Improve the Join Game Menu Redesign the **Join Game…\": C:\\Users\\User1\\.codex/attachments/9007993d-4116-4e67-8dc4-e47485df3339/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-aa20718a-2280-4ade-8370-8ff6221970f6.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7da-ca93-7cb2-adf8-367110112514",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-d0454c71-44b9-4c68-8150-9c0999bf44ab.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d0454c71-44b9-4c68-8150-9c0999bf44ab.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmy brother in christ this is not what host game is supposed to look like. ill put the prompt again below with the reference image\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d0454c71-44b9-4c68-8150-9c0999bf44ab.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7da-fc5d-7bd3-9a50-c83d70396f1b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-ac2e52db-af75-46c8-9185-c4ce0cf667db.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-ac2e52db-af75-46c8-9185-c4ce0cf667db.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Simplify and Redesign the Host Game Menu Redesign the **Host Gam…\": C:\\Users\\User1\\.codex/attachments/c83b93b0-6f3b-4557-a0ba-94d2bf70c5e5/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-ac2e52db-af75-46c8-9185-c4ce0cf667db.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7db-e7f3-75d0-8d96-90e7bc1cf2eb",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-b0aed719-9331-4507-bbc4-b4a1f57261fb.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-b0aed719-9331-4507-bbc4-b4a1f57261fb.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhats with all the tiny buttons, the tiny return button, the tiny lab/lecture button, the tiny port hosting button\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-b0aed719-9331-4507-bbc4-b4a1f57261fb.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7dc-2ff3-7660-be62-89dfaf82bf94",
+      "content": [
+        {
+          "type": "text",
+          "text": "after you make these fixes, also remember to apply the changes the the singelplayer menu as well (minus the hosting panel)\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7dd-744f-7b51-8c89-bd09924c4165",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-bafe7b4a-7fc3-45c4-9b5f-cc011dd21e11.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bafe7b4a-7fc3-45c4-9b5f-cc011dd21e11.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nclipping in the doorframes\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bafe7b4a-7fc3-45c4-9b5f-cc011dd21e11.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7de-166d-7c03-8712-f7ae793c0e43",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a2978b71-ca31-495e-b876-56b1bee2497a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a2978b71-ca31-495e-b876-56b1bee2497a.png\nImage attachment: true\n\n## codex-clipboard-f7495003-10d4-4a9a-99b5-b7a72cd61c2c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f7495003-10d4-4a9a-99b5-b7a72cd61c2c.png\nImage attachment: true\n\n## codex-clipboard-d86b5115-741d-4b97-bf26-fd6cc86c4561.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d86b5115-741d-4b97-bf26-fd6cc86c4561.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove all these stupid 2d texts\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a2978b71-ca31-495e-b876-56b1bee2497a.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f7495003-10d4-4a9a-99b5-b7a72cd61c2c.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d86b5115-741d-4b97-bf26-fd6cc86c4561.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7df-7a12-7841-81e4-a4aa48838ab2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-d9ac88c5-1e9d-41a1-ba72-1c5fd839cc3d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d9ac88c5-1e9d-41a1-ba72-1c5fd839cc3d.png\nImage attachment: true\n\n## codex-clipboard-55981b16-00d9-4a25-8afb-4bfc8ea0cdfe.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-55981b16-00d9-4a25-8afb-4bfc8ea0cdfe.png\nImage attachment: true\n\n## codex-clipboard-e1b11c5b-e96a-4634-a0e7-d4dbd5bb39b6.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e1b11c5b-e96a-4634-a0e7-d4dbd5bb39b6.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nalso my brother in christ the lighting still isnt that good. some rooms that do have lights dont even have the light sources in the right place, and theres so much flat shading\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d9ac88c5-1e9d-41a1-ba72-1c5fd839cc3d.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-55981b16-00d9-4a25-8afb-4bfc8ea0cdfe.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e1b11c5b-e96a-4634-a0e7-d4dbd5bb39b6.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e0-8b25-77a3-81bc-014bb8cbead8",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-95e3f3f9-563d-4d58-90fb-e17b8cecc2e1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-95e3f3f9-563d-4d58-90fb-e17b8cecc2e1.png\nImage attachment: true\n\n## codex-clipboard-f35d275d-65d4-4447-bd8c-9befecf67cf5.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f35d275d-65d4-4447-bd8c-9befecf67cf5.png\nImage attachment: true\n\n## codex-clipboard-25b10b5d-6535-4171-b60d-586fceb2957a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-25b10b5d-6535-4171-b60d-586fceb2957a.png\nImage attachment: true\n\n## codex-clipboard-fa3734e9-34aa-440d-92ae-0ff12a239809.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-fa3734e9-34aa-440d-92ae-0ff12a239809.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nTHE OUTSIDE STILL LOOKS TERRIBLE. YOU DIDNT FIX IT LIKE I TOLD YOU TO. ILL GIVE YOU A PROMPT BELOW ON HOW TO FIX THE OUTSIDE\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-95e3f3f9-563d-4d58-90fb-e17b8cecc2e1.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f35d275d-65d4-4447-bd8c-9befecf67cf5.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-25b10b5d-6535-4171-b60d-586fceb2957a.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-fa3734e9-34aa-440d-92ae-0ff12a239809.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e2-e494-71d0-943f-c58938b0dc9d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f7d04dcc-8c63-4600-9ed8-8e3b6ac532af.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f7d04dcc-8c63-4600-9ed8-8e3b6ac532af.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign the Main Campus Entrance and Exterior Completely improv…\": C:\\Users\\User1\\.codex/attachments/cd3d0a43-1c2a-40c4-9e35-e94aaeb8f840/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f7d04dcc-8c63-4600-9ed8-8e3b6ac532af.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e2-e4f5-7a70-bc6e-f35aa2cbe966",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-bffd3709-3a69-47ee-8dbd-98b4d4cc2930.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bffd3709-3a69-47ee-8dbd-98b4d4cc2930.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign the College Campus Hallways Improve the appearance of t…\": C:\\Users\\User1\\.codex/attachments/4b96e5d8-3990-48e3-8f7e-96e668fd39b6/Pasted text.txt\n\n## My request:\nthe hallway also wasnt improved like i requested\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bffd3709-3a69-47ee-8dbd-98b4d4cc2930.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e3-b73f-74b2-ae30-b953a736fc4b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-59bef2a4-ad46-4584-88cf-dc416bd7163f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-59bef2a4-ad46-4584-88cf-dc416bd7163f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nclipping in elevator doorframe\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-59bef2a4-ad46-4584-88cf-dc416bd7163f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e4-2e4b-7d92-884d-e479a443c091",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-4cc1145a-3e18-4369-8edf-e35c917a2d61.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4cc1145a-3e18-4369-8edf-e35c917a2d61.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nclipping in floor\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4cc1145a-3e18-4369-8edf-e35c917a2d61.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e5-0427-79d2-8a4c-76ed0f4487ad",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c577c23d-24b1-4fa7-bb31-407510db1a67.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c577c23d-24b1-4fa7-bb31-407510db1a67.png\nImage attachment: true\n\n## codex-clipboard-74310cf0-e83b-4b8a-a674-f2a18d7a4f3a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-74310cf0-e83b-4b8a-a674-f2a18d7a4f3a.png\nImage attachment: true\n\n## codex-clipboard-072e0f03-603e-4999-891d-398b5cd332d1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-072e0f03-603e-4999-891d-398b5cd332d1.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\na lot of things inside each other\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c577c23d-24b1-4fa7-bb31-407510db1a67.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-74310cf0-e83b-4b8a-a674-f2a18d7a4f3a.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-072e0f03-603e-4999-891d-398b5cd332d1.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e5-4918-74c3-b23d-b1b9c959bbce",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-18b9ba52-9f97-43b1-952d-9418eb164ee1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-18b9ba52-9f97-43b1-952d-9418eb164ee1.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nplant decoration looksugly\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-18b9ba52-9f97-43b1-952d-9418eb164ee1.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e5-a194-7450-87de-6646452aa246",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5f322044-add0-43eb-86df-6c130c7e8702.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5f322044-add0-43eb-86df-6c130c7e8702.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ndrawer has no collision\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5f322044-add0-43eb-86df-6c130c7e8702.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e6-63d1-7453-8f58-5fccf4c76f4f",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-222773df-a949-4666-ba3a-ef7adb50ba0c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-222773df-a949-4666-ba3a-ef7adb50ba0c.png\nImage attachment: true\n\n## codex-clipboard-85acd490-3b4e-4ad3-9fc1-5ea3cc5b8bf0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-85acd490-3b4e-4ad3-9fc1-5ea3cc5b8bf0.png\nImage attachment: true\n\n## codex-clipboard-955bba57-7de5-4806-8edb-c5b06fa3c41d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-955bba57-7de5-4806-8edb-c5b06fa3c41d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nlight thing on wall has no collision AND THE LIGHTS ARENT EVEN LIGHT SOURCES\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-222773df-a949-4666-ba3a-ef7adb50ba0c.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-85acd490-3b4e-4ad3-9fc1-5ea3cc5b8bf0.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-955bba57-7de5-4806-8edb-c5b06fa3c41d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e7-1055-7a62-84fc-1d164fb44c28",
+      "content": [
+        {
+          "type": "text",
+          "text": "chair swivel is too slow and max speed is too low\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e7-d52e-79d2-9be9-0e49a9706a5d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-352e1f50-1c50-4276-abb8-49cf8d33767f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-352e1f50-1c50-4276-abb8-49cf8d33767f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove player trading counter in electronics workshop\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-352e1f50-1c50-4276-abb8-49cf8d33767f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7e8-682d-72c1-99e3-daed253c94f7",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-0e7e48fa-5e6e-4e25-8e2e-114af8621765.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-0e7e48fa-5e6e-4e25-8e2e-114af8621765.png\nImage attachment: true\n\n## codex-clipboard-6d095f50-2917-4822-9822-d58536ed46c1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6d095f50-2917-4822-9822-d58536ed46c1.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nlots of things missing collisions\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-0e7e48fa-5e6e-4e25-8e2e-114af8621765.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6d095f50-2917-4822-9822-d58536ed46c1.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ea-0358-7f10-b76c-8f627a5cf07c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-cf1e2a2f-dc5b-49b7-8620-5431f70cd3e0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-cf1e2a2f-dc5b-49b7-8620-5431f70cd3e0.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ndont add components with different ratings like this. instead add one reisstor component and when you click on it, you can choose its rating value and how much you want to buy. for resistors make sure they have proper ratings based on their bands, unless theyre not the banded resistor type\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-cf1e2a2f-dc5b-49b7-8620-5431f70cd3e0.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ea-634a-7410-a7fb-6e3d85c33f43",
+      "content": [
+        {
+          "type": "text",
+          "text": "theres only 2 resisor variations, normal resistor and potentiometer\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ea-b9fa-7f41-8fdd-2fc064a5526d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-7977b1b1-da68-47f5-b146-ecefc4bcf3de.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-7977b1b1-da68-47f5-b146-ecefc4bcf3de.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhy do these things not have icons\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-7977b1b1-da68-47f5-b146-ecefc4bcf3de.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7eb-7ec2-7782-b6de-461ea08c440c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-080eecc8-ef6c-465f-a39a-5efb2a340342.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-080eecc8-ef6c-465f-a39a-5efb2a340342.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nbattery also samething where you choose the voltage rating of the battery when you go to buy, and the battery amount (batteries should be able to run out of charge)\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-080eecc8-ef6c-465f-a39a-5efb2a340342.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7eb-bbb3-78e3-b3c6-c2bb59874f35",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6284bb8d-f494-454f-b413-8ac0f1a431a3.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6284bb8d-f494-454f-b413-8ac0f1a431a3.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nnone of these have icons\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6284bb8d-f494-454f-b413-8ac0f1a431a3.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ec-a8b8-7430-8b28-8a496fd9963b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f7a77e22-bb8c-4ca9-97b4-30eaeb1aaf57.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f7a77e22-bb8c-4ca9-97b4-30eaeb1aaf57.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhy do they look like spiders when they have a lot of pins, and are all of them supposed to have like 10+ pins\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f7a77e22-bb8c-4ca9-97b4-30eaeb1aaf57.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ed-123a-7c20-9356-1840137277ea",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-55e647e9-af70-44ba-880e-f56b7b81e788.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-55e647e9-af70-44ba-880e-f56b7b81e788.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ngive these bundles all their own previews\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-55e647e9-af70-44ba-880e-f56b7b81e788.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ed-2113-7372-80dc-ef396bf2221f",
+      "content": [
+        {
+          "type": "text",
+          "text": "like preview images i mean\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b7ee-5297-7ce1-9128-1eafd51e919a",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-d7b8d682-10a0-4842-956e-f54304a4a722.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d7b8d682-10a0-4842-956e-f54304a4a722.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nalso allow viewing and managing your inventory of components in the component counter (building your kit and the carryable kit stuff should be done in the dorm)\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d7b8d682-10a0-4842-956e-f54304a4a722.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b803-b8d6-7513-a21a-4fdb6bba36da",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-09fbc1aa-c3e3-47c4-bbe2-d7ee6ae3b015.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-09fbc1aa-c3e3-47c4-bbe2-d7ee6ae3b015.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nelectronics workshop is so empty and undecorated. add more decorations and stuff in the room, and also make the work decorations and interactable tables better and much more detailed\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-09fbc1aa-c3e3-47c4-bbe2-d7ee6ae3b015.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b808-73a4-7303-af21-45bb10cca59c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Rebuild the Custom Circuit Maker UI, Component Placement, Wiring…\": C:\\Users\\User1\\.codex/attachments/f16627b2-7703-474d-a0f1-02d7f4031820/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b818-cc23-7e80-9a52-36f22af21e9f",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Completely Redesign the IC Builder into a Visual Circuit-to-IC C…\": C:\\Users\\User1\\.codex/attachments/5fc39d7d-421d-4c80-90a4-757eade9dd81/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b81b-a348-77c1-aacd-b47ed6742e98",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Implement Automatic Custom IC Blueprint Upgrades with Material R…\": C:\\Users\\User1\\.codex/attachments/9baa922e-a152-468b-adbe-88b6d1a6173c/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b828-1995-78a3-926e-4d50c532f4c1",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign the PCB Builder to Match the IC Builder, with Custom Su…\": C:\\Users\\User1\\.codex/attachments/704da1b3-252a-4a72-a90a-73bfb8219142/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b829-d643-7561-b3f7-0ea05e35c926",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-472e58a9-b585-452b-895d-f31f194e9ae0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-472e58a9-b585-452b-895d-f31f194e9ae0.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nbench no collision\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-472e58a9-b585-452b-895d-f31f194e9ae0.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b82a-7a82-7863-84a9-e6a1619f9aa5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6d370bda-1d19-4626-adbc-04a60a427dd1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6d370bda-1d19-4626-adbc-04a60a427dd1.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhy is menu button tiny and need scroll\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6d370bda-1d19-4626-adbc-04a60a427dd1.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b82c-bd77-7901-8891-aee6f6aba104",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-b37a1830-de6c-4dd4-926a-a1dab2859f72.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-b37a1830-de6c-4dd4-926a-a1dab2859f72.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nchanging skin color is extremely slow and takes so long for some reason\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-b37a1830-de6c-4dd4-926a-a1dab2859f72.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b82c-be48-7040-934b-5088752a0c63",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-742139eb-2f5e-4208-b51d-c77963db189e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-742139eb-2f5e-4208-b51d-c77963db189e.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nalso changing the other settings is also slow, it should all be in realtime\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-742139eb-2f5e-4208-b51d-c77963db189e.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b82e-f7a5-7493-84e0-8e370147ccb2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-662a1601-d92c-45a7-8400-d11acf90bdd7.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-662a1601-d92c-45a7-8400-d11acf90bdd7.png\nImage attachment: true\n\n## codex-clipboard-3b2b7d79-58bc-46a7-af7c-44e13c26b98a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-3b2b7d79-58bc-46a7-af7c-44e13c26b98a.png\nImage attachment: true\n\n## codex-clipboard-4b08cdaa-cd2c-4a1c-83f3-d01527082dec.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4b08cdaa-cd2c-4a1c-83f3-d01527082dec.png\nImage attachment: true\n\n## codex-clipboard-6f6f1465-3011-45d3-b411-424426f3963f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6f6f1465-3011-45d3-b411-424426f3963f.png\nImage attachment: true\n\n## codex-clipboard-e0f86855-9dc8-4447-963d-b8d106eab4bb.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e0f86855-9dc8-4447-963d-b8d106eab4bb.png\nImage attachment: true\n\n## codex-clipboard-a5a9cb48-2c3c-419b-8963-6ebd72ffff9c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a5a9cb48-2c3c-419b-8963-6ebd72ffff9c.png\nImage attachment: true\n\n## codex-clipboard-c44fc17f-80d9-4e8d-b78b-63399a3a5b56.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c44fc17f-80d9-4e8d-b78b-63399a3a5b56.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\na lot of faces are pretty similar with small differences and the faces arent different and unique enough from each other like in this image i attached. add more faces as well, and make sure to make all the faces i attached after image 1\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-662a1601-d92c-45a7-8400-d11acf90bdd7.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-3b2b7d79-58bc-46a7-af7c-44e13c26b98a.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4b08cdaa-cd2c-4a1c-83f3-d01527082dec.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6f6f1465-3011-45d3-b411-424426f3963f.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e0f86855-9dc8-4447-963d-b8d106eab4bb.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a5a9cb48-2c3c-419b-8963-6ebd72ffff9c.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c44fc17f-80d9-4e8d-b78b-63399a3a5b56.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b830-5212-72d0-86f8-eed3192e8731",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-7c1a5c9f-3a6a-4e2e-abdd-34ce6dc7d54e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-7c1a5c9f-3a6a-4e2e-abdd-34ce6dc7d54e.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ndont make hair have this blocky shading. also the strip things on top of the hair look like things just attached to the hair\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-7c1a5c9f-3a6a-4e2e-abdd-34ce6dc7d54e.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b837-cde6-7a01-849b-7174d330b750",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5ec50238-f246-482f-b69a-e104a137e98c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5ec50238-f246-482f-b69a-e104a137e98c.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmake all these the available hairstyles and make the hairstyles actually look like this. also remember USE BLENDER FOR A LOT OF THINGS. i have connected blender mcp\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5ec50238-f246-482f-b69a-e104a137e98c.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b7c7-362c-7163-9a94-2aa147ab6703",
+      "turnStartedAt": 1794084648,
+      "type": "userMessage",
+      "id": "01a1b847-56be-7603-888e-b371090040c5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-03ccbed1-0fc5-4fa7-a22a-3d5f071c5abe.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-03ccbed1-0fc5-4fa7-a22a-3d5f071c5abe.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nflipped normals\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-03ccbed1-0fc5-4fa7-a22a-3d5f071c5abe.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b84a-4cfc-7f51-b847-3201fce07b0e",
+      "content": [
+        {
+          "type": "text",
+          "text": "keep working\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b858-d538-7843-b2e5-a73efadbc234",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-fd0d25ff-c14c-4872-b61a-81842060e90f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-fd0d25ff-c14c-4872-b61a-81842060e90f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe skin clips through the mouth on some faces\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-fd0d25ff-c14c-4872-b61a-81842060e90f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b859-edfb-7ff3-9db4-49ff5f4119ea",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5ac5f92e-efd3-4087-9304-5e8a82321987.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5ac5f92e-efd3-4087-9304-5e8a82321987.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe teeth of this face shouldnt be broken like this they should be straight and uniform\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5ac5f92e-efd3-4087-9304-5e8a82321987.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b85b-0a99-7ef1-9b0c-e7e5745ea426",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a6c223d2-d984-4406-a114-8a753c871ceb.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a6c223d2-d984-4406-a114-8a753c871ceb.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nin unbothered make the mouth closed\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a6c223d2-d984-4406-a114-8a753c871ceb.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b85b-5ac1-70c2-9f0f-e36da78b7e9b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-473e5c00-6bea-4afb-a120-f184ab4c8e4d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-473e5c00-6bea-4afb-a120-f184ab4c8e4d.png\nImage attachment: true\n\n## codex-clipboard-fba563b4-3e01-4a82-8b77-7bbbf829ec8f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-fba563b4-3e01-4a82-8b77-7bbbf829ec8f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthere isnt a face for these\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-473e5c00-6bea-4afb-a120-f184ab4c8e4d.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-fba563b4-3e01-4a82-8b77-7bbbf829ec8f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b85b-ef8d-74e1-ac07-a1f111c8fb65",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-0af99256-c2a2-461b-aae2-279c9aee83a2.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-0af99256-c2a2-461b-aae2-279c9aee83a2.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhy is this smiles lips broken at the edges\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-0af99256-c2a2-461b-aae2-279c9aee83a2.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b85c-b453-7f30-9260-95422a0d5a1d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-b3276ef9-28b2-4bfe-9861-cc8ef1018c01.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-b3276ef9-28b2-4bfe-9861-cc8ef1018c01.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfor the items, the color of uncommon and rare is barely different from the color of common. make all of the colors contrasts much higher\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-b3276ef9-28b2-4bfe-9861-cc8ef1018c01.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b85f-969e-7313-9006-77cc56c01165",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-e0c8b094-7211-46cb-a93f-fc301febae36.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e0c8b094-7211-46cb-a93f-fc301febae36.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe eyes outline is off\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e0c8b094-7211-46cb-a93f-fc301febae36.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b85f-a699-7581-b1da-6a831b5976fd",
+      "content": [
+        {
+          "type": "text",
+          "text": "for double take face\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b84a-4bfa-7042-b08c-25d1308b7051",
+      "turnStartedAt": 1794093239,
+      "type": "userMessage",
+      "id": "01a1b860-72c9-7f63-86f0-9227c67c4d64",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a7e330af-01a9-4cde-831f-8cbc233c836e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a7e330af-01a9-4cde-831f-8cbc233c836e.png\nImage attachment: true\n\n## codex-clipboard-4b64d85b-5bc6-4cd4-85e2-e2100baea4af.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4b64d85b-5bc6-4cd4-85e2-e2100baea4af.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe equipped item is so subtle its hard to tell which one is equipped\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a7e330af-01a9-4cde-831f-8cbc233c836e.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4b64d85b-5bc6-4cd4-85e2-e2100baea4af.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b863-5031-7361-be93-5c26610d680a",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-ee7ac36c-e2ec-427e-9072-6f72ac78dcf4.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-ee7ac36c-e2ec-427e-9072-6f72ac78dcf4.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nkeep working and also make all these facial hairs\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-ee7ac36c-e2ec-427e-9072-6f72ac78dcf4.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b866-bd33-7041-8d63-78b336ee3fe9",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f660405f-f9b4-49c0-9430-84ac1605fd52.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f660405f-f9b4-49c0-9430-84ac1605fd52.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove all the rooms being shown on campus directory\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f660405f-f9b4-49c0-9430-84ac1605fd52.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b869-4233-72a1-8130-9c9d0e9ea97d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5a35393c-8bc1-4f33-9ac3-bc01d371060f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5a35393c-8bc1-4f33-9ac3-bc01d371060f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmake the tops look like these\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5a35393c-8bc1-4f33-9ac3-bc01d371060f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b869-4281-7c00-b284-e3f9a259caf5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-ebafb7d9-1d6c-4eb7-a658-a49502c94721.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-ebafb7d9-1d6c-4eb7-a658-a49502c94721.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\na lot of vclipping here\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-ebafb7d9-1d6c-4eb7-a658-a49502c94721.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b869-4385-72a2-a212-f9bd37ada612",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-9667d75e-a9b4-4010-ad3d-756980b6a85b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-9667d75e-a9b4-4010-ad3d-756980b6a85b.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ndont let my hand go inside a wall like this\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-9667d75e-a9b4-4010-ad3d-756980b6a85b.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b869-447b-7713-aed6-65484974fe02",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-bcf6534e-b799-4cff-8065-88d7867e77de.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bcf6534e-b799-4cff-8065-88d7867e77de.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ntrees have no collision\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bcf6534e-b799-4cff-8065-88d7867e77de.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b869-44af-7e01-aa57-8f5fdfd1af57",
+      "content": [
+        {
+          "type": "text",
+          "text": "also the game doesnt feel smooth at all, it feels like its running on like 30 fps even though its graphics are extremely low\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86a-42c1-72a1-be2a-b4f7e1fc0da9",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-56cab873-1879-4c86-aa57-e313e48a3f39.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-56cab873-1879-4c86-aa57-e313e48a3f39.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nhallway lights arent light sources. also make unlit and shadow areas darker\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-56cab873-1879-4c86-aa57-e313e48a3f39.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86a-42fb-7701-a617-67451d68b043",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-33e7892c-354e-409f-b5b3-1993a59c00b0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-33e7892c-354e-409f-b5b3-1993a59c00b0.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremovethis random sign saying stairs and lift\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-33e7892c-354e-409f-b5b3-1993a59c00b0.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86b-cc61-7802-b09c-24b6d9e63f39",
+      "content": [
+        {
+          "type": "text",
+          "text": "the walking should be a bit faster and running should be a lot faster\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86b-cd3f-7013-bad2-e8aaaa003e3e",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-2bbf6d2e-f9d5-48ec-81e4-94e1e0651b97.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2bbf6d2e-f9d5-48ec-81e4-94e1e0651b97.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthis room doesnt have light sources either. ensure every room has light sources\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2bbf6d2e-f9d5-48ec-81e4-94e1e0651b97.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86c-6324-7f32-a50c-8e0a46e6d9b3",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-273773af-e15d-4f7f-a150-d9124086ec93.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-273773af-e15d-4f7f-a150-d9124086ec93.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this stupid sign\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-273773af-e15d-4f7f-a150-d9124086ec93.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86d-508f-7630-a29d-a2c666ab4f06",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-fbd60171-b8b9-4bde-83e3-4a54eaeed7c5.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-fbd60171-b8b9-4bde-83e3-4a54eaeed7c5.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthis room seems to have a light source but its coming from a random part in the roof, and not the bar light things\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-fbd60171-b8b9-4bde-83e3-4a54eaeed7c5.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86e-43dc-7f62-a877-0d4e6f9cab83",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-0a604c8f-36b7-46a7-817e-6ca7ba8efcd5.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-0a604c8f-36b7-46a7-817e-6ca7ba8efcd5.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthese diploma things on the wall have the hallway strip going through them\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-0a604c8f-36b7-46a7-817e-6ca7ba8efcd5.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86e-44d2-7bd2-b67f-94ae584e9681",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-3b566b53-69ae-4f57-8b75-a9702b615349.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-3b566b53-69ae-4f57-8b75-a9702b615349.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove all these stupid signs in the cafeteria\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-3b566b53-69ae-4f57-8b75-a9702b615349.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86e-45c4-7a20-98b4-df1242b951fe",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-2a1da998-f042-42ca-bec5-2d827527aeb2.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2a1da998-f042-42ca-bec5-2d827527aeb2.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nno collision\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2a1da998-f042-42ca-bec5-2d827527aeb2.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86f-2e9d-7cf0-8aba-bb8a336caf0c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-abeeb789-9b24-4473-afce-e91e9668ded7.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-abeeb789-9b24-4473-afce-e91e9668ded7.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremovce this campus facilities button. looking at a chair should bring the option to sit in it. and there should be a button like B for emotes, and make the ui good and show all the emotes you have\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-abeeb789-9b24-4473-afce-e91e9668ded7.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b86f-9839-7fa2-9510-519d56f1671b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-01e17e5d-e0fe-45b2-bc4a-c52486037d4d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-01e17e5d-e0fe-45b2-bc4a-c52486037d4d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmake sure everything has proper collisions\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-01e17e5d-e0fe-45b2-bc4a-c52486037d4d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b870-1088-7e81-86e4-a17cbd8a483a",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-70bd994a-499c-4676-8546-f3d0ec38c6dd.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-70bd994a-499c-4676-8546-f3d0ec38c6dd.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nflipped normal and flat shading on chair\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-70bd994a-499c-4676-8546-f3d0ec38c6dd.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b870-ac14-7fb0-8c84-f82f06f4d5cb",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-cddc250b-8e05-4a1e-bb8d-ab71887c8dc0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-cddc250b-8e05-4a1e-bb8d-ab71887c8dc0.png\nImage attachment: true\n\n## codex-clipboard-228872fe-026e-4c01-a57c-5671be34625e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-228872fe-026e-4c01-a57c-5671be34625e.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ndont allow anything to be flat shading like this\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-cddc250b-8e05-4a1e-bb8d-ab71887c8dc0.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-228872fe-026e-4c01-a57c-5671be34625e.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b871-2e3f-7b13-954a-3b7bd014ce1a",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-69a0817b-9573-4e4c-8548-69f4d5845408.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-69a0817b-9573-4e4c-8548-69f4d5845408.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe interact shows a weird triangle on the left side of the screen\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-69a0817b-9573-4e4c-8548-69f4d5845408.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b872-3798-7760-be0c-936ba16629c3",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-2224c2ec-9e53-48f6-82d4-2058f2f9834f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2224c2ec-9e53-48f6-82d4-2058f2f9834f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe hotkey hints are being blocked by the hotbar. also grabbing a wire should put it in my hotbar as an item\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2224c2ec-9e53-48f6-82d4-2058f2f9834f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b873-2733-7b52-9a71-5203b9157c53",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5e07549e-e129-4ad1-bd85-abed0af5174e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5e07549e-e129-4ad1-bd85-abed0af5174e.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ngrabbing a cable should put it in my hotbar as an item\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5e07549e-e129-4ad1-bd85-abed0af5174e.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b874-0385-7123-8687-8e1ecb104a22",
+      "content": [
+        {
+          "type": "text",
+          "text": "the dc cables are different than the ac cables, the way theyre held, the way they look, and stuff. make them the dc cables the same as the ac lab cables\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b874-8b46-7fe0-949b-055c73b5da8f",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c11a2bb4-a18b-47f7-98dc-2e3e6459876f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c11a2bb4-a18b-47f7-98dc-2e3e6459876f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nalso holding the ac lab cable doesnt have it directly in my hand, its offset\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c11a2bb4-a18b-47f7-98dc-2e3e6459876f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b875-0a49-7d31-8bf2-d9c4af987b88",
+      "content": [
+        {
+          "type": "text",
+          "text": "the rolling chairs swivel slows down way too fast. make it slow down at a lower rate\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b876-1748-7f21-9e12-47d4a89764ae",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-4abe1cb1-c76e-4598-88b0-18f3591c03b1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4abe1cb1-c76e-4598-88b0-18f3591c03b1.png\nImage attachment: true\n\n## codex-clipboard-8d1e277a-2daf-42e6-bb18-cb1be55d35ce.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-8d1e277a-2daf-42e6-bb18-cb1be55d35ce.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nin the dc lab put the workstations against the wall and put more decorations because its too empty\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4abe1cb1-c76e-4598-88b0-18f3591c03b1.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-8d1e277a-2daf-42e6-bb18-cb1be55d35ce.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b877-2719-7b81-bf8e-1aba570955a7",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-737f2711-1224-4215-87d8-fe32367cb9e7.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-737f2711-1224-4215-87d8-fe32367cb9e7.png\nImage attachment: true\n\n## codex-clipboard-8245f4b1-6f89-4041-8a3e-1d5b2fd4851b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-8245f4b1-6f89-4041-8a3e-1d5b2fd4851b.png\nImage attachment: true\n\n## codex-clipboard-1eb30e60-9c41-431a-a8da-352d25755e4e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-1eb30e60-9c41-431a-a8da-352d25755e4e.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove whatever the hell this device is on the dc workbench\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-737f2711-1224-4215-87d8-fe32367cb9e7.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-8245f4b1-6f89-4041-8a3e-1d5b2fd4851b.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-1eb30e60-9c41-431a-a8da-352d25755e4e.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b877-b1fe-7db0-aeb9-16e4a8e92178",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-2385d134-7702-4d2c-8d87-4f0cb63c1655.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2385d134-7702-4d2c-8d87-4f0cb63c1655.png\nImage attachment: true\n\n## codex-clipboard-bdb92bf8-7562-4372-a7c9-6a7592497f3b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bdb92bf8-7562-4372-a7c9-6a7592497f3b.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove these stupid texts\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2385d134-7702-4d2c-8d87-4f0cb63c1655.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bdb92bf8-7562-4372-a7c9-6a7592497f3b.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b877-b318-7241-a58d-7a47e4a077de",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-4d80cb1e-ec4a-4c77-bd21-52666aa27f4f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4d80cb1e-ec4a-4c77-bd21-52666aa27f4f.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe viewing distance of the camera is too low\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4d80cb1e-ec4a-4c77-bd21-52666aa27f4f.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87a-ed32-7fd0-8f14-9cb03b5577b1",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-1ccc59cf-c56f-479f-9bf1-5012f8eb8bae.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-1ccc59cf-c56f-479f-9bf1-5012f8eb8bae.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthere should be a shop npc and a menu u, right now i cant order any food. do the same for subway\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-1ccc59cf-c56f-479f-9bf1-5012f8eb8bae.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87a-ee44-7ff3-90b7-f864fda2ecb2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a160a783-7560-4b5c-8288-60a38ab98abd.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a160a783-7560-4b5c-8288-60a38ab98abd.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nget rid of the sign on top\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a160a783-7560-4b5c-8288-60a38ab98abd.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87a-ef2a-7633-828c-769c65e0cdfa",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-238b9489-7501-4ac1-bf34-a4096733d818.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-238b9489-7501-4ac1-bf34-a4096733d818.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this weird hoop\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-238b9489-7501-4ac1-bf34-a4096733d818.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87a-f02c-75c1-85a7-cdee2e6ea126",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f984e250-7f0c-45d5-b83b-bbb67e887450.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f984e250-7f0c-45d5-b83b-bbb67e887450.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ni cant interact with anything in the gym \n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f984e250-7f0c-45d5-b83b-bbb67e887450.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87a-f14c-7d12-b7c4-d550d2df6fbe",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-e433f724-a6b1-4bc3-b577-38513d45be83.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e433f724-a6b1-4bc3-b577-38513d45be83.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nsubway looks bad and has overlapping signs\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e433f724-a6b1-4bc3-b577-38513d45be83.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87b-6e6c-7453-9c6f-a577eafe0b5b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-4f0d5aa0-44b8-4799-a85b-f8fb68951bf1.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4f0d5aa0-44b8-4799-a85b-f8fb68951bf1.png\nImage attachment: true\n\n## codex-clipboard-794f31ce-dc0c-46ed-9d77-73916c0a6a66.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-794f31ce-dc0c-46ed-9d77-73916c0a6a66.png\nImage attachment: true\n\n## codex-clipboard-68b731c0-80f2-4247-abfd-2516fb7ac803.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-68b731c0-80f2-4247-abfd-2516fb7ac803.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhy are there so many gaps\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4f0d5aa0-44b8-4799-a85b-f8fb68951bf1.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-794f31ce-dc0c-46ed-9d77-73916c0a6a66.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-68b731c0-80f2-4247-abfd-2516fb7ac803.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87b-ea72-79c2-8892-eb5c22f27c53",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-060baebe-cb75-4eb6-abaf-419e7a45f4fb.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-060baebe-cb75-4eb6-abaf-419e7a45f4fb.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this weird blue strip\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-060baebe-cb75-4eb6-abaf-419e7a45f4fb.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87c-5d5d-7fd0-b461-28363f256793",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-720646c3-c99c-407e-abc4-87322cc7ce4d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-720646c3-c99c-407e-abc4-87322cc7ce4d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfloating things in the bathroom when you change the doors state\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-720646c3-c99c-407e-abc4-87322cc7ce4d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87c-5d8f-7dd0-a09b-cd32c623a92a",
+      "content": [
+        {
+          "type": "text",
+          "text": "so the door opens/closes immedietly, it just swing to an open or close gradually\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87c-f00b-7391-aa89-8767d5db0bc2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c1ab771c-fb1a-4bc5-aab7-6d9a91d67ebd.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c1ab771c-fb1a-4bc5-aab7-6d9a91d67ebd.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this stupid sign\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c1ab771c-fb1a-4bc5-aab7-6d9a91d67ebd.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87d-9c17-7282-9672-aa4097781d3c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-8094bdfa-703a-4cc3-9f8b-0272fb347646.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-8094bdfa-703a-4cc3-9f8b-0272fb347646.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this floating thing and its menu\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-8094bdfa-703a-4cc3-9f8b-0272fb347646.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87e-41c8-7e72-923a-ef655e05603b",
+      "content": [
+        {
+          "type": "text",
+          "text": "there shoulod be some kind of screen hint or indicator telling you which dorm belongs to you\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b87e-41f1-7c83-a43f-1201aea9bd16",
+      "content": [
+        {
+          "type": "text",
+          "text": "when you close your dorm door, the dorm room instantly dissapears and you can see it as the door is slowly gradually closing\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b880-76a2-7132-b800-7360ca6ab685",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-00d6333b-826c-4e84-b41c-2970f4f3f782.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-00d6333b-826c-4e84-b41c-2970f4f3f782.png\nImage attachment: true\n\n## codex-clipboard-edd311a5-89f6-4a10-bc6e-6e76cd4ded45.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-edd311a5-89f6-4a10-bc6e-6e76cd4ded45.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ntheres so many floating things in the dorm and its so ugly and block and messy looking with things scattered everywhere. also the inventory/kit manager isnt in here either\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-00d6333b-826c-4e84-b41c-2970f4f3f782.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-edd311a5-89f6-4a10-bc6e-6e76cd4ded45.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b880-7838-7590-941d-24d73b8d5fc9",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-4d2cab41-197d-41c4-b406-728032f8b29f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4d2cab41-197d-41c4-b406-728032f8b29f.png\nImage attachment: true\n\n## codex-clipboard-2a562468-e2e4-46e9-935b-7e992f9733db.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2a562468-e2e4-46e9-935b-7e992f9733db.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nclicking E does nothing and you dont need to say E - operate, just say E\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4d2cab41-197d-41c4-b406-728032f8b29f.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2a562468-e2e4-46e9-935b-7e992f9733db.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b880-79d8-7902-89d1-aea77e1a39f2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-e22f6772-96b9-4b02-9043-f7577f554452.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e22f6772-96b9-4b02-9043-f7577f554452.png\nImage attachment: true\n\n## codex-clipboard-e99909cc-d387-446c-b75d-1de96010bfe9.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e99909cc-d387-446c-b75d-1de96010bfe9.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this closets useless menu\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e22f6772-96b9-4b02-9043-f7577f554452.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e99909cc-d387-446c-b75d-1de96010bfe9.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b880-e541-7ce3-8c88-44a5d9abc6d3",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-1828f687-6b33-4705-9f8e-f0b8cf94964d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-1828f687-6b33-4705-9f8e-f0b8cf94964d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nactually for the hint it should say (Player name)'s dorm, and on singelplayer it would say like your dorm or something\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-1828f687-6b33-4705-9f8e-f0b8cf94964d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b881-5c6d-7cf1-b512-c43c4e152ef5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5d24accb-7c5c-4757-ba9f-1dcbd96e4175.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5d24accb-7c5c-4757-ba9f-1dcbd96e4175.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nin the elevator, why is 1 above 2. also when your in the elevator and using it, it doesnt let you move\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5d24accb-7c5c-4757-ba9f-1dcbd96e4175.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b883-9b77-7c82-ae11-725f878004df",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-59661847-bc9d-4124-9a8a-72d7373e5973.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-59661847-bc9d-4124-9a8a-72d7373e5973.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfor now keep the hallway students disabled\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-59661847-bc9d-4124-9a8a-72d7373e5973.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b885-aa6d-71c1-9c3e-2574fabdcbc5",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6152c234-9fc9-44f8-9f21-c634864a6c56.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6152c234-9fc9-44f8-9f21-c634864a6c56.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this stupid sign\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6152c234-9fc9-44f8-9f21-c634864a6c56.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b885-ab4e-7d80-be62-9ddb66defc7a",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-ada2c3e2-c53b-461e-b6a2-4691f0e6b00d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-ada2c3e2-c53b-461e-b6a2-4691f0e6b00d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove the stupid lift and stairs sign on the second floor\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-ada2c3e2-c53b-461e-b6a2-4691f0e6b00d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b886-52c3-7a22-8b0f-01f9bc7eb99c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-54678d2c-bb14-4505-9d31-e80cc0803d96.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-54678d2c-bb14-4505-9d31-e80cc0803d96.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nhallway diploma decoration thing is in the doorway\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-54678d2c-bb14-4505-9d31-e80cc0803d96.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b886-5311-78e2-8304-fb206c3aa9e9",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-9f87f612-b561-436b-a501-d638f2f94077.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-9f87f612-b561-436b-a501-d638f2f94077.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmake these the pants\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-9f87f612-b561-436b-a501-d638f2f94077.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b88a-164e-7773-ad21-8b18bea26666",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-82f3dfc7-b1b3-4c73-aabe-3c0edfd8a92b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-82f3dfc7-b1b3-4c73-aabe-3c0edfd8a92b.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nreplace this room with something else since theres already a circuit making room thing\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-82f3dfc7-b1b3-4c73-aabe-3c0edfd8a92b.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b88a-16a3-7c02-94fe-9c0f8452052a",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-8896e3bc-c552-4882-a0c5-a9faaa6bec65.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-8896e3bc-c552-4882-a0c5-a9faaa6bec65.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmake these all the accessories\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-8896e3bc-c552-4882-a0c5-a9faaa6bec65.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b88c-67ce-7eb2-8f8b-c32c99d3150d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-e32d2c05-fbcf-46f1-a9a8-c7f3145c04ce.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-e32d2c05-fbcf-46f1-a9a8-c7f3145c04ce.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmake this in a grid so that you can see a lot of them easier, and when you click on one of the component categories, itll show you everything in that category, like clicking resistor would show all your different default resistors, clicking potentiometer would show all your different potentiometers, clicking custom ics would show all your different custom ic components you own\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-e32d2c05-fbcf-46f1-a9a8-c7f3145c04ce.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b88f-9a4b-7473-8204-b9a7a39e6249",
+      "content": [
+        {
+          "type": "text",
+          "text": "every component is either common or uncommon. there should be more rarities, rare, epic, and legendary\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b891-609b-72b0-88e3-366e9eb676fb",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-f084037d-a759-49f5-8953-16a792874efe.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f084037d-a759-49f5-8953-16a792874efe.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ninstead of an option menu like this, put a slider for the value, and the slider automatically cycles through the different values as you slide it, left being lowest, right being the highest\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f084037d-a759-49f5-8953-16a792874efe.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b891-df1e-77b2-869d-f6c487934229",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-93a98da8-4878-42ca-9b41-7b5cc07c9f95.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-93a98da8-4878-42ca-9b41-7b5cc07c9f95.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nput much higher power rating options\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-93a98da8-4878-42ca-9b41-7b5cc07c9f95.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b893-cefd-7282-9daa-bed7d95d64f0",
+      "content": [
+        {
+          "type": "text",
+          "text": "make a potentiometer $12\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b895-ce4d-79b0-b8ee-d5afd6ec577b",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-d5092224-870f-4b1c-a95e-c6fc59fc600e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d5092224-870f-4b1c-a95e-c6fc59fc600e.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe quantity should be a slider between 1 and 20\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d5092224-870f-4b1c-a95e-c6fc59fc600e.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b895-ce92-7103-8131-e66151516993",
+      "content": [
+        {
+          "type": "text",
+          "text": "add a polarised capactitor and variable capacitor, and add their functionality\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b895-ceb9-75c3-8883-6dbd2b12d2b2",
+      "content": [
+        {
+          "type": "text",
+          "text": "in the inductor section, add a variable inductor as well as a transformer component, as well as their functionality\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b897-d23a-7ab0-81af-3c890ddaa22c",
+      "content": [
+        {
+          "type": "text",
+          "text": "in semiconductors add photodiodes\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b898-6093-7cb1-82bc-29792ea60902",
+      "content": [
+        {
+          "type": "text",
+          "text": "and also add a solar panel which is a much more powerful photodiode but takes up more space on a breadboard\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b898-f8ac-7d41-8759-e0cf2ed12f8d",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-894ebb61-2570-415c-8473-bd73ceb4474e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-894ebb61-2570-415c-8473-bd73ceb4474e.png\nImage attachment: true\n\n## codex-clipboard-af6bdc1e-3898-488f-a74e-dccf675e6c98.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-af6bdc1e-3898-488f-a74e-dccf675e6c98.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe tooltips are ugly and for some things way too long\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-894ebb61-2570-415c-8473-bd73ceb4474e.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-af6bdc1e-3898-488f-a74e-dccf675e6c98.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b89a-fd25-7702-9ea4-cfa844785285",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c823be84-132f-4be7-8eb6-a4ef95f79549.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c823be84-132f-4be7-8eb6-a4ef95f79549.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nin all the component descriptions, put a guide button, where it tells you in plain english what it does and how to use it\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c823be84-132f-4be7-8eb6-a4ef95f79549.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b89c-d272-7aa3-82d7-0e5c92a7b161",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-cb08a749-c6d8-4c82-a344-5713d5abc01e.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-cb08a749-c6d8-4c82-a344-5713d5abc01e.png\nImage attachment: true\n\n## codex-clipboard-2fc92d4a-f50d-4d20-b934-38d0b2365fe3.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2fc92d4a-f50d-4d20-b934-38d0b2365fe3.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nit only shows the side panel when you click on a component. it should always show the side panel, and leave it empty if its not showing anything\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-cb08a749-c6d8-4c82-a344-5713d5abc01e.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2fc92d4a-f50d-4d20-b934-38d0b2365fe3.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b89d-7fbf-7d80-a473-5e7eff7e4583",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-bf69c1a1-a569-4601-8528-aceb1a7cbf02.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bf69c1a1-a569-4601-8528-aceb1a7cbf02.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthis details ui is absoutely DISGUSTING AND TERRIBLE\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bf69c1a1-a569-4601-8528-aceb1a7cbf02.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b89f-7510-7011-886e-16d3ac487fc8",
+      "content": [
+        {
+          "type": "text",
+          "text": "when you open the custom circuit maker for the first time in a game, it should bring up the circuits you own, show them in a grid so its easy to scroll through them all, and you can select one and then edit it, or make a new one\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8a2-aa92-7381-8a17-838e03afed10",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-712a3fbe-1406-458e-98cd-506f6d734b8c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-712a3fbe-1406-458e-98cd-506f6d734b8c.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nnew project, open projects, and save button should all look difererent and have icons with them. select, wire, and place component buttons should be of icons not words. put the simulate button in its own place. also put the breadboard size option displayed on the bar as well, not in analyze, and it show be able to go up to 60 rows, and you also have the option of expanding the breadboard once downward as well\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-712a3fbe-1406-458e-98cd-506f6d734b8c.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8a4-a910-77b0-9438-f2f500302328",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-d1808ec2-8887-4f13-8357-54e735fc36c0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d1808ec2-8887-4f13-8357-54e735fc36c0.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfor the components, each of their panels are too fat and too much space, make them more slim, and also expand the components panel upwards since theres so much empty space for it above. also for components that can have varying variables, make it only show the component category, like resistors, potentiometers, capacitors, and stuff, and clicking on it would show you all of those components that you have, and also put the option to go back\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d1808ec2-8887-4f13-8357-54e735fc36c0.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8a5-3e94-7703-aa39-7100377834f2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-94f60cea-a016-4030-80a6-c52ed582e86a.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-94f60cea-a016-4030-80a6-c52ed582e86a.png\nImage attachment: true\n\n## codex-clipboard-89c5e29a-6890-41d2-94be-264dbcacd6b2.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-89c5e29a-6890-41d2-94be-264dbcacd6b2.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmy brother in christ this long description makes it way too fat\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-94f60cea-a016-4030-80a6-c52ed582e86a.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-89c5e29a-6890-41d2-94be-264dbcacd6b2.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8a7-55f3-7461-ae47-5008432358ad",
+      "content": [
+        {
+          "type": "text",
+          "text": "for add wire, add a small button that lets you change the color\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8a7-5621-7541-b8db-6b8496025708",
+      "content": [
+        {
+          "type": "text",
+          "text": "add another mouse mode to select, place wires, and place component, and it should be operate inputs, and give it an icon\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8a8-0250-70e0-9a48-3a84b84cc7d8",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5bb097e2-a9bc-4865-818a-20bbf79e8199.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5bb097e2-a9bc-4865-818a-20bbf79e8199.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this tools menu\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5bb097e2-a9bc-4865-818a-20bbf79e8199.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8ac-f66c-7de3-9eaf-fb81624dba8c",
+      "content": [
+        {
+          "type": "text",
+          "text": "as well as adding components, allow adding debug components, like a digital multimeter, power source and stuff like that (the power source would run when you simulate, and then all the output devices can show stuff). you can select the debug components just like a normal component to change its properties, like for a voltage source you can choose the voltage, the wave shape (like ac), for multimeter youd be able to change what value it displays, etc.\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8ad-7998-74f3-8b48-5b2795d89fb2",
+      "content": [
+        {
+          "type": "text",
+          "text": "during a simulation, any voltage sources you place yourself (not from the debug voltage source components) would also simulate. also debug components should save, but should not be able to be built into an ic do anything like that, they only exist in the breadboard editor\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8ae-080b-7f92-8fe6-b36ae049d0c2",
+      "content": [
+        {
+          "type": "text",
+          "text": "when in wire placing mode, add a hint showing that right click to delete wires\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8ae-9ffb-7f90-8931-be91e516e3b7",
+      "content": [
+        {
+          "type": "text",
+          "text": "ugly ui for unsaved circuit\n"
+        },
+        {
+          "type": "image"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8af-69e6-79e0-a7d6-6767ade926d3",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-6fe9fbe7-ba78-41ab-9b39-fdda51c4bec5.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-6fe9fbe7-ba78-41ab-9b39-fdda51c4bec5.png\nImage attachment: true\n\n## codex-clipboard-ee1aea74-e648-43cc-b616-f56fafd65ff5.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-ee1aea74-e648-43cc-b616-f56fafd65ff5.png\nImage attachment: true\n\n## codex-clipboard-d47c5ebb-b300-45f7-b780-1639f6ea0aa6.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-d47c5ebb-b300-45f7-b780-1639f6ea0aa6.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthis ui is too tiny the bottom is cut offand the equipment tutorial ui IS SO UGLY\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-6fe9fbe7-ba78-41ab-9b39-fdda51c4bec5.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-ee1aea74-e648-43cc-b616-f56fafd65ff5.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-d47c5ebb-b300-45f7-b780-1639f6ea0aa6.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8b0-fcfd-71e2-a7c6-0daa84c791ce",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5fcb6e04-609a-4e78-8366-4becd82af963.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5fcb6e04-609a-4e78-8366-4becd82af963.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhen i place a sheet down, its invisible\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5fcb6e04-609a-4e78-8366-4becd82af963.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8b2-8121-7c33-9acf-f9e54b6694ae",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-fad39350-d10e-473b-bf3a-5d7c0988318c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-fad39350-d10e-473b-bf3a-5d7c0988318c.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nwhy is my calculator \"lvl253\"also the lock button is just a random blue square, no one is able to tell its a lock button\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-fad39350-d10e-473b-bf3a-5d7c0988318c.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8b2-814e-7112-8287-3b1128080fcc",
+      "content": [
+        {
+          "type": "text",
+          "text": "holding the pencil case to bring it out is so laggy and jittery and it keeps like going back to the side\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8b4-4024-7c13-a4a8-deb0e8a9dc94",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-63597e92-8761-4f83-9e46-e425d5681172.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-63597e92-8761-4f83-9e46-e425d5681172.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe pencil case and calculator are super small. make them both large, pencil case a bit large, calculator decently large, and put the pencil case peeking from the left side\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-63597e92-8761-4f83-9e46-e425d5681172.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8b4-4102-7152-89a9-7dc0251e9133",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-a7e315ec-be04-4432-829f-e09a458f7f14.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a7e315ec-be04-4432-829f-e09a458f7f14.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nfor pencilcase remove that arrow button for pulling it out or stowing it away. also the eraser is inside its text so you cant read the text, and same with the text tool\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a7e315ec-be04-4432-829f-e09a458f7f14.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8b5-b180-73b1-b61f-c82f6267e522",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-fc954ccf-f8dc-4a35-8305-009d0f6859e8.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-fc954ccf-f8dc-4a35-8305-009d0f6859e8.png\nImage attachment: true\n\n## codex-clipboard-01209d68-2fd0-403e-b70e-36855f21c846.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-01209d68-2fd0-403e-b70e-36855f21c846.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nare single pages usually this long\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-fc954ccf-f8dc-4a35-8305-009d0f6859e8.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-01209d68-2fd0-403e-b70e-36855f21c846.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8b8-8538-7a71-80bf-b3b94a3b1470",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-b06ae8a7-79ce-4e81-90cf-caf30594f283.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-b06ae8a7-79ce-4e81-90cf-caf30594f283.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmy brother in christ what the hell is this when i click check practice\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-b06ae8a7-79ce-4e81-90cf-caf30594f283.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8bb-a63b-7d70-bf59-54635500318a",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-89ceb35b-e944-4677-8745-a56241f9bd9b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-89ceb35b-e944-4677-8745-a56241f9bd9b.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ndo these for facial hair\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-89ceb35b-e944-4677-8745-a56241f9bd9b.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8bb-a687-7100-bb81-a5c4cb471eeb",
+      "content": [
+        {
+          "type": "text",
+          "text": "are you updating the game because when i run it i dont see any changes within the past hour\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8be-f888-7741-85b2-6747983d0bb6",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-175e889a-17ba-4ff4-b586-dc0bc1dedcc4.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-175e889a-17ba-4ff4-b586-dc0bc1dedcc4.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this stupid sign\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-175e889a-17ba-4ff4-b586-dc0bc1dedcc4.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8be-f8bd-7121-85cd-3aa7e8998a0c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-2e100478-4111-494a-b03d-f96ec0c7f138.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-2e100478-4111-494a-b03d-f96ec0c7f138.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nremove this stupid sign\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-2e100478-4111-494a-b03d-f96ec0c7f138.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8be-f967-77d2-8904-720def50d37a",
+      "content": [
+        {
+          "type": "text",
+          "text": "remove this stupid sign\n"
+        },
+        {
+          "type": "image"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8c0-7c48-7141-a0d6-ebe12364641c",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-087be2e4-585f-4502-b07b-9715268649a8.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-087be2e4-585f-4502-b07b-9715268649a8.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# LAB/VOLT — Redesign M207 Harbor Outfitters Clothing Store Redesign the existi…\": C:\\Users\\User1\\.codex/attachments/f76fc8a6-d22a-4d4f-a05a-19bd3f7c58f2/Pasted text.txt\n\n## My request:\nalso there should be a counter i can interact with to open the shop\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-087be2e4-585f-4502-b07b-9715268649a8.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8c0-7d79-7ae0-9424-b04de34ef300",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-c4f94b25-a7c5-40bc-87cb-d515682d7f6d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c4f94b25-a7c5-40bc-87cb-d515682d7f6d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nand WHAT IS THIS TERRIBLE SHOP UI MAKE THE UI BETTER AND USER FRIENDLY WITH ICONS AND I CANT EVEN SCROLL\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c4f94b25-a7c5-40bc-87cb-d515682d7f6d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8c2-7e17-7af0-904e-489bb71b54f0",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-872a092e-cfc1-4271-bd18-3294f48a8a05.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-872a092e-cfc1-4271-bd18-3294f48a8a05.png\nImage attachment: true\n\n## codex-clipboard-4227e8a5-f661-4b8a-b823-1bf6a0399d7b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-4227e8a5-f661-4b8a-b823-1bf6a0399d7b.png\nImage attachment: true\n\n## codex-clipboard-c8b5cc13-e1cb-4737-a368-24b55eff912f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-c8b5cc13-e1cb-4737-a368-24b55eff912f.png\nImage attachment: true\n\n## codex-clipboard-bb4ce4e6-2e8f-4848-b9c6-ff373a4bcd4f.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-bb4ce4e6-2e8f-4848-b9c6-ff373a4bcd4f.png\nImage attachment: true\n\n## codex-clipboard-60b35894-3a41-41b6-8b2f-edd7ac6f6be0.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-60b35894-3a41-41b6-8b2f-edd7ac6f6be0.png\nImage attachment: true\n\n## codex-clipboard-a9f23dce-f96e-4a9e-8807-53de5312403d.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-a9f23dce-f96e-4a9e-8807-53de5312403d.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\ntheres so much random shit everywhere in the lecture room\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-872a092e-cfc1-4271-bd18-3294f48a8a05.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-4227e8a5-f661-4b8a-b823-1bf6a0399d7b.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-c8b5cc13-e1cb-4737-a368-24b55eff912f.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-bb4ce4e6-2e8f-4848-b9c6-ff373a4bcd4f.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-60b35894-3a41-41b6-8b2f-edd7ac6f6be0.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-a9f23dce-f96e-4a9e-8807-53de5312403d.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8c2-7f4c-7092-b334-640e151b94ed",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-3fa07b7f-0444-4124-a40d-1bc7b5017400.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-3fa07b7f-0444-4124-a40d-1bc7b5017400.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthe end of the hallway is randomly blue and not in the same style as the rest of the hallway walls\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-3fa07b7f-0444-4124-a40d-1bc7b5017400.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8c3-ef10-7111-8b1d-cb830b016000",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-5f2003c0-dbc5-44f2-93c0-2f3f50cdd1da.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-5f2003c0-dbc5-44f2-93c0-2f3f50cdd1da.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign the Dormitory Hallways and Prepare Player-Owned Dorm Ro…\": C:\\Users\\User1\\.codex/attachments/4075d88c-76ae-4a5a-98de-f46b8bc3b587/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-5f2003c0-dbc5-44f2-93c0-2f3f50cdd1da.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8c3-ef89-7b02-a906-e4c2853cf8d2",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-0dcf4c6e-b4ab-48b3-95ee-79aa6b4ba8b3.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-0dcf4c6e-b4ab-48b3-95ee-79aa6b4ba8b3.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n# Files pasted by the user:\n\n## \"# CODEX TASK — Redesign All Lecture Classrooms with a Reusable, Interactive Cla…\": C:\\Users\\User1\\.codex/attachments/0cb7ce15-09cd-462e-9ac1-8de5a4beacd0/Pasted text.txt\n\nPasted text contains the user's request.\n\n## My request:\n\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-0dcf4c6e-b4ab-48b3-95ee-79aa6b4ba8b3.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8cc-e53e-71f1-bca6-dd364399a0ff",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-044c3af3-4909-4370-9878-8e4cdae8022b.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-044c3af3-4909-4370-9878-8e4cdae8022b.png\nImage attachment: true\n\n## codex-clipboard-f33eaf3a-53ae-4a85-af32-806e8f010f0c.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-f33eaf3a-53ae-4a85-af32-806e8f010f0c.png\nImage attachment: true\n\n## codex-clipboard-12aa7569-962d-4895-8cf1-c438c5cc93bf.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-12aa7569-962d-4895-8cf1-c438c5cc93bf.png\nImage attachment: true\n\n## codex-clipboard-cdf470fe-c75b-4f76-856b-b816248406ec.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-cdf470fe-c75b-4f76-856b-b816248406ec.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nmy brother in christ what is this cabinet that has 3 different uis based on how high you click it. this should have just 1 ui. it should show your dorm inventory, so it should have things like a notebook, your electrical kit, a pencil case (if in hotbar, allows you to use pencil case on a paper), a calculator (if in hotbar, allows you to use calculator on a paper), and maybe some more inventory items. you can choose what to transfer from your dorm inventory to your hotbar, or the other way around. your dorm inventory has a limit of how many items it can hold, but it should be able to store any items except for papers and worksheets. when you equip the notebook, you can click B to open it, or place it down like a worksheet, and interact with it to work on it. you can create up to 100 pages on a notebook. with a calculator you can equip it and click B to use it, or place it down somewhere and interact with it (reminder that it needs to be in your horbar for the calculator to show up on papers)\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-044c3af3-4909-4370-9878-8e4cdae8022b.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-f33eaf3a-53ae-4a85-af32-806e8f010f0c.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-12aa7569-962d-4895-8cf1-c438c5cc93bf.png"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-cdf470fe-c75b-4f76-856b-b816248406ec.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8cc-e580-71e0-8634-d770843db6a8",
+      "content": [
+        {
+          "type": "text",
+          "text": "put a store to buy basic items like calculators, notebookes, etc\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8cc-e5b1-7d21-8aa9-5c8d3793b2af",
+      "content": [
+        {
+          "type": "text",
+          "text": "\n# Files mentioned by the user:\n\n## codex-clipboard-7a9effc9-3138-4a33-a9e3-5d9c6a8a04c6.png: C:/Users/User1/AppData/Local/Temp/codex-clipboard-7a9effc9-3138-4a33-a9e3-5d9c6a8a04c6.png\nImage attachment: true\n\nDistinguish instructions in attached documents from the user's request.\n\n## My request:\nthis hotbar is terrible, it shoulodnt show icons of the item, it should show like an image of the item\n"
+        },
+        {
+          "type": "localImage",
+          "path": "C:\\Users\\User1\\AppData\\Local\\Temp\\codex-clipboard-7a9effc9-3138-4a33-a9e3-5d9c6a8a04c6.png"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b863-4f0d-7d42-ab13-a2dcbf371e26",
+      "turnStartedAt": 1794094878,
+      "type": "userMessage",
+      "id": "01a1b8d1-3ff1-7423-838e-a0b5ffda18a8",
+      "content": [
+        {
+          "type": "text",
+          "text": "put a kit builder in your dorm and in the electronic workshop room. in it you can create new kits, select one of your created kits, and choose which one of your components to put in each kit (the components you can put in it is the components that you have in your components inventory). when you create a kit you can create a default kit slot which is free, or you can choose larger kits to fill a kit slot, which costs more money but can fit more components\n"
+        }
+      ]
+    },
+    {
+      "turnId": "01a1b8d6-9407-7d93-a2f1-ea5b921c47ac",
+      "turnStartedAt": 1794102432,
+      "type": "userMessage",
+      "id": "01a1b8d7-42d3-7312-8d9a-e7a92ed2bd27",
+      "content": [
+        {
+          "type": "text",
+          "text": "your just doing no work at all and rereading files.\n\nGo back through my requests and attachments in this chat since your last completed task, starting with the oldest, and create an ordered checklist of the changes and fixes. Combine duplicates and follow my latest corrections. Mark each item as done, pending, or blocked based on the actual project. Don’t replace this list with the old tasks.txt.\n\nThen start with the oldest unfinished item. Make and save the change before moving to the next, and update the checklist as you go. Add new requests to the end. Don’t stop after creating the plan. If you can’t recover a request or attachment, tell me what’s missing instead of guessing.\n"
+        }
+      ]
+    }
+  ]
+}

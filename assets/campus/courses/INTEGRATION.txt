@@ -1,0 +1,30 @@
+Course provider integration
+
+Load course_provider.gd as an Object or use its static methods. Academics course_bridge automatically discovers this path. No separate gradebook, save store, classroom or electrical solver is introduced.
+
+Course and lecture metadata are cached as data only. Instantiate only the current original diagram. Call Provider.lesson(course_id,week,kind,300..600), synchronize presentation_id/start time, and render the selected stage. Never transmit the entire content every frame.
+
+Course.generate_course(course_id,kind,week,difficulty,seed) preserves the existing generator entry points. Course.grade/public_copy route course-tagged assignments to the provider; all existing untagged assignments retain legacy semantics. Provider.generate uses (course_id,week,kind,difficulty,seed), matching academics course_bridge. Lesson.teaching_course supplies the legacy equipment-text/worked shape.
+
+Practical evidence must come directly from host-owned DCStation.netlist(), board expansion, wires, actual meter connections/mode/range, and verified equipment transitions. Never expose validate_practical as a client-submitted RPC. Academics owns equipment_evidence and official/practice policy. The provider does not accept or write grades, rewards or profile records.
+
+Use assignment.equipment_plan for real catalog counts and isolated-channel setpoints. Three DC channels suffice for weeks1-11, including advanced superposition. Week3 uses the actual pot10k /upper and /lower models; week11 uses pot10k as a rheostat at the stated setting. Keep the unused end physically isolated. Board.node defines actual rows and split rails; source breadboard screenshots are never reconstructed from text.
+
+Installed physical source and tolerance models
+SnapshotC contains four adjustable current-source modules. The plan uses source_index/hardware_index0..3, setpoint amperes, compliance volts and actual IS+/IS- terminals. Solver I flows a->b; positive physical output connects node b and negative output node a. Actual CC/compliance states are retained. No source gate remains merely because hardware was absent in an older snapshot.
+
+Week2 plans select real physical resistor catalog variants for their nominal/tolerance/wattage. Manufacturing values remain host-owned and persisted by physical_resistors.gd. Written prediction questions explicitly use nominal values; actual meter observations and practical marks use the captured manufactured values and instrument loading. The curriculum never invents actual_resistance or substitutes it into a display.
+
+The optional validate_practical API delegates to the integrated host equipment_evidence snapshot/grade logic. It does not duplicate the production solver or trust client bindings. It requires real current-source models for current-source tasks and rejects out-of-compliance sources. This API must only be called with authority-captured parts, wires and observations; it is not a client RPC.
+
+Shared wrapper hook
+The integrator-owned root campus_course_provider.gd must return generator_schema>=3 assignments immediately after Base.generate, preserving their complete randomized plans. Otherwise its historical overlay replaces them with old fixed physical cases. The separate proposed-hooks.patch contains this minimal hook and exact engineering label rendering for worksheet_diagram.gd.
+
+Paging
+Assignments can have more questions and netlist rows at higher difficulty. Papers must paginate/scroll by content height; do not squeeze full circuits/tables into a fixed small image. The course_diagram Control is a readable original connection strip (900px logical width, minimum18px labels) with a->b orientation. Academics' worksheet_diagram may consume the same descriptor at its own readable scale. VIR/VIPR layout rows deliberately contain question labels, not measured answers. Power sweep reference values are server-only and erased by public_copy.
+
+Source review
+SOURCE_REVIEW.json records exact local PDF hash and17readablyinspectedpages. The17readablyinspectedpages remain representative source evidence. Full190page transcription/readable review is not required by the current randomized-generator policy. Runtime examples are original explicit netlists using documented concepts; no unseen source-specific circuits/probe placements are reconstructed. ELM253 sequence is source-derived and proposed; the eighth lab is an original capstone, not an official handout.
+
+Randomization schema
+All generated assignments carry generator_schema3, stable template_id values and private scenario/inputs diagnostics. public_copy removes inputs/scenario and numerical reference state before students receive unmarked papers. Deterministic seeds reproduce givens and keys. Concept/procedure statements and fixed worked teaching examples remain appropriate authored instruction.

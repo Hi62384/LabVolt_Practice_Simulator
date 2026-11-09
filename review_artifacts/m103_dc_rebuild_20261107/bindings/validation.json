@@ -1,0 +1,37 @@
+{
+  "ac_guard": "AC BASELINE DIFFERENCES:\nfunctions:scripts/game.gd::activate",
+  "files": [
+    {
+      "file": "control_adapter.gd",
+      "sha256": "02c5b43bf46b3c38592ae59fccc3effc081a06bf234e73b8e4dc2ab612f1822d"
+    },
+    {
+      "file": "device_binding.gd",
+      "sha256": "d25fd401eecc4108f58cb870c9e78cdcd1334f3a4d390822d873701bea68d554"
+    },
+    {
+      "file": "socket_registry.gd",
+      "sha256": "a2a77e1a7655398f19082accbdde8c28dd5c8d6d33c53049a67fca9e5d7884a7"
+    },
+    {
+      "file": "electrical_fixture.gd",
+      "sha256": "c67f70d2d1b0c8632ff2f90289fd32df3bf49725e7e3d07b25592176474f8e80"
+    },
+    {
+      "file": "physical_binding.gd",
+      "sha256": "0257452a74b8c373a77224e4c949d3d983640535f168436caaa75bae60b6810a"
+    },
+    {
+      "file": "cable_binding.gd",
+      "sha256": "c106d402986526ba3ffe90a85d21df31ae4d10f2fa2628f94ce0260908a6c9ab"
+    },
+    {
+      "file": "assembled_fixture.gd",
+      "sha256": "eda7074b86294ed586dc90ca513808e8ee42d0ba8b2244201020520ab39b5ea5"
+    }
+  ],
+  "fixed_ports": 34,
+  "device_parent_sets": "pass",
+  "runtime": "NOT RUN; guarded fixtures only",
+  "physical_contract": true
+}

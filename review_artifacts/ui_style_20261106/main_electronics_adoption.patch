@@ -1,0 +1,14 @@
+--- a/scripts/electronics_ui.gd
++++ b/scripts/electronics_ui.gd
+@@ -47,8 +47,9 @@
+ 	var skin := StyleBoxFlat.new();skin.bg_color=Color("10222c");skin.set_corner_radius_all(12)
+ 	for side in ["left","right","top","bottom"]:skin.set("content_margin_"+side,20)
+ 	screen.add_theme_stylebox_override("panel",skin)
++	screen.theme=preload("res://scripts/ui/design_system/theme.gd").create()
+ func button(parent: Node,text: String,callback: Callable) -> Button:
+-	var b := Button.new();b.text=text;b.custom_minimum_size.y=34;parent.add_child(b)
++	var b := Button.new();b.text=text;preload("res://scripts/ui/design_system/widgets.gd").style_button(b,preload("res://scripts/ui/design_system/widgets.gd").action_icon(text));parent.add_child(b)
+ 	var generation := panel_generation
+ 	b.pressed.connect(func():
+ 		if active and generation==panel_generation:callback.call()
+

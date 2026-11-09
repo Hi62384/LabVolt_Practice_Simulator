@@ -1,0 +1,166 @@
+--- a/scripts/campus/academics/pending_assessment.gd
++++ b/scripts/campus/academics/pending_assessment.gd
+@@ -52,13 +52,29 @@
+ 	archive.clear();archive.merge(next,true)
+ 	return OK
+ 
+-static func abandoned(archive: Dictionary, token: String) -> Array[Dictionary]:
+-	var results: Array[Dictionary]=[]
+-	for stored in archive.get(token,{}).values():
+-		if not stored is Dictionary or int(stored.get("pending_assessment_version",0))!=VERSION:continue
+-		var result: Dictionary=stored.duplicate(true)
+-		result.erase("pending_assessment_version")
+-		result["score"]=0.0
+-		result["reason"]="Left class before completing the assigned assessment."
+-		results.append(result)
+-	return results
++## Reconcile only the named session on orderly host exit. On process startup,
++## every persisted class has ended because class sessions cannot resume.
++static func end_host_session(archive: Dictionary, persist: Callable, session_id: String = "") -> Error:
++	var next := archive.duplicate(true)
++	var changed := false
++	for token in next:
++		var entries: Variant = next[token]
++		if not entries is Dictionary:continue
++		for id in entries.keys():
++			var record: Variant = entries[id]
++			if not record is Dictionary or record.get("pending_assessment_version") != VERSION or record.has("score"):continue
++			if session_id != "" and str(record.get("assessment_id", "")) != session_id:continue
++			changed = true
++			if record.get("class_authority_role") == "host" and str(record.get("profile", "")) == str(token) and str(record.get("id", "")) == str(id):
++				record.erase("pending_assessment_version")
++				record["score"] = 0.0
++				record["reason"] = "Hosted class ended before the assignment was completed."
++			else:
++				# Guest work is interrupted. Legacy entries have no reliable role.
++				entries.erase(id)
++	if not changed:return OK
++	var error: Error = persist.call(next)
++	if error != OK:return error
++	archive.clear()
++	archive.merge(next, true)
++	return OK
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ -63,9 +63,9 @@
+ 	game.session.restarted.connect(_reset_session)
+ 	game.session.leaving.connect(_session_leaving)
+ 	game.characters.changed.connect(_identity_changed)
++	if PendingAssessment.end_host_session(archive,_persist_archive)!=OK:
++		push_warning("Could not reconcile interrupted class records. The archive will be retried on the next launch.")
+ 	_identity_changed()
+-	for result in PendingAssessment.abandoned(archive,local_identity):
+-		if PendingAssessment.settle(archive,result,_persist_archive)==OK:_receive_grade(result)
+ func _reset_session() -> void:
+ 	host_departure_in_progress=false
+ 	class_start.cancel()
+@@ -97,6 +97,7 @@
+ 		cfg.set_value("profiles",profile,local_identity)
+ 		cfg.save("user://student_identity.cfg")
+ 	sent_identity=false
++	_deliver_host_departure_grade()
+ 	if game.front.page=="characters":game.front.status.text=average()
+ func start(new_mode: String,level: int) -> void:
+ 	if not multiplayer.is_server():return
+@@ -142,7 +143,7 @@
+ 		token=Crypto.new().generate_random_bytes(24).hex_encode()
+ 		_notice(peer,"That profile is already in this session. This instance will use a separate guest grade record.")
+ 	if mode=="Class" and phase in ["travel","lesson"] and not class_students.has(token):
+-		var enrollment: Array[Dictionary]=[_enrollment_record(token,assessment_id,project)]
++		var enrollment: Array[Dictionary]=[_enrollment_record(token,assessment_id,project,peer==1)]
+ 		if PendingAssessment.enroll(archive,enrollment,_persist_archive)!=OK:
+ 			_notice(peer,"Class enrollment could not be saved. Ask the host to retry admission.")
+ 			return
+@@ -222,6 +223,7 @@
+ 		var obligation := {"id":GradePolicy.attempt_id(assessment_id,token),"assessment_id":assessment_id,"profile":token,"title":str(assignment.get("title","Class assignment")),"course_id":assignment.get("course_id","ELM253"),"kind":assignment.get("kind","lecture"),"week":assignment.get("week",1),"difficulty":difficulty,"lesson":false,"time":Time.get_datetime_string_from_system()}
+ 		obligation.merge(CourseProgression.record_fields(assignment),true)
+ 		obligation.merge(RecordMetadata.from_project(assignment),true)
++		obligation["class_authority_role"]="host" if peer==1 else "guest"
+ 		if PendingAssessment.prepare(archive,obligation,_persist_archive)!=OK:return 0
+ 	var count := 0
+ 	for paper in papers.values():
+@@ -614,8 +616,9 @@
+ 		file.store_string(JSON.stringify(data))
+ 		file.close()
+ 		DirAccess.rename_absolute(ProjectSettings.globalize_path(path+".tmp"),ProjectSettings.globalize_path(path))
+-func _enrollment_record(token: String, session_id: String, assignment: Dictionary) -> Dictionary:
++func _enrollment_record(token: String, session_id: String, assignment: Dictionary, is_host: bool) -> Dictionary:
+ 	var record := {"id":GradePolicy.attempt_id(session_id,token),"assessment_id":session_id,"profile":token,"title":str(assignment.get("title","Class assignment")),"course_id":assignment.get("course_id","ELM253"),"kind":assignment.get("kind","lecture"),"week":assignment.get("week",1),"difficulty":assignment.get("difficulty",difficulty),"lesson":false,"time":Time.get_datetime_string_from_system()}
++	record["class_authority_role"]="host" if is_host else "guest"
+ 	record.merge(CourseProgression.record_fields(assignment),true)
+ 	var assessment := str(assignment.get("official_curriculum_id", ""))
+ 	if not assessment.is_empty():
+@@ -875,7 +878,7 @@
+ 		if local_identity not in profiles:profiles.append(local_identity)
+ 		for profile in profiles:
+ 			if str(profile).is_empty():return {"ok":false,"error":"A validated student identity is required."}
+-			enrollment.append(_enrollment_record(str(profile),next_assessment_id,assignment))
++			enrollment.append(_enrollment_record(str(profile),next_assessment_id,assignment,str(profile)==str(identities.get(1,local_identity))))
+ 		if PendingAssessment.enroll(archive,enrollment,_persist_archive)!=OK:return {"ok":false,"error":"Class enrollment could not be saved. Class has not started."}
+ 	_clear_earthing_demo()
+ 	class_start.cancel()
+@@ -1053,11 +1056,20 @@
+ 	suspended=true
+ 	updated.emit()
+ 
++func _deliver_host_departure_grade() -> void:
++	for record in archive.get(local_identity,{}).values():
++		if not record is Dictionary or record.get("class_authority_role")!="host" or record.get("profile")!=local_identity:continue
++		if record.get("reason")!="Hosted class ended before the assignment was completed." or not record.has("score"):continue
++		if not gradebook.has(str(record.get("id",""))):_receive_grade(record)
++
+ func prepare_host_exit(intentional: bool) -> void:
+ 	if multiplayer.is_server():
+ 		if intentional:
+ 			host_departure_in_progress=true
+-			_fail_departing(str(identities.get(1,local_identity)),1)
++			if formal_active() and not assessment_id.is_empty():
++				if PendingAssessment.end_host_session(archive,_persist_archive,assessment_id)==OK:
++					_deliver_host_departure_grade()
++				else:push_warning("Could not close class records. The archive will be retried on the next launch.")
+ 	else:suspend_for_host_loss()
+ 
+ func _session_leaving() -> void:
+--- a/scripts/session.gd
++++ b/scripts/session.gd
+@@ -67,7 +67,7 @@
+ 	multiplayer.peer_disconnected.connect(_left)
+ 	multiplayer.connected_to_server.connect(func(): register.rpc_id(1,local_name))
+ 	multiplayer.connection_failed.connect(func(): leave(); message_received.emit("Connection failed. Check host IP, UDP port and firewall."))
+-	multiplayer.server_disconnected.connect(func(): leave(); message_received.emit("Host disconnected. Returned to local laboratory."))
++	multiplayer.server_disconnected.connect(func(): leave(true); message_received.emit("Host disconnected. Returned to local laboratory."))
+ 
+ func initialize(ids: Array, locations: Dictionary) -> void:
+ 	lab.initialize(ids,locations)
+@@ -110,11 +110,11 @@
+ 	roster_changed.emit()
+ 	return OK
+ 
+-func leave() -> void:
++func leave(authority_lost := false) -> void:
+ 	interaction_sequence=0
+ 	var transport: MultiplayerPeer=multiplayer.multiplayer_peer
+ 	var disconnected: bool=online and transport!=null and transport.get_connection_status()==MultiplayerPeer.CONNECTION_DISCONNECTED
+-	set_meta("lost_authority",disconnected and not was_host)
++	set_meta("lost_authority",authority_lost or (disconnected and not was_host))
+ 	if disconnected:
+ 		online=false
+ 		multiplayer.multiplayer_peer=OfflineMultiplayerPeer.new()
+@@ -162,6 +162,7 @@
+ 	campus_public_replication.forget_peer(id)
+ 	if not multiplayer.is_server():
+ 		return
++	if online and was_host and multiplayer.multiplayer_peer.get_connection_status()==MultiplayerPeer.CONNECTION_DISCONNECTED:return
+ 	roster.erase(id)
+ 	poses.erase(id);shop_returns.erase(id)
+ 	appearances.erase(id)
+@@ -382,6 +383,9 @@
+ 	appearance_queue.append({"target":target,"peer":peer,"data":data,"offset":0})
+ 
+ func _process(_delta: float) -> void:
++	if online and was_host and multiplayer.multiplayer_peer.get_connection_status()==MultiplayerPeer.CONNECTION_DISCONNECTED:
++		leave()
++		return
+ 	if appearance_queue.is_empty() or not online or multiplayer.multiplayer_peer.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED:return
+ 	var job: Dictionary=appearance_queue[0]
+ 	if not multiplayer.get_peers().has(job.target):

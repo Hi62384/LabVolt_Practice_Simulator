@@ -1,0 +1,53 @@
+{
+  "schema": "eight-course-public-givens-v2",
+  "course": "MTH147",
+  "week": 6,
+  "kind": "lecture",
+  "difficulty": 0,
+  "questions": 8,
+  "roles": {
+    "host": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 100.0
+    },
+    "client1": {
+      "mode": "missing_domain",
+      "expected_written_score": 81.25,
+      "expected_final_score": 81.25
+    },
+    "client2": {
+      "mode": "extra_hole",
+      "expected_written_score": 43.75,
+      "expected_final_score": 43.75
+    },
+    "client3": {
+      "mode": "missing_domain",
+      "expected_written_score": 81.25,
+      "expected_final_score": 81.25
+    },
+    "client4": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 100.0
+    },
+    "client5": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 100.0
+    },
+    "client6": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 100.0
+    },
+    "client7": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 100.0
+    }
+  },
+  "oracle": "task4 unchanged public-factor peer",
+  "review_status": "PENDING_INDEPENDENT_COMBINED_REVIEW",
+  "runtime_status": "UNRUN"
+}

@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "checks": 1023,
+  "files": 10,
+  "resources": 8,
+  "scope": "Source invariants, delimiters and resource existence only. No engine, parser, runtime, visual or multiplayer execution.",
+  "unchanged_logic": "Graphics apply/persistence, privacy persistence, chat receive/process, profiling cadence, lab refresh, request payloads and XP calculation compared to exact preimages."
+}

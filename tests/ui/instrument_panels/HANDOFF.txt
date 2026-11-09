@@ -1,0 +1,71 @@
+INSTRUMENT UI IMPLEMENTATION HANDOFF — 2026-11-06
+
+Implemented only in assigned sources:
+- scripts/dc_ui.gd
+- scripts/dc_scope/scope_panel.gd
+- new scripts/ui/instrument_panels/layout.gd
+Evidence and reversible backups are confined to tests/ui/instrument_panels/.
+No AGENTS.md was found in the project or its ancestor directories.
+
+Layout changes
+- Shared design-system theme, cards, icons, action buttons and responsive grid.
+- Local instrument tabs with icon labels and vertical scrolling; no station navigation.
+- Three isolated supply cards with live V/A/W readouts, enabled switches and voltage presets.
+- Four independent current-source cards with per-source live mode/current/voltage feedback.
+- Meter card with large reading, labeled mode/range selectors and original safety instructions.
+- Generator card with waveform selector, labeled numeric fields, ranges, precision and units.
+- Scope waveform card plus acquisition and separate channel setting cards. Acquisition actions wrap;
+  the grid stacks below its width threshold. Gold/cyan channel labels and all trace rendering remain.
+- Lead terminal pickers, attach/remove/disconnect actions, component values and connected-lead card.
+- Numeric syntax feedback uses Expression.parse only; native SpinBox parsing/clamping remains.
+- Controls project host snapshots without emitting signals; focused numeric drafts are retained.
+- Presets no longer rebuild the screen. Lead lists only rebuild when wires change, preserving scroll.
+- Master state, empty lead state, disabled remove action, disconnected scope leads, acquisition warnings
+  and electrical errors remain visible. Successful solves clear previous solve-error feedback.
+
+Preservation and ownership
+- Existing DC send dictionaries match the exact preimage payloads, including precision and conversions.
+- Scope _send implementation is unchanged: source/probe conversions and channel routing retained.
+- No electrical solver, scope drawing/sampling, saves, profile, network, world or ledger edits.
+- Inspected breadboard_canvas.gd, scope_trace.gd and io_devices/surface.gd. Device gesture serialization,
+  host revisions/acknowledgment and release-capture handling are outside this patch and untouched.
+- scripts/electronics_ui.gd owns the surrounding device toolbar. shared_device_hook.json stages one
+  exact-snippet and observed-hash bound style/tooltip hook for its owner; it has NOT been applied.
+  Existing device selection and firmware board callbacks remain with the shared-file owner.
+- No new token/icon system, new asset download, installation or package dependency.
+
+Reversibility
+- manifest.json records original and final SHA-256 for both edited sources. *.preimage files are exact
+  original bytes; *.revision1 and *.revision2 are intermediate bytes with hashes recorded in manifest.
+- helper_manifest.json records the final new helper hash. To undo, first verify the current file equals
+  the final hash, then restore the matching preimage. If hashes differ, review the concurrent change;
+  never overwrite it automatically. The helper is new and can be removed once no caller imports it.
+- redesign.py/refine.py/finalize.py are guarded migration provenance, not runtime modules; do not rerun
+  against the finished files. verify.py is the repeatable bounded source audit.
+
+Validation completed
+- Run: python tests/ui/instrument_panels/verify.py
+- Exact hashes, balanced source delimiters outside strings/comments, resource existence, retained DC
+  command payloads, scope conversion routing, key numeric contracts, draft/signal guards and shared
+  primitive adoption. See validation.json for the complete check list and count.
+- No engine/compiler/runtime/render/CUA/reload/restart/focus/control/active-save action was performed.
+- gdtoolkit is not installed. Delimiter/contract checks are NOT a full Godot parser/type check.
+
+Next safe-boundary acceptance (not performed while the user is playing)
+1. Parse/import in the normal Godot project; confirm all shared design resources are available.
+2. Open each of the six tabs at typical desktop and narrow viewport widths. Check tab scrolling,
+   scope stacking, long safety text, no clipped controls and keyboard Tab/Shift-Tab/Enter focus.
+3. Edit numeric values at bounds, enter invalid text and arithmetic, repeat edits and switch tabs.
+   Confirm native parsing/clamping, feedback recovery and no focused-draft replacement.
+4. Host/client: verify channel/source index isolation, master/output state, presets, generator waveform,
+   fuse replacement, meter ranges and no callback loop when snapshots arrive or a request is rejected.
+5. Add/remove/clear leads, use standalone named pins; check empty and populated lead-list keyboard
+   selection and scrolling. Ensure the dangerous disconnect control is clear and acts once.
+6. Scope: Run/Stop/Single/Autoset, legacy host-disabled controls, scales/coupling/probes, cursors,
+   disconnected leads, solve failure/recovery and unchanged measurements/axis colors.
+7. Exercise physical device gestures and lost-capture/release behavior after the shared-file owner
+   adopts the optional toolbar hook. Capture screenshots and obtain visual acceptance at that boundary.
+
+Remaining gates: Godot parser/type check, runtime behavior and visual acceptance. No claim that these
+source checks constitute runtime or screenshot acceptance. No shared integration dependency for the
+two owned panels; the optional shared device toolbar hook requires its owner's review/application.

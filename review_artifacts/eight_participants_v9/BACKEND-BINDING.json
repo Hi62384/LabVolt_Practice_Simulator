@@ -1,0 +1,49 @@
+{
+  "version": "2.5.0-J",
+  "files": [
+    {
+      "name": "engine_process.py",
+      "original_readonly_path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\parallel-wave4\\classroom\\acceptance-j-v2.5\\backend\\engine_process.py",
+      "copied_path": "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\backend\\engine_process.py",
+      "sha256": "fafb9f29b8896a428cd67d4fb60c27a14dd799b7eb9ffd0166ae9f99cbbc2f82",
+      "copied_identically": true
+    },
+    {
+      "name": "engine_environment.py",
+      "original_readonly_path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\parallel-wave4\\classroom\\acceptance-j-v2.5\\backend\\engine_environment.py",
+      "copied_path": "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\backend\\engine_environment.py",
+      "sha256": "099f8de8b696cbcf61459d59ebb1179ae5572ced0d6087204bce1e33b5f84753",
+      "copied_identically": true
+    },
+    {
+      "name": "windows_engine_job.py",
+      "original_readonly_path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\parallel-wave4\\classroom\\acceptance-j-v2.5\\backend\\windows_engine_job.py",
+      "copied_path": "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\backend\\windows_engine_job.py",
+      "sha256": "eac7835dffbfcc24831bd440d3be2657dc88cf960e6c54ec959dc1115fc26de8",
+      "copied_identically": true
+    },
+    {
+      "name": "engine_job_controller.py",
+      "original_readonly_path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-04\\labvolt-campus-performance\\performance-ac-main18-candidate-startup1\\owned\\tests\\campus\\performance\\engine_job_controller.py",
+      "copied_path": "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\backend\\engine_job_controller.py",
+      "sha256": "4e316920eebb3380c27b10bb8d7e327055a00a65f6da96db2341e3616ae394f4",
+      "copied_identically": true
+    },
+    {
+      "name": "run_engine_only.py",
+      "original_readonly_path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\parallel-wave4\\classroom\\acceptance-j-v2.5\\backend\\run_engine_only.py",
+      "copied_path": "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\backend\\run_engine_only.py",
+      "sha256": "b6379f4d8f5fe53faf402f4521210641869e0a9d134203b7305d3f9730a77f67",
+      "copied_identically": true
+    }
+  ],
+  "admitted_lock": "C:\\Users\\User1\\Documents\\Codex\\2026-11-04\\labvolt-campus-performance\\performance-core-engine-v4\\ADMISSION-LOCK.json",
+  "admitted_lock_sha256": "223a6fc104c6df6c46ea4dfb60bbaf6fcf3cb5b3b6200500e9d8e8202bf18429",
+  "core_modules_modified": false,
+  "parser_API": "run_engine_only.stage(a,lock,folder,arguments,deadline,limit,intentional=False)",
+  "lifecycle_API": "Unchanged per-Job-max1 backend; proposed exactly eight distinct controllers, requires new independent review and total-eight grant",
+  "local_approval_job_API_used": false,
+  "proof_lineage": "Explicit root BASELINE4 release14.140s/ownedJob0; four primitive backend hashes match prior primary-hands API; no new backend runtime claim",
+  "startup_only_controller_rebound": true,
+  "review_scope": "Reviewed startup exception cleanup only; stop unchanged; no new runtime admission claimed"
+}

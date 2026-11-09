@@ -1,0 +1,30 @@
+[
+  {
+    "file": "scripts/game.gd",
+    "preimage_sha256": "44b747e673e215734df7840b5e7494d5abd97cfe6cee8c7c75af227d0c34b241",
+    "edits": [
+      {
+        "old": "var cable_obstacles:Array[AABB]=[]",
+        "new": "var open_lab_tutorial\n\nvar cable_obstacles:Array[AABB]=[]"
+      },
+      {
+        "old": "func _ready() -> void:",
+        "new": "func open_lab_equipment_tutorial() -> void:\n\tif not is_instance_valid(open_lab_tutorial):\n\t\topen_lab_tutorial=preload(\"res://review_artifacts/open_lab_instructor_20261107/tutorials/controller.gd\").new()\n\t\tadd_child(open_lab_tutorial)\n\tif not open_lab_tutorial.open(self):\n\t\tui.log_message(\"Equipment tutorial is available in the M101 or M103 Open Lab.\")\n\nfunc _ready() -> void:"
+      },
+      {
+        "old": "\taction[\"station\"]=number\n\tsession.request(action)",
+        "new": "\taction[\"station\"]=number\n\tif is_instance_valid(open_lab_tutorial):open_lab_tutorial.record_intent(\"ac_lab\",number,action)\n\tsession.request(action)"
+      }
+    ]
+  },
+  {
+    "file": "scripts/dc_lab.gd",
+    "preimage_sha256": "bcedf97798fabfd7eec6baa6ed04b30f9403cd0a03064230b7456eae8998a9dc",
+    "edits": [
+      {
+        "old": "\tif multiplayer.is_server():accept(1,index,action)\n\telse:command.rpc_id(1,index,action)",
+        "new": "\tif is_instance_valid(game.open_lab_tutorial):game.open_lab_tutorial.record_intent(\"dc_lab\",index,action)\n\tif multiplayer.is_server():accept(1,index,action)\n\telse:command.rpc_id(1,index,action)"
+      }
+    ]
+  }
+]

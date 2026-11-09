@@ -1,0 +1,271 @@
+extends Node3D
+## A single persistent campus shell. No mode owns or duplicates its geometry.
+signal zone_activation_changed(room_id: String, active: bool)
+signal elevator_requested(actor: Node3D, destination: Vector3)
+const Registry = preload("res://scripts/campus/world/room_registry.gd")
+const Streamer = preload("res://scripts/campus/world/zone_streamer.gd")
+const Signage = preload("res://scripts/campus/presentation/signage/campus_signage.gd")
+const HallwayGeometry = preload("res://scripts/campus/presentation/navigation_safety/hallway_geometry.gd")
+const HallwayFinish = preload("res://scripts/campus/presentation/hallway_finish.gd")
+const ExteriorFinish = preload("res://scripts/campus/presentation/exterior_finish.gd")
+const EntranceSignage = preload("res://scripts/campus/presentation/entrance_signage.gd")
+const ExteriorLighting = preload("res://scripts/campus/presentation/exterior_lighting.gd")
+var registry = Registry.new()
+var streamer = Streamer.new()
+var room_roots: Dictionary = {}
+var anchors: Dictionary = {}
+var materials: Dictionary = {}
+var box_mesh := BoxMesh.new()
+var shell_built := false
+var build_usec := 0
+var solid_count := 0
+var elevator_validator: Callable
+var viewer_actor: Node3D
+var viewer_clock := 0.0
+@export var enable_occlusion := true
+
+func _ready() -> void:
+	build()
+
+func build() -> void:
+	if shell_built: return
+	shell_built=true
+	var begin := Time.get_ticks_usec()
+	get_viewport().use_occlusion_culling=enable_occlusion
+	box_mesh.size=Vector3.ONE
+	add_child(streamer)
+	streamer.zone_activation_changed.connect(func(id: String, enabled: bool): zone_activation_changed.emit(id,enabled))
+	_circulation()
+	for room in registry.rooms.values(): _room(room)
+	_close_hallway_voids()
+	_stairs()
+	HallwayFinish.apply(self)
+	_elevator()
+	_paving()
+	var exterior_finish := ExteriorFinish.new()
+	exterior_finish.name="ExteriorFinish"
+	exterior_finish.mount(self)
+	var entrance_lighting := ExteriorLighting.new()
+	entrance_lighting.name="EntranceLighting"
+	add_child(entrance_lighting)
+	build_usec=Time.get_ticks_usec()-begin
+	streamer.set_viewer_position(registry.vector(registry.data.entrance))
+
+func material(color: String) -> StandardMaterial3D:
+	if not materials.has(color):
+		var item := StandardMaterial3D.new()
+		item.albedo_color=Color(color)
+		item.roughness=.9
+		materials[color]=item
+	return materials[color]
+
+func box(parent: Node3D, pos: Vector3, size: Vector3, color: String, solid: bool=true) -> Node3D:
+	var node := MeshInstance3D.new()
+	node.mesh=box_mesh
+	node.material_override=material(color)
+	node.position=pos
+	node.scale=size
+	node.visibility_range_end=85.0
+	node.visibility_range_end_margin=8.0
+	parent.add_child(node)
+	if solid:
+		var body := StaticBody3D.new()
+		body.position=pos
+		body.collision_layer=1
+		body.collision_mask=0
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size=size
+		collision.shape=shape
+		body.add_child(collision)
+		parent.add_child(body)
+		solid_count+=1
+	return node
+
+func sign_text(parent: Node3D, text: String, point: Vector3, yaw: float=0.0, font_size: int=56) -> Label3D:
+	var label := Signage.create_label(text,point,yaw,font_size)
+	parent.add_child(label)
+	return label
+
+func _room(room: Dictionary) -> void:
+	var root := Node3D.new()
+	root.name=str(room.id)
+	add_child(root)
+	room_roots[room.id]=root
+	var center: Vector3=registry.vector(room.center)
+	var size: Vector3=registry.vector(room.size)
+	var west := center.x<13
+	var door: Vector3=registry.vector(room.door)
+	var xmin := center.x-size.x/2
+	var xmax := center.x+size.x/2
+	var zmin := center.z-size.z/2
+	var zmax := center.z+size.z/2
+	var wall_x := xmax if west else xmin
+	box(root,center+Vector3(0,-.12,0),Vector3(size.x,.24,size.z),"657b7d")
+	box(root,center+Vector3(0,4.15,0),Vector3(size.x,.2,size.z),"d6e0da")
+	for z in [zmin,zmax]: box(root,Vector3(center.x,center.y+2,z),Vector3(size.x,4,.16),"a6b9b4")
+	box(root,Vector3(xmin if west else xmax,center.y+2,center.z),Vector3(.16,4,size.z),"a6b9b4")
+	var side := (size.z-float(room.door_width))/2
+	for direction in [-1,1]:
+		box(root,Vector3(wall_x,center.y+2,center.z+direction*(float(room.door_width)/2+side/2)),Vector3(.16,4,side),"a6b9b4")
+	box(root,door+Vector3(0,3.5,0),Vector3(.16,1,float(room.door_width)),"34606a")
+	Signage.add_room_number_faces(root,room,door,west)
+	var marker := Marker3D.new()
+	marker.name="ContentAnchor"
+	marker.position=registry.vector(room.anchor)
+	root.add_child(marker)
+	anchors[room.id]=marker
+	# Solid wall occluder; never spans an open doorway.
+	var occluder := OccluderInstance3D.new()
+	var geometry := ArrayOccluder3D.new()
+	var x: float=xmin if west else xmax
+	geometry.set_arrays(PackedVector3Array([Vector3(x,center.y,zmin),Vector3(x,center.y+4,zmin),Vector3(x,center.y+4,zmax),Vector3(x,center.y,zmax)]),PackedInt32Array([0,1,2,0,2,3]))
+	occluder.occluder=geometry
+	root.add_child(occluder)
+
+func _directory_text() -> String:
+	var lines := PackedStringArray(["DIRECTORY"])
+	for room in registry.directory():
+		lines.append(str(room.number)+" · "+str(room.title))
+	return "\n".join(lines)
+
+func _circulation() -> void:
+	# Continuous ground corridor, lobby and outdoor entrance.
+	box(self,Vector3(13,-.12,21.5),Vector3(6,.24,93),"879996")
+	box(self,Vector3(13,-.18,-18),Vector3(46,.2,14),"697e74")
+	for floor in [0,1]:
+		var y := float(floor)*5
+		if floor==1:
+			for x in [10.,16.]: box(self,Vector3(x,y+2,46.5),Vector3(.16,4,15),"a6b9b4")
+			box(self,Vector3(13,y-.12,23),Vector3(6,.24,54),"879996")
+			box(self,Vector3(14.5,y-.12,56),Vector3(3,.24,12),"879996")
+			box(self,Vector3(13,y-.12,65),Vector3(6,.24,6),"879996")
+		box(self,Vector3(13,y+4.15,23),Vector3(6,.2,54),"d6e0da")
+		if floor==0:
+			for x in [10.5,15.5]:box(self,Vector3(x,y+2,68),Vector3(1,4,.16),"a6b9b4")
+			box(self,Vector3(13,y+3.6,68),Vector3(4,.8,.16),"34606a")
+		else:box(self,Vector3(13,y+2,68),Vector3(6,4,.16),"a6b9b4")
+		for x in [10.0,16.0]:
+			if x==16.0:
+				box(self,Vector3(x,y+2,56),Vector3(.16,4,4),"a6b9b4")
+				box(self,Vector3(x,y+2,64),Vector3(.16,4,8),"a6b9b4")
+			else: box(self,Vector3(x,y+2,61),Vector3(.16,4,14),"a6b9b4")
+		sign_text(self,"FLOOR "+str(floor+1)+"   /   NORTH STAIRS & LIFT →",Vector3(13,y+3.4,49),PI,32)
+		EntranceSignage.mount(self,"\n".join(EntranceSignage.direction_lines(registry,floor,50)),Vector3(10.16,y+2.48,38),PI/2,Vector2(2.6,.88),20)
+	# Planted exterior boundary keeps the modest courtyard walkable and contained.
+	for x in [-10.,36.]: box(self,Vector3(x,1,-18),Vector3(.5,2,14),"34606a")
+	box(self,Vector3(13,1,-25),Vector3(46,2,.5),"34606a")
+	for x in [0.,26.]: box(self,Vector3(x,1,-11),Vector3(20,2,.5),"34606a")
+	# Lobby side walls and entrance lintel, opening remains 6m clear.
+	for x in [10.,16.]: box(self,Vector3(x,2,-9),Vector3(.16,4,10),"34606a")
+	EntranceSignage.mount_portal(self)
+	EntranceSignage.mount(self,"\n".join(EntranceSignage.directory_lines(registry,0)),Vector3(10.16,1.62,-8),PI/2,Vector2(2.7,2.55),17)
+	EntranceSignage.mount(self,"\n".join(EntranceSignage.directory_lines(registry,1)),Vector3(15.84,1.62,-8),-PI/2,Vector2(2.7,2.55),17)
+	# Shared instanced ceiling fixtures; no per-fixture real-time light.
+	var mm := MultiMesh.new()
+	mm.transform_format=MultiMesh.TRANSFORM_3D
+	mm.mesh=box_mesh
+	mm.instance_count=18
+	for i in range(18):
+		mm.set_instance_transform(i,Transform3D(Basis.IDENTITY.scaled(Vector3(1.8,.04,.35)),Vector3(13,3.98 if i<9 else 8.98,-2+(i%9)*6)))
+	var fixtures := MultiMeshInstance3D.new()
+	fixtures.multimesh=mm
+	fixtures.material_override=material("f5edd3")
+	add_child(fixtures)
+
+func _close_hallway_voids() -> void:
+	# Room shells intentionally own their doors. These sections cover only the
+	# unsupported seams between shells, with matching visible/collision geometry.
+	for closure in HallwayGeometry.edge_closures():
+		box(self,closure.position,closure.size,HallwayGeometry.WALL_COLOR)
+
+func _stairs() -> void:
+	# A single convex wedge provides smooth capsule movement; treads are visual only.
+	var body := StaticBody3D.new()
+	var shape := ConvexPolygonShape3D.new()
+	shape.points=PackedVector3Array([Vector3(10,-.2,50),Vector3(13,-.2,50),Vector3(10,-.2,62),Vector3(13,-.2,62),Vector3(10,5,62),Vector3(13,5,62)])
+	var collision := CollisionShape3D.new()
+	collision.shape=shape
+	body.add_child(collision)
+	add_child(body)
+	for i in range(30):
+		var height := (i+1)*5.0/30
+		box(self,Vector3(11.5,height/2,50+(i+.5)*.4),Vector3(3,height,.4),"7f9997",false)
+	for x in [10.1,12.9]:
+		var rail := box(self,Vector3(x,3.5,56),Vector3(.08,.08,13),"34606a",false)
+		rail.rotation.x=-atan2(5,12)
+	sign_text(self,"STAIRS  ↑  FLOOR 2",Vector3(11.5,2.8,50),PI,32)
+
+func _elevator() -> void:
+	# Two stops in one shaft. Core validates travel/assessment/ownership before granting.
+	for floor in [0,1]:
+		var y := float(floor)*5
+		box(self,Vector3(20,y-.12,59),Vector3(8,.24,6),"657b7d")
+		for z in [56.,62.]: box(self,Vector3(20,y+2,z),Vector3(8,4,.16),"a6b9b4")
+		box(self,Vector3(24,y+2,59),Vector3(.16,4,6),"a6b9b4")
+		var target := StaticBody3D.new()
+		target.position=Vector3(15.8,y+1.2,59)
+		target.collision_layer=4
+		target.collision_mask=0
+		target.set_meta("role","elevator_station")
+		target.set_meta("label","Elevator · "+("Floor 2" if floor==0 else "Floor 1"))
+		target.set_meta("destination",Vector3(14.5,5 if floor==0 else 0,59))
+		var cs := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size=Vector3(.25,.5,.5)
+		cs.shape=shape
+		target.add_child(cs)
+		add_child(target)
+		box(target,Vector3.ZERO,Vector3(.15,.4,.35),"d6bd77",false)
+		sign_text(self,"LIFT  ↕\nFLOOR "+str(floor+1),Vector3(15.7,y+2.3,59),PI/2,32)
+	# Cut the east corridor shaft entrance from z58..60: _circulation skips this segment.
+
+func interact(target: Node, actor: Node3D) -> bool:
+	if not is_instance_valid(target) or target.get_meta("role","")!="elevator_station": return false
+	if not is_instance_valid(actor) or actor.global_position.distance_to(target.global_position)>3: return true
+	var destination: Vector3=target.get_meta("destination")
+	elevator_requested.emit(actor,destination)
+	if elevator_validator.is_valid() and elevator_validator.call(actor,destination):
+		actor.global_position=destination
+		if actor is CharacterBody3D: actor.velocity=Vector3.ZERO
+	return true
+
+func _paving() -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format=MultiMesh.TRANSFORM_3D
+	mm.mesh=box_mesh
+	mm.instance_count=20
+	for i in range(20):
+		mm.set_instance_transform(i,Transform3D(Basis.IDENTITY.scaled(Vector3(.9,.02,.9)),Vector3(8+(i%10),.015,-23+(i/10)*2)))
+	var paving := MultiMeshInstance3D.new()
+	paving.multimesh=mm
+	paving.material_override=material("c4cfbf")
+	add_child(paving)
+
+func anchor(id: String) -> Transform3D:
+	return registry.anchor(id)
+
+func register_content(id: String, root: Node3D) -> bool:
+	return streamer.register_content(id,root)
+
+func request_room(id: String) -> void:
+	streamer.request_room(id)
+
+func set_viewer_position(point: Vector3) -> void:
+	streamer.set_viewer_position(point)
+
+func metrics() -> Dictionary:
+	return {"shell_build_usec":build_usec,"solids":solid_count,"shared_materials":materials.size(),"rooms":room_roots.size(),"streaming":streamer.metrics()}
+
+func set_viewer(actor: Node3D) -> void:
+	viewer_actor=actor
+	if is_instance_valid(actor): set_viewer_position(actor.global_position)
+
+func _process(delta: float) -> void:
+	viewer_clock+=delta
+	if viewer_clock>=.15:
+		viewer_clock=0.0
+		if is_instance_valid(viewer_actor): set_viewer_position(viewer_actor.global_position)
+
+func register_loader(id: String, loader: Callable) -> bool:
+	return streamer.register_loader(id,loader)

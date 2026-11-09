@@ -1,0 +1,53 @@
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ -196,6 +196,7 @@
+ 	record.project=generated.duplicate(true)
+ 	return record.project
+ func _give(peer: int,assignment: Dictionary,lesson: bool,class_copy: bool) -> int:
++	if str(assignment.get("practice_scope",""))=="ungraded" and (class_copy or not lesson):return 0
+ 	if class_copy:
+ 		assignment=_individual_project(str(identities.get(peer,"")))
+ 		if assignment.is_empty():_notice(peer,"Your assessment could not be prepared. Ask the host to restart the activity.");return 0
+@@ -281,9 +282,25 @@
+ 			papers[id].guide=true;papers[id].notebook=true
+ 			papers[id].strokes=content.get("strokes",{}).duplicate(true);papers[id].annotations=content.get("annotations",{}).duplicate(true);papers[id].page=clampi(int(content.get("page",0)),0,3)
+ 	elif op=="guide":
++		if not preload("res://review_artifacts/open_lab_instructor_20261107/tutorials/formal_guide_policy.gd").allowed(mode,activity):return
+ 		if not _near(peer,teacher_position):return
+ 		var id := _give(peer,preload("res://scripts/equipment_guide.gd").project(),true,false)
+ 		if id!=0:papers[id].guide=true
++	elif op=="practice_lesson":
++		if mode not in ["Open Lab","Freeplay","Creative Freeplay"]:return
++		if not game.session.roster.has(peer) or str(identities.get(peer,""))=="":return
++		var pose: Variant=game.session.poses.get(peer,{}).get("position")
++		if not pose is Vector3 or not _near(peer,teacher_position):return
++		if room_bridge.registry==null:return
++		var room_id := str(room_bridge.registry.call("locate",pose))
++		if not room_bridge.contains(room_id,pose):return
++		var service=preload("res://review_artifacts/open_lab_instructor_20261107/practice/practice_service.gd")
++		var course := service.course_for_room(room_id)
++		if course.is_empty():return
++		if mode=="Open Lab" and (activity.is_empty() or str(activity.get("course_id",""))!=course or str(activity.get("room",{}).get("id",""))!=room_id):return
++		var practice: Dictionary=service.issue_for_room(room_id,course_bridge,random.randi())
++		if practice.has("error"):_notice(peer,str(practice.error));return
++		_give(peer,practice,true,false)
+ 	elif op=="new":
+ 		if mode=="Class":return
+ 		if not _near(peer,teacher_position):return
+@@ -682,6 +699,7 @@
+ 	updated.emit()
+ 
+ func _lesson_reward(paper: Dictionary) -> void:
++	if str(paper.get("project",{}).get("practice_scope",""))=="ungraded":return
+ 	if mode=="Creative Freeplay":return
+ 	var token := str(paper.identity)
+ 	var key := "lesson:"+token+":"+str(paper.project.get("course_id","ELM253"))+":"+str(paper.project.get("week",paper.project.get("topic",0)))+":"+str(paper.project.get("difficulty",0))
+@@ -837,7 +855,7 @@
+ 	return {}
+ 
+ func _official(paper: Dictionary) -> bool:
+-	return not bool(paper.get("lesson",true)) and int(paper.get("class_round",0))!=0
++	return not bool(paper.get("lesson",true)) and int(paper.get("class_round",0))!=0 and str(paper.get("project",{}).get("practice_scope",""))!="ungraded"
+ 
+ static func page_count(paper: Dictionary) -> int:
+ 	if paper.get("project",{}).get("course_id", "") in ["MTH147", "MTH255"]:

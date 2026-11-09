@@ -1,0 +1,25 @@
+diff --git a/scripts/game.gd b/scripts/game.gd
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@ -16,5 +16,6 @@ var campus_services: Node
+ var campus: Node3D
+ var shop_room: Node3D
++var dorm_interactions: Node
+ var electronics: CanvasLayer
+ var dc_lab: Node3D
+ var school: Node
+@@ -396,5 +397,6 @@ func _input(event: InputEvent) -> void:
+ 			elif event.button_index == MOUSE_BUTTON_RIGHT:
+ 				if kit_world.interact(current_target,true):pass
++				elif is_instance_valid(dorm_interactions) and dorm_interactions.interact(current_target):pass
+ 				elif shop_room.interact(current_target):pass
+ 				elif dc_lab.interact(current_target,true):pass
+ 				elif not school_world.interact(current_target,true):unplug()
+@@ -458,6 +460,7 @@ func _input(event: InputEvent) -> void:
+ func activate() -> void:
+ 	if is_instance_valid(kit_world) and kit_world.interact(current_target,false):return
+ 	if is_instance_valid(campus) and campus.interact(current_target,player):return
++	if is_instance_valid(dorm_interactions) and dorm_interactions.interact(current_target):return
+ 	if is_instance_valid(shop_room) and shop_room.interact(current_target):return
+ 	if is_instance_valid(dc_lab) and dc_lab.interact(current_target,false):return
+ 	if is_instance_valid(school_world) and school_world.interact(current_target,false):return

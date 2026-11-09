@@ -1,0 +1,40 @@
+extends CanvasLayer
+var game: Node
+var panel: PanelContainer
+var log_view: RichTextLabel
+var lines: Array[String]=[]
+var expires := 0.0
+var bubbles := {}
+func build(owner_game: Node) -> void:
+	game=owner_game;layer=12
+	panel=PanelContainer.new();panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	panel.position=Vector2(24,-215);panel.size=Vector2(430,155);panel.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(panel)
+	var style := StyleBoxFlat.new();style.bg_color=Color(.035,.065,.09,.8);style.set_corner_radius_all(8)
+	for side in ["left","right","top","bottom"]:style.set("content_margin_"+side,12)
+	panel.add_theme_stylebox_override("panel",style)
+	log_view=RichTextLabel.new();log_view.bbcode_enabled=false;log_view.scroll_following=true;log_view.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	log_view.add_theme_font_size_override("normal_font_size",15);panel.add_child(log_view)
+	game.ui.chat_input.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	game.ui.chat_input.position=Vector2(24,-52);game.ui.chat_input.size=Vector2(430,36)
+	game.session.chat_received.connect(receive)
+func receive(peer: int,sender: String,message: String) -> void:
+	lines.append(sender+": "+message)
+	if lines.size()>40:lines.pop_front()
+	log_view.text="\n".join(lines);expires=Time.get_ticks_msec()/1000.0+12
+	if bubbles.has(peer) and is_instance_valid(bubbles[peer].node):bubbles[peer].node.queue_free()
+	if peer==multiplayer.get_unique_id():return
+	if not game.avatars.has(peer):return
+	var bubble := Label3D.new();bubble.text=message; bubble.font_size=40;bubble.pixel_size=.0018;bubble.width=500
+	bubble.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;bubble.billboard=BaseMaterial3D.BILLBOARD_ENABLED
+	bubble.outline_size=10;bubble.outline_modulate=Color("142431");bubble.modulate=Color("fff8e4")
+	bubble.position=Vector3(0,2.3,0);game.avatars[peer].add_child(bubble)
+	bubbles[peer]={"node":bubble,"until":Time.get_ticks_msec()/1000.0+6}
+func _process(_delta: float) -> void:
+	if not is_instance_valid(game):return
+	var now := Time.get_ticks_msec()/1000.0
+	panel.visible=game.session.online and game.front.in_game and (game.player.enabled or game.ui.chat_input.visible)
+	if panel.visible and now>expires and not game.ui.chat_input.visible:log_view.text="T  ·  Team chat"
+	elif panel.visible:log_view.text="\n".join(lines) if not lines.is_empty() else "T  ·  Team chat"
+	for peer in bubbles.keys():
+		if not is_instance_valid(bubbles[peer].node):bubbles.erase(peer)
+		elif now>bubbles[peer].until:bubbles[peer].node.queue_free();bubbles.erase(peer)

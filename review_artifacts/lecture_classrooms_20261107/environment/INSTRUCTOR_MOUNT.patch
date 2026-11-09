@@ -1,0 +1,10 @@
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@ -198,6 +198,11 @@
+ 	campus_services=preload("res://scripts/campus_integration.gd").new()
+ 	campus_services.name="CampusServices";add_child(campus_services);campus_services.build(self)
++	var instructor_area := preload("res://review_artifacts/lecture_classrooms_20261107/environment/instructor_area.gd").new()
++	instructor_area.name="LectureInstructorAreas";campus.add_child(instructor_area)
++	for id in ["elm253_lecture","ety155_lecture"]:
++		if not instructor_area.mount(id,campus,campus.registry):
++			push_warning("Lecture instructor area skipped: "+id)

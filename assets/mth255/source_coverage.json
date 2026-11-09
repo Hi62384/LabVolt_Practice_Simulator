@@ -1,0 +1,208 @@
+{
+  "course": "MTH255",
+  "source_access": "Supported Library read relayed by coordinator. No fake PDF files or raw transfer bypass.",
+  "references": [
+    {
+      "library_file_id": "libfile_6cc8505339fc81918f318f832d653aa2",
+      "file_id": "file_00000000b85881f5bae7c0baeae62ff9",
+      "name": "007_MTH255U4_review(1).pdf",
+      "pages": 6,
+      "bytes": 192704,
+      "total_lines": 254,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        7,
+        8
+      ]
+    },
+    {
+      "library_file_id": "libfile_49f3372e08dc819190541c3857a6b372",
+      "file_id": "file_000000006d6c81f58ef4b4bc1d11483c",
+      "name": "006_MTH255U4_handout(1).pdf",
+      "pages": 19,
+      "bytes": 527391,
+      "total_lines": 856,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        7,
+        8
+      ]
+    },
+    {
+      "library_file_id": "libfile_2bda0cd001548191bb6c26c6a6e3c4f3",
+      "file_id": "file_00000000cc4081f58390ecd6cc71d341",
+      "name": "005_MTH255U3_review(1).pdf",
+      "pages": 5,
+      "bytes": 214937,
+      "total_lines": 167,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        5,
+        6
+      ]
+    },
+    {
+      "library_file_id": "libfile_5d5c270a48cc8191b9fe0ec0f0b4a228",
+      "file_id": "file_0000000070c481f5a31bdf3fd12c6758",
+      "name": "004_MTH255U3_handout(1).pdf",
+      "pages": 31,
+      "bytes": 861605,
+      "total_lines": 1292,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        5,
+        6
+      ]
+    },
+    {
+      "library_file_id": "libfile_c10f0f7a33f48191ab6129b8c7814190",
+      "file_id": "file_000000004d9881f5acab0a45922d8bf3",
+      "name": "003_MTH255U12_review(1).pdf",
+      "pages": 6,
+      "bytes": 231194,
+      "total_lines": 186,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "library_file_id": "libfile_f2d7f19f78088191aa9b71aa405eaa1e",
+      "file_id": "file_00000000cb5081f5a8e8c67a90ce719f",
+      "name": "002_MTH255U2_handout(1).pdf",
+      "pages": 17,
+      "bytes": 305296,
+      "total_lines": 682,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        3,
+        4
+      ]
+    },
+    {
+      "library_file_id": "libfile_690ede1d18a88191aad050c87de93c7a",
+      "file_id": "file_00000000e34481f5814eeec343448da6",
+      "name": "001_MTH255U1_handout(1).pdf",
+      "pages": 24,
+      "bytes": 775820,
+      "total_lines": 884,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        1,
+        2
+      ]
+    },
+    {
+      "library_file_id": "libfile_9e6562ecbfdc81918d082bf978a0ade3",
+      "file_id": "file_00000000bc2881f58fe697f3dcaf4795",
+      "name": "000_MTH255FormulaSheet(1).pdf",
+      "pages": 2,
+      "bytes": 200748,
+      "total_lines": 142,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "library_file_id": "libfile_14c6f283b998819185de0a7ab3207ec5",
+      "file_id": "file_000000006edc81f5b1588b8824b0af96",
+      "name": "009_MTH255U15_review(1).pdf",
+      "pages": 10,
+      "bytes": 328727,
+      "total_lines": 322,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    {
+      "library_file_id": "libfile_1566885aaef48191bffc3b6309288be0",
+      "file_id": "file_00000000759081f5a5089510c35b6e77",
+      "name": "008_MTH255U5_handout(1).pdf",
+      "pages": 8,
+      "bytes": 476785,
+      "total_lines": 334,
+      "text_read_complete": true,
+      "context_status": "Coordinator reports complete supported-Library text read; authorized normalized text was relayed in chat. Layout-lossy math independently checked.",
+      "local_original_installed": false,
+      "pixel_review": "Not performed: viewable source pixels unavailable; representative review requested.",
+      "usage": "topics/methods/notation/complexity only; no stored PDF exercises or answer authority",
+      "week_mapping": [
+        9,
+        10
+      ]
+    }
+  ],
+  "independent_corrections": [
+    "Complex phase uses atan2(imag,real), zero argument undefined.",
+    "Magnitude sqrt(real\u00b2+imag\u00b2); combined sinusoid R=sqrt(A\u00b2+B\u00b2).",
+    "Degree/radian conversion pi/180 and 180/pi.",
+    "Charging capacitor voltage rises while series RC current decays; RL rising current time constant L/R.",
+    "Power gain 10log10 versus equal-impedance RMS voltage gain 20log10.",
+    "Quartiles explicitly use medians of halves including the central observation in both halves for odd n.",
+    "All multiple card draws explicitly state replacement; ace excluded from number-card definition 2\u201310."
+  ],
+  "coverage_limits": [
+    "Representative source diagram pixels remain unverified.",
+    "No exhaustive question transcription claim.",
+    "53 procedural families and their structural variants cover the requested method scope; this is not a claim to reproduce every source exercise."
+  ]
+}

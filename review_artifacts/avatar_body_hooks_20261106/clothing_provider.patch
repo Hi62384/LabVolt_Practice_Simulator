@@ -1,0 +1,41 @@
+--- a/scripts/avatar_cosmetics/clothing/clothing_provider.gd
++++ b/scripts/avatar_cosmetics/clothing/clothing_provider.gd
+@@ -1,5 +1,6 @@
+ class_name ClothingProvider
+ extends RefCounted
++const BodyFit = preload("res://scripts/avatar_cosmetics/body_deformation/body_fit.gd")
+ 
+ ## Baked segmented garments for the current independently animated toon rig.
+ const Core = preload("res://scripts/avatar_cosmetics/core/avatar_core.gd")
+@@ -29,30 +30,7 @@
+ 	return moved > 0
+ 
+ static func _apply_fit(root: Node, definition: Dictionary, body: Dictionary, parameters: Dictionary) -> void:
+-	# Core owns the full 0.65..1.40 range. Never narrow a legitimate saved body.
+-	var fitted_body := Core.sanitize_body(body)
+-	var width := float(fitted_body.width)
+-	var torso_width := float(fitted_body.torso_width)
+-	var shoulders := float(fitted_body.shoulders)
+-	var waist := float(fitted_body.waist)
+-	var hips := float(fitted_body.hips)
+-	var arm_length := float(fitted_body.arm_length)
+-	var arm_width := float(fitted_body.arm_width)
+-	var leg_length := float(fitted_body.leg_length)
+-	var leg_width := float(fitted_body.leg_width)
+-	var fit := clampf(float(parameters.get("fit", 1.0)), 0.94, 1.08)
+-	for child in root.get_children():
+-		match str(child.name):
+-			"Torso":
+-				_deform_torso(child as MeshInstance3D, width * torso_width, waist, shoulders, fit)
+-			"SleeveL", "SleeveR": child.scale = Vector3(arm_width * fit, arm_length, arm_width * fit)
+-			"Waist":
+-				# The waist bridges both leg roots; hips influence its lower edge.
+-				_deform_waist(child as MeshInstance3D, width, waist, hips, fit)
+-			"LegL", "LegR":
+-				var panel_width := leg_width * fit
+-				if str(definition.get("id", "")).contains("skirt"): panel_width *= hips
+-				child.scale = Vector3(panel_width, leg_length, fit)
++	BodyFit.fit_clothing(root as Node3D,definition,body,parameters)
+ 
+ static func _deform_torso(mesh_instance: MeshInstance3D, overall: float, waist: float, shoulders: float, fit: float) -> void:
+ 	if mesh_instance == null or mesh_instance.mesh == null: return

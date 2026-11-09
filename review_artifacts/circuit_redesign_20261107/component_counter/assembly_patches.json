@@ -1,0 +1,138 @@
+{
+  "source_hashes": {
+    "scripts\\electronics_ui.gd": "75218919192948704531a64b4692774500f4726183e4eab82570355cbc06bc25",
+    "scripts\\electronics\\component_shop_ui\\shop_adapter.gd": "573e4a58b798d0fca46f439994082d5598614c79d64ca2acc8b663cd3b46563f",
+    "scripts/shop_room.gd": "8aa526be123ebf8b6edd47cf1be02a8503e3aa6421e24a92996bc94fa62f044e",
+    "scripts/campus/facilities/clothing_store/store_panel.gd": "3429c44147be92455a2f351d3d47c8988df451fc684adcac093b1f81dcfc19df",
+    "scripts/campus_integration.gd": "203e0b819c3958245affecf2d23e643b87ddb1ebe1e7b98a4b924c2e30d2f585"
+  },
+  "copies": [
+    {
+      "from": "review_artifacts\\circuit_redesign_20261107\\component_counter\\store_panel.gd",
+      "to": "scripts/electronics/component_shop_ui/store_panel.gd"
+    },
+    {
+      "from": "review_artifacts\\circuit_redesign_20261107\\component_counter\\bundle_module.gd",
+      "to": "scripts/ui/store_bundles_equipment/module.gd"
+    },
+    {
+      "from": "review_artifacts/circuit_redesign_20261107/clothing_store_bridge/legacy_cosmetic_adapter.gd",
+      "to": "scripts/campus/facilities/clothing_store/legacy_cosmetic_adapter.gd"
+    },
+    {
+      "from": "review_artifacts/circuit_redesign_20261107/clothing_store_bridge/legacy_wear_section.gd",
+      "to": "scripts/campus/facilities/clothing_store/legacy_wear_section.gd"
+    }
+  ],
+  "patches": [
+    {
+      "path": "scripts\\electronics_ui.gd",
+      "old": "func shop() -> void:\n\tvar shop_economy: Dictionary=profile.get_meta(\"economy_display\",{}) if profile.authority_submit.is_valid() else preload(\"res://scripts/economy/temporary_playtest/policy.gd\").display_snapshot(true)\n\tshop_adapter.build(self,body,{\"economy\":shop_economy})\n\tbutton(body,\"Circuit Analyzer · owned\" if profile.data.get(\"analyzer\",false) else \"Unlock Circuit Analyzer · $75\",func():var message: String=profile.buy_analyzer();open(\"shop\",bench);status.text=message)\n\tlabel(body,\"Assortment boxes · guaranteed contents · 20% bundle discount\")\n\tfor bundle in [{\"name\":\"Resistor box\",\"items\":{\"r1000\":10,\"r220\":10,\"r10000\":10}},{\"name\":\"Capacitor box\",\"items\":{\"c0.1\":4,\"c1.0\":4,\"c10.0\":4}},{\"name\":\"Semiconductor starter\",\"items\":{\"diode\":6,\"led\":6}}]:\n\t\tvar price := 0;var contents := \"\"\n\t\tfor id in bundle.items:price+=int(Catalog.all()[id].price)*int(bundle.items[id]);contents+=\"%d × %s   \"%[bundle.items[id],Catalog.all()[id].name]\n\t\tprice=ceili(price*.8);label(body,contents)\n\t\tbutton(body,\"%s · $%d\"%[bundle.name,price],func():var message: String=profile.purchase_bundle(bundle.items,price);open(\"shop\",bench);status.text=message)\n\tlabel(body,\"Random assortments · game dollars only · each draw is independent\")\n\tfor box_name in profile.BOXES:\n\t\tvar box: Dictionary=profile.BOXES[box_name];var odds: Array=[]\n\t\tfor id in box.pool:odds.append(\"%s %d%%\"%[Catalog.all()[id].name,box.pool[id]])\n\t\tvar buy := button(body,\"%s · %d items · $%d\"%[box_name,box.draws,box.price],func():var message: String=profile.buy_box(box_name);open(\"shop\",bench);status.text=message)\n\t\tbuy.tooltip_text=\"Per-item probabilities: \"+\", \".join(odds)\n\t\tvar details := label(body,\", \".join(odds));details.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n\tlabel(body,\"Laboratory accessories · saved to this character\")\n\tfor id in profile.COSMETICS:\n\t\tvar cosmetic: Dictionary=profile.COSMETICS[id];var owned: bool=id in profile.data.get(\"cosmetics\",[])\n\t\tbutton(body,cosmetic.name+(\" · Wear\" if owned else \" · $%d\"%cosmetic.price),func():\n\t\t\tif id not in profile.data.get(\"cosmetics\",[]):var message: String=profile.buy_cosmetic(id);open(\"shop\",bench);status.text=message;return\n\t\t\tif game.characters.selected==\"\":status.text=\"Create and select a character first.\";return\n\t\t\tvar config=JSON.parse_string(FileAccess.get_file_as_string(game.characters.ROOT.path_join(game.characters.selected).path_join(\"character.json\")))\n\t\t\tif not config is Dictionary:status.text=\"Character settings could not be read\";return\n\t\t\tconfig.merge(cosmetic.settings,true);var error: String=game.characters.save_character(game.characters.selected,config)\n\t\t\tif error!=\"\":status.text=error;return\n\t\t\tgame.characters.changed.emit();status.text=\"Accessory equipped and shared with the laboratory.\"\n\t\t)\n\tbutton(body,\"Capacity +20 · $50\",func():\n\t\tvar message: String=profile.upgrade_capacity()\n\t\topen(\"shop\",bench);status.text=message\n\t)\n",
+      "new": "func shop() -> void:\n\tvar economy: Dictionary=profile.get_meta(\"economy_display\",{}) if profile.authority_submit.is_valid() else preload(\"res://scripts/economy/temporary_playtest/policy.gd\").display_snapshot(true)\n\tvar section := OptionButton.new();section.add_item(\"Components\");section.add_item(\"Bundles\");section.add_item(\"Equipment\");section.accessibility_name=\"Store section\";body.add_child(section)\n\tvar components := VBoxContainer.new();components.size_flags_vertical=Control.SIZE_EXPAND_FILL;body.add_child(components)\n\tshop_adapter.build(self,components,{\"economy\":economy,\"close\":close})\n\tvar bundles := ScrollContainer.new();bundles.size_flags_vertical=Control.SIZE_EXPAND_FILL;bundles.hide();body.add_child(bundles)\n\tvar bundle_mount := VBoxContainer.new();bundle_mount.size_flags_horizontal=Control.SIZE_EXPAND_FILL;bundles.add_child(bundle_mount)\n\tvar equipment := ScrollContainer.new();equipment.size_flags_vertical=Control.SIZE_EXPAND_FILL;equipment.hide();body.add_child(equipment)\n\tvar equipment_mount := VBoxContainer.new();equipment_mount.size_flags_horizontal=Control.SIZE_EXPAND_FILL;equipment.add_child(equipment_mount)\n\tvar supplies=preload(\"res://scripts/ui/store_bundles_equipment/module.gd\")\n\tsupplies.populate(bundle_mount,profile,func(message: String):open(\"shop\",bench);status.text=message,status,\"bundles\")\n\tsupplies.populate(equipment_mount,profile,func(message: String):open(\"shop\",bench);status.text=message,status,\"equipment\")\n\tsection.item_selected.connect(func(index: int):\n\t\tcomponents.visible=index==0;bundles.visible=index==1;equipment.visible=index==2\n\t)\n\t# Retain exact legacy laboratory-wear transactions until M207 mounts them.\n\tvar wear := VBoxContainer.new();body.add_child(wear)\n\tbutton(body,\"Laboratory wear\",func():wear.visible=not wear.visible)\n\twear.hide()\n\tlabel(wear,\"Laboratory accessories · saved to this character\")\n\tfor id in profile.COSMETICS:\n\t\tvar cosmetic: Dictionary=profile.COSMETICS[id];var owned: bool=id in profile.data.get(\"cosmetics\",[])\n\t\tbutton(wear,cosmetic.name+(\" · Wear\" if owned else \" · $%d\"%cosmetic.price),func():\n\t\t\tif id not in profile.data.get(\"cosmetics\",[]):var message: String=profile.buy_cosmetic(id);open(\"shop\",bench);status.text=message;return\n\t\t\tif game.characters.selected==\"\":status.text=\"Create and select a character first.\";return\n\t\t\tvar config=JSON.parse_string(FileAccess.get_file_as_string(game.characters.ROOT.path_join(game.characters.selected).path_join(\"character.json\")))\n\t\t\tif not config is Dictionary:status.text=\"Character settings could not be read\";return\n\t\t\tconfig.merge(cosmetic.settings,true);var error: String=game.characters.save_character(game.characters.selected,config)\n\t\t\tif error!=\"\":status.text=error;return\n\t\t\tgame.characters.changed.emit();status.text=\"Accessory equipped and shared with the laboratory.\"\n\t\t)\n",
+      "sha256": "fb35456375d0f1048a2c45b5b1250678d68d075f3d3aa9162a963a986d7e564c"
+    },
+    {
+      "path": "scripts\\electronics\\component_shop_ui\\shop_adapter.gd",
+      "old": "\t\t\"snapshot\":_snapshot,",
+      "new": "\t\t\"snapshot\":_snapshot,\n\t\t\"close\":services.get(\"close\",Callable()),",
+      "sha256": "c35f20d9f9f3754de72ee001c3f9d3f8336e920051b73f402b3d651973893ba3"
+    },
+    {
+      "path": "scripts\\electronics_ui.gd",
+      "old": "\tvar title := label(bar,\"COMPONENTS\" if page==\"shop\" else \"ELECTRONICS STUDIO\");title.add_theme_font_size_override(\"font_size\",26);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL",
+      "new": "\tif page!=\"shop\":\n\t\tvar title := label(bar,\"ELECTRONICS STUDIO\");title.add_theme_font_size_override(\"font_size\",26);title.size_flags_horizontal=Control.SIZE_EXPAND_FILL",
+      "sha256": "976c14717fb089fabe325e72f42ffbe90c4568be6f1671951476fd35a6ee5fb4"
+    },
+    {
+      "path": "scripts\\electronics_ui.gd",
+      "old": "\tvar bar := HBoxContainer.new();column.add_child(bar)",
+      "new": "\tvar bar := HBoxContainer.new();column.add_child(bar)\n\tif page==\"shop\":bar.hide()",
+      "sha256": "c7dd2478d668f96f62a081c37548ac25b56859dc9672ccf77b918e8ce4a44e6f"
+    },
+    {
+      "path": "scripts\\electronics_ui.gd",
+      "old": "\tlabel(bar,\"Unlimited\" if economy.get(\"unlimited_purchases\",false) else \"$%d\"%profile.data.dollars);button(bar,\"Close\",close)",
+      "new": "\tif page!=\"shop\":label(bar,\"Unlimited\" if economy.get(\"unlimited_purchases\",false) else \"$%d\"%profile.data.dollars);button(bar,\"Close\",close)",
+      "sha256": "b221afb7dab2c33be38d4f8bd67c45edecd15cdcbe4d266fa71ac9db89eac80a"
+    },
+    {
+      "path": "scripts\\electronics_ui.gd",
+      "old": "\tstatus=label(column,\"Creative access · ordinary inventory unchanged\" if creative else \"Kits are templates. Ownership is counted only in your master inventory.\")",
+      "new": "\tstatus=label(column,\"\" if page==\"shop\" else \"Creative access · ordinary inventory unchanged\" if creative else \"Kits are templates. Ownership is counted only in your master inventory.\")",
+      "sha256": "942eded6412f3595e20507209a38603929ea5ac1ff0e1a5c3b44f35d2666f6da"
+    },
+    {
+      "path": "scripts\\electronics_ui.gd",
+      "old": "\tvar scroll := ScrollContainer.new();page_scroll=scroll;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(scroll)",
+      "new": "\tvar scroll := ScrollContainer.new();page_scroll=scroll;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(scroll)\n\tif page==\"shop\":scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED",
+      "sha256": "1b9c734475b166614af064a9ba1dbd6970fad1b26583076d0fffa28a55bf71d5"
+    },
+    {
+      "path": "scripts\\electronics_ui.gd",
+      "old": "\tbody=VBoxContainer.new();body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(body)",
+      "new": "\tbody=VBoxContainer.new();body.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.add_child(body)\n\tif page==\"shop\":body.size_flags_vertical=Control.SIZE_EXPAND_FILL",
+      "sha256": "61be45478566a0cc53747ac0a79c463fc6f90a3faf8788768e9ded919d74cede"
+    },
+    {
+      "path": "scripts/shop_room.gd",
+      "old": "\tvar page := str(target.get_meta(\"page\"))\n\tif page==\"exit\":leave()\n\telse:game.electronics.open(page)",
+      "new": "\tvar page := str(target.get_meta(\"page\"))\n\tif page not in [\"shop\",\"trade\"]:return false\n\tgame.electronics.open(page)",
+      "sha256": "3d90961857b8e97e5221fe17c333002ed13d219c6efd5f5f4999df406f2633fc"
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "old": "signal close_requested",
+      "new": "signal close_requested\nsignal legacy_purchase_requested(request: Dictionary)\nsignal legacy_wear_requested(item_id: String)",
+      "sha256": "2b547ef76c47bde89fd230c6cd6ab9242cc779c3b0b3d4438f1651eb6c033872"
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "old": "var parameter_panel: ScrollContainer",
+      "new": "var legacy_section: VBoxContainer\nvar parameter_panel: ScrollContainer",
+      "sha256": "642afa36d8e0a46f0c5de503990c6ee79f7791b068865d31a71fadcee33de715"
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "old": "\tvar root := VBoxContainer.new(); root.add_theme_constant_override(\"separation\", 12); add_child(root)",
+      "new": "\tvar root := VBoxContainer.new(); root.add_theme_constant_override(\"separation\", 12); add_child(root)\n\tlegacy_section=preload(\"res://scripts/campus/facilities/clothing_store/legacy_wear_section.gd\").new();root.add_child(legacy_section)\n\tlegacy_section.purchase_requested.connect(func(request):legacy_purchase_requested.emit(request))\n\tlegacy_section.wear_requested.connect(func(id):legacy_wear_requested.emit(id))",
+      "sha256": "a202033759d350c44cc8b66306e9a5c84ded5e7fdacb2175b8ebf8e1dc24b407"
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "old": "\tsession.open(snapshot)",
+      "new": "\tsession.open(snapshot)\n\tlegacy_section.request_id_factory=request_id_factory\n\tlegacy_section.open_profile(snapshot)",
+      "sha256": "5169d3945a96a1c6496b8cd7e13ce79bd5fef8e4eb86245d73405ec562ad50ff"
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "old": "func accept_purchase(request_id: String, result: Dictionary, snapshot: Dictionary) -> void:",
+      "new": "func accept_legacy_receipt(result: Dictionary, snapshot: Dictionary) -> void:\n\tlegacy_section.accept_receipt(result,snapshot)\n\nfunc show_legacy_wear_result(message: String) -> void:\n\tlegacy_section.show_wear_result(message)\n\nfunc accept_purchase(request_id: String, result: Dictionary, snapshot: Dictionary) -> void:",
+      "sha256": "0c8520863a60958d5384197f6437d5d0b7906878c398899dd2c499086ab4531e"
+    },
+    {
+      "path": "scripts/campus_integration.gd",
+      "old": "var clothing_pending := \"\"",
+      "new": "var clothing_pending := \"\"\nvar legacy_clothing_pending := \"\"",
+      "sha256": "10df5448ee588ab7cbb024948c8024b8a4f2cf1cd1c4b4e2bc6388c3dc22ef71"
+    },
+    {
+      "path": "scripts/campus_integration.gd",
+      "old": "\tgame.electronics_trade.authority.operation_result.connect(func(op: String,result: Dictionary):",
+      "new": "\tclothing_panel.legacy_purchase_requested.connect(func(request: Dictionary):\n\t\tif legacy_clothing_pending!=\"\":return\n\t\tvar profile=game.electronics.profile\n\t\tlegacy_clothing_pending=str(request.request_id)\n\t\tif profile.authority_submit.is_valid():profile.authority_submit.call(\"cosmetic\",request.args)\n\t\telse:\n\t\t\tvar message: String=profile.buy_cosmetic(str(request.args[0]))\n\t\t\tclothing_panel.accept_legacy_receipt({\"ok\":profile.operation_succeeded,\"message\":message},profile.data)\n\t\t\tlegacy_clothing_pending=\"\"\n\t)\n\tclothing_panel.legacy_wear_requested.connect(func(id: String):\n\t\tvar profile=game.electronics.profile\n\t\tvar selected: String=str(game.characters.selected)\n\t\tif selected.is_empty():clothing_panel.show_legacy_wear_result(\"Create and select a character first.\");return\n\t\tvar settings: Dictionary=preload(\"res://scripts/campus/facilities/clothing_store/legacy_cosmetic_adapter.gd\").wear_settings(id,profile.data)\n\t\tif settings.is_empty():clothing_panel.show_legacy_wear_result(\"Item is not owned.\");return\n\t\tvar path: String=game.characters.ROOT.path_join(selected).path_join(\"character.json\")\n\t\tvar config=JSON.parse_string(FileAccess.get_file_as_string(path))\n\t\tif not config is Dictionary:clothing_panel.show_legacy_wear_result(\"Character settings could not be read.\");return\n\t\tconfig.merge(settings,true)\n\t\tvar error: String=game.characters.save_character(selected,config)\n\t\tif error!=\"\":clothing_panel.show_legacy_wear_result(error);return\n\t\tgame.characters.changed.emit();clothing_panel.show_legacy_wear_result(\"Laboratory wear equipped.\")\n\t)\n\tgame.electronics_trade.authority.operation_result.connect(func(op: String,result: Dictionary):",
+      "sha256": "f0140e1c299592e867e613bd1ec02381b2223faff2216ea813938b9371c25dc6"
+    },
+    {
+      "path": "scripts/campus_integration.gd",
+      "old": "\tgame.electronics_trade.authority.operation_result.connect(func(op: String,result: Dictionary):\n\t\tif op in [\"cosmetic_purchase\",\"avatar_cosmetic\"] and clothing_pending!=\"\":",
+      "new": "\tgame.electronics_trade.authority.operation_result.connect(func(op: String,result: Dictionary):\n\t\tif op==\"cosmetic\" and legacy_clothing_pending!=\"\":\n\t\t\tclothing_panel.accept_legacy_receipt(result,game.electronics.profile.data);legacy_clothing_pending=\"\"\n\t\tif op in [\"cosmetic_purchase\",\"avatar_cosmetic\"] and clothing_pending!=\"\":",
+      "sha256": "7062370af8cb3c1d69b5a6482445be7a020c0f0a9d25cd8ff53f734824d2d2f6"
+    }
+  ],
+  "migration_after_m207_verified": {
+    "path": "scripts\\electronics_ui.gd",
+    "old": "\t# Retain exact legacy laboratory-wear transactions until M207 mounts them.\n\tvar wear := VBoxContainer.new();body.add_child(wear)\n\tbutton(body,\"Laboratory wear\",func():wear.visible=not wear.visible)\n\twear.hide()\n\tlabel(wear,\"Laboratory accessories · saved to this character\")\n\tfor id in profile.COSMETICS:\n\t\tvar cosmetic: Dictionary=profile.COSMETICS[id];var owned: bool=id in profile.data.get(\"cosmetics\",[])\n\t\tbutton(wear,cosmetic.name+(\" · Wear\" if owned else \" · $%d\"%cosmetic.price),func():\n\t\t\tif id not in profile.data.get(\"cosmetics\",[]):var message: String=profile.buy_cosmetic(id);open(\"shop\",bench);status.text=message;return\n\t\t\tif game.characters.selected==\"\":status.text=\"Create and select a character first.\";return\n\t\t\tvar config=JSON.parse_string(FileAccess.get_file_as_string(game.characters.ROOT.path_join(game.characters.selected).path_join(\"character.json\")))\n\t\t\tif not config is Dictionary:status.text=\"Character settings could not be read\";return\n\t\t\tconfig.merge(cosmetic.settings,true);var error: String=game.characters.save_character(game.characters.selected,config)\n\t\t\tif error!=\"\":status.text=error;return\n\t\t\tgame.characters.changed.emit();status.text=\"Accessory equipped and shared with the laboratory.\"\n\t\t)\n",
+    "new": "",
+    "sha256": "1f3ac9cf45d256c9aeb9bf48a4636946e8b5de06a9a0851230b7c7fb9a8078d8",
+    "gate": "Apply only after M207 cards, cosmetic receipts, Wear save and ownership refresh are verified."
+  }
+}

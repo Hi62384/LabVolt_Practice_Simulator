@@ -1,0 +1,9 @@
+# Character selection footer patch for main integrator
+
+Exact preimage: `scripts/front_menu.gd` as inspected on 2026-11-06. The `characters_page()` actions `HFlowContainer` is currently added to `body` after `gallery`, while `body` is inside `menu_scroll`. With a 300 px list minimum, 220 px detail portrait, header, status, and four action buttons, the actions can lie below the clipped viewport. `menu_scroll` has scrolling disabled for `characters`, so the buttons cannot be reached.
+
+Apply the adjacent `front_menu.patch` to the current `scripts/front_menu.gd` after checking its context. It moves only the four character actions into a fixed footer sibling of `menu_scroll` and `status`; the character list retains its own `ScrollContainer`. It also gives the list a zero minimum height so available space, rather than content, determines its visible height. The selected preview/details remain alongside the list.
+
+At 1920×1080, `_layout_menu()` sets the panel to 1080×1048. At 1366×768 it sets 1080×736. The four 160 px action buttons plus three 8 px gaps require 664 px, fitting one row in the 1032 px panel interior; if a narrower client wraps them, the fixed footer takes two rows. The list receives remaining vertical space and scrolls internally. The footer is independent of list content and profile count. The original `menu_scroll` scrollbar remains disabled on the character page. The user screenshot is 1994×1290 pixels, but that image size is not evidence of the actual game client rectangle; use the runtime `screen.size` for bounds checks.
+
+Runtime owner should verify `Back`, `Open Character Editor`, `Duplicate`, and `Create Character` rectangles lie within `screen.get_global_rect()` at 1920×1080 and 1366×768, with 1 and 30 saved profiles, and capture screenshots for both viewport sizes after the active play session. Source checks alone do not establish visual acceptance.

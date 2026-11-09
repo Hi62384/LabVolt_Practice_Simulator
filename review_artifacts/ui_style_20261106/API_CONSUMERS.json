@@ -1,0 +1,410 @@
+{
+  "scope": "Source symbol check only; no GDScript parsing or runtime validation. Captures const preload aliases, not dynamic load aliases.",
+  "consumer_imports": 45,
+  "missing": [],
+  "consumers": [
+    {
+      "path": "scripts/carry_hotbar.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "card",
+        "icon"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/carry_hotbar.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "card_style",
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/dc_ui.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "action_icon",
+        "header",
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/dc_ui.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/front_menu.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/front_menu.gd",
+      "resource": "res://scripts/ui/design_system/tokens.gd",
+      "symbols": [
+        "BORDER",
+        "SURFACE",
+        "surface"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/front_menu.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "icon",
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/lab_chat.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "badge"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/lab_chat.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "card_style",
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/lab_ui.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "action_icon",
+        "badge",
+        "card",
+        "field",
+        "header",
+        "icon",
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/lab_ui.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "card_style",
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/paper_ui.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "badge"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/customizer_panel.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/customizer_panel.gd",
+      "resource": "res://scripts/ui/design_system/tokens.gd",
+      "symbols": [
+        "HIT_HEIGHT"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/item_card.gd",
+      "resource": "res://scripts/ui/design_system/tokens.gd",
+      "symbols": [
+        "ACCENT",
+        "card_style",
+        "rarity_color"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/facilities/facility_panel.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "badge",
+        "card",
+        "header"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/facilities/facility_panel.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "card_style",
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "badge"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/performance/profiling_overlay.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/performance/profiling_overlay.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "card_style",
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/campus_dashboard.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "badge",
+        "card"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/campus_hud.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "badge"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/campus_hud.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "card_style",
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/graphics_settings.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/graphics_settings.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/profile_inspector.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "card",
+        "header"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/profile_inspector.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "card_style",
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/profile_visibility.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/campus/ui/profile_visibility.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [],
+      "missing": []
+    },
+    {
+      "path": "scripts/dc_scope/scope_panel.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "icon"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/dc_scope/scope_panel.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/lab_challenges/panel.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "card"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/math_ui/workspace.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/circuit_editor_panels/chrome.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "action_icon",
+        "badge",
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/circuit_editor_panels/chrome.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/hud_settings/layout.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "card",
+        "icon",
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/hud_settings/readout.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "icon"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/instrument_panels/layout.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "card",
+        "icon",
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/instrument_panels/layout.gd",
+      "resource": "res://scripts/ui/design_system/responsive_grid.gd",
+      "symbols": [
+        "new"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/paper_workspace/calculator/drawer.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/paper_workspace/tools/case.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/paper_workspace/tools/case.gd",
+      "resource": "res://scripts/ui/design_system/tokens.gd",
+      "symbols": [
+        "ACCENT",
+        "BORDER",
+        "RAISED",
+        "surface"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/personal_inventory/panels.gd",
+      "resource": "res://scripts/ui/design_system/widgets.gd",
+      "symbols": [
+        "action",
+        "badge",
+        "card",
+        "text"
+      ],
+      "missing": []
+    },
+    {
+      "path": "scripts/ui/personal_inventory/panels.gd",
+      "resource": "res://scripts/ui/design_system/theme.gd",
+      "symbols": [
+        "create"
+      ],
+      "missing": []
+    }
+  ]
+}

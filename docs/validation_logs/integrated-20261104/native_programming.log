@@ -1,0 +1,20 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+PASS valid Uno document
+PASS cross-board image rejected
+PASS bad image checksum rejected before save
+PASS source traversal rejected
+PASS store copies program and preserves run/legacy fields
+PASS nested per-device JSON isolation
+PASS save limit differs truthfully from 768 KiB live limit
+PASS Pico physical header metadata
+PASS trusted local runtime discovered without guest configuration
+PASS test fixture is a valid persistent board
+PASS normal Code page opens actual native board editor
+PASS native editor validates actual image
+PASS selection callbacks persist the correct device
+PASS reselect restores source and image
+PASS UART history survives deltas without duplicate snapshot bytes
+NATIVE CAMPUS FAILURES: 0

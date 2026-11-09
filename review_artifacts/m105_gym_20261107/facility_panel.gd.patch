@@ -1,0 +1,22 @@
+--- a/scripts/campus/facilities/facility_panel.gd
++++ b/scripts/campus/facilities/facility_panel.gd
+@@ -69,7 +69,7 @@
+ 	status.text="Gym level %d • %d XP"%[state.level,state.profile.xp]
+ 	var a: Dictionary=state.get("active",{})
+ 	if a.get("type","")=="exercise":
+-		status.text+="\n%s • %d reps\nFollow a steady rhythm; press each half repetition."%[str(a.exercise).capitalize(),a.reps]
++		status.text+="\n%s • %d kg • %d reps • 1 set\nFollow a steady rhythm."%[str(a.exercise).capitalize(),int(a.get("weight",0)),a.reps]
+ 		button("Lower" if int(a.phase)==0 else "Raise",{"op":"beat"})
+ 		button("Finish set and save",{"op":"finish"})
+ 		button("Cancel set",{"op":"cancel"})
+@@ -83,7 +83,9 @@
+ 				card.get_node("Content/Copy/Rarity").hide()
+ 				body.add_child(card)
+ 				button("%s • $%d"%[entry.name,entry.price],{"op":"buy","station":station_id,"item":item})
+-	elif station_kind in ["pushup","pullup","benchpress","squat","curl"]:button("Start "+station_kind.capitalize(),{"op":"start","station":station_id})
++	elif station_kind in ["pushup","pullup","benchpress","squat","curl"]:
++		var choices: Array=preload("res://scripts/campus/facilities/facility_host.gd").WEIGHTS[station_kind]
++		for kg in choices:button("Start %s • %d kg"%[station_kind.capitalize(),kg],{"op":"start","station":station_id,"weight":kg})
+ 	elif station_kind=="seat":button("Sit",{"op":"sit","station":station_id})
+ 	var held: Dictionary=state.profile.get("held",{})
+ 	if not held.is_empty():

@@ -1,0 +1,108 @@
+extends Node3D
+var game: Node
+var kits := {}
+var visuals := {}
+func build(owner_game: Node) -> void:
+	game=owner_game
+	game.session.restarted.connect(func():kits.clear();sync())
+	game.session.roster_changed.connect(func():
+		if multiplayer.is_server():
+			for peer in kits.keys():
+				if not game.session.roster.has(peer):kits.erase(peer)
+			sync()
+	)
+func held() -> bool:return kits.get(multiplayer.get_unique_id(),{}).get("held",false)
+func request(action: Dictionary) -> void:
+	if game.session.online and action.get("op")=="equip":game.electronics_trade.authority.request_kit(action);return
+	if multiplayer.is_server():apply(1,action)
+	else:command.rpc_id(1,action)
+@rpc("any_peer","call_remote","reliable")
+func command(action: Dictionary) -> void:
+	if multiplayer.is_server():apply(multiplayer.get_remote_sender_id(),action)
+func apply(peer: int,action: Dictionary) -> void:
+	if not game.session.roster.has(peer):return
+	var op := str(action.get("op",""));var pose: Vector3=game.player.position if peer==1 else game.session.poses.get(peer,{}).get("position",Vector3.ZERO)
+	if op=="equip":
+		if game.school.held(peer)!=0 or game.school._holding_cable(peer) or (is_instance_valid(game.dc_lab) and game.dc_lab.held_board(peer)>=0):return
+		var id := str(action.get("id",""));var title := str(action.get("name","Kit")).left(32)
+		if id.length()>64 or id.is_empty():return
+		if game.session.online:
+			var account: Dictionary=game.electronics_trade.authority.ledger.account(peer)
+			if account.is_empty() or id!=account.profile.equipped or not account.profile.kits.has(id):return
+			title=str(account.profile.kits[id].name).left(32)
+		if kits.has(peer) and not kits[peer].get("stowed",false):return
+		kits[peer]={"id":id,"name":title,"held":true,"stowed":false,"open":false,"position":pose}
+	elif not kits.has(peer):return
+	elif op=="place":
+		var pos=action.get("position")
+		if not kits[peer].held or not pos is Vector3 or not game.school._table_position(pos) or pose.distance_to(pos)>3.6:return
+		kits[peer].held=false;kits[peer].position=pos
+	elif op=="pickup":
+		if kits[peer].held or kits[peer].open or pose.distance_to(kits[peer].position)>3.6:return
+		if game.school.held(peer)!=0 or game.school._holding_cable(peer) or (is_instance_valid(game.dc_lab) and game.dc_lab.held_board(peer)>=0):return
+		kits[peer].held=true
+	elif op=="open":
+		if kits[peer].held or kits[peer].stowed or pose.distance_to(kits[peer].position)>3.6:return
+		kits[peer].open=true
+	elif op in ["close","stow"]:
+		if op=="stow" and not kits[peer].held:return
+		if not kits[peer].held and pose.distance_to(kits[peer].position)>3.6:return
+		for station in game.dc_lab.benches:
+			if station.board_owner==peer:
+				if not action.get("recall",false):return
+				var error: String=game.dc_lab.authority_recall(peer,game.dc_lab.benches.find(station))
+				if error!="":return
+		kits[peer].open=false
+		if op=="stow":kits[peer].held=false;kits[peer].stowed=true
+		game.dc_lab.broadcast()
+	sync()
+func sync() -> void:
+	if multiplayer.is_server() and game.session.online:
+		for peer in game.session.connected_peers():receive.rpc_id(peer,kits)
+@rpc("authority","call_remote","reliable")
+func receive(data: Dictionary) -> void:kits=data
+func _process(_delta: float) -> void:
+	if not is_instance_valid(game):return
+	for peer in visuals.keys():
+		if not kits.has(peer):visuals[peer].queue_free();visuals.erase(peer)
+	for peer in kits:
+		var kit: Dictionary=kits[peer]
+		if not visuals.has(peer):
+			var root := StaticBody3D.new();root.collision_layer=4;root.collision_mask=0;root.set_meta("role","kit");root.set_meta("owner",peer);root.set_meta("label",kit.name);add_child(root)
+			game._box(root,Vector3(0,.1,0),Vector3(.65,.2,.4),Color("284654"))
+			var lid=game._box(root,Vector3(0,.215,-.01),Vector3(.67,.035,.42),Color("c1a76b"));lid.name="Lid"
+			var hit := CollisionShape3D.new();var box := BoxShape3D.new();box.size=Vector3(.68,.26,.44);hit.shape=box;hit.position.y=.12;root.add_child(hit)
+			visuals[peer]=root
+		var root: StaticBody3D=visuals[peer];root.visible=not kit.stowed;root.collision_layer=0 if kit.stowed or kit.held else 4
+		var lid: Node3D=root.get_node("Lid");lid.rotation.x=-1.3 if kit.open else 0;lid.position=Vector3(0,.4,-.18) if kit.open else Vector3(0,.215,-.01)
+		if kit.held:
+			if peer==multiplayer.get_unique_id():root.global_transform=game.camera.global_transform*Transform3D(Basis.IDENTITY,Vector3(.32,-.48,-.9));root.visible=game.player.enabled
+			else:root.position=game.session.poses.get(peer,{}).get("position",Vector3.ZERO)+Vector3(0,.9,0)
+		else:root.position=kit.position;root.rotation=Vector3.ZERO
+func interact(target: Node,right: bool) -> bool:
+	if not is_instance_valid(target):return false
+	var role := str(target.get_meta("role",""))
+	if role=="table" and right and held():
+		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(game.camera.global_position,game.camera.global_position-game.camera.global_basis.z*3,1))
+		if not hit.is_empty() and hit.normal.y>.8:request({"op":"place","position":hit.position+Vector3(0,.015,0)})
+		return true
+	if role!="kit":return false
+	if int(target.get_meta("owner"))!=multiplayer.get_unique_id():game.ui.log_message("This kit belongs to another player.");return true
+	if not right:request({"op":"pickup"});return true
+	var kit: Dictionary=kits[multiplayer.get_unique_id()]
+	if not kit.open:request({"op":"open"})
+	if not game.electronics.profile.data.kits.has(kit.id):return true
+	game.electronics.profile.data.equipped=kit.id
+	game.electronics.profile.save()
+	game.electronics.open("kit_world")
+	return true
+func menu(parent: Node) -> void:
+	var ui=game.electronics
+	ui.label(parent,"PORTABLE KIT · Open contents")
+	ui.button(parent,"Breadboard workspace",func():ui.open("board"))
+	ui.button(parent,"Manage components",func():ui.open("kits"))
+	ui.button(parent,"Close kit",func():
+		var deployed: bool = game.dc_lab.states.any(func(s):return s.get("board_owner",0)==multiplayer.get_unique_id())
+		if not deployed:request({"op":"close"});ui.close();return
+		var confirm := ConfirmationDialog.new();confirm.dialog_text="Close the kit and recall its breadboard? External leads will disconnect. The saved circuit stays in your kit.";ui.add_child(confirm);confirm.confirmed.connect(func():request({"op":"close","recall":true});confirm.queue_free();ui.close());confirm.canceled.connect(confirm.queue_free);confirm.popup_centered()
+	)

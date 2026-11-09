@@ -1,0 +1,50 @@
+[
+  {
+    "path": "scripts/lab_ui.gd",
+    "before": "f8d6a03b7e96f27b45a4ddb76b75c431713e081313f64116fd8e4572e483a5a4",
+    "after": "b1ceb202b3e912569159d532ec0fa4dcba971c9aecf6400663206f363a64520d",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__lab_ui.gd.preimage"
+  },
+  {
+    "path": "scripts/lab_chat.gd",
+    "before": "2e990e99a8c07573072af718a40bbf6eb70d84027f6ab326fc4c1d07622ef3fc",
+    "after": "3425eb2b665c2175e5d74b75c6a8f356d724064341db121d0ceab1b00d81320f",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__lab_chat.gd.preimage"
+  },
+  {
+    "path": "scripts/campus/ui/campus_hud.gd",
+    "before": "431e5d6150bf6fecb3b0e67160a565e73674ab9882cf5afe4f73c9d9840396c2",
+    "after": "73f10617b049a171a750928299142363604849a37d81d0ddc3acc19acd68ad2d",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__campus__ui__campus_hud.gd.preimage"
+  },
+  {
+    "path": "scripts/campus/ui/profile_inspector.gd",
+    "before": "a8bb8920ff0b0ff5dd685c99f0a51cdbf679807fe3e1e435745ce175c8cc544d",
+    "after": "10b7b5d2085fc29ded2d51875f60ab4a649011d09c597df25612f8b973a8154a",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__campus__ui__profile_inspector.gd.preimage"
+  },
+  {
+    "path": "scripts/campus/ui/profile_visibility.gd",
+    "before": "666f5b031786eef4a7bfe4495cdbc1f4add76b24578e372b84cd92dc804fa511",
+    "after": "b9fbf9c604cf0dcca8ae784fd85a7f2718a0b4027f37a0769723ea8846a80d27",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__campus__ui__profile_visibility.gd.preimage"
+  },
+  {
+    "path": "scripts/campus/ui/graphics_settings.gd",
+    "before": "99c9e109912c161845904e81bac6828ebe3155e82792bd0a622aa02fe01270ef",
+    "after": "f43a7ca9b7201589c72da9b95608eaa50e496e2bdfb88521b0a76f83e3e2d929",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__campus__ui__graphics_settings.gd.preimage"
+  },
+  {
+    "path": "scripts/campus/facilities/facility_panel.gd",
+    "before": "b63bdc7b51c60f477f37768ef1a576ccbeb618801e4ab8c5a9233e8b9c9a25d0",
+    "after": "1800fa3e80b49048bc341ff431f31f98c050be43bbf8f47d6a970ce2ed4bd480",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__campus__facilities__facility_panel.gd.preimage"
+  },
+  {
+    "path": "scripts/campus/performance/profiling_overlay.gd",
+    "before": "8a28c969a3f149ed5d289c83ed7f98dde64da1402a78bb33ec050695720233de",
+    "after": "573f7f53d4bf1d3fc99c3722c2e144ec55569f0b325d2314036ddb1afe5e7ed9",
+    "preimage": "scripts\\ui\\hud_settings\\review\\scripts__campus__performance__profiling_overlay.gd.preimage"
+  }
+]

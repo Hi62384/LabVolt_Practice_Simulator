@@ -1,0 +1,112 @@
+{
+  "mode": "REVIEW ONLY; not applied",
+  "hashes_are_informational": true,
+  "application_rule": "Each exact before block must occur exactly once; fail closed on any mismatch. Recheck concurrent owner changes. Apply atomically with backups. Do not launch Godot or reload the running game during active playtest.",
+  "source_sha256": {
+    "scripts/electronics_catalog.gd": "f8de337624cfe7d47ce5ea371a93b0a920906b52d05a993bafa13c8cf3507c93",
+    "scripts/electronics_profile.gd": "f1e6904a806a597e9c4be582e8d7b8e926e0c2543d55e7ad50abad6fe27ada14",
+    "scripts/electronics_ui.gd": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+    "scripts/dc_lab.gd": "b3d2b932f3f31da13086a9095601f55b49cc4c53323c57f320cd962d538e4ac8",
+    "scripts/inventory_authority/ledger.gd": "2fe9e93d9ca35a7c7f47894b8e3b41850315f19e696e6b7f620f9ed6ee64976d",
+    "scripts/breadboard_model.gd": "2e674624029928fa0d83ca7956f7510e85b38ce2d7733dbf53960b0949200cca",
+    "scripts/custom_circuit.gd": "b9f5a7de29a8cb6aca06b4eaca0462a795524d35bce4caab52bb07d0b5e382a7",
+    "scripts/physical_resistors.gd": "1166d59232362be239735590abdaac907d4a5e9b404832bca436112a4511b8d9"
+  },
+  "edits": [
+    {
+      "path": "scripts/electronics_catalog.gd",
+      "before": "\treturn _simulation_entries.get(id,{}).duplicate(true)",
+      "after": "\tif id.begins_with(\"cv1:\") and not _simulation_entries.has(id):\n\t\tvar configured: Dictionary=preload(\"res://scripts/electronics/component_values/values.gd\").resolve(id,_simulation_entries)\n\t\tif not configured.ok:return {}\n\t\tif _simulation_entries.size()<512:_simulation_entries[id]=configured.entry.duplicate(true)\n\t\treturn configured.entry\n\treturn _simulation_entries.get(id,{}).duplicate(true)"
+    },
+    {
+      "path": "scripts/electronics_profile.gd",
+      "before": "var known: Dictionary=preload(\"res://scripts/custom_circuit.gd\").catalog(value.get(\"blueprints\",{}))",
+      "after": "var known: Dictionary=preload(\"res://scripts/electronics/component_values/values.gd\").augment(preload(\"res://scripts/custom_circuit.gd\").catalog(value.get(\"blueprints\",{})),value.inventory.keys())"
+    },
+    {
+      "path": "scripts/electronics_profile.gd",
+      "before": "func catalog() -> Dictionary:return preload(\"res://scripts/custom_circuit.gd\").catalog(data.get(\"blueprints\",{}))",
+      "after": "func catalog() -> Dictionary:return preload(\"res://scripts/electronics/component_values/values.gd\").augment(preload(\"res://scripts/custom_circuit.gd\").catalog(data.get(\"blueprints\",{})),data.get(\"inventory\",{}).keys())"
+    },
+    {
+      "path": "scripts/electronics_profile.gd",
+      "before": "func kit_error(id: String) -> String:",
+      "after": "func buy_configured(base_id: String, settings: Variant, amount: Variant, authority_confirmed: bool=false) -> String:\n\toperation_succeeded=false\n\tif authority_submit.is_valid():return queued(\"buy_configured\",[base_id,settings,amount])\n\tif not authority_confirmed:return \"Authenticated host required\"\n\tif not data.get(\"pending_trade\",{}).is_empty():return \"Finish the pending trade first\"\n\tvar values=preload(\"res://scripts/electronics/component_values/values.gd\")\n\tvar builtins: Dictionary=Catalog.all()\n\tvar configured: Dictionary=values.configure(base_id,settings,builtins)\n\tif not configured.ok:return configured.error\n\tvar existing: Variant=data.get(\"inventory\",{}).get(configured.id,0)\n\tif not quantity(existing):return \"Invalid existing stock\"\n\tvar plan: Dictionary=values.intent(base_id,settings,amount,builtins,int(existing))\n\tif not plan.ok:return plan.error\n\tvar debit: Dictionary=preload(\"res://scripts/economy/temporary_playtest/policy.gd\").purchase_debit(int(data.dollars),plan.total_price,true)\n\tif not debit.ok:return debit.error\n\tvar before := data.duplicate(true)\n\tdata.dollars=debit.next_balance;data.inventory[plan.id]=int(existing)+plan.quantity\n\tif save()!=OK:data=before;return \"Save failed; purchase rolled back\"\n\toperation_succeeded=true\n\treturn \"Purchased %d \u00d7 %s\"%[plan.quantity,plan.entry.name]\n\nfunc kit_error(id: String) -> String:"
+    },
+    {
+      "path": "scripts/electronics_profile.gd",
+      "before": "Catalog.all()[type].name]",
+      "after": "Catalog.simulation_entry(str(type)).get(\"name\",type)]"
+    },
+    {
+      "path": "scripts/electronics_ui.gd",
+      "before": "Catalog.all()[type].name]",
+      "after": "Catalog.simulation_entry(str(type)).get(\"name\",type)]"
+    },
+    {
+      "path": "scripts/dc_lab.gd",
+      "before": "preload(\"res://scripts/electronics_catalog.gd\").all().get(found.type,{}).get(\"kind\",\"\")",
+      "after": "preload(\"res://scripts/electronics_catalog.gd\").simulation_entry(str(found.type)).get(\"kind\",\"\")"
+    },
+    {
+      "path": "scripts/inventory_authority/ledger.gd",
+      "before": "\t\t\"buy\":\n",
+      "after": "\t\t\"buy_configured\":\n\t\t\tif args.size()!=3 or not args[0] is String:return failure(\"Invalid configured purchase\")\n\t\t\tmessage=p.buy_configured(args[0],args[1],args[2],true)\n\t\t\"buy\":\n"
+    },
+    {
+      "path": "scripts/inventory_authority/ledger.gd",
+      "before": "if op in [\"buy\",",
+      "after": "if op in [\"buy_configured\",\"buy\","
+    },
+    {
+      "path": "scripts/inventory_authority/ledger.gd",
+      "before": "if not Custom.catalog(owned).has(type):return \"Unknown component\"",
+      "after": "if not preload(\"res://scripts/electronics/component_values/values.gd\").augment(Custom.catalog(owned),[type]).has(type):return \"Unknown component\""
+    },
+    {
+      "path": "scripts/breadboard_model.gd",
+      "before": "static func catalog(board: Dictionary) -> Dictionary:return Custom.catalog(board.get(\"definitions\",{}))",
+      "after": "static func catalog(board: Dictionary) -> Dictionary:return preload(\"res://scripts/electronics/component_values/values.gd\").augment(Custom.catalog(board.get(\"definitions\",{})),board.get(\"parts\",[]).map(func(part):return str(part.get(\"type\",\"\"))))"
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "before": "\treturn result\nstatic func validate(",
+      "after": "\tvar configured_ids: Array=[]\n\tfor bp in definitions.values():\n\t\tif not bp is Dictionary or not bp.get(\"parts\",[]) is Array:continue\n\t\tfor part in bp.parts:\n\t\t\tif part is Dictionary:configured_ids.append(str(part.get(\"type\",\"\")))\n\treturn preload(\"res://scripts/electronics/component_values/values.gd\").augment(result,configured_ids)\nstatic func validate("
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "before": "\tvar names := {};var ids := {};var chain := ancestors.duplicate();chain.append(id)",
+      "after": "\tvar builtin_catalog: Dictionary=preload(\"res://scripts/electronics/component_values/values.gd\").augment(Catalog.all(),bp.parts.map(func(part):return str(part.get(\"type\",\"\")) if part is Dictionary else \"\"))\n\tvar names := {};var ids := {};var chain := ancestors.duplicate();chain.append(id)"
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "before": "if not Catalog.all().has(type):return \"Unsupported internal component\"",
+      "after": "if not builtin_catalog.has(type):return \"Unsupported internal component\""
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "before": "Catalog.all()[type].pins.size()",
+      "after": "builtin_catalog[type].pins.size()"
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "before": "Catalog.all().get(type,{\"kind\":\"R\"})",
+      "after": "builtin_catalog.get(type,{\"kind\":\"R\"})"
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "before": "if not Catalog.all().has(type) or str(part.get(\"a\",\"\"))",
+      "after": "if not builtin_catalog.has(type) or str(part.get(\"a\",\"\"))"
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "before": "int(Catalog.all()[type].price)*int(counts[type])",
+      "after": "int(Catalog.simulation_entry(str(type)).get(\"price\",0))*int(counts[type])"
+    },
+    {
+      "path": "scripts/physical_resistors.gd",
+      "before": "var catalog: Dictionary=load(\"res://scripts/electronics_catalog.gd\").all()",
+      "after": "var catalog: Dictionary=preload(\"res://scripts/electronics/component_values/values.gd\").augment(load(\"res://scripts/electronics_catalog.gd\").all(),profile.get(\"inventory\",{}).keys())"
+    }
+  ]
+}

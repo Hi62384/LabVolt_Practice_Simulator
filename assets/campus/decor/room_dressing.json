@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "units": "metres; transforms are [x,y,z,yaw_degrees,sx,sy,sz] in world space",
+  "palette": {
+    "warm_wood": "a77b52", "teal": "3b716f", "navy": "29445c", "sage": "698566",
+    "terracotta": "a8664f", "steel": "66757c", "cream": "d8d0b9", "gold": "bd964f",
+    "coffee": "6f4938", "subway": "4b8b56", "sport": "9a513f", "quiet": "68718b"
+  },
+  "rooms": {
+    "ac_lab": {"theme":"induction-and-rotation","protected":"east door and central north/south equipment aisle","coverage":["equipment perimeter","stool stations","safety display","plant accent"],"groups":[
+      {"mesh":"equipment_rack","material":"steel","items":[[-8.7,0,-2.7,0,1,1,1],[-8.7,0,8.6,0,1,1,1]]},
+      {"mesh":"lab_stool","material":"navy","items":[[-6.5,0,1.7,0,1,1,1],[6.5,0,1.7,0,1,1,1],[-6.5,0,5.1,0,1,1,1],[6.5,0,5.1,0,1,1,1]]},
+      {"mesh":"acoustic_fin","material":"gold","items":[[-9.65,1.25,-1.5,0,1,1,1],[-9.65,1.25,0,0,1,1,1],[-9.65,1.25,1.5,0,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[8.9,0,-2.7,0,1.1,1.1,1.1]]}],"signs":[{"text":"ROTATING MACHINES • EYE PROTECTION","position":[0,2.85,-3.82],"yaw":0,"color":"gold"}]},
+    "dc_lab": {"theme":"measurement-and-signal","protected":"east door, z19 entry aisle, three bench work envelopes","coverage":["rear instrument racks","bench stools","signal fins","recycling"],"groups":[
+      {"mesh":"equipment_rack","material":"teal","items":[[-8.7,0,23.8,0,1,1,1],[8.7,0,23.8,0,1,1,1]]},
+      {"mesh":"lab_stool","material":"steel","items":[[-6.5,0,21.1,180,1,1,1],[0,0,21.1,180,1,1,1],[6.5,0,21.1,180,1,1,1]]},
+      {"mesh":"acoustic_fin","material":"teal","items":[[-9.65,1.2,15.0,0,1,1,1],[-9.65,1.2,16.4,0,1,1,1],[-9.65,1.2,17.8,0,1,1,1]]},
+      {"mesh":"sort_bin","material":"navy","items":[[8.9,0,14.1,0,1,1,1]]}],"signs":[{"text":"DC MEASUREMENT • VERIFY POLARITY","position":[0,2.85,24.88],"yaw":180,"color":"teal"}]},
+    "shop": {"theme":"maker-market","protected":"west entrance and cross aisle between six interactive stations","coverage":["display racks","maker stools","award focal point","plants"],"groups":[
+      {"mesh":"equipment_rack","material":"warm_wood","items":[[34.5,0,-2.7,0,1,1,1],[34.5,0,8.6,0,1,1,1],[18.3,0,8.6,0,1,1,1]]},
+      {"mesh":"lab_stool","material":"terracotta","items":[[22,0,2.1,0,1,1,1],[30,0,2.1,0,1,1,1],[22,0,6.1,180,1,1,1],[30,0,6.1,180,1,1,1]]},
+      {"mesh":"trophy_case","material":"gold","items":[[26,0,8.7,180,1.25,1.25,1.25]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[34.7,0,3,0,1,1,1]]}],"signs":[{"text":"BUILD • TEST • TRADE","position":[26,2.9,-3.88],"yaw":0,"color":"gold"}]},
+    "cafeteria": {"theme":"social-commons","protected":"west entrance and broad central serving route","coverage":["round table islands","mixed chairs","sorting station","pendant rhythm","plants"],"groups":[
+      {"mesh":"cafe_table","material":"warm_wood","items":[[20,0,16,0,1,1,1],[26,0,16,0,1,1,1],[32,0,16,0,1,1,1],[20,0,22,0,1,1,1],[26,0,22,0,1,1,1],[32,0,22,0,1,1,1]]},
+      {"mesh":"campus_chair","material":"teal","items":[[18.9,0,16,90,1,1,1],[21.1,0,16,-90,1,1,1],[24.9,0,16,90,1,1,1],[27.1,0,16,-90,1,1,1],[30.9,0,22,90,1,1,1],[33.1,0,22,-90,1,1,1]]},
+      {"mesh":"sort_bin","material":"terracotta","items":[[34.7,0,23.8,0,1,1,1],[33.9,0,23.8,0,1,1,1]]},
+      {"mesh":"pendant_fixture","material":"gold","items":[[20,3.3,16,0,1,1,1],[26,3.3,16,0,1,1,1],[32,3.3,16,0,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[34.7,0,14.1,0,1.2,1.2,1.2]]}],"signs":[{"text":"CAMPUS COMMONS","position":[26,2.9,24.88],"yaw":180,"color":"cream"}]},
+    "tim_hortons": {"theme":"coffeehouse","protected":"west entrance and central queue from x16 to counter","coverage":["cafe seating","queue-side feature","pendants","waste sorting"],"groups":[
+      {"mesh":"cafe_table","material":"coffee","items":[[29,0,30,0,0.85,0.85,0.85],[33,0,30,0,0.85,0.85,0.85],[29,0,36,0,0.85,0.85,0.85],[33,0,36,0,0.85,0.85,0.85]]},
+      {"mesh":"campus_chair","material":"terracotta","items":[[28,0,30,90,1,1,1],[30,0,30,-90,1,1,1],[32,0,36,90,1,1,1],[34,0,36,-90,1,1,1]]},
+      {"mesh":"pendant_fixture","material":"gold","items":[[22,3.3,30,0,1,1,1],[26,3.3,30,0,1,1,1],[30,3.3,30,0,1,1,1],[34,3.3,30,0,1,1,1]]},
+      {"mesh":"sort_bin","material":"coffee","items":[[34.7,0,37.8,0,1,1,1]]}],"signs":[{"text":"COFFEE • BAKED FRESH","position":[26,2.85,38.88],"yaw":180,"color":"terracotta"}]},
+    "gym": {"theme":"movement-and-school-spirit","protected":"east entrance and full center court","coverage":["perimeter lockers","trophy focal point","acoustic treatment","sorting"],"groups":[
+      {"mesh":"arched_locker","material":"navy","items":[[-8.9,0,29,0,1,1,1],[-8.9,0,30,0,1,1,1],[-8.9,0,31,0,1,1,1],[-8.9,0,35,0,1,1,1],[-8.9,0,36,0,1,1,1],[-8.9,0,37,0,1,1,1]]},
+      {"mesh":"trophy_case","material":"gold","items":[[0,0,38.6,180,1.5,1.5,1.5]]},
+      {"mesh":"acoustic_fin","material":"sport","items":[[-6,1.6,38.65,90,1,1.4,1],[-4.5,1.6,38.65,90,1,1.4,1],[-3,1.6,38.65,90,1,1.4,1],[3,1.6,38.65,90,1,1.4,1],[4.5,1.6,38.65,90,1,1.4,1],[6,1.6,38.65,90,1,1.4,1]]},
+      {"mesh":"sort_bin","material":"sport","items":[[8.9,0,37.8,0,1,1,1]]}],"signs":[{"text":"MOVE WITH PURPOSE","position":[0,2.9,27.12],"yaw":0,"color":"sport"}]},
+    "subway": {"theme":"fresh-market","protected":"west entrance and linear ordering queue","coverage":["window seating","round tables","greenery","pendants"],"groups":[
+      {"mesh":"cafe_table","material":"subway","items":[[29,0,44,0,0.85,0.85,0.85],[33,0,44,0,0.85,0.85,0.85],[29,0,50,0,0.85,0.85,0.85],[33,0,50,0,0.85,0.85,0.85]]},
+      {"mesh":"campus_chair","material":"cream","items":[[28,0,44,90,1,1,1],[30,0,44,-90,1,1,1],[32,0,50,90,1,1,1],[34,0,50,-90,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[34.7,0,42.1,0,1,1,1],[34.7,0,51.8,0,1,1,1]]},
+      {"mesh":"pendant_fixture","material":"gold","items":[[22,3.3,44,0,1,1,1],[26,3.3,44,0,1,1,1],[30,3.3,44,0,1,1,1],[34,3.3,44,0,1,1,1]]}],"signs":[{"text":"FRESH • MADE TO ORDER","position":[26,2.85,52.88],"yaw":180,"color":"subway"}]},
+    "washroom_1": {"theme":"clean-wayfinding","protected":"east entrance and all fixture approaches","coverage":["privacy fins","plant accent","accessible wayfinding","sorting"],"groups":[
+      {"mesh":"acoustic_fin","material":"teal","items":[[-3,0,46,0,1,1.45,1],[-1.5,0,46,0,1,1.45,1],[0,0,46,0,1,1.45,1],[1.5,0,46,0,1,1.45,1],[3,0,46,0,1,1.45,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[-8.8,0,51.7,0,1,1,1]]},
+      {"mesh":"sort_bin","material":"steel","items":[[8.8,0,51.7,0,1,1,1]]}],"signs":[{"text":"ALL-GENDER • ACCESSIBLE","position":[0,2.85,52.88],"yaw":180,"color":"teal"}]},
+    "elm253_lecture": {"theme":"ac-wave-theory","protected":"east door, teaching wall and eight desk/seat envelopes","coverage":["rear acoustic rhythm","plants","award object","waste sorting"],"groups":[
+      {"mesh":"acoustic_fin","material":"gold","items":[[-6,6.1,8.65,90,1,1,1],[-4.5,6.1,8.65,90,1,1,1],[-3,6.1,8.65,90,1,1,1],[3,6.1,8.65,90,1,1,1],[4.5,6.1,8.65,90,1,1,1],[6,6.1,8.65,90,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[-8.8,5,7.7,0,1,1,1],[8.8,5,7.7,0,1,1,1]]},
+      {"mesh":"trophy_case","material":"navy","items":[[-8.7,5,-1.8,0,1,1,1]]},
+      {"mesh":"sort_bin","material":"teal","items":[[8.7,5,7.7,0,1,1,1]]}],"signs":[{"text":"ELM253 • AC SYSTEMS","position":[0,7.9,8.88],"yaw":180,"color":"gold"}]},
+    "ety155_lecture": {"theme":"dc-circuit-theory","protected":"west door, teaching wall and eight desk/seat envelopes","coverage":["signal fins","plants","equipment display","waste sorting"],"groups":[
+      {"mesh":"acoustic_fin","material":"teal","items":[[20,6.1,8.65,90,1,1,1],[21.5,6.1,8.65,90,1,1,1],[23,6.1,8.65,90,1,1,1],[29,6.1,8.65,90,1,1,1],[30.5,6.1,8.65,90,1,1,1],[32,6.1,8.65,90,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[17.2,5,7.7,0,1,1,1],[34.8,5,7.7,0,1,1,1]]},
+      {"mesh":"equipment_rack","material":"navy","items":[[34.7,5,-1.7,0,1,1,1]]},
+      {"mesh":"sort_bin","material":"terracotta","items":[[17.3,5,7.7,0,1,1,1]]}],"signs":[{"text":"ETY155 • DC FUNDAMENTALS","position":[26,7.9,8.88],"yaw":180,"color":"teal"}]},
+    "computer": {"theme":"digital-studio","protected":"east door and workstation rows","coverage":["equipment racks","acoustic fins","plants","recycling"],"groups":[
+      {"mesh":"equipment_rack","material":"navy","items":[[-8.7,5,14.2,0,1,1,1],[-8.7,5,23.7,0,1,1,1]]},
+      {"mesh":"acoustic_fin","material":"quiet","items":[[-5,6.2,24.65,90,1,1,1],[-3.5,6.2,24.65,90,1,1,1],[-2,6.2,24.65,90,1,1,1],[2,6.2,24.65,90,1,1,1],[3.5,6.2,24.65,90,1,1,1],[5,6.2,24.65,90,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[8.8,5,23.7,0,1,1,1]]},
+      {"mesh":"sort_bin","material":"teal","items":[[8.8,5,14.2,0,1,1,1]]}],"signs":[{"text":"COMPUTE • CREATE • COLLABORATE","position":[0,7.85,24.88],"yaw":180,"color":"quiet"}]},
+    "library": {"theme":"book-and-study-lounge","protected":"west door and central browsing spine","coverage":["open shelving","reading tables","chairs","plants","pendants"],"groups":[
+      {"mesh":"equipment_rack","material":"warm_wood","items":[[34.7,5,14.2,0,1,1.2,1],[34.7,5,18.9,0,1,1.2,1],[34.7,5,23.6,0,1,1.2,1]]},
+      {"mesh":"cafe_table","material":"warm_wood","items":[[21,5,16,0,1,1,1],[27,5,20,0,1,1,1],[21,5,23,0,1,1,1]]},
+      {"mesh":"campus_chair","material":"quiet","items":[[20,5,16,90,1,1,1],[22,5,16,-90,1,1,1],[26,5,20,90,1,1,1],[28,5,20,-90,1,1,1],[20,5,23,90,1,1,1],[22,5,23,-90,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[34.8,5,22.6,0,1.15,1.15,1.15],[17.2,5,23.7,0,1.15,1.15,1.15]]},
+      {"mesh":"pendant_fixture","material":"gold","items":[[21,8.3,16,0,1,1,1],[27,8.3,20,0,1,1,1],[21,8.3,23,0,1,1,1]]}],"signs":[{"text":"LIBRARY • QUIET CONVERSATION","position":[26,7.85,24.88],"yaw":180,"color":"warm_wood"}]},
+    "study": {"theme":"quiet-focus","protected":"east door and central walking line","coverage":["individual tables","soft chairs","acoustic fins","plants"],"groups":[
+      {"mesh":"cafe_table","material":"quiet","items":[[-6,5,30,0,0.8,0.8,0.8],[0,5,30,0,0.8,0.8,0.8],[6,5,30,0,0.8,0.8,0.8],[-6,5,36,0,0.8,0.8,0.8],[0,5,36,0,0.8,0.8,0.8],[6,5,36,0,0.8,0.8,0.8]]},
+      {"mesh":"campus_chair","material":"navy","items":[[-6,5,31,180,1,1,1],[0,5,31,180,1,1,1],[6,5,31,180,1,1,1],[-6,5,37,180,1,1,1],[0,5,37,180,1,1,1],[6,5,37,180,1,1,1]]},
+      {"mesh":"acoustic_fin","material":"quiet","items":[[-9.6,6.2,29,0,1,1,1],[-9.6,6.2,31,0,1,1,1],[-9.6,6.2,35,0,1,1,1],[-9.6,6.2,37,0,1,1,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[8.8,5,37.7,0,1.2,1.2,1.2]]}],"signs":[{"text":"QUIET FOCUS • PHONES SILENT","position":[0,7.85,38.88],"yaw":180,"color":"quiet"}]},
+    "washroom_2": {"theme":"calm-wayfinding","protected":"west entrance and all fixture approaches","coverage":["privacy fins","plant accent","accessible wayfinding","sorting"],"groups":[
+      {"mesh":"acoustic_fin","material":"quiet","items":[[23,5,32,0,1,1.45,1],[24.5,5,32,0,1,1.45,1],[26,5,32,0,1,1.45,1],[27.5,5,32,0,1,1.45,1],[29,5,32,0,1,1.45,1]]},
+      {"mesh":"leaf_planter","material":"sage","items":[[34.8,5,37.7,0,1,1,1]]},
+      {"mesh":"sort_bin","material":"steel","items":[[17.2,5,37.7,0,1,1,1]]}],"signs":[{"text":"ALL-GENDER • ACCESSIBLE","position":[26,7.85,38.88],"yaw":180,"color":"quiet"}]}
+  }
+}

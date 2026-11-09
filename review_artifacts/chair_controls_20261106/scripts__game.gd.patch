@@ -1,0 +1,24 @@
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@ -539,7 +539,7 @@
+ 	highlighted = current_target if assistance else null
+ 	if highlighted and str(highlighted.get_meta("role","")) in ["socket","switch"]:
+ 		highlighted.scale = Vector3.ONE*1.08
+-	held_hint.text = "WASD: roll  •  Mouse: swivel  •  Space: stand" if player.seated!=null else ""
++	held_hint.text = "WASD: roll  •  Mouse: look ±90°  •  Ctrl + mouse: swivel  •  Space: stand" if player.seated!=null else ""
+ 	for cable in leads:
+ 		if cable.owner==multiplayer.get_unique_id():
+ 			held_hint.text="G: put down  •  Backspace: return cable"
+@@ -1024,11 +1024,11 @@
+ func _accept_chair_input(peer: int,index: int,wish: Vector2,yaw: float) -> void:
+ 	if not wish.is_finite() or not is_finite(yaw) or not session.roster.has(peer):
+ 		return
+-	chair_input_times[peer]=Time.get_ticks_msec()
+ 	for i in range(chairs.size()):
+ 		var chair: CharacterBody3D=chairs[i]
+ 		if chair.occupant==peer:
+ 			if index==i:
++				chair_input_times[peer]=Time.get_ticks_msec()
+ 				chair.drive=wish.limit_length(1)
+ 				chair.turn_target=yaw
+ 

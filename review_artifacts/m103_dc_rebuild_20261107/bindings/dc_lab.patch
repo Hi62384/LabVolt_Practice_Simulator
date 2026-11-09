@@ -1,0 +1,47 @@
+--- a/scripts/dc_lab.gd
++++ b/scripts/dc_lab.gd
+@@ -78,9 +78,12 @@
+ 	table.set_meta("role","table");table.set_meta("label","DC work surface")
+ 	game.cable_obstacles.append(AABB(table.global_position-Vector3(2.4,.06,.8),Vector3(4.8,.12,1.6)))
+ 	for x in [-2.05,2.05]:game.cable_obstacles.append(AABB(origin.to_global(Vector3(x,.4,0))-Vector3(.06,.4,.65),Vector3(.12,.8,1.3)))
+-	var fixture := preload("res://scripts/instruments/physical/bench_instruments.gd").new()
++	var physical := preload("res://review_artifacts/m103_dc_rebuild_20261107/physical_models/fixture.gd").new()
++	origin.add_child(physical)
++	physical.build(index)
++	var fixture := preload("res://review_artifacts/m103_dc_rebuild_20261107/bindings/physical_binding.gd").new()
+ 	origin.add_child(fixture)
+-	fixture.build(self,index)
++	fixture.bind(self,index,physical)
+ 	instrument_fixtures.append(fixture)
+ 	var display := Label3D.new()
+ 	origin.add_child(display)
+@@ -335,6 +338,11 @@
+ 		for id in physical_boards[index].external_ports:ports[index][id]=physical_boards[index].to_global(physical_boards[index].external_ports[id])
+ 		var display_relevant: bool=displays[index].is_visible_in_tree() and displays[index].global_position.distance_squared_to(game.camera.global_position)<=1225.
+ 		var fixture_relevant: bool=instrument_fixtures[index].global_position.distance_squared_to(game.camera.global_position)<=144.0
++		# Read opening transforms every presentation pass; rebuild cable geometry when anchors move.
++		var physical_ports: Dictionary=instrument_fixtures[index].port_positions()
++		for id in physical_ports:
++			if ports[index].get(id)!=physical_ports[id]:drawn_revisions[index]=-1;external_signature=""
++			ports[index][id]=physical_ports[id]
+ 		instrument_fixtures[index].observe(state,delta,fixture_relevant)
+ 		if state.revision!=drawn_revisions[index]:
+ 			drawn_revisions[index]=state.revision
+@@ -342,7 +350,7 @@
+ 			for wire in state.wires:
+ 				if not ports[index].has(wire[0]) or not ports[index].has(wire[1]):continue
+ 				var a: Vector3=ports[index][wire[0]];var b: Vector3=ports[index][wire[1]]
+-				wire_roots[index].add_child(preload("res://scripts/cable_mesh.gd").build(a,b,Color("dc9d5b"),game.cable_obstacles))
++				wire_roots[index].add_child(preload("res://review_artifacts/m103_dc_rebuild_20261107/bindings/cable_binding.gd").from_ports(self,index,str(wire[0]),a,index,str(wire[1]),b,Color("dc9d5b"),game.cable_obstacles))
+ 	campus_readouts.tick(delta,500)
+ 	draw_external_links()
+ 	if is_instance_valid(trace):
+@@ -434,7 +442,7 @@
+ 	for link in links:
+ 		if not all_ports[link.a.station].has(link.a.port) or not all_ports[link.b.station].has(link.b.port):external_signature="";continue
+ 		var a: Vector3=all_ports[link.a.station][link.a.port];var b: Vector3=all_ports[link.b.station][link.b.port]
+-		external_root.add_child(preload("res://scripts/cable_mesh.gd").build(a,b,Color("dba45b"),game.cable_obstacles))
++		external_root.add_child(preload("res://review_artifacts/m103_dc_rebuild_20261107/bindings/cable_binding.gd").from_ports(self,int(link.a.station),str(link.a.port),a,int(link.b.station),str(link.b.port),b,Color("dba45b"),game.cable_obstacles))
+ 
+ # PROPOSAL: scene hit routing only. Existing host input validation still applies.
+ func _io_hit(target: Node) -> Dictionary:

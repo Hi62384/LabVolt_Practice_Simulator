@@ -1,0 +1,61 @@
+{
+  "schema": "eight-course-public-givens-v2",
+  "course": "ETY155",
+  "week": 1,
+  "kind": "lab",
+  "difficulty": 0,
+  "questions": 4,
+  "roles": {
+    "host": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 50.0,
+      "expected_practical_score": 0
+    },
+    "client1": {
+      "mode": "first_wrong",
+      "expected_written_score": 75.0,
+      "expected_final_score": 37.5,
+      "expected_practical_score": 0
+    },
+    "client2": {
+      "mode": "all_wrong",
+      "expected_written_score": 0.0,
+      "expected_final_score": 0.0,
+      "expected_practical_score": 0
+    },
+    "client3": {
+      "mode": "first_wrong",
+      "expected_written_score": 75.0,
+      "expected_final_score": 37.5,
+      "expected_practical_score": 0
+    },
+    "client4": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 50.0,
+      "expected_practical_score": 0
+    },
+    "client5": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 50.0,
+      "expected_practical_score": 0
+    },
+    "client6": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 50.0,
+      "expected_practical_score": 0
+    },
+    "client7": {
+      "mode": "correct",
+      "expected_written_score": 100.0,
+      "expected_final_score": 50.0,
+      "expected_practical_score": 0
+    }
+  },
+  "oracle": "independent V/R and parallel-resistance arithmetic over public prompt/netlist/diagram",
+  "review_status": "PENDING_INDEPENDENT_COMBINED_REVIEW",
+  "runtime_status": "UNRUN"
+}

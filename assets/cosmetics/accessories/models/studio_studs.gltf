@@ -1,0 +1,215 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Studio Stud Earrings",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Studio Stud Earrings",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "silver",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.95,
+        "roughnessFactor": 0.16
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "glass",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.18,
+        "roughnessFactor": 0.12
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/silver_albedo.png"
+    },
+    {
+      "uri": "../materials/silver_orm.png"
+    },
+    {
+      "uri": "../materials/silver_normal.png"
+    },
+    {
+      "uri": "../materials/glass_albedo.png"
+    },
+    {
+      "uri": "../materials/glass_orm.png"
+    },
+    {
+      "uri": "../materials/glass_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "studio_studs.bin",
+      "byteLength": 18432
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 4608
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4608,
+      "byteLength": 4608
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 9216,
+      "byteLength": 3072
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 12288,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 14592,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 16896,
+      "byteLength": 1536
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 384,
+      "type": "VEC3",
+      "min": [
+        -0.257,
+        -0.063,
+        0.016
+      ],
+      "max": [
+        0.257,
+        -0.033,
+        0.03
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 384,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 384,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3",
+      "min": [
+        -0.251,
+        -0.057,
+        0.0285
+      ],
+      "max": [
+        0.251,
+        -0.039,
+        0.0375
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC2"
+    }
+  ]
+}

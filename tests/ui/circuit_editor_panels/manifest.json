@@ -1,0 +1,27 @@
+[
+  {
+    "path": "scripts/firmware_ide.gd",
+    "before_sha256": "eb42389410429c7a031426502b7529bbbd9edb8e9101949af7e0aa8b4b335751",
+    "after_sha256": "e99795e862170369109a1eb5a0b961feec70a63da2bdcc3b5947d1f089b99f4c"
+  },
+  {
+    "path": "scripts/firmware_backends/native_studio.gd",
+    "before_sha256": "2b992673d358da0bff5cf8b0c1f24306068cb8c4f37a27af9374e89ad4733aff",
+    "after_sha256": "a7687b651009bf80b5a39e93b85da1aaf3b17ff2d77692e696f8e8f37b7fe727"
+  },
+  {
+    "path": "scripts/firmware_backends/native_ide.gd",
+    "before_sha256": "f0384833c4891ee4a8aef057b4cd8675fe6750c9e78bd604b33805aa5fc0ac52",
+    "after_sha256": "a72c0ac4939a3fd35cf23ccc7268a685c63b6e4b8fbf4df25ebdd60c78c593bb"
+  },
+  {
+    "path": "scripts/package_editor/package_form.gd",
+    "before_sha256": "36b17e474ae019f5f6028217a8a1ca07225ba513514b6a2f79fd5804797e4673",
+    "after_sha256": "49c98dcecf528d338c3b5cb958b672c67e7a7c1a169cf3b71a7fb9a4c098cc58"
+  },
+  {
+    "path": "scripts/pcb_design/editor.gd",
+    "before_sha256": "2bf350de1e4b802c7cc78e5fbcaa75ca23298b0465a79dc0796b9ad8b1d844f9",
+    "after_sha256": "3ce24d1cb9c8dc534c760dfabceadfbdcc46a86b0a755d0597c69035bd2a8806"
+  }
+]

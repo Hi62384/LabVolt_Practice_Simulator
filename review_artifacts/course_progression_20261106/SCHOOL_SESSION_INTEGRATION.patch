@@ -1,0 +1,26 @@
+*** Proposed integrator-owned changes; intentionally not applied while the game is active. ***
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@
+ const GradePolicy = preload("res://scripts/campus/academics/grade_policy.gd")
++const CourseProgression = preload("res://scripts/campus/academics/course_progression_adapter.gd")
++const Attendance = preload("res://scripts/campus/academics/attendance_ledger.gd")
++# Add separate attendance_archive/local_attendance dictionaries. Do not merge with gradebook.
+@@ official record construction in _mark
+-"reason":result.get("reason","Submitted")}
++"reason":result.get("reason","Submitted"),"is_exam":bool(paper.project.get("is_exam",false)),"assessment_type":paper.project.get("assessment_type","assignment"),"grade_weight":paper.project.get("grade_weight")}
+@@
+ func course_summary(course_id: String,profile: String="") -> Dictionary:
+-    return GradePolicy.summary(gradebook,local_identity if profile=="" else profile,course_id,category_weights)
++    return CourseProgression.summary(gradebook,local_identity if profile=="" else profile,course_id,course_bridge)
+@@ _receive_grade
+-    _apply_reward(record)
++    # Main integration must guard the reward sink with its persisted operation ledger.
++    # Replayed RPC/save records may update the local projection but must not pay twice.
++    if not gradebook.has(str(record.id)):_apply_reward(record)
+@@ average (rename is recommended, callers may retain compatibility)
+-        if value.overall!=null:parts.append("%s %.1f%% • %d attempts"%[id,float(value.overall),int(value.attempts)])
++        if value.final_mark!=null:parts.append("%s %.1f%% • %s"%[id,float(value.final_mark),"PASS" if value.passed else "FAIL"])
+
+Legacy behavior: no save rewrite is required. Existing immutable records are projected chronologically into attempts. Do not migrate or overwrite active user:// files.
++At authoritative Class admission, record Attendance.record_authoritative(... assessment_id, profile, course, kind, week, host timestamp, course_ids()). Persist/deliver only a newly created event. Client receipt stores by event ID and never invokes _apply_reward. See HANDOFF.md for exact schema/privacy behavior.

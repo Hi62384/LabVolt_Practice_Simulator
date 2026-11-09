@@ -1,0 +1,26 @@
+*** scripts/school_world.gd (current preimage)
+--- scripts/school_world.gd (integration candidate)
+@@
+-var math_board: Node3D
++var teaching_board: Node3D
+@@
+-	math_board=preload("res://scripts/math_whiteboard.gd").new();add_child(math_board);math_board.hide()
++	teaching_board=preload("res://scripts/campus/academics/teaching_board.gd").new();add_child(teaching_board);teaching_board.hide()
+@@
+-	var math_lesson: bool=school.phase=="lesson" and str(school.activity.get("course_id","")).begins_with("MTH")
+-	whiteboard.visible=not math_lesson
+-	math_board.visible=math_lesson
+-	if math_lesson:
+-		math_board.position=whiteboard.position;math_board.rotation=whiteboard.rotation
+-		math_board.show_stage(str(school.activity.course_id),school.teaching_stage())
++	var in_lecture: bool=not school.activity.is_empty() and str(school.activity.get("kind","lecture"))=="lecture"
++	var board_active: bool=in_lecture and game.front.in_game and school.room_bridge.contains(str(school.activity.room.get("id","")),game.player.global_position)
++	whiteboard.visible=not in_lecture
++	teaching_board.set_room_active(board_active)
++	if board_active:
++		teaching_board.position=whiteboard.position
++		teaching_board.rotation=whiteboard.rotation
++		var stage: Dictionary=school.teaching_stage() if school.phase=="lesson" else {"text":value}
++		var status: String="%s  %02d:%02d"%[school.phase.to_upper(),int(school.remaining)/60,int(school.remaining)%60]
++		teaching_board.show_content(str(school.activity.get("course_id","")),school.phase,str(school.project.get("title","")),stage,status)
+ 	if value!=board_text:

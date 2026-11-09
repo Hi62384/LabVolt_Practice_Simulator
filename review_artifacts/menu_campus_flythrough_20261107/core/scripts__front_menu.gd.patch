@@ -1,0 +1,116 @@
+--- a/scripts/front_menu.gd
++++ b/scripts/front_menu.gd
+@@ -13,10 +13,8 @@
+ var body: VBoxContainer
+ var title: Label
+ var status: Label
+-var preview_camera: Camera3D
+ var in_game := false
+ var joining := false
+-var clock := 0.0
+ var page := "home"
+ var panel: PanelContainer
+ var gallery: HBoxContainer
+@@ -104,14 +102,15 @@
+ 		game.ui.settings.reparent(settings_host)
+ 		game.ui.settings.show()
+ 	screen.resized.connect(_layout_menu)
+-	preview_camera=Camera3D.new()
+-	preview_camera.fov=60
+-	game.add_child(preview_camera)
+ 	game.ui.menu.hide()
+ 	game.characters.changed.connect(_profiles_changed)
+ 	game.session.message_received.connect(func(text):status.text=text)
+ 	game.session.roster_changed.connect(func():
+-		if joining and game.session.online and game.session.roster.has(multiplayer.get_unique_id()):
++		if not joining:return
++		if not game.session.online:
++			joining=false
++			game.menu_campus.hold(false)
++		elif game.session.roster.has(multiplayer.get_unique_id()):
+ 			joining=false
+ 			game.capture()
+ 	)
+@@ -181,6 +180,7 @@
+ 	if joining:
+ 		joining=false
+ 		game.session.leave()
++	if not in_game and is_instance_valid(game.menu_campus):game.menu_campus.show_menu()
+ 	clear("home","LAB / VOLT")
+ 	text("Build. Measure. Discover.")
+ 	button("Host Game",func():network_page(false))
+@@ -198,9 +198,13 @@
+ 		text("Port")
+ 		var port := SpinBox.new();port.min_value=1024;port.max_value=65535;port.value=24842;body.add_child(port)
+ 		button("Connect",func():
++			if joining:return
+ 			game.characters.rename_selected(name_field.text);name_field.text=game.characters.display_name();game.ui.name_input.text=name_field.text;game.session.local_name=name_field.text
++			game.menu_campus.hold(true)
+ 			var result: int=game.session.join_game(address_field.text,name_field.text,int(port.value))
+-			if result!=OK:status.text=error_string(result)
++			if result!=OK:
++				game.menu_campus.hold(false)
++				status.text=error_string(result)
+ 			else:joining=true;status.text="Connecting…"
+ 		)
+ 		button("Back",home)
+@@ -383,16 +387,25 @@
+ 
+ func _start_host_selection() -> void:
+ 	if not is_instance_valid(host_start) or host_start.disabled:return
++	if host_mode!="Freeplay" and not _ensure_campus_adapter():
++		status.text="Course services are unavailable."
++		return
++	game.menu_campus.hold(true)
+ 	game.characters.rename_selected(host_name.text);host_name.text=game.characters.display_name();game.ui.name_input.text=host_name.text;game.session.local_name=host_name.text
+ 	if host_alone.button_pressed:game.session.leave()
+ 	else:
+ 		var error: int=game.session.host_game(host_name.text,int(host_port.value))
+-		if error!=OK:status.text=error_string(error);return
++		if error!=OK:
++			game.menu_campus.hold(false)
++			status.text=error_string(error)
++			return
+ 	if host_mode=="Freeplay":game.school.start("Freeplay",host_difficulty);game.capture();return
+-	if not _ensure_campus_adapter():status.text="Course services are unavailable.";return
+ 	var result: Dictionary=campus_adapter.call("request_activity",{"mode":"Course","course_id":host_course,"kind":host_kind,"week":host_week,"difficulty":host_difficulty})
+ 	if result.get("ok",false):game.capture()
+-	else:status.text=str(result.get("error","Unable to start the selected class."))
++	else:
++		if not host_alone.button_pressed:game.session.leave()
++		game.menu_campus.hold(false)
++		status.text=str(result.get("error","Unable to start the selected class."))
+ func set_campus_adapter(adapter: Object) -> void:
+ 	campus_adapter=adapter
+ 	if adapter.has_signal("navigation_requested") and not adapter.navigation_requested.is_connected(_campus_navigate): adapter.navigation_requested.connect(_campus_navigate)
+@@ -454,7 +467,6 @@
+ 	game.school.start("Freeplay",0)
+ 	joining=false
+ 	game.release_mouse()
+-	preview_camera.current=true
+ 	home()
+ func entered() -> void:
+ 	in_game=true
+@@ -587,21 +599,15 @@
+ 	selected_label.modulate=Color("7bdac5")
+ 	detail.add_child(selected_label)
+ func _process(delta: float) -> void:
+-	if preview_camera==null:return
+-	clock+=delta
+ 	campus_tick+=delta
+ 	if is_instance_valid(campus_hud):
+ 		campus_hud.visible=in_game and not screen.visible
+-		if campus_tick>=0.25 and is_instance_valid(campus_adapter) and is_instance_valid(campus_adapter.registry):
++		if in_game and campus_tick>=0.25 and is_instance_valid(campus_adapter) and is_instance_valid(campus_adapter.registry):
+ 			campus_tick=0.0
+ 			var registry: Object=campus_adapter.registry
+ 			var room: Dictionary=registry.call("get_room",registry.call("locate",game.player.global_position))
+ 			var state: Dictionary=game.school.get("activity") if game.school.has_method("start_activity") else {"mode":game.school.mode}
+ 			campus_hud.update_state(room,state,float(game.school.remaining) if game.school.phase=="assignment" else -1.0,campus_navigation.update(game.player.global_position))
+-	if not in_game:
+-		preview_camera.position=Vector3(4.5+sin(clock*.08)*.5,2.6,4.5)
+-		preview_camera.look_at(Vector3(-.4,2.1,-2.8))
+-		preview_camera.current=true
+ 
+ func experiment_page() -> void:
+ 	clear("experiment","EXPERIMENT")

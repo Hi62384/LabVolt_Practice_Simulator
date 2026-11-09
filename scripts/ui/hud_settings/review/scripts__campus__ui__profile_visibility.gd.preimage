@@ -1,0 +1,16 @@
+extends RefCounted
+const PATH := "user://campus_profile_visibility.cfg"
+var values := {"appearance":true,"kit":false,"parts":false,"money":false,"course":false,"gym":false,"emotes":true}
+func load_settings(path := PATH) -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(path)!=OK: return
+	for key in values: values[key]=bool(cfg.get_value("public",key,values[key]))
+func save_settings(path := PATH) -> Error:
+	var cfg := ConfigFile.new()
+	for key in values: cfg.set_value("public",key,bool(values[key]))
+	return cfg.save(path)
+func build_controls(parent: VBoxContainer) -> void:
+	var label := Label.new(); label.text="Public player card · shared fields"; parent.add_child(label)
+	for key in values:
+		var toggle := CheckBox.new(); toggle.text=key.capitalize(); toggle.button_pressed=values[key]; parent.add_child(toggle)
+		toggle.toggled.connect(func(enabled):values[key]=enabled; save_settings())

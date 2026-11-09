@@ -1,0 +1,412 @@
+[
+  {
+    "topic": "Hole groups and rail breaks",
+    "path": "scripts/breadboard_model.gd",
+    "line": 13,
+    "needle": "if col in [\"P\",\"N\"]",
+    "snapshot_sha256": "2e674624029928fa0d83ca7956f7510e85b38ce2d7733dbf53960b0949200cca",
+    "current_main_sha256": "2e674624029928fa0d83ca7956f7510e85b38ce2d7733dbf53960b0949200cca",
+    "current_main_line": 13,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Default external port mappings",
+    "path": "scripts/breadboard_model.gd",
+    "line": 7,
+    "needle": "\"ports\":[\"P1\",\"N1\",\"A1\",\"F1\"]",
+    "snapshot_sha256": "2e674624029928fa0d83ca7956f7510e85b38ce2d7733dbf53960b0949200cca",
+    "current_main_sha256": "2e674624029928fa0d83ca7956f7510e85b38ce2d7733dbf53960b0949200cca",
+    "current_main_line": 7,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Board capacity limits",
+    "path": "scripts/breadboard_model.gd",
+    "line": 20,
+    "needle": "Board simulation budget exceeded",
+    "snapshot_sha256": "2e674624029928fa0d83ca7956f7510e85b38ce2d7733dbf53960b0949200cca",
+    "current_main_sha256": "2e674624029928fa0d83ca7956f7510e85b38ce2d7733dbf53960b0949200cca",
+    "current_main_line": 20,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Electronics tab names",
+    "path": "scripts/electronics_ui.gd",
+    "line": 59,
+    "needle": "[\"inventory\",\"Hotbar\"]",
+    "snapshot_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_line": 59,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Board gesture instructions",
+    "path": "scripts/electronics_ui.gd",
+    "line": 140,
+    "needle": "Click two holes",
+    "snapshot_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_line": 140,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Automatic board save",
+    "path": "scripts/electronics_ui.gd",
+    "line": 216,
+    "needle": "status.text=\"Design saved\"",
+    "snapshot_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_line": 216,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Port fields commit on Enter",
+    "path": "scripts/electronics_ui.gd",
+    "line": 128,
+    "needle": "field.text_submitted.connect",
+    "snapshot_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_line": 128,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Deployment stock and proximity",
+    "path": "scripts/electronics_ui.gd",
+    "line": 227,
+    "needle": "func deploy()",
+    "snapshot_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_line": 227,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "New empty design and package actions",
+    "path": "scripts/electronics_ui.gd",
+    "line": 281,
+    "needle": "func custom_ics()",
+    "snapshot_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_sha256": "6ae34fb191c1dc591a22d95a7aa3c6bfd930ffa2c13b6eb425ee2d80807ff814",
+    "current_main_line": 281,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Starter stock and character save path",
+    "path": "scripts/electronics_profile.gd",
+    "line": 34,
+    "needle": "path=\"user://electronics_",
+    "snapshot_sha256": "b926b83d6586b4fdc1a4b2dabe3916601672727b4412eaf5bec21b88af6e2225",
+    "current_main_sha256": "b926b83d6586b4fdc1a4b2dabe3916601672727b4412eaf5bec21b88af6e2225",
+    "current_main_line": 34,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Resistor and basic model ratings",
+    "path": "scripts/electronics_catalog.gd",
+    "line": 11,
+    "needle": "for value in [100,220",
+    "snapshot_sha256": "f8de337624cfe7d47ce5ea371a93b0a920906b52d05a993bafa13c8cf3507c93",
+    "current_main_sha256": "f8de337624cfe7d47ce5ea371a93b0a920906b52d05a993bafa13c8cf3507c93",
+    "current_main_line": 11,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Catalog composition",
+    "path": "scripts/electronics_catalog.gd",
+    "line": 41,
+    "needle": "commercial_devices/catalog.gd",
+    "snapshot_sha256": "f8de337624cfe7d47ce5ea371a93b0a920906b52d05a993bafa13c8cf3507c93",
+    "current_main_sha256": "f8de337624cfe7d47ce5ea371a93b0a920906b52d05a993bafa13c8cf3507c93",
+    "current_main_line": 41,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "DC source controls",
+    "path": "scripts/dc_ui.gd",
+    "line": 56,
+    "needle": "Master output ON / OFF",
+    "snapshot_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_line": 56,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Meter connections and fuse",
+    "path": "scripts/dc_ui.gd",
+    "line": 84,
+    "needle": "VΩ + COM:",
+    "snapshot_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_line": 84,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Generator amplitude and frequency limits",
+    "path": "scripts/dc_ui.gd",
+    "line": 95,
+    "needle": "GEN / REF terminals",
+    "snapshot_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_line": 95,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Lead attachment controls",
+    "path": "scripts/dc_ui.gd",
+    "line": 113,
+    "needle": "\"Attach lead\"",
+    "snapshot_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_sha256": "45ce7076bcf82ea133c0cac86be66fe08a58d84b50d0d4b23ba2ba92d24a2258",
+    "current_main_line": 113,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "DC panel/board interaction",
+    "path": "scripts/dc_lab.gd",
+    "line": 152,
+    "needle": "get_meta(\"role\")==\"dc_panel\"",
+    "snapshot_sha256": "437f34a7509e1e05462c62cd81ddfb870879e1501a6d45170c858e1ac4613d11",
+    "current_main_sha256": "b3d2b932f3f31da13086a9095601f55b49cc4c53323c57f320cd962d538e4ac8",
+    "current_main_line": 152,
+    "current_main_matches_snapshot": false
+  },
+  {
+    "topic": "DC terminal names",
+    "path": "scripts/dc_station.gd",
+    "line": 3,
+    "needle": "const PORTS =",
+    "snapshot_sha256": "ea63052267985bea372cd989b1abf8ee547d49dd81d211121323b3a0a387ce44",
+    "current_main_sha256": "ea63052267985bea372cd989b1abf8ee547d49dd81d211121323b3a0a387ce44",
+    "current_main_line": 3,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Scope common ground",
+    "path": "scripts/dc_station.gd",
+    "line": 51,
+    "needle": "scope_capture.push",
+    "snapshot_sha256": "ea63052267985bea372cd989b1abf8ee547d49dd81d211121323b3a0a387ce44",
+    "current_main_sha256": "ea63052267985bea372cd989b1abf8ee547d49dd81d211121323b3a0a387ce44",
+    "current_main_line": 51,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Generator enable independent of DC master",
+    "path": "scripts/dc_station.gd",
+    "line": 74,
+    "needle": "if generator.enabled:parts.append",
+    "snapshot_sha256": "ea63052267985bea372cd989b1abf8ee547d49dd81d211121323b3a0a387ce44",
+    "current_main_sha256": "ea63052267985bea372cd989b1abf8ee547d49dd81d211121323b3a0a387ce44",
+    "current_main_line": 74,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "AC ammeter common and ranges",
+    "path": "scripts/equipment_builder.gd",
+    "line": 319,
+    "needle": "var values := [\"±\",\"0.5\"",
+    "snapshot_sha256": "a431499781ee5b202eba28e9493b54e383c1fbebd35726b6a42d9a1fa547ef72",
+    "current_main_sha256": "a431499781ee5b202eba28e9493b54e383c1fbebd35726b6a42d9a1fa547ef72",
+    "current_main_line": 319,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Historical 150 printed 100",
+    "path": "scripts/equipment_builder.gd",
+    "line": 342,
+    "needle": "\"V%d_150\"%i,\"100\"",
+    "snapshot_sha256": "a431499781ee5b202eba28e9493b54e383c1fbebd35726b6a42d9a1fa547ef72",
+    "current_main_sha256": "a431499781ee5b202eba28e9493b54e383c1fbebd35726b6a42d9a1fa547ef72",
+    "current_main_line": 342,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Historical 300 printed 250",
+    "path": "scripts/equipment_builder.gd",
+    "line": 343,
+    "needle": "\"V%d_300\"%i,\"250\"",
+    "snapshot_sha256": "a431499781ee5b202eba28e9493b54e383c1fbebd35726b6a42d9a1fa547ef72",
+    "current_main_sha256": "a431499781ee5b202eba28e9493b54e383c1fbebd35726b6a42d9a1fa547ef72",
+    "current_main_line": 343,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Generated physical rack instructions",
+    "path": "scripts/beginner_bench_instructions.gd",
+    "line": 31,
+    "needle": "YOUR PHYSICAL BENCH",
+    "snapshot_sha256": "3789cf0e915e28da4397e6e69b61fa77e7f0a9fa5ff7eb731b53a290d47532c8",
+    "current_main_sha256": "3789cf0e915e28da4397e6e69b61fa77e7f0a9fa5ff7eb731b53a290d47532c8",
+    "current_main_line": 31,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Generated meter series insertion",
+    "path": "scripts/beginner_bench_instructions.gd",
+    "line": 47,
+    "needle": "wires.append([terminals[0],\"AM0_OUT\"])",
+    "snapshot_sha256": "3789cf0e915e28da4397e6e69b61fa77e7f0a9fa5ff7eb731b53a290d47532c8",
+    "current_main_sha256": "3789cf0e915e28da4397e6e69b61fa77e7f0a9fa5ff7eb731b53a290d47532c8",
+    "current_main_line": 47,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Equipment inspection and rack labels",
+    "path": "scripts/equipment_guide.gd",
+    "line": 4,
+    "needle": "sockets on this panel are labelled 100 and 250",
+    "snapshot_sha256": "fcf055188ac5ff29c269202c6fbd9041680fae0ca510199c266a477aa247f842",
+    "current_main_sha256": "fcf055188ac5ff29c269202c6fbd9041680fae0ca510199c266a477aa247f842",
+    "current_main_line": 4,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Package form and save action",
+    "path": "scripts/package_editor/package_form.gd",
+    "line": 75,
+    "needle": "\"Save circuit package\"",
+    "snapshot_sha256": "36b17e474ae019f5f6028217a8a1ca07225ba513514b6a2f79fd5804797e4673",
+    "current_main_sha256": "36b17e474ae019f5f6028217a8a1ca07225ba513514b6a2f79fd5804797e4673",
+    "current_main_line": 75,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Package electrical hole mapping",
+    "path": "scripts/package_editor/package_store.gd",
+    "line": 18,
+    "needle": "mapped.node=node",
+    "snapshot_sha256": "9e964471ab12f2a8a394ccfd20a513ef43acd18fc84739608043fdec18c53378",
+    "current_main_sha256": "9e964471ab12f2a8a394ccfd20a513ef43acd18fc84739608043fdec18c53378",
+    "current_main_line": 18,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Saved package content identity",
+    "path": "scripts/package_editor/package_store.gd",
+    "line": 20,
+    "needle": "var id := \"ic:\"",
+    "snapshot_sha256": "9e964471ab12f2a8a394ccfd20a513ef43acd18fc84739608043fdec18c53378",
+    "current_main_sha256": "9e964471ab12f2a8a394ccfd20a513ef43acd18fc84739608043fdec18c53378",
+    "current_main_line": 20,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Physical pin anchor geometry",
+    "path": "scripts/package_editor/package_geometry.gd",
+    "line": 65,
+    "needle": "static func holes_at",
+    "snapshot_sha256": "02233faf6df09f6b9b3bc96a94699f435159b5c3fe294508f412525700214f2b",
+    "current_main_sha256": "02233faf6df09f6b9b3bc96a94699f435159b5c3fe294508f412525700214f2b",
+    "current_main_line": 65,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Explicit package placement gesture",
+    "path": "scripts/breadboard_canvas.gd",
+    "line": 153,
+    "needle": "part.pins=preload(\"res://scripts/package_editor/package_geometry.gd\").holes_at",
+    "snapshot_sha256": "7f0b635b0deaae10591c3b3b87dd8624a999e0324ec67f4f0b5b5bac6357e8a7",
+    "current_main_sha256": "7f0b635b0deaae10591c3b3b87dd8624a999e0324ec67f4f0b5b5bac6357e8a7",
+    "current_main_line": 153,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Custom circuit nesting limits",
+    "path": "scripts/custom_circuit.gd",
+    "line": 17,
+    "needle": "Custom IC nesting limit is eight levels",
+    "snapshot_sha256": "b9f5a7de29a8cb6aca06b4eaca0462a795524d35bce4caab52bb07d0b5e382a7",
+    "current_main_sha256": "b9f5a7de29a8cb6aca06b4eaca0462a795524d35bce4caab52bb07d0b5e382a7",
+    "current_main_line": 17,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Custom circuit direct budgets",
+    "path": "scripts/custom_circuit.gd",
+    "line": 21,
+    "needle": "Custom circuit budget: 48 parts",
+    "snapshot_sha256": "b9f5a7de29a8cb6aca06b4eaca0462a795524d35bce4caab52bb07d0b5e382a7",
+    "current_main_sha256": "b9f5a7de29a8cb6aca06b4eaca0462a795524d35bce4caab52bb07d0b5e382a7",
+    "current_main_line": 21,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Commercial model limits",
+    "path": "scripts/commercial_devices/catalog.gd",
+    "line": 20,
+    "needle": "[\"ili9341\"",
+    "snapshot_sha256": "423961b9c6ee3112b3ffe6f4f7c1694812a3aed5b0353ad109294f7483ea4fd1",
+    "current_main_sha256": "423961b9c6ee3112b3ffe6f4f7c1694812a3aed5b0353ad109294f7483ea4fd1",
+    "current_main_line": 20,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Educational display protocol limits",
+    "path": "scripts/io_devices/catalog.gd",
+    "line": 16,
+    "needle": "not SSD1306",
+    "snapshot_sha256": "30f0a981a6e734c5105142b7ea93b3f0d356e388c2777282b104f8c2a1af1cd4",
+    "current_main_sha256": "30f0a981a6e734c5105142b7ea93b3f0d356e388c2777282b104f8c2a1af1cd4",
+    "current_main_line": 16,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "LVScript controls and distinction",
+    "path": "scripts/firmware_ide.gd",
+    "line": 24,
+    "needle": "LabVolt Script 1",
+    "snapshot_sha256": "eb42389410429c7a031426502b7529bbbd9edb8e9101949af7e0aa8b4b335751",
+    "current_main_sha256": "eb42389410429c7a031426502b7529bbbd9edb8e9101949af7e0aa8b4b335751",
+    "current_main_line": 24,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Native board target catalog",
+    "path": "scripts/firmware_backends/native_boards.gd",
+    "line": 5,
+    "needle": "static func catalog",
+    "snapshot_sha256": "cc498b4a1a9956bedef42090ce4c05d95ffd0e1af00c381e4f24dac434e58609",
+    "current_main_sha256": "cc498b4a1a9956bedef42090ce4c05d95ffd0e1af00c381e4f24dac434e58609",
+    "current_main_line": 5,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Native live ownership and saved drafts",
+    "path": "scripts/firmware_backends/native_studio.gd",
+    "line": 67,
+    "needle": "func live_owner()",
+    "snapshot_sha256": "2b992673d358da0bff5cf8b0c1f24306068cb8c4f37a27af9374e89ad4733aff",
+    "current_main_sha256": "2b992673d358da0bff5cf8b0c1f24306068cb8c4f37a27af9374e89ad4733aff",
+    "current_main_line": 67,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Native IDE image import actions",
+    "path": "scripts/firmware_backends/native_ide.gd",
+    "line": 28,
+    "needle": "func build(",
+    "snapshot_sha256": "f0384833c4891ee4a8aef057b4cd8675fe6750c9e78bd604b33805aa5fc0ac52",
+    "current_main_sha256": "f0384833c4891ee4a8aef057b4cd8675fe6750c9e78bd604b33805aa5fc0ac52",
+    "current_main_line": 28,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Compiler strict required checks",
+    "path": "scripts/firmware_toolchain/acceptance.gd",
+    "line": 4,
+    "needle": "const CHECKS=",
+    "snapshot_sha256": "2f4731fd919c6e1244f693b83389c8e817fbe687d9217e385ff02d374c86efa2",
+    "current_main_sha256": "2f4731fd919c6e1244f693b83389c8e817fbe687d9217e385ff02d374c86efa2",
+    "current_main_line": 4,
+    "current_main_matches_snapshot": true
+  },
+  {
+    "topic": "Compiler gate before broker",
+    "path": "scripts/firmware_toolchain/compile_service.gd",
+    "line": 14,
+    "needle": "acceptance.gd\").verified()",
+    "snapshot_sha256": "37af16ccd1deaa19b9cc0c6587f79cb1d31bcf4cd6a79bb8ae815120b8406467",
+    "current_main_sha256": "37af16ccd1deaa19b9cc0c6587f79cb1d31bcf4cd6a79bb8ae815120b8406467",
+    "current_main_line": 14,
+    "current_main_matches_snapshot": true
+  }
+]

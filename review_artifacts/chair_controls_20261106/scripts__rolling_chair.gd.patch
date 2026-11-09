@@ -1,0 +1,11 @@
+--- a/scripts/rolling_chair.gd
++++ b/scripts/rolling_chair.gd
+@@ -77,7 +77,7 @@
+ 	var wish := drive
+ 	if is_instance_valid(rider):
+ 		wish = Vector2(float(rider.down("right"))-float(rider.down("left")),float(rider.down("back"))-float(rider.down("forward"))).normalized()
+-		turn_target=rider.yaw_target
++		turn_target=rider.seated_look.chair_turn
+ 	if occupant!=0 or is_instance_valid(rider):
+ 		var direction := swivel.basis*Vector3(wish.x,0,wish.y)
+ 		var horizontal := Vector3(velocity.x,0,velocity.z)

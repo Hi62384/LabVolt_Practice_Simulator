@@ -1,0 +1,46 @@
+{
+  "state": "proposed_read_only_snapshot",
+  "warning": "Owner review required. Apply atomically only if exact whole-file SHA matches; no live project file was edited.",
+  "changes": [
+    {
+      "path": "scripts/electronics_ui.gd",
+      "sha256": "d885a1811a86a7b09203f1d2de7fcc524e2b554ca4f1ea2e20caee7f7bbd820e",
+      "edits": [
+        {
+          "old": "var game: Node\n",
+          "new": "var game: Node\nvar shop_adapter=preload(\"res://scripts/electronics/component_shop_ui/shop_adapter.gd\").new()\n"
+        },
+        {
+          "old": "var title := label(bar,\"ELECTRONICS STUDIO\");",
+          "new": "var title := label(bar,\"COMPONENTS\" if page==\"shop\" else \"ELECTRONICS STUDIO\");"
+        },
+        {
+          "old": "\tfor entry in [[\"inventory\",\"Hotbar\"],[\"shop\",\"Components\"],[\"kits\",\"My kits\"],[\"board\",\"Breadboard\"],[\"notes\",\"Notebook\"],[\"ics\",\"IC / PCB builder\"],[\"code\",\"Code\"],[\"trade\",\"Trade\"]]:button(tabs,entry[1],func():open(entry[0],bench))",
+          "new": "\tif page!=\"shop\":\n\t\tfor entry in [[\"inventory\",\"Hotbar\"],[\"shop\",\"Components\"],[\"kits\",\"My kits\"],[\"board\",\"Breadboard\"],[\"notes\",\"Notebook\"],[\"ics\",\"IC / PCB builder\"],[\"code\",\"Code\"],[\"trade\",\"Trade\"]]:button(tabs,entry[1],func():open(entry[0],bench))"
+        },
+        {
+          "old": "func shop() -> void:\n",
+          "new": "func shop() -> void:\n\tshop_adapter.build(self,body,{\"economy\":profile.get_meta(\"economy_display\",{})})\n"
+        },
+        {
+          "old": "\tvar search := LineEdit.new();search.placeholder_text=\"Search component name or category\";search.text=shop_search;search.max_length=100;body.add_child(search)\n\tvar entries := VBoxContainer.new();body.add_child(entries)\n\tfor id in Catalog.all():\n\t\tvar c: Dictionary=Catalog.all()[id];var row := HBoxContainer.new();entries.add_child(row);row.set_meta(\"search\",(c.name+\" \"+c.category).to_lower())\n\t\tvar description := label(row,\"%s \u00b7 %s \u00b7 owned %d\\n%s\"%[c.name,c.category,profile.data.inventory.get(id,0),c.rating]);description.size_flags_horizontal=Control.SIZE_EXPAND_FILL\n\t\tbutton(row,\"Buy $%d\"%c.price,func():var message: String=profile.buy(id,1);open(\"shop\",bench);status.text=message)\n\tsearch.text_changed.connect(func(value):\n\t\tshop_search=value.left(100)\n\t\tfor row in entries.get_children():row.visible=shop_search.to_lower() in str(row.get_meta(\"search\"))\n\t)\n\tsearch.text_changed.emit(shop_search)\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "path": "scripts/inventory_authority/network.gd",
+      "sha256": "3c2ac75b5d8107d39cfe29906bce7e48895e7d59a0296210b1ab844705c3f7c6",
+      "edits": [
+        {
+          "old": "\tif not metadata.is_empty() and game.electronics.has_method(\"kit_names_submitted\"):game.electronics.kit_names_submitted(str(pending.back().id),args[0])\n\tflush()",
+          "new": "\tif not metadata.is_empty() and game.electronics.has_method(\"kit_names_submitted\"):game.electronics.kit_names_submitted(str(pending.back().id),args[0])\n\tif op in [\"buy\",\"buy_configured\"] and is_instance_valid(game.electronics.shop_adapter):game.electronics.shop_adapter.submitted(str(pending.back().id),op)\n\tflush()"
+        },
+        {
+          "old": "\t\toperation_result.emit(str(pending[0].get(\"op\",\"\")),result)\n\t\tpending.pop_front()",
+          "new": "\t\tif str(pending[0].get(\"op\",\"\")) in [\"buy\",\"buy_configured\"] and is_instance_valid(game.electronics.shop_adapter):game.electronics.shop_adapter.received(id,result)\n\t\toperation_result.emit(str(pending[0].get(\"op\",\"\")),result)\n\t\tpending.pop_front()"
+        }
+      ]
+    }
+  ]
+}

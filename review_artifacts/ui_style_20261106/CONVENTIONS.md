@@ -1,0 +1,17 @@
+# Navigation and adoption conventions
+
+Use API v1 as local screen chrome. Assign `Skin.create()` to the screen's owned Control root. Do not set a project default, autoload theme, or recursively strip existing style overrides: document paper, calculator LCD, breadboard, graph and scope canvases have intentional semantic colors and geometry.
+
+A station header contains its title, a short purpose, and labeled Close. Component shop presents component filters and purchasing controls only. It does not expose tabs for other rooms or stations. Builder tabs may navigate sections of that builder; world/dorm/studio routing stays with the existing interaction owners. Close/back callbacks remain caller-supplied. The library never captures the mouse or changes game/session state.
+
+Actions use a 22px original icon plus visible verb/object text, at least 44px high. Keep important units, quantities, keyboard slot numbers, ownership and pending/disabled explanations visible. Supply an explicit icon key when the presentation-only `action_icon()` hint is insufficient. Do not replace meaningful controls with glyph-only buttons or use placeholder text as the only field label.
+
+Cards group a title, short detail, rarity label and icon tile. Rarity appears as both text and color; selected state uses accent border plus caller-owned selected text/state. Card actions live under `Content/Copy`, keeping callbacks and authoritative IDs outside the widget. Use `responsive_grid.gd` for collections and HFlowContainer for wrapping action rows. Avoid fixed multicolumn minimum widths for windows narrower than their content; put long forms in vertical ScrollContainers with horizontal scrolling disabled.
+
+`field()` exposes a real LineEdit at `Input`. Caller code owns its max_length, parser, allowed units and submit policy. `field_error()` adds a visible text explanation and error border; clearing it restores the original hint. This API deliberately defines no component rating or quantity schema. Purchase screens must wait for host validation/receipts and display pending state from existing services. Unlimited playtest funds do not change this rule.
+
+`dialog.gd` provides scrollable local modal chrome, Escape dismissal, focus restoration and a circular Tab traversal among current visible enabled controls. Configure and add caller fields/actions before opening. Use the caller's existing request/close logic and preserve any explicit destructive confirmation. Callers must avoid separately consuming the same Escape action while a dialog is visible. `dismissed` is a UI event and never a purchase/commit signal.
+
+Review fixture: `res://scenes/ui/design_system/review.tscn`. It demonstrates local station header, searchable rarity collection, selected and disabled actions, rating/quantity fields and error feedback. It is not wired to Main, inventory or economy. Deferred engine contracts: `res://tests/ui/design_system/test_design_system.gd`. Both remain unrun while the user playtests.
+
+Main integration patch: `main_electronics_adoption.json` and `.patch` preserve the existing `active`/`panel_generation` callback guard and add only local root theme + existing-button styling. Its SHA-256 preimage must match before application. The larger `adoption_patches.json` is a historical staging artifact: most files have since changed under their assigned owners and must not be overwritten. `source_checks.json` records those preimage states.

@@ -1,0 +1,9 @@
+LABVOLT — LIVE SOURCE STATUS, 2026-11-04
+
+Run Run.cmd in this existing project folder. It launches the bundled runtime. Older exported executables and archives do not contain the current source changes. No new export or archive is required.
+
+On this computer: open Run.cmd twice, Host Game in the first instance and Join Game at 127.0.0.1 with matching port24842 in the second. Use distinct saved character profiles. F11 or Alt+Enter toggles fullscreen.
+
+The integrated game includes the AC/DC labs, electronic construction/shop/kit/hotbar/trade systems, actual native Uno/Pico image execution, campus activities/course progress, facilities, public profile controls and teacher papers. See README.md for controls and current model limits.
+
+Current checks and evidence are recorded in docs/VALIDATION.md. Historical checkpoints describe earlier revisions and are not a statement that current native/campus modules are absent. No blanket claim that every expansion request or hardware peripheral is finished is made.

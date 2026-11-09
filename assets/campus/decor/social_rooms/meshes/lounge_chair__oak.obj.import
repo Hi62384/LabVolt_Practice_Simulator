@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://vu3o0w1aa0nx"
+path="res://.godot/imported/lounge_chair__oak.obj-a683c4de6612347033ff5d4e041a6740.mesh"
+
+[deps]
+
+files=["res://.godot/imported/lounge_chair__oak.obj-a683c4de6612347033ff5d4e041a6740.mesh"]
+
+source_file="res://assets/campus/decor/social_rooms/meshes/lounge_chair__oak.obj"
+dest_files=["res://.godot/imported/lounge_chair__oak.obj-a683c4de6612347033ff5d4e041a6740.mesh", "res://.godot/imported/lounge_chair__oak.obj-a683c4de6612347033ff5d4e041a6740.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

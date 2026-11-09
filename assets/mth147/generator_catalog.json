@@ -1,0 +1,1305 @@
+{
+  "course_id": "MTH147",
+  "lecture_only": true,
+  "weeks": 9,
+  "difficulties": [
+    "Beginner",
+    "Easy",
+    "Normal",
+    "Hard",
+    "Expert"
+  ],
+  "families": [
+    {
+      "id": "w1.scientific",
+      "week": 1,
+      "subtopic": "scientific",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "scientific",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w1.ordinary",
+      "week": 1,
+      "subtopic": "ordinary",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w1.engineering",
+      "week": 1,
+      "subtopic": "engineering",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "engineering",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w1.prefix",
+      "week": 1,
+      "subtopic": "prefix",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w1.powers",
+      "week": 1,
+      "subtopic": "powers",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w1.arithmetic",
+      "week": 1,
+      "subtopic": "arithmetic",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w1.significant",
+      "week": 1,
+      "subtopic": "significant",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "significant",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w1.formula",
+      "week": 1,
+      "subtopic": "formula",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: notation",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.like_terms",
+      "week": 2,
+      "subtopic": "like_terms",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "choice",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.simplify",
+      "week": 2,
+      "subtopic": "simplify",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.nested",
+      "week": 2,
+      "subtopic": "nested",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.monomial",
+      "week": 2,
+      "subtopic": "monomial",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.negative_powers",
+      "week": 2,
+      "subtopic": "negative_powers",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "positive_exponents",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.expand",
+      "week": 2,
+      "subtopic": "expand",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.special",
+      "week": 2,
+      "subtopic": "special",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w2.division",
+      "week": 2,
+      "subtopic": "division",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "division",
+      "generation_rules": "scripts/mth147/generator.gd: algebra",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w3.linear",
+      "week": 3,
+      "subtopic": "linear",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: equations",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w3.fractions",
+      "week": 3,
+      "subtopic": "fractions",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: equations",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w3.rational",
+      "week": 3,
+      "subtopic": "rational",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: equations",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w3.rearrange",
+      "week": 3,
+      "subtopic": "rearrange",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expression",
+      "generation_rules": "scripts/mth147/generator.gd: equations",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w3.substitute",
+      "week": 3,
+      "subtopic": "substitute",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: equations",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w3.invalid",
+      "week": 3,
+      "subtopic": "invalid",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: equations",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.system2",
+      "week": 4,
+      "subtopic": "system2",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "system",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.system3",
+      "week": 4,
+      "subtopic": "system3",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "system",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.determinant2",
+      "week": 4,
+      "subtopic": "determinant2",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expression",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.determinant3",
+      "week": 4,
+      "subtopic": "determinant3",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expression",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.cramer",
+      "week": 4,
+      "subtopic": "cramer",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "system",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.singular",
+      "week": 4,
+      "subtopic": "singular",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "system",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.symbolic",
+      "week": 4,
+      "subtopic": "symbolic",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "system",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w4.model",
+      "week": 4,
+      "subtopic": "model",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: systems",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.gcf",
+      "week": 5,
+      "subtopic": "gcf",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "factored",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.quadratic",
+      "week": 5,
+      "subtopic": "quadratic",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "factored",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.grouping",
+      "week": 5,
+      "subtopic": "grouping",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "factored",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.squares",
+      "week": 5,
+      "subtopic": "squares",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "factored",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.cubes",
+      "week": 5,
+      "subtopic": "cubes",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "factored",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.higher",
+      "week": 5,
+      "subtopic": "higher",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "factored",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.method",
+      "week": 5,
+      "subtopic": "method",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "choice",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.binomial",
+      "week": 5,
+      "subtopic": "binomial",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.term",
+      "week": 5,
+      "subtopic": "term",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.first_terms",
+      "week": 5,
+      "subtopic": "first_terms",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expanded",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.combination",
+      "week": 5,
+      "subtopic": "combination",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expression",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w5.factorial",
+      "week": 5,
+      "subtopic": "factorial",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expression",
+      "generation_rules": "scripts/mth147/generator.gd: factoring",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.reduce",
+      "week": 6,
+      "subtopic": "reduce",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "rational",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.multiply",
+      "week": 6,
+      "subtopic": "multiply",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "rational",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.divide",
+      "week": 6,
+      "subtopic": "divide",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "rational",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.add",
+      "week": 6,
+      "subtopic": "add",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "rational",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.complex",
+      "week": 6,
+      "subtopic": "complex",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "rational",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.restrictions",
+      "week": 6,
+      "subtopic": "restrictions",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "restrictions",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.equation",
+      "week": 6,
+      "subtopic": "equation",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w6.extraneous",
+      "week": 6,
+      "subtopic": "extraneous",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: rational",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.simplify",
+      "week": 7,
+      "subtopic": "simplify",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "radical",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.combine",
+      "week": 7,
+      "subtopic": "combine",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "radical",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.product",
+      "week": 7,
+      "subtopic": "product",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "radical",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.rationalize",
+      "week": 7,
+      "subtopic": "rationalize",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "radical",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.conjugate",
+      "week": 7,
+      "subtopic": "conjugate",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "radical",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.powers",
+      "week": 7,
+      "subtopic": "powers",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "radical",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.nested",
+      "week": 7,
+      "subtopic": "nested",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "radical",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.equation",
+      "week": 7,
+      "subtopic": "equation",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w7.variables",
+      "week": 7,
+      "subtopic": "variables",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expression",
+      "generation_rules": "scripts/mth147/generator.gd: radicals",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.ratio",
+      "week": 8,
+      "subtopic": "ratio",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.right",
+      "week": 8,
+      "subtopic": "right",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.reciprocal",
+      "week": 8,
+      "subtopic": "reciprocal",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.quadrant",
+      "week": 8,
+      "subtopic": "quadrant",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "choice",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.coterminal",
+      "week": 8,
+      "subtopic": "coterminal",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.sign",
+      "week": 8,
+      "subtopic": "sign",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "choice",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.equation",
+      "week": 8,
+      "subtopic": "equation",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.identity",
+      "week": 8,
+      "subtopic": "identity",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "expression",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.sine_law",
+      "week": 8,
+      "subtopic": "sine_law",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.cosine_law",
+      "week": 8,
+      "subtopic": "cosine_law",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w8.ssa",
+      "week": 8,
+      "subtopic": "ssa",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "triangle",
+      "generation_rules": "scripts/mth147/generator.gd: trigonometry",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.characteristics",
+      "week": 9,
+      "subtopic": "characteristics",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.equation",
+      "week": 9,
+      "subtopic": "equation",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "graph",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.graph",
+      "week": 9,
+      "subtopic": "graph",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "graph",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.table",
+      "week": 9,
+      "subtopic": "table",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "table",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.compare",
+      "week": 9,
+      "subtopic": "compare",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.critical",
+      "week": 9,
+      "subtopic": "critical",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.frequency",
+      "week": 9,
+      "subtopic": "frequency",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "numeric",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.transform",
+      "week": 9,
+      "subtopic": "transform",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "structured",
+      "generation_rules": "scripts/mth147/generator.gd: sinusoids",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Instance-derived mathematical steps in worked.gd plus focused curriculum rules."
+    },
+    {
+      "id": "w9.zeros",
+      "week": 9,
+      "subtopic": "zeros",
+      "difficulties": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "answer_form": "solutions",
+      "generation_rules": "generator.gd sinusoids: complete phases of trig=-offset/amplitude, then map to the requested time interval; none/tangent/crossing cases",
+      "independent_validator": "validator.gd and tests/mth147/independent_oracle.py",
+      "explanation": "Original generated wave, reciprocal-time units, complete inverse-trig branches and time conversion."
+    }
+  ],
+  "common_limits": {
+    "source_characters": 512,
+    "AST_nodes": 192,
+    "AST_depth": 24,
+    "tokens": 256,
+    "polynomial_terms": 128,
+    "polynomial_degree": 24,
+    "integer_power_abs": 12,
+    "exact_integer_component_abs": 1000000000000,
+    "root_index": [
+      2,
+      6
+    ],
+    "matrix_dimension": [
+      2,
+      3
+    ],
+    "questions": [
+      1,
+      24
+    ],
+    "graph_points": 256
+  },
+  "generation_policy": "Seeded local RNG, construct equations/factors/functions/geometry, validate before issue, bounded deterministic reroll. Scalar numerical keys use round-trip-safe scientific text. Never a copied exercise bank.",
+  "difficulty_policy": "Signed/rational coefficient ranges, exponent ranges, term/operation counts, degrees, nested structure, interval span and geometric transformations increase within covered subjects. All families are available explicitly at all five difficulties.",
+  "grading_policy": "Exact rational-function/radical/identity proof where supported; explicit forms and original domains; complete solution sets; weighted structured fields. No untrusted source execution.",
+  "practice_policy": "Provider.practice selects generator ids across units, uses the same validated engine and declares practice=true, official_eligible=false. It never pays rewards or writes profiles."
+}

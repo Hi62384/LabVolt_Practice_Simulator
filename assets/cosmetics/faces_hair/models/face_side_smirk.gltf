@@ -1,0 +1,568 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Side-Eye Smirk",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Side-Eye Smirk",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 7,
+            "TEXCOORD_0": 8
+          },
+          "material": 2,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 9,
+            "NORMAL": 10,
+            "TEXCOORD_0": 11
+          },
+          "material": 3,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 12,
+            "NORMAL": 13,
+            "TEXCOORD_0": 14
+          },
+          "material": 4,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 15,
+            "NORMAL": 16,
+            "TEXCOORD_0": 17
+          },
+          "material": 5,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "eye_white",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.42
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "iris",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.34
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "pupil",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 6
+        },
+        "metallicRoughnessTexture": {
+          "index": 7
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.4
+      },
+      "normalTexture": {
+        "index": 8,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "brow",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 9
+        },
+        "metallicRoughnessTexture": {
+          "index": 10
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.78
+      },
+      "normalTexture": {
+        "index": 11,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "skin_detail",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 12
+        },
+        "metallicRoughnessTexture": {
+          "index": 13
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.67
+      },
+      "normalTexture": {
+        "index": 14,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "lip",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 15
+        },
+        "metallicRoughnessTexture": {
+          "index": 16
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.55
+      },
+      "normalTexture": {
+        "index": 17,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/eye_white_albedo.png"
+    },
+    {
+      "uri": "../materials/eye_white_orm.png"
+    },
+    {
+      "uri": "../materials/eye_white_normal.png"
+    },
+    {
+      "uri": "../materials/iris_albedo.png"
+    },
+    {
+      "uri": "../materials/iris_orm.png"
+    },
+    {
+      "uri": "../materials/iris_normal.png"
+    },
+    {
+      "uri": "../materials/pupil_albedo.png"
+    },
+    {
+      "uri": "../materials/pupil_orm.png"
+    },
+    {
+      "uri": "../materials/pupil_normal.png"
+    },
+    {
+      "uri": "../materials/brow_albedo.png"
+    },
+    {
+      "uri": "../materials/brow_orm.png"
+    },
+    {
+      "uri": "../materials/brow_normal.png"
+    },
+    {
+      "uri": "../materials/skin_detail_albedo.png"
+    },
+    {
+      "uri": "../materials/skin_detail_orm.png"
+    },
+    {
+      "uri": "../materials/skin_detail_normal.png"
+    },
+    {
+      "uri": "../materials/lip_albedo.png"
+    },
+    {
+      "uri": "../materials/lip_orm.png"
+    },
+    {
+      "uri": "../materials/lip_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    },
+    {
+      "source": 6
+    },
+    {
+      "source": 7
+    },
+    {
+      "source": 8
+    },
+    {
+      "source": 9
+    },
+    {
+      "source": 10
+    },
+    {
+      "source": 11
+    },
+    {
+      "source": 12
+    },
+    {
+      "source": 13
+    },
+    {
+      "source": 14
+    },
+    {
+      "source": 15
+    },
+    {
+      "source": 16
+    },
+    {
+      "source": 17
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "face_side_smirk.bin",
+      "byteLength": 360960
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 41472
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 41472,
+      "byteLength": 41472
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 82944,
+      "byteLength": 27648
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 110592,
+      "byteLength": 20736
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 131328,
+      "byteLength": 20736
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 152064,
+      "byteLength": 13824
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 165888,
+      "byteLength": 20736
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 186624,
+      "byteLength": 20736
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 207360,
+      "byteLength": 13824
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 221184,
+      "byteLength": 29952
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 251136,
+      "byteLength": 29952
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 281088,
+      "byteLength": 19968
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 301056,
+      "byteLength": 10368
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 311424,
+      "byteLength": 10368
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 321792,
+      "byteLength": 6912
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 328704,
+      "byteLength": 12096
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 340800,
+      "byteLength": 12096
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 352896,
+      "byteLength": 8064
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 3456,
+      "type": "VEC3",
+      "min": [
+        -0.131,
+        -0.0039948161399664915,
+        0.13139187445924805
+      ],
+      "max": [
+        0.131,
+        0.05999481613996649,
+        0.17519913791439334
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 3456,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 3456,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 1728,
+      "type": "VEC3",
+      "min": [
+        -0.0974,
+        0.00560362870202346,
+        0.14543096570821762
+      ],
+      "max": [
+        0.1254,
+        0.05039637129797654,
+        0.17439591609781455
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 1728,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 1728,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 1728,
+      "type": "VEC3",
+      "min": [
+        -0.0882,
+        0.01360233273701508,
+        0.15408086768333493
+      ],
+      "max": [
+        0.1162,
+        0.042397667262984925,
+        0.175357107521169
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 1728,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 1728,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 2496,
+      "type": "VEC3",
+      "min": [
+        -0.13244764602494505,
+        0.04731115017914897,
+        0.12406074075813994
+      ],
+      "max": [
+        0.13244764602494505,
+        0.13494702727392585,
+        0.1671300087854645
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 2496,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5126,
+      "count": 2496,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 864,
+      "type": "VEC3",
+      "min": [
+        -0.028,
+        -0.06299595010934882,
+        0.14364004145936746
+      ],
+      "max": [
+        0.028,
+        -0.013004049890651178,
+        0.18501164463570555
+      ]
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 864,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 14,
+      "componentType": 5126,
+      "count": 864,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 15,
+      "componentType": 5126,
+      "count": 1008,
+      "type": "VEC3",
+      "min": [
+        -0.06345691206330167,
+        -0.1319189972222248,
+        0.13302478186212494
+      ],
+      "max": [
+        0.06553563822973985,
+        -0.08601240147838934,
+        0.15622873042082622
+      ]
+    },
+    {
+      "bufferView": 16,
+      "componentType": 5126,
+      "count": 1008,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 17,
+      "componentType": 5126,
+      "count": 1008,
+      "type": "VEC2"
+    }
+  ]
+}

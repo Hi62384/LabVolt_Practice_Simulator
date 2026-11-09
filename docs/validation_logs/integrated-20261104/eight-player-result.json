@@ -1,0 +1,42 @@
+[
+  {
+    "lane": -1,
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "lane": 0,
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "lane": 1,
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "lane": 2,
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "lane": 3,
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "lane": 4,
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "lane": 5,
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "lane": 6,
+    "passed": true,
+    "exit": 0
+  }
+]

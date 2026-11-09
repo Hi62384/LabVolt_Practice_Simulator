@@ -1,0 +1,8 @@
+{
+  "state": "staged_only",
+  "path": "scripts/electronics_ui.gd",
+  "sha256": "63442005be3d6b2a47a83dff3b944c03d6182568e6cb583b9689999be6b0bf52",
+  "preimage": "\tvar tabs := HBoxContainer.new();column.add_child(tabs)\n\tif page!=\"shop\":\n\t\tfor entry in [[\"inventory\",\"Hotbar\"],[\"shop\",\"Components\"],[\"kits\",\"My kits\"],[\"board\",\"Breadboard\"],[\"notes\",\"Notebook\"],[\"ics\",\"IC / PCB builder\"],[\"code\",\"Code\"],[\"trade\",\"Trade\"]]:button(tabs,entry[1],func():open(entry[0],bench))\n",
+  "postimage": "",
+  "new_sha256_normalized": "2ae602395705705a0e32c26c0226befe8539bca6da7a98010dd6fc1abfbd62f0"
+}

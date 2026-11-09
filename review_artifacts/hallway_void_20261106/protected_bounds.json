@@ -1,0 +1,20 @@
+{
+  "purpose": "Shared placement contract: decor and lighting must not obstruct these walkable circulation bounds or room door clearances.",
+  "coordinate_system": "Godot metres, Y up",
+  "walkable_bounds": {
+    "ground_corridor": { "min": [10.0, -0.25, -14.0], "max": [16.0, 0.75, 68.0] },
+    "upper_corridor": { "min": [10.0, 4.75, -4.0], "max": [16.0, 5.75, 68.0] },
+    "stairs": { "min": [10.0, -0.25, 50.0], "max": [13.0, 5.25, 62.0] },
+    "elevator_entrance": { "min": [15.75, -0.25, 56.0], "max": [24.0, 5.25, 60.0] }
+  },
+  "door_clearance_rule": "For each room_registry.json door, preserve a capsule path across X with radius >= 0.27 m and the declared door_width along Z.",
+  "closed_edge_spans": [
+    { "floor": 0, "z": [10.0, 13.0] },
+    { "floor": 0, "z": [25.0, 27.0] },
+    { "floor": 0, "z": [39.0, 41.0] },
+    { "floor": 0, "z": [53.0, 54.0] },
+    { "floor": 1, "z": [-4.0, -3.0] },
+    { "floor": 1, "z": [9.0, 13.0] },
+    { "floor": 1, "z": [25.0, 27.0] }
+  ]
+}

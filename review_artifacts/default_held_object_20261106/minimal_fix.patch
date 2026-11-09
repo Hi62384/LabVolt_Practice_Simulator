@@ -1,0 +1,11 @@
+diff --git a/scripts/toon_character.gd b/scripts/toon_character.gd
+--- a/scripts/toon_character.gd
++++ b/scripts/toon_character.gd
+@@ -146,7 +146,6 @@ static func build(raw: Dictionary) -> Node3D:
+ 		else:ellipsoid(arm,Vector3(0,-.40,0),Vector3(.076,.035,.079),accent,"Cuff")
+ 		ellipsoid(arm,Vector3(0,-.48,.012),Vector3(.064,.085,.046),skin,"Hand")
+ 		ellipsoid(arm,Vector3(-side*.05,-.455,.028),Vector3(.027,.045,.028),skin,"Thumb")
+-		for f in 3:link(arm,Vector3(-.032+f*.026,-.50,.052),Vector3(-.032+f*.026,-.535,.045),.003,material(Color(c.skin).darkened(.18).to_html()))
+ 	# Clothing details: collars, ribbing, closures and pockets.
+ 	if c.outfit=="Hoodie":
+ 		_torso_ellipsoid(body,Vector3(0,1.27,-.085),Vector3(.18,.12,.12),accent,"Hood",c)

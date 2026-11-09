@@ -1,0 +1,30 @@
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@ -33,6 +33,7 @@
+ var paper_ui: CanvasLayer
+ var characters: Node
+ var front: CanvasLayer
++var menu_campus: Node
+ var interaction_presentation: Node
+ var avatar_data := {}
+ var cosmetic_appearances := {}
+@@ -226,6 +227,11 @@
+ 	lab_challenges=preload("res://scripts/lab_challenges/bridge.gd").new()
+ 	lab_challenges.name="LabChallenges"
+ 	add_child(lab_challenges);lab_challenges.build(self)
++	menu_campus = preload("res://scripts/campus/presentation/menu_flythrough/campus_presentation.gd").new()
++	menu_campus.name = "MenuCampusPresentation"
++	add_child(menu_campus)
++	menu_campus.install(self)
++	menu_campus.show_menu()
+ 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+ 
+ ## Call once after campus registry/world composition; graphics_settings.attach accepts this adapter.
+@@ -346,6 +352,7 @@
+ 	motor_label = _text3(self,"APPROX. MOTOR MODEL",terminal_bodies.M1.get_parent().to_global(Vector3(0,.32,.2)),.021,TEXT_LIGHT)
+ 
+ func capture() -> void:
++	if is_instance_valid(menu_campus):menu_campus.enter_game()
+ 	if is_instance_valid(front):front.entered()
+ 	ui.menu.hide()
+ 	ui.sheet.hide()

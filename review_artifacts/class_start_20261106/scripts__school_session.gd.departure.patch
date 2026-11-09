@@ -1,0 +1,269 @@
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ -25,6 +25,7 @@
+ var archive := {}
+ var last_requests := {}
+ const GradePolicy = preload("res://scripts/campus/academics/grade_policy.gd")
++const PendingAssessment = preload("res://review_artifacts/class_start_20261106/pending_assessment_candidate.gd")
+ const CourseProgression = preload("res://scripts/campus/academics/course_progression_adapter.gd")
+ const Attendance = preload("res://scripts/campus/academics/attendance_ledger.gd")
+ const ClassStartClock = preload("res://scripts/campus/academics/class_start/class_start_clock.gd")
+@@ -47,6 +48,7 @@
+ var category_weights := {"lecture":1.0,"lab":1.0}
+ var recovery_clock := 0.0
+ var suspended := false
++var host_departure_in_progress := false
+ var random := RandomNumberGenerator.new()
+ func build(owner_game: Node) -> void:
+ 	game=owner_game
+@@ -60,7 +62,10 @@
+ 	game.session.leaving.connect(_session_leaving)
+ 	game.characters.changed.connect(_identity_changed)
+ 	_identity_changed()
++	for result in PendingAssessment.abandoned(archive,local_identity):
++		if PendingAssessment.settle(archive,result,_persist_archive)==OK:_receive_grade(result)
+ func _reset_session() -> void:
++	host_departure_in_progress=false
+ 	class_start.cancel()
+ 	sent_identity=false
+ 	papers.clear()
+@@ -121,11 +126,9 @@
+ 	for peer in identities.keys():
+ 		if not game.session.roster.has(peer):
+ 			var token: String=identities[peer]
++			if not host_departure_in_progress:_fail_departing(token,peer)
+ 			for id in papers.keys():
+-				if papers[id].owner==peer:
+-					if papers[id].class_round==round_id and class_students.has(token):
+-						class_students[token].saved=papers[id].duplicate(true)
+-					papers.erase(id)
++				if papers[id].owner==peer:papers.erase(id)
+ 			identities.erase(peer)
+ 	broadcast()
+ @rpc("any_peer","call_remote","reliable",4)
+@@ -136,6 +139,11 @@
+ 	if identities.values().has(token):
+ 		token=Crypto.new().generate_random_bytes(24).hex_encode()
+ 		_notice(peer,"That profile is already in this session. This instance will use a separate guest grade record.")
++	if mode=="Class" and phase in ["travel","lesson"] and not class_students.has(token):
++		var enrollment: Array[Dictionary]=[_enrollment_record(token,assessment_id,project)]
++		if PendingAssessment.enroll(archive,enrollment,_persist_archive)!=OK:
++			_notice(peer,"Class enrollment could not be saved. Ask the host to retry admission.")
++			return
+ 	identities[peer]=token
+ 	if peer==1:_identity_accepted(token,archive.get(token,{}))
+ 	elif game.session.online:_identity_accepted.rpc_id(peer,token,archive.get(token,{}))
+@@ -143,14 +151,11 @@
+ 		if class_students.has(token):
+ 			if phase in ["travel","lesson"]:class_start.arrive(token,Time.get_ticks_usec())
+ 			if phase=="lesson":_record_attendance(peer)
+-			var record: Dictionary=class_students[token]
+-			if record.has("saved"):
+-				var paper: Dictionary=record.saved.duplicate(true)
+-				paper.owner=peer
+-				paper.held=false
+-				paper.position=_desk(peer)
+-				papers[paper.id]=paper
+-			elif phase=="assignment" and not record.done:_give(peer,project,false,true)
++			if bool(class_students[token].get("done",false)):
++				_notice(peer,"Your previous class assignment is closed.")
++			elif phase=="assignment":
++				# Rejoining a departed class never restores or reissues its assessment.
++				_fail_departing(token,peer)
+ 		elif phase in ["travel","lesson"]:
+ 			class_students[token]={"done":false}
+ 			class_start.arrive(token,Time.get_ticks_usec())
+@@ -169,7 +174,8 @@
+ @rpc("authority","call_remote","reliable",4)
+ func _identity_accepted(token: String,records: Dictionary) -> void:
+ 	local_identity=token
+-	for id in records:_receive_grade(records[id])
++	for id in records:
++		if not records[id].has("pending_assessment_version"):_receive_grade(records[id])
+ func _desk(peer: int) -> Vector3:
+ 	if not activity.is_empty():
+ 		var room: Dictionary=activity.get("room",{})
+@@ -200,6 +206,11 @@
+ 	if class_copy:
+ 		assignment=_individual_project(str(identities.get(peer,"")))
+ 		if assignment.is_empty():_notice(peer,"Your assessment could not be prepared. Ask the host to restart the activity.");return 0
++	if class_copy:
++		var token := str(identities.get(peer,""))
++		var obligation := {"id":GradePolicy.attempt_id(assessment_id,token),"assessment_id":assessment_id,"profile":token,"title":str(assignment.get("title","Class assignment")),"course_id":assignment.get("course_id","ELM253"),"kind":assignment.get("kind","lecture"),"week":assignment.get("week",1),"difficulty":difficulty,"lesson":false,"time":Time.get_datetime_string_from_system()}
++		obligation.merge(CourseProgression.record_fields(assignment),true)
++		if PendingAssessment.prepare(archive,obligation,_persist_archive)!=OK:return 0
+ 	var count := 0
+ 	for paper in papers.values():
+ 		if paper.owner==peer:count+=1
+@@ -518,14 +529,15 @@
+ 	if not _official(paper):return
+ 	var token: String=paper.identity
+ 	var grade_id := GradePolicy.attempt_id(str(paper.get("assessment_id",assessment_id)),token)
+-	if archive.get(token,{}).has(grade_id):
++	if archive.get(token,{}).has(grade_id) and not archive[token][grade_id].has("pending_assessment_version"):
+ 		if class_students.has(token):class_students[token].done=true;class_students[token].saved=paper.duplicate(true)
+ 		return
+ 	var record := {"id":grade_id,"profile":token,"title":paper.project.title,"score":result.score,"difficulty":paper.project.get("difficulty",0),"lesson":false,"course_id":paper.project.get("course_id","ELM253"),"kind":paper.project.get("kind","lab"),"week":paper.project.get("week",1),"assessment_id":paper.get("assessment_id",assessment_id),"time":Time.get_datetime_string_from_system(),"reason":result.get("reason","Submitted")}
+ 	record.merge(CourseProgression.record_fields(paper.project),true)
+ 	if not archive.has(token):archive[token]={}
+-	archive[token][grade_id]=record
+-	_save("user://teacher_records.json",archive)
++	if PendingAssessment.settle(archive,record,_persist_archive)!=OK:
++		paper.mark={}
++		return
+ 	var owner := int(paper.owner)
+ 	if owner==1:_receive_grade(record)
+ 	elif game.session.online and game.session.roster.has(owner):_receive_grade.rpc_id(owner,record)
+@@ -589,6 +601,22 @@
+ 		file.store_string(JSON.stringify(data))
+ 		file.close()
+ 		DirAccess.rename_absolute(ProjectSettings.globalize_path(path+".tmp"),ProjectSettings.globalize_path(path))
++func _enrollment_record(token: String, session_id: String, assignment: Dictionary) -> Dictionary:
++	var record := {"id":GradePolicy.attempt_id(session_id,token),"assessment_id":session_id,"profile":token,"title":str(assignment.get("title","Class assignment")),"course_id":assignment.get("course_id","ELM253"),"kind":assignment.get("kind","lecture"),"week":assignment.get("week",1),"difficulty":assignment.get("difficulty",difficulty),"lesson":false,"time":Time.get_datetime_string_from_system()}
++	record.merge(CourseProgression.record_fields(assignment),true)
++	return record
++
++func _persist_archive(value: Dictionary) -> Error:
++	var path := "user://teacher_records.json"
++	var file := FileAccess.open(path+".tmp",FileAccess.WRITE)
++	if file==null:return FileAccess.get_open_error()
++	file.store_string(JSON.stringify(value))
++	file.flush()
++	var error := file.get_error()
++	file.close()
++	if error!=OK:return error
++	return DirAccess.rename_absolute(ProjectSettings.globalize_path(path+".tmp"),ProjectSettings.globalize_path(path))
++
+ func _notice(peer: int,message: String) -> void:
+ 	if peer==multiplayer.get_unique_id():game.ui.log_message(message)
+ 	elif game.session.online and game.session.roster.has(peer):game.session._notice.rpc_id(peer,message)
+@@ -798,13 +826,22 @@
+ 	if selected=="Course" and kind=="lab" and not assignment.get("practical",{}).is_empty() and equipment_adapter!=null and equipment_adapter.has_method("supports"):
+ 		var capability: Dictionary=equipment_adapter.call("supports",assignment)
+ 		if not capability.get("ok",false):return capability
++	var next_assessment_id := Crypto.new().generate_random_bytes(16).hex_encode()
++	if selected=="Course":
++		var enrollment: Array[Dictionary]=[]
++		var profiles: Array=identities.values().duplicate()
++		if local_identity not in profiles:profiles.append(local_identity)
++		for profile in profiles:
++			if str(profile).is_empty():return {"ok":false,"error":"A validated student identity is required."}
++			enrollment.append(_enrollment_record(str(profile),next_assessment_id,assignment))
++		if PendingAssessment.enroll(archive,enrollment,_persist_archive)!=OK:return {"ok":false,"error":"Class enrollment could not be saved. Class has not started."}
+ 	_clear_earthing_demo()
+ 	class_start.cancel()
+ 	activity_epoch+=1
+ 	papers.clear()
+ 	class_students.clear()
+ 	round_id+=1
+-	assessment_id=Crypto.new().generate_random_bytes(16).hex_encode()
++	assessment_id=next_assessment_id
+ 	assessment_deadline=0
+ 	teaching_seconds=clampf(lesson_time,300,600)
+ 	assessment_seconds=clampf(test_time,1,7200)
+@@ -942,71 +979,31 @@
+ 	_mark(missing,false,"Intentional abandonment of active marked assessment.")
+ 	broadcast();checkpoint()
+ 
++func _fail_departing(token: String, peer: int) -> void:
++	if not multiplayer.is_server() or mode!="Class" or phase not in ["travel","lesson","assignment"]:return
++	if token.is_empty() or not class_students.has(token) or bool(class_students[token].get("done",false)):return
++	var id := GradePolicy.attempt_id(assessment_id,token)
++	if archive.get(token,{}).has(id) and not archive[token][id].has("pending_assessment_version"):
++		class_students[token].done=true
++		return
++	var assigned: Dictionary=_individual_project(token)
++	if assigned.is_empty():assigned=project
++	if assigned.is_empty():return
++	var record := {"id":id,"profile":token,"title":str(assigned.get("title","Class assignment")),"score":0.0,"difficulty":assigned.get("difficulty",difficulty),"lesson":false,"course_id":assigned.get("course_id",activity.get("course_id","ELM253")),"kind":assigned.get("kind",activity.get("kind","lecture")),"week":assigned.get("week",activity.get("week",1)),"assessment_id":assessment_id,"time":Time.get_datetime_string_from_system(),"reason":"Left class before completing the assigned assessment."}
++	record.merge(CourseProgression.record_fields(assigned),true)
++	if not archive.has(token):archive[token]={}
++	if PendingAssessment.settle(archive,record,_persist_archive)!=OK:return
++	class_students[token].done=true
++	class_students[token].erase("saved")
++	if peer==1:_receive_grade(record)
++	elif game.session.online and game.session.roster.has(peer):_receive_grade.rpc_id(peer,record)
++
+ func checkpoint() -> void:
+-	if not multiplayer.is_server() or activity.is_empty() or mode!="Class":return
+-	var data := {"schema":1,"host_identity":local_identity,"activity":activity,"project":project,"presentation":presentation,"papers":papers,"students":class_students,"identities":identities,"allocation":allocation,"phase":phase,"remaining":remaining,"round_id":round_id,"next_id":next_id,"assessment_id":assessment_id,"deadline":assessment_deadline,"saved_at":_academic_now(),"class_start_remaining":class_start.remaining(Time.get_ticks_usec()) if phase=="travel" else 0.0,"class_start_wall_cap":_academic_now()+class_start.remaining(Time.get_ticks_usec()) if phase=="travel" else 0.0,"class_start_arrivals":class_start.arrivals.duplicate(true)}
+-	data.activity_epoch=activity_epoch
+-	if equipment_adapter!=null and equipment_adapter.has_method("recovery_state"):data.equipment=equipment_adapter.call("recovery_state")
+-	var path := "user://campus_academic_recovery.dat"
+-	var file := FileAccess.open(path+".tmp",FileAccess.WRITE)
+-	if file==null:return
+-	file.store_var(data,false)
+-	file.close()
+-	DirAccess.rename_absolute(ProjectSettings.globalize_path(path+".tmp"),ProjectSettings.globalize_path(path))
+-
+-func _read_academic_recovery() -> Dictionary:
+-	return preload("res://scripts/campus_recovery_journal.gd").read(local_identity)
++	# Class sessions are not resumable. Official marks are stored separately.
++	return
+ 
+ func recover_activity() -> Dictionary:
+-	if not multiplayer.is_server() or formal_active():return {"ok":false,"error":"Recovery requires an idle trusted host."}
+-	var loaded: Dictionary=_read_academic_recovery()
+-	if not loaded.ok:return loaded
+-	var data: Dictionary=loaded.data
+-	activity=data.activity;project=data.project;presentation=data.presentation;class_students=data.students;allocation=data.allocation
+-	if equipment_adapter!=null and equipment_adapter.has_method("restore_recovery"):equipment_adapter.call("restore_recovery",data.get("equipment",{}))
+-	phase=str(data.phase);round_id=int(data.round_id);next_id=int(data.next_id);assessment_id=str(data.assessment_id);assessment_deadline=float(data.deadline)
+-	activity_epoch=maxi(activity_epoch+1,int(data.get("activity_epoch",0))+1)
+-	teaching_seconds=float(activity.teaching_seconds);assessment_seconds=float(activity.assessment_seconds)
+-	remaining=maxf(0,float(data.remaining))
+-	class_start.cancel()
+-	if phase=="travel":
+-		var saved_wait := float(data.get("class_start_remaining",0.0))
+-		var wall_cap := float(data.get("class_start_wall_cap",0.0))
+-		remaining=minf(saved_wait,maxf(0.0,wall_cap-_academic_now()))
+-		class_start.restore(assessment_id,remaining,Time.get_ticks_usec(),data.get("class_start_arrivals",{}))
+-	if phase=="lesson":
+-		class_start.restore(assessment_id,0.0,Time.get_ticks_usec(),data.get("class_start_arrivals",{}))
+-		class_start.begin_if_due(Time.get_ticks_usec())
+-	# Neither clock rollback nor restart may increase the saved time budget.
+-	if phase=="assignment":remaining=minf(remaining,maxf(0,assessment_deadline-_academic_now()))
+-	# Journal peer IDs cannot authorize a newly connected peer. Bind restored work by identity.
+-	papers={}
+-	for paper in data.papers.values():
+-		var token := str(paper.get("identity",""))
+-		if class_students.has(token):class_students[token].saved=paper
+-	# When the authority was unavailable through the deadline, unfinished students
+-	# cannot submit. Preserve their work as feedback and void the unresolved attempt;
+-	# never turn host downtime into student zeros or invent a new deadline.
+-	if phase=="assignment" and remaining<=0:
+-		for token in class_students:
+-			if class_students[token].done:continue
+-			class_students[token].done=true
+-			class_students[token].void_reason="Host unavailable at assessment deadline. No official penalty."
+-			if class_students[token].has("saved"):
+-				var saved: Dictionary=class_students[token].saved
+-				saved.lesson=true;saved.class_round=0
+-				saved.mark=course_bridge.grade(saved.project,saved.answers)
+-				saved.mark.reason=class_students[token].void_reason
+-		phase="complete"
+-	mode="Class";suspended=false
+-	teacher_position=room_bridge.point(activity.room.get("teacher_position",Vector3.ZERO))
+-	var known := identities.duplicate()
+-	if game.session.roster.has(1):known[1]=local_identity
+-	identities.clear()
+-	for peer in known:_identify(int(peer),str(known[peer]))
+-	advance(0)
+-	broadcast()
+-	return {"ok":true,"error":"","deadline":assessment_deadline}
++	return {"ok":false,"error":"Saved class sessions cannot be resumed."}
+ 
+ func suspend_for_host_loss() -> void:
+ 	# No peer is promoted to authoritative host. Client copy remains read-only evidence.
+@@ -1015,8 +1012,9 @@
+ 
+ func prepare_host_exit(intentional: bool) -> void:
+ 	if multiplayer.is_server():
+-		if intentional:abandon(1)
+-		checkpoint()
++		if intentional:
++			host_departure_in_progress=true
++			_fail_departing(str(identities.get(1,local_identity)),1)
+ 	else:suspend_for_host_loss()
+ 
+ func _session_leaving() -> void:

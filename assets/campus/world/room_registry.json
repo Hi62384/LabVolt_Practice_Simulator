@@ -1,0 +1,871 @@
+{
+  "schema": 1,
+  "building": "MAIN",
+  "coordinates": "Godot metres, Y up; floor 0=ground, floor 1=upper; room number printed verbatim",
+  "entrance": [
+    13,
+    0,
+    -18
+  ],
+  "lobby": [
+    13,
+    0,
+    -9
+  ],
+  "movement_bounds_min": [
+    -10,
+    -1,
+    -25
+  ],
+  "movement_bounds_max": [
+    36,
+    10,
+    68
+  ],
+  "corridor": {
+    "x_min": 10,
+    "x_max": 16,
+    "z_min": -4,
+    "z_max": 68
+  },
+  "stairs": {
+    "x_min": 10,
+    "x_max": 13,
+    "z_min": 50,
+    "z_max": 62,
+    "rise": 5
+  },
+  "rooms": [
+    {
+      "id": "clothing_store",
+      "number": "M207",
+      "title": "Harbor Outfitters",
+      "kind": "clothing_store",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "clothing_store",
+      "center": [
+        2,
+        5,
+        49
+      ],
+      "size": [
+        16,
+        4,
+        18
+      ],
+      "door": [
+        10,
+        5,
+        49
+      ],
+      "door_width": 4.0,
+      "approach": [
+        13,
+        5,
+        49
+      ],
+      "anchor": [
+        2,
+        5,
+        49
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        -6.0,
+        5,
+        40.0
+      ],
+      "bounds_max": [
+        10.0,
+        9,
+        58.0
+      ]
+    },
+    {
+      "id": "campus_store",
+      "number": "M208",
+      "title": "Campus Store",
+      "kind": "campus_store",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "campus_store",
+      "center": [
+        26,
+        5,
+        47
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        16,
+        5,
+        47
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        5,
+        47
+      ],
+      "anchor": [
+        26,
+        5,
+        47
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        16.0,
+        5,
+        41.0
+      ],
+      "bounds_max": [
+        36.0,
+        9,
+        53.0
+      ]
+    },
+    {
+      "id": "ac_lab",
+      "number": "M101",
+      "title": "AC Electrical Laboratory",
+      "kind": "ac_lab",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "ac_lab",
+      "center": [
+        0,
+        0,
+        3
+      ],
+      "size": [
+        20,
+        4,
+        14
+      ],
+      "door": [
+        10,
+        0,
+        3
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        3
+      ],
+      "anchor": [
+        0,
+        0,
+        3
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        -10.0,
+        0,
+        -4.0
+      ],
+      "bounds_max": [
+        10.0,
+        4,
+        10.0
+      ]
+    },
+    {
+      "id": "shop",
+      "number": "M102",
+      "title": "Electronics Workshop",
+      "kind": "shop",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "shop",
+      "center": [
+        26,
+        0,
+        3
+      ],
+      "size": [
+        20,
+        4,
+        14
+      ],
+      "door": [
+        16,
+        0,
+        3
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        3
+      ],
+      "anchor": [
+        26,
+        0,
+        3
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        16.0,
+        0,
+        -4.0
+      ],
+      "bounds_max": [
+        36.0,
+        4,
+        10.0
+      ]
+    },
+    {
+      "id": "dc_lab",
+      "number": "M103",
+      "title": "DC Electrical Laboratory",
+      "kind": "dc_lab",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "dc_lab",
+      "center": [
+        0,
+        0,
+        19
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        10,
+        0,
+        19
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        19
+      ],
+      "anchor": [
+        0,
+        0,
+        19
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        -10.0,
+        0,
+        13.0
+      ],
+      "bounds_max": [
+        10.0,
+        4,
+        25.0
+      ]
+    },
+    {
+      "id": "cafeteria",
+      "number": "M104",
+      "title": "Cafeteria",
+      "kind": "cafeteria",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "cafeteria",
+      "center": [
+        26,
+        0,
+        19
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        16,
+        0,
+        19
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        19
+      ],
+      "anchor": [
+        26,
+        0,
+        19
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        16.0,
+        0,
+        13.0
+      ],
+      "bounds_max": [
+        36.0,
+        4,
+        25.0
+      ]
+    },
+    {
+      "id": "tim_hortons",
+      "number": "M106",
+      "title": "Tim Hortons",
+      "kind": "restaurant",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "tim_hortons",
+      "center": [
+        26,
+        0,
+        33
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        16,
+        0,
+        33
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        33
+      ],
+      "anchor": [
+        26,
+        0,
+        33
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        16.0,
+        0,
+        27.0
+      ],
+      "bounds_max": [
+        36.0,
+        4,
+        39.0
+      ]
+    },
+    {
+      "id": "gym",
+      "number": "M105",
+      "title": "Gym",
+      "kind": "gym",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "gym",
+      "center": [
+        0,
+        0,
+        33
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        10,
+        0,
+        33
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        33
+      ],
+      "anchor": [
+        0,
+        0,
+        33
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        -10.0,
+        0,
+        27.0
+      ],
+      "bounds_max": [
+        10.0,
+        4,
+        39.0
+      ]
+    },
+    {
+      "id": "subway",
+      "number": "M108",
+      "title": "Subway",
+      "kind": "restaurant",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "subway",
+      "center": [
+        26,
+        0,
+        47
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        16,
+        0,
+        47
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        47
+      ],
+      "anchor": [
+        26,
+        0,
+        47
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        16.0,
+        0,
+        41.0
+      ],
+      "bounds_max": [
+        36.0,
+        4,
+        53.0
+      ]
+    },
+    {
+      "id": "washroom_1",
+      "number": "M107",
+      "title": "Washrooms \u00b7 Floor 1",
+      "kind": "washroom",
+      "building": "MAIN",
+      "floor": 0,
+      "zone": "washroom_1",
+      "center": [
+        0,
+        0,
+        47
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        10,
+        0,
+        47
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        0,
+        47
+      ],
+      "anchor": [
+        0,
+        0,
+        47
+      ],
+      "neighbors": [
+        "hall_f0"
+      ],
+      "bounds_min": [
+        -10.0,
+        0,
+        41.0
+      ],
+      "bounds_max": [
+        10.0,
+        4,
+        53.0
+      ]
+    },
+    {
+      "id": "elm253_lecture",
+      "number": "M201",
+      "title": "Lecture Classroom",
+      "kind": "lecture",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "elm253_lecture",
+      "center": [
+        0,
+        5,
+        3
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        10,
+        5,
+        3
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        5,
+        3
+      ],
+      "anchor": [
+        0,
+        5,
+        3
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        -10.0,
+        5,
+        -3.0
+      ],
+      "bounds_max": [
+        10.0,
+        9,
+        9.0
+      ]
+    },
+    {
+      "id": "ety155_lecture",
+      "number": "M202",
+      "title": "Lecture Classroom",
+      "kind": "lecture",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "ety155_lecture",
+      "center": [
+        26,
+        5,
+        3
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        16,
+        5,
+        3
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        5,
+        3
+      ],
+      "anchor": [
+        26,
+        5,
+        3
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        16.0,
+        5,
+        -3.0
+      ],
+      "bounds_max": [
+        36.0,
+        9,
+        9.0
+      ]
+    },
+    {
+      "id": "computer",
+      "number": "M203",
+      "title": "Computer Classroom",
+      "kind": "computer",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "computer",
+      "center": [
+        0,
+        5,
+        19
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        10,
+        5,
+        19
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        5,
+        19
+      ],
+      "anchor": [
+        0,
+        5,
+        19
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        -10.0,
+        5,
+        13.0
+      ],
+      "bounds_max": [
+        10.0,
+        9,
+        25.0
+      ]
+    },
+    {
+      "id": "library",
+      "number": "M204",
+      "title": "Library / Study Lounge",
+      "kind": "library",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "library",
+      "center": [
+        26,
+        5,
+        19
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        16,
+        5,
+        19
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        5,
+        19
+      ],
+      "anchor": [
+        26,
+        5,
+        19
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        16.0,
+        5,
+        13.0
+      ],
+      "bounds_max": [
+        36.0,
+        9,
+        25.0
+      ]
+    },
+    {
+      "id": "study",
+      "number": "M205",
+      "title": "Quiet Study",
+      "kind": "study",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "study",
+      "center": [
+        0,
+        5,
+        33
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        10,
+        5,
+        33
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        5,
+        33
+      ],
+      "anchor": [
+        0,
+        5,
+        33
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        -10.0,
+        5,
+        27.0
+      ],
+      "bounds_max": [
+        10.0,
+        9,
+        39.0
+      ]
+    },
+    {
+      "id": "washroom_2",
+      "number": "M206",
+      "title": "Washrooms \u00b7 Floor 2",
+      "kind": "washroom",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "washroom_2",
+      "center": [
+        26,
+        5,
+        33
+      ],
+      "size": [
+        20,
+        4,
+        12
+      ],
+      "door": [
+        16,
+        5,
+        33
+      ],
+      "door_width": 2.4,
+      "approach": [
+        13,
+        5,
+        33
+      ],
+      "anchor": [
+        26,
+        5,
+        33
+      ],
+      "neighbors": [
+        "hall_f1"
+      ],
+      "bounds_min": [
+        16.0,
+        5,
+        27.0
+      ],
+      "bounds_max": [
+        36.0,
+        9,
+        39.0
+      ]
+    }
+  ],
+  "course_rooms": {
+    "ELM253": {
+      "lecture": "elm253_lecture",
+      "lab": "ac_lab"
+    },
+    "ETY155": {
+      "lecture": "ety155_lecture",
+      "lab": "dc_lab"
+    },
+    "MTH147": {
+      "lecture": "elm253_lecture"
+    },
+    "MTH255": {
+      "lecture": "elm253_lecture"
+    }
+  },
+  "composition": {
+    "ac_lab": "Preserve original AC world equipment at existing coordinates; replace legacy room shell with this shell.",
+    "dc_lab": "Integrator relocates existing DC equipment +Vector3(0,0,13.2) to place baseline z8.8 benches at z22, leaving the z19 room anchor/entry aisle clear; MUST translate cached world-space ports/boards/anchors consistently. Do not merely move dc_lab Node3D.",
+    "shop": "ShopRoom.build_campus(game, campus) mounts workshop builders in M102 and retail stations in M208.",
+    "dc_bench_centers": [
+      [
+        -6,
+        0,
+        22
+      ],
+      [
+        0,
+        0,
+        22
+      ],
+      [
+        6,
+        0,
+        22
+      ]
+    ],
+    "dc_default_board_centers": [
+      [
+        -6,
+        0.895,
+        21.38
+      ],
+      [
+        0,
+        0.895,
+        21.38
+      ],
+      [
+        6,
+        0.895,
+        21.38
+      ]
+    ]
+  },
+  "api": {
+    "registry": "preload(res://scripts/campus/world/room_registry.gd).new(); get_room(id), search(query), locate(position), route(from_id,to_id), course_room(course,kind), room_slip(id); activity_room(course,kind), room_contains(id,position), directory(), entrance(), route_from_position(position,id)",
+    "world": "preload(res://scenes/campus/Campus.tscn).instantiate(); anchor(id), set_viewer_position(position), register_content(id,node), request_room(id); content activation signal zone_activation_changed(id,active); set_viewer(actor), register_loader(id,Callable)->bool (bounded presentation initialization stages)",
+    "interact": "Campus.interact(target,player) handles elevator_station; integrator routes interact before generic equipment"
+  },
+  "source": "Authored campus layout; not a reproduction of course PDF diagrams",
+  "revision": 2,
+  "revision_note": "Room IDs, numbers, positions, doors and anchors unchanged. DC equipment composition corrected to +Z13.2 (bench row Z22) to preserve entry aisle at Z19. Added actual DC bench/board anchors and academic adapter."
+}

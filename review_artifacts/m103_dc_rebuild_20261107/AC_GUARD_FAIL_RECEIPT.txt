@@ -1,0 +1,2 @@
+AC BASELINE DIFFERENCES:
+functions:scripts/game.gd::activate

@@ -1,0 +1,19 @@
+--- a/scripts/session.gd
++++ b/scripts/session.gd
+@@ -280,6 +280,8 @@
+ 	if multiplayer.is_server():
+ 		accept_pose(multiplayer.get_remote_sender_id(),data)
+ 
++var rest_pose_guard: Callable
++
+ func accept_pose(id: int,data: Dictionary) -> void:
+ 	if int(data.get("pose_epoch",0))!=int(pose_epochs.get(id,0)):return
+ 	if not roster.has(id) or not data.get("position") is Vector3:
+@@ -308,6 +310,7 @@
+ 	var clean := {"position":pos,"yaw":float(data.get("yaw",0)),"pitch":clampf(float(data.get("pitch",0)),-1.46,1.46),"crouch":bool(data.get("crouch",false)),"seated":bool(data.get("seated",false))}
+ 	if not is_finite(clean.yaw) or not is_finite(clean.pitch):
+ 		return
++	if rest_pose_guard.is_valid():clean=rest_pose_guard.call(id,clean)
+ 	poses[id] = clean
+ 	last_pose[id] = now
+ 	pose_received.emit(id,clean)

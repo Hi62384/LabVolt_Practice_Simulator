@@ -1,0 +1,220 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Full Beard long",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Full Beard long",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.45
+      }
+    },
+    {
+      "name": "hair_highlight",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.62
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.45
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_orm.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "facial_full_beard_long.bin",
+      "byteLength": 49152
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 16128
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 16128,
+      "byteLength": 16128
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 32256,
+      "byteLength": 10752
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 43008,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 45312,
+      "byteLength": 2304
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 47616,
+      "byteLength": 1536
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1344,
+      "type": "VEC3",
+      "min": [
+        -0.174,
+        -0.29000000000000004,
+        -0.0009999999999999942
+      ],
+      "max": [
+        0.174,
+        -0.056,
+        0.16905714285714285
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1344,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1344,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3",
+      "min": [
+        -0.14467571254064288,
+        -0.24575492934603094,
+        -0.0009999999999999933
+      ],
+      "max": [
+        0.15345429999661378,
+        -0.10266827694577377,
+        0.1233734750171837
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 192,
+      "type": "VEC2"
+    }
+  ]
+}

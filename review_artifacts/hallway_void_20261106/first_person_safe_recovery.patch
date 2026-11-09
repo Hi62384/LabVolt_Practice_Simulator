@@ -1,0 +1,25 @@
+# target: scripts/first_person.gd
+# preimage-sha256: BD9BC5A028B154DBF71D99810E1B16D90BC0D42DFDB7C20630097A2AC63156D4
+# owner action: apply only after confirming the target still matches this hash
+--- a/scripts/first_person.gd
++++ b/scripts/first_person.gd
+@@ -1,4 +1,6 @@
+ extends CharacterBody3D
++const SafeRecovery = preload("res://scripts/campus/presentation/navigation_safety/safe_recovery.gd")
++var safe_recovery = SafeRecovery.new(Vector3(13,0.05,-18))
+ var facility_movement_locked: Callable
+ var inspecting := false
+ var seated: CharacterBody3D
+@@ -73,6 +75,13 @@ func _physics_process(delta: float) -> void:
+ 	else:
+ 		velocity.y = 0
+ 	move_and_slide()
++	# This script controls only its owning peer's local player. The existing pose
++	# stream replicates the correction; no RPC or reward/session mutation occurs.
++	if is_on_floor() and not is_instance_valid(seated):
++		safe_recovery.observe_grounded(global_position)
++	if safe_recovery.needs_recovery(global_position):
++		global_position=safe_recovery.recovery_position()
++		velocity=Vector3.ZERO
+ 	var bob := sin(clock*11)*0.025 if head_bob and is_on_floor() and wish.length()>0 else 0.0
+ 	eyes.position.y = lerpf(eyes.position.y,(0.95 if crouched else 1.65)+bob,1-exp(-16*delta))

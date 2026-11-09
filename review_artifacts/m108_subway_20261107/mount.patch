@@ -1,0 +1,23 @@
+*** Begin Patch
+*** Update File: scripts/campus_integration.gd
+@@
+ 		if id in ["tim_hortons","subway"] and not social_decor.adopt_restaurant_visuals(id,facilities.rooms.get(id)):
+ 			var failed_root = social_decor.roots.get(id)
+ 			if is_instance_valid(failed_root):failed_root.queue_free()
+ 			social_decor.roots.erase(id)
++	# M108 visuals use the existing service stations and collision. Keep the
++	# campus-facing east window insets from the legacy presentation.
++	if social_decor.roots.has("subway") and facilities.rooms.has("subway"):
++		var subway_root: Node3D = social_decor.roots["subway"]
++		var subway_finish := preload("res://scripts/campus/presentation/decor/social_rooms/m108_subway_finish.gd").new()
++		subway_finish.name = "M108SubwayFinish"
++		subway_finish.position = Vector3(26,0,47)
++		subway_finish.build(facilities.controller.host.menu)
++		game.campus.add_child(subway_finish)
++		if game.campus.register_content("subway",subway_finish):
++			for visual in subway_root.get_children():
++				if not visual.name.begins_with("WindowInset"): visual.visible = false
++		else:
++			subway_finish.queue_free()
+ 	if social_decor.roots.has("cafeteria"):
+*** End Patch

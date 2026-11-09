@@ -1,0 +1,15 @@
+--- a/scripts/front_menu.gd
++++ b/scripts/front_menu.gd
+@@
+ func view_courses_page() -> void:
+-	clear("view_courses","VIEW COURSES")
+-	panel.custom_minimum_size=Vector2(1040,680);panel.size=Vector2(1040,680)
+-	course_browser_only=true;host_mode="Class";host_course="";host_kind="";host_week=0
+-	host_details=VBoxContainer.new();host_details.size_flags_horizontal=Control.SIZE_EXPAND_FILL;host_details.add_theme_constant_override("separation",18);body.add_child(host_details)
+-	_refresh_host_details()
++	if not is_instance_valid(game.school):return
++	clear("view_courses","VIEW COURSES")
++	var gradebook := preload("res://scripts/campus/ui/gradebook_page.gd").new()
++	screen.add_child(gradebook)
++	gradebook.build(preload("res://scripts/campus/ui/gradebook_source.gd").from_school(game.school))
++	gradebook.closed.connect(home)

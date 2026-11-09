@@ -1,0 +1,285 @@
+extends CanvasLayer
+var crosshair: Label
+var game: Node
+var hud: Label
+var prompt: Label
+var log_label: Label
+var objective: Label
+var menu: PanelContainer
+var sheet: PanelContainer
+var roster_label: Label
+var connection_label: Label
+var sheet_text: Label
+var name_input: LineEdit
+var address: LineEdit
+var port: SpinBox
+var modes: OptionButton
+var tasks: OptionButton
+var seed_input: SpinBox
+var inputs := {}
+var chat_input: LineEdit
+var result: Label
+var binding := ""
+var binding_button: Button
+var assists: CheckBox
+var logs: Array[String] = []
+var public_visibility: RefCounted
+var graphics_controller: Node
+var settings: VBoxContainer
+var lobby: VBoxContainer
+var records_label: Label
+
+func label(text: String, parent: Node, size := 16) -> Label:
+	var node := Label.new()
+	node.text = text
+	node.add_theme_font_size_override("font_size",size)
+	parent.add_child(node)
+	return node
+
+func button(text: String,parent: Node,callback: Callable) -> Button:
+	var node := Button.new()
+	node.text = text
+	node.custom_minimum_size.y = 34
+	node.pressed.connect(callback)
+	parent.add_child(node)
+	return node
+
+func panel(position: Vector2, size: Vector2) -> PanelContainer:
+	var node := PanelContainer.new()
+	node.position = position
+	node.custom_minimum_size = size
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("13212bf5")
+	style.border_color = Color("50706c")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(12)
+	style.content_margin_left = 24
+	style.content_margin_right = 24
+	style.content_margin_top = 18
+	style.content_margin_bottom = 18
+	node.add_theme_stylebox_override("panel",style)
+	add_child(node)
+	return node
+
+func build(owner_game: Node) -> void:
+	game = owner_game
+	hud = label("",self,18)
+	hud.position = Vector2(28,24)
+	objective = label("",self,15)
+	objective.position = Vector2(28,82)
+	log_label = label("",self,14)
+	log_label.position = Vector2(28,600)
+	prompt = label("",self,15)
+	prompt.position = Vector2(360,390)
+	prompt.custom_minimum_size.x = 560
+	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	crosshair=label("·",self,28)
+	var cross := crosshair
+	cross.position = Vector2(634,342)
+	chat_input = LineEdit.new()
+	chat_input.position = Vector2(28,550)
+	chat_input.size = Vector2(650,36)
+	chat_input.max_length = 240
+	chat_input.placeholder_text = "Team chat / shared observations — Enter to send"
+	chat_input.visible = false
+	add_child(chat_input)
+	chat_input.text_submitted.connect(func(value): game.session.chat(value); chat_input.text=""; chat_input.hide(); game.capture())
+	menu = panel(Vector2(340,30),Vector2(600,660))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation",8)
+	menu.add_child(box)
+	label("LAB / VOLT",box,34)
+	label("Cooperative electrical laboratory",box,17)
+	var tabs := TabContainer.new()
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(tabs)
+	lobby = VBoxContainer.new()
+	lobby.name = "Laboratory"
+	tabs.add_child(lobby)
+	name_input = LineEdit.new()
+	name_input.placeholder_text = "Player name"
+	name_input.text = game.characters.display_name() if is_instance_valid(game.characters) else "Student"
+	name_input.max_length = 24
+	lobby.add_child(name_input)
+	var network := HBoxContainer.new()
+	lobby.add_child(network)
+	address = LineEdit.new()
+	address.text = "127.0.0.1"
+	address.placeholder_text = "Host IP"
+	address.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	network.add_child(address)
+	port = SpinBox.new()
+	port.min_value = 1024
+	port.max_value = 65535
+	port.value = 24842
+	network.add_child(port)
+	var row := HBoxContainer.new()
+	lobby.add_child(row)
+	button("Single Player",row,func(): game.session.leave(); game.capture())
+	button("Host Laboratory",row,func(): var error=game.session.host_game(name_input.text,int(port.value)); connection_label.text="Hosting UDP %d"%port.value if error==OK else "Cannot host: "+error_string(error))
+	button("Join Laboratory",row,func(): var error=game.session.join_game(address.text,name_input.text,int(port.value)); connection_label.text="Connecting…" if error==OK else error_string(error))
+	connection_label = label("Direct IP • 2–8 players • UDP 24842",lobby,14)
+	roster_label = label("",lobby,15)
+	row = HBoxContainer.new()
+	lobby.add_child(row)
+	button("Ready / Unready",row,func(): game.session.ready_toggle())
+	button("Leave Session",row,func(): game.session.leave(); connection_label.text="Local laboratory")
+	modes = OptionButton.new()
+	for text in ["Free Laboratory","Guided Learning","Practical Exam","Cooperative Challenge"]:
+		modes.add_item(text)
+	lobby.add_child(modes)
+	tasks = OptionButton.new()
+	for text in ["Balanced Wye","Balanced Delta","Power factor correction"]:
+		tasks.add_item(text)
+	lobby.add_child(tasks)
+	row = HBoxContainer.new()
+	lobby.add_child(row)
+	label("Experiment seed",row,14)
+	seed_input = SpinBox.new()
+	seed_input.min_value = 1
+	seed_input.max_value = 999999
+	seed_input.value = 101
+	row.add_child(seed_input)
+	button("Assign experiment (host)",lobby,func(): game._request({"op":"configure","mode":modes.get_item_text(modes.selected),"task":tasks.selected,"seed":int(seed_input.value)}))
+	var note := label("LAN: join the host's local IP. Internet: forward the chosen\nUDP port to the host and allow Godot through the firewall.\nNo matchmaking service or automatic NAT traversal.",lobby,13)
+	note.modulate = Color("a8b9ba")
+	settings = VBoxContainer.new()
+	settings.name = "Settings"
+	settings.theme=preload("res://scripts/campus/ui/campus_theme.gd").create()
+	button("Toggle fullscreen - F11 / Alt+Enter",settings,func(): game.toggle_fullscreen())
+	tabs.add_child(settings)
+	graphics_controller=preload("res://scripts/campus/ui/graphics_settings.gd").new()
+	add_child(graphics_controller)
+	# Initial application waits until static equipment is assembled and batched.
+	graphics_controller.viewport=get_viewport();graphics_controller.world=game
+	graphics_controller.load_settings()
+	graphics_controller.build_controls(settings)
+	public_visibility=preload("res://scripts/campus/ui/profile_visibility.gd").new()
+	public_visibility.load_settings()
+	public_visibility.build_controls(settings)
+	label("Mouse sensitivity",settings)
+	var slider := HSlider.new()
+	slider.min_value = 0.0003
+	slider.max_value = 0.008
+	slider.step = 0.00005
+	slider.value = game.player.sensitivity
+	settings.add_child(slider)
+	slider.value_changed.connect(func(v): game.player.sensitivity=v; game.player.save_settings())
+	var bob := CheckBox.new()
+	bob.text = "Head bob"
+	bob.button_pressed = game.player.head_bob
+	settings.add_child(bob)
+	bob.toggled.connect(func(v): game.player.head_bob=v; game.player.save_settings())
+	assists = CheckBox.new()
+	assists.text = "Terminal highlight, trace, numeric telemetry (F8)"
+	assists.button_pressed = true
+	settings.add_child(assists)
+	label("Click an action, then press a new key:",settings,14)
+	for action in game.player.keys:
+		var key_button := button(action+": "+OS.get_keycode_string(game.player.keys[action]),settings,func(): pass)
+		key_button.custom_minimum_size.y = 27
+		key_button.pressed.connect(func(): binding=action; binding_button=key_button; key_button.text="Press a key…")
+	var records_tab := VBoxContainer.new()
+	records_tab.name = "Records"
+	tabs.add_child(records_tab)
+	records_label = label("No submissions yet.",records_tab,16)
+	records_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	records_label.custom_minimum_size = Vector2(510,360)
+	row = HBoxContainer.new()
+	box.add_child(row)
+	button("Enter / Resume",row,func(): game.capture())
+	button("Exit",row,func(): game.get_tree().quit())
+	sheet = panel(Vector2(250,36),Vector2(780,646))
+	sheet.hide()
+	box = VBoxContainer.new()
+	box.add_theme_constant_override("separation",10)
+	sheet.add_child(box)
+	label("EXPERIMENT / RECORD",box,28)
+	sheet_text = label("",box,16)
+	sheet_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sheet_text.custom_minimum_size = Vector2(720,255)
+	row = HBoxContainer.new()
+	box.add_child(row)
+	for key in ["v","i","p"]:
+		var input := LineEdit.new()
+		input.placeholder_text = {"v":"Measured V RMS","i":"Measured A RMS","p":"Total watts (W1 + W2)"}[key]
+		input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(input)
+		inputs[key] = input
+	row = HBoxContainer.new()
+	box.add_child(row)
+	button("Preflight",row,func(): game._request({"op":"check"}))
+	button("Record instruments",row,func(): game._request({"op":"record"}))
+	button("Submit",row,func(): game._request({"op":"submit","v":float(inputs.v.text),"i":float(inputs.i.text),"p":float(inputs.p.text)}))
+	result = label("",box,15)
+	result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	result.custom_minimum_size.y = 60
+	label("Use your course's real safety procedures. This model does not certify wiring.\nEsc menu • B clipboard • C preflight • E operate • Q unplug • Z undo\n1–4 cable color • G return held cable • T chat • X ping • F8 telemetry",box,14)
+	button("Close clipboard",box,func(): sheet.hide(); game.capture())
+	update_roster()
+
+func update_records(history: Array) -> void:
+	var best := {}
+	for item in history:
+		var key := str(item.get("task",0))+":"+str(item.seed)+":"+str(item.mode)
+		var score := int(str(item.result).get_slice("/",0))
+		best[key] = maxi(int(best.get(key,0)),score)
+	var xp := 0
+	var perfect := false
+	for key in best:
+		xp += best[key]
+		perfect = perfect or best[key]==100
+	records_label.text = "PERSONAL LAB RECORD\n\n%d XP • %d experiment records\n" % [xp,best.size()]
+	records_label.text += "Achievement: Accurate measurements ✓\n" if perfect else "Achievement: earn a 100/100 lab grade\n"
+	records_label.text += "\nPersonal bests improve XP once per mode / task / seed.\nAll training equipment remains available in Free Laboratory.\n\nRECENT SUBMISSIONS\n"
+	for i in range(maxi(0,history.size()-5),history.size()):
+		var item: Dictionary = history[i]
+		records_label.text += "%s • seed %s • %s/100\n" % [item.mode,str(item.seed),str(item.result).get_slice("/",0)]
+
+func update_roster() -> void:
+	if not is_instance_valid(roster_label):
+		return
+	roster_label.text = "PLAYERS\n"
+	for id in game.session.roster:
+		var entry: Dictionary = game.session.roster[id]
+		roster_label.text += "%s  %s%s\n" % [entry.name,"✓ ready" if entry.ready else "waiting"," · host" if id==1 else ""]
+
+func log_message(text: String) -> void:
+	log_label.text = text
+	get_tree().create_timer(3.0).timeout.connect(func():
+		if log_label.text == text:
+			log_label.text = ""
+	)
+
+func refresh(data: Dictionary) -> void:
+	var held := ""
+	for c in data.cables:
+		if c.owner == game.multiplayer.get_unique_id():
+			held = " • carrying %s lead" % ["red","blue","yellow","black"][c.color]
+	hud.text = ("POWER ON" if data.powered else "POWER OFF")+held
+	var task_name: String = ["Balanced Wye","Balanced Delta","Power factor correction"][data.task]
+	objective.text = "Esc: menu" if data.mode=="Free Laboratory" else task_name+" | B: worksheet"
+	var ohms: float = [1200.0,600.0,300.0][data.element]
+	sheet_text.text = "%s — %s\nSeed %d\n\n" % [data.mode,task_name,data.seed]
+	if data.task < 2:
+		sheet_text.text += "Build a balanced three-phase %s using %.0f Ω per branch.\n" % ["Wye" if data.task==0 else "Delta",ohms]
+		sheet_text.text += "Use the fixed supply for Wye; set variable supply to 57%% for Delta.\n"
+	else:
+		sheet_text.text += "Compensate a 1200 Ω resistor and 3.2 H inductive load using a 2.2 µF capacitor, supplied at 120 V / 60 Hz. Target |Q| < 0.75 var.\n"
+	sheet_text.text += "Measure branch voltage, line current, and total real power with the physical instruments. Complete preflight before energizing, record readings, enter your observations, then submit.\n\n"
+	if data.mode=="Guided Learning":
+		sheet_text.text += ["Connect one load to each phase. Join the three returns to neutral. Put current coils in series, voltage coils in parallel.","Bridge AB, BC and CA with the three loads. Do not join the branch returns to neutral. Put current coils in series with supply lines.","Connect the first R, L and C elements in parallel across phase A and N. Compare Q before and after compensation."][data.task]
+	else:
+		sheet_text.text += "Reference: ZL = j2πfL; ZC = 1/(j2πfC); S = V·conj(I)."
+	result.text = data.result
+	if not data.records.is_empty():
+		result.text += "\nRecorded: %.3f V / %.5f A / %.3f W" % [data.records.v,data.records.i,data.records.p]
+	var exam: bool = data.mode=="Practical Exam"
+	assists.disabled = exam
+	if game.telemetry and assists.button_pressed and not exam:
+		objective.text += "\nP %.3f W  Q %.3f var  PF %.4f\nV %s\nA %s\nW %s" % [data.readings.p,data.readings.q,data.readings.pf,str(data.readings.voltmeters),str(data.readings.ammeters),str(data.readings.wattmeters)]
+	var team: Dictionary=data.get("team_challenge",{})
+	if not team.is_empty():
+		objective.text="Team troubleshooting · "+str(team.get("title",""))+" · pause for team controls"
+		sheet_text.text=str(team.get("objective",""))+"\nUse the dedicated Team Troubleshooting panel for diagnosis, assigned roles and team submission. Existing record controls capture real instruments."
+		result.text="Optional team progression; official course marks and personal history are separate."

@@ -1,0 +1,24 @@
+{
+  "schema": "eight-participants-v7-validator-correction-v1",
+  "owner_unchanged": true,
+  "runtime_executed": false,
+  "network_executed": false,
+  "grants_created": false,
+  "owner_preimages": {
+    "path_contract.py": "efd5021fdada9b6470e34e81dadcd64db784d2b984670f4a88339b9afc0adc94",
+    "admission_contract.py": "44119a0b544f0456b259aa6850ae0527e08a83c2a6d48104f02cb17c3f1996d7"
+  },
+  "candidate_files": {
+    "path_contract.py": "3746e92e5bc95938605899d49fcdf533ebdd9368c63fc4bd6c7db04c05d8ca3c",
+    "admission_contract.py": "c21e2ce0b2fdb8cf60e9ba97664cc274dfb4c260a4c6a9d768f9455428b646b0",
+    "test_validator_correction.py": "39cc949d84fcbcda1858f6f83b99434edfe1f3b9a4860c07667fee466b09af6e",
+    "path_contract.patch": "39bb9b4df3a920ef49b094c7823d5bd2f6768514ab17242f5060ba452495b2a9",
+    "admission_contract.patch": "cfce3e0cd8b2e4c7b6798b193790b33aa4d6bec9b2c89580716af25f5edc1064"
+  },
+  "verification": {
+    "owner_tests": 11,
+    "owner_result": "PASS",
+    "correction_tests": 8,
+    "correction_result": "PASS"
+  }
+}

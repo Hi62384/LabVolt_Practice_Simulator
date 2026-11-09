@@ -1,0 +1,131 @@
+LABVOLT COMPONENT MODELS — WORKER FRAGMENT, VERSION 1
+
+Status and scope
+This is an independently tested optional library, NOT an already integrated live-game feature.
+The integrator must merge catalog/dispatch/host-tick hooks from the separate proposal.
+The baseline already implements R/C/L/pot/switches, LEDs, BJT, basic gates, op-amp,
+555, 74HC74 and 74HC595. This fragment deliberately does not replace those models.
+There are 29 new catalog definitions. The catalog rating field describes each model.
+catalog.json is the authoring source; generate_catalog.py produces catalog_data.gd.
+The runtime preloads catalog_data.gd, so raw JSON does not need an export include rule.
+Tests compare the JSON and generated dictionaries to detect drift.
+
+Public contracts
+catalog.gd: all() -> Dictionary, compatible with Catalog.all() fragments.
+library.gd: expand(model,id,nodes,state={},voltages={},runtime={}) -> Array.
+library.gd: tick(model,nodes,voltages,old,dt,currents={},id="") -> Dictionary.
+The tick call needs solved primitive currents for fuse heat, regulator/DAC input loading
+and accurate relay pickup. Pass the same globally stable device ID used by expand.
+Expanded stateful markers have existing kind="stateful", model="worker:<model>",
+nodes, id, and a NEW OPTIONAL config dictionary containing the catalog definition.
+Do not send markers to MNA. All electrical primitives use existing solver contracts.
+No new solver primitive or modified solver is required.
+All state keys and array addresses are JSON/Variant serializable, including drive-map
+keys and sparse EEPROM memory addresses as strings. No existing state schema changes.
+New optional catalog fields: worker_model, worker_model_version, footprint.
+No required new fields in placed parts or existing saved designs.
+standalone.gd demonstrates host solve/tick orchestration and state snapshot/restore.
+Its snapshot is device state only; the owner of a complete circuit save must also save
+the existing solver memory/time if capacitor/inductor transient continuity is required.
+
+Electrical/time limits
+The library uses the existing 96-primitive MNA budget; board validation may impose 64.
+Markers count conservatively in expansion validation. High-pin-count devices consume
+multiple primitives. Combined circuits can exceed the existing budget legitimately.
+Clocked devices advance once per positive host step. At 0.5 ms, use slow SPI/I2C clocks:
+hold each clock level and data stable for at least TWO host steps when using solved
+electrical feedback. There is no event queue, setup/hold/metastability model or MHz SPI.
+Inputs load the circuit; push-pull outputs connect to actual supply/return through
+finite resistance. Unpowered/undefined outputs release with finite high impedance.
+Supply-current estimates are educational, not calibrated semiconductor consumption.
+Digital protection/thermal destruction and gate oxide damage are not modeled.
+
+MOSFETs/JFETs are sampled square-law companion resistances evaluated at the previous
+solved gate/drain bias; a high drain bias saturates current at that bias. They are
+appropriate for slow switching and educational bias demonstrations, not a converged
+SPICE nonlinear stamp. Abrupt changes settle over host steps and feedback can differ
+from a continuous nonlinear operating point. MOSFET body diodes and JFET gate junctions
+are real solver diodes; gate/channel capacitance, temperature, channel-length modulation,
+noise and calibrated commercial part parameters are absent. D/G/S is a teaching pinout.
+The model assumes its named source is the source reference; reverse operation is
+approximated by the channel and MOSFET body diode, not full source/drain interchange.
+
+Zener, bridge, Schottky and TVS devices use piecewise-linear junctions with explicit
+forward/reverse knees and dynamic resistance. There is no reverse recovery or energy
+failure. The bidirectional 12 V TVS reaches a 12.7 V knee including a forward junction.
+Fuse heating is excess I-squared-time above its continuous rating, with simple cooling
+below rating; blowing latches open. No arc, ambient-temperature or fuse standard curve.
+Relay coil is R+L, isolated from SPDT contacts. Pickup/release hysteresis and mechanical
+delay are modeled, not bounce/arcing. The user must wire an external flyback diode.
+Regulators implement dropout, output resistance and current limiting. Input current
+tracks the previous step's output current plus quiescent draw; instantaneous energy
+balance during sudden changes is approximate. No reverse protection or thermal model.
+
+Logic and analog IC limits
+74HC02 uses its NOR-specific pinout. 74HC14 retains state within educational hysteresis
+thresholds. 74HC165 supports asynchronous parallel load and gated clock/inhibit,
+including their interchangeable edge effect. CD4017 supports reset/inhibit/carry.
+CD4066/CD4051 paths are bilateral resistances, not one-way voltage copying. Users must
+keep analog signals inside supply rails; the models do not simulate rail-injection or
+overvoltage damage. CD4051 VEE is an exposed pin, not an internally generated supply.
+LM393 sinks only; external pullups required. Common-mode limits are checked, but
+offset, propagation delay and output saturation voltage are not calibrated.
+ULN2003 includes input loading, sinks and COM clamp diodes; the sinks are resistance
+approximations, not a calibrated Darlington pair. L293D uses separate motor and logic
+rails, output enables, finite output resistance, common grounds and clamp diodes.
+Neither provides validated thermal/current ratings or a mechanical motor simulation.
+
+Serial/memory/interface limits
+MCP3008: mode-0 SPI, start/SGL/channel selection, single-ended/pseudo-differential
+sampling, null bit and 10-bit wire response, saturation and reference scaling.
+No sample capacitor acquisition load, mode-3 waveform or manufacturer error/noise model.
+MCP4921: 16-bit commands, 12-bit codes, 1x/2x gain, shutdown and LDAC. Reference buffer
+bit is accepted but has no separate analog buffer model. Output is rail limited with
+50-ohm resistance; output-current consumption is reflected at the supply next step.
+25LC256: WREN, WRDI, RDSR, WRSR, READ, WRITE, HOLD; 32 KiB erased-FF sparse array,
+64-byte page wrap, sequential reads, BP/WPEN protection and 5 ms busy indication.
+Array and protection status persist across power loss. Writes commit at CS rise before
+the busy interval ends, so mid-write power failure is NOT emulated. No wear/endurance,
+deep power down, mode-3 SPI or exact HOLD asynchronous edge behavior.
+PCF8574: addressed I2C read/write with ACK/NACK/repeated start, quasi-bidirectional
+ports and open-drain SDA/INT. Port released pullups approximate the internal source
+with 50 kohm. External SDA/SCL pullups required; no arbitration/stretching/glitch filter.
+SN75176: differential receive threshold, DE, /RE, 12 kohm receiver pin loads and finite bus-driver impedance.
+No transmission-line effects, common-mode compliance, bus fault destruction or automatic
+direction control. Indeterminate differential levels retain the last valid receiver bit.
+
+Physical integration
+DIP pin lists follow top-view package numbering and include optional millimetre pin
+positions. Axial/transistor/relay teaching packages have explicit pin labels. Footprint
+metadata is optional; baseline placement/rendering does not yet enforce it. The integrator
+must connect it to placement/rendering to claim accurate package silhouettes/occupancy.
+No proprietary mesh or datasheet illustration is copied. Current generic rendering is
+not an assertion of manufacturer package geometry.
+
+Phased, unsupported in this fragment
+PCA9685 and other PWM-controller register maps; crystals and oscillator startup;
+switch-mode converters; additional memory/protocol families; calibrated LM358/LM324
+packages; commercial FET parameter libraries; full transistor-level semiconductor ICs.
+Those have NO catalog aliases pretending to implement them. A representative core is
+prioritized per advanced expansion section 2; the full expansion is not marked complete.
+MCU platforms, sensors/displays/audio and transformer work belong to other owners.
+
+Sources and licensing
+Original project-specific GDScript/Python/JSON; no added runtime dependency/native binary.
+The existing Godot solver/runtime remains unchanged. Datasheets were used for factual
+pin/function/protocol reference only; no vendor code, text passages or artwork bundled.
+Primary references consulted:
+https://www.ti.com/lit/ds/symlink/sn74hc165.pdf
+https://www.ti.com/lit/ds/symlink/cd4017b.pdf
+https://www.ti.com/lit/ds/symlink/cd4051b.pdf
+https://www.ti.com/lit/ds/symlink/cd4066b.pdf
+https://www.ti.com/lit/ds/symlink/uln2003a.pdf
+https://www.ti.com/lit/ds/symlink/pcf8574.pdf
+https://www.ti.com/lit/ds/symlink/sn74hc02.pdf
+https://www.ti.com/lit/ds/symlink/sn74hc14.pdf
+https://www.ti.com/lit/ds/symlink/lm393.pdf
+https://www.ti.com/product/SN75176B
+https://www.ti.com/product/L293D
+https://www.microchip.com/en-us/product/MCP4921
+https://ww1.microchip.com/downloads/aemDocuments/documents/MSLD/ProductDocuments/DataSheets/MCP3004-MCP3008-Data-Sheet-DS20001295.pdf
+https://ww1.microchip.com/downloads/aemDocuments/documents/MPD/ProductDocuments/DataSheets/25AA256-25LC256-256K-SPI-Bus-Serial-EEPROM-20001822H.pdf

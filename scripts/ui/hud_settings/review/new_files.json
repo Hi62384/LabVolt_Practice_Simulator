@@ -1,0 +1,30 @@
+[
+  {
+    "path": "scripts/ui/hud_settings/layout.gd",
+    "sha256": "e4b1c81770389b6642ad128ce3dfc5bf8adb35e2a5fedb41dcaf70c5f48f0d38"
+  },
+  {
+    "path": "scripts/ui/hud_settings/readout.gd",
+    "sha256": "bfb87a00f8001c3833ac12ca72c21463750a8a42f15082a0012d751f19c802d4"
+  },
+  {
+    "path": "tests/ui/hud_settings/audit.py",
+    "sha256": "a16ccf47052d4e81e1c3018749e4bff49f8e2a7a9f4daa8a5c65386f05dd31cd"
+  },
+  {
+    "path": "tests/ui/hud_settings/finish.py",
+    "sha256": "0e60e0ab681be7819039f33d3eb00cffe2bf6ac104304066d09e103be93807c7"
+  },
+  {
+    "path": "tests/ui/hud_settings/redesign.py",
+    "sha256": "47876482ffeed1f66a3eb7ff130ff989a20c5e8892572ba30df943f83c013383"
+  },
+  {
+    "path": "tests/ui/hud_settings/refine.py",
+    "sha256": "161b65cfe2f1c6433d966d0097ab5fdc57aa9bc2df21c818d6f83b1db7fb42bc"
+  },
+  {
+    "path": "tests/ui/hud_settings/rollback.py",
+    "sha256": "ae25f889e8ea812fecb9641a19468ed2905e42854417cac7e4923fab13732d79"
+  }
+]

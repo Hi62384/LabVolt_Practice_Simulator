@@ -1,0 +1,87 @@
+MTH147 engine integration (source only)
+
+Read MTH-ENGINE-CONTRACT.json in the handoff. Entry: scripts/mth147/provider.gd.
+Shared core: math_core.gd (parse, input_ast, evaluate, equivalent, inspect_form,
+domain_constraints, domain_at, format_ascii). Numeric evaluation explicitly accepts
+degrees or radians. log(value,base); atan2(y,x); root(index,radicand). Unsupported
+exact algebra fails closed. No eval, Python service, shell or external CAS exists.
+
+Course routing
+- course_registry.gd provides trusted optional MTH147/MTH255 dispatch. Install the
+  MTH255 owner's source separately. It does not implement MTH255 content itself.
+- Catalog/weeks advertise nine lecture-only units and zero labs. Keep the same
+  campus/lobby. Use the existing classroom/study/library; do not add electrical
+  Open Lab access or invent a mathematics laboratory.
+- Shared provider changes are proposals in proposed-hooks.patch, not applied files.
+  Original integrator adapts them to the current curriculum owner's source.
+- Pass the same selected lecture focus into both lesson() and generate(). Expose
+  week.focuses for focused 5-10 minute sessions; an empty focus uses the documented
+  deterministic difficulty default. "all" is a whole-unit review. A generator id
+  or short subtopic name can select any individual method at every difficulty.
+
+Preparation, saved attempts and authority
+- Host generates/validates before starting the test clock. test_builder.gd supports
+  begin()/step(1)/result() across preparation frames. Its completed assignment is
+  identical to synchronous generation with the same inputs. Never issue an
+  incomplete result or transmit full symbolic data every frame.
+- Provider.seal normalizes JSON representation before first issue and revalidates
+  keys. Persist the full private assignment once per existing owner-bound attempt,
+  plus original deadline, submitted structured answers and opaque page/ink state.
+  JSON.stringify(state,"",true,true) and Provider.restore validate a saved instance.
+  Never call generate() again for a reopened/reconnected issued test.
+- Send public_copy(assignment,false) reliably to its owning peer only. Do not send
+  the private assignment, generator parameters, rubric, answer key or future steps.
+  Grading always uses the persisted host key, never an assignment supplied by a
+  client. Authenticate session, attempt and student ownership in the existing RPC.
+- attempts.gd is a pure optional state adapter with no filesystem or currency
+  writes. The integrator may keep its existing ledger instead. issue() mutates
+  the host dictionary; save durably before transmitting its returned public data.
+  save_answers() binds owner and original deadline. finish() returns an idempotent
+  academic event (kind=lecture) only once; the existing durable ledger must consume
+  its stable id transactionally with the reward. It does not itself pay dollars.
+- Existing academic policy remains authoritative for disconnect grace, host loss,
+  confirmed abandonment/disposal and attempt history. Transport loss alone is not
+  finish(reason=abandon_confirmed). host_cancel produces no academic/reward event.
+  Timeout grades saved completed work; unanswered fields receive no credit.
+
+Input, diagrams and teaching
+- Common math UI owns widgets and drawings. Configure with the public problem;
+  supply Callable(math_core,"parse")/a wrapper and preserve its entire workspace
+  snapshot through existing paper move/stow/reopen/undo/redo/pen handling.
+- Answers: scalar text/AST; {values:[]} for complete sets; {x,y,z} or classification
+  for systems; {quotient,remainder}; {expression,excluded}; structured field ids;
+  table {rows:[[...]]}; triangle {solutions:[{A,B,C,a,b,c}]}; mathematical graph
+  coordinates/function parameters. Personal ink is never interpreted as an answer.
+- Equation display ASTs use op=equation,args=[left,right]. Matrix/determinant
+  display ASTs use rows of scalar ASTs. These presentation nodes are not executable
+  scalar inputs. Worked steps contain mathematical transformation panels.
+- Triangle vertices are actual Euclidean coordinates. Public side/angle labels
+  retain givens only; unknown keys and SSA alternatives stay private until review.
+- Sinusoids carry unit-labelled axes, ranges and domains. Infer-equation questions
+  receive sampled graph data with the underlying function removed. Graph-drawing
+  and table questions do not receive answer targets. Grade submitted coordinates
+  and analytic function parameters, never a reference-image resemblance.
+- lecture_stage() returns only the current whiteboard event. Use its stage.math,
+  diagram and progressively timed caption. Do not broadcast the whole future
+  worked/practice payload. teacher_context(...,assessment_active=true) exposes
+  general-method policy only, never test keys or a grade-changing AI path.
+- formula_reference() has nine optional sections. The existing host assessment
+  policy decides visibility; the reference is methods only, not an answer solver.
+
+Practice and academic policy
+- practice(topic_ids,difficulty,seed,count) mixes any supported unit subtopics and
+  declares practice=true, official_eligible=false. It never records grades/rewards.
+  Ordinary practice on one week can also use the same generator under practice mode.
+- grade() returns a score and question/field feedback, expected forms and steps. It
+  never mutates profiles or currency. The existing ledger must save only MTH147's
+  lecture result under MTH147 and keep ELM253/ETY155/MTH255 averages separate.
+- Reuse existing lesson/test dollar policy; consume each stable event only once.
+  Do not infer intermediate working marks from a final answer. Only explicitly
+  structured fields/coordinates have configured deterministic partial credit.
+
+Verification boundaries
+Light source/unit suites and a file-rendered mathematical descriptor preview were
+run in an isolated private project. No heavy import, game render, multiplayer,
+campus performance or integrated UI run is claimed. Those require the original
+integrator's fresh coordinator lease and combined source. No main source, other
+worker source or immutable snapshot was modified; no game EXE/ZIP/export produced.

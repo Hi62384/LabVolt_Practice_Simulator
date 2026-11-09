@@ -1,0 +1,31 @@
+--- a/scripts/game.gd
++++ b/scripts/game.gd
+@@
+ var circuit_studio: Node
++var washroom_finish: Node
+ var dorm_interactions: Node
+@@
+ func activate() -> void:
+ 	if is_instance_valid(dorm_interactions) and dorm_interactions.interact(current_target):return
+ 	if is_instance_valid(circuit_studio) and circuit_studio.interact(current_target):return
++	if is_instance_valid(washroom_finish) and washroom_finish.interact(current_target):return
+ 	if is_instance_valid(kit_world) and kit_world.interact(current_target,false):return
+--- a/scripts/campus_integration.gd
++++ b/scripts/campus_integration.gd
+@@
+ 	room_finish_results.service=service_decor.mount_all(game.campus)
++	game.washroom_finish=preload("res://review_artifacts/washrooms_20261107/washroom_finish.gd").new()
++	game.washroom_finish.name="WashroomFinish"
++	game.add_child(game.washroom_finish)
++	if game.washroom_finish.install(game,game.campus):
++		for id in ["washroom_1","washroom_2"]:
++			if service_decor.built.has(id) and is_instance_valid(service_decor.built[id]):service_decor.built[id].queue_free()
+ 	social_decor=preload("res://scripts/campus/presentation/decor/social_rooms/social_rooms.gd").new()
+--- a/assets/campus/world/room_registry.json
++++ b/assets/campus/world/room_registry.json
+@@
+-      "title": "Washrooms \u00c2\u00b7 Floor 1",
++      "title": "Washrooms \u00b7 Floor 1",
+@@
+-      "title": "Washrooms \u00c2\u00b7 Floor 2",
++      "title": "Washrooms \u00b7 Floor 2",

@@ -1,0 +1,271 @@
+diff --git a/scripts/paper_ui.gd b/scripts/paper_ui.gd
+index 00210d7..f14a3a6 100644
+--- a/scripts/paper_ui.gd
++++ b/scripts/paper_ui.gd
+@@ -17,7 +17,6 @@ var flushing := false
+ var save_timer := 0.0
+ var calculator: LineEdit
+ var reading := false
+-var open_lab_instructor_visible := false
+ var page_view: Control
+ var pencil_mode := false
+ var pencil_color := Color("263743")
+@@ -43,6 +42,7 @@ var completed_popup_round := -1
+ var calculator_widget: Control
+ var calculator_drawer: Control
+ var tool_case: Control
++var workspace_view: Control
+ func build(owner_game: Node) -> void:
+ 	game=owner_game
+ 	school=game.school
+@@ -78,6 +78,7 @@ func _clear() -> void:
+ 	restoring_view=false
+ 	ink=null
+ 	page_view=null
++	workspace_view=null
+ 	annotation_layer=null
+ 	reader_view_key=""
+ 	for child in column.get_children():
+@@ -102,9 +103,6 @@ func _button(parent: Node,value: String,callback: Callable) -> Button:
+ 	parent.add_child(b)
+ 	return b
+ func close() -> void:
+-	open_lab_instructor_visible=false
+-	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+-	screen.offset_left=40;screen.offset_top=20;screen.offset_right=-40;screen.offset_bottom=-20
+ 	remember_view()
+ 	flush()
+ 	Input.set_custom_mouse_cursor(null,Input.CURSOR_ARROW)
+@@ -115,10 +113,6 @@ func close() -> void:
+ 	restoring_view=false
+ 	game.capture()
+ func teacher() -> void:
+-	open_lab_instructor_visible=school.mode in ["Open Lab","Freeplay","Creative Freeplay"]
+-	if open_lab_instructor_visible:
+-		_show_open_lab_instructor()
+-		return
+ 	flush()
+ 	reading=false
+ 	_clear()
+@@ -134,7 +128,7 @@ func teacher() -> void:
+ 		elif school.phase=="lesson":_label(column,str(school.teaching_stage().get("title","Teaching in progress")))
+ 		elif school.phase=="assignment":_label(column,"Complete your assigned work before the deadline.")
+ 		if school.phase=="assignment" and school.held(multiplayer.get_unique_id())==0:_button(column,"Replace missing Class sheet",func():school.request({"op":"replacement"});close())
+-		if preload("res://scripts/campus/academics/open_lab/tutorials/formal_guide_policy.gd").allowed(school.mode,assigned):_button(column,"Equipment guide",func():school.request({"op":"guide"});close())
++		_button(column,"Equipment guide",func():school.request({"op":"guide"});close())
+ 	else:
+ 		_build_freeplay_teacher_controls()
+ 	if multiplayer.is_server() and not school.formal_active():_button(column,"Earthing demonstration",safety_demo_menu)
+@@ -146,37 +140,6 @@ func teacher() -> void:
+ 		if paper.mark.is_empty():_button(column,"Hand in held assignment",func():school.request({"op":"submit","id":held_id});close())
+ 		_button(column,"Read held sheet",func():open_sheet(held_id))
+ 	_button(column,"Back to lab",close)
+-func _show_open_lab_instructor() -> void:
+-	flush()
+-	reading=false
+-	_clear()
+-	game.release_mouse()
+-	screen.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+-	screen.custom_minimum_size=Vector2(480,260)
+-	screen.size=Vector2(480,260)
+-	screen.position=(get_viewport().get_visible_rect().size-screen.size)*0.5
+-	screen.show()
+-	preload("res://scripts/campus/academics/open_lab/open_lab_panel.gd").mount(column,_request_open_lab_practice,_open_lab_tutorial,close)
+-	var first := column.find_children("*","Button",true,false)[0] as Button
+-	first.grab_focus()
+-
+-func _request_open_lab_practice() -> void:
+-	if school.mode not in ["Open Lab","Freeplay","Creative Freeplay"]:return
+-	school.request({"op":"practice_lesson"})
+-	close()
+-
+-func _open_lab_tutorial() -> void:
+-	if school.mode not in ["Open Lab","Freeplay","Creative Freeplay"]:return
+-	if game.has_method("open_lab_equipment_tutorial"):
+-		close()
+-		game.call("open_lab_equipment_tutorial")
+-	else:_label(column,"Equipment tutorial is unavailable in this laboratory.")
+-
+-func _unhandled_key_input(event: InputEvent) -> void:
+-	if open_lab_instructor_visible and screen.visible and event.is_action_pressed("ui_cancel"):
+-		get_viewport().set_input_as_handled()
+-		close()
+-
+ func _build_freeplay_teacher_controls() -> void:
+ 	_label(column,"Practice assignments and lessons never change official course marks.")
+ 	var row := HBoxContainer.new()
+@@ -202,9 +165,6 @@ func _build_freeplay_teacher_controls() -> void:
+ 	_button(buttons,"Take lesson",func():school.request({"op":"new","course_id":practice_course.get_item_text(practice_course.selected),"week":topics.selected+1,"difficulty":level.selected,"lesson":true});close())
+ func open_sheet(id: int) -> void:
+ 	if not school.papers.has(id):return
+-	open_lab_instructor_visible=false
+-	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+-	screen.offset_left=40;screen.offset_top=20;screen.offset_right=-40;screen.offset_bottom=-20
+ 	flush()
+ 	document_id=id
+ 	page_index=clampi(int(view_states.get(_reader_key(school.papers[id]),{}).get("page",school.papers[id].page)),0,_page_count(school.papers[id])-1)
+@@ -260,24 +220,27 @@ func _build_reader() -> void:
+ 	var next := _button(toolbar,"›",func():turn_page(1));next.disabled=page_index>=_page_count(paper)-1
+ 	_button(toolbar,"Close",close)
+ 	view_zoom=float(view_states.get(_reader_key(paper),{}).get("zoom",1.0))
+-	var zoom_control := SpinBox.new();zoom_control.min_value=50;zoom_control.max_value=150;zoom_control.step=10;zoom_control.value=view_zoom*100;zoom_control.suffix="%";zoom_control.tooltip_text="Paper zoom";toolbar.add_child(zoom_control)
+-	zoom_control.value_changed.connect(func(value):view_zoom=value/100.0;apply_zoom();remember_view())
+-	var row := HBoxContainer.new();row.add_theme_constant_override("separation",22);row.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(row)
+-	var scroll := ScrollContainer.new();scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;row.add_child(scroll)
+-	view_scroll=scroll
+-	scroll.gui_input.connect(func(event):_paper_input(event,generation,source_id))
+-	scroll.mouse_filter=Control.MOUSE_FILTER_PASS
+-	var holder := CenterContainer.new();holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_SHRINK_BEGIN;scroll.add_child(holder)
++	var reset_view := _button(toolbar,"Reset view",func():workspace_view.fit();remember_view())
++	reset_view.tooltip_text="Fit the paper to the screen"
++	var row := HBoxContainer.new();row.add_theme_constant_override("separation",0);row.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(row)
++	workspace_view=preload("res://scripts/ui/paper_workspace/workspace/viewport.gd").new()
++	workspace_view.name="PaperViewport"
++	workspace_view.size_flags_horizontal=Control.SIZE_EXPAND_FILL
++	workspace_view.size_flags_vertical=Control.SIZE_EXPAND_FILL
++	workspace_view.clip_contents=true
++	workspace_view.mouse_filter=Control.MOUSE_FILTER_PASS
++	row.add_child(workspace_view)
++	workspace_view.view_changed.connect(func(value,_offset):view_zoom=value)
+ 	page_view=(preload("res://scripts/math_course_paper.gd").new() if paper.project.get("course_id", "") in ["MTH147", "MTH255"] else preload("res://scripts/worksheet_page.gd").new());page_view.paper=paper.duplicate(true);page_view.page=page_index;page_view.writable=_editable(paper)
+ 	page_view.answer_changed.connect(func(key,value):_queue_answer(generation,source_id,key,value))
+ 	page_view.stroke_added.connect(func(stroke):_reader_request(generation,source_id,source_page,{"op":"stroke","points":stroke.points,"color":stroke.color,"width":stroke.width,"hardness":stroke.hardness,"opacity":stroke.opacity}))
+-	view_wrapper=Control.new();holder.add_child(view_wrapper);view_wrapper.add_child(page_view);apply_zoom();ink=page_view.ink;ink.pencil_color=pencil_color;ink.pencil_width=pencil_width;page_view.set_drawing(pencil_mode)
++	workspace_view.mount(page_view);ink=page_view.ink;ink.pencil_color=pencil_color;ink.pencil_width=pencil_width;page_view.set_drawing(pencil_mode)
+ 	annotation_layer=preload("res://scripts/paper_annotations.gd").new();annotation_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);annotation_layer.writable=_editable(paper);annotation_layer.items=paper.get("annotations",{}).get(str(page_index),[]).duplicate(true);page_view.add_child(annotation_layer);annotation_layer.ink_color=pencil_color;annotation_layer.set_tool(paper_tool)
+ 	annotation_layer.changed.connect(func(item):_reader_request(generation,source_id,source_page,{"op":"annotation","item":item}))
+ 	annotation_layer.removed.connect(func(id):_reader_request(generation,source_id,source_page,{"op":"remove_annotation","object":id}))
+ 	annotation_layer.selected.connect(edit_annotation)
+ 	if ResourceLoader.exists("res://scripts/ui/paper_workspace/tools/case.gd"):
+-		var tool_anchor := Control.new();tool_anchor.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT);tool_anchor.position=Vector2(-292,76);tool_anchor.custom_minimum_size=Vector2(292,350);screen.add_child(tool_anchor)
++		var tool_anchor := Control.new();tool_anchor.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT);tool_anchor.position=Vector2(-292,76);tool_anchor.custom_minimum_size=Vector2(292,350);tool_anchor.mouse_filter=Control.MOUSE_FILTER_IGNORE;screen.add_child(tool_anchor)
+ 		tool_case=load("res://scripts/ui/paper_workspace/tools/case.gd").new();tool_anchor.add_child(tool_case)
+ 		tool_case.configure("text" if paper_tool=="equation" else paper_tool,{"color":pencil_color.to_html(false),"width":pencil_width,"equation":paper_tool=="equation"})
+ 		tool_case.tool_selected.connect(_case_tool_selected)
+@@ -291,7 +254,7 @@ func _build_reader() -> void:
+ 	annotation_layer.erase_ink.connect(func(point):ink.erase_at(point))
+ 	var side_scroll := ScrollContainer.new();side_scroll.custom_minimum_size.x=300;side_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;row.add_child(side_scroll)
+ 	tools_scroll=side_scroll
+-	if is_instance_valid(tool_case):side_scroll.hide()
++	if is_instance_valid(tool_case):side_scroll.hide();side_scroll.custom_minimum_size.x=0
+ 	var side := VBoxContainer.new();side.custom_minimum_size.x=280;side.add_theme_constant_override("separation",6);side_scroll.add_child(side)
+ 	_label(side,"PENCIL CASE",15)
+ 	var draw := CheckButton.new();draw.text="✎  Pencil enabled";draw.button_pressed=pencil_mode;draw.disabled=not _editable(paper);side.add_child(draw)
+@@ -337,44 +300,30 @@ func _build_reader() -> void:
+ 	view_document=document_id;view_page=page_index;reader_view_key=_reader_key(paper)
+ 	restore_view.call_deferred(view_document,view_page,reader_generation)
+ func remember_view() -> void:
+-	if restoring_view or reader_view_key=="" or view_document<0 or not is_instance_valid(view_scroll):return
++	if restoring_view or reader_view_key=="" or view_document<0 or not is_instance_valid(workspace_view):return
+ 	var state: Dictionary=view_states.get(reader_view_key,{"pages":{}})
+ 	state.page=view_page;state.zoom=view_zoom
+-	state.pages[view_page]=Vector2(view_scroll.scroll_horizontal,view_scroll.scroll_vertical)
++	state.pages[view_page]=workspace_view.offset
+ 	state.tools=tools_scroll.scroll_vertical if is_instance_valid(tools_scroll) else 0
+ 	view_states[reader_view_key]=state
+ 	if view_states.size()>128:view_states.erase(view_states.keys()[0])
+ 	var cfg := ConfigFile.new();cfg.set_value("reader","documents",view_states);cfg.save("user://paper_reader_views.cfg")
+ func apply_zoom() -> void:
+-	if not is_instance_valid(page_view) or not is_instance_valid(view_wrapper):return
+-	page_view.scale=Vector2.ONE*view_zoom
+-	view_wrapper.custom_minimum_size=page_view.size*view_zoom
++	if is_instance_valid(workspace_view):workspace_view.restore(view_zoom,workspace_view.offset)
+ func _clamp_pan() -> void:
+-	if not is_instance_valid(view_scroll):return
+-	var horizontal := view_scroll.get_h_scroll_bar();var vertical := view_scroll.get_v_scroll_bar()
+-	view_scroll.scroll_horizontal=clampi(view_scroll.scroll_horizontal,0,maxi(0,int(horizontal.max_value-horizontal.page)))
+-	view_scroll.scroll_vertical=clampi(view_scroll.scroll_vertical,0,maxi(0,int(vertical.max_value-vertical.page)))
++	if is_instance_valid(workspace_view):workspace_view.move_by(Vector2.ZERO)
+ func _set_zoom(value: float,anchor: Vector2) -> void:
+-	if not is_instance_valid(view_scroll):return
+-	var old := view_zoom
+-	view_zoom=clampf(value,0.5,1.5)
+-	if is_equal_approx(old,view_zoom):return
+-	var point := Vector2(view_scroll.scroll_horizontal,view_scroll.scroll_vertical)+anchor
+-	apply_zoom()
+-	var target := point*(view_zoom/old)-anchor
+-	view_scroll.set_deferred("scroll_horizontal",clampi(int(target.x),0,maxi(0,int(view_wrapper.custom_minimum_size.x-view_scroll.size.x))))
+-	view_scroll.set_deferred("scroll_vertical",clampi(int(target.y),0,maxi(0,int(view_wrapper.custom_minimum_size.y-view_scroll.size.y))))
+-	remember_view()
++	if is_instance_valid(workspace_view):workspace_view.zoom_at(anchor,value/maxf(workspace_view.target_zoom,0.001))
+ func restore_view(id: int,page: int,generation: int) -> void:
+ 	if generation!=reader_generation or not reading or not screen.visible:return
+ 	restoring_view=true
+ 	await get_tree().process_frame
+ 	await get_tree().process_frame
+-	if generation==reader_generation and reading and screen.visible and id==view_document and page==view_page and is_instance_valid(view_scroll):
++	if generation==reader_generation and reading and screen.visible and id==view_document and page==view_page and is_instance_valid(workspace_view):
+ 		var state: Dictionary=view_states.get(reader_view_key,{})
+-		var position: Vector2=state.get("pages",{}).get(page,Vector2.ZERO)
+-		view_scroll.scroll_horizontal=int(position.x);view_scroll.scroll_vertical=int(position.y)
+-		_clamp_pan()
++		var position: Vector2=state.get("pages",{}).get(page,workspace_view.offset)
++		if state.has("zoom"):workspace_view.restore(float(state.zoom),position)
++		else:workspace_view.fit()
+ 		tools_scroll.scroll_vertical=int(state.get("tools",0))
+ 	if generation==reader_generation:restoring_view=false
+ func turn_page(direction: int) -> void:
+@@ -387,26 +336,37 @@ func turn_page(direction: int) -> void:
+ 	if school.papers[document_id].owner==multiplayer.get_unique_id():school.request({"op":"page","id":document_id,"page":page_index})
+ 	_build_reader()
+ func _paper_input(event: InputEvent,generation: int,id: int) -> void:
++	_workspace_input(event,generation,id)
++func _input(event: InputEvent) -> void:
++	if not reading or not screen.visible or not is_instance_valid(workspace_view):return
++	if not (event is InputEventMouseButton or event is InputEventMouseMotion):return
++	var hovered := get_viewport().gui_get_hovered_control()
++	if is_instance_valid(hovered) and (is_instance_valid(calculator_drawer) and calculator_drawer.is_ancestor_of(hovered) or is_instance_valid(tool_case) and tool_case.is_ancestor_of(hovered)):return
++	var pointer := workspace_view.get_local_mouse_position()
++	if not panning and not Rect2(Vector2.ZERO,workspace_view.size).has_point(pointer):return
++	_workspace_input(event,reader_generation,document_id)
++func _workspace_input(event: InputEvent,generation: int,id: int) -> void:
+ 	if generation!=reader_generation or id!=document_id:return
++	if not is_instance_valid(workspace_view):return
++	var pointer := workspace_view.get_local_mouse_position()
+ 	if event is InputEventMouseButton:
+ 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN] and event.pressed:
+-			_set_zoom(view_zoom*(1.1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else 1.0/1.1),event.position)
+-			view_scroll.accept_event()
++			if not Rect2(workspace_view.offset,page_view.size*workspace_view.zoom).has_point(pointer):return
++			workspace_view.zoom_at(pointer,1.1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else 1.0/1.1)
++			get_viewport().set_input_as_handled()
+ 		elif event.button_index==MOUSE_BUTTON_MIDDLE:
+-			panning=event.pressed;pan_origin=event.position;view_scroll.accept_event()
+-		elif event.button_index==MOUSE_BUTTON_LEFT and paper_tool=="answer" and event.pressed and not _paper_control_at(event.position):
+-			panning=true;pan_origin=event.position
++			panning=event.pressed;pan_origin=pointer;get_viewport().set_input_as_handled()
++		elif event.button_index==MOUSE_BUTTON_LEFT and event.pressed and (Input.is_key_pressed(KEY_SPACE) or paper_tool=="answer" and not _paper_control_at(pointer)):
++			panning=true;pan_origin=pointer;get_viewport().set_input_as_handled()
+ 		elif event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:panning=false
+ 	elif event is InputEventMouseMotion and panning:
+-		var move: Vector2=event.position-pan_origin;pan_origin=event.position
+-		view_scroll.scroll_horizontal=maxi(0,view_scroll.scroll_horizontal-int(move.x))
+-		view_scroll.scroll_vertical=maxi(0,view_scroll.scroll_vertical-int(move.y))
+-		_clamp_pan()
+-		view_scroll.accept_event()
++		var move: Vector2=pointer-pan_origin;pan_origin=pointer
++		workspace_view.move_by(move)
++		get_viewport().set_input_as_handled()
+ func _paper_control_at(position: Vector2) -> bool:
+ 	var control := get_viewport().gui_get_hovered_control()
+ 	if control is LineEdit or control is TextEdit or control is OptionButton or control is Button:return true
+-	return not Rect2(Vector2.ZERO,view_scroll.size).has_point(position)
++	return not Rect2(workspace_view.offset,page_view.size*workspace_view.zoom).has_point(position)
+ func _case_tool_selected(value: String) -> void:
+ 	flush();paper_tool="equation" if value=="text" and bool(tool_case.properties.get("equation",false)) else value
+ 	pencil_mode=paper_tool=="pencil"
+@@ -478,7 +438,13 @@ func _updated() -> void:
+ 	# Avoid rebuilding focused answer fields on network echoes.
+ 	if (not paper.mark.is_empty() or paper.owner!=multiplayer.get_unique_id()) and rendered_revision!=paper.revision:_build_reader()
+ func _process(delta: float) -> void:
+-	if reading and screen.visible:apply_zoom();_clamp_pan()
++	if reading and screen.visible and is_instance_valid(workspace_view):view_zoom=workspace_view.zoom
++	if reading and screen.visible and is_instance_valid(calculator_drawer):
++		var occupied := Rect2()
++		if is_instance_valid(tool_case) and tool_case.revealed:
++			var case_body := tool_case.get_child(0) as Control
++			if is_instance_valid(case_body):occupied=Rect2(calculator_drawer.to_local(case_body.global_position),case_body.size)
++		calculator_drawer.set_occlusion_rect(occupied)
+ 	if not pending.is_empty():
+ 		save_timer-=delta
+ 		if save_timer<=0:flush()

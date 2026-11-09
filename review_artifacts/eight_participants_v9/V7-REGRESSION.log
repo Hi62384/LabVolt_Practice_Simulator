@@ -1,0 +1,5 @@
+Reviewer-owned V9 preflight rerun
+Command: Python311 python.exe -B -m unittest discover -s eight_participants_v7 -p test*.py -v
+Ran 11 tests in 1.569s
+
+OK

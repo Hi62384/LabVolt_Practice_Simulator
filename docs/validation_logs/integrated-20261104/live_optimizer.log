@@ -1,0 +1,6 @@
+Godot Engine v4.5.1.stable.official.f62fdbde1 - https://godotengine.org
+
+ERROR: Failed to read the root certificate store.
+   at: get_system_ca_certificates (platform/windows/os_windows.cpp:2548)
+LIVE OPTIMIZER sockets=399 saved_socket_instances=1197 panel_stats={ "source_instances": 2340, "batch_instances": 105, "saved_instances": 2235, "skipped_interaction_branches": 543 }
+PASS: all 399 real sockets batch before material settings, fine-shadow toggle restores original cast flags

@@ -1,0 +1,36 @@
+--- a/scripts/toon_character.gd
++++ b/scripts/toon_character.gd
+@@ -1,4 +1,5 @@
+ extends RefCounted
++const BodyDeformation = preload("res://scripts/avatar_cosmetics/body_deformation/rig_adapter.gd")
+ # Original LabVolt toy-like character geometry. All settings are portable JSON.
+ const VERSION := 2
+ const HAIR := ["Sweep", "Curls", "Bob", "Bun", "Spikes", "Crop", "Bald"]
+@@ -120,7 +121,7 @@
+ 	var fitted: Array=[]
+ 	for point in points:fitted.append(_torso_point(point,c))
+ 	line(parent,fitted,radius,mat)
+-static func build(raw: Dictionary) -> Node3D:
++static func build(raw: Dictionary, modern_body: Dictionary = {}) -> Node3D:
+ 	var c := sanitize(raw)
+ 	var root := Node3D.new();root.name="ToonCharacter"
+ 	root.scale=Vector3.ONE*c.height
+@@ -198,6 +199,7 @@
+ 		if str(node.name).begins_with("Fringe"):node.scale.y*=c.fringe_length
+ 	_details(root,body,head,c,skin,accent)
+ 	_glasses(head,c,dark,accent)
++	BodyDeformation.apply(root,modern_body,c)
+ 	_animations(root)
+ 	return root
+ static func _hair(head: Node3D,c: Dictionary,mat: Material) -> void:
+@@ -287,8 +289,8 @@
+ 			for key in [[0,1],[2.7,1],[2.78,.06],[2.86,1],[4,1]]:anim.scale_track_insert_key(track,key[0],Vector3(1,key[1],1))
+ 		library.add_animation(name,anim)
+ 	player.add_animation_library("",library)
+-static func save_glb(config: Dictionary,path: String) -> Error:
+-	var model := build(config)
++static func save_glb(config: Dictionary,path: String,modern_body: Dictionary = {}) -> Error:
++	var model := build(config,modern_body)
+ 	var document := GLTFDocument.new();var state := GLTFState.new()
+ 	var error := document.append_from_scene(model,state)
+ 	if error==OK:error=document.write_to_filesystem(state,path)

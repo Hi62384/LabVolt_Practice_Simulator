@@ -1,0 +1,153 @@
+extends Node
+const UI = preload("res://scripts/ui/design_system/widgets.gd")
+const HudTheme = preload("res://scripts/ui/design_system/theme.gd")
+const Layout = preload("res://scripts/ui/hud_settings/layout.gd")
+signal changed(options: Dictionary)
+const SAVE := "user://campus_graphics.cfg"
+const DEFAULTS := {"render_scale":1.0,"resolution":0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":2,"npc_density":"Off","view_distance":120.0,"effects":true,"interaction_hands":true}
+var options := DEFAULTS.duplicate()
+var viewport: Viewport
+var world: Node
+var crowd: Object
+var originals := {}
+var texture_materials := {}
+var shared_material_copies := {}
+var node_refs := {}
+var density_controls: Array[OptionButton]=[]
+func attach(target: Viewport, root: Node, crowd_adapter: Object=null) -> void:
+	viewport=target; world=root; crowd=crowd_adapter
+	load_settings()
+	apply()
+func load_settings(path := SAVE) -> void:
+	var cfg := ConfigFile.new()
+	if cfg.load(path)!=OK: return
+	for key in DEFAULTS: _validate(key,cfg.get_value("graphics",key,DEFAULTS[key]))
+func save_settings(path := SAVE) -> Error:
+	var cfg := ConfigFile.new()
+	for key in options: cfg.set_value("graphics",key,options[key])
+	return cfg.save(path)
+func _validate(key: String, value: Variant) -> bool:
+	if not DEFAULTS.has(key): return false
+	match key:
+		"render_scale": options[key]=clampf(float(value),0.5,1.0)
+		"view_distance": options[key]=clampf(float(value),100.0,240.0)
+		"resolution": options[key]=clampi(int(value),0,3)
+		"texture": options[key]=clampi(int(value),0,2)
+		"aa": options[key]=clampi(int(value),0,3)
+		"npc_density":
+			if str(value) not in ["Off","Low","Medium","High"]: return false
+			options[key]=str(value)
+		_: options[key]=bool(value)
+	return true
+func set_option(key: String, value: Variant) -> bool:
+	if not _validate(key,value): return false
+	apply(); save_settings(); changed.emit(options.duplicate())
+	return true
+func preset(level: String) -> void:
+	var low := level=="Low"
+	options=DEFAULTS.duplicate()
+	options.merge({"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low},true)
+	if level=="Medium": options=DEFAULTS.duplicate()
+	if level=="Ultra":
+		options.merge({"detail_shadows":true, "aa":3, "view_distance":240.0}, true)
+	apply(); save_settings(); changed.emit(options.duplicate())
+func set_crowd_adapter(adapter: Object) -> void:
+	crowd=adapter; apply()
+func apply() -> void:
+	for control in density_controls:
+		if is_instance_valid(control): control.disabled=not (is_instance_valid(crowd) and crowd.has_method("set_density"))
+	if not is_instance_valid(viewport): return
+	viewport.scaling_3d_scale=float(options.render_scale)
+	viewport.msaa_3d=int(options.aa)
+	# Texture filtering changes real sampler behavior. Import resolution is deliberately not promised.
+	viewport.anisotropic_filtering_level=0 if options.texture==0 else (2 if options.texture==1 else 4)
+	if is_instance_valid(crowd) and crowd.has_method("set_density"): crowd.call("set_density",options.npc_density)
+	for id in node_refs.keys():
+		if node_refs[id].get_ref()==null:
+			node_refs.erase(id); originals.erase(id); texture_materials.erase(id)
+	if is_instance_valid(world):
+		var hands=world.get("interaction_presentation")
+		if is_instance_valid(hands):hands.set_enabled(bool(options.interaction_hands))
+		register_node(world)
+func _material_copy(source: BaseMaterial3D) -> BaseMaterial3D:
+	var id := source.get_instance_id()
+	if not shared_material_copies.has(id): shared_material_copies[id]=source.duplicate()
+	return shared_material_copies[id]
+func register_node(node: Node) -> void:
+	var id := node.get_instance_id()
+	node_refs[id]=weakref(node)
+	if not originals.has(id):
+		var original := {}
+		if node is Light3D: original={"shadow":node.shadow_enabled,"visible":node.visible}
+		elif node is ReflectionProbe or node is GPUParticles3D or node is CPUParticles3D: original={"visible":node.visible}
+		elif node is Camera3D: original={"far":node.far}
+		elif node is WorldEnvironment and node.environment!=null: original={"ssr":node.environment.ssr_enabled,"glow":node.environment.glow_enabled,"ssao":node.environment.ssao_enabled,"ssil":node.environment.ssil_enabled}
+		elif node is GeometryInstance3D: original={"end":node.visibility_range_end,"cast":node.cast_shadow,"fine":_fine_detail(node)}
+		originals[id]=original
+	var saved: Dictionary=originals[id]
+	if node is Light3D:
+		node.shadow_enabled=bool(saved.shadow) and options.shadows
+		# Room fixtures provide basic illumination even with accent lights disabled.
+		if not node is DirectionalLight3D:
+			node.visible = bool(saved.visible) and (bool(options.lights) or bool(node.get_meta("room_fixture", false)))
+	elif node is ReflectionProbe: node.visible=bool(saved.visible) and options.reflections
+	elif node is GPUParticles3D or node is CPUParticles3D: node.visible=bool(saved.visible) and options.effects
+	elif node is Camera3D: node.far=minf(float(saved.far),float(options.view_distance))
+	elif node is WorldEnvironment and node.environment!=null:
+		node.environment.ssr_enabled=bool(saved.ssr) and options.reflections
+		node.environment.glow_enabled=bool(saved.glow) and options.effects
+		node.environment.ssao_enabled=bool(saved.ssao) and options.effects
+		node.environment.ssil_enabled=bool(saved.ssil) and options.effects
+	elif node is GeometryInstance3D:
+		node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if bool(saved.get("fine",false)) and not options.detail_shadows else int(saved.get("cast",node.cast_shadow))
+		node.visibility_range_end=minf(float(saved.end),float(options.view_distance)) if float(saved.end)>0 else float(options.view_distance)
+		if node is MeshInstance3D and node.mesh!=null:
+			if not texture_materials.has(id):
+				var copies: Array=[]
+				if node.material_override is BaseMaterial3D:
+					var copy: BaseMaterial3D=_material_copy(node.material_override)
+					node.material_override=copy; copies.append(copy)
+				else:
+					for surface in node.mesh.get_surface_count():
+						var material: Material=node.get_active_material(surface)
+						if material is BaseMaterial3D:
+							var copy: BaseMaterial3D=_material_copy(material)
+							node.set_surface_override_material(surface,copy); copies.append(copy)
+				texture_materials[id]=copies
+			for material in texture_materials[id]: material.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if options.texture==0 else BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	for child in node.get_children(): register_node(child)
+func build_controls(parent: VBoxContainer) -> void:
+	var body := Layout.section(parent, "Graphics", "Applies immediately • choose a preset or tune each setting", "palette")
+	var presets := Layout.flow(body)
+	for level in ["Low","Medium","High"]:
+		var b := UI.action(level, "palette", func():preset(level)); presets.add_child(b)
+	var quality := Layout.section(body, "Image quality", "Resolution, filtering and anti-aliasing", "settings")
+	var environment := Layout.section(body, "World detail", "Lighting, effects and local presentation", "home")
+	for key in DEFAULTS:
+		var row := VBoxContainer.new(); (quality if key in ["render_scale","resolution","texture","aa"] else environment).add_child(row)
+		var label := Label.new(); label.text={"detail_shadows":"Fine-detail shadows","texture":"Texture filtering","aa":"Anti-aliasing","npc_density":"NPC density","resolution":"Window resolution"}.get(key,key.replace("_"," ").capitalize()); label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; row.add_child(label)
+		var select := OptionButton.new(); select.size_flags_horizontal=Control.SIZE_EXPAND_FILL; select.custom_minimum_size.y=44; select.tooltip_text=label.text; row.add_child(select)
+		var values: Array=[]; var names: Array=[]
+		match key:
+			"render_scale": values=[0.5,0.65,0.75,1.0]; names=["50%","65%","75%","100%"]
+			"resolution": values=[0,1,2,3]; names=["Current window","1280 × 720","1600 × 900","1920 × 1080"]
+			"texture": values=[0,1,2]; names=["Nearest mipmaps","Filtered · 4×","Filtered · 16×"]
+			"aa": values=[0,1,2,3]; names=["Off","MSAA 2×","MSAA 4×","MSAA 8×"]
+			"npc_density": values=["Off","Low","Medium","High"]; names=values
+			"view_distance": values=[100.0,120.0,180.0,240.0]; names=["100 m","120 m","180 m","240 m"]
+			_: values=[false,true]; names=["Off","On"]
+		if key=="npc_density":
+			density_controls.append(select); select.disabled=not (is_instance_valid(crowd) and crowd.has_method("set_density")); select.tooltip_text="Requires the campus local crowd module. Saved density applies when it is connected."
+		for name in names: select.add_item(str(name))
+		select.select(maxi(values.find(options[key]),0))
+		select.item_selected.connect(func(index):set_option(key,values[index]))
+		changed.connect(func(_o):select.select(maxi(values.find(options[key]),0)))
+
+func _fine_detail(node: GeometryInstance3D) -> bool:
+	# Printed text/schematic strokes and tiny fixtures retain their lit appearance;
+	# only their contribution to the shadow map is optional. Large equipment,
+	# furniture, people and the room keep ordinary shadows enabled.
+	if node is Label3D:return true
+	if not node is MeshInstance3D or node.mesh==null:return false
+	var size: Vector3=node.mesh.get_aabb().size*node.scale.abs()
+	return maxf(size.x,maxf(size.y,size.z))<=0.25 or minf(size.x,minf(size.y,size.z))<=0.012

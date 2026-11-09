@@ -1,0 +1,48 @@
+OPEN LAB INSTRUCTOR — TUTORIAL OWNER HANDOFF
+
+Private source only; main integrates. API.txt is the stable interface for UI and practice owners.
+catalog.gd maps exact ac_lab -> ELM253 and dc_lab -> ETY155. It teaches 11 actual AC device
+groups and 7 DC groups, including all implemented M103 instruments, physical controls, mounted
+ports and beginner mistakes. M101 Wye/Delta explanation refers only to actual six motor winding
+posts and an assignment's connection diagram. It does not create a new switching mode.
+
+session.gd stores one player's lab/bench/device/step/tour; it ignores a different peer, lab,
+bench and rejected event. Action steps match accepted host results. State steps check real
+snapshot fields including leads and acquired samples. Intro steps require explicit acknowledge;
+meaningful operation steps cannot be advanced with that call. Skip, restart and exit are local.
+Do not persist tutorial progress in shared school records or other players' papers.
+
+target_resolver.gd resolves cue keys from existing AC positions or DC fixture mounts/sockets.
+projection.gd returns screen-space HUD data. Draw it in a client overlay outside AC equipment
+hierarchy; do not change M101 meshes/materials/colliders/terminals or obstruct their clicks.
+UI owner: Open Lab instructor root has exactly Practice Lesson and Equipment Tutorial; put
+device list/tour, details, skip/restart/exit inside the second action. No device dropdown at root.
+Close/Escape uses existing mouse capture restoration. An accepted tutorial event should come
+from existing host response/authoritative snapshot, never from a local button press alone.
+
+ACTUAL ENTRY: game_hooks.json stages game.open_lab_equipment_tutorial(), lazy mounting of
+controller.gd, and guarded local AC/DC request intent hooks against current exact source hashes.
+The controller resolves school.room_bridge.registry.locate(game.player.global_position), accepts
+only the stable ac_lab/dc_lab IDs, chooses the nearest independent DC bench or active AC station,
+and opens the device list. It polls the replicated snapshot and only accepts a matching revision
+and changed requested field/lead; no client event alone completes a practical step. F6 reopens
+step controls while walking; Escape exits. Source projection goes to its separate CanvasLayer.
+
+UI coordination: UI_HANDOFF.md currently retains old Freeplay controls. User's task says
+FREEPLAY/open-lab gets exactly the same two actions, so ui_adjustment.json stages the narrow
+changes to that UI owner's patch. Main should apply the adjustment after UI patch or fold it in.
+The UI owner's paper_ui.patch already hides formal lecture Equipment Guide. Do NOT apply the
+duplicate paper_ui.gd snippet from formal_class_patches.json on top of it; apply only the
+school_session.gd server guard there. Formal lab-class guide stays available.
+
+formal_class_patches.json has two exact old/new snippets with current source SHA-256 pins:
+paper_ui.gd hides Equipment Guide unless school.activity.kind == lab in Class mode;
+school_session.gd rejects a forged guide request in formal lecture sessions. The shared
+formal_guide_policy.gd uses authoritative session kind; positive/negative ETY155 and ELM253
+variants are in fixture.gd. These patches retain all other class buttons and validation.
+Main must reconcile changed preimages before applying; no shared production file was edited.
+
+verify.py passed bounded source checks and staged the formal patches. fixture.gd is authored
+for later guarded Godot runtime and has NOT been executed. In-game GUI, event wiring, multiplayer,
+HUD positioning, paper delivery and screenshots remain for the sole runtime owner at a safe
+boundary. No engine/CUA/save/cache/active-game operations occurred.

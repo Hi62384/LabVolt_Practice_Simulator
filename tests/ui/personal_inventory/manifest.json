@@ -1,0 +1,14 @@
+{
+  "scripts\\carry_hotbar.gd": {
+    "before": "caa64ea28bc55c2d20c120e86e397eb450c85bc1f3b87327841b7a8533e1fa27",
+    "after": "954363cdb2af35ebe7ae4c0eeaf77a9279af9c30e0c66f623edfdd22dd4af788"
+  },
+  "scripts\\electronics_trade.gd": {
+    "before": "5648c013c2a67d5e0a3a44aa4370753c41fa54a140cbb6244808997f7de51685",
+    "after": "ac1d5612dbf80613bd82cbcbbea64a46a036be720a3d8eb2f538243bb4ace9b1"
+  },
+  "scripts\\kit_world.gd": {
+    "before": "94276e060e62ae13bbf0020992e9124eea0e4cd0bfb9a10452ae837d6dea0a3c",
+    "after": "2e04a8c07c86cbc6e38c30cc717c03948d85b0d73caddbe318ce9611ac3e4ec4"
+  }
+}

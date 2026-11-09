@@ -1,0 +1,42 @@
+[
+  {
+    "path": "scripts/game.gd",
+    "preimage_sha256": "78849e1c4fb3d11a99edfb58f15c9c125385240085694c93a7e24f72b00de987",
+    "edits": [
+      {
+        "old": "var school: Node",
+        "new": "var school: Node\nvar computers: Node\nvar computer_room_adapter: Node"
+      },
+      {
+        "old": "\tschool.build(self)",
+        "new": "\tschool.build(self)\n\tcomputers=preload(\"res://scripts/campus/computers/computer_sessions.gd\").new()\n\tcomputers.name=\"ComputerSessions\"\n\tadd_child(computers)\n\tcomputers.build(self)"
+      },
+      {
+        "old": "func _input(event: InputEvent) -> void:",
+        "new": "func _input(event: InputEvent) -> void:\n\tif is_instance_valid(computer_room_adapter) and computer_room_adapter.route_event(event):return"
+      },
+      {
+        "old": "func activate() -> void:",
+        "new": "func activate() -> void:\n\tif is_instance_valid(computer_room_adapter) and computer_room_adapter.interact(current_target):return"
+      },
+      {
+        "old": "\t\telif role==\"teacher\":",
+        "new": "\t\telif role==\"computer\":\n\t\t\thint=\"E / click: use classroom computer\"\n\t\telif role==\"teacher\":"
+      }
+    ]
+  },
+  {
+    "path": "scripts/campus_integration.gd",
+    "preimage_sha256": "b90c995c34cd4e91164ed4dda21c96f10d33e99e127feaa31d3317913e1df7ba",
+    "edits": [
+      {
+        "old": "var service_decor: Node3D",
+        "new": "var service_decor: Node3D\nvar m203_room: Node3D"
+      },
+      {
+        "old": "\troom_finish_results.m103=m103_finish.mount(game.campus,game.campus.registry)",
+        "new": "\troom_finish_results.m103=m103_finish.mount(game.campus,game.campus.registry)\n\tm203_room=preload(\"res://scripts/campus/presentation/decor/computer_rooms/m203_room.gd\").new()\n\tadd_child(m203_room)\n\troom_finish_results.m203=m203_room.mount(game.campus,game.campus.registry)\n\tif room_finish_results.m203:\n\t\tgame.computer_room_adapter=preload(\"res://scripts/campus/computers/classroom_adapter.gd\").new()\n\t\tgame.computer_room_adapter.name=\"ComputerClassroomAdapter\"\n\t\tgame.add_child(game.computer_room_adapter)\n\t\tif not game.computer_room_adapter.build(game,m203_room):push_error(\"M203 station integration failed\")"
+      }
+    ]
+  }
+]

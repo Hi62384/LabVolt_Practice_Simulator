@@ -1,0 +1,195 @@
+--- a/scripts/electronics_catalog.gd
++++ b/scripts/electronics_catalog.gd
+@@ -5,6 +5,11 @@
+ # catalogue at every electrical edge. Runtime state is never stored here.
+ static func simulation_entry(id: String) -> Dictionary:
+ 	if _simulation_entries.is_empty():_simulation_entries=all()
++	if id.begins_with("cv1:") and not _simulation_entries.has(id):
++		var configured: Dictionary=preload("res://scripts/electronics/component_values/values.gd").resolve(id,_simulation_entries)
++		if not configured.ok:return {}
++		if _simulation_entries.size()<512:_simulation_entries[id]=configured.entry.duplicate(true)
++		return configured.entry
+ 	return _simulation_entries.get(id,{}).duplicate(true)
+ static func all() -> Dictionary:
+ 	var entries := {}
+--- a/scripts/electronics_profile.gd
++++ b/scripts/electronics_profile.gd
+@@ -56,7 +56,7 @@
+ 	for amount in value.inventory.values():
+ 		if not quantity(amount):return false
+ 	if not Persistent.registry(value.get("component_instances",{}),value.inventory):return false
+-	var known: Dictionary=preload("res://scripts/custom_circuit.gd").catalog(value.get("blueprints",{}))
++	var known: Dictionary=preload("res://scripts/electronics/component_values/values.gd").augment(preload("res://scripts/custom_circuit.gd").catalog(value.get("blueprints",{})),value.inventory.keys())
+ 	for id in value.inventory:
+ 		if not known.has(id):return false
+ 	if not value.get("reward_ids",{}) is Dictionary:return false
+@@ -99,6 +99,27 @@
+ 	if save()!=OK:data=before;return "Save failed; purchase rolled back"
+ 	operation_succeeded=true
+ 	return "Purchased %d × %s"%[quantity,catalog[type].name]
++func buy_configured(base_id: String, settings: Variant, amount: Variant, authority_confirmed: bool=false) -> String:
++	operation_succeeded=false
++	if authority_submit.is_valid():return queued("buy_configured",[base_id,settings,amount])
++	if not authority_confirmed:return "Authenticated host required"
++	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
++	var values=preload("res://scripts/electronics/component_values/values.gd")
++	var builtins: Dictionary=Catalog.all()
++	var configured: Dictionary=values.configure(base_id,settings,builtins)
++	if not configured.ok:return configured.error
++	var existing: Variant=data.get("inventory",{}).get(configured.id,0)
++	if not quantity(existing):return "Invalid existing stock"
++	var plan: Dictionary=values.intent(base_id,settings,amount,builtins,int(existing))
++	if not plan.ok:return plan.error
++	var debit: Dictionary=preload("res://scripts/economy/temporary_playtest/policy.gd").purchase_debit(int(data.dollars),plan.total_price,true)
++	if not debit.ok:return debit.error
++	var before := data.duplicate(true)
++	data.dollars=debit.next_balance;data.inventory[plan.id]=int(existing)+plan.quantity
++	if save()!=OK:data=before;return "Save failed; purchase rolled back"
++	operation_succeeded=true
++	return "Purchased %d × %s"%[plan.quantity,plan.entry.name]
++
+ func kit_error(id: String) -> String:
+ 	if not data.kits.has(id):return "Kit not found"
+ 	var used := 0;var catalog := catalog()
+@@ -146,7 +167,7 @@
+ 	operation_succeeded=true
+ 	return "Bundle purchased"
+ 
+-func catalog() -> Dictionary:return preload("res://scripts/custom_circuit.gd").catalog(data.get("blueprints",{}))
++func catalog() -> Dictionary:return preload("res://scripts/electronics/component_values/values.gd").augment(preload("res://scripts/custom_circuit.gd").catalog(data.get("blueprints",{})),data.get("inventory",{}).keys())
+ func save_blueprint(title: String,pin_map: Array=[],description: String="",package: String="IC",width: int=8,height: int=6,color: String="24775b",exposed: Array=[],metadata: Dictionary={}) -> String:
+ 	var before := data.duplicate(true);var design: Dictionary=data.kits[data.equipped].board
+ 	if not data.has("blueprints"):data.blueprints={}
+@@ -193,7 +214,7 @@
+ 	var counts: Dictionary=Custom.materials(id,definitions);var cost: int=Custom.price(id,definitions)
+ 	if craft:
+ 		for type in counts:
+-			if int(data.inventory.get(type,0))<int(counts[type]):return "Missing %d × %s"%[int(counts[type])-int(data.inventory.get(type,0)),Catalog.all()[type].name]
++			if int(data.inventory.get(type,0))<int(counts[type]):return "Missing %d × %s"%[int(counts[type])-int(data.inventory.get(type,0)),Catalog.simulation_entry(str(type)).get("name",type)]
+ 	elif data.dollars<cost:return "Not enough dollars"
+ 	var before := data.duplicate(true)
+ 	if craft:
+--- a/scripts/electronics_ui.gd
++++ b/scripts/electronics_ui.gd
+@@ -450,7 +450,7 @@
+ 		button(row,"Buy $%d"%Custom.price(id,profile.data.blueprints),func():var message: String=profile.obtain_ic(id,false);open("ics",bench);status.text=message)
+ 		button(row,"Craft from components",func():var message: String=profile.obtain_ic(id,true);open("ics",bench);status.text=message)
+ 		var contents := "Materials: "
+-		for type in Custom.materials(id,profile.data.blueprints):contents+="%d × %s  "%[Custom.materials(id,profile.data.blueprints)[type],Catalog.all()[type].name]
++		for type in Custom.materials(id,profile.data.blueprints):contents+="%d × %s  "%[Custom.materials(id,profile.data.blueprints)[type],Catalog.simulation_entry(str(type)).get("name",type)]
+ 		label(body,contents)
+ 
+ func view_path() -> String:return "user://electronics_view_"+game.characters.selected.sha256_text().left(24)+".cfg"
+--- a/scripts/dc_lab.gd
++++ b/scripts/dc_lab.gd
+@@ -519,7 +519,7 @@
+ 		for part in parts:
+ 			if str(part.get("id",""))==pieces[depth]:found=part;break
+ 		if found.is_empty():return ""
+-		if depth==pieces.size()-1:return str(preload("res://scripts/electronics_catalog.gd").all().get(found.type,{}).get("kind",""))
++		if depth==pieces.size()-1:return str(preload("res://scripts/electronics_catalog.gd").simulation_entry(str(found.type)).get("kind",""))
+ 		var definition: Dictionary=definitions.get(found.type,{})
+ 		if definition.get("package","")!="PCB" and pieces[depth+1] not in definition.get("exposed",[]):return ""
+ 		parts=definition.get("parts",[])
+--- a/scripts/inventory_authority/ledger.gd
++++ b/scripts/inventory_authority/ledger.gd
+@@ -79,7 +79,7 @@
+ 		if not owned.has(id) or not Profile.same(owned[id],definitions[id]):return "Blueprint does not match host library"
+ 	for type in items:
+ 		if not Profile.quantity(items[type]) or int(items[type])>free_stock(peer,str(type)):return "Offer exceeds available master stock"
+-		if not Custom.catalog(owned).has(type):return "Unknown component"
++		if not preload("res://scripts/electronics/component_values/values.gd").augment(Custom.catalog(owned),[type]).has(type):return "Unknown component"
+ 		if str(type).begins_with("ic:") and Custom.validate(type,owned)!="":return "Invalid custom circuit dependencies"
+ 	return ""
+ func transact(peer: int,id: String,op: String,args: Array) -> Dictionary:
+@@ -109,6 +109,9 @@
+ 			p.data=result.profile
+ 			p.operation_succeeded=true
+ 			message="Appearance saved" if intent.op!="purchase" else "Cosmetic purchased"
++		"buy_configured":
++			if args.size()!=3 or not args[0] is String:return failure("Invalid configured purchase")
++			message=p.buy_configured(args[0],args[1],args[2],true)
+ 		"buy":
+ 			if args.size()!=2 or not args[0] is String or not Profile.quantity(args[1],100):return failure("Invalid purchase")
+ 			message=p.buy(args[0],int(args[1]))
+@@ -147,7 +150,7 @@
+ 				if not Profile.same(p.data.get("blueprints",{}).get(key),a.profile.blueprints[key]):return failure("Blueprint identity conflict")
+ 			if not Profile.valid(p.data):return failure("Invalid profile metadata")
+ 		_ :return failure("Unsupported client operation")
+-	if op in ["buy","analyzer","box","cosmetic","obtain","bundle","avatar_cosmetic","cosmetic_purchase"] and not p.operation_succeeded:return failure(message)
++	if op in ["buy_configured","buy","analyzer","box","cosmetic","obtain","bundle","avatar_cosmetic","cosmetic_purchase"] and not p.operation_succeeded:return failure(message)
+ 	if not Profile.valid(p.data):return failure("Invalid resulting profile")
+ 	for type in a.deployment.get("counts",{}):
+ 		if int(p.data.inventory.get(type,0))<int(a.deployment.counts[type]):return failure("Recall deployed components first")
+--- a/scripts/breadboard_model.gd
++++ b/scripts/breadboard_model.gd
+@@ -1,7 +1,7 @@
+ extends RefCounted
+ const Catalog = preload("res://scripts/electronics_catalog.gd")
+ const Custom=preload("res://scripts/custom_circuit.gd")
+-static func catalog(board: Dictionary) -> Dictionary:return Custom.catalog(board.get("definitions",{}))
++static func catalog(board: Dictionary) -> Dictionary:return preload("res://scripts/electronics/component_values/values.gd").augment(Custom.catalog(board.get("definitions",{})),board.get("parts",[]).map(func(part):return str(part.get("type",""))))
+ static func pins(part: Dictionary) -> Array:return part.get("pins",[part.get("a",""),part.get("b","")])
+ static func empty() -> Dictionary:
+ 	return {"version":1,"rows":30,"parts":[],"wires":[],"ports":["P1","N1","A1","F1"]}
+--- a/scripts/custom_circuit.gd
++++ b/scripts/custom_circuit.gd
+@@ -8,7 +8,12 @@
+ 		var bp=definitions[id]
+ 		if not bp is Dictionary or not bp.get("pins") is Array or bp.pins.any(func(pin):return not pin is Dictionary):continue
+ 		result[id]={"name":str(bp.get("name","Custom IC")),"kind":"module","category":str(bp.get("package","IC")),"space":6 if bp.get("package","IC")=="PCB" else 3,"rarity":"Custom","price":0,"rating":"Reusable circuit · revision %d"%int(bp.get("revision",1)),"pins":bp.get("pins",[]).map(func(pin):return str(pin.get("name","pin")))}
+-	return result
++	var configured_ids: Array=[]
++	for bp in definitions.values():
++		if not bp is Dictionary or not bp.get("parts",[]) is Array:continue
++		for part in bp.parts:
++			if part is Dictionary:configured_ids.append(str(part.get("type","")))
++	return preload("res://scripts/electronics/component_values/values.gd").augment(result,configured_ids)
+ static func validate(id: String,definitions: Dictionary,ancestors: Array=[],budget: Dictionary={}) -> String:
+ 	if budget.is_empty():budget.merge({"parts":0,"nodes":0})
+ 	budget.nodes+=1
+@@ -35,6 +40,7 @@
+ 	if not bp.get("exposed",[]) is Array:return "Invalid exposed component list"
+ 	for visible_id in bp.get("exposed",[]):
+ 		if not visible_id is String or not bp.parts.any(func(part):return part is Dictionary and str(part.get("id",""))==visible_id):return "Exposed component does not exist"
++	var builtin_catalog: Dictionary=preload("res://scripts/electronics/component_values/values.gd").augment(Catalog.all(),bp.parts.map(func(part):return str(part.get("type","")) if part is Dictionary else ""))
+ 	var names := {};var ids := {};var chain := ancestors.duplicate();chain.append(id)
+ 	for pin in bp.pins:
+ 		if not pin is Dictionary or str(pin.get("name","")).is_empty() or str(pin.get("node","")).is_empty() or names.has(str(pin.name)):return "Pins need unique names and assigned nodes"
+@@ -50,12 +56,12 @@
+ 			if error!="":return error
+ 			if not part.get("nodes") is Array or part.nodes.size()!=definitions[type].pins.size():return "Custom IC pin count mismatch"
+ 		else:
+-			if not Catalog.all().has(type):return "Unsupported internal component"
++			if not builtin_catalog.has(type):return "Unsupported internal component"
+ 			if not part.get("nodes",[part.get("a",""),part.get("b","")]) is Array:return "Invalid internal pin list"
+-			if part.get("nodes",[part.get("a",""),part.get("b","")]).size()!=Catalog.all()[type].pins.size():return "Internal pin count mismatch"
+-			budget.parts+=preload("res://scripts/device_models.gd").expand(Catalog.all().get(type,{"kind":"R"}),str(part.id),part.get("nodes",[part.get("a",""),part.get("b","")]),part).size()
++			if part.get("nodes",[part.get("a",""),part.get("b","")]).size()!=builtin_catalog[type].pins.size():return "Internal pin count mismatch"
++			budget.parts+=preload("res://scripts/device_models.gd").expand(builtin_catalog.get(type,{"kind":"R"}),str(part.id),part.get("nodes",[part.get("a",""),part.get("b","")]),part).size()
+ 			if budget.parts>64:return "Expanded custom circuit exceeds 64 components"
+-			if not Catalog.all().has(type) or str(part.get("a","")).is_empty() or str(part.get("b","")).is_empty():return "Unsupported internal component"
++			if not builtin_catalog.has(type) or str(part.get("a","")).is_empty() or str(part.get("b","")).is_empty():return "Unsupported internal component"
+ 	for wire in bp.wires:
+ 		if not wire is Array or wire.size()!=2 or str(wire[0]).is_empty() or str(wire[1]).is_empty():return "Invalid internal connection"
+ 	# Kept independent of BreadboardModel to avoid a preload cycle.
+@@ -123,7 +129,7 @@
+ 	return result
+ static func price(id: String,definitions: Dictionary) -> int:
+ 	var amount := 0;var counts := materials(id,definitions)
+-	for type in counts:amount+=int(Catalog.all()[type].price)*int(counts[type])
++	for type in counts:amount+=int(Catalog.simulation_entry(str(type)).get("price",0))*int(counts[type])
+ 	return maxi(1,amount)
+ 
+ static func layout_hole(value: Variant,rows: int) -> bool:
+--- a/scripts/physical_resistors.gd
++++ b/scripts/physical_resistors.gd
+@@ -7,7 +7,7 @@
+ 	return float(value.nominal)>0 and float(value.nominal)<=1e9 and float(value.tolerance)>0 and float(value.tolerance)<=0.2 and float(value.watts)>0 and float(value.watts)<=100 and absf(float(value.actual)-float(value.nominal))<=float(value.nominal)*float(value.tolerance)+1e-8
+ 
+ static func ensure(profile: Dictionary,design: Dictionary) -> bool:
+-	var catalog: Dictionary=load("res://scripts/electronics_catalog.gd").all()
++	var catalog: Dictionary=preload("res://scripts/electronics/component_values/values.gd").augment(load("res://scripts/electronics_catalog.gd").all(),profile.get("inventory",{}).keys())
+ 	var wanted := {}
+ 	for part in design.get("parts",[]):
+ 		if catalog.get(part.type,{}).get("physical_resistor",false):wanted[part.type]=int(wanted.get(part.type,0))+1

@@ -1,0 +1,321 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original footwear authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Ionstep Future Shoe",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Ionstep Future Shoe",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 7,
+            "TEXCOORD_0": 8
+          },
+          "material": 2,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "metal",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        },
+        "metallicFactor": 0.78,
+        "roughnessFactor": 0.22
+      },
+      "normalTexture": {
+        "index": 1,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "rubber",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 5
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.72
+      },
+      "normalTexture": {
+        "index": 4,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "neon",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 6
+        },
+        "metallicRoughnessTexture": {
+          "index": 8
+        },
+        "metallicFactor": 0.15,
+        "roughnessFactor": 0.24
+      },
+      "normalTexture": {
+        "index": 7,
+        "scale": 0.55
+      },
+      "emissiveTexture": {
+        "index": 9
+      },
+      "emissiveFactor": [
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/metal_albedo.png"
+    },
+    {
+      "uri": "../materials/metal_normal.png"
+    },
+    {
+      "uri": "../materials/metal_orm.png"
+    },
+    {
+      "uri": "../materials/rubber_albedo.png"
+    },
+    {
+      "uri": "../materials/rubber_normal.png"
+    },
+    {
+      "uri": "../materials/rubber_orm.png"
+    },
+    {
+      "uri": "../materials/neon_albedo.png"
+    },
+    {
+      "uri": "../materials/neon_normal.png"
+    },
+    {
+      "uri": "../materials/neon_orm.png"
+    },
+    {
+      "uri": "../materials/neon_emission.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    },
+    {
+      "source": 6
+    },
+    {
+      "source": 7
+    },
+    {
+      "source": 8
+    },
+    {
+      "source": 9
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "future_shoe.bin",
+      "byteLength": 9216
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 864
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 864,
+      "byteLength": 864
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1728,
+      "byteLength": 576
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2304,
+      "byteLength": 1296
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3600,
+      "byteLength": 1296
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4896,
+      "byteLength": 864
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5760,
+      "byteLength": 1296
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 7056,
+      "byteLength": 1296
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 8352,
+      "byteLength": 864
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 72,
+      "type": "VEC3",
+      "min": [
+        -0.0975,
+        -0.01,
+        -0.16
+      ],
+      "max": [
+        0.0975,
+        0.22999999999999998,
+        0.165
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 72,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 72,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 108,
+      "type": "VEC3",
+      "min": [
+        -0.1075,
+        -0.05,
+        -0.175
+      ],
+      "max": [
+        0.1075,
+        0.22,
+        0.195
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 108,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 108,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 108,
+      "type": "VEC3",
+      "min": [
+        -0.10700000000000001,
+        0.022500000000000003,
+        -0.105
+      ],
+      "max": [
+        0.10700000000000001,
+        0.1175,
+        0.135
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 108,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 108,
+      "type": "VEC2"
+    }
+  ]
+}

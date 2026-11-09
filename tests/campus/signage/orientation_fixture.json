@@ -1,0 +1,15 @@
+{
+  "label_local_readable_front": "+Z",
+  "back_faces_render": false,
+  "room_identity_content": "room_number_only",
+  "hud_identity_content": "room_number_and_title",
+  "west_wall": {
+    "corridor_yaw_radians": 1.5707963267948966,
+    "interior_yaw_radians": -1.5707963267948966
+  },
+  "east_wall": {
+    "corridor_yaw_radians": -1.5707963267948966,
+    "interior_yaw_radians": 1.5707963267948966
+  },
+  "functional_text_policy": "preserve directory, navigation, course, equipment, and menu text"
+}

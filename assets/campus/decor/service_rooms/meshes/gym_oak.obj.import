@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cduq08xuk1tsx"
+path="res://.godot/imported/gym_oak.obj-bd792c51452a09b6fd71ff0ff08c743d.mesh"
+
+[deps]
+
+files=["res://.godot/imported/gym_oak.obj-bd792c51452a09b6fd71ff0ff08c743d.mesh"]
+
+source_file="res://assets/campus/decor/service_rooms/meshes/gym_oak.obj"
+dest_files=["res://.godot/imported/gym_oak.obj-bd792c51452a09b6fd71ff0ff08c743d.mesh", "res://.godot/imported/gym_oak.obj-bd792c51452a09b6fd71ff0ff08c743d.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

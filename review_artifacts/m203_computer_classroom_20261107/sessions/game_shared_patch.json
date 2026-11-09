@@ -1,0 +1,14 @@
+{
+  "path": "scripts/game.gd",
+  "preimage_sha256": "78849e1c4fb3d11a99edfb58f15c9c125385240085694c93a7e24f72b00de987",
+  "edits": [
+    {
+      "old": "var school: Node",
+      "new": "var school: Node\nvar computers: Node"
+    },
+    {
+      "old": "\tschool.build(self)",
+      "new": "\tschool.build(self)\n\tcomputers=preload(\"res://scripts/campus/computers/computer_sessions.gd\").new()\n\tcomputers.name=\"ComputerSessions\"\n\tadd_child(computers)\n\tcomputers.build(self)"
+    }
+  ]
+}

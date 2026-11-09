@@ -1,0 +1,30 @@
+--- a/tests/campus/world/world_tests.gd
++++ b/tests/campus/world/world_tests.gd
+@@ -126,17 +126,19 @@
+ 	check(slow_loader.metrics().recovery_admissions==1,"slow-client recovery admission measured")
+ 	slow_loader.free()
+ 	var target: Node
+-	for child in campus.get_children():
+-		if child.get_meta("role","")=="elevator_station": target=child; break
++	for child in campus.elevator_geometry.get_children():
++		if child.get_meta("role", "") == "elevator_control": target=child; break
++	check(is_instance_valid(target), "physical elevator controls mounted")
+ 	var actor := Node3D.new()
+-	campus.add_child(actor)
+-	actor.global_position=target.global_position
++	campus.add_child(actor); actor.global_position=target.global_position
+ 	var old: Vector3=actor.position
++	var calls := [0]
++	campus.elevator_control_requested.connect(func(_floor, _button): calls[0]+=1)
+ 	campus.interact(target,actor)
+-	check(actor.position==old,"elevator denies absent core authority")
+-	campus.elevator_validator=func(_actor: Node3D,_destination: Vector3): return true
+-	campus.interact(target,actor)
+-	check(actor.position.y==5,"authorized elevator moves to upper stop")
++	check(actor.position==old, "world never bypasses host multi-rider service")
++	check(calls[0]==1, "physical control requests authoritative service")
++	actor.position=Vector3.ZERO; campus.interact(target,actor)
++	check(calls[0]==1, "remote control rejected")
+ 	print("WORLD_METRICS ",JSON.stringify(campus.metrics()))
+ 	print("WORLD_TESTS checks=",checks," failures=",failures.size())
+ 	campus.queue_free()

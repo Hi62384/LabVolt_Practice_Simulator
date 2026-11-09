@@ -1,0 +1,11 @@
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ static func page_count(paper: Dictionary) -> int:
+ 	if paper.get("project",{}).get("course_id", "") in ["MTH147", "MTH255"]:
+ 		var lessons: int=paper.project.get("lesson_stages",[]).size() if paper.get("lesson",false) else 0
+ 		return paper.project.get("questions",[]).size()+(lessons+1 if lessons>0 else 2)
+-	return maxi(4,int(paper.get("project",{}).get("guide_pages",[]).size()))
++	if paper.get("guide",false):return maxi(1,int(paper.get("project",{}).get("guide_pages",[]).size()))
++	return 4
+
+Apply at a safe session boundary. The host's page validation and reader must use the same count. The four non-guide electrical pages are objective, method, answers and feedback; a guide renders only its actual guide_pages entries.

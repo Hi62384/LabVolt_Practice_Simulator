@@ -1,0 +1,26 @@
+--- a/scripts/front_menu.gd
++++ b/scripts/front_menu.gd
+@@
+-	shade.color=Color(.025,.045,.065,.12)
++	shade.color=Color(.025,.045,.065,.045)
+@@
+-	panel.add_theme_stylebox_override("panel",MenuTokens.surface(MenuTokens.SURFACE,MenuTokens.BORDER,24))
++	var menu_skin := MenuTokens.surface(Color(0.055,0.115,0.15,0.84),MenuTokens.BORDER,20)
++	panel.add_theme_stylebox_override("panel",menu_skin)
+@@
+-	subtitle.text="E L E C T R I C A L   L A B O R A T O R Y"
++	subtitle.text="C O L L E G E   S I M U L A T O R"
+@@
+-	panel.position=Vector2(16,16)
++	panel.position=Vector2(32,32)
+ 	panel.custom_minimum_size=Vector2.ZERO
+-	panel.size=Vector2(minf(1080 if page in ["host","view_courses","characters"] else 760 if page=="settings" else 520,available.x),available.y)
++	var wide_page := page in ["host","view_courses","characters"]
++	var target_width := 1080 if wide_page else 760 if page=="settings" else 440
++	var target_height := available.y if wide_page or page=="settings" else minf(690,available.y)
++	panel.size=Vector2(maxf(1,minf(target_width,available.x-32)),maxf(1,target_height))
+@@
+-	clear("home","LAB / VOLT")
+-	text("Build. Measure. Discover.")
++	clear("home","LAB/VOLT")
++	text("Learn. Explore. Experiment.")

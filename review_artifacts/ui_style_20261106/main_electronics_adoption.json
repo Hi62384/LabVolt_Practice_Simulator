@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "policy": "STAGED ONLY. Do not apply across owner changes. Each complete file SHA must match before any mutation; dry-run every edit first. Preserve source newline/BOM. No partial application.",
+  "patches": [
+    {
+      "path": "scripts/electronics_ui.gd",
+      "owner": "main / electronics shared helper",
+      "source_sha256": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+      "normalized_before_sha256": "77a936a9392b875f128caf345709e5145417a2c8111bc521b89b15460b28c705",
+      "normalized_after_sha256": "7c8643602e870649b9a961ac1d0676ee7745a2f5a2df47213bb950051ffcc871",
+      "edits": [
+        {
+          "before": "\tscreen.add_theme_stylebox_override(\"panel\",skin)\n",
+          "after": "\tscreen.add_theme_stylebox_override(\"panel\",skin)\n\tscreen.theme=preload(\"res://scripts/ui/design_system/theme.gd\").create()\n"
+        },
+        {
+          "before": "var b := Button.new();b.text=text;b.custom_minimum_size.y=34;",
+          "after": "var b := Button.new();b.text=text;preload(\"res://scripts/ui/design_system/widgets.gd\").style_button(b,preload(\"res://scripts/ui/design_system/widgets.gd\").action_icon(text));"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "file": "scripts/dc_lab.gd",
+  "observed_sha256": "97d82d0bc88320e372cea44f503e608a1db8659328338decaf434324e7f81104",
+  "old": "\t\tinstrument_fixtures[index].observe(state,delta,fixture_relevant)",
+  "new": "\t\t# Read opening transforms every presentation pass; rebuild cable geometry when anchors move.\n\t\tvar physical_ports: Dictionary=instrument_fixtures[index].port_positions()\n\t\tfor id in physical_ports:\n\t\t\tif ports[index].get(id)!=physical_ports[id]:drawn_revisions[index]=-1;external_signature=\"\"\n\t\t\tports[index][id]=physical_ports[id]\n\t\tinstrument_fixtures[index].observe(state,delta,fixture_relevant)",
+  "policy": "Main integrator only. Require exact old snippet once; re-review if changed. No production patch applied."
+}

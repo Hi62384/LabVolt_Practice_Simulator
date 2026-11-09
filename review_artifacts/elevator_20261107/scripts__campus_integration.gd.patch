@@ -1,0 +1,47 @@
+--- a/scripts/campus_integration.gd
++++ b/scripts/campus_integration.gd
+@@ -1,5 +1,6 @@
+ extends Node
+ ## Composition belongs to the live game. All mutations still pass host services.
++var elevator_service: Node
+ var game: Node
+ var provider = preload("res://scripts/campus_course_provider.gd").new()
+ var adapter = preload("res://scripts/campus/ui/campus_adapter.gd").new()
+@@ -38,11 +39,14 @@
+ 	game.campus.register_content("dc_lab",game.dc_lab)
+ 	game.install_campus_performance(game.campus.registry)
+ 	game.ui.graphics_controller.set_crowd_adapter(game.campus_performance)
+-	game.campus.elevator_requested.connect(_elevator_requested)
+ 	facilities=preload("res://scripts/campus/facilities/facility_service.gd").new()
+ 	facilities.name="Facilities";add_child(facilities)
+ 	facilities.configure(game.campus.registry,game.electronics_trade.authority.ledger,_facility_context,_interested)
+ 	facilities.install_movement_hooks(game.session,game.player)
++	elevator_service=preload("res://scripts/campus/elevator/elevator_service.gd").new()
++	elevator_service.name="ElevatorService";add_child(elevator_service)
++	elevator_service.configure(self)
++	game.campus.elevator_control_requested.connect(elevator_service.request)
+ 	facilities.controller.room_event.connect(game.interaction_presentation.facility_event)
+ 	facilities.profile_committed.connect(_profile_committed)
+ 	game.session.restarted.connect(func():
+@@ -236,21 +240,3 @@
+ 	game.standing_pending=false
+ 	game.player.global_position=target;game.player.velocity=Vector3.ZERO
+ 
+-func _elevator_requested(_actor: Node3D,destination: Vector3) -> void:
+-	var floor_id := 1 if destination.y>2 else 0
+-	if multiplayer.is_server():_elevator(1,floor_id)
+-	else:_elevator_request.rpc_id(1,floor_id)
+-
+-@rpc("any_peer","call_remote","reliable",4)
+-func _elevator_request(floor_id: int) -> void:
+-	if multiplayer.is_server():_elevator(multiplayer.get_remote_sender_id(),floor_id)
+-
+-func _elevator(peer: int,floor_id: int) -> void:
+-	if floor_id not in [0,1] or not game.session.roster.has(peer) or game.school.formal_active():return
+-	var pose: Dictionary=game.session.poses.get(peer,{})
+-	var pos: Vector3=game.player.global_position if peer==1 else pose.get("position",Vector3.ZERO)
+-	var control := Vector3(15.8,1.2+(5 if floor_id==0 else 0),59)
+-	if (pos+Vector3.UP*1.2).distance_to(control)>3 or pose.get("seated",false):return
+-	if facilities.controller.host.movement_locked(peer) or game.school._holding_cable(peer):return
+-	_relocate(peer,Vector3(14.5,5 if floor_id==1 else 0,59))
+-

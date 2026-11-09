@@ -1,0 +1,13 @@
+--- a/scripts/avatar_model.gd
++++ b/scripts/avatar_model.gd
+@@ -29,7 +29,9 @@
+ 		if templates.size()>=4:templates.erase(templates.keys()[0])
+ 		templates[key]=packed
+ 	return model
+-static func animate(model: Node, walking: bool,seated := false) -> void:
++static func animate(model: Node, walking: bool,seated := false,resting := false) -> void:
++	preload("res://review_artifacts/persistent_dorms_20261107/rest/rest_pose.gd").apply(model as Node3D,resting)
++	if resting:return
+ 	var player: AnimationPlayer=(model.get_meta("animation_player") if model.has_meta("animation_player") else null) as AnimationPlayer
+ 	if player==null:
+ 		for child in model.find_children("*","AnimationPlayer",true,false):

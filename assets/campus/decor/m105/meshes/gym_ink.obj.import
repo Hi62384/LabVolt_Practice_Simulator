@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dhc1jq5p53jgt"
+path="res://.godot/imported/gym_ink.obj-1461b2e4514bfebe14d7746498454e90.mesh"
+
+[deps]
+
+files=["res://.godot/imported/gym_ink.obj-1461b2e4514bfebe14d7746498454e90.mesh"]
+
+source_file="res://assets/campus/decor/m105/meshes/gym_ink.obj"
+dest_files=["res://.godot/imported/gym_ink.obj-1461b2e4514bfebe14d7746498454e90.mesh", "res://.godot/imported/gym_ink.obj-1461b2e4514bfebe14d7746498454e90.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

@@ -1,0 +1,92 @@
+[
+  {
+    "name": "CLASSROOM-EIGHT-V7-PARSER1",
+    "plan_sha256": "786e3a08faad758601ab19d3dcc394f77271f4dffa4aabeeb62d041d22567ead",
+    "budget_seconds": 30,
+    "total_engine_jobs": 1,
+    "port": null,
+    "argv": [
+      "C:\\Users\\User1\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\run_j.py",
+      "--execute",
+      "--plan",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\plans\\CLASSROOM-EIGHT-V7-PARSER1.json",
+      "--plan-sha256",
+      "786e3a08faad758601ab19d3dcc394f77271f4dffa4aabeeb62d041d22567ead",
+      "--grant",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\root-grants\\CLASSROOM-EIGHT-V7-PARSER1.json"
+    ]
+  },
+  {
+    "name": "CLASSROOM-EIGHT-V7-ELM253-LIFECYCLE1",
+    "plan_sha256": "c0aa6bc61871edf348dd9fd1c2978fc095232e130b9fd29a39533a92b43080ac",
+    "budget_seconds": 300,
+    "total_engine_jobs": 8,
+    "port": 27096,
+    "argv": [
+      "C:\\Users\\User1\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\run_j.py",
+      "--execute",
+      "--plan",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\plans\\CLASSROOM-EIGHT-V7-ELM253-LIFECYCLE1.json",
+      "--plan-sha256",
+      "c0aa6bc61871edf348dd9fd1c2978fc095232e130b9fd29a39533a92b43080ac",
+      "--grant",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\root-grants\\CLASSROOM-EIGHT-V7-ELM253-LIFECYCLE1.json"
+    ]
+  },
+  {
+    "name": "CLASSROOM-EIGHT-V7-ETY155-LIFECYCLE1",
+    "plan_sha256": "90d4249123fa6140a01184c883ae1ec54e695e9a0bd83b00181500df8e8b3c2c",
+    "budget_seconds": 300,
+    "total_engine_jobs": 8,
+    "port": 27097,
+    "argv": [
+      "C:\\Users\\User1\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\run_j.py",
+      "--execute",
+      "--plan",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\plans\\CLASSROOM-EIGHT-V7-ETY155-LIFECYCLE1.json",
+      "--plan-sha256",
+      "90d4249123fa6140a01184c883ae1ec54e695e9a0bd83b00181500df8e8b3c2c",
+      "--grant",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\root-grants\\CLASSROOM-EIGHT-V7-ETY155-LIFECYCLE1.json"
+    ]
+  },
+  {
+    "name": "CLASSROOM-EIGHT-V7-MTH147-LIFECYCLE1",
+    "plan_sha256": "3912bbd70594c81d303800bd682b8d85339e7163a2a4844c5c51f94c2847ee43",
+    "budget_seconds": 300,
+    "total_engine_jobs": 8,
+    "port": 27098,
+    "argv": [
+      "C:\\Users\\User1\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\run_j.py",
+      "--execute",
+      "--plan",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\plans\\CLASSROOM-EIGHT-V7-MTH147-LIFECYCLE1.json",
+      "--plan-sha256",
+      "3912bbd70594c81d303800bd682b8d85339e7163a2a4844c5c51f94c2847ee43",
+      "--grant",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\root-grants\\CLASSROOM-EIGHT-V7-MTH147-LIFECYCLE1.json"
+    ]
+  },
+  {
+    "name": "CLASSROOM-EIGHT-V7-MTH255-LIFECYCLE1",
+    "plan_sha256": "6084fd9c5774e2b7923992c841082280861490842daa4d23fb0b816f2b0a7864",
+    "budget_seconds": 300,
+    "total_engine_jobs": 8,
+    "port": 27099,
+    "argv": [
+      "C:\\Users\\User1\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\run_j.py",
+      "--execute",
+      "--plan",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\plans\\CLASSROOM-EIGHT-V7-MTH255-LIFECYCLE1.json",
+      "--plan-sha256",
+      "6084fd9c5774e2b7923992c841082280861490842daa4d23fb0b816f2b0a7864",
+      "--grant",
+      "C:\\Users\\User1\\Documents\\GodotProjects\\LabVolt_Practice_Simulator\\review_artifacts\\eight_participants_v9\\root-grants\\CLASSROOM-EIGHT-V7-MTH255-LIFECYCLE1.json"
+    ]
+  }
+]

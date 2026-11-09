@@ -1,0 +1,2943 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "tops.harbor_fitted_tee",
+      "name": "Harbor Fitted Tee",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/fitted_tee.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/fitted_tee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "short_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "387E86"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.cedar_layered_hoodie",
+      "name": "Cedar Layered Hoodie",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/layered_hoodie.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/layered_hoodie.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "closed_front",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": [
+          "lining"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "7A528E"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "27434A"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.workshop_field_jacket",
+      "name": "Workshop Field Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/field_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/field_jacket.png",
+      "price": 320,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "open_front",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "lining"
+        ],
+        "detail_regions": [
+          "metal"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "B17046"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "7E8994"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.02,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "crisp",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.practical_lab_coat",
+      "name": "Practical Lab Coat",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/lab_coat.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/lab_coat.png",
+      "price": 450,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "open_front",
+        "long_sleeve",
+        "long_hem"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "coat"
+        ],
+        "secondary_regions": [
+          "lining"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "DEE7E5"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.02,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "crisp",
+          "values": [
+            "soft",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.indigo_straight_jeans",
+      "name": "Indigo Straight Jeans",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/straight_jeans.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/straight_jeans.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "denim"
+        ],
+        "secondary_regions": [],
+        "detail_regions": [
+          "stitch"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "2B425E"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.campus_work_shorts",
+      "name": "Campus Work Shorts",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/work_shorts.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/work_shorts.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "short_length",
+        "exposes_lower_leg"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "303843"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.harbour_pleated_skirt",
+      "name": "Harbour Pleated Skirt",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/pleated_skirt.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/pleated_skirt.png",
+      "price": 185,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "skirt",
+        "knee_length",
+        "exposes_lower_leg"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "skirt"
+        ],
+        "secondary_regions": [],
+        "detail_regions": [
+          "stitch"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "743F53"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.01,
+          "min": 0.96,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.campus_pocket_tee",
+      "name": "Campus Pocket Tee",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/campus_pocket_tee.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/campus_pocket_tee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "short_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "314969"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.marina_stripe_tee",
+      "name": "Marina Stripe Tee",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/marina_stripe_tee.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/marina_stripe_tee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "short_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "e0ded2"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.summit_quarter_zip",
+      "name": "Summit Quarter-Zip",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/summit_quarter_zip.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/summit_quarter_zip.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "closed_front",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": [
+          "lining"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "374564"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "546b8c"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "b7dbd3"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.alumni_cardigan",
+      "name": "Alumni Cardigan",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/alumni_cardigan.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/alumni_cardigan.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "closed_front",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": [
+          "lining"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "873c54"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "693344"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "e2ba89"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.harbor_rugby",
+      "name": "Harbor Rugby Shirt",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/harbor_rugby.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/harbor_rugby.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "closed_front",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": [
+          "lining"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "254d60"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "286b71"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "e9dbac"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.campus_track_jacket",
+      "name": "Campus Track Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/track_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/track_jacket.png",
+      "price": 190,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "closed_front",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": [
+          "lining"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "2f6557"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "233a47"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "d1df7d"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.workshop_cargos",
+      "name": "Workshop Cargo Trousers",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/workshop_cargos.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/workshop_cargos.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [],
+        "detail_regions": [
+          "lining",
+          "rib"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "6b664c"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "a89f7d"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.campus_joggers",
+      "name": "Campus Joggers",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/campus_joggers.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/campus_joggers.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "fleece",
+          "rib"
+        ],
+        "secondary_regions": [],
+        "detail_regions": [
+          "stitch"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "414a61"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "8f9db8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.bayside_bermudas",
+      "name": "Bayside Bermuda Shorts",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/bayside_bermudas.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/bayside_bermudas.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap",
+        "exposes_lower_leg"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [],
+        "detail_regions": [
+          "rib"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "a17b5b"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "745238"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_fitted_tee",
+      "name": "Fitted Tee",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_fitted_tee.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_fitted_tee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "short_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "387E86"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_pocket_tee",
+      "name": "Pocket Tee",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_pocket_tee.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_pocket_tee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "short_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [
+          "lining"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "314969"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "D6A24B"
+        }
+      }
+    },
+    {
+      "id": "tops.reference_striped_tee",
+      "name": "Striped Tee",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_striped_tee.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_striped_tee.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "short_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "314969"
+        }
+      }
+    },
+    {
+      "id": "tops.reference_long_sleeve_shirt",
+      "name": "Long-Sleeve Shirt",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_long_sleeve_shirt.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_long_sleeve_shirt.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "long_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "8D4356"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_rugby_shirt",
+      "name": "Rugby Shirt",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_rugby_shirt.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_rugby_shirt.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "long_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [
+          "lining",
+          "coat"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "244E52"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        }
+      }
+    },
+    {
+      "id": "tops.reference_hoodie",
+      "name": "Hoodie",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_hoodie.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_hoodie.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib",
+          "lining"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "77508D"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_layered_hoodie",
+      "name": "Layered Hoodie",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_layered_hoodie.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_layered_hoodie.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib",
+          "lining",
+          "coat"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "334153"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_cardigan",
+      "name": "Cardigan",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_cardigan.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_cardigan.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "lining",
+          "rib"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "9A4558"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "D7BE87"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_sweater",
+      "name": "Sweater",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_sweater.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_sweater.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "long_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "D7BE87"
+        }
+      }
+    },
+    {
+      "id": "tops.reference_quarter_zip",
+      "name": "Quarter-Zip",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_quarter_zip.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_quarter_zip.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "long_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "fleece"
+        ],
+        "secondary_regions": [
+          "rib",
+          "lining"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "304767"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "D6A24B"
+        }
+      }
+    },
+    {
+      "id": "tops.reference_polo_shirt",
+      "name": "Polo Shirt",
+      "category": "tops",
+      "slot": "top_inner",
+      "scene": "res://assets/cosmetics/clothing/models/reference_polo_shirt.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_polo_shirt.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_inner",
+        "short_sleeve"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "jersey"
+        ],
+        "secondary_regions": [
+          "coat",
+          "lining"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "234A41"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed",
+            "crisp"
+          ]
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        }
+      }
+    },
+    {
+      "id": "tops.reference_flannel_shirt",
+      "name": "Flannel Shirt",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_flannel_shirt.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_flannel_shirt.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "rib",
+          "coat"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "A96F32"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "314969"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_denim_jacket",
+      "name": "Denim Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_denim_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_denim_jacket.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "denim"
+        ],
+        "secondary_regions": [
+          "lining"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "4F7395"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_varsity_jacket",
+      "name": "Varsity Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_varsity_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_varsity_jacket.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "rib",
+          "lining",
+          "coat"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "243453"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.reference_campus_jacket",
+      "name": "Campus Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_campus_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_campus_jacket.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "D9DDC7"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "396957"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_classic_jeans",
+      "name": "Classic Jeans",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_classic_jeans.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_classic_jeans.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "2F5680"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_black_pants",
+      "name": "Black Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_black_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_black_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "272C34"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_khaki_pants",
+      "name": "Khaki Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_khaki_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_khaki_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "AE9B75"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_sweatpants",
+      "name": "Sweatpants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_sweatpants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_sweatpants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "A5ABB1"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_track_pants",
+      "name": "Track Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_track_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_track_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "293E59"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_cargo_pants",
+      "name": "Cargo Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_cargo_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_cargo_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "rib",
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "A48758"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_cargo_olive",
+      "name": "Cargo (Olive)",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_cargo_olive.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_cargo_olive.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "rib",
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "55583B"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_pajama_pants",
+      "name": "Pajama Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_pajama_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_pajama_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "324967"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_denim_shorts",
+      "name": "Denim Shorts",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_denim_shorts.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_denim_shorts.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "38658E"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_athletic_shorts",
+      "name": "Athletic Shorts",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_athletic_shorts.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_athletic_shorts.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "252C35"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_dress_pants",
+      "name": "Dress Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_dress_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_dress_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "33373F"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_ripped_jeans",
+      "name": "Ripped Jeans",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_ripped_jeans.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_ripped_jeans.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "83A4B4"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_camo_pants",
+      "name": "Camo Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_camo_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_camo_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "rib",
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "5A6237"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_tech_pants",
+      "name": "Tech Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_tech_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_tech_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "rib",
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "252F40"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.reference_scholar_pants",
+      "name": "Scholar Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_scholar_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_scholar_pants.png",
+      "price": 0,
+      "starter": true,
+      "rarity": "Rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "34333D"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.signal_racing_jacket",
+      "name": "Signal Racing Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/signal_racing_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/signal_racing_jacket.png",
+      "price": 560,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "closed_front",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "rib"
+        ],
+        "detail_regions": [
+          "lining"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "2f6557"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "233a47"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "d1df7d"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.foundry_armored_cargos",
+      "name": "Foundry Armored Cargos",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/foundry_armored_cargos.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/foundry_armored_cargos.png",
+      "price": 850,
+      "starter": false,
+      "rarity": "legendary",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [],
+        "detail_regions": [
+          "lining",
+          "rib"
+        ]
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "6b664c"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "a89f7d"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.dockside_denim",
+      "name": "Dockside Denim Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_denim_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_denim_jacket.png",
+      "price": 265,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "denim"
+        ],
+        "secondary_regions": [
+          "lining"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "314560"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.cedar_flannel",
+      "name": "Cedar Flannel",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_flannel_shirt.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_flannel_shirt.png",
+      "price": 215,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "rib",
+          "coat"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "704249"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "314969"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "tops.regatta_varsity",
+      "name": "Regatta Varsity Jacket",
+      "category": "tops",
+      "slot": "top_outer",
+      "scene": "res://assets/cosmetics/clothing/models/reference_varsity_jacket.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_varsity_jacket.png",
+      "price": 395,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "top_outer",
+        "long_sleeve"
+      ],
+      "conflicts": [
+        "bulky_inner"
+      ],
+      "materials": {
+        "primary_regions": [
+          "canvas"
+        ],
+        "secondary_regions": [
+          "rib",
+          "lining",
+          "coat"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "224D54"
+        },
+        "secondary_color": {
+          "type": "color",
+          "default": "E9E2D0"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "EBBC5B"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.03,
+          "min": 0.98,
+          "max": 1.08
+        },
+        "material": {
+          "type": "enum",
+          "default": "soft",
+          "values": [
+            "soft",
+            "washed"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.nightfall_slacks",
+      "name": "Nightfall Dress Slacks",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_dress_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_dress_pants.png",
+      "price": 240,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "242C41"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.tidewash_denim",
+      "name": "Tidewash Distressed Jeans",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_ripped_jeans.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_ripped_jeans.png",
+      "price": 270,
+      "starter": false,
+      "rarity": "uncommon",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "4B638B"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.regatta_track_pants",
+      "name": "Regatta Track Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_track_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_track_pants.png",
+      "price": 315,
+      "starter": false,
+      "rarity": "rare",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "214550"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.sprinter_shorts",
+      "name": "Sprinter Shorts",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_athletic_shorts.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_athletic_shorts.png",
+      "price": 135,
+      "starter": false,
+      "rarity": "common",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "804851"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    },
+    {
+      "id": "bottoms.stormproof_tech_pants",
+      "name": "Stormproof Tech Pants",
+      "category": "bottoms",
+      "slot": "bottom",
+      "scene": "res://assets/cosmetics/clothing/models/reference_tech_pants.gltf",
+      "thumbnail": "res://assets/cosmetics/clothing/thumbnails/reference_tech_pants.png",
+      "price": 520,
+      "starter": false,
+      "rarity": "epic",
+      "rig": "labvolt_toon_v1",
+      "tags": [
+        "bottom",
+        "full_length",
+        "boot_overlap"
+      ],
+      "conflicts": [],
+      "materials": {
+        "primary_regions": [
+          "twill"
+        ],
+        "secondary_regions": [
+          "rib",
+          "stitch"
+        ],
+        "detail_regions": []
+      },
+      "parameters": {
+        "primary_color": {
+          "type": "color",
+          "default": "282E3A"
+        },
+        "detail_color": {
+          "type": "color",
+          "default": "E0D6B8"
+        },
+        "fit": {
+          "type": "float",
+          "default": 1.0,
+          "min": 0.94,
+          "max": 1.06
+        },
+        "material": {
+          "type": "enum",
+          "default": "washed",
+          "values": [
+            "washed",
+            "crisp"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,298 @@
+{
+  "scope": "Offline source/assets only; no GDScript parse, Godot process, visual render, gameplay, save or multiplayer acceptance performed.",
+  "passed_checks": 62,
+  "contrast": [
+    {
+      "foreground": "edf6fa",
+      "background": "142b38",
+      "ratio": 13.38
+    },
+    {
+      "foreground": "b6cad4",
+      "background": "142b38",
+      "ratio": 8.65
+    },
+    {
+      "foreground": "b6cad4",
+      "background": "1d3b4a",
+      "ratio": 6.97
+    },
+    {
+      "foreground": "edf6fa",
+      "background": "285c59",
+      "ratio": 6.93
+    },
+    {
+      "foreground": "ffb6b9",
+      "background": "352a38",
+      "ratio": 8.21
+    },
+    {
+      "foreground": "94aab7",
+      "background": "243642",
+      "ratio": 5.17
+    }
+  ],
+  "patches": [
+    {
+      "path": "scripts/lab_ui.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "b1ceb202b3e912569159d532ec0fa4dcba971c9aecf6400663206f363a64520d"
+    },
+    {
+      "path": "scripts/dc_ui.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "24a4aac3778520fdfa7efc57e7dc43385f56c1aa22711576b55b8acbc4816013"
+    },
+    {
+      "path": "scripts/electronics_ui.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "d885a1811a86a7b09203f1d2de7fcc524e2b554ca4f1ea2e20caee7f7bbd820e"
+    },
+    {
+      "path": "scripts/lab_chat.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "3425eb2b665c2175e5d74b75c6a8f356d724064341db121d0ceab1b00d81320f"
+    },
+    {
+      "path": "scripts/package_editor/package_form.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "49c98dcecf528d338c3b5cb958b672c67e7a7c1a169cf3b71a7fb9a4c098cc58"
+    },
+    {
+      "path": "scripts/pcb_design/editor.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "3ce24d1cb9c8dc534c760dfabceadfbdcc46a86b0a755d0597c69035bd2a8806"
+    },
+    {
+      "path": "scripts/firmware_ide.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "79d693f6435d3e063200e8642104a42d7220ddaebea2a0cb47d3751cb322d314"
+    },
+    {
+      "path": "scripts/firmware_backends/native_ide.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "a72c0ac4939a3fd35cf23ccc7268a685c63b6e4b8fbf4df25ebdd60c78c593bb"
+    },
+    {
+      "path": "scripts/campus/facilities/facility_panel.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "1800fa3e80b49048bc341ff431f31f98c050be43bbf8f47d6a970ce2ed4bd480"
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "state": "owner_changed_do_not_apply",
+      "current_sha256": "40c63328e44904912b04b98f7c4395ceeed67904f878f073aa1a87ed5b85d8ce"
+    }
+  ],
+  "owned_files": [
+    {
+      "path": "scripts/ui/design_system/demo.gd",
+      "sha256": "4da20efe85597a577f553290cc281fb5d4340e3afffe3e9aaa603b56e483c509"
+    },
+    {
+      "path": "scripts/ui/design_system/dialog.gd",
+      "sha256": "b7ba2b86311ce22d6405281a113f117f380895b3082da07bd67830c1c313ad5b"
+    },
+    {
+      "path": "scripts/ui/design_system/responsive_grid.gd",
+      "sha256": "fa1d38fcc09e96e0a532ea69ea2c3cdc82572c13ef482add81266797ee19d028"
+    },
+    {
+      "path": "scripts/ui/design_system/theme.gd",
+      "sha256": "28414db3400073dc347010ed02d358db6e6767a901c4c7f252d68be2786fe8b6"
+    },
+    {
+      "path": "scripts/ui/design_system/tokens.gd",
+      "sha256": "29225f2ef64081601626c0a4fbb288f564ab0306d9420b5c4e6a0ac47c77cbff"
+    },
+    {
+      "path": "scripts/ui/design_system/widgets.gd",
+      "sha256": "11b898b1e475b6bbaf8834c2292dd927d7cd8e32b13d8d590c7192b4cdfd21dd"
+    },
+    {
+      "path": "assets/ui/design_system/icons/back.svg",
+      "sha256": "d76aa341a541c4578a101fff44ed8c519df10097e2930cb8d4a2b6e3106b44f9"
+    },
+    {
+      "path": "assets/ui/design_system/icons/capacitor.svg",
+      "sha256": "d1a737917f1e02f684a2334fe8d4acce17009269a79def97bdfed892a9ede46d"
+    },
+    {
+      "path": "assets/ui/design_system/icons/cart.svg",
+      "sha256": "be5383abad8fc5ee8b30d89f69cb5bfe432e70fa03fbd6cde41336d382ef8c87"
+    },
+    {
+      "path": "assets/ui/design_system/icons/chat.svg",
+      "sha256": "0c30ba7cf56620431c541c8ee9aceba664b201e7693b2126a672d73eed859212"
+    },
+    {
+      "path": "assets/ui/design_system/icons/check.svg",
+      "sha256": "60aeafa11c205427d120f96a112cd8e9754fa65d5658ceb0bc6a6c1f7ad33616"
+    },
+    {
+      "path": "assets/ui/design_system/icons/chip.svg",
+      "sha256": "812cb4a2db145a7ddb63a93b9351291e8adb03fb7afa7dc43cc1ecc801cb350b"
+    },
+    {
+      "path": "assets/ui/design_system/icons/circuit.svg",
+      "sha256": "321e45418a6ca1b9ee6ddd49d6e3ba2c0305d54f5a052c460598cedec76e12fa"
+    },
+    {
+      "path": "assets/ui/design_system/icons/clock.svg",
+      "sha256": "214a14beab8999611b613e6d209af3aa6dbe6a7daef08782ec49145ee4257284"
+    },
+    {
+      "path": "assets/ui/design_system/icons/close.svg",
+      "sha256": "f2e7fc0edae72c9303af0146b3dc5888227921ccd1f83dfd0643f86740cec8c7"
+    },
+    {
+      "path": "assets/ui/design_system/icons/code.svg",
+      "sha256": "7806006e72356a1c16287551523e1769769f784f76f3f61066a8ba4e632de397"
+    },
+    {
+      "path": "assets/ui/design_system/icons/component.svg",
+      "sha256": "6064f4dafe74b0f171186cee1b7c60936f166d5c6b33077ddd5eab9f3bdd5e29"
+    },
+    {
+      "path": "assets/ui/design_system/icons/course.svg",
+      "sha256": "ee859b8620448165b386610a12927dc4051a596c530bd43aaff08c50198b3952"
+    },
+    {
+      "path": "assets/ui/design_system/icons/diode.svg",
+      "sha256": "b556ec998b2dd500eea1fe4bd5da74828b89625b870e9ab7e0326f96bf6387a9"
+    },
+    {
+      "path": "assets/ui/design_system/icons/download.svg",
+      "sha256": "0a4ae26ae001b3d7c738bdaf126488af851ea411631a9dea834297fe80c77e78"
+    },
+    {
+      "path": "assets/ui/design_system/icons/folder.svg",
+      "sha256": "31320d76703e8ffdff1906e1b20d986ab69324b8087307554acf07919c115845"
+    },
+    {
+      "path": "assets/ui/design_system/icons/home.svg",
+      "sha256": "23e2478eb927dbe09fe4a992a964c1c307a21d7aef4a5d1c98c4ac62c8f406cf"
+    },
+    {
+      "path": "assets/ui/design_system/icons/inductor.svg",
+      "sha256": "25ee45dee4812dcaaf6538653e3331045097f01f27ea1374f70232254f73681a"
+    },
+    {
+      "path": "assets/ui/design_system/icons/info.svg",
+      "sha256": "433c3b53552581c9724373fc53b4ccbbc8beb4089ee59a7fd698809235314539"
+    },
+    {
+      "path": "assets/ui/design_system/icons/inventory.svg",
+      "sha256": "d0149879add61592c6dec1312c2f07a4319f943fbdb4e62b8388f2c302a8754f"
+    },
+    {
+      "path": "assets/ui/design_system/icons/keyboard.svg",
+      "sha256": "288f4a1c57d5e8d5c4e4fb74944db8d8671f4a8c810bc1c0ae4b3c3693a162d6"
+    },
+    {
+      "path": "assets/ui/design_system/icons/led.svg",
+      "sha256": "7dedef8505f4df7ba820cacd7956b66d0064bec54f53af1e9944648cc4866d99"
+    },
+    {
+      "path": "assets/ui/design_system/icons/lock.svg",
+      "sha256": "9dcbd19dcfd3b02f3ae211596730497faf6f16cdcd629294c3a32364384df5de"
+    },
+    {
+      "path": "assets/ui/design_system/icons/map.svg",
+      "sha256": "b23031c8c6aca4c39bccad242dddf872c3781955d58dae3e62355f935d666efd"
+    },
+    {
+      "path": "assets/ui/design_system/icons/meter.svg",
+      "sha256": "71d3c46d1c4423eadebd93ee9e035cbae96a0c641ab8035ebfb8f4e94136d62b"
+    },
+    {
+      "path": "assets/ui/design_system/icons/minus.svg",
+      "sha256": "77f294778630fcf2362efff424ef67415076dd039f2e4ff29051081f77964d86"
+    },
+    {
+      "path": "assets/ui/design_system/icons/network.svg",
+      "sha256": "4608f161fc6d32b80eb93f155803b92e2cb6f09cf09b1c734f293f928533752c"
+    },
+    {
+      "path": "assets/ui/design_system/icons/palette.svg",
+      "sha256": "9a5f52bf16309b88e38b11961071ee1c13b8d87467c1727600675b864d3466f0"
+    },
+    {
+      "path": "assets/ui/design_system/icons/play.svg",
+      "sha256": "f85a29eb15cbbfecc9ab2f735a2734a1883191dfb1ac377c5b278c3bd42c92ba"
+    },
+    {
+      "path": "assets/ui/design_system/icons/plus.svg",
+      "sha256": "07600027dfcea56da01e7410f2b6c6fc787fc0da32a649403d51a8fb41266987"
+    },
+    {
+      "path": "assets/ui/design_system/icons/refresh.svg",
+      "sha256": "6c590042f75a3be4b8cf8a96fb3c497f3ac2cb91496ab2056a497c060de5caaa"
+    },
+    {
+      "path": "assets/ui/design_system/icons/resistor.svg",
+      "sha256": "e43cb9f96206ca592134d78befce996e828162ac05d0bb6dd7e5d7c37334e48a"
+    },
+    {
+      "path": "assets/ui/design_system/icons/save.svg",
+      "sha256": "db6c0154ceb3f2c1d4e2e58521d35d85c6ce4d8a7912992595fb64261eaa76b6"
+    },
+    {
+      "path": "assets/ui/design_system/icons/scope.svg",
+      "sha256": "659cb2ef75128966866b4acf1095225ff81e9ea4fc49e174eeb8aabb78f0e688"
+    },
+    {
+      "path": "assets/ui/design_system/icons/search.svg",
+      "sha256": "b4e19fe4bffcb3904d279e27abe3b06bef0d3cbc3cd7725ee65220df92861aad"
+    },
+    {
+      "path": "assets/ui/design_system/icons/settings.svg",
+      "sha256": "18c87fc767e4bcff09a75217537c8217c26ac89a30d563ba85f4888855566801"
+    },
+    {
+      "path": "assets/ui/design_system/icons/switch.svg",
+      "sha256": "b53df9e8506d59bbedab994528062acb20cd72407b8ba99d6c1ac6b8319d709e"
+    },
+    {
+      "path": "assets/ui/design_system/icons/trade.svg",
+      "sha256": "a05ee1b767f3d5f665f1e09cf3b801e4cafa6781fb04a4a155923eb9f7c81935"
+    },
+    {
+      "path": "assets/ui/design_system/icons/trash.svg",
+      "sha256": "2a4719646eff45f80c8bab33d3596c2c6a249a0d959f43946a66b5d333a378bb"
+    },
+    {
+      "path": "assets/ui/design_system/icons/upload.svg",
+      "sha256": "65389dd82c635a7e4dffd071b80c2677858b86704870a90fef1d04ef0196d6d7"
+    },
+    {
+      "path": "assets/ui/design_system/icons/user.svg",
+      "sha256": "baeff9f92f4f5fe1eba852723a0d410858e3b6428ea47a2d05e7d1b083790124"
+    },
+    {
+      "path": "assets/ui/design_system/icons/volume.svg",
+      "sha256": "26d8cb4602b13e0154b456857e5110b22530a3fadcca77c9a76542831ad5b365"
+    },
+    {
+      "path": "assets/ui/design_system/icons/warning.svg",
+      "sha256": "accc4893fbe6f3b1a1fd7e3d09df3071c51a05b51e8ba9f1d07aea5e946d7e34"
+    },
+    {
+      "path": "scenes/ui/design_system/review.tscn",
+      "sha256": "2e58a0f8d61e23ad6bf47cd68f89c30a57ed390bb1d6060c3cfea077ee0092a4"
+    },
+    {
+      "path": "tests/ui/design_system/check_consumers.py",
+      "sha256": "7718d12483031d4c203db5716b711def273206ba2c55d2a1c71a959ea59cf900"
+    },
+    {
+      "path": "tests/ui/design_system/check_sources.py",
+      "sha256": "03cbf35f5f079432462ec38e1dae76b602de6456560d842f213f771f92044cb3"
+    },
+    {
+      "path": "tests/ui/design_system/test_design_system.gd",
+      "sha256": "a221f3fc5e62f720936c980cd9bb45f45f318f35764027826af9d1fb57b93082"
+    }
+  ]
+}

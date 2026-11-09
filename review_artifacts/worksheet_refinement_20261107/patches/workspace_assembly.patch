@@ -1,0 +1,605 @@
+diff --git a/scripts/paper_ui.gd b/scripts/paper_ui.gd
+index 2932dae..387a666 100644
+--- a/scripts/paper_ui.gd
++++ b/scripts/paper_ui.gd
+@@ -43,6 +43,9 @@ var completed_popup_round := -1
+ var calculator_widget: Control
+ var calculator_drawer: Control
+ var tool_case: Control
++var workspace_view: Control
++var awaiting_annotation_undo := false
++var active_cursor_tool := "answer"
+ func build(owner_game: Node) -> void:
+ 	game=owner_game
+ 	school=game.school
+@@ -74,10 +77,12 @@ func _clear() -> void:
+ 	if is_instance_valid(calculator_drawer):calculator_drawer.queue_free();calculator_drawer=null
+ 	if is_instance_valid(tool_case):tool_case.get_parent().queue_free();tool_case=null
+ 	Input.set_custom_mouse_cursor(null,Input.CURSOR_ARROW)
++	active_cursor_tool="answer"
+ 	if is_instance_valid(page_view):page_view.mouse_default_cursor_shape=Control.CURSOR_ARROW
+ 	restoring_view=false
+ 	ink=null
+ 	page_view=null
++	workspace_view=null
+ 	annotation_layer=null
+ 	reader_view_key=""
+ 	for child in column.get_children():
+@@ -108,6 +113,7 @@ func close() -> void:
+ 	remember_view()
+ 	flush()
+ 	Input.set_custom_mouse_cursor(null,Input.CURSOR_ARROW)
++	active_cursor_tool="answer"
+ 	if is_instance_valid(calculator_drawer):calculator_drawer.close()
+ 	screen.hide()
+ 	reading=false
+@@ -224,7 +230,7 @@ func _reader_copy(source: Dictionary) -> Dictionary:
+ 	copy.erase("identity")
+ 	if int(copy.owner)!=multiplayer.get_unique_id():
+ 		copy.answers={};copy.strokes={};copy.annotations={};copy.mark={}
+-		copy.erase("procedure");copy.erase("math_ui")
++		copy.erase("procedure");copy.erase("math_ui");copy.erase("annotation_history")
+ 	copy.project=school._public_project(source.project,(source.lesson or not source.mark.is_empty()) and int(source.owner)==multiplayer.get_unique_id())
+ 	return copy
+ func _reader_current(generation: int,id: int) -> bool:
+@@ -260,55 +266,60 @@ func _build_reader() -> void:
+ 	var next := _button(toolbar,"›",func():turn_page(1));next.disabled=page_index>=_page_count(paper)-1
+ 	_button(toolbar,"Close",close)
+ 	view_zoom=float(view_states.get(_reader_key(paper),{}).get("zoom",1.0))
+-	var zoom_control := SpinBox.new();zoom_control.min_value=50;zoom_control.max_value=150;zoom_control.step=10;zoom_control.value=view_zoom*100;zoom_control.suffix="%";zoom_control.tooltip_text="Paper zoom";toolbar.add_child(zoom_control)
+-	zoom_control.value_changed.connect(func(value):view_zoom=value/100.0;apply_zoom();remember_view())
+-	var row := HBoxContainer.new();row.add_theme_constant_override("separation",22);row.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(row)
+-	var scroll := ScrollContainer.new();scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;row.add_child(scroll)
+-	view_scroll=scroll
+-	scroll.gui_input.connect(func(event):_paper_input(event,generation,source_id))
+-	scroll.mouse_filter=Control.MOUSE_FILTER_PASS
+-	var holder := CenterContainer.new();holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_SHRINK_BEGIN;scroll.add_child(holder)
++	var reset_view := _button(toolbar,"Reset view",func():workspace_view.fit();remember_view())
++	reset_view.tooltip_text="Fit the paper to the screen"
++	if _editable(paper):_button(toolbar,"Undo text",func():awaiting_annotation_undo=true;_reader_request(generation,source_id,source_page,{"op":"undo_annotation"}))
++	var row := HBoxContainer.new();row.add_theme_constant_override("separation",0);row.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(row)
++	workspace_view=preload("res://scripts/ui/paper_workspace/workspace/viewport.gd").new()
++	workspace_view.name="PaperViewport"
++	workspace_view.size_flags_horizontal=Control.SIZE_EXPAND_FILL
++	workspace_view.size_flags_vertical=Control.SIZE_EXPAND_FILL
++	workspace_view.clip_contents=true
++	workspace_view.mouse_filter=Control.MOUSE_FILTER_PASS
++	row.add_child(workspace_view)
++	workspace_view.view_changed.connect(func(value,_offset):view_zoom=value)
+ 	page_view=(preload("res://scripts/math_course_paper.gd").new() if paper.project.get("course_id", "") in ["MTH147", "MTH255"] else preload("res://scripts/worksheet_page.gd").new());page_view.paper=paper.duplicate(true);page_view.page=page_index;page_view.writable=_editable(paper)
+ 	page_view.answer_changed.connect(func(key,value):_queue_answer(generation,source_id,key,value))
+ 	page_view.stroke_added.connect(func(stroke):_reader_request(generation,source_id,source_page,{"op":"stroke","points":stroke.points,"color":stroke.color,"width":stroke.width,"hardness":stroke.hardness,"opacity":stroke.opacity}))
+-	view_wrapper=Control.new();holder.add_child(view_wrapper);view_wrapper.add_child(page_view);apply_zoom();ink=page_view.ink;ink.pencil_color=pencil_color;ink.pencil_width=pencil_width;page_view.set_drawing(pencil_mode)
++	workspace_view.mount(page_view);ink=page_view.ink;ink.pencil_color=pencil_color;ink.pencil_width=pencil_width;page_view.set_drawing(pencil_mode)
+ 	annotation_layer=preload("res://scripts/paper_annotations.gd").new();annotation_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);annotation_layer.writable=_editable(paper);annotation_layer.items=paper.get("annotations",{}).get(str(page_index),[]).duplicate(true);page_view.add_child(annotation_layer);annotation_layer.ink_color=pencil_color;annotation_layer.set_tool(paper_tool)
+ 	annotation_layer.changed.connect(func(item):_reader_request(generation,source_id,source_page,{"op":"annotation","item":item}))
+ 	annotation_layer.removed.connect(func(id):_reader_request(generation,source_id,source_page,{"op":"remove_annotation","object":id}))
+ 	annotation_layer.selected.connect(edit_annotation)
+ 	if ResourceLoader.exists("res://scripts/ui/paper_workspace/tools/case.gd"):
+-		var tool_anchor := Control.new();tool_anchor.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT);tool_anchor.position=Vector2(-292,76);tool_anchor.custom_minimum_size=Vector2(292,350);screen.add_child(tool_anchor)
++		var tool_anchor := Control.new();tool_anchor.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT);tool_anchor.position=Vector2(-292,76);tool_anchor.custom_minimum_size=Vector2(292,350);tool_anchor.mouse_filter=Control.MOUSE_FILTER_IGNORE;screen.add_child(tool_anchor)
+ 		tool_case=load("res://scripts/ui/paper_workspace/tools/case.gd").new();tool_anchor.add_child(tool_case)
+ 		tool_case.configure("text" if paper_tool=="equation" else paper_tool,{"color":pencil_color.to_html(false),"width":pencil_width,"equation":paper_tool=="equation"})
+ 		tool_case.tool_selected.connect(_case_tool_selected)
+ 		tool_case.properties_changed.connect(_case_properties_changed)
+ 		tool_case.text_action.connect(_case_text_action)
++		tool_case.set_supported_text_actions(["edit","bake","duplicate","delete"])
+ 		_case_properties_changed(tool_case.properties)
+-		if tool_case.tool!="answer":Input.set_custom_mouse_cursor(tool_case.cursor_texture(tool_case.tool),Input.CURSOR_ARROW)
++		if tool_case.tool!="answer":page_view.mouse_default_cursor_shape=Control.CURSOR_CROSS
+ 	ink.eraser=paper_tool=="eraser";page_view.set_drawing(paper_tool in ["pencil","eraser"])
+ 	ink.stroke_erased.connect(func(index):_reader_request(generation,source_id,source_page,{"op":"erase_stroke","index":index}))
+ 	# Eraser targets annotations first; empty clicks reach the ink beneath.
+ 	annotation_layer.erase_ink.connect(func(point):ink.erase_at(point))
+ 	var side_scroll := ScrollContainer.new();side_scroll.custom_minimum_size.x=300;side_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;row.add_child(side_scroll)
+ 	tools_scroll=side_scroll
+-	if is_instance_valid(tool_case):side_scroll.hide()
++	if is_instance_valid(tool_case):side_scroll.hide();side_scroll.custom_minimum_size.x=0
+ 	var side := VBoxContainer.new();side.custom_minimum_size.x=280;side.add_theme_constant_override("separation",6);side_scroll.add_child(side)
+ 	_label(side,"PENCIL CASE",15)
+ 	var draw := CheckButton.new();draw.text="✎  Pencil enabled";draw.button_pressed=pencil_mode;draw.disabled=not _editable(paper);side.add_child(draw)
+ 	draw.toggled.connect(func(value):flush();pencil_mode=value;paper_tool="pencil" if value else "answer";_build_reader())
+ 	draw.tooltip_text="Enable to draw on the paper. Disable to type in answer fields."
+ 	var tool_row := HBoxContainer.new();side.add_child(tool_row)
+-	for entry in [["text","Text"],["equation","Equation"],["eraser","Eraser"]]:
++	for entry in [["text","Text"],["eraser","Eraser"]]:
+ 		var tool_button := _button(tool_row,entry[1],func():flush();paper_tool=entry[0] if paper_tool!=entry[0] else "answer";pencil_mode=false;_build_reader());tool_button.disabled=not _editable(paper);tool_button.toggle_mode=true;tool_button.button_pressed=paper_tool==entry[0]
+ 	annotation_inspector=VBoxContainer.new();side.add_child(annotation_inspector)
+ 	if paper_tool in ["text","equation"]:_label(annotation_inspector,"Click the paper to add text. Drag existing text to move it.",13)
+-	if paper_tool=="eraser":_label(annotation_inspector,"Click or drag over a pencil stroke to erase it. Click text to remove it.",13)
++	if paper_tool=="eraser":_label(annotation_inspector,"Erase pencil marks. Editable text stays intact.",13)
+ 	var colors := HBoxContainer.new();side.add_child(colors);colors.visible=pencil_mode
+ 	for color in ["263743","235d9b","b24c45","3a7e59","8257a4"]:
+ 		var swatch := Button.new();swatch.custom_minimum_size=Vector2(38,26);var style := StyleBoxFlat.new();style.bg_color=Color(color);style.set_corner_radius_all(7);swatch.add_theme_stylebox_override("normal",style);swatch.pressed.connect(func():pencil_color=Color(color);ink.pencil_color=pencil_color);colors.add_child(swatch)
+ 	var custom := ColorPickerButton.new();custom.color=pencil_color;custom.edit_alpha=false;custom.custom_minimum_size=Vector2(38,26);custom.tooltip_text="Choose any pencil color";colors.add_child(custom)
+ 	custom.color_changed.connect(func(value):pencil_color=value;ink.pencil_color=value)
+-	var width := HSlider.new();width.min_value=1;width.max_value=8;width.step=1;width.value=pencil_width;width.tooltip_text="Pencil thickness";width.value_changed.connect(func(value):pencil_width=value;ink.pencil_width=value);side.add_child(width);width.visible=pencil_mode
++	var width := HSlider.new();width.min_value=1;width.max_value=32;width.step=1;width.value=pencil_width;width.tooltip_text="Pencil thickness";width.value_changed.connect(func(value):pencil_width=value;ink.pencil_width=value);side.add_child(width);width.visible=pencil_mode
+ 	var actions := HBoxContainer.new();side.add_child(actions)
+ 	var undo := _button(actions,"Undo stroke",func():school.request({"op":"undo_stroke","id":document_id,"page":page_index});if not ink.strokes.is_empty():ink.strokes.pop_back();ink.queue_redraw())
+ 	undo.custom_minimum_size.y=28;undo.disabled=not _editable(paper)
+@@ -337,44 +348,30 @@ func _build_reader() -> void:
+ 	view_document=document_id;view_page=page_index;reader_view_key=_reader_key(paper)
+ 	restore_view.call_deferred(view_document,view_page,reader_generation)
+ func remember_view() -> void:
+-	if restoring_view or reader_view_key=="" or view_document<0 or not is_instance_valid(view_scroll):return
++	if restoring_view or reader_view_key=="" or view_document<0 or not is_instance_valid(workspace_view):return
+ 	var state: Dictionary=view_states.get(reader_view_key,{"pages":{}})
+ 	state.page=view_page;state.zoom=view_zoom
+-	state.pages[view_page]=Vector2(view_scroll.scroll_horizontal,view_scroll.scroll_vertical)
++	state.pages[view_page]=workspace_view.offset
+ 	state.tools=tools_scroll.scroll_vertical if is_instance_valid(tools_scroll) else 0
+ 	view_states[reader_view_key]=state
+ 	if view_states.size()>128:view_states.erase(view_states.keys()[0])
+ 	var cfg := ConfigFile.new();cfg.set_value("reader","documents",view_states);cfg.save("user://paper_reader_views.cfg")
+ func apply_zoom() -> void:
+-	if not is_instance_valid(page_view) or not is_instance_valid(view_wrapper):return
+-	page_view.scale=Vector2.ONE*view_zoom
+-	view_wrapper.custom_minimum_size=page_view.size*view_zoom
++	if is_instance_valid(workspace_view):workspace_view.restore(view_zoom,workspace_view.offset)
+ func _clamp_pan() -> void:
+-	if not is_instance_valid(view_scroll):return
+-	var horizontal := view_scroll.get_h_scroll_bar();var vertical := view_scroll.get_v_scroll_bar()
+-	view_scroll.scroll_horizontal=clampi(view_scroll.scroll_horizontal,0,maxi(0,int(horizontal.max_value-horizontal.page)))
+-	view_scroll.scroll_vertical=clampi(view_scroll.scroll_vertical,0,maxi(0,int(vertical.max_value-vertical.page)))
++	if is_instance_valid(workspace_view):workspace_view.move_by(Vector2.ZERO)
+ func _set_zoom(value: float,anchor: Vector2) -> void:
+-	if not is_instance_valid(view_scroll):return
+-	var old := view_zoom
+-	view_zoom=clampf(value,0.5,1.5)
+-	if is_equal_approx(old,view_zoom):return
+-	var point := Vector2(view_scroll.scroll_horizontal,view_scroll.scroll_vertical)+anchor
+-	apply_zoom()
+-	var target := point*(view_zoom/old)-anchor
+-	view_scroll.set_deferred("scroll_horizontal",clampi(int(target.x),0,maxi(0,int(view_wrapper.custom_minimum_size.x-view_scroll.size.x))))
+-	view_scroll.set_deferred("scroll_vertical",clampi(int(target.y),0,maxi(0,int(view_wrapper.custom_minimum_size.y-view_scroll.size.y))))
+-	remember_view()
++	if is_instance_valid(workspace_view):workspace_view.zoom_at(anchor,value/maxf(workspace_view.target_zoom,0.001))
+ func restore_view(id: int,page: int,generation: int) -> void:
+ 	if generation!=reader_generation or not reading or not screen.visible:return
+ 	restoring_view=true
+ 	await get_tree().process_frame
+ 	await get_tree().process_frame
+-	if generation==reader_generation and reading and screen.visible and id==view_document and page==view_page and is_instance_valid(view_scroll):
++	if generation==reader_generation and reading and screen.visible and id==view_document and page==view_page and is_instance_valid(workspace_view):
+ 		var state: Dictionary=view_states.get(reader_view_key,{})
+-		var position: Vector2=state.get("pages",{}).get(page,Vector2.ZERO)
+-		view_scroll.scroll_horizontal=int(position.x);view_scroll.scroll_vertical=int(position.y)
+-		_clamp_pan()
++		var position: Vector2=state.get("pages",{}).get(page,workspace_view.offset)
++		if state.has("zoom"):workspace_view.restore(float(state.zoom),position)
++		else:workspace_view.fit()
+ 		tools_scroll.scroll_vertical=int(state.get("tools",0))
+ 	if generation==reader_generation:restoring_view=false
+ func turn_page(direction: int) -> void:
+@@ -387,40 +384,52 @@ func turn_page(direction: int) -> void:
+ 	if school.papers[document_id].owner==multiplayer.get_unique_id():school.request({"op":"page","id":document_id,"page":page_index})
+ 	_build_reader()
+ func _paper_input(event: InputEvent,generation: int,id: int) -> void:
++	_workspace_input(event,generation,id)
++func _input(event: InputEvent) -> void:
++	if not reading or not screen.visible or not is_instance_valid(workspace_view):return
++	if not (event is InputEventMouseButton or event is InputEventMouseMotion):return
++	var hovered := get_viewport().gui_get_hovered_control()
++	if is_instance_valid(hovered) and (is_instance_valid(calculator_drawer) and calculator_drawer.is_ancestor_of(hovered) or is_instance_valid(tool_case) and tool_case.is_ancestor_of(hovered)):return
++	var pointer := workspace_view.get_local_mouse_position()
++	if not panning and not Rect2(Vector2.ZERO,workspace_view.size).has_point(pointer):return
++	_workspace_input(event,reader_generation,document_id)
++func _workspace_input(event: InputEvent,generation: int,id: int) -> void:
+ 	if generation!=reader_generation or id!=document_id:return
++	if not is_instance_valid(workspace_view):return
++	var pointer := workspace_view.get_local_mouse_position()
+ 	if event is InputEventMouseButton:
+ 		if event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN] and event.pressed:
+-			_set_zoom(view_zoom*(1.1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else 1.0/1.1),event.position)
+-			view_scroll.accept_event()
++			if not Rect2(workspace_view.offset,page_view.size*workspace_view.zoom).has_point(pointer):return
++			workspace_view.zoom_at(pointer,1.1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else 1.0/1.1)
++			get_viewport().set_input_as_handled()
+ 		elif event.button_index==MOUSE_BUTTON_MIDDLE:
+-			panning=event.pressed;pan_origin=event.position;view_scroll.accept_event()
+-		elif event.button_index==MOUSE_BUTTON_LEFT and paper_tool=="answer" and event.pressed and not _paper_control_at(event.position):
+-			panning=true;pan_origin=event.position
++			panning=event.pressed;pan_origin=pointer;get_viewport().set_input_as_handled()
++		elif event.button_index==MOUSE_BUTTON_LEFT and event.pressed and (Input.is_key_pressed(KEY_SPACE) or paper_tool=="answer" and not _paper_control_at(pointer)):
++			panning=true;pan_origin=pointer;get_viewport().set_input_as_handled()
+ 		elif event.button_index==MOUSE_BUTTON_LEFT and not event.pressed:panning=false
+ 	elif event is InputEventMouseMotion and panning:
+-		var move: Vector2=event.position-pan_origin;pan_origin=event.position
+-		view_scroll.scroll_horizontal=maxi(0,view_scroll.scroll_horizontal-int(move.x))
+-		view_scroll.scroll_vertical=maxi(0,view_scroll.scroll_vertical-int(move.y))
+-		_clamp_pan()
+-		view_scroll.accept_event()
++		var move: Vector2=pointer-pan_origin;pan_origin=pointer
++		workspace_view.move_by(move)
++		get_viewport().set_input_as_handled()
+ func _paper_control_at(position: Vector2) -> bool:
+ 	var control := get_viewport().gui_get_hovered_control()
+ 	if control is LineEdit or control is TextEdit or control is OptionButton or control is Button:return true
+-	return not Rect2(Vector2.ZERO,view_scroll.size).has_point(position)
++	return not Rect2(workspace_view.offset,page_view.size*workspace_view.zoom).has_point(position)
+ func _case_tool_selected(value: String) -> void:
+ 	flush();paper_tool="equation" if value=="text" and bool(tool_case.properties.get("equation",false)) else value
+ 	pencil_mode=paper_tool=="pencil"
+ 	if is_instance_valid(ink):ink.eraser=paper_tool=="eraser";page_view.set_drawing(pencil_mode or paper_tool=="eraser")
++	if is_instance_valid(tool_case):_case_properties_changed(tool_case.properties)
+ 	if is_instance_valid(annotation_layer):annotation_layer.set_tool(paper_tool)
+-	if is_instance_valid(page_view):page_view.mouse_default_cursor_shape=Control.CURSOR_CROSS if paper_tool in ["pencil","eraser","text","equation"] else Control.CURSOR_ARROW
+-	Input.set_custom_mouse_cursor(tool_case.cursor_texture(value) if value!="answer" else null,Input.CURSOR_ARROW)
++	if is_instance_valid(page_view):page_view.mouse_default_cursor_shape=Control.CURSOR_ARROW
+ func _case_properties_changed(properties: Dictionary) -> void:
+ 	if str(properties.get("_scope",""))=="selection":
+ 		for key in properties:
+ 			if key=="_scope":continue
+ 			annotation_layer.update_selected("kind" if key=="equation" else key,("equation" if bool(properties[key]) else "text") if key=="equation" else properties[key])
+ 		return
+-	pencil_color=Color(str(properties.get("color",pencil_color.to_html(false))));pencil_width=clampf(float(properties.get("width",pencil_width)),1.0,8.0)
++	pencil_color=Color(str(properties.get("color",pencil_color.to_html(false))))
++	if paper_tool!="eraser":pencil_width=clampf(float(properties.get("width",pencil_width)),1.0,32.0)
+ 	if is_instance_valid(ink):
+ 		ink.pencil_color=pencil_color;ink.pencil_width=pencil_width
+ 		ink.pencil_hardness=clampf(float(properties.get("hardness",0.8)),0.0,1.0)
+@@ -428,19 +437,41 @@ func _case_properties_changed(properties: Dictionary) -> void:
+ 		ink.eraser_radius=clampf(float(properties.get("width",12.0)),4.0,64.0) if paper_tool=="eraser" else ink.eraser_radius
+ 	if is_instance_valid(annotation_layer):
+ 		annotation_layer.ink_color=pencil_color
+-		annotation_layer.text_defaults={"font":str(properties.get("font","Sans")),"font_size":int(properties.get("font_size",24)),"angle":float(properties.get("angle",0.0)),"equation":bool(properties.get("equation",false))}
++		annotation_layer.text_defaults={"font":str(properties.get("font","Sans")),"font_size":int(properties.get("font_size",24)),"angle":float(properties.get("angle",0.0)),"equation":bool(properties.get("equation",false)),"opacity":float(properties.get("opacity",1.0)),"bold":bool(properties.get("bold",false)),"italic":bool(properties.get("italic",false)),"align":str(properties.get("align","left")),"box_width":float(properties.get("box_width",280.0))}
+ 	if paper_tool in ["text","equation"]:
+ 		paper_tool="equation" if bool(properties.get("equation",false)) else "text"
+ 		annotation_layer.set_tool(paper_tool)
+ func _case_text_action(action: String) -> void:
+ 	if not is_instance_valid(annotation_layer) or annotation_layer.selection.is_empty():return
+-	if action=="bake":annotation_layer.update_selected("baked",true);annotation_layer.selection="";tool_case.set_selection({})
++	if action=="bake":
++		annotation_layer.update_selected("baked",true)
++		annotation_layer.selection=""
++		tool_case.set_selection({})
++		annotation_layer.queue_redraw()
++	elif action=="duplicate":
++		var source: Dictionary=annotation_layer.find_item(annotation_layer.selection)
++		if source.is_empty() or bool(source.get("baked",false)):return
++		var copy: Dictionary=source.duplicate(true)
++		copy.id=str(Time.get_ticks_usec())
++		copy.position=(Vector2(copy.position)+Vector2(0.025,0.018)).clamp(Vector2.ZERO,Vector2.ONE)
++		annotation_layer.items.append(copy)
++		annotation_layer.selection=copy.id
++		annotation_layer.changed.emit(copy.duplicate(true))
++		annotation_layer.selected.emit(copy)
++		annotation_layer.queue_redraw()
++	elif action=="delete":
++		var selected_id: String=annotation_layer.selection
++		annotation_layer.items=annotation_layer.items.filter(func(item):return item.id!=selected_id)
++		annotation_layer.selection=""
++		tool_case.set_selection({})
++		annotation_layer.removed.emit(selected_id)
++		annotation_layer.queue_redraw()
+ 	elif action=="edit":
+ 		var item: Dictionary=annotation_layer.find_item(annotation_layer.selection)
+ 		if item.is_empty():return
+ 		var edit_generation := reader_generation;var edit_document := document_id;var edit_page := page_index;var edit_selection := str(item.id)
+ 		var editor := AcceptDialog.new();editor.title="Edit equation source" if str(item.get("kind","text"))=="equation" else "Edit plain text";editor.ok_button_text="Done";screen.add_child(editor)
+-		var input := LineEdit.new();input.text=str(item.get("text",""));input.max_length=256;editor.add_child(input)
++		var input := TextEdit.new();input.text=str(item.get("text",""));input.custom_minimum_size=Vector2(420,100);editor.add_child(input)
+ 		var hint := Label.new();hint.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;editor.add_child(hint)
+ 		var annotation_script=preload("res://scripts/paper_annotations.gd")
+ 		var preview: Control=null
+@@ -453,12 +484,13 @@ func _case_text_action(action: String) -> void:
+ 			hint.text=issue if not issue.is_empty() else "Equation layout: / fractions · ^ superscripts · _ subscripts · ( ) grouping. Preview updates on the paper."
+ 			if is_instance_valid(preview):preview.items[0].text=value;preview.queue_redraw()
+ 		refresh_hint.call(input.text)
+-		input.text_changed.connect(func(value):
++		input.text_changed.connect(func():
++			var value := input.text.left(256)
+ 			refresh_hint.call(value)
+ 			if edit_generation==reader_generation and edit_document==document_id and edit_page==page_index and is_instance_valid(annotation_layer) and annotation_layer.selection==edit_selection:annotation_layer.update_selected("text",value)
+ 		)
+ 		editor.confirmed.connect(editor.queue_free);editor.canceled.connect(editor.queue_free)
+-		editor.popup_centered(Vector2i(480,140));input.grab_focus();input.select_all()
++		editor.popup_centered(Vector2i(480,240));input.grab_focus();input.select_all()
+ func flush() -> void:
+ 	if flushing:return
+ 	flushing=true
+@@ -476,9 +508,19 @@ func _updated() -> void:
+ 	if not school.papers.has(document_id):close();return
+ 	var paper: Dictionary=school.papers[document_id]
+ 	# Avoid rebuilding focused answer fields on network echoes.
+-	if (not paper.mark.is_empty() or paper.owner!=multiplayer.get_unique_id()) and rendered_revision!=paper.revision:_build_reader()
++	if (awaiting_annotation_undo or not paper.mark.is_empty() or paper.owner!=multiplayer.get_unique_id()) and rendered_revision!=paper.revision:
++		awaiting_annotation_undo=false
++		_build_reader()
+ func _process(delta: float) -> void:
+-	if reading and screen.visible:apply_zoom();_clamp_pan()
++	if reading and screen.visible and is_instance_valid(workspace_view):view_zoom=workspace_view.zoom
++	var cursor_tool := "answer"
++	if reading and screen.visible and is_instance_valid(tool_case) and is_instance_valid(page_view) and paper_tool in ["pencil","eraser","text","equation"]:
++		var hovered := get_viewport().gui_get_hovered_control()
++		if is_instance_valid(hovered) and (hovered==page_view or page_view.is_ancestor_of(hovered)) and not (hovered is LineEdit or hovered is TextEdit or hovered is Button or hovered is OptionButton):
++			cursor_tool="text" if paper_tool=="equation" else paper_tool
++	if cursor_tool!=active_cursor_tool:
++		Input.set_custom_mouse_cursor(tool_case.cursor_texture(cursor_tool) if cursor_tool!="answer" and is_instance_valid(tool_case) else null,Input.CURSOR_ARROW)
++		active_cursor_tool=cursor_tool
+ 	if reading and screen.visible and is_instance_valid(calculator_drawer):
+ 		var occupied := Rect2()
+ 		if is_instance_valid(tool_case) and tool_case.revealed:
+diff --git a/scripts/paper_annotations.gd b/scripts/paper_annotations.gd
+index 88e564a..f1e81ba 100644
+--- a/scripts/paper_annotations.gd
++++ b/scripts/paper_annotations.gd
+@@ -15,12 +15,18 @@ var ink_color := Color("263743")
+ var text_defaults := {"font":"Sans","font_size":24,"angle":0.0,"equation":false}
+ var fonts := {}
+ var selection_actions: HBoxContainer
++var resize_handle: Control
+ func _ready() -> void:
+ 	for family in ["Sans","Serif","Mono"]:
+ 		var font := SystemFont.new();font.font_names=[{"Sans":"Arial","Serif":"Georgia","Mono":"Consolas"}[family]];fonts[family]=font
+ 	selection_actions=HBoxContainer.new();selection_actions.mouse_filter=Control.MOUSE_FILTER_STOP;selection_actions.hide();add_child(selection_actions)
+ 	var edit := Button.new();edit.text="Edit";edit.tooltip_text="Edit selected text";selection_actions.add_child(edit);edit.pressed.connect(func():var item:=find_item(selection);if not item.is_empty():selected.emit(item))
+-	var bake := Button.new();bake.text="Bake";bake.tooltip_text="Finish selected text without removing it";selection_actions.add_child(bake);bake.pressed.connect(func():update_selected("baked",true);selection="";queue_redraw())
++	var resize := Button.new();resize.text="↗";resize.tooltip_text="Drag to resize selected text";selection_actions.add_child(resize)
++	resize.gui_input.connect(func(event):
++		if event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT and not selection.is_empty():
++			var item := find_item(selection)
++			if not item.is_empty():update_selected("font_size",clampi(int(item.font_size+event.relative.x*0.3),10,96))
++	)
+ func _process(_delta: float) -> void:
+ 	if not is_instance_valid(selection_actions):return
+ 	var item := find_item(selection)
+@@ -44,14 +50,18 @@ func _gui_input(event: InputEvent) -> void:
+ 			var item: Dictionary=items[i]
+ 			var local: Vector2=(event.position-item.position*size).rotated(-float(item.angle))
+ 			var box: Vector2=measure(item.text,int(item.font_size),fonts.get(item.font,ThemeDB.fallback_font),item.kind=="equation")
++			box.x=maxf(box.x,float(item.get("box_width",box.x)))
+ 			if Rect2(Vector2(-6,-6),box+Vector2(12,12)).has_point(local):
+-				if tool=="eraser":items.remove_at(i);removed.emit(item.id);queue_redraw();accept_event();return
++				if tool=="eraser":
++					if bool(item.get("baked",false)):items.remove_at(i);removed.emit(item.id);queue_redraw()
++					else:erase_ink.emit(event.position)
++					accept_event();return
+ 				if item.get("baked",false):continue
+ 				selection=item.id;drag_offset=event.position-item.position*size;dragging=true;selected.emit(item);queue_redraw();accept_event();return
+ 		if tool=="eraser":erase_ink.emit(event.position);accept_event();return
+ 		if tool in ["text","equation"]:
+ 			var equation := tool=="equation" or bool(text_defaults.get("equation",false))
+-			var item := {"id":str(Time.get_ticks_usec()),"kind":"equation" if equation else "text","text":"a/b" if equation else "Text","position":event.position/size,"angle":float(text_defaults.get("angle",0.0)),"font_size":int(text_defaults.get("font_size",24)),"font":str(text_defaults.get("font","Sans")),"color":ink_color.to_html(false),"baked":false}
++			var item := {"id":str(Time.get_ticks_usec()),"kind":"equation" if equation else "text","text":"a/b" if equation else "Text","position":event.position/size,"angle":float(text_defaults.get("angle",0.0)),"font_size":int(text_defaults.get("font_size",24)),"font":str(text_defaults.get("font","Sans")),"color":ink_color.to_html(false),"bold":bool(text_defaults.get("bold",false)),"italic":bool(text_defaults.get("italic",false)),"align":str(text_defaults.get("align","left")),"opacity":float(text_defaults.get("opacity",1.0)),"box_width":float(text_defaults.get("box_width",280.0)),"baked":false}
+ 			items.append(item);selection=item.id;changed.emit(item.duplicate(true));selected.emit(item);queue_redraw();accept_event()
+ 	elif event is InputEventMouseMotion and tool=="eraser" and event.button_mask & MOUSE_BUTTON_MASK_LEFT:erase_ink.emit(event.position);accept_event()
+ 	elif event is InputEventMouseMotion and dragging:
+@@ -83,7 +93,11 @@ static func equation_error(text: String) -> String:
+ static func measure(text: String,fs: int,font: Font,equation: bool,depth := 0) -> Vector2:
+ 	if equation:return EquationLayout.build(text,font,fs).size
+ 	if equation and depth==0 and not equation_error(text).is_empty():equation=false
+-	if not equation or depth>12:return Vector2(maxf(8,font.get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x),font.get_height(fs))
++	if not equation or depth>12:
++		var lines := text.split("\n",false)
++		var width := 8.0
++		for line in lines:width=maxf(width,font.get_string_size(line,HORIZONTAL_ALIGNMENT_LEFT,-1,fs).x)
++		return Vector2(width,maxi(1,lines.size())*font.get_height(fs))
+ 	var grouped := unwrap(text);if grouped!=text and split_operator(grouped,"/")<0 and split_operator(grouped,"^")<0 and split_operator(grouped,"_")<0:grouped=text
+ 	text=grouped
+ 	var index := split_operator(text,"/")
+@@ -121,11 +135,25 @@ func paint(text: String,pos: Vector2,fs: int,font: Font,color: Color,equation: b
+ 		if index>=0:
+ 			var a := measure(text.left(index),fs,font,true,depth+1);var b := measure(text.substr(index+1),maxi(10,int(fs*.7)),font,true,depth+1)
+ 			paint(text.left(index),pos,fs,font,color,true,depth+1);paint(text.substr(index+1),pos+Vector2(a.x,a.y*.45),maxi(10,int(fs*.7)),font,color,true,depth+1);return
+-	draw_string(font,pos+Vector2(0,font.get_ascent(fs)),text,HORIZONTAL_ALIGNMENT_LEFT,-1,fs,color)
++	for index in text.split("\n",false).size():
++		var line: String=text.split("\n",false)[index]
++		draw_string(font,pos+Vector2(0,font.get_ascent(fs)+index*font.get_height(fs)),line,HORIZONTAL_ALIGNMENT_LEFT,-1,fs,color)
+ func _draw() -> void:
+ 	for item in items:
+ 		var font: Font=fonts.get(item.font,ThemeDB.fallback_font)
++		if bool(item.get("bold",false)) or bool(item.get("italic",false)):
++			var variant := FontVariation.new()
++			variant.base_font=font
++			variant.variation_embolden=0.7 if bool(item.get("bold",false)) else 0.0
++			variant.variation_transform=Transform2D(Vector2(1,0),Vector2(-0.18,1),Vector2.ZERO) if bool(item.get("italic",false)) else Transform2D.IDENTITY
++			font=variant
+ 		draw_set_transform(item.position*size,float(item.angle))
+-		paint(item.text,Vector2.ZERO,int(item.font_size),font,Color(item.color),item.kind=="equation")
+-		if writable and item.id==selection and not item.get("baked",false) and tool in ["text","equation"]:draw_rect(Rect2(Vector2(-4,-4),measure(item.text,int(item.font_size),font,item.kind=="equation")+Vector2(8,8)),Color("3a8ca0"),false,1)
++		var color := Color(str(item.color));color.a*=clampf(float(item.get("opacity",1.0)),0.05,1.0)
++		var extent := measure(item.text,int(item.font_size),font,item.kind=="equation")
++		var box_width := maxf(extent.x,float(item.get("box_width",extent.x)))
++		var origin := Vector2.ZERO
++		if str(item.get("align","left"))=="center":origin.x=(box_width-extent.x)*0.5
++		elif str(item.get("align","left"))=="right":origin.x=box_width-extent.x
++		paint(item.text,origin,int(item.font_size),font,color,item.kind=="equation")
++		if writable and item.id==selection and not item.get("baked",false) and tool in ["text","equation"]:draw_rect(Rect2(Vector2(-4,-4),Vector2(box_width,extent.y)+Vector2(8,8)),Color("3a8ca0"),false,1)
+ 	draw_set_transform(Vector2.ZERO)
+diff --git a/scripts/paper_ink.gd b/scripts/paper_ink.gd
+index f6fdcc5..6d8859c 100644
+--- a/scripts/paper_ink.gd
++++ b/scripts/paper_ink.gd
+@@ -11,6 +11,8 @@ var pencil_width := 2.0
+ var pencil_hardness := 0.8
+ var pencil_opacity := 1.0
+ var eraser_radius := 12.0
++var pressure_sum := 0.0
++var pressure_samples := 0
+ func _ready() -> void:
+ 	mouse_filter=Control.MOUSE_FILTER_STOP
+ func _gui_input(event: InputEvent) -> void:
+@@ -19,23 +21,30 @@ func _gui_input(event: InputEvent) -> void:
+ 		if (event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed) or (event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT):erase_at(event.position);accept_event()
+ 		return
+ 	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
+-		if event.pressed:current=[(event.position/size).clamp(Vector2.ZERO,Vector2.ONE)]
++		if event.pressed:
++			current=[(event.position/size).clamp(Vector2.ZERO,Vector2.ONE)]
++			pressure_sum=0.0;pressure_samples=0
+ 		else:finish()
+ 		queue_redraw();accept_event()
+ 	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT and not current.is_empty():
+ 		var point: Vector2=(event.position/size).clamp(Vector2.ZERO,Vector2.ONE)
+ 		if (point-current.back()).length()>.001:
+ 			current.append(point)
++			if event.pressure>0.0:
++				pressure_sum+=clampf(event.pressure,0.05,1.0)
++				pressure_samples+=1
+ 		if current.size()>=250:
+ 			finish();current=[point]
+ 		queue_redraw();accept_event()
+ func finish() -> void:
+ 	if current.is_empty():return
+-	var stroke := {"points":current.duplicate(),"color":pencil_color.to_html(false),"width":pencil_width,"hardness":pencil_hardness,"opacity":pencil_opacity}
++	var effective_width := pencil_width*(pressure_sum/pressure_samples if pressure_samples>0 else 1.0)
++	var stroke := {"points":current.duplicate(),"color":pencil_color.to_html(false),"width":clampf(effective_width,1.0,32.0),"hardness":pencil_hardness,"opacity":pencil_opacity}
++	pressure_sum=0.0;pressure_samples=0
+ 	strokes.append(stroke);current.clear();stroke_finished.emit(stroke);queue_redraw()
+ func _draw() -> void:
+ 	if background:draw_rect(Rect2(Vector2.ZERO,size),Color("fcfaf2"))
+-	for item in strokes+[{"points":current,"color":pencil_color.to_html(false),"width":pencil_width}]:
++	for item in strokes+[{"points":current,"color":pencil_color.to_html(false),"width":pencil_width,"hardness":pencil_hardness,"opacity":pencil_opacity}]:
+ 		var points: Array=item if item is Array else item.get("points",[])
+ 		var color := Color("263743") if item is Array else Color(item.get("color","263743"))
+ 		var width: float=2.0 if item is Array else float(item.get("width",2.))
+diff --git a/scripts/school_session.gd b/scripts/school_session.gd
+index 43098f6..dbfdf7a 100644
+--- a/scripts/school_session.gd
++++ b/scripts/school_session.gd
+@@ -335,9 +335,9 @@ func apply(peer: int,a: Dictionary) -> void:
+ 		if paper.owner!=peer:return
+ 		if _official(paper) and phase=="assignment" and _assessment_remaining()<=0:
+ 			advance(0)
+-			if op in ["answer","stroke","annotation","submit","procedure","measure"]:return
++			if op in ["answer","stroke","annotation","remove_annotation","undo_annotation","erase_stroke","undo_stroke","erase","submit","procedure","measure"]:return
+ 		if not paper.held and not paper.get("stowed",false) and not _near(peer,paper.position):return
+-		if not paper.lesson and paper.class_round==round_id and activity.get("kind","")=="lecture" and op in ["answer","stroke","annotation","remove_annotation","erase_stroke","undo_stroke","erase","submit"] and not _seated(peer):
++		if not paper.lesson and paper.class_round==round_id and activity.get("kind","")=="lecture" and op in ["answer","stroke","annotation","remove_annotation","undo_annotation","erase_stroke","undo_stroke","erase","submit"] and not _seated(peer):
+ 			_notice(peer,"Sit at your classroom desk to complete or submit the lecture test.")
+ 			return
+ 		match op:
+@@ -397,11 +397,11 @@ func apply(peer: int,a: Dictionary) -> void:
+ 				if not (raw_hardness is int or raw_hardness is float) or not (raw_opacity is int or raw_opacity is float):return
+ 				var hardness := float(raw_hardness);var opacity := float(raw_opacity)
+ 				if not is_finite(hardness) or not is_finite(opacity):return
+-				if paper.strokes[key].size()<100:paper.strokes[key].append({"points":points,"color":color,"width":clampf(width,1.,8.),"hardness":clampf(hardness,0.,1.),"opacity":clampf(opacity,.05,1.)})
++				if paper.strokes[key].size()<100:paper.strokes[key].append({"points":points,"color":color,"width":clampf(width,1.,32.),"hardness":clampf(hardness,0.,1.),"opacity":clampf(opacity,.05,1.)})
+ 			"annotation":
+ 				if not paper.mark.is_empty():return
+ 				var item=a.get("item",{})
+-				if not item is Dictionary or item.size()>10:return
++				if not item is Dictionary or item.size()>16:return
+ 				var pos=item.get("position")
+ 				if not pos is Vector2 or not pos.is_finite() or pos.x<0 or pos.y<0 or pos.x>1 or pos.y>1:return
+ 				if str(item.get("id","")).length()>40 or str(item.get("id",""))=="":return
+@@ -413,7 +413,11 @@ func apply(peer: int,a: Dictionary) -> void:
+ 					return
+ 				if not is_finite(float(angle)) or not is_finite(float(font_size)):
+ 					return
+-				var clean := {"id":str(item.id),"kind":item.kind,"text":str(item.get("text","")).left(256),"position":pos,"font":item.font,"font_size":int(clampf(float(font_size),10,72)),"angle":clampf(float(angle),-PI,PI),"color":item.color,"baked":bool(item.get("baked",false))}
++				var alignment := str(item.get("align","left"))
++				if alignment not in ["left","center","right"]:return
++				var opacity := float(item.get("opacity",1.0));var box_width := float(item.get("box_width",280.0))
++				if not is_finite(opacity) or not is_finite(box_width):return
++				var clean := {"id":str(item.id),"kind":item.kind,"text":str(item.get("text","")).left(256),"position":pos,"font":item.font,"font_size":int(clampf(float(font_size),10,96)),"angle":clampf(float(angle),-PI,PI),"color":item.color,"bold":bool(item.get("bold",false)),"italic":bool(item.get("italic",false)),"align":alignment,"opacity":clampf(opacity,0.05,1.0),"box_width":clampf(box_width,40.0,720.0),"baked":bool(item.get("baked",false))}
+ 				if not paper.has("annotations"):paper.annotations={}
+ 				var key := str(clampi(int(a.get("page",0)),0,page_count(paper)-1))
+ 				if not paper.annotations.has(key):paper.annotations[key]=[]
+@@ -421,12 +425,33 @@ func apply(peer: int,a: Dictionary) -> void:
+ 				for i in paper.annotations[key].size():
+ 					if paper.annotations[key][i].id==clean.id:
+ 						if paper.annotations[key][i].baked:return
++						if not paper.has("annotation_history"):paper.annotation_history=[]
++						paper.annotation_history.append({"page":key,"id":clean.id,"before":paper.annotations[key][i].duplicate(true)})
++						if paper.annotation_history.size()>32:paper.annotation_history.pop_front()
+ 						paper.annotations[key][i]=clean;found=true;break
+-				if not found and paper.annotations[key].size()<40:paper.annotations[key].append(clean)
++				if not found and paper.annotations[key].size()<40:
++					if not paper.has("annotation_history"):paper.annotation_history=[]
++					paper.annotation_history.append({"page":key,"id":clean.id,"before":{}})
++					if paper.annotation_history.size()>32:paper.annotation_history.pop_front()
++					paper.annotations[key].append(clean)
+ 			"remove_annotation":
+ 				if not paper.mark.is_empty():return
+ 				var key := str(clampi(int(a.get("page",0)),0,page_count(paper)-1))
+-				if paper.get("annotations",{}).has(key):paper.annotations[key]=paper.annotations[key].filter(func(item):return item.id!=str(a.get("object","")))
++				if paper.get("annotations",{}).has(key):
++					for existing in paper.annotations[key]:
++						if existing.id==str(a.get("object","")):
++							if not paper.has("annotation_history"):paper.annotation_history=[]
++							paper.annotation_history.append({"page":key,"id":existing.id,"before":existing.duplicate(true)})
++							if paper.annotation_history.size()>32:paper.annotation_history.pop_front()
++							break
++					paper.annotations[key]=paper.annotations[key].filter(func(item):return item.id!=str(a.get("object","")))
++			"undo_annotation":
++				if not paper.mark.is_empty() or not paper.has("annotation_history") or paper.annotation_history.is_empty():return
++				var entry: Dictionary=paper.annotation_history.pop_back()
++				var key := str(entry.page)
++				if not paper.annotations.has(key):paper.annotations[key]=[]
++				paper.annotations[key]=paper.annotations[key].filter(func(item):return item.id!=entry.id)
++				if not entry.before.is_empty():paper.annotations[key].append(entry.before)
+ 			"erase_stroke":
+ 				if not paper.mark.is_empty():return
+ 				var key := str(clampi(int(a.get("page",0)),0,page_count(paper)-1));var index := int(a.get("index",-1))
+@@ -681,7 +706,7 @@ func _public_state(recipient: int) -> Dictionary:
+ 		var paper: Dictionary=source.duplicate(false)
+ 		paper.erase("identity");paper.erase("project")
+ 		if paper.owner!=recipient:
+-			paper.answers={};paper.strokes={};paper.annotations={};paper.mark={};paper.erase("procedure");paper.erase("math_ui")
++			paper.answers={};paper.strokes={};paper.annotations={};paper.mark={};paper.erase("procedure");paper.erase("math_ui");paper.erase("annotation_history")
+ 		paper=paper.duplicate(true)
+ 		paper.project=_public_project(source.project,(not source.mark.is_empty() or source.lesson) and source.owner==recipient)
+ 		visible_papers[id]=paper
+diff --git a/scripts/notebook_store.gd b/scripts/notebook_store.gd
+index c3c288c..5dee5f0 100644
+--- a/scripts/notebook_store.gd
++++ b/scripts/notebook_store.gd
+@@ -26,15 +26,18 @@ static func valid(data: Variant) -> bool:
+ 				if not entry is Dictionary or not Color.html_is_valid(str(entry.get("color",""))):return false
+ 				if key=="strokes":
+ 					if not entry.get("points") is Array or entry.points.size()>256:return false
+-					if not is_finite(float(entry.get("width",0))) or float(entry.get("width",0))<1 or float(entry.get("width",0))>8:return false
++					if not is_finite(float(entry.get("width",0))) or float(entry.get("width",0))<1 or float(entry.get("width",0))>32:return false
+ 					for point in entry.points:
+ 						if not valid_point(point):return false
+ 				else:
+ 					if not valid_point(entry.get("position")):return false
+ 					if entry.get("kind") not in ["text","equation"] or entry.get("font") not in ["Sans","Serif","Mono"]:return false
+ 					if str(entry.get("text","")).length()>256 or str(entry.get("id","")).length()>40:return false
+-					if not is_finite(float(entry.get("font_size",0))) or int(entry.get("font_size",0)) not in range(10,73):return false
++					if not is_finite(float(entry.get("font_size",0))) or int(entry.get("font_size",0)) not in range(10,97):return false
+ 					if not is_finite(float(entry.get("angle",0))) or absf(float(entry.get("angle",0)))>PI:return false
++					if str(entry.get("align","left")) not in ["left","center","right"]:return false
++					if not is_finite(float(entry.get("opacity",1.0))) or float(entry.get("opacity",1.0))<0.05 or float(entry.get("opacity",1.0))>1:return false
++					if not is_finite(float(entry.get("box_width",280.0))) or float(entry.get("box_width",280.0))<40 or float(entry.get("box_width",280.0))>720:return false
+ 	return true
+ static func valid_point(point: Variant) -> bool:
+ 	return point is Vector2 and point.is_finite() and point.x>=0 and point.y>=0 and point.x<=1 and point.y<=1
+diff --git a/scripts/ui/paper_workspace/tools/case.gd b/scripts/ui/paper_workspace/tools/case.gd
+index 1a4d539..5621904 100644
+--- a/scripts/ui/paper_workspace/tools/case.gd
++++ b/scripts/ui/paper_workspace/tools/case.gd
+@@ -16,7 +16,7 @@ const WIDTH := 292.0
+ const PEEK := 42.0
+ const TOOLS := ["pencil", "eraser", "text"]
+ var tool := "answer"
+-var properties := {"color": "263743", "width": 3.0, "hardness": 0.8, "opacity": 1.0, "font": "Sans", "font_size": 24, "angle": 0.0, "equation": false}
++var properties := {"color": "263743", "width": 3.0, "hardness": 0.8, "opacity": 1.0, "font": "Sans", "font_size": 24, "angle": 0.0, "equation": false, "bold": false, "italic": false, "align": "left", "box_width": 280.0}
+ var selection: Dictionary = {}
+ var revealed := false
+ var _hovering := false
+@@ -222,7 +222,20 @@ func _text_fields(selected: bool) -> void:
+ 	font.item_selected.connect(func(i: int): _change("font", font.get_item_text(i), selected))
+ 	_slider("Size", "font_size", 10, 96, 1, selected)
+ 	_slider("Angle °", "angle", -180, 180, 1, selected)
++	_slider("Box width", "box_width", 40, 720, 1, selected)
++	_slider("Opacity", "opacity", 0.05, 1.0, 0.05, selected)
+ 	_color(selected)
++	var style_row := HBoxContainer.new();host.add_child(style_row)
++	for spec in [["bold","Bold"],["italic","Italic"]]:
++		var key: String=spec[0]
++		var toggle := CheckBox.new();toggle.text=spec[1]
++		toggle.button_pressed=bool(selection.get(key,properties.get(key,false))) if selected else bool(properties.get(key,false))
++		style_row.add_child(toggle)
++		toggle.toggled.connect(func(value: bool):_change(key,value,selected))
++	var alignment := OptionButton.new();host.add_child(alignment)
++	for value in ["left","center","right"]:alignment.add_item(value.capitalize())
++	alignment.select(maxi(0,["left","center","right"].find(str(selection.get("align",properties.align)) if selected else str(properties.align))))
++	alignment.item_selected.connect(func(index: int):_change("align",["left","center","right"][index],selected))
+ 	var equation := CheckBox.new()
+ 	equation.text = "Equation layout"
+ 	equation.tooltip_text = "Render fractions and superscripts in this text"

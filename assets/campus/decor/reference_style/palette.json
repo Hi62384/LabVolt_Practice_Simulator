@@ -1,0 +1,14 @@
+{
+  "style": "restrained semi-realistic low-poly workshop",
+  "materials": {
+    "wall": "c8d0d0",
+    "wainscot": "7893a0",
+    "floor": "758b96",
+    "furniture": "263c4c",
+    "worktop": "a77d55",
+    "metal": "697985",
+    "bin": "4f7080",
+    "fixture": "e9e9dc"
+  },
+  "shape_rules": ["rectangular clean work surfaces", "matte cabinet faces", "organized bins and tool rails", "simple ceiling rectangles", "no billboard labels"]
+}

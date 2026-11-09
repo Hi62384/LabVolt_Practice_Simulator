@@ -1,0 +1,142 @@
+{
+  "coordinate_system": "+Y up, +Z front, casing face Z=0; metres",
+  "reference_status": "Pending actual reference pixels. Generic original housings; not a manufacturer reproduction.",
+  "license": "Original project-authored geometry; no external assets",
+  "meshes": {
+    "supply": {
+      "vertices": 3608,
+      "triangles": 1448,
+      "surfaces": 7,
+      "bounds_min": [
+        -0.733,
+        -0.378,
+        -0.53
+      ],
+      "bounds_max": [
+        0.733,
+        0.353,
+        0.0065
+      ]
+    },
+    "meter": {
+      "vertices": 2808,
+      "triangles": 1128,
+      "surfaces": 7,
+      "bounds_min": [
+        -0.528,
+        -0.19800000000000004,
+        -0.4
+      ],
+      "bounds_max": [
+        0.528,
+        0.17300000000000001,
+        0.0065
+      ]
+    },
+    "generator": {
+      "vertices": 2808,
+      "triangles": 1128,
+      "surfaces": 7,
+      "bounds_min": [
+        -0.528,
+        -0.19800000000000004,
+        -0.44
+      ],
+      "bounds_max": [
+        0.528,
+        0.17300000000000001,
+        0.0065
+      ]
+    },
+    "scope": {
+      "vertices": 2808,
+      "triangles": 1128,
+      "surfaces": 7,
+      "bounds_min": [
+        -0.728,
+        -0.403,
+        -0.55
+      ],
+      "bounds_max": [
+        0.728,
+        0.378,
+        0.0065
+      ]
+    },
+    "patchdeck": {
+      "vertices": 2408,
+      "triangles": 968,
+      "surfaces": 5,
+      "bounds_min": [
+        -2.153,
+        -0.138,
+        -0.32
+      ],
+      "bounds_max": [
+        2.153,
+        0.113,
+        0.0065
+      ]
+    },
+    "knob": {
+      "vertices": 840,
+      "triangles": 336,
+      "surfaces": 3,
+      "bounds_min": [
+        -0.032,
+        -0.032,
+        -0.002999999999999999
+      ],
+      "bounds_max": [
+        0.032,
+        0.032,
+        0.032
+      ]
+    },
+    "button": {
+      "vertices": 200,
+      "triangles": 80,
+      "surfaces": 1,
+      "bounds_min": [
+        -0.0325,
+        -0.014,
+        -0.004
+      ],
+      "bounds_max": [
+        0.0325,
+        0.014,
+        0.012
+      ]
+    },
+    "socket": {
+      "vertices": 360,
+      "triangles": 144,
+      "surfaces": 3,
+      "bounds_min": [
+        -0.029,
+        -0.029,
+        -0.002
+      ],
+      "bounds_max": [
+        0.029,
+        0.029,
+        0.023
+      ]
+    },
+    "plug": {
+      "vertices": 360,
+      "triangles": 144,
+      "surfaces": 2,
+      "bounds_min": [
+        -0.026,
+        -0.026,
+        0.0
+      ],
+      "bounds_max": [
+        0.026,
+        0.026,
+        0.16
+      ]
+    }
+  }
+}

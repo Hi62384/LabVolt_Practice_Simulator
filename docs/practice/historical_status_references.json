@@ -1,0 +1,33 @@
+{
+  "scope": "Historical coordinator summaries only. Original referenced digests are preserved; mutable live paths are not acceptance receipts and are excluded from the immutable receipt audit.",
+  "references": [
+    {
+      "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_HEAVY_QUIET_READY.txt",
+      "sha256": "f0a51616e0b04a510bd592179be1d66bed7b2ad0b2685adb36db6be3eb84f844",
+      "provenance": "Existing current-J evidence, read only; no rerun.",
+      "scope": "Bounded core/economy/physical PCB evidence; receipt archive is retained/in progress, not passed.",
+      "prior_review_sha256": "125e297906c3b914858e22f87669ecf5e56e8e707c5cae29d52c3e049c423195",
+      "reread_note": "Mutable coordinator status refreshed; historical fixture scope remains separate."
+    },
+    {
+      "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\monitor-checkpoint-current.json",
+      "sha256": "9dfcc079df54a46bd6772ff83b8da573da22b6ea3e29c6053053d2c13395e1c1",
+      "summary": {
+        "status": "K phase DATA_VALID; target unmet; independent archive integration review",
+        "phase8": {
+          "dc_simulation_ms": 26.7018,
+          "dc_callbacks_per_sec": 21.6994,
+          "full_partition": true,
+          "visual_review": "BothPNGs rootPASS",
+          "scope": "CPU wall/descheduling; no presentedFPS/GPU/cleanbackground claim",
+          "seconds": 73.125,
+          "ac_simulation_ms": 25.6279,
+          "ac_callbacks_per_sec": 25.1091,
+          "next": "Densematrixrowcontainer proposal, unoptimized differentialphysics gates; no acceptedoptimization",
+          "oracles": "PASS"
+        }
+      },
+      "scope": "Existing receipt read only; no test rerun. K/J2/private crash scopes remain distinct from focused current-Main archive acceptance."
+    }
+  ]
+}

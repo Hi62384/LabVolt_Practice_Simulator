@@ -1,0 +1,1096 @@
+{
+  "schema": 1,
+  "authorship": "Original mathematical geometry authored for this project; no external assets",
+  "materials": {
+    "oak": [
+      "b99160",
+      0.78,
+      0
+    ],
+    "oak_light": [
+      "cda977",
+      0.8,
+      0
+    ],
+    "ink": [
+      "253a44",
+      0.7,
+      0.12
+    ],
+    "steel": [
+      "9baaad",
+      0.32,
+      0.7
+    ],
+    "porcelain": [
+      "ecede5",
+      0.24,
+      0
+    ],
+    "teal": [
+      "317a7d",
+      0.76,
+      0
+    ],
+    "rubber": [
+      "30383b",
+      0.95,
+      0
+    ],
+    "line": [
+      "ece6d3",
+      0.8,
+      0
+    ],
+    "mirror": [
+      "b3d4d5",
+      0.16,
+      0.8
+    ],
+    "leaf": [
+      "4e7161",
+      0.9,
+      0
+    ],
+    "terracotta": [
+      "b16d51",
+      0.82,
+      0
+    ],
+    "paper": [
+      "e1d5b8",
+      0.9,
+      0
+    ]
+  },
+  "profiles": {
+    "gym": {
+      "origin": [
+        0,
+        0,
+        33
+      ],
+      "groups": [
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_ink.obj",
+          "material": "ink",
+          "triangles": 1212
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_line.obj",
+          "material": "line",
+          "triangles": 540
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_oak.obj",
+          "material": "oak",
+          "triangles": 192
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_oak_light.obj",
+          "material": "oak_light",
+          "triangles": 180
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_paper.obj",
+          "material": "paper",
+          "triangles": 204
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_porcelain.obj",
+          "material": "porcelain",
+          "triangles": 132
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_rubber.obj",
+          "material": "rubber",
+          "triangles": 516
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_steel.obj",
+          "material": "steel",
+          "triangles": 864
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_teal.obj",
+          "material": "teal",
+          "triangles": 1292
+        },
+        {
+          "mesh": "res://assets/campus/decor/m105/meshes/gym_terracotta.obj",
+          "material": "terracotta",
+          "triangles": 720
+        }
+      ],
+      "objects": [
+        {
+          "name": "maple_course_00",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -5.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -5.453
+          ]
+        },
+        {
+          "name": "maple_course_01",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -5.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -4.953
+          ]
+        },
+        {
+          "name": "maple_course_02",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -4.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -4.453
+          ]
+        },
+        {
+          "name": "maple_course_03",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -4.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -3.9530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_04",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -3.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -3.4530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_05",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -3.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -2.9530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_06",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -2.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -2.4530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_07",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -2.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -1.9530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_08",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -1.947
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -1.4530000000000003
+          ]
+        },
+        {
+          "name": "maple_course_09",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -1.447
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -0.9530000000000002
+          ]
+        },
+        {
+          "name": "maple_course_10",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -0.9470000000000002
+          ],
+          "max": [
+            9.825,
+            0.015,
+            -0.4530000000000002
+          ]
+        },
+        {
+          "name": "maple_course_11",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            -0.4470000000000002
+          ],
+          "max": [
+            9.825,
+            0.015,
+            0.04699999999999982
+          ]
+        },
+        {
+          "name": "maple_course_12",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            0.052999999999999825
+          ],
+          "max": [
+            9.825,
+            0.015,
+            0.5469999999999998
+          ]
+        },
+        {
+          "name": "maple_course_13",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            0.5529999999999998
+          ],
+          "max": [
+            9.825,
+            0.015,
+            1.0469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_14",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            1.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            1.5469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_15",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            1.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            2.0469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_16",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            2.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            2.5469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_17",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            2.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            3.0469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_18",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            3.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            3.5469999999999997
+          ]
+        },
+        {
+          "name": "maple_course_19",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            3.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            4.047
+          ]
+        },
+        {
+          "name": "maple_course_20",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            4.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            4.547
+          ]
+        },
+        {
+          "name": "maple_course_21",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            4.553
+          ],
+          "max": [
+            9.825,
+            0.015,
+            5.047
+          ]
+        },
+        {
+          "name": "maple_course_22",
+          "role": "surface",
+          "min": [
+            -9.825,
+            0.002999999999999999,
+            5.053
+          ],
+          "max": [
+            9.825,
+            0.015,
+            5.547
+          ]
+        },
+        {
+          "name": "training_court_linework",
+          "role": "surface",
+          "min": [
+            -8.0225,
+            0.016,
+            -4.7225
+          ],
+          "max": [
+            8.0225,
+            0.022,
+            4.7225
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-6_-4.9",
+          "role": "wall",
+          "min": [
+            -7.1,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            -4.9,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-3_-4.9",
+          "role": "wall",
+          "min": [
+            -4.1,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            -1.9,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_0_-4.9",
+          "role": "wall",
+          "min": [
+            -1.1,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            1.1,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_3_-4.9",
+          "role": "wall",
+          "min": [
+            1.9,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            4.1,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_6_-4.9",
+          "role": "wall",
+          "min": [
+            4.9,
+            2.125,
+            -5.876
+          ],
+          "max": [
+            7.1,
+            3.075,
+            -5.7860000000000005
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-6_4.9",
+          "role": "wall",
+          "min": [
+            -7.1,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            -4.9,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_-3_4.9",
+          "role": "wall",
+          "min": [
+            -4.1,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            -1.9,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_0_4.9",
+          "role": "wall",
+          "min": [
+            -1.1,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            1.1,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_3_4.9",
+          "role": "wall",
+          "min": [
+            1.9,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            4.1,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "perimeter_acoustic_6_4.9",
+          "role": "wall",
+          "min": [
+            4.9,
+            2.125,
+            5.7860000000000005
+          ],
+          "max": [
+            7.1,
+            3.075,
+            5.876
+          ]
+        },
+        {
+          "name": "ventilated_locker_-4",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            -4.44
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            -3.56
+          ]
+        },
+        {
+          "name": "ventilated_locker_-3",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            -3.44
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            -2.56
+          ]
+        },
+        {
+          "name": "ventilated_locker_-2",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            -2.44
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            -1.56
+          ]
+        },
+        {
+          "name": "ventilated_locker_2",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            1.56
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            2.44
+          ]
+        },
+        {
+          "name": "ventilated_locker_3",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            2.56
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            3.44
+          ]
+        },
+        {
+          "name": "ventilated_locker_4",
+          "role": "furniture",
+          "min": [
+            -9.7,
+            0.02,
+            3.56
+          ],
+          "max": [
+            -8.921999999999999,
+            2.0,
+            4.44
+          ]
+        },
+        {
+          "name": "slatted_team_bench_-5.6",
+          "role": "furniture",
+          "min": [
+            -6.699999999999999,
+            0.075,
+            4.8475
+          ],
+          "max": [
+            -4.5,
+            1.04,
+            5.38
+          ]
+        },
+        {
+          "name": "slatted_team_bench_4.8",
+          "role": "furniture",
+          "min": [
+            3.6999999999999997,
+            0.075,
+            4.8475
+          ],
+          "max": [
+            5.9,
+            1.04,
+            5.38
+          ]
+        },
+        {
+          "name": "open_ball_storage",
+          "role": "furniture",
+          "min": [
+            6.265,
+            0.07,
+            4.415
+          ],
+          "max": [
+            8.335,
+            1.65,
+            5.135
+          ]
+        },
+        {
+          "name": "blue_gray_dado_-5.84",
+          "role": "wall",
+          "min": [
+            -9.825,
+            0.0,
+            -5.8575
+          ],
+          "max": [
+            9.825,
+            1.42,
+            -5.8225
+          ]
+        },
+        {
+          "name": "wall_base_-5.84",
+          "role": "wall",
+          "min": [
+            -9.825,
+            0.009999999999999995,
+            -5.8374999999999995
+          ],
+          "max": [
+            9.825,
+            0.22999999999999998,
+            -5.7924999999999995
+          ]
+        },
+        {
+          "name": "upper_wall_-5.84",
+          "role": "wall",
+          "min": [
+            -9.825,
+            1.525,
+            -5.8525
+          ],
+          "max": [
+            9.825,
+            3.5749999999999997,
+            -5.8275
+          ]
+        },
+        {
+          "name": "blue_gray_dado_5.84",
+          "role": "wall",
+          "min": [
+            -9.825,
+            0.0,
+            5.8225
+          ],
+          "max": [
+            9.825,
+            1.42,
+            5.8575
+          ]
+        },
+        {
+          "name": "wall_base_5.84",
+          "role": "wall",
+          "min": [
+            -9.825,
+            0.009999999999999995,
+            5.7924999999999995
+          ],
+          "max": [
+            9.825,
+            0.22999999999999998,
+            5.8374999999999995
+          ]
+        },
+        {
+          "name": "upper_wall_5.84",
+          "role": "wall",
+          "min": [
+            -9.825,
+            1.525,
+            5.8275
+          ],
+          "max": [
+            9.825,
+            3.5749999999999997,
+            5.8525
+          ]
+        },
+        {
+          "name": "west_dado",
+          "role": "wall",
+          "min": [
+            -9.835,
+            0.0,
+            -5.8
+          ],
+          "max": [
+            -9.805,
+            1.4,
+            5.8
+          ]
+        },
+        {
+          "name": "east_dado_-3.7",
+          "role": "wall",
+          "min": [
+            9.805,
+            0.0,
+            -5.6
+          ],
+          "max": [
+            9.835,
+            1.4,
+            -1.8000000000000003
+          ]
+        },
+        {
+          "name": "east_dado_3.7",
+          "role": "wall",
+          "min": [
+            9.805,
+            0.0,
+            1.8000000000000003
+          ],
+          "max": [
+            9.835,
+            1.4,
+            5.6
+          ]
+        },
+        {
+          "name": "ceiling_bay_-6_-4",
+          "role": "ceiling",
+          "min": [
+            -8.85,
+            3.932,
+            -5.85
+          ],
+          "max": [
+            -3.15,
+            3.995,
+            -2.15
+          ]
+        },
+        {
+          "name": "ceiling_bay_0_-4",
+          "role": "ceiling",
+          "min": [
+            -2.85,
+            3.932,
+            -5.85
+          ],
+          "max": [
+            2.85,
+            3.995,
+            -2.15
+          ]
+        },
+        {
+          "name": "ceiling_bay_6_-4",
+          "role": "ceiling",
+          "min": [
+            3.15,
+            3.932,
+            -5.85
+          ],
+          "max": [
+            8.85,
+            3.995,
+            -2.15
+          ]
+        },
+        {
+          "name": "ceiling_bay_-6_0",
+          "role": "ceiling",
+          "min": [
+            -8.85,
+            3.932,
+            -1.85
+          ],
+          "max": [
+            -3.15,
+            3.995,
+            1.85
+          ]
+        },
+        {
+          "name": "ceiling_bay_0_0",
+          "role": "ceiling",
+          "min": [
+            -2.85,
+            3.932,
+            -1.85
+          ],
+          "max": [
+            2.85,
+            3.995,
+            1.85
+          ]
+        },
+        {
+          "name": "ceiling_bay_6_0",
+          "role": "ceiling",
+          "min": [
+            3.15,
+            3.932,
+            -1.85
+          ],
+          "max": [
+            8.85,
+            3.995,
+            1.85
+          ]
+        },
+        {
+          "name": "ceiling_bay_-6_4",
+          "role": "ceiling",
+          "min": [
+            -8.85,
+            3.932,
+            2.15
+          ],
+          "max": [
+            -3.15,
+            3.995,
+            5.85
+          ]
+        },
+        {
+          "name": "ceiling_bay_0_4",
+          "role": "ceiling",
+          "min": [
+            -2.85,
+            3.932,
+            2.15
+          ],
+          "max": [
+            2.85,
+            3.995,
+            5.85
+          ]
+        },
+        {
+          "name": "ceiling_bay_6_4",
+          "role": "ceiling",
+          "min": [
+            3.15,
+            3.932,
+            2.15
+          ],
+          "max": [
+            8.85,
+            3.995,
+            5.85
+          ]
+        },
+        {
+          "name": "framed_training_poster_-6.3",
+          "role": "wall",
+          "min": [
+            -6.8999999999999995,
+            1.635,
+            -5.958
+          ],
+          "max": [
+            -5.7,
+            2.9850000000000003,
+            -5.518000000000001
+          ]
+        },
+        {
+          "name": "framed_training_poster_6.3",
+          "role": "wall",
+          "min": [
+            5.7,
+            1.635,
+            -5.958
+          ],
+          "max": [
+            6.8999999999999995,
+            2.9850000000000003,
+            -5.518000000000001
+          ]
+        },
+        {
+          "name": "rolled_stretch_mat_-6.4",
+          "role": "surface",
+          "min": [
+            -7.075,
+            0.0075,
+            -5.35
+          ],
+          "max": [
+            -5.7250000000000005,
+            0.135,
+            -3.41
+          ]
+        },
+        {
+          "name": "rolled_stretch_mat_-3.7",
+          "role": "surface",
+          "min": [
+            -4.375,
+            0.0075,
+            -5.35
+          ],
+          "max": [
+            -3.0250000000000004,
+            0.135,
+            -3.41
+          ]
+        },
+        {
+          "name": "rolled_stretch_mat_-1",
+          "role": "surface",
+          "min": [
+            -1.675,
+            0.0075,
+            -5.35
+          ],
+          "max": [
+            -0.32499999999999996,
+            0.135,
+            -3.41
+          ]
+        },
+        {
+          "name": "medicine_ball_1",
+          "role": "furniture",
+          "min": [
+            0.63,
+            0.02,
+            4.78
+          ],
+          "max": [
+            1.37,
+            0.71,
+            5.5200000000000005
+          ]
+        },
+        {
+          "name": "medicine_ball_2.2",
+          "role": "furniture",
+          "min": [
+            1.83,
+            0.02,
+            4.78
+          ],
+          "max": [
+            2.5700000000000003,
+            0.71,
+            5.5200000000000005
+          ]
+        },
+        {
+          "name": "medicine_ball_3.4",
+          "role": "furniture",
+          "min": [
+            3.03,
+            0.02,
+            4.78
+          ],
+          "max": [
+            3.77,
+            0.71,
+            5.5200000000000005
+          ]
+        }
+      ],
+      "triangles": 5852
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "source": "scripts/electronics/component_shop_ui/store_panel.gd",
+  "sha256": "aac3ec3511b09bbd61de6c631519daaa5fcdcc60684bfb815e43871e7cc7f1c1",
+  "candidate": "store_panel.gd",
+  "behavior": "Replace source with candidate only after matching hash; original panel already uses actual canonical rating and receipt adapter. Route shop only from physical M102 component counter; preserve network/profile hooks."
+}

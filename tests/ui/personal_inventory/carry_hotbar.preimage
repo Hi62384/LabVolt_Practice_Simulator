@@ -1,0 +1,100 @@
+extends CanvasLayer
+var game: Node
+var slots: Array=[{},{},{},{},{},{}]
+var active := -1
+var bar: HBoxContainer
+var buttons: Array=[]
+var switching := false
+func build(owner_game: Node) -> void:
+	game=owner_game;layer=11
+	bar=HBoxContainer.new();bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM);bar.position=Vector2(-276,-76);bar.add_theme_constant_override("separation",5);add_child(bar)
+	for i in range(6):
+		var b := Button.new();b.custom_minimum_size=Vector2(88,48);b.add_theme_font_size_override("font_size",12);bar.add_child(b);buttons.append(b);b.pressed.connect(func():select_slot(i))
+	game.session.restarted.connect(func():slots=[{},{},{},{},{},{}];active=-1)
+func title(item: Dictionary) -> String:
+	match item.get("kind",""):
+		"paper":
+			var paper: Dictionary=game.school.papers.get(int(item.id),{})
+			return "Sheet" if paper.is_empty() else str(paper.project.title).left(22)
+		"kit":return str(game.electronics.profile.data.kits.get(item.id,{}).get("name","Kit")).left(22)
+		"board":return "Circuit board"
+		"wire":return ["Red cable","Blue cable","Yellow cable","Black cable"][int(item.color)]
+	return "Empty"
+func add_item(item: Dictionary) -> int:
+	for i in range(6):
+		if slots[i]==item:return i
+	for i in range(6):
+		if slots[i].is_empty():slots[i]=item;return i
+	return -1
+func _process(_delta: float) -> void:
+	if not is_instance_valid(game):return
+	bar.visible=game.front.in_game and game.player.enabled
+	for i in range(6):
+		if slots[i].get("kind")=="paper" and not game.school.papers.has(int(slots[i].id)):slots[i]={}
+		if slots[i].get("kind")=="board" and game.dc_lab.states[int(slots[i].id)].get("board_owner",0)!=multiplayer.get_unique_id():slots[i]={}
+		buttons[i].text="%d  %s"%[i+1,title(slots[i])];buttons[i].modulate=Color("81e0ce") if active==i else Color.WHITE
+	var held_board: int=game.dc_lab.held_board()
+	if held_board>=0:
+		var index := add_item({"kind":"board","id":held_board})
+		if index>=0:active=index
+	var held: int=game.school.held(multiplayer.get_unique_id())
+	if held!=0:
+		var index := add_item({"kind":"paper","id":held})
+		if index>=0:active=index
+func stow() -> bool:
+	var board: int=game.dc_lab.held_board()
+	if board>=0:
+		if add_item({"kind":"board","id":board})<0:game.ui.log_message("All six slots are full. Place the board on a table first.");return false
+		game.dc_lab.request(board,{"op":"stow_board"})
+	if is_instance_valid(game.kit_world) and game.kit_world.held():game.kit_world.request({"op":"stow"})
+	var peer := multiplayer.get_unique_id()
+	for i in game.station_snapshots.size():
+		for cable in game.station_snapshots[i].get("cables",[]):
+			if cable.owner==peer:
+				if cable.a!="" or cable.b!="":game.ui.log_message("Unplug the other end or press G before storing this cable.");return false
+				if add_item({"kind":"wire","color":int(cable.color),"station":i})<0:game.ui.log_message("All six slots are full. Manage your loadout first.");return false
+				game.session.request({"op":"stash","station":i})
+	var held: int=game.school.held(peer)
+	if held!=0:game.school.request({"op":"stow","id":held})
+	return true
+func select_slot(index: int) -> void:
+	if switching or index<0 or index>=6:return
+	switching=true
+	if not stow():switching=false;return
+	await get_tree().create_timer(.12).timeout
+	if active==index:active=-1;switching=false;return
+	active=index;var item: Dictionary=slots[index]
+	match item.get("kind",""):
+		"board":game.dc_lab.request(int(item.id),{"op":"carry_board"})
+		"paper":game.school.request({"op":"equip_paper","id":int(item.id)})
+		"wire":game.session.request({"op":"unstash","station":int(item.station),"color":int(item.color)})
+		"kit":game.electronics.profile.data.equipped=item.id;game.electronics.profile.save();game.kit_world.request({"op":"equip","id":item.id,"name":game.electronics.profile.data.kits[item.id].name})
+	switching=false
+func manager(parent: Node) -> void:
+	var ui=game.electronics
+	ui.label(parent,"SIX-SLOT LOADOUT · Keys 1–6 select · I opens this manager")
+	var choices: Array=[{}]
+	for id in ui.profile.data.kits:choices.append({"kind":"kit","id":id})
+	for id in game.school.papers:
+		if game.school.papers[id].owner==multiplayer.get_unique_id():choices.append({"kind":"paper","id":int(id)})
+	for index in game.dc_lab.states.size():
+		if game.dc_lab.states[index].get("board_owner",0)==multiplayer.get_unique_id():choices.append({"kind":"board","id":index})
+	for station in game.station_snapshots.size():
+		var stored: Array=game.station_snapshots[station].get("stored_cables",{}).get(multiplayer.get_unique_id(),[])
+		for color in stored:
+			var entry := {"kind":"wire","color":int(color),"station":station}
+			if entry not in choices:choices.append(entry)
+	for i in range(6):
+		var row := HBoxContainer.new();parent.add_child(row);ui.label(row,"Slot %d"%(i+1))
+		var choice := OptionButton.new();row.add_child(choice)
+		for item in choices:choice.add_item(title(item))
+		choice.select(maxi(0,choices.find(slots[i])))
+		choice.item_selected.connect(func(n):
+			if not choices[n].is_empty():
+				for j in range(6):
+					if j!=i and slots[j]==choices[n]:slots[j]={}
+			slots[i]=choices[n].duplicate();active=-1
+		)
+	ui.button(parent,"Store held item",func():stow();ui.open("inventory"))
+	ui.button(parent,"New blank notebook",func():game.school.request({"op":"notebook"});ui.status.text="Notebook requested. It appears in your sheet inventory.")
+	ui.label(parent,"Select a sheet slot to hold it; B reads it. Right click a tabletop to place it.\nRight click a table to place your kit; right click the kit to open it. Spare components stay in the kit manager.")

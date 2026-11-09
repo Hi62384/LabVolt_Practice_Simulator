@@ -1,0 +1,22 @@
+[
+  {
+    "path": "scripts/campus/world/campus_world.gd",
+    "preimage_sha256": "c113fdcf2a9add5998499995359362425f08fa72b2385ab9b9b680bfbaf5cd71",
+    "candidate_sha256": "a5b3a435fcfcdd04abbefa393fdcf3670f07196d96346d478e6c04d4311f9faf"
+  },
+  {
+    "path": "scripts/campus_integration.gd",
+    "preimage_sha256": "e0f2ff7f20efe1964b496f8e499f3427de3eb7c288f4fc9853f253bd4b5ee8f0",
+    "candidate_sha256": "4881cb495c91ec14901ecbd788970e166215fc2bc2d05ac6ffa564c43e764cb2"
+  },
+  {
+    "path": "scripts/game.gd",
+    "preimage_sha256": "78849e1c4fb3d11a99edfb58f15c9c125385240085694c93a7e24f72b00de987",
+    "candidate_sha256": "d19ccd9212909e1b785900d0a62e2f4bee8c3d2420f5ab29c403c649d550400d"
+  },
+  {
+    "path": "tests/campus/world/world_tests.gd",
+    "preimage_sha256": "637291ce8921bee93d8dbf59da774b167fe0d67757740c5a3b0e2b3f8bb04c09",
+    "candidate_sha256": "b5a46a4dd0511d01ad8b8a088ea07ce3467fd898da0a4c0661fd6ebe3991b9a4"
+  }
+]

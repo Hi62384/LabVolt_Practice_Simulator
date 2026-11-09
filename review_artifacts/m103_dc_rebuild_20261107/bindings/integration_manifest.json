@@ -1,0 +1,6 @@
+{
+  "source": "scripts/dc_lab.gd",
+  "preimage_sha256": "97d82d0bc88320e372cea44f503e608a1db8659328338decaf434324e7f81104",
+  "new_sha256": "de671bd993c78a0104ebaf2a7691bba2711d3a44b229f6ead258ec09eae0655a",
+  "policy": "Apply this combined patch ONLY; supersedes model dc_lab_mount.patch and moving_endpoints.patch.json."
+}

@@ -1,0 +1,215 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Bucket Hat",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Bucket Hat",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "felt",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.86
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "gold",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.92,
+        "roughnessFactor": 0.18
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/felt_albedo.png"
+    },
+    {
+      "uri": "../materials/felt_orm.png"
+    },
+    {
+      "uri": "../materials/felt_normal.png"
+    },
+    {
+      "uri": "../materials/gold_albedo.png"
+    },
+    {
+      "uri": "../materials/gold_orm.png"
+    },
+    {
+      "uri": "../materials/gold_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "reference_bucket_hat.bin",
+      "byteLength": 24576
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 6336
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6336,
+      "byteLength": 6336
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 12672,
+      "byteLength": 4224
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 16896,
+      "byteLength": 2880
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 19776,
+      "byteLength": 2880
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 22656,
+      "byteLength": 1920
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 528,
+      "type": "VEC3",
+      "min": [
+        -0.31,
+        0.13249999999999998,
+        -0.31
+      ],
+      "max": [
+        0.31,
+        0.37,
+        0.31
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 528,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 528,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 240,
+      "type": "VEC3",
+      "min": [
+        -0.198,
+        0.187,
+        -0.198
+      ],
+      "max": [
+        0.198,
+        0.193,
+        0.198
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 240,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 240,
+      "type": "VEC2"
+    }
+  ]
+}

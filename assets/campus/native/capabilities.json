@@ -1,0 +1,12 @@
+{
+ "schema": 1,
+ "runtime": "Node.js >=20.19 discovered only at trusted host installation locations; existing local Node 22.15.0 verified",
+ "configuration": "native_host_config.executable() automatically supplies integrator-owned NativeCircuitHost; never accept paths from player data",
+ "compile": "C/C++ source editing and compiled HEX/BIN import supported; in-game arbitrary source compilation unavailable because compiler filesystem isolation is not implemented. Trusted Arduino fixture independently compiled and executed in tests.",
+ "spi_i2c": "Disconnected controllers return 0xff/NACK; no physical bus slave/wire behavior claimed",
+ "uart": "Peripheral byte endpoint, not serial wire edges",
+ "pico": "Single core, raw flash vector startup. No bootROM, MicroPython, USB or blanket Pico SDK compatibility",
+ "electrical": "GPIO edges and ADC reference tested; integrator retains sole ownership of electrical barrier/replay and board renderer",
+ "sources": ["https://docs.arduino.cc/resources/pinouts/A000066-full-pinout.pdf", "https://datasheets.raspberrypi.com/pico/pico-datasheet.pdf"],
+ "licenses": "Existing vendored avr8js/rp2040js MIT license files preserved; no new third-party runtime or compiler redistribution"
+}

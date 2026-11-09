@@ -1,0 +1,13 @@
+*** Begin Patch
+*** Update File: scripts/paper_ui.gd
+@@
+ func _process(delta: float) -> void:
+ 	if reading and screen.visible:apply_zoom();_clamp_pan()
++	if reading and screen.visible and is_instance_valid(calculator_drawer):
++		var occupied := Rect2()
++		if is_instance_valid(tool_case) and tool_case.revealed:
++			var case_body := tool_case.get_child(0) as Control
++			if is_instance_valid(case_body):occupied=Rect2(calculator_drawer.to_local(case_body.global_position),case_body.size)
++		calculator_drawer.set_occlusion_rect(occupied)
+ 	if not pending.is_empty():
+*** End Patch

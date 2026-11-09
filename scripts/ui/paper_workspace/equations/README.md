@@ -1,0 +1,9 @@
+# Paper equation component
+
+`parser.gd` parses display-only arithmetic. It accepts numbers, symbols, `+ - * / ^ _ =`, comma, parentheses, unary signs, and adjacent terms as multiplication. `×`, `÷`, and `−` are accepted as operator glyphs. Division displays with a fraction bar; powers and subscripts use smaller type. Every explicit pair of parentheses remains visible. To multiply neighboring groups, write `(a+b)(c+d)`; to place an entire sum over a denominator, write `(a+b)/(c+d)`.
+
+`Layout.build(source, font, font_size)` returns `{ok, source, error, size, commands}`. `source` is exactly the input, including whitespace. `size` is the complete top-left anchored draw extent in pixels. `Layout.draw(canvas, plan, origin, font, color)` draws it in a `CanvasItem`'s `_draw()`. A bad expression retains its source and error and receives a plain-text fallback draw plan. The caller should show the error beside the editor and decide whether to permit saving it. Plain-text annotations should continue to use literal text drawing.
+
+Mount in `paper_annotations.gd` by preloading `layout.gd`; call `build` for equation items in hit testing, selection bounds, and drawing. Cache by `(source, font, font_size)` if draw volume warrants it. Use `plan.size` for the full rotated local hit rectangle. Call `draw(self, plan, Vector2.ZERO, font, color)` inside the existing transform. Replace `equation_error` with `Parser.new().parse(text).error` in the editor. Keep the item `text` field as the original source string. No answer evaluation is involved.
+
+`test_equations.gd` offers `run() -> Array[String]` for an existing offline Godot test harness. It covers nested fractions and powers, operator precedence, adjacent groups, invalid input, bounds, draw commands, and source preservation. It has not been run against the live game.

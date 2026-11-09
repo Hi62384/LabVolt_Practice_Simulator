@@ -1,0 +1,1687 @@
+--- /dev/null
++++ b/scripts/campus/dorms/authority/persistent_dorm.gd
+@@ -0,0 +1,145 @@
++extends RefCounted
++const Edits=preload("res://scripts/campus/dorms/customization/room_edits.gd")
++const Rules=preload("res://scripts/campus/dorms/customization/placement_rules.gd")
++const DEFAULTS=["bed","bedside","wardrobe","study_desk","study_chair","desk_laptop","storage_cabinet","shelf","rug","plant","bedside_lamp","desk_lamp"]
++static func identity_ok(id: Variant) -> bool:
++	return id is String and id.length()==48 and id.is_valid_hex_number() and id==id.to_lower()
++static func whole(v: Variant) -> bool:
++	return (v is int or v is float) and is_finite(float(v)) and v>=0 and v<=100000 and floor(float(v))==float(v)
++static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
++	if not d is Dictionary or var_to_bytes(d).size()>32768:return false
++	if d.get("schema")!=1 or not identity_ok(d.get("owner")) or d.get("room_id")!="dorm_"+str(d.owner):return false
++	if d.get("number")!="D-"+str(d.owner):return false
++	if d.get("policy") not in ["Private","Invited","Open"] or not d.get("invited") is Array or d.invited.size()>32:return false
++	for id in d.invited:
++		if not identity_ok(id):return false
++	if not d.get("storage") is Dictionary or d.storage.size()>64 or not d.get("instances") is Array:return false
++	var seen := {};var counts := {}
++	for id in d.instances:
++		if not id is String or seen.has(id) or not registry.has(id):return false
++		seen[id]=true
++		var type: String=registry[id].type;counts[type]=int(counts.get(type,0))+1
++	for type in d.storage:
++		if not type is String or not stock.has(type) or not whole(d.storage[type]) or int(d.storage[type])>int(stock[type]):return false
++	for type in counts:
++		if int(counts[type])>int(d.storage.get(type,0)):return false
++	return valid_customization(d.get("customization")) and whole(d.get("revision"))
++static func valid_customization(value: Variant) -> bool:
++	if not value is Dictionary or not value.get("items") is Array or not value.get("styles") is Dictionary:return false
++	for key in value:
++		if key not in ["items","styles"]:return false
++	for item in value.items:
++		if not item is Dictionary:return false
++		for key in item:
++			if key not in ["id","kind","x","z","rotation"]:return false
++	for category in value.styles:
++		if not Edits.STYLE_CHOICES.has(category) or value.styles[category] not in Edits.STYLE_CHOICES[category]:return false
++	return Rules.validate(value.items,"west").is_empty()
++static func migrate(profile: Dictionary,identity: String) -> Dictionary:
++	if not identity_ok(identity):return fail("Unbound identity")
++	var next := profile.duplicate(true)
++	if next.has("dorm"):
++		if not valid(next.dorm,next.get("inventory",{}),next.get("component_instances",{})) or next.dorm.owner!=identity:return fail("Invalid saved dorm; original retained")
++		if not eligible_layout(next,next.dorm.customization):return fail("Invalid saved furnishings; original retained")
++		return {"ok":true,"profile":next,"changed":false}
++	next.dorm={"schema":1,"owner":identity,"room_id":"dorm_"+identity,"number":"D-"+identity,"policy":"Private","invited":[],"customization":starter_layout(),"storage":{},"instances":[],"revision":0}
++	return {"ok":true,"profile":next,"changed":true}
++static func starter_layout() -> Dictionary:
++	var coordinates := {"bed":Vector2(-1.95,-3.55),"bedside":Vector2(-1,-4.2),"wardrobe":Vector2(-2.3,3.65),"study_desk":Vector2(1.65,-2.25),"study_chair":Vector2(1.65,-.95),"desk_laptop":Vector2(1.65,-2.55),"storage_cabinet":Vector2(1.65,3.6),"shelf":Vector2(1.65,4.65),"rug":Vector2(0,.4),"plant":Vector2(.35,4.75),"bedside_lamp":Vector2(-1,-4.2),"desk_lamp":Vector2(.8,-2.65)}
++	var items := []
++	for id in DEFAULTS:items.append({"id":id,"kind":id,"x":coordinates[id].x,"z":coordinates[id].y,"rotation":0})
++	return {"items":items,"styles":{}}
++static func may_enter(d: Dictionary,owner: String,visitor: String) -> bool:
++	return identity_ok(visitor) and (visitor==owner or d.get("policy")=="Open" or (d.get("policy")=="Invited" and visitor in d.get("invited",[])))
++static func reserved(profile: Dictionary,deployment: Dictionary) -> Dictionary:
++	var result: Dictionary=deployment.get("counts",{}).duplicate(true)
++	for type in profile.get("dorm",{}).get("storage",{}):result[type]=int(result.get(type,0))+int(profile.dorm.storage[type])
++	return result
++static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,deployment: Dictionary={}) -> Dictionary:
++	if var_to_bytes(intent).size()>8192:return fail("Dorm intent too large")
++	if not profile.get("pending_trade",{}).is_empty():return fail("Finish the pending trade first")
++	var m := migrate(profile,owner)
++	if not m.ok:return m
++	var next: Dictionary=m.profile;var d: Dictionary=next.dorm
++	if not intent.get("revision") is int or intent.revision!=int(d.revision):return fail("Stale room revision")
++	match intent.get("op"):
++		"policy":
++			if intent.get("value") not in ["Private","Invited","Open"]:return fail("Invalid policy")
++			d.policy=intent.value
++		"invite":
++			var ids: Variant=intent.get("value")
++			if not ids is Array or ids.size()>32:return fail("Invalid invitations")
++			for id in ids:
++				if not identity_ok(id):return fail("Invalid invitation identity")
++			d.invited=ids.duplicate()
++		"storage":
++			var type: String=str(intent.get("item",""));var delta: Variant=intent.get("delta")
++			if not delta is int or delta==0 or absi(delta)>100000 or not next.inventory.has(type):return fail("Invalid quantity")
++			var amount := int(d.storage.get(type,0))+int(delta)
++			if amount<0 or amount+int(deployment.get("counts",{}).get(type,0))>int(next.inventory[type]):return fail("Unavailable stock")
++			var selected: Variant=intent.get("instances",[])
++			if not selected is Array or selected.size()>absi(delta):return fail("Invalid instance selection")
++			var registry: Dictionary=next.get("component_instances",{});var seen := {}
++			for id in selected:
++				if not id is String or seen.has(id) or not registry.has(id) or registry[id].type!=type:return fail("Invalid instance")
++				seen[id]=true
++				if delta>0:
++					if id in d.instances or id in deployment.get("instance_ids",[]):return fail("Instance reserved")
++					d.instances.append(id)
++				else:
++					if id not in d.instances:return fail("Instance not stored")
++					d.instances.erase(id)
++			var registered := 0;var stored := 0
++			for id in registry:
++				if registry[id].type==type:registered+=1
++			for id in d.instances:
++				if registry[id].type==type:stored+=1
++			if amount<stored or amount-stored>int(next.inventory[type])-registered:return fail("Select specific instances")
++			if amount==0:d.storage.erase(type)
++			else:d.storage[type]=amount
++		"edit":
++			if not intent.get("edit") is Dictionary:return fail("Invalid edit")
++			var eligible := func(candidate: Dictionary,state: Dictionary) -> bool:return eligible_edit(next,candidate,state)
++			var edited: Dictionary=Edits.apply(d.customization,intent.edit,"west",eligible)
++			if not edited.ok:return fail(str(edited.error))
++			if not eligible_layout(next,edited.state):return fail("Unsupported furnishing or detached surface item")
++			d.customization=edited.state
++		_:return fail("Unsupported dorm operation")
++	d.revision=int(d.revision)+1
++	if not valid(d,next.inventory,next.get("component_instances",{})):return fail("Invalid resulting dorm")
++	return {"ok":true,"profile":next,"changed":true}
++static func eligible_layout(profile: Dictionary,state: Dictionary) -> bool:
++	for item in state.get("items",[]):
++		if not eligible_edit(profile,{"op":"move","item":item},state):return false
++	for category in state.get("styles",{}):
++		if not eligible_edit(profile,{"op":"style","category":category,"variant":state.styles[category]},state):return false
++	return true
++static func eligible_edit(profile: Dictionary,intent: Dictionary,state: Dictionary) -> bool:
++	if intent.get("op")=="style":
++		var defaults := {"wall":"classic","floor":"tile","bedding":"teal","furniture":"oak"}
++		return defaults.get(intent.get("category"))==intent.get("variant") or str(intent.get("category"))+":"+str(intent.get("variant")) in profile.get("dorm_unlocks",[])
++	var item: Dictionary=intent.get("item",{});var id: String=str(item.get("id",""));var kind: String=str(item.get("kind",""))
++	if kind=="display":
++		var type := id.trim_prefix("display:")
++		if not id.begins_with("display:") or int(profile.get("inventory",{}).get(type,0))<1:return false
++		if type.begins_with("ic:") and not profile.get("blueprints",{}).has(type):return false
++		var count := 0
++		for placed in state.get("items",[]):
++			if placed.get("kind")=="display" and placed.get("id")!=id:count+=1
++		if count>=3:return false
++	elif id not in DEFAULTS or id!=kind:return false
++	if kind in Rules.ON_SURFACE:
++		var support := "bedside" if kind=="bedside_lamp" else "study_desk"
++		var attached := false
++		for parent in state.get("items",[]):
++			if (parent.get("id")==support or (kind=="display" and parent.get("id")=="shelf")) and Rules.footprint(parent).has_point(Vector2(float(item.get("x",0)),float(item.get("z",0)))):attached=true
++		if not attached:return false
++	return true
++static func public_room(profile: Dictionary) -> Dictionary:
++	var d: Dictionary=profile.get("dorm",{})
++	var safe := {"items":[],"styles":{}}
++	var customization: Dictionary=d.get("customization",{})
++	if valid_customization(customization):safe=customization.duplicate(true)
++	return {"room_id":d.get("room_id",""),"number":d.get("number",""),"policy":d.get("policy","Private"),"customization":safe}
++static func fail(message: String) -> Dictionary:return {"ok":false,"error":message}
++
+--- a/scripts/inventory_authority/ledger.gd
++++ b/scripts/inventory_authority/ledger.gd
+@@ -1,4 +1,5 @@
+ extends RefCounted
++const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+ const Profile=preload("res://scripts/electronics_profile.gd")
+ const Board=preload("res://scripts/breadboard_model.gd")
+ const Custom=preload("res://scripts/custom_circuit.gd")
+@@ -55,9 +56,18 @@
+ 		# Local saves are explicitly trusted ONCE, never accepted as subsequent stock reports.
+ 		if var_to_bytes(initial).size()>1048576 or not Profile.valid(initial) or not initial.get("pending_trade",{}).is_empty():return failure("Invalid initial profile or unresolved legacy trade")
+ 		var imported := initial.duplicate(true);imported.erase("authority_credentials")
++	var migrated: Dictionary=Dorm.migrate(imported,identity)
++	if not migrated.ok:return failure(migrated.error)
++	imported=migrated.profile
+ 		var next := state.duplicate(true)
+ 		next.accounts[identity]={"credential":secret.sha256_text(),"profile":imported,"revision":0,"receipts":{},"deployment":{}}
+ 		if not persist(next):return failure("Host save failed")
++	var migration: Dictionary=Dorm.migrate(state.accounts[identity].profile,identity)
++	if not migration.ok:return failure(migration.error)
++	if migration.changed:
++		var next := state.duplicate(true)
++		next.accounts[identity].profile=migration.profile;next.accounts[identity].revision+=1
++		if not persist(next):return failure("Dorm enrollment save failed")
+ 	bindings[peer]=identity
+ 	return snapshot(peer)
+ func unbind(peer: int) -> void:bindings.erase(peer)
+@@ -69,7 +79,7 @@
+ func account(peer: int) -> Dictionary:return state.accounts.get(bindings.get(peer,""),{})
+ func free_stock(peer: int,type: String) -> int:
+ 	var a := account(peer)
+-	return int(a.get("profile",{}).get("inventory",{}).get(type,0))-int(a.get("deployment",{}).get("counts",{}).get(type,0))
++	return int(a.get("profile",{}).get("inventory",{}).get(type,0))-int(a.get("deployment",{}).get("counts",{}).get(type,0))-int(a.get("profile",{}).get("dorm",{}).get("storage",{}).get(type,0))
+ func offer_error(peer: int,items: Variant,definitions: Variant) -> String:
+ 	if creative:return "Creative components cannot be traded"
+ 	if account(peer).is_empty():return "Profile is not bound"
+@@ -93,9 +103,14 @@
+ 		if prior.value!=digest:return failure("Transaction ID reused with different content")
+ 		return snapshot(peer)
+ 	var p=Profile.new();p.data=a.profile.duplicate(true)
+-	p.craft_reservations=func():return a.deployment
++	p.craft_reservations=func():return {"counts":Dorm.reserved(a.profile,a.deployment),"instance_ids":a.deployment.get("instance_ids",[])+a.profile.get("dorm",{}).get("instances",[])}
+ 	var message := ""
+ 	match op:
++		"dorm":
++			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid dorm intent")
++			var result: Dictionary=Dorm.apply_intent(p.data,str(bindings[peer]),args[0],a.deployment)
++			if not result.ok:return failure(result.error)
++			p.data=result.profile;message="Dorm saved"
+ 		"avatar_cosmetic","cosmetic_purchase":
+ 			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid cosmetic request")
+ 			var intent: Dictionary=args[0]
+@@ -153,8 +168,9 @@
+ 		_ :return failure("Unsupported client operation")
+ 	if op in ["buy_configured","buy","analyzer","box","cosmetic","obtain","bundle","avatar_cosmetic","cosmetic_purchase"] and not p.operation_succeeded:return failure(message)
+ 	if not Profile.valid(p.data):return failure("Invalid resulting profile")
+-	for type in a.deployment.get("counts",{}):
+-		if int(p.data.inventory.get(type,0))<int(a.deployment.counts[type]):return failure("Recall deployed components first")
++	var reservations: Dictionary=Dorm.reserved(p.data,a.deployment)
++	for type in reservations:
++		if int(p.data.inventory.get(type,0))<int(reservations[type]):return failure("Recall deployed or stored components first")
+ 	var next := state.duplicate(true);var target: Dictionary=next.accounts[bindings[peer]]
+ 	for kit in p.data.kits.values():
+ 			if not kit.board.get("component_runtime",{}).is_empty():kit.board=Persistent.materialize(p.data,kit.board)
+@@ -188,6 +204,10 @@
+ 	var counts := {}
+ 	if not creative:
+ 		for part in design.parts:counts[part.type]=int(counts.get(part.type,0))+1
++	for type in counts:
++		if int(counts[type])+int(account(peer).profile.get("dorm",{}).get("storage",{}).get(type,0))>int(account(peer).profile.inventory.get(type,0)):return "Retrieve stored components first"
++	for instance in design.get("instance_ids",{}).values():
++		if instance in account(peer).profile.get("dorm",{}).get("instances",[]):return "Retrieve stored instance first"
+ 	var next := state.duplicate(true)
+ 	next.accounts[bindings[peer]].deployment={"slot":slot,"counts":counts,"kit":str(account(peer).profile.equipped),"instance_ids":design.get("instance_ids",{}).values()}
+ 	return "" if persist(next) else "Host deployment save failed"
+@@ -229,7 +249,7 @@
+ 		if definitions.has(type) and not Profile.same(definitions[type],required[type]):return failure("Blueprint identity conflict")
+ 	var next := state.duplicate(true);var deliveries := {};var instances := {}
+ 	for peer in peers:
+-		var source := account(peer);var excluded: Array=source.deployment.get("instance_ids",[])
++		var source := account(peer);var excluded: Array=source.deployment.get("instance_ids",[]).duplicate();excluded.append_array(source.profile.get("dorm",{}).get("instances",[]))
+ 		instances[peer]=Persistent.selected(source.profile,offers[peer],excluded)
+ 		if choices.has(peer):
+ 			instances[peer]={};var selected_counts := {};var registry: Dictionary=source.profile.get("component_instances",{})
+@@ -240,7 +260,7 @@
+ 				if instance_hash(item)!=choices[peer][instance]:return failure("Reviewed instance state changed")
+ 				instances[peer][instance]=item.duplicate(true);selected_counts[item.type]=int(selected_counts.get(item.type,0))+1
+ 			for type in offers[peer]:
+-				var generic := int(source.profile.inventory.get(type,0))-int(source.deployment.get("counts",{}).get(type,0))
++				var generic := int(source.profile.inventory.get(type,0))-int(source.deployment.get("counts",{}).get(type,0))-int(source.profile.get("dorm",{}).get("storage",{}).get(type,0))
+ 				for instance in registry:
+ 					if registry[instance].type==type and instance not in excluded:generic-=1
+ 				var chosen := int(selected_counts.get(type,0))
+--- a/scripts/electronics_profile.gd
++++ b/scripts/electronics_profile.gd
+@@ -1,4 +1,5 @@
+ extends RefCounted
++const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+ const Catalog=preload("res://scripts/electronics_catalog.gd")
+ const Economy=preload("res://scripts/economy/temporary_playtest/policy.gd")
+ const Persistent=preload("res://scripts/inventory_authority/component_persistence.gd")
+@@ -39,10 +40,29 @@
+ 	for candidate in [path,path+".bak"]:
+ 		if not FileAccess.file_exists(candidate):continue
+ 		var parsed=JSON.parse_string(FileAccess.get_file_as_string(candidate))
+-		if valid(parsed):data=parsed;return
++		if parsed is Dictionary and parsed.has("dorm") and not Dorm.valid(parsed.dorm,parsed.get("inventory",{}),parsed.get("component_instances",{})):
++			data=parsed;push_error("Corrupt dorm: original file retained; restore profile before playing");return
++		if valid(parsed):
++			data=parsed
++			_migrate_dorm(identity)
++			return
++	_migrate_dorm(identity)
+ 	save()
++func _migrate_dorm(profile_key: String) -> void:
++	var cfg := ConfigFile.new();cfg.load("user://student_identity.cfg")
++	var key := profile_key if not profile_key.is_empty() else "__default__"
++	var identity := str(cfg.get_value("profiles",key,""))
++	if identity.is_empty():
++		identity=Crypto.new().generate_random_bytes(24).hex_encode();cfg.set_value("profiles",key,identity)
++		if cfg.save("user://student_identity.cfg")!=OK:return
++	var result: Dictionary=Dorm.migrate(data,identity)
++	if not result.ok:push_error(str(result.error));return
++	if result.changed:
++		var before := data;data=result.profile
++		if save()!=OK:data=before;push_error("Dorm migration save failed")
+ static func valid(value: Variant) -> bool:
+ 	if not value is Dictionary or var_to_bytes(value).size()>1048576:return false
++	if value.has("dorm") and not Dorm.valid(value.dorm,value.get("inventory",{}),value.get("component_instances",{})):return false
+ 	for key in ["blueprints","applied_trades","pending_trade","authority_credentials"]:
+ 		if not value.get(key,{}) is Dictionary:return false
+ 	if not value.get("analyzer",false) is bool:return false
+@@ -253,9 +273,10 @@
+ 			if not available.has(type) or not (offer[type] is int or offer[type] is float) or not is_finite(float(offer[type])) or float(offer[type])!=floor(float(offer[type])) or int(offer[type])<0 or int(offer[type])>100000:return "Invalid component quantity"
+ 			if str(type).begins_with("ic:") and preload("res://scripts/custom_circuit.gd").validate(type,definitions)!="":return "Missing custom IC dependencies"
+ 	for type in payload.give:
+-		if int(payload.give[type])>int(data.inventory.get(type,0)):return "You no longer own all offered components"
++		if int(payload.give[type])+int(data.get("dorm",{}).get("storage",{}).get(type,0))>int(data.inventory.get(type,0)):return "Retrieve stored components before trading"
+ 	if not Persistent.registry(payload.get("give_instances",{}),payload.give) or not Persistent.registry(payload.get("take_instances",{}),payload.take):return "Invalid persistent component instances"
+ 	for instance in payload.get("give_instances",{}):
++		if instance in data.get("dorm",{}).get("instances",[]):return "Retrieve stored instance before trading"
+ 		if not same(data.get("component_instances",{}).get(instance),payload.give_instances[instance]):return "Persistent instance is not owned"
+ 	for instance in payload.get("take_instances",{}):
+ 		if data.get("component_instances",{}).has(instance):return "Persistent instance identity conflict"
+--- a/scripts/inventory_authority/network.gd
++++ b/scripts/inventory_authority/network.gd
+@@ -1,5 +1,6 @@
+ extends Node
+ signal operation_result(operation: String,result: Dictionary)
++signal profile_ready(peer: int)
+ # This adapter is created by the existing trade node, at the same stable RPC path.
+ const Ledger=preload("res://scripts/inventory_authority/ledger.gd")
+ var ledger=Ledger.new()
+@@ -120,6 +121,7 @@
+ 	if not healthy or not game.session.roster.has(peer) or not game.school.identities.has(peer):return
+ 	var result: Dictionary=ledger.bind(peer,str(game.school.identities[peer]),secret,initial)
+ 	send_snapshot(peer,result)
++	if result.get("ok",false):profile_ready.emit(peer)
+ @rpc("any_peer","call_remote","reliable",6)
+ func request_operation(action: Dictionary) -> void:
+ 	if multiplayer.is_server():execute(multiplayer.get_remote_sender_id(),action)
+@@ -255,4 +257,25 @@
+ 		for part in station.board.get("parts",[]):result.counts[part.type]=int(result.counts.get(part.type,0))+1
+ 		for instance in station.board.get("instance_ids",{}).values():
+ 			if instance not in result.instance_ids:result.instance_ids.append(instance)
++	var dorm: Dictionary=game.electronics.profile.data.get("dorm",{})
++	for type in dorm.get("storage",{}):result.counts[type]=int(result.counts.get(type,0))+int(dorm.storage[type])
++	result.instance_ids.append_array(dorm.get("instances",[]))
+ 	return result
++
++func submit_dorm(operation_id: String,intent: Dictionary) -> void:
++	if not game.session.online or operation_id.is_empty() or operation_id.length()>96 or pending.size()>=64:return
++	var action := {"id":operation_id,"op":"dorm","args":[intent.duplicate(true)]}
++	for waiting in pending:
++		if waiting.id==operation_id:return
++	pending.append(action);flush()
++func local_storage_error(design: Dictionary) -> String:
++	if game.school.mode=="Creative Freeplay":return ""
++	var profile: Dictionary=game.electronics.profile.data
++	var stored: Dictionary=profile.get("dorm",{}).get("storage",{})
++	var counts := {}
++	for part in design.get("parts",[]):counts[part.type]=int(counts.get(part.type,0))+1
++	for type in counts:
++		if int(counts[type])+int(stored.get(type,0))>int(profile.inventory.get(type,0)):return "Retrieve stored components before deploying"
++	for id in design.get("instance_ids",{}).values():
++		if id in profile.get("dorm",{}).get("instances",[]):return "Retrieve stored instance before deploying"
++	return ""
+--- a/scripts/dc_lab.gd
++++ b/scripts/dc_lab.gd
+@@ -260,7 +260,8 @@
+ 			if not action.get("design") is Dictionary:stock_error="Invalid board"
+ 			else:
+ 				action=action.duplicate(true)
+-				action.design=game.electronics_trade.authority.materialize(peer,action.design)
++				if not game.session.online:stock_error=game.electronics_trade.authority.local_storage_error(action.design)
++				if stock_error=="":action.design=game.electronics_trade.authority.materialize(peer,action.design)
+ 				if game.session.online:stock_error=game.electronics_trade.authority.deployment(peer,index,action.design)
+ 		if stock_error=="" and op=="recall" and game.session.online and not game.electronics_trade.authority.recall(peer):stock_error="Host inventory save failed"
+ 		if stock_error!="":
+--- a/scripts/campus/computers/computer_sessions.gd
++++ b/scripts/campus/computers/computer_sessions.gd
+@@ -8,6 +8,7 @@
+ var stations := {}
+ var sessions := {}
+ var workspaces := {}
++var workspace_identities := {}
+ var restored := {}
+ var last_request := {}
+ var serial := 0
+@@ -30,6 +31,18 @@
+ 		if entry.chair==chair_index:return false
+ 	stations[id]={"chair":chair_index,"anchor":anchor}
+ 	return true
++func set_private_owner(id: String,owner: String) -> bool:
++	if not stations.has(id):return false
++	stations[id].private_owner=owner
++	if multiplayer.is_server():
++		for peer in sessions.keys():
++			if sessions[peer].station==id and not _private_allowed(peer,stations[id]):_close(peer,true)
++	return true
++func _identity(peer: int) -> String:
++	if not game.session.roster.has(peer):return ""
++	return str(game.electronics_trade.authority.ledger.bindings.get(peer,"")) if game.session.online else (game.school.local_identity if peer==1 else "")
++func _private_allowed(peer: int,entry: Dictionary) -> bool:
++	return not entry.has("private_owner") or (not str(entry.private_owner).is_empty() and _identity(peer)==entry.private_owner)
+ func request(action: Dictionary) -> void:
+ 	if action.get("op","")=="exit" and game.get("player")!=null and game.player.seated!=null:
+ 		game._stand_from_chair()
+@@ -49,23 +62,32 @@
+ 	if not game.session.roster.has(peer) or action.size()>9 or action.has("owner") or action.has("profile") or action.has("identity"):return
+ 	var op: String=str(action.get("op",""))
+ 	if op=="enter":
+-		if sessions.has(peer):_reply(peer);return
++		if sessions.has(peer):
++			var previous: Dictionary=sessions[peer]
++			if str(previous.get("identity",""))==_identity(peer) and _private_allowed(peer,stations[previous.station]):_reply(peer);return
++			_close(peer,true)
+ 		var id: String=str(action.get("station",""))
+ 		if not stations.has(id):return
+ 		var entry: Dictionary=stations[id]
++		if not _private_allowed(peer,entry):return
+ 		var position: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
+ 		if position.distance_to(entry.anchor)>3:return
+ 		var chair = game.chairs[entry.chair]
+ 		if chair.occupant==0:game._claim_chair(peer,entry.chair)
+ 		if chair.occupant!=peer:return
+ 		serial+=1
+-		sessions[peer]={"station":id,"lease":serial,"revision":0}
++		var identity := _identity(peer)
++		if workspace_identities.get(peer,"__unbound__")!=identity:
++			workspaces.erase(peer);restored.erase(peer)
++		workspace_identities[peer]=identity
++		sessions[peer]={"station":id,"lease":serial,"revision":0,"identity":identity}
+ 		if not workspaces.has(peer):workspaces[peer]={"files":{},"editor":{}}
+ 		_publish()
+ 		_reply(peer)
+ 		return
+ 	if not sessions.has(peer):return
+ 	var session: Dictionary=sessions[peer]
++	if str(session.get("identity",""))!=_identity(peer) or not _private_allowed(peer,stations[session.station]):_close(peer,true);return
+ 	if action.get("lease",-1)!=session.lease or action.get("revision",-1)!=session.revision:return
+ 	if op=="exit":_close(peer,true);return
+ 	var entry: Dictionary=stations[session.station]
+@@ -131,6 +153,7 @@
+ 	return true
+ func _reply(peer: int) -> void:
+ 	var packet: Dictionary=sessions[peer].duplicate(true)
++	packet.erase("identity")
+ 	packet.merge(workspaces[peer].duplicate(true))
+ 	packet.restored=restored.has(peer)
+ 	packet.assignments=[]
+@@ -184,16 +207,16 @@
+ 	if not multiplayer.is_server():return
+ 	for peer in sessions.keys():
+ 		var entry: Dictionary=stations[sessions[peer].station]
+-		if not game.session.roster.has(peer) or game.chairs[entry.chair].occupant!=peer:_close(peer,false)
++		if not game.session.roster.has(peer) or not _private_allowed(peer,entry) or game.chairs[entry.chair].occupant!=peer:_close(peer,false)
+ 	for peer in workspaces.keys():
+ 		if not game.session.roster.has(peer):
+-			workspaces.erase(peer)
++			workspaces.erase(peer);workspace_identities.erase(peer)
+ 			restored.erase(peer)
+ 			last_request.erase(peer)
+ func _reset() -> void:
+ 	set_meta("resetting",true)
+ 	sessions.clear()
+-	workspaces.clear()
++	workspaces.clear();workspace_identities.clear()
+ 	restored.clear()
+ 	last_request.clear()
+ 	local_snapshot.clear()
+--- a/scripts/inventory_authority/component_persistence.gd
++++ b/scripts/inventory_authority/component_persistence.gd
+@@ -51,12 +51,13 @@
+ 	var result := design.duplicate(true);result.component_runtime={};result.instance_ids={}
+ 	var owned: Dictionary=profile.get("component_instances",{});var used := {}
+ 	var sorted_ids: Array=owned.keys();sorted_ids.sort()
++	var stored: Array=profile.get("dorm",{}).get("instances",[])
+ 	for part in design.get("parts",[]):
+ 		var selected := str(design.get("instance_ids",{}).get(str(part.id),""))
+-		if used.has(selected) or not owned.has(selected) or owned[selected].type!=part.type:selected=""
++		if selected in stored or used.has(selected) or not owned.has(selected) or owned[selected].type!=part.type:selected=""
+ 		if selected=="":
+ 			for id in sorted_ids:
+-				if not used.has(id) and owned[id].type==part.type:selected=id;break
++				if id not in stored and not used.has(id) and owned[id].type==part.type:selected=id;break
+ 		if selected=="":continue
+ 		used[selected]=true;result.instance_ids[str(part.id)]=selected
+ 		var item: Dictionary=owned[selected];var root := "board/"+str(part.id)
+--- a/scripts/campus/dorms/world/dorm_hall.gd
++++ b/scripts/campus/dorms/world/dorm_hall.gd
+@@ -121,9 +121,7 @@
+ 	_marker(root, "RoomAnchor", contract.room_anchor)
+ 	_marker(root, "WorkshopAnchor", contract.workshop_anchor)
+ 	_marker(root, "LoadoutNotesAnchor", contract.loadout_notes_anchor)
+-	_build_bed_storage(root, center, west)
+-	_build_workshop(root, contract.workshop_anchor, west)
+-	_build_loadout_notes(root, contract.loadout_notes_anchor, west)
++	# Furnishings are streamed by the persistent dorm coordinator.
+ 
+ func _build_door(root: Node3D, contract: Dictionary) -> void:
+ 	var west: bool=str(contract.side)=="west"
+--- /dev/null
++++ b/scripts/campus/dorms/integration/render_adapter.gd
+@@ -0,0 +1,42 @@
++extends RefCounted
++const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
++const Rules=preload("res://scripts/campus/dorms/customization/placement_rules.gd")
++static func mark(node: Node,label: String) -> void:
++	var groups := {"BedFrame":"bed","Headboard":"bed","Mattress":"bed","Duvet":"bed","Pillow":"bed","Bedside":"bedside","StudyDesk":"study_desk","DeskLeg":"study_desk","Laptop":"desk_laptop","Notebook":"study_desk","Chair":"study_chair","Wardrobe":"wardrobe","StorageCabinet":"storage_cabinet","Shelf":"shelf","Rug":"rug","Plant":"plant","bedside_lamp":"bedside_lamp","desk_lamp":"desk_lamp"}
++	for prefix in groups:
++		if label.begins_with(prefix):node.set_meta("furniture",groups[prefix]);return
++static func style(saved: Dictionary) -> Dictionary:
++	var choices: Dictionary=saved.get("styles",{})
++	return {"wall":{"classic":"f2eee5","sage":"b5c0aa","sand":"d6c7af","slate":"8b9ba5"}.get(choices.get("wall","classic"),"f2eee5"),"floor":{"tile":"c6c1b5","warm_tile":"bcae99","wood":"92765a"}.get(choices.get("floor","tile"),"c6c1b5"),"bedding":{"teal":"5b827d","blue":"667e9b","cream":"e5dcc5","rust":"ad7459"}.get(choices.get("bedding","teal"),"5b827d")}
++static func apply(room: Node3D,contract: Dictionary,saved: Dictionary) -> void:
++	var originals := {}
++	for item in Dorm.starter_layout().items:originals[item.id]=item
++	var items := {}
++	for item in saved.get("items",[]):items[item.id]=item
++	var mirror := 1.0 if contract.side=="west" else -1.0
++	for node in room.get_children():
++		var id := str(node.get_meta("furniture",""))
++		if id.is_empty():continue
++		if not items.has(id):
++			if node is Node3D:node.hide()
++			if node is CollisionObject3D:node.collision_layer=0
++			continue
++		var old: Dictionary=originals[id];var item: Dictionary=items[id]
++		var base := Vector3(float(old.x)*mirror,0,float(old.z))
++		var target := Vector3(float(item.x)*mirror,0,float(item.z))
++		var offset: Vector3=node.position-contract.center-base
++		var angle := float(item.rotation)*PI*.5*mirror
++		node.position=contract.center+target+offset.rotated(Vector3.UP,angle)
++		node.rotation.y+=angle
++	for item in items.values():
++		var kind: String=item.kind
++		if kind=="display":
++			var display := MeshInstance3D.new();var mesh := BoxMesh.new();mesh.size=Vector3(.3,.04,.25);display.mesh=mesh
++			var material := StandardMaterial3D.new();material.albedo_color=Color("39775b");material.roughness=.9;display.material_override=material
++			display.position=contract.center+Vector3(float(item.x)*mirror,1.55 if float(item.z)>4 else .87,float(item.z));room.add_child(display)
++		if kind in Rules.ON_SURFACE or kind in Rules.NON_SOLID:continue
++		var rect: Rect2=Rules.footprint(item)
++		var body := StaticBody3D.new();body.collision_layer=1;body.collision_mask=0
++		body.position=contract.center+Vector3(float(item.x)*mirror,.5,float(item.z))
++		var collision := CollisionShape3D.new();var shape := BoxShape3D.new();shape.size=Vector3(rect.size.x,1,rect.size.y);collision.shape=shape;body.add_child(collision);room.add_child(body)
++
+--- /dev/null
++++ b/scripts/campus/dorms/world/room_interior.gd
+@@ -0,0 +1,102 @@
++extends Node3D
++const SavedRenderer=preload("res://scripts/campus/dorms/integration/render_adapter.gd")
++## Streamed visual interior. Public projection only; never stores inventory or files.
++signal used(kind: String, room_id: String)
++const Layout = preload("res://scripts/campus/dorms/world/dorm_layout.gd")
++var room_id := ""
++var targets := {}
++var materials := {}
++var lamps := {}
++
++func build(contract: Dictionary, public_style: Dictionary = {}) -> void:
++	room_id=str(contract.dorm_id)
++	var c: Vector3=contract.center
++	var outward := -1.0 if str(contract.side)=="west" else 1.0
++	var wall := _color(public_style.get("wall","f2eee5"),"f2eee5")
++	var floor_color := _color(public_style.get("floor","c6c1b5"),"c6c1b5")
++	var bedding := _color(public_style.get("bedding","5b827d"),"5b827d")
++	# Shell finish overlays the existing collision shell without altering door geometry.
++	_box("FloorTiles",c+Vector3(0,.012,0),Vector3(6.55,.025,10.9),floor_color)
++	for z in [-5.55,5.55]:
++		_box("UpperWall",c+Vector3(0,2.55,z),Vector3(6.65,2.7,.04),wall)
++		_box("LowerWall",c+Vector3(0,.68,z),Vector3(6.65,1.3,.045),"82919a")
++		_box("WoodTrim",c+Vector3(0,1.35,z),Vector3(6.65,.09,.07),"76604c")
++	_box("SuspendedCeiling",c+Vector3(0,3.95,0),Vector3(6.55,.05,10.9),"eeeae0")
++	_box("CeilingPanel",c+Vector3(0,3.89,0),Vector3(.7,.035,1.6),"f4dfad")
++	# Exterior-facing window only.
++	var wx := c.x+outward*3.39
++	_box("WindowGlass",Vector3(wx,2.25,c.z-.25),Vector3(.035,1.35,1.85),"9fb7bb")
++	for z in [-1.0,.5]:_box("WindowFrame",Vector3(wx-outward*.04,2.25,c.z+z),Vector3(.11,1.48,.08),"ded8ca")
++	for y in [1.55,2.95]:_box("WindowFrame",Vector3(wx-outward*.04,y,c.z-.25),Vector3(.11,.08,1.85),"ded8ca")
++	_box("Blind",Vector3(wx-outward*.08,2.88,c.z-.25),Vector3(.06,.12,1.72),"e7e1d4")
++	# A recognizable single bed; side circulation remains clear.
++	var bx := c.x+outward*1.95
++	_box("BedFrame",Vector3(bx,.35,c.z-3.55),Vector3(1.2,.27,2.2),"765b46")
++	_box("Headboard",Vector3(bx,.65,c.z-4.62),Vector3(1.25,.72,.12),"6c5241")
++	_box("Mattress",Vector3(bx,.58,c.z-3.55),Vector3(1.1,.22,2.05),"e8e2d5")
++	_box("Duvet",Vector3(bx,.73,c.z-3.18),Vector3(1.12,.13,1.25),bedding)
++	_box("Pillow",Vector3(bx,.74,c.z-4.3),Vector3(.76,.15,.4),"f7f1e5")
++	_target("bed",Vector3(bx,.65,c.z-3.55),Vector3(1.2,.85,2.2),"Rest on bed")
++	_box("Bedside",Vector3(bx-outward*.95,.55,c.z-4.2),Vector3(.52,1.05,.52),"876c54")
++	_lamp("bedside_lamp",Vector3(bx-outward*.95,1.25,c.z-4.2))
++	# Study surface leaves room for a worksheet; laptop occupies its rear edge.
++	var dx := c.x-outward*1.65
++	_box("StudyDesk",Vector3(dx,.76,c.z-2.25),Vector3(2.35,.1,1.1),"8b6b50")
++	for x in [-1.05,1.05]:
++		for z in [-.45,.45]:_box("DeskLeg",Vector3(dx+x,.38,c.z-2.25+z),Vector3(.1,.76,.1),"68513f")
++	_box("LaptopBase",Vector3(dx,.84,c.z-2.55),Vector3(.68,.04,.48),"39464a")
++	_box("LaptopScreen",Vector3(dx,1.12,c.z-2.82),Vector3(.68,.52,.045),"27383e")
++	_target("computer",Vector3(dx,1.03,c.z-2.55),Vector3(.7,.62,.6),"Use study computer")
++	_box("Notebook",Vector3(dx+.7,.84,c.z-2.12),Vector3(.4,.025,.31),"e8e1cc")
++	_box("ChairSeat",Vector3(dx,.45,c.z-.95),Vector3(.65,.12,.58),"66787b")
++	_box("ChairBack",Vector3(dx,.83,c.z-.65),Vector3(.65,.78,.09),"66787b")
++	_target("study_chair",Vector3(dx,.55,c.z-.95),Vector3(.7,1.0,.65),"Sit at study desk")
++	_lamp("desk_lamp",Vector3(dx-.85,1.05,c.z-2.65))
++	# Wardrobe doors and handles remain visually separate from the solid cabinet.
++	var vx := c.x+outward*2.3
++	_box("Wardrobe",Vector3(vx,1.15,c.z+3.65),Vector3(1.35,2.25,1.0),"79624d")
++	for offset in [-.32,.32]:
++		_box("WardrobeDoor",Vector3(vx+offset,1.15,c.z+3.13),Vector3(.6,2.05,.045),"93775c")
++		_box("WardrobeHandle",Vector3(vx+offset*.4,1.17,c.z+3.09),Vector3(.035,.16,.035),"d5bd8d")
++	_target("wardrobe",Vector3(vx,1.2,c.z+3.1),Vector3(1.3,2.1,.18),"Change appearance")
++	_box("StorageCabinet",Vector3(dx,.7,c.z+3.6),Vector3(1.25,1.35,.65),"81674f")
++	_target("storage",Vector3(dx,.72,c.z+3.24),Vector3(1.2,1.3,.14),"Open personal storage")
++	_box("Shelf",Vector3(dx,1.5,c.z+4.65),Vector3(1.6,.09,.34),"846b51")
++	_box("Rug",Vector3(c.x,.025,c.z+.4),Vector3(2.1,.02,1.6),"9aada7")
++	_box("PlantPot",Vector3(dx-1.3,.26,c.z+4.75),Vector3(.37,.5,.37),"aa8268")
++	_box("PlantLeaves",Vector3(dx-1.3,.73,c.z+4.75),Vector3(.52,.57,.52),"63806c")
++	# Existing tangible station props retain their anchors and routing.
++	_target("kit_workshop",contract.workshop_anchor+Vector3(0,1,0),Vector3(.7,.5,.6),"Use open electronics kit")
++	_target("loadout",contract.loadout_notes_anchor+Vector3(0,1,.35),Vector3(.7,.5,.4),"Organize backpack")
++	_target("notes",contract.loadout_notes_anchor+Vector3(0,1,-.35),Vector3(.7,.5,.4),"Open notes")
++
++func _color(value: Variant, fallback: String) -> String:
++	var s := str(value).trim_prefix("#")
++	return s if s.length()==6 and s.is_valid_hex_number() else fallback
++
++func _material(hex: String) -> StandardMaterial3D:
++	if not materials.has(hex):
++		var m:=StandardMaterial3D.new();m.albedo_color=Color(hex);m.roughness=.88;materials[hex]=m
++	return materials[hex]
++
++func _box(label: String, pos: Vector3, size: Vector3, hex: String) -> void:
++	var mesh:=MeshInstance3D.new();mesh.name=label;var box:=BoxMesh.new();box.size=size;mesh.mesh=box;mesh.material_override=_material(hex);mesh.position=pos;add_child(mesh);SavedRenderer.mark(mesh,label)
++
++func _target(kind: String, pos: Vector3, size: Vector3, label: String) -> void:
++	var body:=StaticBody3D.new();body.name=kind;body.position=pos;body.collision_layer=4;body.collision_mask=0
++	var shape:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=size;shape.shape=box;body.add_child(shape)
++	body.set_meta("role","dorm_room_prop");body.set_meta("kind",kind);body.set_meta("room_id",room_id);body.set_meta("label",label);add_child(body);targets[kind]=body
++	var furnishing := {"computer":"desk_laptop","storage":"storage_cabinet"}.get(kind,kind)
++	if furnishing in SavedRenderer.Dorm.DEFAULTS:body.set_meta("furniture",furnishing)
++
++func _lamp(kind: String, pos: Vector3) -> void:
++	_box(kind+"Base",pos,Vector3(.18,.04,.18),"5c6260")
++	_box(kind+"Stem",pos+Vector3(0,.2,0),Vector3(.045,.38,.045),"5c6260")
++	_box(kind+"Shade",pos+Vector3(0,.42,0),Vector3(.31,.23,.31),"e8d1a0")
++	var light:=OmniLight3D.new();light.position=pos+Vector3(0,.4,0);light.light_energy=.35;light.omni_range=2.8;light.visible=false;add_child(light);lamps[kind]=light;light.set_meta("furniture",kind)
++	_target(kind,pos+Vector3(0,.3,0),Vector3(.38,.6,.38),"Toggle lamp")
++
++func toggle_lamp(kind: String) -> bool:
++	if not lamps.has(kind):return false
++	lamps[kind].visible=not lamps[kind].visible
++	return true
+--- /dev/null
++++ b/scripts/campus/dorms/integration/room_adapter.gd
+@@ -0,0 +1,64 @@
++extends Node
++## Candidate coordinator adapter. Host authority supplies owner and access decisions.
++const Interior = preload("res://scripts/campus/dorms/world/room_interior.gd")
++var game: Node
++var authority: Object
++var computer_session: Object
++var room: Node3D
++var room_id := ""
++var occupant_count := 0
++var open_wardrobe: Callable
++var begin_rest: Callable
++var use_desk_chair: Callable
++var open_storage: Callable
++
++func configure(owner_game: Node, dorm_authority: Object, m203_session: Object) -> void:
++	game=owner_game;authority=dorm_authority;computer_session=m203_session
++
++func bind_personal_actions(wardrobe: Callable, rest: Callable, chair: Callable, storage: Callable) -> void:
++	open_wardrobe=wardrobe;begin_rest=rest;use_desk_chair=chair;open_storage=storage
++
++func enter(contract: Dictionary, public_projection: Dictionary, authenticated_identity: String) -> bool:
++	var id:=str(contract.get("dorm_id",""))
++	if id.is_empty() or authority==null or not authority.has_method("can_enter") or not authority.call("can_enter",authenticated_identity,id):return false
++	if is_instance_valid(room) and room_id!=id:return false
++	if not is_instance_valid(room):
++		room=Interior.new();add_child(room);room.build(contract,preload("res://scripts/campus/dorms/integration/render_adapter.gd").style(public_projection.get("customization",{})));room_id=id
++		preload("res://scripts/campus/dorms/integration/render_adapter.gd").apply(room,contract,public_projection.get("customization",{}))
++	occupant_count+=1
++	return true
++
++func leave() -> void:
++	occupant_count=maxi(0,occupant_count-1)
++	if occupant_count==0 and is_instance_valid(room):room.queue_free();room=null;room_id=""
++
++func interact(target: Node, authenticated_identity: String) -> bool:
++	if not is_instance_valid(room) or not is_instance_valid(target) or target.get_parent()!=room:return false
++	if target.get_meta("role","")!="dorm_room_prop" or str(target.get_meta("room_id",""))!=room_id:return false
++	var kind:=str(target.get_meta("kind",""))
++	if kind in ["bedside_lamp","desk_lamp"]:return room.toggle_lamp(kind)
++	if authority==null or not authority.has_method("is_owner") or not authority.call("is_owner",authenticated_identity,room_id):return true
++	match kind:
++		"kit_workshop","loadout","notes":
++			var router=game.get("dorm_interactions").router
++			if is_instance_valid(router):
++				var station_kind:=kind
++				router.register_station(target,room_id,station_kind)
++				return router.interact(target)
++		"wardrobe":
++			if open_wardrobe.is_valid():open_wardrobe.call()
++		"storage":
++			if open_storage.is_valid():open_storage.call(room_id)
++		"computer":
++			if authority.has_method("request_personal_computer"):
++				authority.call("request_personal_computer",room_id)
++		"bed":
++			if begin_rest.is_valid():begin_rest.call(target.global_transform)
++		"study_chair":
++			if use_desk_chair.is_valid():use_desk_chair.call(target.global_transform)
++	return true
++
++func storage_transfer(authenticated_identity: String, operation_id: String, item_id: String, quantity: int, into_storage: bool) -> Dictionary:
++	if authority==null or not authority.has_method("storage_transfer"):return {"ok":false,"error":"Dorm storage is unavailable"}
++	if not authority.has_method("is_owner") or not authority.call("is_owner",authenticated_identity,room_id):return {"ok":false,"error":"Owner access required"}
++	return authority.call("storage_transfer",authenticated_identity,room_id,operation_id,item_id,quantity,into_storage)
+--- /dev/null
++++ b/tests/campus/dorms/authority/test_persistent_memory.gd
+@@ -0,0 +1,86 @@
++extends SceneTree
++# Synthetic fixture. No profile.open(), user save paths, engine scenes or live data.
++const Ledger=preload("res://scripts/inventory_authority/ledger.gd")
++const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
++const Board=preload("res://scripts/breadboard_model.gd")
++class MemoryHistory:
++	extends RefCounted
++	func lookup_op(state: Dictionary,owner: String,id: String) -> Dictionary:
++		var receipts: Dictionary=state.accounts.get(owner,{}).get("receipts",{})
++		return {"ok":true,"found":receipts.has(id),"value":receipts.get(id)}
++class MemoryLedger:
++	extends "res://scripts/inventory_authority/ledger.gd"
++	var reject := false
++	var commits := 0
++	func _init() -> void:receipt_history=MemoryHistory.new()
++	func persist(next: Dictionary) -> bool:
++		if reject:return false
++		state=next.duplicate(true);commits+=1;return true
++var checks := 0
++func check(value: bool,label: String) -> void:
++	checks+=1
++	assert(value,label)
++func initial() -> Dictionary:
++	return {"schema":1,"dollars":137,"inventory":{"r1000":8,"r220":4},"capacity":40,"equipped":"starter","kits":{"starter":{"name":"Starter","items":{"r1000":8},"board":Board.empty()}},"notebook":"keep notes","programs":{"test":"keep code"},"reward_ids":{"old":50},"analyzer":false}
++func _initialize() -> void:
++	var a := "a".repeat(48);var b := "b".repeat(48);var secret := "1".repeat(64)
++	var legacy := initial();var before := legacy.duplicate(true)
++	var migration := Dorm.migrate(legacy,a)
++	check(migration.ok and migration.changed,"legacy migrated")
++	check(legacy==before,"migration input immutable")
++	for key in before:check(migration.profile[key]==before[key],"unrelated field "+str(key))
++	check(Dorm.migrate(migration.profile,a).changed==false,"migration idempotent")
++	check(not Dorm.migrate(migration.profile,b).ok,"identity conflict")
++	var l := MemoryLedger.new()
++	check(l.bind(11,a,secret,legacy).ok,"first enrollment")
++	check(l.account(11).profile.dorm.room_id=="dorm_"+a,"assignment before returned snapshot")
++	var room: String=l.account(11).profile.dorm.room_id
++	check(not l.bind(12,a,secret,legacy).ok,"connected clone rejected")
++	l.unbind(11)
++	check(l.bind(99,a,secret,legacy).ok,"stale peer rejoin")
++	check(l.account(11).is_empty() and l.account(99).profile.dorm.room_id==room,"stable room independent of peer")
++	var store := {"op":"storage","revision":0,"item":"r1000","delta":3,"instances":[]}
++	check(l.transact(99,"store","dorm",[store]).ok,"store")
++	check(l.free_stock(99,"r1000")==5 and l.account(99).profile.inventory.r1000==8,"allocation conserves master inventory")
++	check(l.transact(99,"store","dorm",[store]).ok and l.account(99).profile.dorm.storage.r1000==3,"receipt replay no duplicate")
++	var changed := store.duplicate();changed.delta=4
++	check(not l.transact(99,"store","dorm",[changed]).ok,"changed replay rejected")
++	var snapshot := l.state.duplicate(true);l.reject=true
++	check(not l.transact(99,"fail","dorm",[{"op":"storage","revision":1,"item":"r1000","delta":1}]).ok,"save failure reported")
++	check(l.state==snapshot,"save failure changes neither inventory nor allocation")
++	l.reject=false
++	check(l.transact(99,"retrieve","dorm",[{"op":"storage","revision":1,"item":"r1000","delta":-3}]).ok,"retrieve")
++	check(l.free_stock(99,"r1000")==8 and l.account(99).profile.inventory.r1000==8,"retrieve conservation")
++	var restored := MemoryLedger.new();restored.state=l.state.duplicate(true)
++	check(restored.bind(41,a,secret,legacy).ok and restored.account(41).profile.dorm.room_id==room,"synthetic restart")
++	for index in 24:
++		var id := ("%048x"%(index+100))
++		check(restored.bind(100+index,id,("%064x"%(index+100)),initial()).ok,"historical owner "+str(index))
++	check(restored.state.accounts.size()==25,"logical rooms exceed eight entrances")
++	var d: Dictionary=restored.account(41).profile.dorm
++	check(not Dorm.may_enter(d,a,b),"private visitor rejected")
++	check(Dorm.may_enter(d,a,a),"owner allowed")
++	var invited := d.duplicate(true);invited.policy="Invited";invited.invited=[b]
++	check(Dorm.may_enter(invited,a,b),"explicit invite")
++	check(not Dorm.may_enter(invited,a,"peer:41"),"peer string is not authenticated identity")
++	check(not restored.transact(41,"bad-policy","dorm",[{"op":"policy","revision":2,"value":"Friends"}]).ok,"unsupported friends policy")
++	var bad := {"op":"edit","revision":2,"edit":{"op":"move","item":{"id":"bed","kind":"bed","x":-3.0,"z":0.0,"rotation":0}}}
++	check(not restored.transact(41,"blocked-door","dorm",[bad]).ok,"placement blocks doorway")
++	var public := Dorm.public_room(restored.account(41).profile)
++	for key in ["inventory","notebook","programs","storage","instances","credential"]:
++		check(not public.has(key),"public excludes "+key)
++	var specific := initial();specific.component_instances={"unique":{"type":"r1000","root":"board/r","component_runtime":{}}}
++	var u := MemoryLedger.new();check(u.bind(2,b,"2".repeat(64),specific).ok,"unique instance enrollment")
++	check(u.transact(2,"unique-store","dorm",[{"op":"storage","revision":0,"item":"r1000","delta":1,"instances":["unique"]}]).ok,"specific instance store")
++	check(u.account(2).profile.component_instances.has("unique"),"instance bytes stay in master registry")
++	check(not u.transact(2,"unique-twice","dorm",[{"op":"storage","revision":1,"item":"r1000","delta":1,"instances":["unique"]}]).ok,"instance cannot occupy storage twice")
++	check(not u.transact(2,"overflow","dorm",[{"op":"storage","revision":1,"item":"r1000","delta":8}]).ok,"overcapacity rejects")
++	check(not u.transact(999,"unbound","dorm",[{"op":"policy","revision":0,"value":"Open"}]).ok,"stale unbound peer rejected")
++	var forged := u.account(2).profile.duplicate(true);forged.dorm.policy="Open";forged.dollars=9999
++	check(u.transact(2,"metadata-forge","metadata",[forged]).ok,"metadata merge")
++	check(u.account(2).profile.dorm.policy=="Private" and u.account(2).profile.dollars==137,"metadata cannot overwrite ownership/privacy/economy")
++	var failed := MemoryLedger.new();failed.reject=true
++	check(not failed.bind(3,a,secret,initial()).ok and failed.bindings.is_empty() and failed.state.accounts.is_empty(),"failed first enrollment publishes no binding")
++	print("Synthetic in-memory authority checks: ",checks)
++	quit()
++
+--- /dev/null
++++ b/scripts/campus/dorms/customization/placement_rules.gd
+@@ -0,0 +1,88 @@
++class_name DormPlacementRules
++extends RefCounted
++
++## Pure host-side validation. Coordinates are local to the furnished room centre.
++## The entrance is at x=+/-3.5, z=0. Nothing in this class grants ownership.
++const ROOM_HALF := Vector2(3.5, 5.75)
++const MARGIN := 0.18
++const WALK_RADIUS := 0.42
++const GRID := 0.25
++const MAX_PLACED := 64
++const FOOTPRINTS := {
++	"bed":Vector2(1.2, 2.15), "bedside":Vector2(0.55, 0.52),
++	"wardrobe":Vector2(1.35, 1.0), "study_desk":Vector2(2.35, 1.1),
++	"study_chair":Vector2(0.55, 0.55), "storage_cabinet":Vector2(1.0, 0.58),
++	"shelf":Vector2(1.6, 0.38), "rug":Vector2(1.7, 2.1),
++	"plant":Vector2(0.5, 0.5), "bedside_lamp":Vector2(0.3, 0.3),
++	"desk_lamp":Vector2(0.3, 0.3), "desk_laptop":Vector2(0.42, 0.3),
++	"display":Vector2(0.35, 0.35), "poster":Vector2(0.08, 0.8)
++}
++const NON_SOLID := ["rug", "poster"]
++const ON_SURFACE := ["bedside_lamp", "desk_lamp", "desk_laptop", "display"]
++
++static func footprint(item: Dictionary) -> Rect2:
++	var size: Vector2 = FOOTPRINTS.get(str(item.get("kind", "")), Vector2.ZERO)
++	var rotation := int(item.get("rotation", 0))
++	if rotation % 2 != 0: size = Vector2(size.y, size.x)
++	var point := Vector2(float(item.get("x", 0)), float(item.get("z", 0)))
++	return Rect2(point-size*0.5, size)
++
++static func validate(items: Array, side: String) -> String:
++	if side not in ["west", "east"]: return "invalid_room_side"
++	if items.size() > MAX_PLACED: return "too_many_items"
++	var identifiers := {}
++	var solids: Array[Rect2] = []
++	for value in items:
++		if not value is Dictionary: return "invalid_item"
++		var item: Dictionary = value
++		var kind := str(item.get("kind", ""))
++		var identifier := str(item.get("id", ""))
++		if not FOOTPRINTS.has(kind) or identifier.is_empty() or identifier.length() > 96 or identifiers.has(identifier): return "invalid_item"
++		identifiers[identifier] = true
++		if not item.get("rotation") is int or int(item.rotation) not in [0, 1, 2, 3]: return "invalid_rotation"
++		if not _finite_number(item.get("x")) or not _finite_number(item.get("z")): return "invalid_position"
++		var rect := footprint(item)
++		if rect.position.x < -ROOM_HALF.x + MARGIN or rect.end.x > ROOM_HALF.x - MARGIN or rect.position.y < -ROOM_HALF.y + MARGIN or rect.end.y > ROOM_HALF.y - MARGIN: return "outside_room"
++		if kind in ON_SURFACE: continue # Surface attachment is checked by the owner catalog adapter.
++		if kind in NON_SOLID: continue
++		# Door sweep includes the leaf and an avatar's standing clearance.
++		var door_x := -ROOM_HALF.x if side == "west" else ROOM_HALF.x
++		var door := Rect2(Vector2(door_x - 1.05, -1.1), Vector2(2.1, 2.2))
++		if rect.intersects(door): return "door_blocked"
++		var entrance_path := Rect2(Vector2(-2.6 if side == "west" else 0.0, -0.75), Vector2(2.6, 1.5))
++		if rect.intersects(entrance_path): return "entrance_blocked"
++		for other in solids:
++			if rect.intersects(other): return "overlap"
++		solids.append(rect)
++	if not _walkable(solids, side): return "entrance_blocked"
++	return ""
++
++static func _walkable(solids: Array[Rect2], side: String) -> bool:
++	# Check a full avatar footprint along a route from the entrance to the room
++	# centre and to the back half. This catches long barriers and traps.
++	var start := Vector2(-2.65 if side == "west" else 2.65, 0.0)
++	var goals := [Vector2.ZERO, Vector2(0.0, -3.0), Vector2(0.0, 3.0)]
++	var queue := [start]
++	var visited := {_grid_key(start):true}
++	var reached := {}
++	while not queue.is_empty():
++		var point: Vector2 = queue.pop_front()
++		for index in goals.size():
++			if point.distance_to(goals[index]) < 0.37: reached[index] = true
++		if reached.size() == goals.size(): return true
++		for step in [Vector2(GRID, 0), Vector2(-GRID, 0), Vector2(0, GRID), Vector2(0, -GRID)]:
++			var next: Vector2 = point + step
++			var key := _grid_key(next)
++			if visited.has(key) or absf(next.x) > ROOM_HALF.x - WALK_RADIUS or absf(next.y) > ROOM_HALF.y - WALK_RADIUS: continue
++			var avatar := Rect2(next-Vector2.ONE*WALK_RADIUS, Vector2.ONE*WALK_RADIUS*2.0)
++			var blocked := false
++			for solid in solids:
++				if avatar.intersects(solid): blocked = true; break
++			if not blocked: visited[key] = true; queue.append(next)
++	return false
++
++static func _grid_key(point: Vector2) -> Vector2i:
++	return Vector2i(roundi(point.x / GRID), roundi(point.y / GRID))
++
++static func _finite_number(value: Variant) -> bool:
++	return (value is int or value is float) and is_finite(float(value))
+--- /dev/null
++++ b/scripts/campus/dorms/customization/room_edits.gd
+@@ -0,0 +1,60 @@
++class_name DormRoomEdits
++extends RefCounted
++
++const Rules = preload("res://scripts/campus/dorms/customization/placement_rules.gd")
++const STYLE_CHOICES := {
++	"wall":["classic", "sage", "sand", "slate"],
++	"floor":["tile", "warm_tile", "wood"],
++	"bedding":["teal", "blue", "cream", "rust"],
++	"furniture":["oak", "birch", "painted"]
++}
++const MAX_INTENT_BYTES := 2048
++
++## Host service calls this after deriving the stable owner from the authenticated
++## ledger binding. `eligible` must check actual catalog + owned inventory, unique
++## item reservation, display definition, and surface attachment. A client may not
++## supply the owner identity or room state.
++static func apply(current: Dictionary, intent: Dictionary, side: String, eligible: Callable) -> Dictionary:
++	if var_to_bytes(intent).size() > MAX_INTENT_BYTES: return _error("intent_too_large")
++	if not eligible.is_valid(): return _error("catalog_unavailable")
++	var next: Dictionary = current.duplicate(true)
++	if not next.has("items"): next.items = []
++	if not next.has("styles"): next.styles = {}
++	if not next.items is Array or not next.styles is Dictionary: return _error("invalid_saved_room")
++	var op := str(intent.get("op", ""))
++	match op:
++		"style":
++			var category := str(intent.get("category", ""))
++			var variant := str(intent.get("variant", ""))
++			if not STYLE_CHOICES.has(category) or variant not in STYLE_CHOICES[category]: return _error("invalid_style")
++			if not bool(eligible.call({"op":"style", "category":category, "variant":variant}, next)): return _error("style_not_owned")
++			next.styles[category] = variant
++		"place", "move":
++			var item: Dictionary = intent.get("item", {}) if intent.get("item", {}) is Dictionary else {}
++			var id := str(item.get("id", ""))
++			if id.is_empty(): return _error("invalid_item")
++			var index := _index(next.items, id)
++			if op == "place" and index >= 0: return _error("already_placed")
++			if op == "move" and index < 0: return _error("missing_item")
++			if op == "move" and str(next.items[index].get("kind", "")) != str(item.get("kind", "")): return _error("item_kind_changed")
++			if not bool(eligible.call({"op":op, "item":item}, next)): return _error("item_not_owned_or_ineligible")
++			if index >= 0: next.items[index] = item.duplicate(true)
++			else: next.items.append(item.duplicate(true))
++		"pickup":
++			var id := str(intent.get("id", ""))
++			var index := _index(next.items, id)
++			if index < 0: return _error("missing_item")
++			if not bool(eligible.call({"op":"pickup", "item":next.items[index]}, next)): return _error("pickup_rejected")
++			next.items.remove_at(index)
++		_: return _error("unsupported_edit")
++	var geometry_error := Rules.validate(next.items, side)
++	if not geometry_error.is_empty(): return _error(geometry_error)
++	return {"ok":true, "state":next}
++
++static func _index(items: Array, id: String) -> int:
++	for index in items.size():
++		if items[index] is Dictionary and str(items[index].get("id", "")) == id: return index
++	return -1
++
++static func _error(message: String) -> Dictionary:
++	return {"ok":false, "error":message}
+--- /dev/null
++++ b/scripts/campus/dorms/customization/edit_service.gd
+@@ -0,0 +1,41 @@
++class_name DormEditService
++extends RefCounted
++
++const Edits = preload("res://scripts/campus/dorms/customization/room_edits.gd")
++
++## Host-only adapter. Bind these to the integrated dorm authority and master
++## inventory ledger; never expose this method as an RPC without deriving peer
++## from multiplayer.get_remote_sender_id(). The commit callable must persist
++## atomically and return false on save failure.
++var authenticated_identity: Callable # (peer) -> stable identity or ""
++var owner_of_room: Callable # (room_id) -> stable identity or ""
++var room_side: Callable # (room_id) -> "west"/"east"
++var read_room: Callable # (room_id) -> full saved customization
++var commit_room: Callable # (room_id, expected_revision, state) -> bool
++var eligible: Callable # (identity, intent, proposed_state) -> bool
++
++func edit_for_peer(peer: int, room_id: String, expected_revision: int, intent: Dictionary) -> Dictionary:
++	if not _ready() or peer <= 0 or room_id.is_empty(): return _error("unavailable")
++	var identity := str(authenticated_identity.call(peer))
++	if identity.is_empty() or str(owner_of_room.call(room_id)) != identity: return _error("owner_only")
++	var saved: Dictionary = read_room.call(room_id)
++	if saved.is_empty(): return _error("room_unavailable")
++	var revision := int(saved.get("revision", -1))
++	if revision != expected_revision: return {"ok":false, "error":"stale_revision", "state":saved.get("customization", {}), "revision":revision}
++	var current: Dictionary = saved.get("customization", {})
++	var check := func(candidate: Dictionary, proposed: Dictionary) -> bool:
++		return bool(eligible.call(identity, candidate, proposed))
++	var applied: Dictionary = Edits.apply(current, intent, str(room_side.call(room_id)), check)
++	if not applied.ok: return {"ok":false, "error":applied.error, "state":current, "revision":revision}
++	var proposed := saved.duplicate(true)
++	proposed.customization = applied.state
++	proposed.revision = revision + 1
++	if not bool(commit_room.call(room_id, revision, proposed)):
++		return {"ok":false, "error":"save_failed", "state":current, "revision":revision}
++	return {"ok":true, "state":proposed.customization, "revision":proposed.revision}
++
++func _ready() -> bool:
++	return authenticated_identity.is_valid() and owner_of_room.is_valid() and room_side.is_valid() and read_room.is_valid() and commit_room.is_valid() and eligible.is_valid()
++
++func _error(message: String) -> Dictionary:
++	return {"ok":false, "error":message}
+--- /dev/null
++++ b/scripts/campus/dorms/customization/decorate_panel.gd
+@@ -0,0 +1,188 @@
++class_name DormDecoratePanel
++extends Control
++
++## Mounted only while the authenticated owner decorates their streamed room.
++## `submit_edit(intent)` returns {ok,state/error}, or an empty dictionary while
++## an RPC is pending; the coordinator then calls accept_result on reply.
++signal closed
++signal preview_changed(item: Dictionary, valid: bool)
++
++const Rules = preload("res://scripts/campus/dorms/customization/placement_rules.gd")
++const Edits = preload("res://scripts/campus/dorms/customization/room_edits.gd")
++var submit_edit: Callable
++var owned_options: Array[Dictionary] = [] # host-derived item ID, kind, display name
++var room_side := "west"
++var state: Dictionary = {"items":[], "styles":{}}
++var draft: Dictionary = {}
++var original: Dictionary = {}
++var fine := false
++var pending := false
++var undo_intent: Dictionary = {}
++var pending_undo: Dictionary = {}
++var status: Label
++var catalog_grid: GridContainer
++var pick_button: Button
++var place_button: Button
++var _thumbnail_cache := {}
++
++func open_room(authoritative_state: Dictionary, options: Array[Dictionary], side: String, sender: Callable) -> void:
++	state = authoritative_state.duplicate(true)
++	owned_options = options.duplicate(true)
++	room_side = side
++	submit_edit = sender
++	visible = true
++	_build()
++	_refresh_catalog()
++
++func close_room() -> void:
++	cancel()
++	visible = false
++	closed.emit()
++
++func cancel() -> void:
++	draft = {}; original = {}
++	preview_changed.emit({}, false)
++	if is_instance_valid(status): status.text = "Selection cancelled"
++
++func select_owned(option: Dictionary) -> void:
++	if pending: return
++	var id := str(option.get("id", ""))
++	var kind := str(option.get("kind", ""))
++	if id.is_empty() or not Rules.FOOTPRINTS.has(kind): return
++	var placed: Dictionary = {}
++	for item in state.get("items", []):
++		if str(item.get("id", "")) == id: placed = item; break
++	original = placed.duplicate(true)
++	draft = placed.duplicate(true) if not placed.is_empty() else {"id":id, "kind":kind, "x":0.0, "z":0.0, "rotation":0}
++	_preview()
++
++func move_by(dx: float, dz: float) -> void:
++	if draft.is_empty() or pending: return
++	var step := 0.05 if fine else 0.25
++	draft.x = snappedf(float(draft.x) + dx * step, step)
++	draft.z = snappedf(float(draft.z) + dz * step, step)
++	_preview()
++
++func rotate_selected() -> void:
++	if draft.is_empty() or pending: return
++	draft.rotation = (int(draft.rotation) + 1) % 4
++	_preview()
++
++func place_selected() -> void:
++	if draft.is_empty() or pending: return
++	var op := "move" if not original.is_empty() else "place"
++	_send({"op":op, "item":draft.duplicate(true)})
++
++func pickup_selected() -> void:
++	if original.is_empty() or pending: return
++	_send({"op":"pickup", "id":str(original.id)})
++
++func undo_last() -> void:
++	if pending or undo_intent.is_empty(): return
++	_send(undo_intent.duplicate(true))
++
++func set_style(category: String, variant: String) -> void:
++	if pending: return
++	_send({"op":"style", "category":category, "variant":variant})
++
++func reconcile(authoritative_state: Dictionary) -> void:
++	state = authoritative_state.duplicate(true)
++	cancel()
++	_refresh_catalog()
++
++func _send(intent: Dictionary) -> void:
++	if not submit_edit.is_valid(): status.text = "Room edits are unavailable"; return
++	pending_undo = _inverse(intent)
++	pending = true
++	var result: Dictionary = submit_edit.call(intent)
++	if result.is_empty():
++		status.text = "Saving…"
++		return
++	accept_result(result)
++
++func accept_result(result: Dictionary) -> void:
++	if not pending: return
++	pending = false
++	if result.get("ok", false) and result.get("state") is Dictionary:
++		undo_intent = pending_undo.duplicate(true)
++		reconcile(result.state)
++		status.text = "Saved"
++	else:
++		# Host rejection restores its snapshot. Never leave a speculative ghost.
++		if result.get("state") is Dictionary: state = result.state.duplicate(true)
++		cancel()
++		status.text = "Could not save: " + str(result.get("error", "rejected"))
++	pending_undo = {}
++
++func _inverse(intent: Dictionary) -> Dictionary:
++	match str(intent.get("op", "")):
++		"place": return {"op":"pickup", "id":str(intent.get("item", {}).get("id", ""))}
++		"move", "pickup":
++			var id := str(intent.get("id", intent.get("item", {}).get("id", "")))
++			for item in state.get("items", []):
++				if str(item.get("id", "")) == id: return {"op":"move" if intent.op == "move" else "place", "item":item.duplicate(true)}
++		"style": return {"op":"style", "category":intent.category, "variant":state.get("styles", {}).get(intent.category, Edits.STYLE_CHOICES[intent.category][0])}
++	return {}
++
++func _preview() -> void:
++	var candidate: Array = state.get("items", []).duplicate(true)
++	var existing := Edits._index(candidate, str(draft.get("id", "")))
++	if existing >= 0: candidate[existing] = draft.duplicate(true)
++	else: candidate.append(draft.duplicate(true))
++	var valid := Rules.validate(candidate, room_side).is_empty()
++	preview_changed.emit(draft.duplicate(true), valid)
++	status.text = "Ready to place" if valid else "Placement blocks the room"
++
++func _build() -> void:
++	for child in get_children(): child.queue_free()
++	mouse_filter = Control.MOUSE_FILTER_STOP
++	set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
++	custom_minimum_size = Vector2(0, 164)
++	var box := PanelContainer.new(); add_child(box)
++	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
++	var row := HBoxContainer.new(); box.add_child(row)
++	catalog_grid = GridContainer.new(); catalog_grid.columns = 8; row.add_child(catalog_grid)
++	var controls := VBoxContainer.new(); row.add_child(controls)
++	status = Label.new(); status.text = "Choose an owned item"; controls.add_child(status)
++	var arrows := HBoxContainer.new(); controls.add_child(arrows)
++	for direction in [["←",-1.0,0.0],["→",1.0,0.0],["↑",0.0,-1.0],["↓",0.0,1.0]]:
++		var button := Button.new(); button.text = direction[0]; arrows.add_child(button)
++		button.pressed.connect(func(): move_by(direction[1], direction[2]))
++	var rotate := Button.new(); rotate.text = "Rotate"; controls.add_child(rotate); rotate.pressed.connect(rotate_selected)
++	var fine_button := CheckButton.new(); fine_button.text = "Fine placement"; controls.add_child(fine_button)
++	fine_button.toggled.connect(func(value: bool): fine = value)
++	place_button = Button.new(); place_button.text = "Place / move"; controls.add_child(place_button); place_button.pressed.connect(place_selected)
++	pick_button = Button.new(); pick_button.text = "Pick up"; controls.add_child(pick_button); pick_button.pressed.connect(pickup_selected)
++	var cancel_button := Button.new(); cancel_button.text = "Cancel"; controls.add_child(cancel_button); cancel_button.pressed.connect(cancel)
++	var undo_button := Button.new(); undo_button.text = "Undo"; controls.add_child(undo_button); undo_button.pressed.connect(undo_last)
++	var close_button := Button.new(); close_button.text = "Done"; controls.add_child(close_button); close_button.pressed.connect(close_room)
++	var styles := HBoxContainer.new(); row.add_child(styles)
++	for category in Edits.STYLE_CHOICES:
++		var choice := OptionButton.new(); choice.tooltip_text = str(category).capitalize(); styles.add_child(choice)
++		for variant in Edits.STYLE_CHOICES[category]: choice.add_item(str(variant).replace("_", " "))
++		choice.item_selected.connect(func(index: int): set_style(category, str(Edits.STYLE_CHOICES[category][index])))
++
++func _refresh_catalog() -> void:
++	if not is_instance_valid(catalog_grid): return
++	for child in catalog_grid.get_children(): child.queue_free()
++	for option in owned_options:
++		var kind := str(option.get("kind", ""))
++		if not Rules.FOOTPRINTS.has(kind): continue
++		var button := Button.new(); button.custom_minimum_size = Vector2(72, 72)
++		button.icon = _thumbnail(kind); button.expand_icon = true
++		button.tooltip_text = str(option.get("name", kind))
++		catalog_grid.add_child(button)
++		button.pressed.connect(func(): select_owned(option))
++
++func _thumbnail(kind: String) -> Texture2D:
++	if _thumbnail_cache.has(kind): return _thumbnail_cache[kind]
++	var image := Image.create(64, 64, false, Image.FORMAT_RGBA8)
++	image.fill(Color("e5e0d4"))
++	var size: Vector2 = Rules.FOOTPRINTS[kind]
++	var width := clampi(roundi(size.x * 25.0), 12, 48)
++	var height := clampi(roundi(size.y * 20.0), 12, 48)
++	var color := Color("668084") if kind in ["bed", "rug", "poster"] else Color("806b52")
++	image.fill_rect(Rect2i(32-(width >> 1), 32-(height >> 1), width, height), color)
++	var texture := ImageTexture.create_from_image(image)
++	_thumbnail_cache[kind] = texture
++	return texture
+--- a/scripts/campus/dorms/integration/coordinator.gd
++++ b/scripts/campus/dorms/integration/coordinator.gd
+@@ -1,89 +1,459 @@
+ extends Node
+-const Authority = preload("res://scripts/campus/dorms/authority/network_adapter.gd")
+-const Router = preload("res://scripts/campus/dorms/interactions/personal_station_router.gd")
+-const Fallback = preload("res://scripts/campus/dorms/interactions/shop_fallback_policy.gd")
++const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
++const Router=preload("res://scripts/campus/dorms/interactions/personal_station_router.gd")
+ var game: Node
+ var hall: Node3D
+-var authority: Node
+ var router: Node
+ var snapshot := {}
+ var epoch := 0
+ var sequence := 0
+-
++var leases := {}
++var occupants := {}
++var sequences := {}
++var clock := 0.0
++var ledger_id := 0
++var directory: Window
++var operation_window: Window
++var computer_stations := {}
++var observed_local_room := ""
++var interiors := {}
++var interior_versions := {}
++var decorate: Control
++var decorate_room := ""
++var preview: MeshInstance3D
++var directory_pages := {}
+ func build(owner_game: Node) -> void:
+ 	game=owner_game
+ 	hall=preload("res://scripts/campus/dorms/world/dorm_hall.gd").new();game.campus.add_child(hall);hall.build(game.session.MAX_PLAYERS)
+-	authority=Authority.new();authority.name="Authority";add_child(authority)
+-	authority.is_host=func():return multiplayer.is_server()
+-	authority.authenticated_peers=func():return game.session.roster.keys()
+-	authority.peer_is_connected=game.session.peer_connected_now
+-	authority.broadcast_snapshot=func(data: Dictionary):
+-		_receive(data)
+-		for peer in game.session.connected_peers():_receive.rpc_id(int(peer),data)
+ 	router=Router.new();add_child(router);router.configure(game,self)
+ 	for room in hall.room_contracts:
+ 		for kind in ["kit_workshop","loadout","notes"]:
+ 			var target := StaticBody3D.new();target.collision_layer=4;target.collision_mask=0
+ 			target.position=room.workshop_anchor+Vector3(0,1,0) if kind=="kit_workshop" else room.loadout_notes_anchor+Vector3(0,1,-.35 if kind=="notes" else .35)
+ 			var collision := CollisionShape3D.new();var shape := BoxShape3D.new();shape.size=Vector3(.6,.6,.6);collision.shape=shape;target.add_child(collision);hall.add_child(target)
++			target.set_meta("physical_bay",str(room.dorm_id))
+ 			router.register_station(target,str(room.dorm_id),kind)
+ 	game.session.restarted.connect(_restart)
+-	game.session.leaving.connect(func():snapshot={};router.assignment_changed())
+-	game.session.roster_changed.connect(_roster_changed)
++	game.session.leaving.connect(_restart)
++	game.session.roster_changed.connect(_reconcile)
++	game.electronics_trade.authority.profile_ready.connect(func(_peer: int):_reconcile())
++	game.electronics_trade.authority.operation_result.connect(_operation_result)
++	var target := StaticBody3D.new();target.collision_layer=4;target.position=Vector3(13,1,69)
++	var shape := BoxShape3D.new();shape.size=Vector3(1,1,.3)
++	var collision := CollisionShape3D.new();collision.shape=shape;target.add_child(collision);hall.add_child(target);target.set_meta("role","dorm_directory")
++	var label := Label3D.new();label.text="Dorm directory · Locate my room";label.position=Vector3(13,2,69);hall.add_child(label)
+ 	_restart()
+-
++	if game.has_method("install_dorm_rest"):game.install_dorm_rest(self)
++func _ledger():
++	return game.electronics_trade.authority.ledger
+ func _restart() -> void:
+-	sequence=0;snapshot={};epoch+=1
+-	if multiplayer.is_server():
+-		var ids: Array=[]
+-		for room in hall.room_contracts:ids.append(room.dorm_id)
+-		authority.configure(ids,game.session.MAX_PLAYERS,epoch);authority.reconcile()
+-
+-func _roster_changed() -> void:
+-	if multiplayer.is_server():
+-		authority.reconcile()
+-		# Send the complete compact projection to newly admitted peers as well.
+-		authority.broadcast_snapshot.call(authority.model.snapshot())
+-
++	epoch+=1;sequence=0;snapshot={};leases.clear();occupants.clear();sequences.clear()
++	for adapter in interiors.values():adapter.queue_free()
++	interiors.clear();interior_versions.clear()
++	_reconcile()
++func authenticated_identity(peer: int) -> String:
++	if not game.session.roster.has(peer):return ""
++	if not multiplayer.is_server():
++		return str(snapshot.get("identities",{}).get(peer,""))
++	if game.session.online:return str(_ledger().bindings.get(peer,""))
++	return game.school.local_identity if peer==1 else ""
++func _profile(identity: String) -> Dictionary:
++	if game.session.online:return _ledger().state.accounts.get(identity,{}).get("profile",{})
++	return game.electronics.profile.data if identity==game.school.local_identity else {}
++func owner_identity(room: String) -> String:
++	var identity := room.trim_prefix("dorm_")
++	if not multiplayer.is_server():return identity if Dorm.identity_ok(identity) and (snapshot.get("directory",{}).has(room) or room in leases.values()) else ""
++	return identity if Dorm.identity_ok(identity) and _profile(identity).get("dorm",{}).get("room_id")==room else ""
++func is_owner(identity: String,room: String) -> bool:
++	return not identity.is_empty() and owner_identity(room)==identity
++func can_enter(identity: String,room: String) -> bool:
++	if not multiplayer.is_server():return identity in snapshot.get("access",{}).get(room,[])
++	var owner := owner_identity(room)
++	return not owner.is_empty() and Dorm.may_enter(_profile(owner).get("dorm",{}),owner,identity)
++func room_for_peer(peer: int) -> String:
++	var identity := authenticated_identity(peer)
++	if not multiplayer.is_server():return "dorm_"+identity if not identity.is_empty() else ""
++	return str(_profile(identity).get("dorm",{}).get("room_id","")) if not identity.is_empty() else ""
++func assignment_revision() -> int:return int(snapshot.get("revision",0))
++func locate_room(peer: int) -> Dictionary:
++	var room := room_for_peer(peer)
++	return {"room_id":room,"number":_profile(authenticated_identity(peer)).get("dorm",{}).get("number",""),"entrance":_bay_for(room),"directory":Vector3(13,0,69)}
++func _bay_for(room: String) -> String:
++	for bay in leases:
++		if leases[bay]==room:return str(bay)
++	return ""
++func _lease(room: String) -> String:
++	var existing := _bay_for(room)
++	if not existing.is_empty():return existing
++	for contract in hall.room_contracts:
++		var bay: String=contract.dorm_id
++		if not leases.has(bay):
++			leases[bay]=room;return bay
++	for contract in hall.room_contracts:
++		var bay: String=contract.dorm_id
++		if not occupants.values().has(leases[bay]):leases[bay]=room;return bay
++	return ""
++func _reconcile() -> void:
++	if not is_instance_valid(game) or not multiplayer.is_server():return
++	for peer in occupants.keys():
++		if authenticated_identity(int(peer)).is_empty() or not can_enter(authenticated_identity(int(peer)),occupants[peer]):occupants.erase(peer)
++	var desired := []
++	for peer in game.session.roster:
++		var room := room_for_peer(int(peer))
++		if not room.is_empty():desired.append(room)
++	for bay in leases.keys():
++		if leases[bay] not in desired and leases[bay] not in occupants.values():leases.erase(bay)
++	for peer in game.session.roster:
++		var room := room_for_peer(int(peer))
++		if not room.is_empty():_lease(room)
++	_publish()
++func _process(delta: float) -> void:
++	if not is_instance_valid(game):return
++	_bind_computers()
++	if is_instance_valid(decorate) and decorate.visible:
++		var own := room_for_peer(multiplayer.get_unique_id())
++		if own!=decorate_room or not interiors.has(own):decorate.close_room()
++	if not multiplayer.is_server():return
++	clock+=delta
++	if clock<.25:return
++	clock=0
++	if ledger_id!=_ledger().get_instance_id():ledger_id=_ledger().get_instance_id();_reconcile()
++	# Offline profile readiness has no inventory enrollment signal.
++	var local_room := room_for_peer(1)
++	if observed_local_room!=local_room:observed_local_room=local_room;_reconcile()
++	for peer in occupants.keys():
++		var room: String=occupants[peer];var bay := _bay_for(room)
++		var pos: Vector3=game.player.global_position if int(peer)==1 else game.session.poses.get(peer,{}).get("position",Vector3.INF)
++		for contract in hall.room_contracts:
++			if contract.dorm_id==bay and not AABB(contract.bounds_min,contract.bounds_max-contract.bounds_min).grow(.5).has_point(pos):occupants.erase(peer)
++	# A physically open door cannot confer access. Recheck authorization against
++	# host poses, including tailgating and policy changes while visitors are inside.
++	for peer in game.session.roster:
++		var pos: Vector3=game.player.global_position if int(peer)==1 else game.session.poses.get(peer,{}).get("position",Vector3.INF)
++		for contract in hall.room_contracts:
++			if not AABB(contract.bounds_min,contract.bounds_max-contract.bounds_min).has_point(pos):continue
++			var room := str(leases.get(contract.dorm_id,""))
++			if not can_enter(authenticated_identity(int(peer)),room):
++				var outside: Vector3=contract.door+Vector3(1 if contract.side=="west" else -1,0,0)
++				if int(peer)==1:_arrive(outside)
++				else:_arrive.rpc_id(int(peer),outside)
++			else:occupants[peer]=room
++	_publish()
++func _publish() -> void:
++	var rooms := []
++	for bay in leases:
++		var owner := owner_identity(leases[bay])
++		if not owner.is_empty():rooms.append({"bay":bay,"room":Dorm.public_room(_profile(owner))})
++	var listing := {};var identities := {};var access := {}
++	if game.session.online:
++		for account in _ledger().state.accounts.values():
++			var d: Dictionary=account.profile.get("dorm",{})
++			if not d.is_empty():listing[d.room_id]={"number":d.number,"policy":d.policy}
++	else:
++		var d: Dictionary=game.electronics.profile.data.get("dorm",{})
++		if not d.is_empty():listing[d.room_id]={"number":d.number,"policy":d.policy}
++	for peer in game.session.roster:
++		var identity := authenticated_identity(int(peer))
++		if not identity.is_empty():identities[peer]=identity
++	for room in listing:
++		access[room]=[]
++		for identity in identities.values():
++			if can_enter(identity,room):access[room].append(identity)
++	var data := {"schema":2,"epoch":epoch,"revision":int(snapshot.get("revision",0))+1,"rooms":rooms,"directory":listing,"identities":identities,"access":access,"occupants":occupants.duplicate(true)}
++	_receive(_directory_page(data,1))
++	for peer in game.session.connected_peers():_receive.rpc_id(int(peer),_directory_page(data,int(peer)))
++func _directory_page(data: Dictionary,peer: int) -> Dictionary:
++	var next := data.duplicate(true)
++	var ids: Array=data.directory.keys();ids.sort()
++	var pages := maxi(1,ceili(float(ids.size())/32.0))
++	var page := clampi(int(directory_pages.get(peer,0)),0,pages-1)
++	next.directory={};next.access={};next.directory_page=page;next.directory_pages=pages
++	var visible: Array=leases.values().duplicate()
++	for index in range(page*32,mini((page+1)*32,ids.size())):
++		var room: String=ids[index];next.directory[room]=data.directory[room];visible.append(room)
++	var own := room_for_peer(peer)
++	if data.directory.has(own):next.directory[own]=data.directory[own];visible.append(own)
++	for room in visible:
++		if data.access.has(room):next.access[room]=data.access[room]
++	return next
+ @rpc("authority","call_remote","reliable",7)
+ func _receive(data: Dictionary) -> void:
+-	if data.get("schema")!=1 or data.get("capacity")!=game.session.MAX_PLAYERS or var_to_bytes(data).size()>8192:return
++	if data.get("schema")!=2 or var_to_bytes(data).size()>262144:return
++	var page_changed: bool=data.get("directory_page",0)!=snapshot.get("directory_page",0)
+ 	snapshot=data.duplicate(true)
+-	for id in hall.door_targets:
+-		var door: Node3D=hall.door_targets[id]
+-		door.get_parent().rotation.y=PI/2 if id in snapshot.get("open_doors",[]) else 0.0
++	leases.clear()
++	for entry in data.get("rooms",[]):
++		leases[entry.bay]=entry.room.room_id
++		if hall.door_targets.has(entry.bay):hall.door_targets[entry.bay].set_meta("label","Enter "+str(entry.room.number))
++	for target in hall.get_children():
++		if target.has_meta("physical_bay"):
++			var bay: String=target.get_meta("physical_bay")
++			router.register_station(target,str(leases.get(bay,"")),str(target.get_meta("station_kind","")))
+ 	router.assignment_changed()
+-	for target in game.shop_room.get_children():
+-		if target.get_meta("role","")=="shop_station":Fallback.filter_legacy_station(router,target)
+-
+-func room_for_peer(peer: int) -> String:
+-	for pair in snapshot.get("assignments",[]):
+-		if int(pair[0])==peer:return str(pair[1])
+-	return ""
+-func authenticated_identity(peer: int) -> String:
+-	return "peer:"+str(peer) if game.session.roster.has(peer) else ""
+-func owner_identity(room: String) -> String:
+-	for pair in snapshot.get("assignments",[]):
+-		if str(pair[1])==room:return authenticated_identity(int(pair[0]))
+-	return ""
+-func assignment_revision() -> int:return int(snapshot.get("revision",0))
++	_sync_interiors(data)
++	if page_changed and is_instance_valid(directory) and directory.visible:_show_directory.call_deferred()
+ func interact(target: Node) -> bool:
++	if is_instance_valid(target) and target.get_meta("role","")=="dorm_decorate":
++		_open_decorate(str(target.get_meta("room_id","")));return true
++	for adapter in interiors.values():
++		if adapter.interact(target,authenticated_identity(multiplayer.get_unique_id())):return true
+ 	if router.interact(target):return true
+-	if not is_instance_valid(target) or target.get_meta("role","")!="dorm_door":return false
+-	var peer := multiplayer.get_unique_id()
+-	var room := str(target.get_meta("dorm_id",""))
+-	if room_for_peer(peer)!=room:return true
++	if not is_instance_valid(target):return false
++	if target.get_meta("role","")=="dorm_directory":_show_directory();return true
++	if target.get_meta("role","")!="dorm_door":return false
++	var room: String=str(leases.get(str(target.get_meta("dorm_id","")),""))
+ 	sequence+=1
+-	var request := {"epoch":snapshot.get("epoch",-1),"sequence":sequence,"open":not room in snapshot.get("open_doors",[])}
+-	if multiplayer.is_server():_door_for(peer,request)
+-	else:_door.rpc_id(1,request)
++	var action := {"op":"enter","room":room,"epoch":snapshot.get("epoch",-1),"sequence":sequence}
++	if multiplayer.is_server():_request_for(multiplayer.get_unique_id(),action)
++	else:_request.rpc_id(1,action)
+ 	return true
+ @rpc("any_peer","call_remote","reliable",7)
+-func _door(request: Dictionary) -> void:
+-	if multiplayer.is_server():_door_for(multiplayer.get_remote_sender_id(),request)
+-func _door_for(peer: int,request: Dictionary) -> void:
+-	var room := room_for_peer(peer)
+-	if not hall.door_targets.has(room):return
+-	var point: Vector3=game.player.global_position if peer==1 else game.session.poses.get(peer,{}).get("position",Vector3.INF)
+-	if point.distance_to(hall.door_targets[room].global_position)>3.0:return
+-	authority.receive_door_request(peer,request)
++func _request(action: Dictionary) -> void:
++	if multiplayer.is_server():_request_for(multiplayer.get_remote_sender_id(),action)
++func _request_for(peer: int,action: Dictionary) -> void:
++	var identity := authenticated_identity(peer)
++	if identity.is_empty() or var_to_bytes(action).size()>1024 or action.get("epoch")!=epoch or not action.get("sequence") is int or action.sequence<=int(sequences.get(peer,0)):return
++	sequences[peer]=action.sequence
++	if action.get("op")=="page":
++		var position: Vector3=game.player.global_position if peer==1 else game.session.poses.get(peer,{}).get("position",Vector3.INF)
++		if position.distance_to(Vector3(13,0,69))>4 or not action.get("page") is int:return
++		directory_pages[peer]=maxi(0,int(action.page));_publish();return
++	var room := str(action.get("room",""))
++	if not can_enter(identity,room):return
++	var pos: Vector3=game.player.global_position if peer==1 else game.session.poses.get(peer,{}).get("position",Vector3.INF)
++	if action.get("op")=="locate":
++		if pos.distance_to(Vector3(13,0,69))>4:return
++		var bay := _lease(room)
++		if bay.is_empty():return
++		_publish();return
++	var bay := _bay_for(room)
++	if not hall.door_targets.has(bay) or pos.distance_to(hall.door_targets[bay].global_position)>3:return
++	occupants[peer]=room
++	for contract in hall.room_contracts:
++		if contract.dorm_id==bay:
++			var inside := AABB(contract.bounds_min,contract.bounds_max-contract.bounds_min).has_point(pos)
++			var destination: Vector3=contract.door+Vector3(1 if contract.side=="west" else -1,0,0) if inside else contract.entry_anchor
++			if inside:occupants.erase(peer)
++			if peer==1:_arrive(destination)
++			else:_arrive.rpc_id(peer,destination)
++@rpc("authority","call_remote","reliable",7)
++func _arrive(point: Vector3) -> void:
++	game.player.global_position=point+Vector3(0,.15,0)
++func _show_directory() -> void:
++	if is_instance_valid(directory):directory.queue_free()
++	directory=Window.new();directory.title="Profile · My dorm";directory.size=Vector2i(580,400);add_child(directory)
++	var box := VBoxContainer.new();directory.add_child(box)
++	var mine := Label.new();mine.text="My room: "+str(game.electronics.profile.data.get("dorm",{}).get("number","Waiting for profile enrollment"));box.add_child(mine)
++	var page_label := Label.new();page_label.text="Directory page %d / %d"%[int(snapshot.get("directory_page",0))+1,int(snapshot.get("directory_pages",1))];box.add_child(page_label)
++	for direction in [-1,1]:
++		var button := Button.new();button.text="Previous page" if direction<0 else "Next page";box.add_child(button)
++		button.pressed.connect(func():
++			sequence+=1
++			var action := {"op":"page","page":int(snapshot.get("directory_page",0))+direction,"epoch":snapshot.get("epoch",-1),"sequence":sequence}
++			if multiplayer.is_server():_request_for(multiplayer.get_unique_id(),action)
++			else:_request.rpc_id(1,action)
++			_show_directory.call_deferred())
++	for policy in ["Private","Invited","Open"]:
++		var button := Button.new();button.text="Access: "+policy;box.add_child(button)
++		button.pressed.connect(func():submit_intent(Crypto.new().generate_random_bytes(16).hex_encode(),{"op":"policy","revision":int(game.electronics.profile.data.get("dorm",{}).get("revision",-1)),"value":policy}))
++	var invitations := LineEdit.new();invitations.placeholder_text="Invited student IDs, separated by commas";box.add_child(invitations)
++	var save_invites := Button.new();save_invites.text="Save invitations";box.add_child(save_invites)
++	save_invites.pressed.connect(func():
++		var ids := []
++		for id in invitations.text.split(",",false):ids.append(id.strip_edges().trim_prefix("D-").trim_prefix("dorm_"))
++		submit_intent(Crypto.new().generate_random_bytes(16).hex_encode(),{"op":"invite","revision":int(game.electronics.profile.data.get("dorm",{}).get("revision",-1)),"value":ids}))
++	for room in snapshot.get("directory",{}):
++		var entry: Dictionary=snapshot.directory[room]
++		var button := Button.new();button.text=str(entry.number)+" · "+_bay_for(room);box.add_child(button)
++		button.pressed.connect(func():
++			sequence+=1
++			var action := {"op":"locate","room":room,"epoch":snapshot.get("epoch",-1),"sequence":sequence}
++			if multiplayer.is_server():_request_for(multiplayer.get_unique_id(),action)
++			else:_request.rpc_id(1,action))
++	directory.close_requested.connect(func():directory.hide();game.capture())
++	game.release_mouse();directory.popup_centered()
++
++func submit_intent(operation_id: String,intent: Dictionary) -> Dictionary:
++	# Local UI adapter only. Multiplayer mutation is still authenticated by the
++	# inventory RPC's sender and ledger binding; no payload identity is accepted.
++	if game.session.online:
++		game.electronics_trade.authority.submit_dorm(operation_id,intent)
++		return {"ok":false,"pending":true}
++	var profile=game.electronics.profile
++	var digest := var_to_bytes(intent).hex_encode().sha256_text()
++	var receipts: Dictionary=profile.data.get("dorm_receipts",{})
++	if receipts.has(operation_id):return {"ok":receipts[operation_id]==digest,"error":"Operation ID conflict" if receipts[operation_id]!=digest else ""}
++	if operation_id.is_empty() or operation_id.length()>96 or receipts.size()>=256:return {"ok":false,"error":"Offline receipt limit"}
++	var reservations: Dictionary=game.electronics_trade.authority.local_craft_reservations()
++	for type in profile.data.get("dorm",{}).get("storage",{}):reservations.counts[type]=int(reservations.counts.get(type,0))-int(profile.data.dorm.storage[type])
++	for id in profile.data.get("dorm",{}).get("instances",[]):reservations.instance_ids.erase(id)
++	var applied: Dictionary=Dorm.apply_intent(profile.data,game.school.local_identity,intent,reservations)
++	if not applied.ok:return applied
++	var before: Dictionary=profile.data
++	profile.data=applied.profile
++	profile.data.dorm_receipts=receipts.duplicate(true);profile.data.dorm_receipts[operation_id]=digest
++	if profile.save()!=OK:profile.data=before;return {"ok":false,"error":"Save failed; unchanged"}
++	_reconcile()
++	if is_instance_valid(operation_window) and operation_window.visible:_open_storage.call_deferred()
++	return {"ok":true,"state":profile.data.dorm.customization,"revision":profile.data.dorm.revision}
++
++func storage_transfer(identity: String,room: String,operation_id: String,item: String,quantity: int,into_storage: bool,instances: Array=[]) -> Dictionary:
++	if identity!=authenticated_identity(multiplayer.get_unique_id()) or not is_owner(identity,room):return {"ok":false,"error":"Owner required"}
++	if quantity<=0:return {"ok":false,"error":"Invalid quantity"}
++	var d: Dictionary=game.electronics.profile.data.get("dorm",{})
++	return submit_intent(operation_id,{"op":"storage","revision":int(d.get("revision",-1)),"item":item,"delta":quantity if into_storage else -quantity,"instances":instances})
++
++func _bind_computers() -> void:
++	if not is_instance_valid(game.get("computers")):return
++	for contract in hall.room_contracts:
++		var bay: String=contract.dorm_id
++		var station := "personal_"+bay
++		if not computer_stations.has(bay):
++			var outward := -1.0 if contract.side=="west" else 1.0
++			var point: Vector3=contract.center+Vector3(-outward*1.65,0,-.95)
++			var chair: int=game.chairs.size();game._add_chair(point)
++			game.chairs[chair].set_physics_process(false)
++			_hide_chair_visuals(game.chairs[chair])
++			if not game.computers.register_station(station,chair,point+Vector3(0,0,-1.6)):continue
++			computer_stations[bay]=station
++		var room := str(leases.get(bay,""))
++		var owner := ""
++		if interiors.has(room):
++			var furnished: Node3D=interiors[room].room
++			if furnished.targets.has("computer") and furnished.targets.computer.visible:
++				owner=owner_identity(room)
++				game.computers.stations[station].anchor=furnished.targets.computer.global_position
++			if furnished.targets.has("study_chair") and furnished.targets.study_chair.visible:
++				var index: int=game.computers.stations[station].chair
++				if game.chairs[index].occupant==0:game.chairs[index].global_position=furnished.targets.study_chair.global_position-Vector3(0,.55,0)
++		game.computers.set_private_owner(station,owner)
++
++func request_personal_computer(room: String) -> bool:
++	var identity := authenticated_identity(multiplayer.get_unique_id())
++	if not is_owner(identity,room):return false
++	var bay := _bay_for(room)
++	if not computer_stations.has(bay):return false
++	game.computers.request({"op":"enter","station":computer_stations[bay]})
++	return true
++
++func _sync_interiors(data: Dictionary) -> void:
++	var active: Array=data.get("occupants",{}).values()
++	for room in interiors.keys():
++		if room not in active and not _resting_in(room):
++			_unregister_bed(room);interiors[room].queue_free();interiors.erase(room);interior_versions.erase(room)
++	for entry in data.get("rooms",[]):
++		var room: String=entry.room.room_id
++		if room not in active:continue
++		var version := var_to_bytes(entry.room.customization).hex_encode().sha256_text()
++		if interiors.has(room) and interior_versions.get(room)==version:continue
++		if _resting_in(room):continue
++		if interiors.has(room):_unregister_bed(room);interiors[room].queue_free();interiors.erase(room)
++		for physical in hall.room_contracts:
++			if physical.dorm_id!=entry.bay:continue
++			var contract: Dictionary=physical.duplicate(true);contract.dorm_id=room
++			var adapter=preload("res://scripts/campus/dorms/integration/room_adapter.gd").new();add_child(adapter)
++			adapter.configure(game,self,game.get("computers"))
++			var rest := func(_transform: Transform3D):
++				if is_instance_valid(game.get("dorm_rest")):game.dorm_rest.request(room)
++			var chair := func(_transform: Transform3D):_request_desk_chair(room)
++			adapter.bind_personal_actions(_open_wardrobe,rest,chair,func(_room: String):_open_storage())
++			# Host-derived access projection controls streaming, never full profiles.
++			var allowed: Array=data.get("access",{}).get(room,[])
++			if allowed.is_empty():adapter.queue_free();continue
++			if not adapter.enter(contract,entry.room,str(allowed[0])):adapter.queue_free();continue
++			interiors[room]=adapter;interior_versions[room]=version
++			if multiplayer.is_server() and is_instance_valid(game.get("dorm_rest")) and adapter.room.targets.has("bed"):
++				var bed: Node3D=adapter.room.targets.bed
++				var anchor: Transform3D=bed.global_transform;anchor.origin+=anchor.basis*Vector3(0,.16,.85)
++				game.dorm_rest.state.register_bed(room,anchor)
++			var target := StaticBody3D.new();target.collision_layer=4;target.position=contract.center+Vector3(0,1,2)
++			var collision := CollisionShape3D.new();var shape := BoxShape3D.new();shape.size=Vector3(.4,.4,.4);collision.shape=shape;target.add_child(collision);adapter.room.add_child(target)
++			target.set_meta("role","dorm_decorate");target.set_meta("room_id",room);target.set_meta("label","Decorate my room")
++
++func _open_wardrobe() -> void:
++	var panel=game.campus_services.get("clothing_panel") if is_instance_valid(game.get("campus_services")) else null
++	if not is_instance_valid(panel):return
++	var profile=game.electronics.profile
++	game.release_mouse();panel.show();panel.open_profile(profile.data,null,profile.get_meta("economy_display",{}))
++
++func _open_storage() -> void:
++	if is_instance_valid(operation_window):operation_window.queue_free()
++	operation_window=Window.new();operation_window.title="Personal storage";operation_window.size=Vector2i(520,480);add_child(operation_window)
++	var scroll := ScrollContainer.new();scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);operation_window.add_child(scroll)
++	var box := VBoxContainer.new();scroll.add_child(box)
++	var p: Dictionary=game.electronics.profile.data
++	for type in p.get("inventory",{}):
++		var row := HBoxContainer.new();box.add_child(row)
++		var label := Label.new();label.text=str(type)+" · stored "+str(p.get("dorm",{}).get("storage",{}).get(type,0));row.add_child(label)
++		for delta in [1,-1]:
++			var button := Button.new();button.text="Store one" if delta==1 else "Retrieve one";row.add_child(button)
++			button.pressed.connect(func():
++				var identity := authenticated_identity(multiplayer.get_unique_id())
++				var result := storage_transfer(identity,"dorm_"+identity,Crypto.new().generate_random_bytes(16).hex_encode(),str(type),1,delta==1)
++				if not result.get("ok",false) and not result.get("pending",false):game.ui.log_message(str(result.get("error","Storage rejected"))))
++	for instance in p.get("component_instances",{}):
++		var item: Dictionary=p.component_instances[instance]
++		var button := Button.new();var stored: bool=instance in p.get("dorm",{}).get("instances",[])
++		button.text=("Retrieve " if stored else "Store ")+str(item.type)+" · "+str(instance);box.add_child(button)
++		button.pressed.connect(func():
++			var identity := authenticated_identity(multiplayer.get_unique_id())
++			var result := storage_transfer(identity,"dorm_"+identity,Crypto.new().generate_random_bytes(16).hex_encode(),str(item.type),1,not stored,[instance])
++			if not result.get("ok",false) and not result.get("pending",false):game.ui.log_message(str(result.get("error","Storage rejected"))))
++	operation_window.close_requested.connect(func():operation_window.hide();game.capture())
++	game.release_mouse();operation_window.popup_centered()
++
++func _open_decorate(room: String) -> void:
++	if not is_owner(authenticated_identity(multiplayer.get_unique_id()),room):return
++	if not interiors.has(room):return
++	if is_instance_valid(decorate):decorate.queue_free()
++	var layer := CanvasLayer.new();add_child(layer)
++	decorate=preload("res://scripts/campus/dorms/customization/decorate_panel.gd").new();layer.add_child(decorate);decorate_room=room
++	var options: Array[Dictionary]=[]
++	for id in Dorm.DEFAULTS:options.append({"id":id,"kind":id,"name":id.replace("_"," ")})
++	var profile: Dictionary=game.electronics.profile.data
++	for type in profile.inventory:
++		if int(profile.inventory[type])>0:options.append({"id":"display:"+str(type),"kind":"display","name":"Display "+str(type)})
++	decorate.open_room(profile.dorm.customization,options,"west",func(edit: Dictionary) -> Dictionary:
++		var result := submit_intent(Crypto.new().generate_random_bytes(16).hex_encode(),{"op":"edit","revision":int(game.electronics.profile.data.dorm.revision),"edit":edit})
++		return {} if result.get("pending",false) else result)
++	decorate.closed.connect(func():
++		if is_instance_valid(preview):preview.queue_free();preview=null
++		layer.queue_free();game.capture())
++	decorate.preview_changed.connect(_preview_changed)
++	game.release_mouse()
++
++func _operation_result(op: String,result: Dictionary) -> void:
++	if op!="dorm":return
++	if result.get("ok",false) and is_instance_valid(operation_window) and operation_window.visible:_open_storage.call_deferred()
++	if is_instance_valid(decorate) and decorate.visible:
++		var d: Dictionary=result.get("profile",{}).get("dorm",game.electronics.profile.data.get("dorm",{}))
++		decorate.accept_result({"ok":result.get("ok",false),"error":result.get("error",""),"state":d.get("customization",{}),"revision":d.get("revision",-1)})
++	if multiplayer.is_server():_publish()
++
++func _preview_changed(item: Dictionary,valid: bool) -> void:
++	if is_instance_valid(preview):preview.queue_free();preview=null
++	if item.is_empty():return
++	var bay := _bay_for(decorate_room)
++	for contract in hall.room_contracts:
++		if contract.dorm_id!=bay:continue
++		preview=MeshInstance3D.new();var mesh := BoxMesh.new()
++		var rect: Rect2=preload("res://scripts/campus/dorms/customization/placement_rules.gd").footprint(item)
++		mesh.size=Vector3(rect.size.x,.4,rect.size.y);preview.mesh=mesh
++		var material := StandardMaterial3D.new();material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA;material.albedo_color=Color(0.3,0.8,0.6,.35) if valid else Color(1,.2,.2,.35);preview.material_override=material
++		preview.position=contract.center+Vector3(float(item.x)*(1 if contract.side=="west" else -1),.3,float(item.z));hall.add_child(preview)
++
++func _resting_in(room: String) -> bool:
++	if not is_instance_valid(game.get("dorm_rest")):return false
++	for state in game.dorm_rest.public_states.values():
++		if state.room==room:return true
++	return false
++func _unregister_bed(room: String) -> void:
++	if multiplayer.is_server() and is_instance_valid(game.get("dorm_rest")):game.dorm_rest.state.beds.erase(room)
++func _request_desk_chair(room: String) -> void:
++	var bay := _bay_for(room)
++	if computer_stations.has(bay) and is_owner(authenticated_identity(multiplayer.get_unique_id()),room):game._request_chair(int(game.computers.stations[computer_stations[bay]].chair))
++func _hide_chair_visuals(node: Node) -> void:
++	for child in node.get_children():
++		if child is VisualInstance3D:child.hide()
++		_hide_chair_visuals(child)
++

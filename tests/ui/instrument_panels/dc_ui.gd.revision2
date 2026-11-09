@@ -1,0 +1,176 @@
+extends CanvasLayer
+const UI = preload("res://scripts/ui/design_system/widgets.gd")
+const Skin = preload("res://scripts/ui/design_system/theme.gd")
+const Layout = preload("res://scripts/ui/instrument_panels/layout.gd")
+var system: Node
+var station := 0
+var screen: PanelContainer
+var readout: Label
+var scope_panel: Control
+var scope_view: Control
+var metrics: Label
+var wiring: ItemList
+var wire_a: OptionButton
+var wire_b: OptionButton
+var notice: Label
+var active := false
+var editing := false
+var channels_text: Array=[]
+var current_source_readout: Label
+var master_button: Button
+var channel_inputs: Array[SpinBox] = []
+var source_readouts: Array[Label] = []
+var live_controls: Array = []
+func build(owner_system: Node) -> void:
+	system=owner_system;layer=40
+	screen=PanelContainer.new();screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen.offset_left=24;screen.offset_top=24;screen.offset_right=-24;screen.offset_bottom=-24
+	add_child(screen);screen.hide()
+	screen.theme=Skin.create()
+func close() -> void:
+	active=false;screen.hide();system.game.capture()
+func button(parent: Node,label: String,callback: Callable) -> Button:
+	var key := "switch" if "output" in label.to_lower() else "circuit" if "lead" in label.to_lower() else UI.action_icon(label)
+	var b := UI.action(label,key,callback);parent.add_child(b);return b
+func label(parent: Node,value: String) -> Label:
+	var l := UI.text(value);parent.add_child(l);return l
+func number(parent: Node,name: String,value: float,minimum: float,maximum: float,increment: float,callback: Callable) -> SpinBox:
+	var spin := Layout.number(parent,name,value,minimum,maximum,increment)
+	spin.value_changed.connect(callback)
+	return spin
+func choice(parent: Node,values: Array,current: String,callback: Callable) -> OptionButton:
+	var option := OptionButton.new();option.custom_minimum_size.y=44;option.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	for s in values:
+		option.add_item(s);option.set_item_metadata(option.item_count-1,s)
+	option.select(maxi(values.find(current),0));parent.add_child(option)
+	option.item_selected.connect(func(i):callback.call(values[i]))
+	return option
+func send(action: Dictionary) -> void:
+	system.request(station,action)
+func open(index: int) -> void:
+	station=index;active=true;system.game.release_mouse();screen.show()
+	for c in screen.get_children():screen.remove_child(c);c.queue_free()
+	channels_text.clear();channel_inputs.clear();source_readouts.clear();live_controls.clear()
+	var data: Dictionary=system.states[index]
+	var margin := MarginContainer.new();screen.add_child(margin)
+	for side in ["left","right","top","bottom"]:margin.add_theme_constant_override("margin_"+side,18)
+	var column := VBoxContainer.new();margin.add_child(column)
+	column.add_child(UI.header("DC lab · Station %02d"%(index+1),"Bench instruments · isolated supplies, measurements and leads",close))
+	notice=label(column,"Connect terminals in the Leads tab. Outputs start disabled. Each station is independent.")
+	var tabs := TabContainer.new();tabs.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(tabs)
+	var supply := Layout.page(tabs,"Power supply","switch")
+	master_button=button(supply,"Master output",func():send({"op":"master"}))
+	var columns := Layout.grid(supply)
+	for i in range(3):
+		var c := Layout.section(columns,"Channel %d"%(i+1),"Isolated · CH%d+ / CH%d−"%[i+1,i+1],"switch")
+		channels_text.append(label(c,""))
+		var voltage_input := number(c,"Voltage · V",data.channels[i].voltage,0,30,.1,func(v):send({"op":"channel","index":i,"key":"voltage","value":v}))
+		channel_inputs.append(voltage_input)
+		_watch(voltage_input,["channels",i,"voltage"])
+		_watch(number(c,"Current limit · A",data.channels[i].limit,.001,1,.01,func(v):send({"op":"channel","index":i,"key":"limit","value":v})),["channels",i,"limit"])
+		var enabled := CheckButton.new();enabled.text="Channel enabled";enabled.button_pressed=data.channels[i].enabled;c.add_child(enabled)
+		enabled.toggled.connect(func(v):send({"op":"channel","index":i,"key":"enabled","value":v}))
+		_watch(enabled,["channels",i,"enabled"])
+		for voltage in [3.3,5.0,12.0]:button(c,"Set %.1f V"%voltage,func():send({"op":"channel","index":i,"key":"voltage","value":voltage});voltage_input.set_value_no_signal(voltage))
+	label(supply,"0–30 V / 1 A per channel · 10 mΩ output resistance · current-limited CV/CC model\nConnect +/− in series for higher voltage. Parallel only at matching settings. No mains connection.")
+	var current := Layout.page(tabs,"Current source","circuit")
+	current_source_readout=label(current,"")
+	label(current,"Independent current source · IS+ / IS− · positive current leaves IS+. Master output also enables this source.")
+	var current_columns := Layout.grid(current,280,4)
+	for source_index in 4:
+		var source: Dictionary=data.current_sources[source_index]
+		var source_column := Layout.section(current_columns,"Source %d"%(source_index+1),"Independent current regulator","circuit")
+		source_readouts.append(label(source_column,""))
+		label(source_column,"SOURCE %d · IS%s+ / IS%s−"%[source_index+1,"" if source_index==0 else str(source_index+1),"" if source_index==0 else str(source_index+1)])
+		var source_enabled := CheckButton.new();source_enabled.text="Output enabled";source_enabled.button_pressed=source.enabled;source_column.add_child(source_enabled)
+		source_enabled.toggled.connect(func(on):send({"op":"current_source","index":source_index,"key":"enabled","value":on}))
+		_watch(source_enabled,["current_sources",source_index,"enabled"])
+		_watch(number(source_column,"Setpoint · A",source.current,-1,1,.001,func(value):send({"op":"current_source","index":source_index,"key":"current","value":value})),["current_sources",source_index,"current"])
+		_watch(number(source_column,"Compliance · V",source.compliance,.1,30,.1,func(value):send({"op":"current_source","index":source_index,"key":"compliance","value":value})),["current_sources",source_index,"compliance"])
+	label(current,"Maintains the set current until the output reaches ±compliance voltage. At that limit, current falls with the actual connected load. 1 GΩ output resistance; 10 mΩ compliance-mode resistance.")
+	var meter_tab := Layout.page(tabs,"Multimeter","search")
+	meter_tab=Layout.section(meter_tab,"Digital multimeter","Live reading · VΩ / A / COM","search")
+	readout=label(meter_tab,"");readout.add_theme_font_size_override("font_size",42)
+	var meter_mode_control := choice(Layout.selector(meter_tab,"Measurement mode"),["DC V","AC V","DC A","AC A","Resistance","Continuity","Diode","Capacitance","Frequency","Duty"],data.meter_mode,func(v):send({"op":"meter","mode":v}))
+	_watch(meter_mode_control,["meter_mode"])
+	label(meter_tab,"VΩ + COM: voltage / passive tests. A + COM: 0.1 Ω current shunt, 1 A fuse.\nVoltage input: 10 MΩ. AC readings exclude the DC component.\nResistance / continuity / diode: all bench sources must be disabled.\nCapacitance: isolate the capacitor and connect it to VΩ / COM.")
+	var ranges := ["Auto","0.0002","0.002","0.02","0.2","2","20","200"]
+	choice(Layout.selector(meter_tab,"Full-scale range · V / A"),ranges,"Auto" if float(data.get("meter_range",0))==0 else str(data.meter_range),func(value):send({"op":"meter_range","value":0 if value=="Auto" else float(value)}))
+	label(meter_tab,"Manual full-scale range applies to voltage (V) and current (A); overload displays OL.")
+	button(meter_tab,"Replace current fuse (outputs off)",func():send({"op":"fuse"}))
+	var gen := Layout.page(tabs,"Function generator","settings")
+	gen=Layout.section(gen,"Signal output","GEN / REF · open-circuit peak amplitude","settings")
+	var en := CheckButton.new();en.text="Output enabled";en.button_pressed=data.generator.enabled;gen.add_child(en)
+	en.toggled.connect(func(v):send({"op":"generator","key":"enabled","value":v}))
+	_watch(en,["generator","enabled"])
+	var waveform_control := choice(Layout.selector(gen,"Waveform"),["Sine","Square","Triangle","Sawtooth","Pulse","DC"],data.generator.wave,func(v):send({"op":"generator","key":"wave","value":v}))
+	_watch(waveform_control,["generator","wave"])
+	for spec in [["frequency","Frequency · Hz",.1,100,.1],["amplitude","Peak amplitude · V",0,10,.1],["offset","DC offset · V",-10,10,.1],["phase","Phase · degrees",0,360,1],["duty","Duty · fraction",.05,.95,.01],["resistance","Output impedance · Ω",1,1000,1]]:
+		_watch(number(gen,spec[1],data.generator[spec[0]],spec[2],spec[3],spec[4],func(v):send({"op":"generator","key":spec[0],"value":v})),["generator",spec[0]])
+	label(gen,"GEN / REF terminals · bounded 0.1–100 Hz teaching range · amplitude is open-circuit peak")
+	var osc := Layout.page(tabs,"Oscilloscope","circuit")
+	scope_panel=preload("res://scripts/dc_scope/scope_panel.gd").new(); scope_panel.size_flags_vertical=Control.SIZE_EXPAND_FILL; osc.add_child(scope_panel)
+	scope_panel.command.connect(send); scope_panel.build(data)
+	scope_view=scope_panel.trace; metrics=scope_panel.metrics
+	var leads := Layout.page(tabs,"Leads & components","circuit")
+	var tools := Layout.section(leads,"Patch leads","Choose source and destination terminals","circuit")
+	var ports: Array=preload("res://scripts/dc_station.gd").PORTS.filter(func(port):return not str(port).begins_with("X"))
+	var pin_names := {}
+	if data.get("board",{}).get("standalone",false):
+		var part: Dictionary=data.board.parts[0];var definition: Dictionary=data.board.definitions[part.type]
+		for i in definition.pins.size():var port := "X%d"%(i+1);ports.append(port);pin_names[port]=str(definition.pins[i].name)
+	wire_a=choice(Layout.selector(tools,"From terminal"),ports,"CH1+",func(_v):pass);wire_b=choice(Layout.selector(tools,"To terminal"),ports,"R1a",func(_v):pass)
+	for picker in [wire_a,wire_b]:
+		for i in picker.item_count:
+			var port: String=ports[i];picker.set_item_metadata(i,port)
+			if pin_names.has(port):picker.set_item_text(i,port+" · "+pin_names[port])
+	button(tools,"Attach lead",func():send({"op":"wire","a":wire_a.get_selected_metadata(),"b":wire_b.get_selected_metadata()}))
+	button(tools,"Remove selected lead",func():
+		if wiring.get_selected_items().size()>0:send({"op":"unwire","index":wiring.get_selected_items()[0]})
+	)
+	button(tools,"Disconnect all / outputs off",func():send({"op":"clear"}))
+	for i in range(2):_watch(number(tools,"R%d · Ω"%(i+1),data.resistance[i],1,1e6,1,func(v):send({"op":"resistor","index":i,"value":v})),["resistance",i])
+	_watch(number(tools,"Capacitor · μF",data.capacitance*1e6,.001,10000,.1,func(v):send({"op":"capacitor","value":v*1e-6})),["capacitance"],1e6)
+	label(tools,"D: piecewise silicon diode · anode Da / cathode Db\nR1/R2: 1 Ω–1 MΩ load modules\nC: backward-Euler storage model")
+	wiring=ItemList.new();wiring.custom_minimum_size=Vector2(0,180);wiring.size_flags_horizontal=Control.SIZE_EXPAND_FILL;Layout.section(leads,"Connected leads","Select a lead to remove it","network").add_child(wiring)
+	refresh()
+	master_button.call_deferred("grab_focus")
+func refresh() -> void:
+	if not active:return
+	var data: Dictionary=system.states[station];var result: Dictionary=data.result
+	if is_instance_valid(current_source_readout):
+		var source_lines: Array=[]
+		for source_index in 4:
+			var source_id := "isource"+("" if source_index==0 else str(source_index+1))
+			source_lines.append("I%d · %s · %.5f A · %.4f V"%[source_index+1,result.get("mode",{}).get(source_id,"OFF"),-float(result.get("i",{}).get(source_id,0)),float(result.get("drop",{}).get(source_id,0))])
+		current_source_readout.text="Live source measurements · master-controlled outputs"
+		for i in source_readouts.size():source_readouts[i].text=source_lines[i]
+	for i in range(channels_text.size()):
+		var id := "s%d"%i
+		var v: float=result.get("drop",{}).get(id,0);var a: float=-float(result.get("i",{}).get(id,0))
+		channels_text[i].text="%s\n%07.3f V\n%07.4f A\n%.3f W"%[result.get("mode",{}).get(id,"OFF"),v,a,v*a]
+	master_button.text="Master output · ON" if data.get("master",false) else "Master output · OFF"
+	master_button.theme_type_variation="PrimaryButton" if data.get("master",false) else "Button"
+	_sync_controls(data)
+	readout.text=data.meter
+	notice.text="Connect terminals in Leads & components. Master controls supplies and current sources; generator has its own output switch." if result.get("ok",true) else str(result.get("error","Solve failed"))
+	notice.theme_type_variation="MutedLabel" if result.get("ok",true) else "ErrorLabel"
+	if is_instance_valid(scope_panel):scope_panel.refresh(data)
+	var selected := wiring.get_selected_items();wiring.clear()
+	for wire in data.wires:wiring.add_item("%s  →  %s"%wire)
+	if selected.size()>0 and selected[0]<wiring.item_count:wiring.select(selected[0])
+
+func _watch(control: Control, path: Array, multiplier := 1.0) -> void:
+	live_controls.append({"control":control,"path":path,"multiplier":multiplier})
+
+func _sync_controls(data: Dictionary) -> void:
+	for entry in live_controls:
+		var control: Control=entry.control
+		var value: Variant=data
+		for key in entry.path:value=value[key]
+		if control is SpinBox:
+			if not control.get_line_edit().has_focus():control.set_value_no_signal(float(value)*float(entry.multiplier))
+		elif control is CheckButton:control.set_pressed_no_signal(bool(value))
+		elif control is OptionButton and not control.has_focus():
+			for i in control.item_count:
+				if control.get_item_metadata(i)==value:control.select(i);break

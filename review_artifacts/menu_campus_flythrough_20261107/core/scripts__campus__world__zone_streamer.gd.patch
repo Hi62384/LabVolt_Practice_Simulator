@@ -1,0 +1,41 @@
+--- a/scripts/campus/world/zone_streamer.gd
++++ b/scripts/campus/world/zone_streamer.gd
+@@ -19,6 +19,8 @@
+ var slow_streak := 0
+ var recovery_admissions := 0
+ var viewer := Vector3(13,0,-18)
++var _menu_mode := false
++var _menu_rooms := PackedStringArray()
+ 
+ func register_content(id: String, root: Node3D) -> bool:
+ 	if not registry.rooms.has(id) or not is_instance_valid(root): return false
+@@ -40,13 +42,28 @@
+ 	set_viewer_position(viewer)
+ 	return true
+ 
++func set_menu_rooms(rooms: PackedStringArray) -> void:
++	_menu_mode = true
++	_menu_rooms = rooms
++	_update_desired_rooms()
++
++func clear_menu_rooms() -> void:
++	_menu_mode = false
++	_menu_rooms = PackedStringArray()
++	_update_desired_rooms()
++
+ func set_viewer_position(point: Vector3) -> void:
+ 	viewer=point
++	if not _menu_mode:
++		_update_desired_rooms()
++
++func _update_desired_rooms() -> void:
++	var point := viewer
+ 	for id in registry.rooms:
+ 		var room: Dictionary=registry.rooms[id]
+ 		var center: Vector3=registry.vector(room.center)
+ 		var same_floor := absf(point.y-center.y)<2.6
+-		var wanted := same_floor and Vector2(point.x-center.x,point.z-center.z).length()<view_distance
++		var wanted := _menu_rooms.has(id) if _menu_mode else (same_floor and Vector2(point.x-center.x,point.z-center.z).length()<view_distance)
+ 		# No request churn: replace pending desire for the same zone.
+ 		for index in range(queue.size()-1,-1,-1):
+ 			if queue[index].id==id: queue.remove_at(index)

@@ -1,0 +1,5 @@
+Reviewer-owned V9 preflight rerun
+Command: Python311 python.exe -B -m unittest -v eight_participants_v8/test_v8_contract.py
+Ran 11 tests in 6.713s
+
+OK

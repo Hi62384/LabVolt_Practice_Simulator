@@ -1,0 +1,1 @@
+PASS: 19 exact assembled files; 3 unchanged live preimages; local resource closure; balanced delimiters; single panel mount; required real callbacks; board/IC/PCB entry paths; package rollback correction; type-filtered saved projects. No engine parse, fixture execution or screenshots.

@@ -1,0 +1,277 @@
+[
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\bas\\work\\dc_expansion\\current-regressions\\result.json",
+    "sha256": "1a06ce9ad9c8378210fe4242129e119a63f61cad7569c3092e3fcc0a5162becf",
+    "provenance": "Existing receipt read only; no rerun by documentation worker.",
+    "reported_results": [
+      {
+        "name": "electrical",
+        "passed": true
+      },
+      {
+        "name": "instruments",
+        "passed": true
+      },
+      {
+        "name": "extended",
+        "passed": true
+      },
+      {
+        "name": "school",
+        "passed": true
+      },
+      {
+        "name": "new_features",
+        "passed": true
+      },
+      {
+        "name": "campus_live",
+        "passed": true
+      },
+      {
+        "name": "campus_facilities",
+        "passed": true
+      },
+      {
+        "name": "academics",
+        "passed": true
+      },
+      {
+        "name": "current_sources",
+        "passed": true
+      },
+      {
+        "name": "native_programming",
+        "passed": true
+      },
+      {
+        "name": "physical_resistors",
+        "passed": true
+      },
+      {
+        "name": "owned_eeprom",
+        "passed": true
+      },
+      {
+        "name": "io_epochs",
+        "passed": true
+      },
+      {
+        "name": "public_device_state",
+        "passed": true
+      }
+    ],
+    "scope": "Historical supporting evidence; not current J whole-feature acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\bas\\work\\dc_expansion\\final-native-1793843403507450300\\result.json",
+    "sha256": "8b28bc4442b33bed44dfe82fb91a7b4bd543050caa50f787bf9a02027b317e2e",
+    "provenance": "Existing receipt read only; no rerun by documentation worker.",
+    "reported_results": [
+      {
+        "name": "pcb-deploy",
+        "passed": true
+      },
+      {
+        "name": "native-main",
+        "passed": true
+      },
+      {
+        "name": "native-composition",
+        "passed": true
+      }
+    ],
+    "scope": "Historical supporting evidence; not current J whole-feature acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_CURRENT_FINAL_ACCEPTANCE_PROGRESS.txt",
+    "sha256": "8d6b3c5b2118c86a41fe8503abbca689e883d38d35428f2c36c6f4ab81e30f28",
+    "provenance": "Existing receipt read only; no rerun by documentation worker.",
+    "scope": "Historical supporting evidence; not current J whole-feature acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_CURRENT_MAIN_ACCEPTANCE_ADDENDUM.txt",
+    "sha256": "c614f8ba7d3ae8ce12548af2c33c6211137e2e735b95bda0e4225f841d3d662a",
+    "provenance": "Existing receipt read only; no rerun by documentation worker.",
+    "scope": "Historical supporting evidence; not current J whole-feature acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\snapshot-20261104-08\\snapshot.json",
+    "sha256": "aab981c18b4f51fdeb353a895ccb15fd7d1e0a3aaae1862bb42e1a48e3903b89",
+    "provenance": "Existing receipt read only; no rerun by documentation worker.",
+    "scope": "Historical supporting evidence; not current J whole-feature acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\snapshot-20261104-10\\snapshot.json",
+    "sha256": "ef39d7c8c4196c820334b3bc32b41463ea4edb6557fdc79863b7349f4284430d",
+    "provenance": "Existing current-J evidence, read only; no rerun.",
+    "scope": "Bounded core/economy/physical PCB evidence; receipt archive is retained/in progress, not passed."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_CURRENT_FREEZE_LOCATION.txt",
+    "sha256": "6896ab1ef800d03d8ba5a61f82ede6e7f401bbebb54ba8d1863b5b32ed2004ca",
+    "provenance": "Existing current-J evidence, read only; no rerun.",
+    "scope": "Bounded core/economy/physical PCB evidence; receipt archive is retained/in progress, not passed.",
+    "prior_review_sha256": "8e52d921af83000cdcfa6fd7fb65735f6baae5cd032a864219d9485d5147c414"
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\bas\\work\\dc_expansion\\pcb-core-j-1793853964860070600\\result.json",
+    "sha256": "c637cf9c40e25ba88967cb7735d7b19448ce0da53a899b268b794782e06a3985",
+    "provenance": "Existing current-J evidence, read only; no rerun.",
+    "scope": "Bounded core/economy/physical PCB evidence; receipt archive is retained/in progress, not passed.",
+    "reported": {
+      "checks": 152,
+      "captures": 8,
+      "source_stable": true,
+      "phase_code": 0,
+      "engine_exit": 0
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\bas\\work\\dc_expansion\\pcb-core-j-1793853964860070600\\phase-results.json",
+    "sha256": "694cb19ae92b19ff8b59c93beed50eb53cb27de808746f67ce8a06846a6a264a",
+    "provenance": "Existing current-J evidence, read only; no rerun.",
+    "scope": "Bounded core/economy/physical PCB evidence; receipt archive is retained/in progress, not passed."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_HANDS_V13_INTEGRATED.json",
+    "sha256": "0c7874de3641212c3e55c2c238dfc72460c440bd4dc33baed4ca3799b92a2b9d",
+    "scope": "Existing scoped private acceptance or source-integration receipt; no rerun. Historical scoped evidence; see latest focused Main archive receipt for current history acceptance.",
+    "summary": {
+      "status": "INTEGRATED SOURCE",
+      "checks": "Private transitive parser +70 actual module/domain checks +17 actualMain checks; five captures independently reviewed. All new own engines normal0/Job0, sourceStable.",
+      "limitations": "No real ENet reconnect/remote gesture or performance acceptance yet. Changes only cosmetic gestures after accepted host actions; no electrical/timestep/reach/canonical connector mutation. Third-person rigs must expose ArmR. First-person art remains low/right rather than obscuring equipment.",
+      "next": "Current main parser/core regression and real multiplayer acceptance; docs source anchors require reviewed refresh."
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_HANDS_V13_ACCEPTANCE1_RESULT.json",
+    "sha256": "4dd60b9df6f149e683329cd8a4fc13da51df556a34be906d92822093e31cd160",
+    "scope": "Existing scoped private acceptance or source-integration receipt; no rerun. Historical scoped evidence; see latest focused Main archive receipt for current history acceptance.",
+    "summary": {
+      "scope": "Private v1.3 first-person pose fix, unchanged v1.2 lifecycle/authority boundary. Sequential max1 actual-engine Job. Real Main actions at explicit valid fixture positions and five images. No live networking/native/helper/compiler/import/export or external inventory; no FPS claim.",
+      "accepted": true,
+      "source_stable": true
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_ARCHIVE_V33_INTEGRATED.json",
+    "sha256": "09808ba64931a017b106a2c0b6030e3dd090c8bea69829c5b043e80e8805ffeb",
+    "scope": "Existing scoped private acceptance or source-integration receipt; no rerun. Historical scoped evidence; see latest focused Main archive receipt for current history acceptance.",
+    "summary": {
+      "status": "INTEGRATED SOURCE / CURRENT MAIN REGRESSION NEXT",
+      "private_actual_acceptance": "118file migration +138production integration +59write/byte-bound checks; three real newly-owned Job termination phases +42recoverychecks each. All actual engine normal0 or intended125 and owned Jobs0 verified; no main saves touched by tests.",
+      "limitations": "No power-loss/OS-crash certificate or long-history/network soak. Immutable archives and profile reward/applied IDs deliberately retained; active receipt maps bounded, total disk history remains.",
+      "next": "Current-main archive/economy/core tests; then multiplayer/course/performance queues."
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_ARCHIVE_PREFIX2_RESULT.json",
+    "sha256": "a559664a3b21dc84a2187ddebba16f0925957a07a3b33110e03ab89560fcf19e",
+    "scope": "Existing scoped private acceptance or source-integration receipt; no rerun. Historical scoped evidence; see latest focused Main archive receipt for current history acceptance.",
+    "summary": {
+      "scope": "Sequential actual engine max1 atomic Job, known-v1 backups/migration, receipt lookups, corrupt history and future schema failclosed. Isolated APPDATA, no main mutation/network/native/helper/compiler/old inventory. No OS-crash or soak claim.",
+      "accepted": true,
+      "source_stable": true
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_ARCHIVE_INTEGRATION1_RESULT.json",
+    "sha256": "188f9066547f8807033b3def5379831bff0fe92c3429fba5795055077c2ef1bf",
+    "scope": "Existing scoped private acceptance or source-integration receipt; no rerun. Historical scoped evidence; see latest focused Main archive receipt for current history acceptance.",
+    "summary": {
+      "scope": "Sequential actual engine max1 atomic Job, known-v1 backups/migration, receipt lookups, corrupt history and future schema failclosed. Isolated APPDATA, no main mutation/network/native/helper/compiler/old inventory. No OS-crash or soak claim.",
+      "accepted": true,
+      "source_stable": true
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_ARCHIVE_LIMITS1_RESULT.json",
+    "sha256": "03ea95471b1c5c1751637610fd72ffb20eccff5080d5a06d47fde317f77635de",
+    "scope": "Existing scoped private acceptance or source-integration receipt; no rerun. Historical scoped evidence; see latest focused Main archive receipt for current history acceptance.",
+    "summary": {
+      "scope": "Sequential actual engine max1 atomic Job, known-v1 backups/migration, receipt lookups, corrupt history and future schema failclosed. Isolated APPDATA, no main mutation/network/native/helper/compiler/old inventory. No OS-crash or soak claim.",
+      "accepted": true,
+      "source_stable": true
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_ARCHIVE_CRASH1_RESULT.json",
+    "sha256": "cb707bd9cc461592cd1230982847528f228ae65c5777bb4a10810dd2e7e6bb44",
+    "scope": "Existing scoped private acceptance or source-integration receipt; no rerun. Historical scoped evidence; see latest focused Main archive receipt for current history acceptance.",
+    "summary": {
+      "scope": "Actual production migration halted by terminating ONLY each newly owned max1 engine Job after exact private engine log barrier, then new actual engine reopens same isolated profile and validates actual bytes/balance/all35receipt IDs. Three write/rename/publication boundaries. No global PID, external old process control, native/helper/compiler/network/render, or main write. Not a power-loss/OS-crash or long-soak certificate.",
+      "accepted": true,
+      "source_stable": true
+    }
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_ARCHIVE_HEAD_INTEGRATED.json",
+    "sha256": "85a79d3ff6c5de17a51d98edf2d27a6c469a1b43a700d44d7ad576083aef0cb0",
+    "summary": {
+      "status": "INTEGRATED IMMUTABLE-HEAD PACKING + ARCHIVE-AWARE TESTFIX",
+      "actual_proof": [
+        "268 actual128purchase/reverse/digest checks within unchanged18sec engine cap, elapsed7.282",
+        "191 oldroot invariants +118file/138integration/59limits actual production tests",
+        "272 exact64/65record and97full digest/historical roots checks",
+        "99 large10trade8MiBappend/full-record/write-rollback checks plus corrected legacy outcome test",
+        "Actual EXISTINGschema2 partial-head replacement:3ownJobkills125 +fresh recovery0 with49/49/50checks, all36IDs/unique4coldrecords/exactbalance/oldheadbytes; observed wrapper delegates real Store.commit"
+      ],
+      "disk_tradeoff": "No immutable blob deletion. Fresh128history left96blobs593920bytes; newhead packs max64records/8MiB, older committed roots remain valid. Only newesthead coalesces; no repair claim for pre-existing fragmented v2chains. Higher retained write volume documented."
+    },
+    "scope": "Existing receipt read only; no test rerun. K/J2/private crash scopes remain distinct from focused current-Main archive acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_MAIN_ARCHIVE1_RESULT.json",
+    "sha256": "ccf6495441a98ef96843b4672bbc9b5936a33d1d84855911d0339b71ef042092",
+    "summary": {
+      "accepted": true,
+      "source_stable": true,
+      "elapsed_seconds": 38.125,
+      "scope": "Current live SOURCE read-only,Focused8 actual current-main archive suites after immutablehead packing +legacy-outcome testfix integration. History retains same18sec cap; current source includes final3opt-in phases but no circuit/model changes. Each profile isolated, no native/compiler/helper work. All writes isolated APPDATA; sequential owned max1 actual-engine Jobs, no actual native firmware/helper/compiler/render/network/export/old process inventory. Normal0+each suite marker+Job0+source stable required. Not performance or final complete multiplayer/course acceptance."
+    },
+    "scope": "Existing receipt read only; no test rerun. K/J2/private crash scopes remain distinct from focused current-Main archive acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_ARCHIVE_HEAD_CRASH1_RESULT.json",
+    "sha256": "d7eab85acb8ee7eb769ca166f90a88950ac0e9f0121fbb3aa1537d6364824aa4",
+    "summary": {
+      "accepted": true,
+      "source_stable": true,
+      "elapsed_seconds": 10.812000000150874,
+      "scope": "Actual existing schema2 partial-head coalescing purchase halted by terminating ONLY each newly owned max1 engine Job after exact private engine log barrier, then new actual engine reopens same isolated profile and validates actual bytes/balance/all36receipt IDs. Three replacement-head write/rename/ordinary commit boundaries. Read-only observer wrapper delegates actual Store.commit; no fake result or alternate persistence. Old complete root/head bytes and full unique records checked. No global PID, external old process control, native/helper/compiler/network/render, or main write. Not a power-loss/OS-crash or long-soak certificate."
+    },
+    "scope": "Existing receipt read only; no test rerun. K/J2/private crash scopes remain distinct from focused current-Main archive acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-03\\task\\labvolt-coordination\\PRIMARY_PHASE_SPANS_FINAL3_INTEGRATED.json",
+    "sha256": "f7e667e9a4bb1ef75173289df6e54ec1c59f4deb280dfbcf1ba6c137bf481e16",
+    "summary": {
+      "status": "FINAL AGREED3AGGREGATE HOOKS INTEGRATED"
+    },
+    "scope": "Existing receipt read only; no test rerun. K/J2/private crash scopes remain distinct from focused current-Main archive acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-04\\labvolt-campus-facilities\\work\\core-practice-J2-run\\practice-result.json",
+    "sha256": "4166b2a5b04d66660784977404b1eda6f569d9eaff5cba2341ec95dc46765421",
+    "summary": {
+      "checks": 57,
+      "failures": 1,
+      "scope": "Scripted production callbacks, canvas hole events and world physics hits; not full manual mouse coverage"
+    },
+    "scope": "Existing receipt read only; no test rerun. K/J2/private crash scopes remain distinct from focused current-Main archive acceptance."
+  },
+  {
+    "path": "C:\\Users\\User1\\Documents\\Codex\\2026-11-04\\labvolt-campus-facilities\\work\\core-practice-J2-run\\window-result.json",
+    "sha256": "3c25d758938819d01dedc9c9c849540eef1c8c5b3f965edebda7bde3b03c75b8",
+    "summary": {
+      "source_stable": true,
+      "elapsed_seconds": 20.219000000040978,
+      "scope": "EXACT_J_CORE_PRACTICE_ENGINE_ONLY",
+      "errors": [
+        "['Actual engine did not exit normally', 'FAIL Actual profile save/reload preserves pin IDs/order and crafted inventory']"
+      ]
+    },
+    "scope": "Existing receipt read only; no test rerun. K/J2/private crash scopes remain distinct from focused current-Main archive acceptance."
+  }
+]

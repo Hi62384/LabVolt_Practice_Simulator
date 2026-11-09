@@ -1,0 +1,44 @@
+--- a/scripts/first_person.gd
++++ b/scripts/first_person.gd
+@@ -3,6 +3,8 @@
+ var safe_recovery = SafeRecovery.new(Vector3(13,0.05,-18))
+ var facility_movement_locked: Callable
+ var inspecting := false
++var resting := false
++var rest_anchor := Transform3D.IDENTITY
+ var seated: CharacterBody3D
+ var seated_look = preload("res://scripts/campus/seating/chair_controls/look_state.gd").new()
+ var chair_entry_position := Vector3.ZERO
+@@ -47,7 +49,23 @@
+ 		yaw_target += horizontal
+ 	pitch_target = clampf(pitch_target-relative.y*sensitivity,-1.46,1.46)
+ 
++func begin_rest(anchor: Transform3D) -> bool:
++	if seated!=null or inspecting or not anchor.is_finite():return false
++	resting=true;rest_anchor=anchor;velocity=Vector3.ZERO
++	collider.set_deferred("disabled",true)
++	global_position=anchor.origin;eyes.position.y=.12
++	return true
++
++func end_rest(destination: Vector3) -> void:
++	resting=false;global_position=destination;velocity=Vector3.ZERO
++	crouched=false;(collider.shape as CapsuleShape3D).height=1.7;collider.position.y=.85
++	collider.set_deferred("disabled",false);eyes.position.y=1.65
++
+ func _physics_process(delta: float) -> void:
++	if resting:
++		global_position=rest_anchor.origin;velocity=Vector3.ZERO
++		eyes.rotation.x=pitch_target
++		return
+ 	if facility_movement_locked.is_valid() and facility_movement_locked.call():
+ 		rotation.y=lerp_angle(rotation.y,yaw_target,1-exp(-25*delta))
+ 		eyes.rotation.x=lerpf(eyes.rotation.x,pitch_target,1-exp(-25*delta))
+@@ -109,7 +127,7 @@
+ 		keys[action] = int(cfg.get_value("keys",action,keys[action]))
+ 
+ func sit(chair: CharacterBody3D) -> void:
+-	if seated!=null or chair.rider!=null:
++	if resting or seated!=null or chair.rider!=null:
+ 		return
+ 	chair_entry_position=global_position
+ 	seated=chair

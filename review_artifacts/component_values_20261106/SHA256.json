@@ -1,0 +1,12 @@
+{
+  "review_artifacts/component_values_20261106/CONTRACT.md": "48c88554b3925baeafebafca76da64bd73c2a359e2d699193ee0c0577b290360",
+  "review_artifacts/component_values_20261106/HANDOFF.md": "25bef36a7c5ccb1c81b1cb6eb2d4edb47d3558d538822bfcb4afce804faa2a24",
+  "review_artifacts/component_values_20261106/shared_integration.patch": "ad09bfc5b11c38cc4ea10cbed4f1e9bbe2e6d579cc88bc6129709dd12445bcfd",
+  "review_artifacts/component_values_20261106/shared_patch.json": "f74f8840ed5b64badbfd5ffb3db690d1341858419e9823bd3fe82b44812f053b",
+  "scripts/electronics/component_values/shop_services.gd": "bbab19b6b8eb63525967873f8c3fccd461d3ce7ce17a43f2a5ef039569474bef",
+  "scripts/electronics/component_values/values.gd": "18ff862f39038e459224f468b5ae42bad15257a08b8196677fb98fedce962f96",
+  "tests/electronics/component_values/offline_checks.py": "789978a39a6d73d4a37f164a4e6673a0bea71a437ce3907529e77900e916cd70",
+  "tests/electronics/component_values/stage_integration.py": "1187b21a63fb7e4b990c6d72390a36dac02be5fed34262edc44d8344b093cc58",
+  "tests/electronics/component_values/test_authority.gd": "c245c8a2c4148552b00f2ff68d52546b42f51ee0c0939c1dcb3d8214f1177b16",
+  "tests/electronics/component_values/test_values.gd": "515de74d7c7b9fe3902d56f06d245a74638eada57f5a6a390160a085d3861753"
+}

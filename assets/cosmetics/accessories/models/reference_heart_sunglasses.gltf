@@ -1,0 +1,215 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Heart Sunglasses",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Heart Sunglasses",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "accent",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.15,
+        "roughnessFactor": 0.4
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    },
+    {
+      "name": "dark_metal",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.75,
+        "roughnessFactor": 0.24
+      },
+      "normalTexture": {
+        "index": 5,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/accent_albedo.png"
+    },
+    {
+      "uri": "../materials/accent_orm.png"
+    },
+    {
+      "uri": "../materials/accent_normal.png"
+    },
+    {
+      "uri": "../materials/dark_metal_albedo.png"
+    },
+    {
+      "uri": "../materials/dark_metal_orm.png"
+    },
+    {
+      "uri": "../materials/dark_metal_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "reference_heart_sunglasses.bin",
+      "byteLength": 189696
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 64512
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 64512,
+      "byteLength": 64512
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 129024,
+      "byteLength": 43008
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 172032,
+      "byteLength": 6624
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 178656,
+      "byteLength": 6624
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 185280,
+      "byteLength": 4416
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC3",
+      "min": [
+        -0.1438020666129067,
+        -0.030096773181072192,
+        0.205
+      ],
+      "max": [
+        0.1438020666129067,
+        0.07534418609478569,
+        0.217
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 5376,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 552,
+      "type": "VEC3",
+      "min": [
+        -0.22432112377853122,
+        -0.028799999999999996,
+        0.010743859366706044
+      ],
+      "max": [
+        0.22432112377853122,
+        0.06953098757201805,
+        0.21245581510326628
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 552,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 552,
+      "type": "VEC2"
+    }
+  ]
+}

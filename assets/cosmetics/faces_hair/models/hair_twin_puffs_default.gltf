@@ -1,0 +1,212 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original faces/hair authoring tool"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Twin Puffs default",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Twin Puffs default",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0,
+          "mode": 4
+        },
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4,
+            "TEXCOORD_0": 5
+          },
+          "material": 1,
+          "mode": 4
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "hair",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.7
+      }
+    },
+    {
+      "name": "hair_highlight",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "index": 4
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.62
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/hair_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_orm.png"
+    },
+    {
+      "uri": "../materials/hair_normal.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_albedo.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_orm.png"
+    },
+    {
+      "uri": "../materials/hair_highlight_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    },
+    {
+      "source": 3
+    },
+    {
+      "source": 4
+    },
+    {
+      "source": 5
+    }
+  ],
+  "samplers": [
+    {}
+  ],
+  "buffers": [
+    {
+      "uri": "hair_twin_puffs_default.bin",
+      "byteLength": 1760256
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 599616
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 599616,
+      "byteLength": 599616
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1199232,
+      "byteLength": 399744
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1598976,
+      "byteLength": 60480
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1659456,
+      "byteLength": 60480
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1719936,
+      "byteLength": 40320
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 49968,
+      "type": "VEC3",
+      "min": [
+        -0.40814719211124595,
+        -0.0005576000000000027,
+        -0.18895890000000004
+      ],
+      "max": [
+        0.41796644044779063,
+        0.4472712139106689,
+        0.17617879999999997
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 49968,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 49968,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 5040,
+      "type": "VEC3",
+      "min": [
+        -0.3718541485933859,
+        0.2401839789574919,
+        -0.07090649754932707
+      ],
+      "max": [
+        0.37421929793092495,
+        0.42350907199841614,
+        0.10549224479380513
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 5040,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 5040,
+      "type": "VEC2"
+    }
+  ]
+}

@@ -1,0 +1,640 @@
+{
+  "course": "MTH255",
+  "title": "Applied Mathematics",
+  "lecture_only": true,
+  "weeks": [
+    {
+      "week": 1,
+      "unit": 1,
+      "title": "Complex number fundamentals",
+      "topics": [
+        "j_power",
+        "complex_convert",
+        "complex_plot",
+        "complex_components"
+      ],
+      "objectives": [
+        "Identify real and imaginary components and j powers.",
+        "Convert rectangular, polar and exponential forms with correct quadrants.",
+        "Explain equivalent angles and plot the same vector in different forms."
+      ],
+      "stages": [
+        {
+          "title": "The imaginary unit",
+          "text": "j²=-1 extends real arithmetic. Powers repeat every four: 1,j,-1,-j. A negative exponent follows the same cycle because j is nonzero.",
+          "math": "j^n=j^(n mod 4)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Coordinates and quadrants",
+          "text": "In a+jb, a is the horizontal real coordinate and b the vertical imaginary coordinate. Magnitude is distance from the origin, never a signed length.",
+          "math": "r=sqrt(a²+b²)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Phase and units",
+          "text": "Use atan2(b,a); atan(b/a) loses quadrant information and fails when a=0. The zero vector has no unique argument. A full revolution changes the phase representation but not the number.",
+          "math": "theta=atan2(b,a); 180 degrees=pi radians",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Equivalent representations",
+          "text": "Euler links a rotating unit vector to a complex exponential. Polar and exponential representations use the same magnitude and phase. Explicitly label degrees or radians.",
+          "math": "a+jb=r*(cos(theta)+j*sin(theta))=r*exp(j*theta)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Try and explain",
+          "text": "Move the vector across an axis. Predict which component changes sign and which quadrant contains the result. Explain why adding a full turn changes neither component.",
+          "math": "theta and theta+2*pi give the same vector",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 2,
+      "unit": 1,
+      "title": "Complex operations, De Moivre and impedance",
+      "topics": [
+        "complex_operation",
+        "complex_power",
+        "complex_roots",
+        "impedance",
+        "impedance_network"
+      ],
+      "objectives": [
+        "Operate on complex numbers in appropriate forms.",
+        "Find and verify all nth roots.",
+        "Apply phasor arithmetic to ideal series and parallel impedances."
+      ],
+      "stages": [
+        {
+          "title": "Choose an efficient form",
+          "text": "Addition and subtraction combine rectangular components. Multiplication distributes with j²=-1. Polar multiplication multiplies magnitudes and adds phases.",
+          "math": "(a+jb)(c+jd)=(ac-bd)+j(ad+bc)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Division and conjugates",
+          "text": "Multiply by the conjugate to obtain a real denominator. A zero denominator is undefined. Reciprocal magnitude inverts and phase negates.",
+          "math": "1/(a+jb)=(a-jb)/(a²+b²)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Powers and roots",
+          "text": "De Moivre scales phase for integer powers. Roots reverse the operation, but a nonzero complex number has n distinct nth roots. Include every k, not only the principal root.",
+          "math": "z_k=r^(1/n)*exp(j*(theta+2*pi*k)/n), k=0,...,n-1",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Phasor circuits",
+          "text": "Ideal linear sinusoidal steady state uses RMS phasors at one common frequency. Resistance is real and reactance imaginary. This calculation is a mathematical model of an AC circuit.",
+          "math": "Zseries=Z1+Z2; Zparallel=Z1*Z2/(Z1+Z2); I=V/Z",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Verify physically and algebraically",
+          "text": "Multiply each root back to the nth power. In a circuit check KVL for series or KCL for parallel and retain ohms, volts and amperes. Zero denominators require separate analysis.",
+          "math": "V=I*Z; I_total=I1+I2",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 3,
+      "unit": 2,
+      "title": "Quadratic equation fundamentals",
+      "topics": [
+        "quadratic",
+        "quadratic_formula"
+      ],
+      "objectives": [
+        "Solve pure, incomplete and full quadratic equations.",
+        "Interpret discriminants and repeated, irrational or nonreal roots.",
+        "Check solutions in the original equation."
+      ],
+      "stages": [
+        {
+          "title": "Put the equation in standard form",
+          "text": "Expand brackets and move every term to one side before reading a,b,c. The quadratic coefficient must be nonzero. Incomplete equations can be easier to solve directly.",
+          "math": "a*x²+b*x+c=0, a≠0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Factoring and zero product",
+          "text": "A product is zero when at least one factor is zero. A repeated factor gives one distinct solution with multiplicity two. Never divide by x without checking x=0.",
+          "math": "a*(x-r1)*(x-r2)=0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Complete the square",
+          "text": "Divide by the leading coefficient, then add the square of half the linear coefficient to both sides. This transforms the equation without losing roots.",
+          "math": "(x+b/(2a))²=(b²-4ac)/(4a²)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Quadratic formula and discriminant",
+          "text": "A positive discriminant gives two distinct real roots, zero gives one repeated real root, and a negative discriminant gives two conjugate nonreal roots. Keep exact radicals when requested.",
+          "math": "x=(-b±sqrt(b²-4ac))/(2a)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Substitute to check",
+          "text": "Evaluate the original left and right sides for every candidate. The sign before a square root creates two candidates, unless the square root is zero.",
+          "math": "a*r²+b*r+c=0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 4,
+      "unit": 2,
+      "title": "Advanced quadratics and applications",
+      "topics": [
+        "rational_quadratic",
+        "radical_quadratic",
+        "biquadratic",
+        "quadratic_application",
+        "quadratic_vertex",
+        "quadratic_system",
+        "polynomial_remaining",
+        "resistor_pair",
+        "engineering_power",
+        "reactance_equation",
+        "rational_transformed",
+        "radical_transformed"
+      ],
+      "objectives": [
+        "Reduce rational, radical and higher-power equations to quadratics.",
+        "Reject extraneous roots and preserve denominator restrictions.",
+        "Use physically meaningful roots and quadratic extrema."
+      ],
+      "stages": [
+        {
+          "title": "Original domains first",
+          "text": "Record excluded denominator zeros before multiplying or cancelling. A cancelled factor does not restore an input that was originally undefined.",
+          "math": "N(x)/D(x)=0 requires N(x)=0 and D(x)≠0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Squaring is not reversible",
+          "text": "Isolate a radical and record its nonnegative side. Squaring can create a candidate with the wrong sign. Only substitution in the original unsquared equation decides validity.",
+          "math": "sqrt(f(x))=g(x) requires f(x)≥0 and g(x)≥0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Substitution and division",
+          "text": "For even powers use u=x², solve the quadratic in u, and recover both signs for positive u. A known polynomial root allows division by x-r; solve the remaining factor as well.",
+          "math": "x^4+B*x²+C=0 becomes u²+B*u+C=0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Systems and engineering",
+          "text": "Substitute one relation into the other, then check both equations. Construct positive dimensions or resistances first when building a model. Algebraic negative roots may not describe a physical length.",
+          "math": "R1+R2=S; R1*R2=P*S",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Maxima and minima",
+          "text": "The vertex occurs at x=-b/(2a). Evaluate y there and check the physical domain endpoints if the model has a restricted interval.",
+          "math": "y=a*(x-h)²+k; sign(a) determines minimum or maximum",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 5,
+      "unit": 3,
+      "title": "Analytical trigonometry and identities",
+      "topics": [
+        "angle_conversion",
+        "exact_trig",
+        "trig_identity",
+        "half_angle",
+        "trig_proof"
+      ],
+      "objectives": [
+        "Convert angle units and calculate exact special-angle values.",
+        "Apply reciprocal, quotient, Pythagorean, sum, difference, double and half-angle identities.",
+        "Preserve domains when proving an identity."
+      ],
+      "stages": [
+        {
+          "title": "The unit circle",
+          "text": "Cosine is the horizontal coordinate and sine the vertical coordinate on a unit circle. Quadrant signs come from coordinates, not memorized decimal approximations.",
+          "math": "sin²(theta)+cos²(theta)=1",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Related angles and reciprocals",
+          "text": "Sine is odd and cosine is even. Tangent is sine divided by cosine where cosine is nonzero. Reciprocal functions introduce their own denominator restrictions.",
+          "math": "sin(-x)=-sin(x); cos(-x)=cos(x); tan(x)=sin(x)/cos(x)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Addition and subtraction",
+          "text": "Expand with the angle-sum formulas before simplifying. For a difference, replace the second angle by its negative and track the signs.",
+          "math": "sin(A±B)=sin(A)cos(B)±cos(A)sin(B)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Double and half angles",
+          "text": "Double-angle forms can trade products for sums or vice versa. A half-angle square root needs a sign chosen from the half-angle quadrant, not always the positive sign.",
+          "math": "sin(2x)=2sin(x)cos(x); cos(2x)=cos²(x)-sin²(x); sin²(x/2)=(1-cos(x))/2",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "A structured proof",
+          "text": "Transform one side using justified equalities until it matches the other. An identity holds throughout its common domain; checking a few angles is not a proof. State all denominator restrictions.",
+          "math": "1+tan²(x)=sec²(x), cos(x)≠0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 6,
+      "unit": 3,
+      "title": "Trigonometric equations, waves and phasors",
+      "topics": [
+        "trig_equation",
+        "waveform",
+        "wave_combine",
+        "wave_threshold",
+        "wave_graph",
+        "wave_from_graph"
+      ],
+      "objectives": [
+        "Find complete solution sets in a specified interval.",
+        "Interpret and graph sinusoidal parameters with consistent units.",
+        "Combine equal-frequency waves and determine phase timing."
+      ],
+      "stages": [
+        {
+          "title": "All angle families",
+          "text": "An inverse sine gives only one principal value. Include the second angle family and complete turns, divide by any angle multiplier, then filter the requested interval.",
+          "math": "sin(u)=sin(alpha): u=alpha+2*pi*k or pi-alpha+2*pi*k",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Read a waveform",
+          "text": "Amplitude is nonnegative peak displacement from the offset. Period, frequency and angular frequency have different units. A phase angle is not a time shift.",
+          "math": "v=A*sin(omega*t+phi); T=2*pi/omega; f=1/T; shift=-phi/omega",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "From function to graph",
+          "text": "Generate critical times from the angle, then evaluate the actual function. Label time in seconds and the vertical physical quantity. Plot at least a full period.",
+          "math": "omega*t+phi=0,pi/2,pi,3*pi/2,2*pi",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Combine equal frequencies",
+          "text": "Expand the target sine form and match coefficients. atan2 preserves the quadrant even when the sine coefficient is negative. Opposite equal waves can cancel completely.",
+          "math": "A*sin(w*t)+B*cos(w*t)=R*sin(w*t+phi); R=sqrt(A²+B²); phi=atan2(B,A)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Thresholds and timing",
+          "text": "Solve both angle families, retain times in the requested domain, and distinguish earliest positive from nonnegative. Positive phase leads the unshifted reference; lead time=phi/omega.",
+          "math": "delta_t=delta_phi/omega",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 7,
+      "unit": 4,
+      "title": "Exponential functions and growth or decay",
+      "topics": [
+        "exponential",
+        "exp_equation",
+        "rc_model",
+        "exp_substitution"
+      ],
+      "objectives": [
+        "Read exponential domains, ranges and asymptotes.",
+        "Solve exponential equations and threshold problems.",
+        "Interpret RC models with correct physical labels and SI units."
+      ],
+      "stages": [
+        {
+          "title": "Growth and decay",
+          "text": "For y=A*exp(k*t), A>0, positive k gives growth and negative k decay. The mathematical domain is all real t and range is positive; elapsed physical time is often t≥0.",
+          "math": "y(0)=A; y=A*exp(k*t)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Inverse relationships",
+          "text": "Divide by the initial value before taking logarithms. A positive exponential cannot equal a nonpositive target over the reals.",
+          "math": "t=ln(y/A)/k, k≠0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Time constants",
+          "text": "For decay exp(-t/tau), tau must be positive. At one tau the remaining fraction is exp(-1); an ideal asymptote is approached, not reached at finite time.",
+          "math": "tau=RC for an ideal RC circuit; tau=L/R for an ideal RL circuit",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Correct circuit quantities",
+          "text": "A charging capacitor voltage rises toward the source while the series current decays. A discharging capacitor voltage and resistor-current magnitude decay. An RL step current rises on L/R.",
+          "math": "vC=E*(1-exp(-t/RC)); iR=(E/R)*exp(-t/RC)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Graph and check",
+          "text": "Change R or C to stretch time without changing the voltage asymptote. Check initial value, long-time value and unit conversions before interpreting the curve.",
+          "math": "R in ohms, C in farads, t and tau in seconds",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 8,
+      "unit": 4,
+      "title": "Logarithms and decibels",
+      "topics": [
+        "log_evaluate",
+        "log_rules",
+        "log_equation",
+        "decibels",
+        "log_variable_base",
+        "decibel_inverse",
+        "log_combine",
+        "log_changebase"
+      ],
+      "objectives": [
+        "Use log laws on valid domains and solve with substitution checks.",
+        "Convert bases and combine or expand logarithms.",
+        "Distinguish power and voltage gain formulas."
+      ],
+      "stages": [
+        {
+          "title": "Definition and domain",
+          "text": "A logarithm asks for an exponent. Its real argument must be positive and its base positive and unequal to one. Natural logs use base e; common logs use base ten.",
+          "math": "log_b(A)=y iff b^y=A",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Laws and change of base",
+          "text": "Products become sums, quotients differences, and powers coefficients on the stated positive domain. A log of a sum cannot be split into logs of its terms.",
+          "math": "log_b(M*N)=log_b(M)+log_b(N); log_b(A)=ln(A)/ln(b)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Solve and validate",
+          "text": "Write every argument restriction before combining logs. Algebra may give multiple roots, but each must satisfy the original arguments and equation.",
+          "math": "log_b(x-h)+log_b(x+h) has domain x>h for h>0",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Decibel gain",
+          "text": "Power gain uses ten times the common logarithm. RMS voltage gain uses twenty times the logarithm when equal positive resistive impedances are assumed. Negative gain means attenuation.",
+          "math": "Gp=10*log10(Pout/Pin); Gv=20*log10(Vout/Vin)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Invert a gain",
+          "text": "Exponentiate to recover a ratio. Keep the sign of gain and convert mW or mV consistently on both sides. Do not mix a power ratio with a voltage formula.",
+          "math": "Pout=Pin*10^(G/10); Vout=Vin*10^(G/20)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 9,
+      "unit": 5,
+      "title": "Descriptive statistics and data",
+      "topics": [
+        "statistics",
+        "frequency"
+      ],
+      "objectives": [
+        "Calculate mean, median, all modes, quartiles and IQR.",
+        "Use the explicitly stated quartile convention.",
+        "Interpret generated measurements and frequency tables."
+      ],
+      "stages": [
+        {
+          "title": "Order and count",
+          "text": "Sort a copy of the observations. Retain repeated values because their frequencies affect the mean, median and quartiles. Count the observations before calculating.",
+          "math": "n=sum(frequency)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Mean and frequency tables",
+          "text": "Arithmetic mean is total divided by count. For a frequency table multiply every distinct value by its count before summing.",
+          "math": "mean=sum(x)/n=sum(f*x)/sum(f)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Median and modes",
+          "text": "The median is the middle value for odd n and average of two middle values for even n. Return every value tied for greatest frequency. In this course all-unique data have no mode.",
+          "math": "Q2=median",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Quartile convention",
+          "text": "Use medians of the lower and upper halves. Include the central observation in both halves when n is odd. The worksheet states this rule because common conventions can differ.",
+          "math": "IQR=Q3-Q1",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Interpret measurements",
+          "text": "Mean summarizes center but does not describe every reading. Keep measurement units and precision; a repeated reading is not necessarily a mistake. Verify weighted totals against expanded data.",
+          "math": "min(data)≤mean≤max(data)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    },
+    {
+      "week": 10,
+      "unit": 5,
+      "title": "Probability and comprehensive review",
+      "topics": [
+        "dice",
+        "coins",
+        "cards",
+        "card_union",
+        "dice_event"
+      ],
+      "objectives": [
+        "Count equally likely outcomes and use complements correctly.",
+        "Distinguish exactly, at least and replacement assumptions.",
+        "Combine fresh practice from all five units."
+      ],
+      "stages": [
+        {
+          "title": "Sample spaces",
+          "text": "Specify the experiment, then count ordered equally likely elementary outcomes. Dice sums are not equally likely. Probability lies from zero through one.",
+          "math": "P(A)=favorable outcomes/total outcomes",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Dice and complements",
+          "text": "For n fair independent six-sided dice there are 6^n ordered face tuples. Enumerate the tuples matching a sum or event. Complementary events partition the entire sample space.",
+          "math": "P(not A)=1-P(A)",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Coins: exactly versus at least",
+          "text": "For n independent fair tosses there are 2^n ordered strings. Exactly k heads selects one count; at least k includes every count k through n.",
+          "math": "P(exactly k)=choose(n,k)/2^n",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Cards and replacement",
+          "text": "Use a standard 52-card deck without jokers. Multiple draws explicitly state replacement. Without replacement, draw probabilities change; with replacement the original counts return.",
+          "math": "P(all eligible, no replacement)=m/52*(m-1)/51*...",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        },
+        {
+          "title": "Comprehensive strategy",
+          "text": "For a mixed problem first identify its unit, domain, representation and units. Draw a diagram where useful, solve, and substitute or recount independently. Practice results do not enter official averages.",
+          "math": "Complex → quadratic → trig → exp/log → statistics/probability",
+          "duration_seconds": 70,
+          "interaction": "predict, manipulate descriptor, explain, then compare generated worked example"
+        }
+      ],
+      "lecture_only": true,
+      "assessment_seconds": 1800,
+      "difficulty_guidance": [
+        "one direct representation or method",
+        "multiple operations or a conversion",
+        "mixed techniques and structured parts",
+        "domain checks and combined transformations",
+        "complete sets and multi-step reasoning"
+      ]
+    }
+  ]
+}

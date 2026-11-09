@@ -1,0 +1,33 @@
+Protective-earth teaching model
+
+Purpose
+An optional, host-configured resistive AC model makes the existing EARTH and IGBT_EARTH sockets electrically meaningful for declared chassis/fault exercises. It uses the existing ac_network.gd modified nodal analysis, not a parallel production solver. The default profile is empty and preserves the prior electrical circuit exactly.
+
+Source review and assumptions
+- Existing equipment_builder.gd exposes EARTH on the supply and IGBT_EARTH on the converter panel. Their existence does not establish rack bonding, chassis class or an internal neutral-to-PE connection.
+- Festo's LVSIM-EMS help, physical pages32-33, describes the8821source arrangement and overcurrent controls. https://lvsim.labvolt.com/help/helpEms.pdf
+- OSHA1910.304(a) distinguishes grounded and equipment-grounding conductors;1910.304(g)(4)-(5) describes source-dependent grounding connections and a continuous effective grounding path. These references support the educational distinction; this module is not a wiring-code compliance checker. https://www.osha.gov/laws-regs/regulations/standardnumber/1910/1910.304
+- The old Festo8821datasheet URL currently redirects to a general product page. No exact internal chassis/rack bond or trip-time curve is certified from that redirect, a photograph or a green socket.
+
+Declared example (all resistances are explicit game assumptions)
+120V RMS ideal AC source relative to its neutral;0.5Ω phase-lead/insulation-fault impedance;0.05Ω declared internal chassis bond;0.2Ω actual PE patch lead;0.1Ω explicitly selected source N-to-PE bond. The low-resistance fault loop is0.85Ω and its prospective steady current is120/0.85=141.176A. The existing game's15A fixed-source/5A variable-source instantaneous limits determine its simulated trip. These are not a measured available fault current or certified protective-device behavior.
+
+Modes
+- unspecified: no source bond is added; upstream earthing topology is unknown.
+- isolated: no source bond is added; intentional user links and second faults still affect the real configured network.
+- explicit_bond: the host must confirm a source bond and its finite resistance. This is an exercise-specific assumption, never an automatic connection.
+
+Actual topology
+Only completed physical leads touching configured PE sockets are removed from ideal wire unions and stamped with their explicit finite resistance. Internal chassis bonds and faults are independently declared. A missing physical lead stays missing. A user wire from PE to a phase or neutral is modeled electrically and flagged; it cannot count as a dedicated protective-conductor path. Faults, loads, source neutral and voltage sources are excluded from the PE-only continuity graph. A broken internal bond can leave the external socket at reference potential while the chassis is energized.
+
+Continuity
+Continuity is calculated only with all connected sources de-energized. Both the caller's energized flag and nonzero voltage sources in the compiled graph block the test. Any external DC/cross-bench source must also be included in the authoritative energization decision; an AC switch alone is not a universal isolation test. The resistance query uses the same MNA with a computational unit source on the PE-only graph. It is not a physical tester with a certified test current.0.5Ω is the example's configurable exercise bound, not a regulatory pass limit.
+
+Evidence and protection
+Currents and differential chassis voltages come from the augmented electrical solve. Quantities between disconnected islands remain null/undefined. No absolute earth potential is manufactured. Below-threshold current or a nonoperating breaker is never labeled safe. Existing source overcurrent handling removes simulated power; retained fault evidence is tagged pre_trip/power_removed so it cannot be confused with current live readings. The instructor's private injection IDs/path details are removed from public evidence.
+
+Integration
+See the separate proposed-hooks.patch. CircuitSolver receives only a host-owned profile. LabState.configure_protective_earth rejects changes while energized, validates the data and clears preflight. Only the authoritative instructor/challenge controller may invoke it. Do not add arbitrary profile/fault JSON to the player action RPC. The host controller may save protective_earth_recovery and restore it through the same validator while de-energized, before restoring activity power. Profile data is private; publish only the derived safety evidence. A challenge author can call Profile.example to explicitly select the assumed teaching model; no silent startup bond or physical-hardware claim is requested.
+
+Limits
+No body/touch-current or soil/electrode network, RCD/residual-current threshold or timing, breaker clearing curve, arc/thermal/transient switching, electrocution simulation or certified safety verdict. No DC supply/scope reference is automatically joined to PE. Galvanic isolation and floating circuit behavior remain explicit. This model is not an instruction to alter a real electrical installation.

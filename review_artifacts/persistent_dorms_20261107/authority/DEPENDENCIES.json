@@ -1,0 +1,23 @@
+{
+  "review_artifacts/persistent_dorms_20261107/room/HANDOFF.md": "cf52267284976891264cc94431ce34e95524c5b6914164ec828f62d42be5a670",
+  "review_artifacts/persistent_dorms_20261107/room/room_adapter.gd": "7bf29ac005d8b0c8f5b15792c6232a5e76f208fed4992a59d0993778abe2443f",
+  "review_artifacts/persistent_dorms_20261107/room/ROOM_CONTRACT.md": "c1dd80d8411f3642848d586c11ea2bcc5bd3d253e789b8c7c6d8e90e99666dcf",
+  "review_artifacts/persistent_dorms_20261107/room/room_interior.gd": "a9659d2c980ead6ef6c3486c783a9fe9d5b000b9d1b8cd1ec7934e4216c0f89f",
+  "review_artifacts/persistent_dorms_20261107/customization/INTEGRATION.md": "9e2e5a2d85868f18ffb8767c9685f84caeaa6b4ddd096f9f4691ba23ae85ce33",
+  "review_artifacts/persistent_dorms_20261107/customization/scripts/campus/dorms/customization/decorate_panel.gd": "2aced156615d210f7c9c1627ba5e9da2285a902dfc95680f3b7dedc3c116ac61",
+  "review_artifacts/persistent_dorms_20261107/customization/scripts/campus/dorms/customization/edit_service.gd": "61354a706b15b8180d53ac6f5832eb88c83a344225427a515f8c37a1762e7670",
+  "review_artifacts/persistent_dorms_20261107/customization/scripts/campus/dorms/customization/placement_rules.gd": "7340c0187e4196bbade1eb07ffd1edccadec9cb267089583124b84a7ba79d10b",
+  "review_artifacts/persistent_dorms_20261107/customization/scripts/campus/dorms/customization/room_edits.gd": "782e1d6a140224e4a85357e85f82f8fcd676ed0466fa3ad8d4c2f4e3cd5882e3",
+  "review_artifacts/persistent_dorms_20261107/customization/tests/campus/dorms/test_customization.gd": "d3442c84f76f65b8c7cdbc66fd0e319f4ee0ba435ab9536e798ac479fb5a7ece",
+  "review_artifacts/persistent_dorms_20261107/rest/avatar_activity.patch": "dbce63a986c9f49908bd71d34631b3592b089be6a757caec9ba91c9f798af0aa",
+  "review_artifacts/persistent_dorms_20261107/rest/avatar_model.patch": "13bf71afc21239b2d89af021e218a0083eec6fbf910b6775627e25a55954ae83",
+  "review_artifacts/persistent_dorms_20261107/rest/first_person.patch": "41e14cb7b511937569683ad8e2e49719d5e5ebd31a5f2e76ba928956d9757ab2",
+  "review_artifacts/persistent_dorms_20261107/rest/game.patch": "98dc2983bf85a506090af4e5fefa7a0fbb8c3c26f8d2e610bb4abd58200cedf6",
+  "review_artifacts/persistent_dorms_20261107/rest/HANDOFF.md": "c6d9358beed1f051457b48e25dd3bb2143634456532dc113a3b8fcccdc86c833",
+  "review_artifacts/persistent_dorms_20261107/rest/rest_controller.gd": "1621c56f1ad5e7b91f19d961bcb773cf7a2c5664b887cfeec6496e80901ab23b",
+  "review_artifacts/persistent_dorms_20261107/rest/rest_pose.gd": "79355a9f9a8cb2a1ecd3f72773757d6fde069e7d0e3922957d335434fa2576cc",
+  "review_artifacts/persistent_dorms_20261107/rest/rest_state.gd": "327af7bf066494b6c1409bd54b702d571965b242bae62392deba3318bb240216",
+  "review_artifacts/persistent_dorms_20261107/rest/safe_stand.gd": "4f03b9ca18929f52d1d3e63f55cbf39f3bc77ee7e07382f98a6ba7b91e848309",
+  "review_artifacts/persistent_dorms_20261107/rest/session.patch": "c5add7e01d1ffc167ee9417572cb4d789c9f490bb0ddde3fddd0451a3b254081",
+  "review_artifacts/persistent_dorms_20261107/rest/test_rest_deferred.gd": "76ccc0d02982955ddfcea6122076090c6432f0c041622bf264dacd486b0b7094"
+}

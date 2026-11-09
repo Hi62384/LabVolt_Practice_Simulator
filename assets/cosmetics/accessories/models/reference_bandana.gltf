@@ -1,0 +1,129 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Bandana",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Bandana",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "canvas",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.82
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/canvas_albedo.png"
+    },
+    {
+      "uri": "../materials/canvas_orm.png"
+    },
+    {
+      "uri": "../materials/canvas_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "reference_bandana.bin",
+      "byteLength": 92928
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 34848
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 34848,
+      "byteLength": 34848
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 69696,
+      "byteLength": 23232
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2904,
+      "type": "VEC3",
+      "min": [
+        -0.224,
+        0.00399999999999999,
+        -0.21
+      ],
+      "max": [
+        0.218,
+        0.19064899077054553,
+        0.1760076186578076
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2904,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2904,
+      "type": "VEC2"
+    }
+  ]
+}

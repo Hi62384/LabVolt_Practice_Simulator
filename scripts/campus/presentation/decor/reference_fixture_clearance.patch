@@ -1,0 +1,12 @@
+--- a/scripts/campus/presentation/decor/teaching_rooms/reference_style_finish.gd
++++ b/scripts/campus/presentation/decor/teaching_rooms/reference_style_finish.gd
+@@ -26,7 +26,9 @@
+ 	for i in range(4):
+ 		_bar(root,Vector3(side_x,cy+2.3,cz-3.45+i*2.3),Vector3(.035,1.30,.82),Color("263c4c"))
+ 	# Rectangular luminous-looking fixture meshes, with no extra actual lights.
+-	for x in [cx-4.5,cx,cx+4.5]:
++	# M103's teaching baffle is centered at cx and reaches y=3.99.
++	# Place its fixtures between the three baffles, keeping a visible gap.
++	for x in ([cx-2.7,cx+2.7] if id=="dc_lab" else [cx-4.5,cx,cx+4.5]):
+ 		for z in [cz-2.8,cz+2.8]:
+ 			_bar(root,Vector3(x,cy+3.96,z),Vector3(1.55,.045,.48),Color("e9e9dc"))

@@ -1,0 +1,129 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "LabVolt original accessory authoring"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Round Study Glasses",
+      "mesh": 0
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Round Study Glasses",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "dark_metal",
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 0
+        },
+        "metallicRoughnessTexture": {
+          "index": 1
+        },
+        "metallicFactor": 0.75,
+        "roughnessFactor": 0.24
+      },
+      "normalTexture": {
+        "index": 2,
+        "scale": 0.55
+      }
+    }
+  ],
+  "images": [
+    {
+      "uri": "../materials/dark_metal_albedo.png"
+    },
+    {
+      "uri": "../materials/dark_metal_orm.png"
+    },
+    {
+      "uri": "../materials/dark_metal_normal.png"
+    }
+  ],
+  "textures": [
+    {
+      "source": 0
+    },
+    {
+      "source": 1
+    },
+    {
+      "source": 2
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "round_glasses.bin",
+      "byteLength": 47232
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 17712
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 17712,
+      "byteLength": 17712
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 35424,
+      "byteLength": 11808
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1476,
+      "type": "VEC3",
+      "min": [
+        -0.21942476902243008,
+        -0.047,
+        0.01267085046308153
+      ],
+      "max": [
+        0.21942476902243008,
+        0.079,
+        0.189
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 1476,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1476,
+      "type": "VEC2"
+    }
+  ]
+}

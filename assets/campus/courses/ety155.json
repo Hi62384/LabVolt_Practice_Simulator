@@ -1,0 +1,708 @@
+[
+  {
+    "week": 1,
+    "title": "Quantities and safe measurement",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "1-7",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain quantities and safe measurement",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "Voltage is energy per charge; current is charge flow per second. Resistance relates voltage to current for an ohmic component. A voltmeter measures a difference between two nodes. An ammeter interrupts the branch so current passes through it.",
+    "formulas": "V = I R; I = V/R; 1 mA = 0.001 A; 1 kΩ = 1000 Ω",
+    "worked": "For 12 V across 15 kΩ, I = 12/15000 = 0.0008 A = 0.8 mA = 800 µA. The prefix changes the number, never the physical quantity.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vs",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 12
+        },
+        {
+          "id": "R",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 15000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Power OFF before moving any leads or changing the circuit. Choose a DC voltage range above the source; wire the voltmeter in parallel and the ammeter in series. Predict current, then compare the signed reading with the prediction. Power OFF again before rewiring.",
+    "checkpoint": {
+      "prompt": "Why is placing an ammeter directly across a voltage source a fault?",
+      "answer": "It creates a low-resistance path rather than measuring the intended branch."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 2,
+    "title": "Resistor colour codes and tolerance",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "8-12",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain resistor colour codes and tolerance",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "Four-band resistors use two digits, a multiplier and tolerance; five-band resistors use three digits, a multiplier and tolerance. Tolerance describes a permitted interval, which includes the nominal value.",
+    "formulas": "Rnom = digits × 10^multiplier; Rmin = Rnom(1-t); Rmax = Rnom(1+t)",
+    "worked": "Red-black-black-red-brown gives 200 × 100 = 20000 Ω ±1%. Its permitted interval is 19800 to 20200 Ω. Gold means ±5%; red means ±2%.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "nominal",
+          "kind": "R",
+          "a": "a",
+          "b": "b",
+          "value": 20000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Read the bands in order. Turn sources off and isolate the resistor before measuring resistance. Compare the measurement with both tolerance limits.",
+    "checkpoint": {
+      "prompt": "Can a nominal 470 Ω, ±5% resistor measure exactly 470 Ω?",
+      "answer": "Yes. The full interval 446.5 to 493.5 Ω includes nominal."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 3,
+    "title": "Potentiometers and breadboard nodes",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "1-2,13-16",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain potentiometers and breadboard nodes",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "A potentiometer has two end terminals and a wiper. At a fractional wiper position x, the ideal segment resistances sum to the end-to-end resistance. Breadboard connectivity must come from actual row and rail wiring; apparent proximity is insufficient.",
+    "formulas": "RAW = x RAB; RWB = (1-x) RAB; RAW + RWB = RAB",
+    "worked": "For RAB = 10 kΩ and x = 0.3, RAW = 3 kΩ and RWB = 7 kΩ. With 10 V across the ends and no wiper load, VWB = 7 V under this explicit x convention.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vs",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 10
+        },
+        {
+          "id": "RAW",
+          "kind": "R",
+          "a": "p",
+          "b": "w",
+          "value": 3000
+        },
+        {
+          "id": "RWB",
+          "kind": "R",
+          "a": "w",
+          "b": "g",
+          "value": 7000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Identify end terminals with power off. Sweep the wiper and measure each segment. Use actual breadboard node mapping to check continuity; do not assume rails cross a physical split.",
+    "checkpoint": {
+      "prompt": "What happens to end-to-end resistance as an ideal unloaded wiper moves?",
+      "answer": "It remains constant; only the two segment resistances change."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors",
+      "potentiometer"
+    ]
+  },
+  {
+    "week": 4,
+    "title": "Series DC circuits",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "17-24,40-45",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain series dc circuits",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "Series components form one path and carry the same current. Voltage drops add algebraically around the loop. Choose polarities before calculating so Kirchhoff’s voltage law has a consistent sign convention.",
+    "formulas": "Req = ΣR; I = Vs/Req; Vk = I Rk; Vs - ΣVk = 0",
+    "worked": "With 12 V, 1 kΩ and 2 kΩ in series, Req = 3 kΩ and I = 4 mA. The drops are 4 V and 8 V; 12-4-8 = 0 V.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vs",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 12
+        },
+        {
+          "id": "R1",
+          "kind": "R",
+          "a": "p",
+          "b": "n",
+          "value": 1000
+        },
+        {
+          "id": "R2",
+          "kind": "R",
+          "a": "n",
+          "b": "g",
+          "value": 2000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Construct the specified single path. Measure source current in series and each voltage across its resistor. Complete a VIR table and check the KVL residual.",
+    "checkpoint": {
+      "prompt": "Does the current get used up after the first resistor?",
+      "answer": "No. A steady series branch carries the same current throughout."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 5,
+    "title": "Parallel DC circuits",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "25-39,45-50",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain parallel dc circuits",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "Parallel branches share both end nodes and therefore share voltage. Conductances add. Total current is the signed sum of branch currents, not an average. Adding a positive-resistance branch reduces equivalent resistance.",
+    "formulas": "1/Req = Σ(1/Rk); Ik = V/Rk; Itotal = ΣIk",
+    "worked": "At 10 V across 1 kΩ, 2 kΩ and 5 kΩ, currents are 10, 5 and 2 mA. Itotal = 17 mA and Req = 588.235 Ω. Product-over-sum is only a two-resistor shortcut.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vs",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 10
+        },
+        {
+          "id": "R1",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 1000
+        },
+        {
+          "id": "R2",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 2000
+        },
+        {
+          "id": "R3",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 5000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Build common source and return nodes. Measure each branch with a series ammeter and verify common voltage with a parallel voltmeter. Complete the KCL table.",
+    "checkpoint": {
+      "prompt": "Can product of all resistances divided by their sum solve three parallel resistors?",
+      "answer": "No. Use the reciprocal sum, which also has the correct dimensions."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 6,
+    "title": "Mixed series and parallel networks",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "50-77",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain mixed series and parallel networks",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "Reduce only subnetworks whose endpoints really match. Find the source current through a series section, then recover the parallel voltage and branch currents. A meter’s position changes the measured quantity.",
+    "formulas": "Rp = 1/Σ(1/Rbranch); Req = Rs+Rp; Vp = Vs Rp/Req; Ik = Vp/Rk",
+    "worked": "A 1 kΩ series resistor feeding 2 kΩ || 2 kΩ has Req = 2 kΩ. At 12 V, Itotal = 6 mA, Vparallel = 6 V and each branch carries 3 mA.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vs",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 12
+        },
+        {
+          "id": "Rs",
+          "kind": "R",
+          "a": "p",
+          "b": "n",
+          "value": 1000
+        },
+        {
+          "id": "R2",
+          "kind": "R",
+          "a": "n",
+          "b": "g",
+          "value": 2000
+        },
+        {
+          "id": "R3",
+          "kind": "R",
+          "a": "n",
+          "b": "g",
+          "value": 2000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Draw the actual nodes before wiring. Measure before and after the split and across the shared branch nodes. Complete the VIR table and identify an intentionally open branch.",
+    "checkpoint": {
+      "prompt": "Where does the source ammeter go to measure total current?",
+      "answer": "Before the branch split, in the common series path."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 7,
+    "title": "Power and efficiency",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "78-101",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain power and efficiency",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "Power is the rate of energy transfer. A resistor dissipates positive power when current enters its positive-voltage terminal. Rated power is a model limit; also respect configured voltage limits and derating. Efficiency compares useful output with total input.",
+    "formulas": "P = VI = I²R = V²/R; energy = P t; η = Pout/Pin",
+    "worked": "At 12 V across 1 kΩ, I = 12 mA and P = 0.144 W. A 0.125 W part is overloaded under this model. If useful output is 0.12 W from 0.15 W input, efficiency = 80%.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vs",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 12
+        },
+        {
+          "id": "R",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 1000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Measure voltage and current before computing power. Compare each component with its configured rating. Sweep the supply only within equipment limits and record protection events.",
+    "checkpoint": {
+      "prompt": "May individual-source powers be added in superposition?",
+      "answer": "No. Superpose signed voltages or currents first; power is nonlinear."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 8,
+    "title": "Node voltages and multiple sources",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "102-115",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain node voltages and multiple sources",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "Ground is the chosen voltage reference. Vab = Va - Vb can be negative. Source polarities matter. Only combine ideal voltage sources in series or ideal current sources in parallel when the actual topology permits it.",
+    "formulas": "Vab = Va - Vb; Σloop V = 0; series equivalent Vs = signed ΣVs",
+    "worked": "If Va = 3 V and Vb = 8 V relative to the same reference, Vab = -5 V. Two opposed series sources 12 V and 5 V drive 7 V across a 1 kΩ load, giving 7 mA.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "V1",
+          "kind": "V",
+          "a": "p",
+          "b": "m",
+          "value": 12
+        },
+        {
+          "id": "V2",
+          "kind": "V",
+          "a": "g",
+          "b": "m",
+          "value": 5
+        },
+        {
+          "id": "R",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 1000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Mark one common reference and every source polarity. Build the assigned supported series-source network and measure signed node differences. Never parallel conflicting ideal voltage sources.",
+    "checkpoint": {
+      "prompt": "Does a negative voltage prove the meter is broken?",
+      "answer": "No. It indicates the measured polarity is opposite to the chosen reference direction."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 9,
+    "title": "Superposition",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "116-131",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain superposition",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "A linear network response is the signed sum of its independent-source contributions. Deactivate an ideal independent voltage source with a short and a current source with an open; preserve internal impedances. Do not deactivate dependent sources.",
+    "formulas": "Vtotal = ΣVcontribution; Itotal = ΣIcontribution",
+    "worked": "Two 10 V sources each feeding one 1 kΩ resistor into a 1 kΩ load give Vload = 6.6667 V. Each source acting alone contributes 3.3333 V. Compute load power from the combined voltage.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "V1",
+          "kind": "V",
+          "a": "p1",
+          "b": "g",
+          "value": 10
+        },
+        {
+          "id": "V2",
+          "kind": "V",
+          "a": "p2",
+          "b": "g",
+          "value": 10
+        },
+        {
+          "id": "R1",
+          "kind": "R",
+          "a": "p1",
+          "b": "n",
+          "value": 1000
+        },
+        {
+          "id": "R2",
+          "kind": "R",
+          "a": "p2",
+          "b": "n",
+          "value": 1000
+        },
+        {
+          "id": "RL",
+          "kind": "R",
+          "a": "n",
+          "b": "g",
+          "value": 1000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Build the original multi-source network. Record the full response, then safely replace each inactive ideal voltage source with its stated zero-voltage model. Restore all sources and compare signed contributions.",
+    "checkpoint": {
+      "prompt": "Should powers from the individual-source runs be summed?",
+      "answer": "No. Sum voltage/current contributions, then calculate the final power."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 10,
+    "title": "Thévenin equivalents",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "132-168",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain thévenin equivalents",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "A linear two-terminal network can be represented by open-circuit voltage Vth and series resistance Rth. Specify the load port first. Remove the load to find Vth; use deactivated independent sources and a test source to determine Rth.",
+    "formulas": "Iload = Vth/(Rth+RL); Vload = Vth RL/(Rth+RL)",
+    "worked": "A 12 V source with 1 kΩ series and 2 kΩ shunt has Vth = 8 V and Rth = 666.667 Ω. With RL = 1 kΩ, Iload = 4.8 mA and Vload = 4.8 V.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vs",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 12
+        },
+        {
+          "id": "R1",
+          "kind": "R",
+          "a": "p",
+          "b": "n",
+          "value": 1000
+        },
+        {
+          "id": "R2",
+          "kind": "R",
+          "a": "n",
+          "b": "g",
+          "value": 2000
+        },
+        {
+          "id": "RL",
+          "kind": "R",
+          "a": "n",
+          "b": "g",
+          "value": 1000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Disconnect the load at the named port. Measure open-circuit voltage, then power off and use the specified resistance method. Build the equivalent circuit and compare both under the same load.",
+    "checkpoint": {
+      "prompt": "May Rth be found by shorting an energized physical supply?",
+      "answer": "No. Deactivate sources through the supported safe procedure before resistance measurement."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors"
+    ]
+  },
+  {
+    "week": 11,
+    "title": "Maximum power transfer",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "169-177",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain maximum power transfer",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "For a linear DC Thévenin source with positive finite resistance, load power peaks at RL = Rth. Maximum load power does not mean maximum efficiency; equal source and load resistance dissipate equal powers. Enforce actual component limits.",
+    "formulas": "PL = Vth² RL/(Rth+RL)²; RL,opt = Rth; Pmax = Vth²/(4Rth)",
+    "worked": "For Vth = 14 V and Rth = 4 kΩ, Pmax = 196/16000 = 0.01225 W = 12.25 mW at RL = 4 kΩ. This is an original explicit-port example, not an adoption of unseen source topology.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "Vth",
+          "kind": "V",
+          "a": "p",
+          "b": "g",
+          "value": 14
+        },
+        {
+          "id": "Rth",
+          "kind": "R",
+          "a": "p",
+          "b": "n",
+          "value": 4000
+        },
+        {
+          "id": "RL",
+          "kind": "R",
+          "a": "n",
+          "b": "g",
+          "value": 4000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Sweep load resistance below, at and above Rth. Record voltage, current and power in a table. Plot power against load resistance and locate the peak.",
+    "checkpoint": {
+      "prompt": "Is load power largest at a short circuit?",
+      "answer": "No. A zero-ohm load has zero voltage and zero ideal load power."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors",
+      "potentiometer"
+    ]
+  },
+  {
+    "week": 12,
+    "title": "Source conversion and cumulative DC analysis",
+    "source": {
+      "document": "ETY155NGG.pdf",
+      "sha256": "ab8211a4d1e76a2d943361d5b6eac5c4789dfcccb2b59153c36c2339d13380ee",
+      "pages": "178-190",
+      "basis": "Supplied complete text audit and documented concept ranges; original authored example",
+      "visual_gate": "Unseen source-specific diagrams and breadboards excluded"
+    },
+    "objectives": [
+      "Explain source conversion and cumulative dc analysis",
+      "Predict signed quantities in base SI units",
+      "Construct, measure and reconcile the assigned supported network"
+    ],
+    "explanation": "A voltage source in series with resistance is port-equivalent to a current source in parallel with that same resistance. Preserve polarity and current direction. Equivalence holds at the external terminals; internal branch quantities need not match.",
+    "formulas": "In = Vth/Rth; Vth = In Rth; Rn = Rth",
+    "worked": "A 10 V source with 2 kΩ series resistance becomes a 5 mA source injecting into the positive port with 2 kΩ in parallel. A 2 kΩ load receives 5 V and 2.5 mA in either model.",
+    "worked_diagram": {
+      "kind": "netlist",
+      "parts": [
+        {
+          "id": "In",
+          "kind": "I",
+          "a": "g",
+          "b": "p",
+          "value": 0.005
+        },
+        {
+          "id": "Rn",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 2000
+        },
+        {
+          "id": "RL",
+          "kind": "R",
+          "a": "p",
+          "b": "g",
+          "value": 2000
+        }
+      ],
+      "width": 900,
+      "min_font_size": 18
+    },
+    "procedure": "Construct the voltage-source network and its Norton equivalent with the installed adjustable current-source modules. For solver current a→b connect the physical minus terminal to node a and plus terminal to b. Record voltage and current at suitable loads, check that each source remains in CC within its stated compliance, and compare port behavior. Use the host-captured actual electrical state; never substitute calculation results for meter observations.",
+    "checkpoint": {
+      "prompt": "Does selecting current limit on any CV/CC supply create an ideal independent current source?",
+      "answer": "No. Compliance and operating region constrain real source behavior; use the correct supported model."
+    },
+    "equipment": [
+      "DC supply",
+      "breadboard",
+      "DMM",
+      "resistors",
+      "adjustable independent current source"
+    ]
+  }
+]

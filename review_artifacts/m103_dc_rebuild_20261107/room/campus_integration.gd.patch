@@ -1,0 +1,20 @@
+--- a/scripts/campus_integration.gd
++++ b/scripts/campus_integration.gd
+@@ -58,12 +58,15 @@
+ 	room_finish_results.m101=m101_environment.mount(game.campus,game.campus.registry)
+ 	teaching_finish=preload("res://scripts/campus/presentation/decor/teaching_rooms/teaching_room_finish.gd").new()
+ 	add_child(teaching_finish)
+-	room_finish_results.teaching=teaching_finish.mount_approved(game.campus,game.campus.registry,["dc_lab","elm253_lecture","ety155_lecture","computer"])
++	room_finish_results.teaching=teaching_finish.mount_approved(game.campus,game.campus.registry,["elm253_lecture","ety155_lecture","computer"])
+ 	reference_finish=preload("res://scripts/campus/presentation/decor/teaching_rooms/reference_style_finish.gd").new()
+ 	add_child(reference_finish)
+ 	room_finish_results.reference={}
+-	for id in ["shop","dc_lab","elm253_lecture","ety155_lecture","computer"]:
++	for id in ["shop","elm253_lecture","ety155_lecture","computer"]:
+ 		room_finish_results.reference[id]=reference_finish.mount(id,game.campus,game.campus.registry)
++	var m103_finish=preload("res://review_artifacts/m103_dc_rebuild_20261107/room/m103_room_finish.gd").new()
++	add_child(m103_finish)
++	room_finish_results.m103=m103_finish.mount(game.campus,game.campus.registry)
+ 	service_decor=preload("res://scripts/campus/presentation/decor/service_rooms/service_room_decor.gd").new()
+ 	add_child(service_decor)
+ 	room_finish_results.service=service_decor.mount_all(game.campus)

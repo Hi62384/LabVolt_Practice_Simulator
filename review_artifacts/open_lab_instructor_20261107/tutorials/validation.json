@@ -1,0 +1,14 @@
+{
+  "files": {
+    "catalog.gd": "ce611f352a4cd99b4730292a79b3748bcfca7b6ce9500e059efc0e175d99cbb1",
+    "session.gd": "672f886c4fef608409aafc3bd7b13a5e2f43d1120292b56bb9513f0a11a43ed6",
+    "projection.gd": "04de19dca1baa6d89d0cebd4de48cebe11d09db0de5f2174ab20c022c532249d",
+    "target_resolver.gd": "2952983630b2362ab631033b5f70bb95e8ea890a257625840d185da7eb385f79",
+    "formal_guide_policy.gd": "d19541a47d4b80beff1c71dc3b32decedb5e8b67aaf186f9ebb76da7a0b3f45f",
+    "fixture.gd": "3b37cb7995ad46e346554c4c512a75ded3c1f56a02c65720e326d757b473beea",
+    "controller.gd": "4ff56310f43d970a268a4546c116bb4a6a110e4871a7e1c15d85e39987419798"
+  },
+  "formal_patches": 2,
+  "runtime": "Fixture authored; not run in Godot",
+  "scope": "Open Lab tutorial only; lecture guide hidden and server-rejected; lab class guide retained."
+}

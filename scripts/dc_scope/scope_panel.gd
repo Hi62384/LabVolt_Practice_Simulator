@@ -1,0 +1,127 @@
+extends VBoxContainer
+const UI = preload("res://scripts/ui/design_system/widgets.gd")
+const InstrumentTheme = preload("res://scripts/ui/design_system/theme.gd")
+const Layout = preload("res://scripts/ui/instrument_panels/layout.gd")
+signal command(action: Dictionary)
+const Settings = preload("res://scripts/dc_scope/settings.gd")
+const Measure = preload("res://scripts/dc_scope/measurements.gd")
+const Units = preload("res://scripts/dc_scope/units.gd")
+var trace: Control
+var metrics: Label
+var status_label: Label
+var cursor_label: Label
+var controls := {}
+var run_button: Button
+var last_data := {}
+func build(data: Dictionary) -> void:
+	theme=InstrumentTheme.create()
+	var config := Settings.normalize(data.get("scope",{}))
+	var modern := int(data.get("scope",{}).get("schema",0))>=2
+	var columns := Layout.grid(self,480,2); columns.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	var view := Layout.section(columns,"Waveform monitor","CH1 · gold   /   CH2 · cyan · shared time axis","circuit"); view.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	trace=preload("res://scripts/scope_trace.gd").new(); trace.name="Waveform"; trace.size_flags_vertical=Control.SIZE_EXPAND_FILL; view.add_child(trace)
+	metrics=_label(view,""); metrics.add_theme_font_size_override("font_size",14)
+	metrics.tooltip_text="RMS and mean use actual sample times. Frequency needs two rising crossings and at least four samples per measured cycle. Raw DC offset remains available when AC coupling is selected."
+	cursor_label=_label(view,""); cursor_label.add_theme_font_size_override("font_size",14)
+	status_label=_label(view,""); status_label.add_theme_font_size_override("font_size",13)
+	trace.cursors_changed.connect(func():refresh(last_data))
+	var scroll := ScrollContainer.new(); scroll.custom_minimum_size=Vector2(0,340); scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL; scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED; columns.add_child(scroll)
+	var settings_box := VBoxContainer.new(); settings_box.size_flags_horizontal=Control.SIZE_EXPAND_FILL; scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL; settings_box.add_theme_constant_override("separation",10); scroll.add_child(settings_box)
+	var settings_root := settings_box
+	settings_box=Layout.section(settings_root,"Acquisition","Run, trigger and timebase","settings")
+	var actions := HFlowContainer.new(); settings_box.add_child(actions)
+	run_button=_button(actions,"Stop",func():_send("running",not bool(last_data.get("scope",{}).get("running",true))))
+	run_button.name="RunStop"
+	_button(actions,"Single",func():_send("single",true)).name="Single"
+	var auto := _button(actions,"Autoset",func():
+		command.emit({"op":"scope","key":"autoset","value":true})
+	); auto.name="Autoset"; auto.disabled=not modern
+	_option(settings_box,"Trigger mode",["Auto","Normal"],str(config.trigger_mode),"trigger_mode",-1,modern)
+	_option(settings_box,"Trigger source",["CH1","CH2"],"CH%d"%(int(config.source)+1),"source")
+	_option(settings_box,"Trigger edge",["Rising","Falling"],str(config.edge),"edge")
+	_number(settings_box,"Seconds / division",float(config.timebase),0.0001,2.0,0.0001,"timebase")
+	_number(settings_box,"Trigger level · tip V",float(config.trigger),-10000,10000,0.01,"trigger")
+	if not modern:
+		_label(settings_box,"Legacy host: scale/coupling/probe remain shared.")
+		_number(settings_box,"Shared volts / division",float(config.scale),0.01,20,0.01,"scale")
+		_option(settings_box,"Shared coupling",["DC","AC"],str(config.coupling),"coupling")
+		_option(settings_box,"Shared probe",["1×","10×"],"10×" if float(config.attenuation)==10 else "1×","attenuation")
+	var channel_parent := settings_root
+	for index in 2:
+		settings_box=Layout.section(channel_parent,"Channel %d"%(index+1),"S%d / common GND"%(index+1),"circuit")
+		var channel: Dictionary=config.channels[index]
+		var title := _label(settings_box,"CHANNEL %d · S%d / common GND"%[index+1,index+1]); title.modulate=Color("f0ca6b") if index==0 else Color("63d5d0")
+		var enabled := CheckBox.new(); enabled.name="CH%d_enabled"%(index+1); enabled.text="Trace and measurements enabled"; enabled.set_pressed_no_signal(bool(channel.enabled)); enabled.disabled=not modern; settings_box.add_child(enabled); controls[_key("enabled",index)]=enabled
+		enabled.toggled.connect(func(value):_send("enabled",value,index))
+		_number(settings_box,"Volts / division",float(channel.scale),0.001,1000,0.001,"scale",index,modern)
+		_number(settings_box,"Vertical position · div",float(channel.position),-4,4,0.1,"position",index,modern)
+		_option(settings_box,"Coupling",["DC","AC"],str(channel.coupling),"coupling",index,modern)
+		_option(settings_box,"Probe calibration",["1×","10×","100×"],Units.probe(float(channel.attenuation)),"attenuation",index,modern)
+	_label(settings_root,"Direct leads: use 1×. Probe factor calibrates tip volts from actual connector volts; it does not add a physical divider. AC coupling: 0.5 Hz high-pass. Channel position changes the trace zero, never the measured voltage.")
+	refresh(data)
+func _label(parent: Node, value: String) -> Label:
+	var label := Label.new(); label.text=value; label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; parent.add_child(label); return label
+func _button(parent: Node, value: String, callback: Callable) -> Button:
+	var button := UI.action(value,"play" if value in ["Run","Single"] else "settings" if value=="Autoset" else "switch",callback); parent.add_child(button); return button
+func _key(key: String, channel: int) -> String: return "%d:%s"%[channel,key]
+func _send(key: String, value: Variant, channel := -1) -> void:
+	var action := {"op":"scope","key":key,"value":value}
+	if key=="source": action.value=0 if value=="CH1" else 1
+	elif key=="attenuation" and value is String: action.value=float(value.trim_suffix("×"))
+	if channel>=0: action.channel=channel
+	command.emit(action)
+func _number(parent: Node, caption: String, value: float, minimum: float, maximum: float, step: float, key: String, channel := -1, enabled := true) -> void:
+	var spin := Layout.number(parent,caption,value,minimum,maximum,step)
+	spin.name="CH%d_%s"%[channel+1,key] if channel>=0 else "Scope_"+key; spin.editable=enabled
+	spin.tooltip_text=caption+" · host-authoritative; instrument display only, circuit time stepping is unchanged"
+	controls[_key(key,channel)]=spin; spin.value_changed.connect(func(v):_send(key,v,channel))
+func _option(parent: Node, caption: String, values: Array, selected: String, key: String, channel := -1, enabled := true) -> void:
+	if key=="attenuation" and selected not in values: values=values.duplicate(); values.append(selected)
+	var row := Layout.selector(parent,caption)
+	var option := OptionButton.new(); option.name="CH%d_%s"%[channel+1,key] if channel>=0 else "Scope_"+key; option.size_flags_horizontal=Control.SIZE_EXPAND_FILL; option.custom_minimum_size.y=44
+	for value in values: option.add_item(str(value)); option.set_item_metadata(option.item_count-1,value)
+	option.select(maxi(values.find(selected),0)); option.disabled=not enabled; row.add_child(option); controls[_key(key,channel)]=option
+	option.item_selected.connect(func(index):_send(key,values[index],channel))
+func refresh(data: Dictionary) -> void:
+	if not is_instance_valid(trace): return
+	last_data=data
+	var settings := Settings.normalize(data.get("scope",{})); var status: Dictionary=data.get("scope_acquisition",{})
+	trace.samples=data.get("samples",[]); trace.settings=settings; trace.acquisition=status; trace.queue_redraw()
+	var visible: Array=trace.visible_samples(); var lines: Array[String]=[]
+	var probe: Dictionary=data.get("scope_probe",preload("res://scripts/dc_scope/probe_connections.gd").describe(data.get("wires",[])))
+	var sampling := 0.0
+	var largest_gap := 0.0
+	for index in 2:
+		var channel: Dictionary=settings.channels[index]
+		if not channel.enabled: lines.append("CH%d   OFF"%(index+1)); continue
+		var stats := Measure.statistics(visible,index,channel); sampling=maxf(sampling,float(stats.sample_rate)); largest_gap=maxf(largest_gap,float(stats.max_gap))
+		if stats.count<2: lines.append("CH%d   Awaiting acquired samples"%(index+1)); continue
+		var frequency := Units.format_value(float(stats.frequency),"Hz") if stats.frequency_valid else "— Hz"
+		lines.append("CH%d   %s pp   %s RMS   mean %s   raw DC offset %s   %s"%[index+1,Units.format_value(float(stats.vpp),"V"),Units.format_value(float(stats.rms),"V"),Units.format_value(float(stats.average),"V"),Units.format_value(float(stats.dc_offset),"V"),frequency])
+	metrics.text="\n".join(lines)
+	var cursors: Dictionary=trace.cursor_readings(); var cursor_lines: Array[String]=["Δt "+Units.format_value(float(cursors.dt),"s")]
+	for index in 2:
+		var delta: Variant=cursors.channels[index].dv
+		if delta!=null: cursor_lines.append("CH%d ΔV %s"%[index+1,Units.format_value(float(delta),"V")])
+	cursor_label.text="   ·   ".join(cursor_lines)
+	status_label.text=str(status.get("state","Legacy acquisition"))+" · "+Units.format_value(sampling,"Sa/s")+" · record %d samples · span %s"%[visible.size(),Units.format_value(float(settings.timebase)*10,"s")]
+	if largest_gap>0: status_label.text+="\nFrequency readout resolution ≤ "+Units.format_value(0.25/largest_gap,"Hz")+" · shorten timebase for faster signals"
+	for warning in [str(status.get("warning","")),str(probe.get("warning",""))]:
+		if not warning.is_empty(): status_label.text+="\n"+warning
+	if not data.get("result",{}).get("ok",true): status_label.text+="\nElectrical solve failed · showing the last acquired record"
+	var connected: Array=probe.get("signal_connected",[true,true])
+	for index in 2:
+		if settings.channels[index].enabled and not connected[index]: status_label.text+="\nCH%d signal lead disconnected"%(index+1)
+	run_button.text="Stop" if settings.running else "Run"
+	run_button.icon=UI.icon("switch" if settings.running else "play")
+	status_label.theme_type_variation="ErrorLabel" if not data.get("result",{}).get("ok",true) or not str(probe.get("warning","")).is_empty() or not str(status.get("warning","")).is_empty() or false in connected else "MutedLabel"
+	for name in controls:
+		var control: Control=controls[name]; var parts: PackedStringArray=str(name).split(":"); var index := int(parts[0]); var key := parts[1]
+		var value: Variant=settings.channels[index].get(key) if index>=0 else settings.get(key)
+		if control is SpinBox:
+			if not control.get_line_edit().has_focus(): control.set_value_no_signal(float(value))
+		elif control is CheckBox: control.set_pressed_no_signal(bool(value))
+		elif control is OptionButton and not control.has_focus():
+			var target := "CH%d"%(int(value)+1) if key=="source" else Units.probe(float(value)) if key=="attenuation" else str(value)
+			for i in control.item_count:
+				if control.get_item_text(i)==target: control.select(i); break
