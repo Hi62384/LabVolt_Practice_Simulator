@@ -1,0 +1,77 @@
+name: Publish Windows game
+
+on:
+  push:
+    branches: [windows-launcher]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: windows-game-channel
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      GODOT_VERSION: 4.5.1
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Godot and Windows export template
+        shell: pwsh
+        run: |
+          $engineDir = "$env:RUNNER_TEMP/godot"
+          $templates = "$env:APPDATA/Godot/export_templates/$env:GODOT_VERSION.stable"
+          New-Item -ItemType Directory -Force $engineDir,$templates | Out-Null
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION-stable"
+          $engine = "Godot_v$env:GODOT_VERSION-stable_win64.exe"
+          curl.exe --fail --location --retry 3 --output "$engineDir/engine.zip" "$base/$engine.zip"
+          if ($LASTEXITCODE) { throw 'Godot download failed' }
+          Expand-Archive -Path "$engineDir/engine.zip" -DestinationPath $engineDir
+          curl.exe --fail --location --retry 3 --output "$engineDir/templates.tpz" "$base/Godot_v$env:GODOT_VERSION-stable_export_templates.tpz"
+          if ($LASTEXITCODE) { throw 'Godot templates download failed' }
+          tar.exe -xf "$engineDir/templates.tpz" -C $templates --strip-components 1 templates/windows_release_x86_64.exe
+          if ($LASTEXITCODE) { throw 'Windows export template extraction failed' }
+          "GODOT=$engineDir/$($engine.Replace('.exe','_console.exe'))" >> $env:GITHUB_ENV
+      - name: Verify Play and export Windows game
+        shell: pwsh
+        run: |
+          $game = "$env:RUNNER_TEMP/game"
+          New-Item -ItemType Directory -Force $game | Out-Null
+          & $env:GODOT --headless --path . --import
+          if ($LASTEXITCODE) { throw 'Godot import failed' }
+          & $env:GODOT --headless --path . --script res://tests/menu_startup/test_menu_routes.gd
+          if ($LASTEXITCODE) { throw 'Play route verification failed' }
+          & $env:GODOT --headless --path . --export-release "Windows Desktop" "$game/LabVolt.exe"
+          if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck")) { throw 'Windows export failed' }
+      - name: Build launcher and package the game
+        shell: pwsh
+        run: |
+          $assets = "$env:RUNNER_TEMP/release"
+          python launcher/test_updates.py
+          if ($LASTEXITCODE) { throw 'Launcher update verification failed' }
+          $version = "$env:GITHUB_SHA-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          python launcher/package.py "$env:RUNNER_TEMP/game" $assets $version
+          if ($LASTEXITCODE) { throw 'Packaging failed' }
+          ./launcher/build.ps1 -Output "$assets/LabVoltLauncher.exe"
+      - name: Publish the verified release
+        shell: pwsh
+        run: |
+          $tag = "game-$env:GITHUB_SHA-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          gh release create $tag --target $env:GITHUB_SHA --draft --title "LabVolt Windows build $env:GITHUB_RUN_NUMBER" --notes "Download LabVoltLauncher.exe once. It installs this build and checks for future updates on startup."
+          if ($LASTEXITCODE) { throw 'Could not create draft release' }
+          $files = @(Get-ChildItem "$env:RUNNER_TEMP/release" -File | ForEach-Object FullName)
+          for ($i = 0; $i -lt $files.Count; $i += 40) {
+            $batch = $files[$i..([Math]::Min($i + 39, $files.Count - 1))]
+            gh release upload $tag @batch
+            if ($LASTEXITCODE) { throw 'Could not upload release assets' }
+          }
+          gh release edit $tag --draft=false --latest
+          if ($LASTEXITCODE) { throw 'Could not publish release' }

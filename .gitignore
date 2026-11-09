@@ -1,3 +1,4 @@
 /.godot/
 /runtime/*.exe
 /launcher/dist/
+/launcher/__pycache__/
