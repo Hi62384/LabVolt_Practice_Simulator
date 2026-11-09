@@ -63,9 +63,16 @@ static var _icon_cache: Dictionary={}
 static func icon(key: String) -> Texture2D:
 	var path: String=ICONS.get(key, ICONS.component)
 	if _icon_cache.has(path):return _icon_cache[path]
+	if ResourceLoader.exists(path, "Texture2D"):
+		var imported := load(path) as Texture2D
+		if imported != null:
+			_icon_cache[path] = imported
+			return imported
 	# Raw SVG decoding also works on a direct source launch before editor import.
+	var source := FileAccess.get_file_as_string(path)
+	if source.is_empty():return null
 	var image := Image.new()
-	var error := image.load_svg_from_string(FileAccess.get_file_as_string(path))
+	var error := image.load_svg_from_string(source)
 	if error!=OK:return null
 	var texture := ImageTexture.create_from_image(image)
 	_icon_cache[path]=texture

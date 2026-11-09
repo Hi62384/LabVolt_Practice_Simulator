@@ -51,6 +51,10 @@ jobs:
           if ($LASTEXITCODE) { throw 'Play route verification failed' }
           & $env:GODOT --headless --path . --export-release "Windows Desktop" "$game/LabVolt.exe"
           if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck")) { throw 'Windows export failed' }
+          $smoke = Join-Path $PWD 'tests/menu_startup/test_menu_routes.gd'
+          $log = "$env:RUNNER_TEMP/exported-play.log"
+          & $env:GODOT --headless --path $game --main-pack "$game/LabVolt.pck" --script $smoke --log-file $log
+          if ($LASTEXITCODE -or !(Select-String -Path $log -SimpleMatch 'MENU_ROUTES PASS') -or (Select-String -Path $log -Pattern 'ERROR:' | Where-Object { $_.Line -notlike '*Failed to read the root certificate store*' })) { throw 'Exported game failed Play verification' }
       - name: Build launcher and package the game
         shell: pwsh
         run: |
