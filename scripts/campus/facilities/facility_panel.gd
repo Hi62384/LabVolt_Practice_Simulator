@@ -159,10 +159,7 @@ func _food_menu(venue: String, accent: Color, surface: Color) -> void:
 		contents.add_theme_constant_override("separation", 8)
 		card.add_child(contents)
 		var artwork := TextureRect.new()
-		var picture := Image.new()
-		var path := "res://assets/ui/food_menu/%s.svg" % item
-		if picture.load_svg_from_string(FileAccess.get_file_as_string(path))==OK:
-			artwork.texture=ImageTexture.create_from_image(picture)
+		artwork.texture=load("res://assets/ui/food_menu/%s.svg" % item) as Texture2D
 		artwork.custom_minimum_size.y=104
 		artwork.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
 		artwork.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED

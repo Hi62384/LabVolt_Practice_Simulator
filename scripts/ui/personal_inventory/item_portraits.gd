@@ -14,16 +14,7 @@ func texture(item: Dictionary, profile: RefCounted) -> Texture2D:
 		if kind == "component":
 			cache[key]=Components.texture(profile.catalog().get(item.type,{}))
 		elif kind == "food":
-			var path := "res://assets/ui/food_menu/%s.svg" % item.type
-			var svg := FileAccess.get_file_as_string(path)
-			# The restaurant menu uses a full-size backplate. Inventory already has a slot background.
-			var start := svg.find('<rect width="160" height="120"')
-			if start >= 0:
-				var end := svg.find("/>",start)
-				if end >= 0:svg=svg.erase(start,end+2-start)
-			var image := Image.new()
-			if image.load_svg_from_string(svg)!=OK:return null
-			cache[key]=ImageTexture.create_from_image(image)
+			cache[key]=load("res://assets/ui/food_menu/%s.svg" % type) as Texture2D
 		else:
 			var art := _draw(kind,int(item.get("color",0)),type)
 			var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="96" viewBox="0 0 128 96">'+art+'</svg>'

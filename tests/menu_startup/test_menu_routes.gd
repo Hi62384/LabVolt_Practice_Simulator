@@ -65,7 +65,24 @@ func _run() -> void:
 		if is_instance_valid(back):back.pressed.emit();await process_frame
 		_check(front.page == "home", route.label + " Back did not return home")
 		_usable(_button(front.body, "Host Game"), viewport_rect, "Host Game after Back")
+	_check_food_icons()
 	_finish()
+
+func _check_food_icons() -> void:
+	var rules = preload("res://scripts/campus/facilities/facility_host.gd").new()
+	var portraits = preload("res://scripts/ui/personal_inventory/item_portraits.gd").new()
+	for item: String in rules.menu:
+		_check(portraits.texture({"kind":"food","type":item}, null) != null, item + " inventory icon missing")
+	for venue: String in ["tim_hortons", "subway"]:
+		var panel = preload("res://scripts/campus/facilities/facility_panel.gd").new()
+		root.add_child(panel)
+		panel.state = {"menu":rules.menu}
+		panel._food_menu(venue, Color.WHITE, Color.BLACK)
+		var icons: Array[Node] = panel.find_children("*", "TextureRect", true, false)
+		_check(icons.size() == 3, venue + " menu expected three food icons")
+		for icon: TextureRect in icons:
+			_check(icon.texture != null, venue + " menu food icon missing")
+		panel.queue_free()
 
 func _finish() -> void:
 	for failure in failures:push_error(failure)

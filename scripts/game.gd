@@ -232,8 +232,6 @@ func _ready() -> void:
 	lecture_classes=preload("res://scripts/campus/academics/class_start/room_classes.gd").new()
 	lecture_classes.name="LectureClasses";add_child(lecture_classes);lecture_classes.build(self)
 	preload("res://scripts/room_finish.gd").build(self)
-	var chat_panel=preload("res://scripts/lab_chat.gd").new()
-	add_child(chat_panel);chat_panel.build(self)
 	campus_services=preload("res://scripts/campus_integration.gd").new()
 	campus_services.name="CampusServices";add_child(campus_services);campus_services.build(self)
 	# Bridge uses School.formal_active(); challenge setup requires EMPTY PE demo profile and no external links.
@@ -360,7 +358,6 @@ func capture() -> void:
 	if is_instance_valid(front):front.entered()
 	ui.menu.hide()
 	ui.sheet.hide()
-	ui.chat_input.hide()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	player.enabled = true
 
@@ -546,14 +543,6 @@ func _input(event: InputEvent) -> void:
 					_request({"op":"power"})
 				KEY_C:
 					_request({"op":"check"})
-				KEY_T:
-					if not session.online:return
-					release_mouse()
-					ui.chat_input.show()
-					ui.chat_input.grab_focus()
-				KEY_X:
-					if current_target:
-						session.chat("Look at "+str(current_target.get_meta("label","equipment")))
 				KEY_F8:
 					telemetry = not telemetry
 					for label in physical_readouts.values():

@@ -1,4 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="160" height="120" viewBox="0 0 160 120">
-<rect width="160" height="120" rx="14" fill="#dcece6"/>
 <ellipse cx="80" cy="108" rx="29" ry="6" fill="#426960" opacity=".24"/><path d="M70 28h20v14q13 6 13 19v35q0 10-9 10H66q-9 0-9-10V61q0-13 13-19z" fill="#a0d7e9" stroke="#4a97ab" stroke-width="2"/><rect x="68" y="20" width="24" height="12" rx="3" fill="#268269"/><path d="M58 63h44v25H58z" fill="#e9f7eb"/><path d="M80 68q-12 13 0 15 12-2 0-15z" fill="#58a9be"/><path d="M65 56v39m31-1h-5" stroke="#f6ffff" stroke-width="3" stroke-linecap="round"/>
 </svg>

@@ -22,7 +22,6 @@ var modes: OptionButton
 var tasks: OptionButton
 var seed_input: SpinBox
 var inputs := {}
-var chat_input: LineEdit
 var result: Label
 var assists: CheckBox
 var logs: Array[String] = []
@@ -77,14 +76,6 @@ func build(owner_game: Node) -> void:
 		gameplay_label.hide()
 	var cross := crosshair
 	cross.position = Vector2(634,342)
-	chat_input = LineEdit.new()
-	chat_input.position = Vector2(28,550)
-	chat_input.size = Vector2(650,36)
-	chat_input.max_length = 240
-	chat_input.placeholder_text = "Team chat / shared observations — Enter to send"
-	chat_input.visible = false
-	add_child(chat_input)
-	chat_input.text_submitted.connect(func(value): game.session.chat(value); chat_input.text=""; chat_input.hide(); game.capture())
 	menu = panel(Vector2(160,30),Vector2(0,0))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation",8)
@@ -208,7 +199,6 @@ func build(owner_game: Node) -> void:
 	log_label.set("icon_key", "info")
 	objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	chat_input.theme = menu.theme
 	get_viewport().size_changed.connect(_fit_layout)
 	_fit_layout()
 	update_roster()

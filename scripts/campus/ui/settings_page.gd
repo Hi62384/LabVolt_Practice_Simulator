@@ -10,7 +10,7 @@ const CATEGORIES := {
 	"Graphics & Display":"meter", "Audio":"volume", "Controls":"keyboard",
 	"Gameplay":"play", "Accessibility":"user"}
 const RESOLUTIONS := [Vector2i.ZERO, Vector2i(1280,720), Vector2i(1366,768), Vector2i(1600,900), Vector2i(1920,1080), Vector2i(2560,1440)]
-const RESERVED := [KEY_F, KEY_Q, KEY_Z, KEY_P, KEY_C, KEY_T, KEY_X, KEY_F8, KEY_F11, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_R, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]
+const RESERVED := [KEY_F, KEY_Q, KEY_Z, KEY_P, KEY_C, KEY_F8, KEY_F11, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_R, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]
 
 var game: Node
 var prefs: RefCounted
