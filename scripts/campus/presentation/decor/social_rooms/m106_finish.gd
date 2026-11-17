@@ -7,7 +7,7 @@ func mat(color: String) -> StandardMaterial3D:
 	if color == "fff2dc":
 		m.emission_enabled = true
 		m.emission = m.albedo_color
-		m.emission_energy_multiplier = .45
+		m.emission_energy_multiplier = 2.0
 	mats[color]=m;return m
 func panel(at: Vector3,size: Vector3,color: String) -> void:
 	var box := BoxMesh.new();box.size=size
@@ -32,13 +32,6 @@ func build(_menu: Dictionary) -> bool:
 	batch(floor_b,Vector3(.984,.012,.984),"738287")
 	# West entry x=-10,z=0 remains fully open. Existing right wall window
 	# insets at x~9.78,z +/-3.4 remain in front of this backing finish.
-	for z in [-5.88,5.88]:
-		panel(Vector3(0,1,z),Vector3(19.8,1.9,.035),"506b75")
-		panel(Vector3(0,2.95,z),Vector3(19.8,1.99,.035),"dedfd8")
-		panel(Vector3(0,.11,z),Vector3(19.8,.20,.07),"334e59")
-	for z in [-3.65,3.65]:
-		panel(Vector3(-9.88,1,z),Vector3(.035,1.9,4.55),"506b75")
-		panel(Vector3(-9.88,2.95,z),Vector3(.035,1.99,4.55),"dedfd8")
 	panel(Vector3(9.88,1,0),Vector3(.035,1.9,11.8),"506b75")
 	panel(Vector3(9.88,2.95,0),Vector3(.035,1.99,11.8),"dedfd8")
 	var ceiling_a: Array=[];var ceiling_b: Array=[]

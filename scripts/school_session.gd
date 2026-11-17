@@ -320,6 +320,7 @@ func _move_floor_lead(peer: int, action: Dictionary) -> void:
 			lab.next_id+=1
 			lab.revision+=1
 			game.session.broadcast()
+		game.discarded_items.forget_ground(peer,str(lead.get("lost_token","")))
 		floor_leads.erase(id)
 	else:
 		var point: Variant=ground_drop_position(action.get("position"),peer)
@@ -351,16 +352,28 @@ func _move_floor_lead(peer: int, action: Dictionary) -> void:
 				game.session.broadcast()
 				break
 		if lead.is_empty():return
-		lead.merge({"owner":peer,"position":point})
+		var parcel := {"wire":true,"dc":lead.dc,"station":lead.station,"color":lead.color}
+		var label: String = ["Red cable","Blue cable","Yellow cable","Black cable"][int(lead.color)]
+		lead.merge({"owner":peer,"position":point,"lost_token":game.discarded_items.track_ground(peer,parcel,label)})
 		floor_leads[next_floor_lead]=lead
 		next_floor_lead+=1
 	broadcast()
 
 func _mark_whiteboard(peer: int, action: Dictionary) -> void:
-	if DormSupplies.paper_supply(papers.get(held(peer),{}))!="marker":return
+	var held_id:=held(peer)
+	var has_marker:=DormSupplies.paper_supply(papers.get(held_id,{}))=="marker"
 	var id := int(action.get("id",0))
 	var paper: Dictionary=papers.get(id,{})
 	if not paper.has("wall_normal") or not _near(peer,paper.position):return
+	var classroom_room:=str(paper.get("classroom_board",""))
+	if not has_marker:
+		if held_id!=0 or classroom_room.is_empty():return
+		var class_events=game.lecture_classes.classroom_events
+		if not is_instance_valid(class_events) or not class_events.enabled or not is_instance_valid(class_events.service) or not class_events.service.can_mark_board(peer,classroom_room,Time.get_ticks_msec()/1000.0):return
+	if not classroom_room.is_empty():
+		var events=game.lecture_classes.classroom_events
+		if is_instance_valid(events) and events.enabled and game.lecture_classes.classes.has(classroom_room):
+			if not is_instance_valid(events.service) or not events.service.can_mark_board(peer,classroom_room,Time.get_ticks_msec()/1000.0):return
 	var from: Variant=action.get("from")
 	var to: Variant=action.get("point")
 	for point in [from,to]:
@@ -375,6 +388,9 @@ func _mark_whiteboard(peer: int, action: Dictionary) -> void:
 		lines.append([from,to])
 	paper.board_lines=lines
 	paper.revision=int(paper.revision)+1
+	if not classroom_room.is_empty() and not action.get("erase",false):
+		var events=game.lecture_classes.classroom_events
+		if is_instance_valid(events) and events.enabled and events.service.rooms.has(classroom_room):events.service.board_stroke(peer,classroom_room,Time.get_ticks_msec()/1000.0)
 	broadcast()
 
 func _sync_supply_world() -> bool:
@@ -414,11 +430,11 @@ func _sync_supply_world() -> bool:
 func _ensure_classroom_whiteboards() -> bool:
 	if room_bridge.registry==null:return false
 	var changed := false
-	for room_id in ["elm253_lecture","ety155_lecture"]:
+	for room_id in ["elm253_lecture","ety155_lecture","study"]:
 		if papers.values().any(func(item):return item.get("classroom_board","")==room_id):continue
-		var room: Dictionary=room_bridge.room("","lecture",room_id)
+		var room: Dictionary=room_bridge.registry.get_room(room_id) if room_id=="study" else room_bridge.room("","lecture",room_id)
 		if room.is_empty():continue
-		var position: Vector3=room_bridge.point(room.center)+Vector3(0,2.28,-float(room.size[2])*.5+.18)
+		var position: Vector3=room_bridge.point(room.center)+Vector3(0,2.28,-float(room.size[2])*.5+.30)
 		papers[next_id]={
 			"id":next_id,"owner":0,"owner_name":"","classroom_board":room_id,
 			"project":{"title":"Classroom whiteboard","questions":[],"guide_pages":[]},
@@ -541,7 +557,7 @@ func apply(peer: int,a: Dictionary) -> void:
 		if not pose is Vector3:return
 		if not room_bridge.contains("library",pose) and not room_bridge.contains("study",pose):return
 		var course_id := str(a.get("course_id",""))
-		if course_id not in ["ELM253","ETY155","MTH147","MTH255"]:return
+		if course_id not in ["ELM253","ETY155","DGS266","MTH147","MTH255"]:return
 		var service=preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd")
 		var practice: Dictionary=service.issue_for_course(course_id,course_bridge,random.randi())
 		if practice.has("error"):_notice(peer,str(practice.error));return
@@ -576,7 +592,7 @@ func apply(peer: int,a: Dictionary) -> void:
 			if op in ["equip_paper","pickup"] and is_instance_valid(dorm):
 				var profile: Dictionary = dorm._profile(dorm.authenticated_identity(peer))
 				if supply not in profile.get("dorm",{}).get("carry_items",[]):return
-		if _class_assessment(paper) and phase=="assignment" and _assessment_remaining()<=0:
+		if not room_class and _class_assessment(paper) and phase=="assignment" and _assessment_remaining()<=0:
 			advance(0)
 			if op in ["answer","stroke","annotation","remove_annotation","undo_annotation","redo_annotation","erase_stroke","erase_area","undo_stroke","redo_stroke","erase","submit","procedure","measure"]:return
 		if not paper.held and not paper.get("stowed",false) and not _near(peer,paper.position):return
@@ -601,13 +617,27 @@ func apply(peer: int,a: Dictionary) -> void:
 					if not reclaimed.ok:_notice(peer,str(reclaimed.error));return
 					paper.supply_released=false
 					paper.erase("wall_normal")
+				if op=="pickup" and paper.has("lost_token"):
+					game.discarded_items.forget_ground(peer,str(paper.lost_token))
+					paper.erase("lost_token")
 				paper.held=true;paper.stowed=false
 			"place","drop":
 				var pos=a.get("position")
+				var lost_parcel: Dictionary={}
+				var lost_label := "Worksheet"
 				if not paper.held or not pos is Vector3 or not pos.is_finite() or not _near(peer,pos):return
 				if op=="drop":
 					pos=ground_drop_position(pos,peer)
 					if pos==null:return
+					if supply.is_empty() and not _class_assessment(paper):
+						var saved_paper: Dictionary=paper.duplicate(true);saved_paper.erase("lost_token")
+						lost_parcel={"item":{"kind":"paper","id":id},"paper":saved_paper}
+					elif supply in DormSupplies.TOOLS:
+						var dorm=game.dorm_interactions
+						var identity: String=dorm.authenticated_identity(peer)
+						var deployment: Dictionary=dorm._ledger().account(peer).get("deployment",{}) if game.session.online else {}
+						var result: Dictionary=preload("res://scripts/ui/personal_inventory/discard_transfer.gd").take(dorm._profile(identity),{"location":"hotbar","item":{"kind":"supply","id":supply}},deployment)
+						if result.get("ok",false):lost_parcel=result.parcel;lost_label=str(DormSupplies.TOOLS[supply])
 				elif supply=="whiteboard":
 					var normal: Variant=a.get("normal")
 					if not normal is Vector3 or not normal.is_finite() or absf(normal.y)>.15 or not is_equal_approx(normal.length(),1.0):return
@@ -632,6 +662,7 @@ func apply(peer: int,a: Dictionary) -> void:
 					if supply=="whiteboard" and op=="place":paper.wall_normal=a.normal
 				paper.position=pos
 				paper.held=false
+				if op=="drop" and not lost_parcel.is_empty():paper.lost_token=game.discarded_items.track_ground(peer,lost_parcel,lost_label)
 			"page":paper.page=clampi(int(a.get("page",0)),0,page_count(paper)-1)
 			"notebook_page":
 				if not paper.get("notebook",false) or page_count(paper)>=100:return
@@ -776,11 +807,13 @@ func apply(peer: int,a: Dictionary) -> void:
 				papers.erase(id)
 				_notice(peer,"Sheet recycled." if paper.class_round==0 else "Sheet recycled. Your Class deadline still applies; ask the teacher for a replacement.")
 			"measure":
-				if not _in_room(peer) or not paper.mark.is_empty():return
-				var bench := int(allocation.get(str(paper.identity),{}).get("bench",-1))
+				if (not room_class and not _in_room(peer)) or not paper.mark.is_empty():return
+				var bench := int(paper.get("room_bench",-1)) if room_class else int(allocation.get(str(paper.identity),{}).get("bench",-1))
 				if equipment_adapter!=null and equipment_adapter.has_method("record_measurement"):
 					var recorded: bool=equipment_adapter.call("record_measurement",peer,bench,paper.project)
-					_notice(peer,"Instrument observation recorded." if recorded else "Check the assigned bench, circuit, meter mode, range and lead connections.")
+					if str(paper.project.get("lab_validation","")).begins_with("digital_"):
+						_notice(peer,"Equipment observation recorded." if recorded else "Check your assigned bench, power, connections and instrument capture.")
+					else:_notice(peer,"Instrument observation recorded." if recorded else "Check the assigned bench, circuit, meter mode, range and lead connections.")
 			"submit":
 				if paper.get("guide",false):return
 				if not room_class and activity.get("kind","")!="lecture" and (not paper.held or not _near(peer,teacher_position)):return
@@ -907,8 +940,12 @@ func _receive_grade(record: Dictionary) -> void:
 	if record.get("profile", "") != local_identity or gradebook.has(str(record.id)):
 		return
 	var curriculum_id := str(record.get("gradebook_assessment_id", ""))
-	if not curriculum_id.is_empty() and RecordMetadata.is_official_result(record) and not RecordMetadata.first_result(gradebook, local_identity, str(record.course_id), str(record.kind), curriculum_id).is_empty():
-		return
+	if not curriculum_id.is_empty() and RecordMetadata.is_official_result(record):
+		for prior in gradebook.values():
+			if not prior is Dictionary or not RecordMetadata.is_official_result(prior):continue
+			if str(prior.get("profile",""))!=local_identity or str(prior.get("course_id",""))!=str(record.course_id) or str(prior.get("kind",""))!=str(record.kind):continue
+			var prior_curriculum:=str(prior.get("gradebook_assessment_id","%s:%d"%[str(prior.get("kind","lecture")),int(prior.get("week",0))]))
+			if prior_curriculum==curriculum_id and int(prior.get("course_attempt",1))==int(record.get("course_attempt",1)):return
 	game.sfx.play("mark")
 	gradebook[str(record.id)]=record
 	_apply_reward(record)
@@ -1092,7 +1129,7 @@ func _process(delta: float) -> void:
 	if recovery_clock>=1.0:
 		recovery_clock=0
 		checkpoint()
-	if mode in ["Freeplay","Creative Freeplay"] and activity.is_empty():
+	if mode in ["Freeplay","Creative Freeplay"] and activity.is_empty() and not game.faculty.calls.has("ac_lab") and not game.faculty.freeplay_returns.has("ac_lab"):
 		var offset := teacher_goal-teacher_position
 		if offset.length()<.15:teacher_goal=Vector3(random.randf_range(-3,3),0,random.randf_range(2.5,8))
 		elif not game.session.poses.values().any(func(p):return p.get("position",Vector3.ZERO).distance_to(teacher_position)<2.2):
@@ -1381,9 +1418,20 @@ func _is_replay(token: String, assignment: Dictionary) -> bool:
 		return false
 	var course := str(assignment.get("course_id", ""))
 	var kind := str(assignment.get("kind", ""))
-	if token == local_identity and not RecordMetadata.first_result(gradebook, token, course, kind, id).is_empty():
-		return true
-	return not RecordMetadata.first_result(archive.get(token, {}), token, course, kind, id).is_empty()
+	var records: Dictionary=archive.get(token,{}).duplicate(true)
+	if token==local_identity:
+		for key in gradebook:
+			if not records.has(key):records[key]=gradebook[key]
+	if RecordMetadata.first_result(records,token,course,kind,id).is_empty():return false
+	if id!="%s:%d"%[kind,int(assignment.get("week",0))]:return true
+	# A repeated slot in the current attempt is feedback only. Once a whole
+	# course attempt has failed, that slot belongs to the next graded retake.
+	var projection: Dictionary=CourseProgression.summary(records,token,course,course_bridge)
+	var open_attempts: Array=projection.get("open_attempts",[])
+	if not open_attempts.is_empty():
+		return open_attempts[-1].get("records",{}).has(id)
+	if projection.get("status","")=="failed":return false
+	return true
 
 static func page_count(paper: Dictionary) -> int:
 	if paper.get("project",{}).get("course_id", "") in ["MTH147", "MTH255"]:
@@ -1394,22 +1442,29 @@ static func page_count(paper: Dictionary) -> int:
 
 func equipment_access(peer: int,bench: int,domain: String="") -> bool:
 	if not multiplayer.is_server():return false
+	if is_instance_valid(game.lecture_classes):
+		var assigned: Dictionary=game.lecture_classes.assigned_lab(peer)
+		if not assigned.is_empty():
+			var course := str(assigned.course)
+			var matching_domain := domain=="" or domain==course or (course=="DGS266" and domain=="ETY155")
+			return matching_domain and bench==int(assigned.bench)
 	if not formal_active():return true
-	if domain!="" and activity.get("kind","")=="lab" and domain!=activity.get("course_id",""):return false
+	if domain!="" and activity.get("kind","")=="lab" and domain!=activity.get("course_id",""):
+		if not (domain=="ETY155" and activity.get("course_id","")=="DGS266"):return false
 	if allocation.is_empty():return true
 	return Benches.permits(allocation,str(identities.get(peer,"")),bench)
 
 func observe_equipment_action(peer: int,bench: int,op: String,before_parts: Array) -> void:
-	if not multiplayer.is_server() or not formal_active() or not equipment_access(peer,bench):return
+	if not multiplayer.is_server() or not equipment_access(peer,bench):return
 	if equipment_adapter==null or not equipment_adapter.has_method("observe_action"):return
 	for paper in papers.values():
-		if paper.owner==peer and _class_assessment(paper) and paper.mark.is_empty():
+		if paper.owner==peer and _class_assessment(paper) and paper.mark.is_empty() and (formal_active() or (str(paper.get("room_class",""))!="" and int(paper.get("room_bench",-1))==bench)):
 			equipment_adapter.call("observe_action",peer,bench,paper.project,op,before_parts)
 			return
 
 func _practical_mark(paper: Dictionary) -> Dictionary:
 	var token := str(paper.identity)
-	var bench := int(allocation.get(token,{}).get("bench",-1))
+	var bench := int(paper.get("room_bench",-1)) if not str(paper.get("room_class","")).is_empty() else int(allocation.get(token,{}).get("bench",-1))
 	if equipment_adapter!=null and equipment_adapter.has_method("capture") and equipment_adapter.has_method("grade"):
 		var evidence: Dictionary=equipment_adapter.call("capture",int(paper.owner),bench,paper.project)
 		return equipment_adapter.call("grade",paper.project,evidence,paper.get("procedure",{}))

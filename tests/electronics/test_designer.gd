@@ -6,9 +6,12 @@ func run():
 	for i in 5:await process_frame
 	var kit: Dictionary=game.electronics.profile.data.kits.starter
 	kit.board.parts=[{"id":"battery","type":"battery","a":"A1","b":"F1"},{"id":"load","type":"r1000","a":"B1","b":"G1"}]
-	game.electronics.open("design")
+	# The designer now opens a project browser and uses its own circuit draft.
+	game.electronics.profile.data.circuit_draft=kit.board.duplicate(true)
+	game.electronics.open("design",-1,false)
+	game.electronics.workspace.simulation_button.button_pressed=true
 	for i in 10:await process_frame
-	assert(game.electronics.canvas.analyzer_enabled)
+	assert(game.electronics.workspace.simulating)
 	assert(abs(float(game.electronics.canvas.currents.get("board/load",0))-.005)<.0001)
 	assert(not game.electronics.profile.data.analyzer)
 	for station in game.dc_lab.benches:assert(station.board.is_empty())

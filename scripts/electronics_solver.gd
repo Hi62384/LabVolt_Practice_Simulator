@@ -1,4 +1,5 @@
 extends RefCounted
+const LinearKernel=preload("res://scripts/electronics/MnaLinearKernel.cs")
 ## Double precision MNA. Backward Euler storage, piecewise-linear diodes,
 ## isolated CV/CC sources. No invented ground path: one reference per island.
 var memory := {}
@@ -8,15 +9,22 @@ var last := {}
 var network_solver: RefCounted
 var topology_key := []
 var topology := {}
+# Exact stamped matrices only; source voltages and transient history remain in RHS.
+var factor_cache: Array[Dictionary] = []
+var linear_kernel=LinearKernel.new()
+var use_csharp:=true
 
 func reset() -> void:
-	memory.clear();battery_discharge.clear();time=0;last={};network_solver=null
+	memory.clear();battery_discharge.clear();time=0;last={};network_solver=null;factor_cache.clear();linear_kernel.Reset()
 
 func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) -> Dictionary:
 	if dt==0. and hold_transients:return preload("res://scripts/electronics_buses/held_state.gd").solve(self,parts,wires)
 	if parts.size()>96:return {"ok":false,"error":"Circuit exceeds 96-device solver limit."}
-	var devices := {}
-	for part in parts:devices[str(part.id)]=part
+	var devices := {};var nonlinear_parts: Array=[];var battery_parts: Array=[]
+	for part in parts:
+		devices[str(part.id)]=part
+		if part.kind in ["D","LED","E","current_source","supply"]:nonlinear_parts.append(part)
+		if part.kind=="V" and float(part.get("capacity_ah",0.0))>0.0:battery_parts.append(part)
 	var layout := _layout(parts,wires,dt>0.0)
 	var net: Dictionary=layout.net
 	var groups: Dictionary=layout.groups
@@ -105,11 +113,11 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 							matrix[k][k] = -resistance
 							rhs[k] = emf
 				_:return {"ok":false,"error":"Unsupported model: "+str(p.kind)}
-		var solved := gaussian(matrix,rhs)
+		var solved := _solve_cached(matrix,rhs)
 		if not solved.ok:return {"ok":false,"error":"Singular circuit: conflicting ideal sources or an open measurement path."}
 		solution=solved.x
 		var changed := false
-		for p in parts:
+		for p in nonlinear_parts:
 			var a: int=idx.get(net[str(p.a)],-1);var b: int=idx.get(net[str(p.b)],-1)
 			var v := (solution[a] if a>=0 else 0.0)-(solution[b] if b>=0 else 0.0)
 			var id := str(p.id)
@@ -161,7 +169,7 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 		if p.kind=="current_source":states[id]="CC" if modes.get(id,0)==0 else "COMPLIANCE"
 		if p.kind=="supply":states[id]="CC" if modes.get(id,0)!=0 else "CV"
 	var charge := {}
-	for part in parts:
+	for part in battery_parts:
 		var remaining := _battery_remaining(part)
 		if remaining < 0.0:continue
 		remaining=_drain_battery(part,float(currents[part.id]),dt,remaining)
@@ -245,7 +253,107 @@ static func conductance(m: Array,a: int,b: int,g: float) -> void:
 static func current(rhs: PackedFloat64Array,a: int,b: int,i: float) -> void:
 	if a>=0:rhs[a]-=i
 	if b>=0:rhs[b]+=i
+func _solve_cached(matrix: Array, rhs: PackedFloat64Array) -> Dictionary:
+	if not use_csharp:return _solve_cached_gd(matrix,rhs)
+	var key:=hash(matrix)
+	for entry in factor_cache:
+		if entry.key==key and entry.matrix==matrix:return _solve_factor(entry,rhs)
+	var factor: Dictionary=linear_kernel.Factorize(matrix)
+	if not factor.get("ok",false):return {"ok":false}
+	factor["key"]=key;factor["matrix"]=matrix.duplicate(true)
+	factor_cache.push_front(factor)
+	if factor_cache.size()>4:factor_cache.pop_back()
+	return _solve_factor(factor,rhs)
+
+func _solve_cached_gd(matrix: Array, rhs: PackedFloat64Array) -> Dictionary:
+	# Only bit-identical stamps are reusable: switches, timestep, device modes,
+	# resistance and coupling all invalidate automatically when their stamps change.
+	var key := hash(matrix)
+	for entry in factor_cache:
+		if entry.key==key and entry.matrix==matrix:
+			return _solve_factor(entry,rhs)
+	var n := rhs.size()
+	var lu: Array=matrix.duplicate(true)
+	var permutation := PackedInt32Array();permutation.resize(n)
+	for i in n:permutation[i]=i
+	for k in n:
+		var pivot := k
+		for j in range(k+1,n):
+			if absf(lu[j][k])>absf(lu[pivot][k]):pivot=j
+		if absf(lu[pivot][k])<1e-14:return {"ok":false}
+		var row=lu[k];lu[k]=lu[pivot];lu[pivot]=row
+		var swap := permutation[k];permutation[k]=permutation[pivot];permutation[pivot]=swap
+		for j in range(k+1,n):
+			var factor: float=lu[j][k]/lu[k][k]
+			lu[j][k]=factor
+			if factor==0.0:continue
+			for column in range(k+1,n):lu[j][column]-=factor*lu[k][column]
+	var lower: Array=[];var upper: Array=[];var diagonal:=PackedFloat64Array();diagonal.resize(n)
+	for i in n:
+		var l: Array=[];var u: Array=[]
+		for j in i:
+			if lu[i][j]!=0.0:l.append([j,lu[i][j]])
+		for j in range(i+1,n):
+			if lu[i][j]!=0.0:u.append([j,lu[i][j]])
+		lower.append(l);upper.append(u);diagonal[i]=lu[i][i]
+	var entry := {"key":key,"matrix":matrix.duplicate(true),"lower":lower,"upper":upper,"diagonal":diagonal,"permutation":permutation}
+	factor_cache.push_front(entry)
+	if factor_cache.size()>4:factor_cache.pop_back()
+	return _solve_factor(entry,rhs)
+
+static func _solve_factor(entry: Dictionary,rhs: PackedFloat64Array) -> Dictionary:
+	var n:=rhs.size()
+	var y:=PackedFloat64Array();y.resize(n)
+	for i in n:
+		var value:=rhs[entry.permutation[i]]
+		for term in entry.lower[i]:value-=float(term[1])*y[int(term[0])]
+		y[i]=value
+	var x:=PackedFloat64Array();x.resize(n)
+	for i in range(n-1,-1,-1):
+		var value:=y[i]
+		for term in entry.upper[i]:value-=float(term[1])*x[int(term[0])]
+		x[i]=value/entry.diagonal[i]
+		if not is_finite(x[i]) or absf(x[i])>1e9:return {"ok":false}
+	return {"ok":true,"x":x}
+
 static func gaussian(m: Array,b: PackedFloat64Array) -> Dictionary:
+	# Disconnected matrix blocks are independent even for controlled devices:
+	# use actual nonzero stamps in either direction, not assumed circuit topology.
+	# Solving each block separately preserves the same equations while avoiding
+	# pivot and elimination work across unrelated instrument inputs.
+	var n := b.size()
+	if n < 12:return _gaussian_dense(m,b)
+	var parent := PackedInt32Array();parent.resize(n)
+	for i in n:parent[i]=i
+	for i in n:
+		for j in range(i+1,n):
+			if m[i][j] == 0.0 and m[j][i] == 0.0:continue
+			var left := i
+			while parent[left]!=left:left=parent[left]
+			var right := j
+			while parent[right]!=right:right=parent[right]
+			if left!=right:parent[right]=left
+	var blocks := {}
+	for i in n:
+		var root_index := i
+		while parent[root_index]!=root_index:root_index=parent[root_index]
+		if not blocks.has(root_index):blocks[root_index]=[]
+		blocks[root_index].append(i)
+	if blocks.size()==1:return _gaussian_dense(m,b)
+	var solution := PackedFloat64Array();solution.resize(n)
+	for indices in blocks.values():
+		var block: Array=[]
+		var rhs := PackedFloat64Array();rhs.resize(indices.size())
+		for r in indices.size():
+			var row := PackedFloat64Array();row.resize(indices.size())
+			for c in indices.size():row[c]=m[indices[r]][indices[c]]
+			block.append(row);rhs[r]=b[indices[r]]
+		var result := _gaussian_dense(block,rhs)
+		if not result.ok:return result
+		for r in indices.size():solution[indices[r]]=result.x[r]
+	return {"ok":true,"x":solution}
+
+static func _gaussian_dense(m: Array,b: PackedFloat64Array) -> Dictionary:
 	var n := b.size()
 	for k in range(n):
 		var pivot := k

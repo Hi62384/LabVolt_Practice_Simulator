@@ -2,6 +2,9 @@ extends RefCounted
 const Edits=preload("res://scripts/campus/dorms/customization/room_edits.gd")
 const Rules=preload("res://scripts/campus/dorms/customization/placement_rules.gd")
 const Backpacks=preload("res://scripts/campus/dorms/authority/backpack_inventory.gd")
+const UsbInventory=preload("res://scripts/campus/computers/usb_inventory.gd")
+const LaptopInventory=preload("res://scripts/campus/computers/laptop_inventory.gd")
+const PhoneInventory=preload("res://scripts/campus/phones/phone_inventory.gd")
 const DEFAULTS=["bed","bedside","wardrobe","study_desk","study_chair","desk_laptop","storage_cabinet","shelf","rug","plant","bedside_lamp","desk_lamp"]
 const TOOLS = {"notebook":"Notebook","calculator":"Scientific calculator","pencil_case":"Pencil case","calculator_basic":"Basic calculator","calculator_financial":"Financial calculator","lab_goggles":"Lab goggles","flashlight":"Flashlight","whiteboard":"Whiteboard","marker":"Dry-erase marker"}
 const TOOL_PRICES = {"notebook":5,"calculator":24,"pencil_case":9,"calculator_basic":10,"calculator_financial":32,"lab_goggles":12,"flashlight":15,"whiteboard":28,"marker":4}
@@ -36,6 +39,12 @@ static func paper_supply(paper: Dictionary) -> String:
 static func storage_used(d: Dictionary) -> int:
 	var stored_kits: Array = d.get("stored_kits",[])
 	var count := stored_kits.size()
+	for drive in d.get("usb_drives",{}).values():
+		if drive.get("location","")=="cabinet":count+=1
+	for laptop in d.get("portable_laptops",{}).values():
+		if laptop.get("location","")=="cabinet":count+=1
+	for phone in d.get("smartphones",{}).values():
+		if phone.get("location","")=="cabinet":count+=1
 	for item in supply_counts(d):
 		count+=cabinet_supply_count(d,item)
 	for amount in d.get("storage",{}).values():count+=int(amount)
@@ -144,6 +153,16 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 		if not identity_ok(id):return false
 	if not d.get("storage") is Dictionary or d.storage.size()>64 or not d.get("instances") is Array:return false
 	var carry: Variant = d.get("carry_items",[])
+	if not UsbInventory.valid(d):return false
+	if not LaptopInventory.valid(d):return false
+	if not PhoneInventory.valid(d):return false
+	var custody: Variant=d.get("teacher_phone_custody",{})
+	if not custody is Dictionary:return false
+	if not custody.is_empty():
+		if custody.size()!=3 or not custody.get("id") is String or not custody.get("room") is String or not custody.get("teacher") is String:return false
+		var held_id: String=str(custody.id)
+		if held_id.length()!=32 or not held_id.is_valid_hex_number() or held_id!=held_id.to_lower() or str(custody.room).length()>64 or str(custody.teacher).length()>64:return false
+		if d.get("smartphones",{}).get(held_id,{}).get("location","")!="hotbar" or ("phone:"+held_id) not in carry:return false
 	if d.has("supply_counts"):
 		if not d.supply_counts is Dictionary or d.supply_counts.size()>TOOLS.size():return false
 		for item in d.supply_counts:
@@ -160,7 +179,7 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 	var carry_seen := {}
 	var calculator_count := 0
 	for item in carry:
-		if not item is String or (item not in counts_by_supply and not item.begins_with("kit:") and not item.begins_with("bag:")) or carry_seen.has(item):return false
+		if not item is String or (item not in counts_by_supply and not item.begins_with("kit:") and not item.begins_with("bag:") and not item.begins_with("usb:") and not item.begins_with("laptop:") and not item.begins_with("phone:")) or carry_seen.has(item):return false
 		if item in CALCULATORS:calculator_count+=1
 		carry_seen[item]=true
 	if calculator_count>1:return false
@@ -339,14 +358,23 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 				if not id.is_empty():d.instances.erase(id)
 		"carry_item":
 			var item := str(intent.get("item",""))
+			var usb_id:=item.trim_prefix("usb:") if item.begins_with("usb:") else ""
+			var laptop_id:=item.trim_prefix("laptop:") if item.begins_with("laptop:") else ""
+			var phone_id:=item.trim_prefix("phone:") if item.begins_with("phone:") else ""
+			if not usb_id.is_empty() and d.get("usb_drives",{}).get(usb_id,{}).get("location","") in ["connected","lost","handoff"]:return fail("Retrieve this USB drive first")
+			if not laptop_id.is_empty() and d.get("portable_laptops",{}).get(laptop_id,{}).get("location","") in ["placed","lost"]:return fail("Retrieve this laptop first")
 			if item.begins_with("kit:") and next.get("kits",{}).get(item.trim_prefix("kit:"),{}).get("workspace_only",false):
 				return fail("This is a circuit workspace.")
-			if not d.supply_counts.has(item) and (not item.begins_with("kit:") or not next.get("kits",{}).has(item.trim_prefix("kit:"))):
+			if not d.supply_counts.has(item) and (not item.begins_with("kit:") or not next.get("kits",{}).has(item.trim_prefix("kit:"))) and (usb_id.is_empty() or not d.get("usb_drives",{}).has(usb_id)) and (laptop_id.is_empty() or not d.get("portable_laptops",{}).has(laptop_id)) and (phone_id.is_empty() or not d.get("smartphones",{}).has(phone_id)):
 				return fail("Item unavailable")
 			var carried: Array = d.get("carry_items",[]).duplicate()
 			if bool(intent.get("carry",false)):
 				if item.begins_with("kit:") and Backpacks.has_kit(d, item.trim_prefix("kit:")):
 					return fail("Unpack this kit from its backpack first")
+				if item.begins_with("kit:") and item.trim_prefix("kit:") not in d.get("stored_kits",[]):
+					return fail("This kit is not in the cabinet")
+				if not phone_id.is_empty() and d.smartphones[phone_id].location=="packed":
+					return fail("Unpack this phone from its backpack first")
 				if d.supply_counts.has(item) and cabinet_supply_count(d, item) == 0:
 					return fail("No copies of this item are in the cabinet")
 				if item in CALCULATORS and not carried_calculator(d).is_empty():return fail("Store your current calculator first")
@@ -364,10 +392,16 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 				elif not stored.has(id):stored.append(id)
 				d.stored_kits=stored
 			d.carry_items=carried
+			if not usb_id.is_empty():d.usb_drives[usb_id].location="hotbar" if bool(intent.get("carry",false)) else "cabinet"
+			if not laptop_id.is_empty():d.portable_laptops[laptop_id].location="hotbar" if bool(intent.get("carry",false)) else "cabinet"
+			if not phone_id.is_empty():d.smartphones[phone_id].location="hotbar" if bool(intent.get("carry",false)) else "cabinet"
 			if storage_used(d)>maxi(CAPACITY,before):return fail("Dorm inventory is full")
+		"rename_usb":
+			if not intent.get("name") is String or not UsbInventory.rename(d,str(intent.get("id","")),intent.name):return fail("Invalid USB drive or name")
 		"wear_goggles":
 			var carried: Array=d.get("carry_items",[]).duplicate()
 			if bool(intent.get("wear",false)):
+				if not next.get("avatar_cosmetics",{}).get("equipped",{}).get("eyewear",{}).is_empty():return fail("Remove your equipped eyewear before wearing goggles")
 				if not carried.has("lab_goggles") or d.get("worn_supplies",{}).has("head"):return fail("Put goggles in your hotbar first")
 				carried.erase("lab_goggles")
 				d.worn_supplies={"head":"lab_goggles"}
@@ -378,6 +412,7 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 				d.erase("worn_supplies")
 			d.carry_items=carried
 		"bag_move","bag_pack","bag_unpack":
+			if intent.op=="bag_move" and intent.get("destination","")=="back" and not next.get("avatar_cosmetics",{}).get("equipped",{}).get("back",{}).is_empty():return fail("Remove your back accessory before wearing a backpack")
 			var before := storage_used(d)
 			var error := Backpacks.move(d,intent,CALCULATORS)
 			if not error.is_empty():return fail(error)
@@ -428,6 +463,7 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 			if not eligible_layout(next,edited.state):return fail("Unsupported furnishing or detached surface item")
 			d.customization=edited.state
 		_:return fail("Unsupported dorm operation")
+	if not preload("res://scripts/campus/facilities/accessory_layout.gd").permits_change(profile,next):return fail("Remove an accessory to free a slot")
 	d.revision=int(d.revision)+1
 	if not valid(d,next.inventory,next.get("component_instances",{})):return fail("Invalid resulting dorm")
 	if adds_stock_shortage(profile,next,deployment):return fail("Those components are already packed in a kit")

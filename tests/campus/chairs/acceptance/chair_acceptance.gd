@@ -83,7 +83,9 @@ func run() -> void:
 	for initial_yaw in [-2.4,0.0,2.8]:
 		player.rotation.y = initial_yaw
 		player.yaw_target = initial_yaw
+		chair.swivel.rotation.y = .65
 		player.sit(chair)
+		check(absf(wrapf(chair.swivel.rotation.y-.65,-PI,PI))<.001 and absf(wrapf(player.rotation.y-.65,-PI,PI))<.001, "sitting adopts existing chair facing")
 		check(player.seated == chair and chair.rider == player, "production sit assigns rider")
 		player.look(Vector2(-2000,2000))
 		player._physics_process(0.016)
@@ -138,6 +140,45 @@ func run() -> void:
 	await physics_settle()
 	player.stand_up()
 	check(player.seated == null and chair.rider == null, "retry succeeds after floor returns")
+
+	# High-speed horizontal impact reflects the chair rather than stopping it.
+	make_box("ImpactWall", Vector3(2.0,.8,0), Vector3(.2,1.6,3))
+	chair.global_position=Vector3(0,0,0)
+	chair.velocity=Vector3(5,0,0)
+	chair.rider=null;chair.occupant=0
+	chair.set_physics_process(true)
+	for i in 45:await physics_frame
+	check(chair.velocity.x<-.1, "fast collision rebounds away from wall")
+	chair.set_physics_process(false)
+	# A cable blocks outward chair motion before the collision sweep; it must
+	# not move the seated rider backwards to enforce its reach.
+	chair.global_position=Vector3(-3,0,0)
+	player.global_position=Vector3(-3,0,1.3)
+	player.sit(chair)
+	player.cable_motion_guard=func(motion: Vector3):return Vector3(0,motion.y,motion.z)
+	chair.velocity=Vector3(4,0,0)
+	var constrained_start: float=chair.global_position.x
+	chair._physics_process(.1)
+	check(absf(chair.global_position.x-constrained_start)<.001, "cable clips chair motion without pulling rider")
+	player.cable_motion_guard=Callable()
+	player.stand_up()
+
+	# A resting chair skips most floor sweeps, but input and loss of support wake it.
+	chair.global_position=Vector3(-3,0,0)
+	chair.velocity=Vector3.ZERO;chair.spin=0;chair.spin_goal=0
+	chair.set_physics_process(true)
+	for i in 12:await physics_frame
+	check(chair.is_on_floor() and chair.idle_floor_check>0.0, "settled chair enters idle floor-check interval")
+	var start_x: float=chair.global_position.x
+	chair.velocity.x=1.0
+	for i in 4:await physics_frame
+	check(chair.global_position.x>start_x+.01, "velocity wakes an idle chair")
+	chair.velocity=Vector3.ZERO
+	for i in 12:await physics_frame
+	floor_body.queue_free()
+	for i in 30:await physics_frame
+	check(chair.global_position.y<-.1, "idle chair notices removed support")
+	chair.set_physics_process(false)
 
 	if failures.is_empty():
 		print("CHAIR_ACCEPTANCE_OK checks=", checks)

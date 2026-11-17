@@ -27,13 +27,8 @@ func mount(campus: Node3D, registry: Object) -> bool:
 		for x in range(20):
 			for z in range(12):
 				if int((x*7+z*3)%9<2)==variant: points.append(Vector3(-9.5+x,.003,13.5+z))
-		var tiles:=MultiMesh.new();tiles.transform_format=MultiMesh.TRANSFORM_3D
-		var tile_mesh:=BoxMesh.new();tile_mesh.size=Vector3(.994,.006,.994);tiles.mesh=tile_mesh
-		tiles.instance_count=points.size()
-		for i in points.size(): tiles.set_instance_transform(i,Transform3D(Basis.IDENTITY,points[i]))
-		var layer:=MultiMeshInstance3D.new();layer.multimesh=tiles
 		var floor_mat:=StandardMaterial3D.new();floor_mat.albedo_color=FLOOR_ALT if variant==1 else FLOOR;floor_mat.roughness=.92
-		layer.material_override=floor_mat;layer.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;root.add_child(layer)
+		preload("res://scripts/campus/performance/lit_tile_batches.gd").build(root,points,Vector3(.994,.006,.994),floor_mat)
 	# All wall details sit within the room shell; the east entrance stays open.
 	for z in [13.105,24.895]:
 		_box(Vector3(0,2.62,z),Vector3(19.68,2.57,.025),WALL_WHITE)
@@ -49,7 +44,10 @@ func mount(campus: Node3D, registry: Object) -> bool:
 		for z in [16.4,21.0]:
 			_box(Vector3(x,3.936,z),Vector3(4.38,.108,.30),FRAME)
 			_box(Vector3(x,3.871,z),Vector3(4.29,.024,.22),Color("fff3df"),true)
-			preload("res://scripts/campus/presentation/fixture_light.gd").ceiling_omni(root, Vector3(x,3.84,z),1.35,7.2,false)
+			var light=preload("res://scripts/campus/presentation/fixture_light.gd").down(root,Vector3(x,3.785,z),1.35,7.2,Vector3.DOWN,68.0)
+			light.name="FixtureCeilingLight"
+			if x==0.0 and z==16.4:
+				light.shadow_enabled=true;light.shadow_bias=.04;light.shadow_normal_bias=1.0;light.shadow_blur=1.5
 	for x in [-6.8, -2.8, 1.2, 5.2]:
 		_box(Vector3(x,2.66,24.78),Vector3(.25,.25,.17),FRAME)
 		_box(Vector3(x,2.524,24.765),Vector3(.20,.024,.13),Color("fff3df"),true)
@@ -101,7 +99,7 @@ func _sign(value: String,at: Vector3,yaw: float,pixel: float) -> void:
 func _box(at: Vector3,size: Vector3,tint: Color,emissive: bool=false,solid: bool=false) -> void:
 	var mesh:=BoxMesh.new();mesh.size=size
 	var mat:=StandardMaterial3D.new();mat.albedo_color=tint;mat.roughness=.85
-	if emissive:mat.emission_enabled=true;mat.emission=tint;mat.emission_energy_multiplier=.5
+	if emissive:mat.emission_enabled=true;mat.emission=tint;mat.emission_energy_multiplier=2.0
 	var node:=MeshInstance3D.new();node.mesh=mesh;node.position=at;node.material_override=mat
 	node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;root.add_child(node)
 	if solid:

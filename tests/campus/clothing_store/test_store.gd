@@ -39,6 +39,8 @@ func _initialize() -> void:
 	check(session.selected_state().status == "insufficient_funds", "insufficient funds state")
 	session.open({"dollars": 0, "owned_cosmetics": [], "purchasing_power_unlimited": true})
 	session.select(jacket.id)
+	check(session.selected_state().status == "insufficient_funds", "profile flag cannot claim unlimited funds")
+	session.set_economy_display({"ok": true, "unlimited_purchases": true})
 	check(session.selected_state().status == "available" and session.selected_state().unlimited, "authoritative unlimited-funds capability")
 	session.cancel_preview()
 	check(session.selected_state().status == "none", "cancel restores selection state")
@@ -46,17 +48,18 @@ func _initialize() -> void:
 	var bridge := Bridge.new()
 	var profile := {"dollars": 400, "owned_cosmetics": [], "avatar_cosmetics": {"version": 1, "body": {}, "equipped": {}}}
 	var bought := bridge.apply_to_transaction_profile(profile, {"op": "cosmetic_purchase", "intent": {"op": "purchase", "id": jacket.id}})
-	check(bought.ok and bought.profile.dollars == 80 and jacket.id in bought.profile.owned_cosmetics, "atomic debit and ownership")
+	check(bought.ok and bought.profile.dollars == 400 and jacket.id in bought.profile.owned_cosmetics, "playtest purchase retains balance and grants ownership")
 	var duplicate := bridge.apply_to_transaction_profile(bought.profile, {"op": "cosmetic_purchase", "intent": {"op": "purchase", "id": jacket.id}})
-	check(not duplicate.ok and duplicate.error == "Already owned" and bought.profile.dollars == 80, "duplicate cannot debit")
+	check(not duplicate.ok and duplicate.error == "Already owned" and bought.profile.dollars == 400, "duplicate cannot grant twice")
 	var denied := bridge.apply_to_transaction_profile({"dollars": 1, "owned_cosmetics": []}, {"op": "cosmetic_purchase", "intent": {"op": "purchase", "id": jacket.id}})
-	check(not denied.ok and denied.error == "Not enough dollars", "authority denies unaffordable purchase")
+	check(denied.ok and denied.profile.dollars == 1, "authority applies temporary unlimited-purchase policy")
 
 	var room := Room.new()
 	var record := room.registry_record(Vector3(40, 0, 20))
-	check(record.bounds_min == [31.0, 0.0, 12.0] and record.bounds_max == [49.0, 4.2, 28.0], "translated room bounds")
+	check(Vector3(record.bounds_min[0],record.bounds_min[1],record.bounds_min[2]).is_equal_approx(Vector3(31,0,12)) and Vector3(record.bounds_max[0],record.bounds_max[1],record.bounds_max[2]).is_equal_approx(Vector3(49,4.2,28)), "translated room bounds")
 	for anchor in record.interactions.values():
 		check(anchor[0] >= record.bounds_min[0] and anchor[0] <= record.bounds_max[0] and anchor[2] >= record.bounds_min[2] and anchor[2] <= record.bounds_max[2], "interaction inside room")
+	room.free()
 
 	print("CLOTHING STORE checks=", checks, " failures=", failed)
 	quit(1 if failed else 0)

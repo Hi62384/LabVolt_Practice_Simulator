@@ -17,14 +17,24 @@ var envelopes := {}
 var outputs := {}
 var active_tone: AudioStreamWAV
 var voice_kinds := {}
+var audio_layout_key: Array=[]
+var audio_devices: Array=[]
 
 func update_circuit(board: Dictionary,result: Dictionary) -> void:
  var active := {}
- var catalog: Dictionary=preload("res://scripts/breadboard_model.gd").catalog(board)
- for device in preload("res://scripts/breadboard_model.gd").devices(board):
-  var kind: String=str(catalog.get(device.part.type,{}).get("kind",""))
-  if kind not in ["buzzer","speaker","piezo"]:continue
-  if active.size()>=MAX_VOICES:break
+ var key: Array=[board.get("parts",[]),board.get("definitions",{})]
+ if key!=audio_layout_key:
+  audio_devices=[]
+  if not board.is_empty():
+   var catalog: Dictionary=preload("res://scripts/breadboard_model.gd").catalog(board)
+   for device in preload("res://scripts/breadboard_model.gd").devices(board):
+    var kind: String=str(catalog.get(device.part.type,{}).get("kind",""))
+    if kind in ["buzzer","speaker","piezo"]:
+     audio_devices.append({"id":device.id,"kind":kind})
+     if audio_devices.size()>=MAX_VOICES:break
+  audio_layout_key=key.duplicate(true)
+ for device in audio_devices:
+  var kind: String=device.kind
   var id: String=device.id;active[id]=true
   # IDs survive editor replacement. A stream cannot survive a change of kind.
   if voices.has(id) and str(voice_kinds.get(id,""))!=kind:_remove_voice(id)

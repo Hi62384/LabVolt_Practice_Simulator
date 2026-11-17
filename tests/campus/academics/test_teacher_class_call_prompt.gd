@@ -1,0 +1,94 @@
+extends SceneTree
+const Faculty=preload("res://scripts/campus/academics/faculty.gd")
+const Player=preload("res://scripts/campus/academics/teacher_speech_player.gd")
+const Hands=preload("res://scripts/campus/academics/classroom_events/hand_queue.gd")
+const Prefs=preload("res://scripts/campus/ui/client_preferences.gd")
+class Session:
+ var roster:={1:{}}
+ var poses:={}
+ var online:=false
+class School:
+ var identities:={1:"alice"}
+class Registry:
+ func locate(_position: Vector3) -> String:return "ac_lab"
+class Campus:
+ var registry:=Registry.new()
+class Classes:
+ var classes:={"ac_lab":{"id":"class-1","teacher":"jeff","phase":"lesson","course":"ETY155","students":{"alice":{"peer":1,"done":false}}}}
+ var classroom_events: Node
+ func _inside(peer: int,room: String) -> bool:return peer==1 and room=="ac_lab"
+class Round:
+ extends RefCounted
+ var event_id:="event-1"
+ var closed:=false
+ var present:={"alice":true}
+class EventService:
+ extends Node
+ var rooms:={}
+class Events:
+ extends Node
+ var enabled:=true
+ var service: EventService
+class World:
+ var teacher:=Node3D.new()
+ var dc_instructor:=Node3D.new()
+class Game:
+ extends Node3D
+ var client_preferences:=Prefs.new()
+ var session:=Session.new()
+ var school:=School.new()
+ var campus:=Campus.new()
+ var lecture_classes:=Classes.new()
+ var school_world:=World.new()
+ var player:=Node3D.new()
+func _initialize() -> void:call_deferred("run")
+func run() -> void:
+ var game:=Game.new();root.add_child(game)
+ game.add_child(game.player);game.player.position=Vector3(0,0,2)
+ game.add_child(game.school_world.teacher)
+ var model:=Node3D.new();model.name="InstructorModel";game.school_world.teacher.add_child(model)
+ var events:=Events.new();game.add_child(events);events.service=EventService.new();events.add_child(events.service);game.lecture_classes.classroom_events=events
+ var hands:=Hands.new();assert(hands.begin(true,"event-1",["alice"]));assert(hands.call_student(true,"event-1","alice"))
+ events.service.rooms["ac_lab"]={"class_id":"class-1","hands":hands,"round":Round.new()}
+ var faculty:=Faculty.new();faculty.process_mode=Node.PROCESS_MODE_DISABLED;game.add_child(faculty);faculty.game=game;faculty.current={"ac_lab":"jeff"}
+ faculty.speech_player=Player.new();faculty.add_child(faculty.speech_player)
+ events.enabled=false
+ faculty.present_class_call("ac_lab","jeff",1)
+ assert(faculty.class_calls.is_empty())
+ events.enabled=true
+ events.service.rooms.ac_lab.round.present.clear()
+ faculty.present_class_call("ac_lab","jeff",1)
+ assert(faculty.class_calls.is_empty())
+ events.service.rooms.ac_lab.round.present["alice"]=true
+ game.lecture_classes.classes.ac_lab.students.alice.done=true
+ faculty.present_class_call("ac_lab","jeff",1)
+ assert(faculty.class_calls.is_empty())
+ game.lecture_classes.classes.ac_lab.students.alice.done=false
+ faculty.present_class_call("ac_lab","jeff",1)
+ assert(faculty.class_calls.has("ac_lab") and faculty.speech_player.subtitles.has("ac_lab"))
+ var text: String=faculty.reaction_labels.ac_lab.text
+ assert(text.contains("answer") or text.contains("reasoning") or text.contains("method"))
+ assert(not text.contains("mA") and not text.contains("correct value"))
+ var serial:=int(faculty.speech_player.last_serial.ac_lab)
+ faculty.present_class_call("ac_lab","jeff",2)
+ assert(int(faculty.speech_player.last_serial.ac_lab)==serial)
+ assert(hands.finish_turn(true,"event-1"))
+ faculty._prune_class_calls()
+ assert(faculty.class_calls.is_empty() and faculty.speech_player.subtitles.is_empty())
+ faculty.present_class_call("ac_lab","jeff",1)
+ assert(faculty.class_calls.is_empty())
+ assert(hands.call_student(true,"event-1","alice"))
+ faculty.present_class_call("ac_lab","jeff",1)
+ assert(faculty.class_calls.has("ac_lab"))
+ var newer:=faculty._next_speech("ac_lab")
+ faculty._show_reaction("ac_lab","jeff","A different class reminder",game.player.global_position,newer,3)
+ assert(hands.finish_turn(true,"event-1"))
+ faculty._prune_class_calls()
+ assert(faculty.class_calls.is_empty() and faculty.speech_player.subtitles.has("ac_lab"))
+ game.lecture_classes.classes.ac_lab.phase="assignment"
+ assert(hands.call_student(true,"event-1","alice"))
+ faculty.present_class_call("ac_lab","jeff",1)
+ assert(faculty.class_calls.is_empty())
+ game.queue_free();await process_frame
+ print("TEACHER_CLASS_CALL_PROMPT PASS")
+ quit()

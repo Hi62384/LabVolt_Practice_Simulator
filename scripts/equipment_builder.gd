@@ -28,6 +28,7 @@ var powered := false
 var variable_level := 0.58
 var dyn_load := 0.0
 var supply_display: Label3D
+var frequency_display: Label3D
 var dynamo_display: Label3D
 var chosen_color := 1
 var pending_port := ""
@@ -131,11 +132,10 @@ func _text3(parent: Node3D, text: String, pos: Vector3, height := 0.052, color :
 func _build_environment() -> void:
 	var lighting := preload("res://assets/campus/lighting/campus_lighting_rig.tscn").instantiate()
 	add_child(lighting)
-	var soft_light := OmniLight3D.new()
-	soft_light.position = Vector3(0, 3.9, 0.6)
-	soft_light.light_energy = 0.7
-	soft_light.omni_range = 12.0
-	add_child(soft_light)
+	# Broad warm task lighting gives the instrument faces depth without the cost
+	# of a shadow map for every lamp. The campus sun supplies the main shadows.
+	for x in [-6.0, 0.0, 6.0]:
+		preload("res://scripts/campus/presentation/fixture_light.gd").down(self, Vector3(x, 4.0, -1.0), .65, 6.0, Vector3(0, -0.8, -0.6).normalized(), 55.0)
 	_box(self, Vector3(0, -0.14, 0), Vector3(25, 0.08, 17), Color("6a717b"), 0.0)
 	_box(self, Vector3(0, 2.3, -3.65), Vector3(15, 7, .20), Color("bdc4ca"), 0.0)
 	_box(self, Vector3(0, 3.90, -3.5), Vector3(6.6, .43, .12), Color("747d87"), 0.0)
@@ -407,8 +407,17 @@ func _make_daq() -> void:
 		_small_port(p,"DAQ_DI%d_N"%i,1200+i*150,310,Color("e2ded0") if i<2 else Color("39845b"))
 	for i in range(8):_small_port(p,"DAQ_AI%d"%i,860+(i%4)*135,520+(i/4)*100,Color("e8ce39"))
 	for i in range(2):_small_port(p,"DAQ_DO%d"%i,1420+i*100,520,Color("e8ce39"))
+	_small_port(p,"DAQ_POWER_A",930,755,Color("343b3c"))
+	_small_port(p,"DAQ_POWER_B",1110,755,Color("343b3c"))
+	terminal_bodies.DAQ_POWER_A.set_meta("label", "")
+	terminal_bodies.DAQ_POWER_B.set_meta("label", "")
+	var power_indicator := _sphere(p, Vector3(0, .41-.755, .165), .018, Color("254b32"))
+	power_indicator.name = "DaqPowerIndicator"
 	terminal_bodies.DAQ_DI2_N.set_meta("label","DAQ signal common / DI2 return")
-	_control(p,"daq","Read DAQ channels",Vector2(.79,.15),Color("879897"),.05)
+	_control(p,"daq","Computer I/O",Vector2(.79,.15),Color("879897"),.05)
+	# The port connects a physical laptop cable; it does not open a menu.
+	control_bodies.daq.set_meta("role", "ac_daq_usb")
+	control_bodies.daq.set_meta("label", "Computer I/O")
 func _make_switch_board() -> void:
 	var p := _make_module("",0,2.33,2.04,.82,BLACK_PANEL,true)
 	_face(p,"inverter",2.04,.82)
@@ -437,6 +446,9 @@ func _make_supply() -> void:
 	_control(p,"power","Power",Vector2(-.84,.575),Color("161b20"),.065)
 	_control(p,"variable","Variable output",Vector2(-.55,-.145),Color("bfc5c5"),.235)
 	_control(p,"supply_meter","Supply voltmeter selector",Vector2(.61,.555),Color("c5c9c4"),.095)
+	_control(p,"frequency","Frequency",Vector2(-.05,.08),Color("aebcbb"),.052)
+	_text3(p,"FREQUENCY",Vector3(-.05,.19,.15),.025,TEXT_LIGHT)
+	frequency_display=_text3(p,"60 Hz",Vector3(-.05,-.025,.15),.027,TEXT_LIGHT)
 	supply_display=_text3(p,"OFF",Vector3(-.10,.545,.21),.038,Color("15352e"))
 	for i in range(4):
 		var col: Color=[Color("cb4245"),Color("202126"),Color("397bc4"),Color("eadf8f")][i]

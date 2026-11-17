@@ -162,9 +162,18 @@ func run() -> void:
 	var ledger=preload("res://scripts/inventory_authority/ledger.gd").new()
 	check(ledger.open(loaded.path+"_pcb_ledger")==OK,"existing authority ledger opens")
 	var ledger_recipient=preload("res://scripts/electronics_profile.gd").new();ledger_recipient.open(identity+"_ledger_receiver")
-	check(ledger.bind(1,"a".repeat(48),"1".repeat(64),loaded.data).ok and ledger.bind(2,"b".repeat(48),"2".repeat(64),ledger_recipient.data).ok,"host binds validated routed profiles")
+	var owner_id: String=str(loaded.data.get("dorm",{}).get("owner",""))
+	var recipient_id: String=str(ledger_recipient.data.get("dorm",{}).get("owner",""))
+	var bind_loaded: Dictionary=ledger.bind(1,owner_id,"1".repeat(64),loaded.data)
+	var bind_recipient: Dictionary=ledger.bind(2,recipient_id,"2".repeat(64),ledger_recipient.data)
+	check(bool(bind_loaded.get("ok",false)),"host binds routed profile: "+str(bind_loaded.get("error","")))
+	check(bool(bind_recipient.get("ok",false)),"host binds recipient profile: "+str(bind_recipient.get("error","")))
+	if not bind_loaded.get("ok",false) or not bind_recipient.get("ok",false):
+		print("PCB bind diagnostics loaded bytes=",var_to_bytes(loaded.data).size()," recipient bytes=",var_to_bytes(ledger_recipient.data).size())
+		quit(1);return
 	var exchange: Dictionary=ledger.exchange("owned-routed-trade",[1,2],{1:{native_id:1},2:{}},loaded.data.blueprints)
-	check(exchange.ok,"real host ledger exchanges owned routed board")
+	check(bool(exchange.get("ok",false)),"real host ledger exchanges owned routed board: "+str(exchange.get("error","")))
+	if not exchange.get("ok",false):quit(1);return
 	check(ledger.account(1).profile.inventory[native_id]==0 and ledger.account(2).profile.inventory[native_id]==1,"host ledger conserves owned PCB stock")
 	check(ledger.account(2).profile.component_instances.owned_pcb.component_runtime["board/unit/eeprom"].memory["17"]==123,"host ledger carries nested EEPROM memory")
 	check(ledger.account(2).profile.blueprints[native_id].programs.uno.native_firmware.image==image.image,"host ledger carries firmware and routed definition")

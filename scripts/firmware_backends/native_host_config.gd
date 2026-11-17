@@ -34,10 +34,11 @@ static func dependency_report() -> Dictionary:
 	return result
 
 static func compiler_report() -> Dictionary:
-	var manifest := "user://firmware_toolchain/trusted-manifest.json"
+	var root: String=preload("res://scripts/firmware_toolchain/acceptance.gd").install_root()
+	var manifest := root.path_join("trusted-manifest.json")
 	var state := {}
-	if FileAccess.file_exists("user://firmware_toolchain/isolation-status.json"):
-		var value: Variant=JSON.parse_string(FileAccess.get_file_as_string("user://firmware_toolchain/isolation-status.json"))
+	if FileAccess.file_exists(root.path_join("isolation-status.json")):
+		var value: Variant=JSON.parse_string(FileAccess.get_file_as_string(root.path_join("isolation-status.json")))
 		if value is Dictionary:state=value
 	var installed := FileAccess.file_exists(manifest)
-	return {"enabled":installed and preload("res://scripts/firmware_toolchain/acceptance.gd").verified(),"manifest_installed":installed,"last_probe":state,"status":str(state.get("error","Compile checks Windows LPAC isolation first; official host-local toolchain setup is required.")) if preload("res://scripts/firmware_toolchain/acceptance.gd").verified() else preload("res://scripts/firmware_toolchain/acceptance.gd").explanation(),"setup_script":"res://scripts/firmware_toolchain/setup_official.ps1","pico":"Bare-metal C/C++ target when official Arm toolchain is installed; general SDK/MicroPython runtime not claimed"}
+	return {"enabled":installed and preload("res://scripts/firmware_toolchain/acceptance.gd").verified(),"manifest_installed":installed,"last_probe":state,"status":str(state.get("error","Bundled compiler ready.")) if preload("res://scripts/firmware_toolchain/acceptance.gd").verified() else preload("res://scripts/firmware_toolchain/acceptance.gd").explanation(),"setup_script":"res://scripts/firmware_toolchain/install_bundled.ps1","pico":"Bare-metal C/C++ target when an Arm toolchain is installed; general SDK/MicroPython runtime not claimed"}

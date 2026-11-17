@@ -87,7 +87,14 @@ func _lecture(root: Node3D, campus: Node, room: Dictionary, profile: Dictionary)
 		for z in [-3.0,2.6]:
 			_bar(root,Vector3(x,3.933,z),Vector3(2.25,.065,.67),DARK)
 			_bar(root,Vector3(x,3.89,z),Vector3(2.08,.03,.52),Color("fff5de"),true)
-			preload("res://scripts/campus/presentation/fixture_light.gd").down(root,Vector3(x,3.84,z),.95,7.2)
+			var light=preload("res://scripts/campus/presentation/fixture_light.gd").down(root,Vector3(x,3.84,z),.95,7.2)
+			# Keep the same fixture active as the player moves; selecting the
+			# nearest light caused visible shadow popping in classrooms.
+			if x==0.0 and z==2.6:
+				light.shadow_enabled=true
+				light.shadow_bias=.04
+				light.shadow_normal_bias=1.0
+				light.shadow_blur=1.5
 	var desk_x := -4.45 if profile.door_east else 4.45
 	var desk_z := -half_depth+2.15
 	campus.box(root,Vector3(desk_x,.79,desk_z),Vector3(1.8,.08,.75),"aa8263")
@@ -143,7 +150,7 @@ func _bar(parent: Node3D,at: Vector3,size: Vector3,color: Color,emissive := fals
 		shared.roughness = .83
 		shared.emission_enabled = emissive
 		shared.emission = color
-		shared.emission_energy_multiplier = .42
+		shared.emission_energy_multiplier = 2.0
 		materials[key] = shared
 	var material: StandardMaterial3D = materials[key]
 	var instance:=MeshInstance3D.new();instance.mesh=mesh;instance.material_override=material;instance.position=at;instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;parent.add_child(instance)

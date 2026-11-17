@@ -40,6 +40,7 @@ func run() -> void:
 	host.host.commit_profile=func(_id,delta,p):
 		if ledger.dollars+delta<0:return false
 		ledger.dollars+=delta;ledger.facilities=p.duplicate(true);return true
+	host.host.dumbbell_mass=func(_peer):return 5.0
 	host.host.anchors={"counter":{"room_id":"test-room","kind":"counter:tim_hortons","position":Vector3.ZERO}}
 	host.host.anchors["rack"]={"room_id":"test-room","kind":"curl","position":Vector3.ZERO}
 	host.interested_peers=func(_room):return [client_id] if client_id else []
@@ -70,7 +71,7 @@ func run() -> void:
 	await send_action({"op":"start","station":"rack"})
 	check(response.get("ok",false) and host.host.movement_locked(client_id),"network exercise starts and locks movement")
 	for beat in 2:
-		await send_action({"op":"beat"},700)
+		await send_action({"op":"beat"},int(host.host.active[client_id].half_ms) if host.host.active.has(client_id) else 700)
 		check(response.get("ok",false),"network timed repetition phase")
 	await send_action({"op":"finish"})
 	check(response.get("ok",false) and ledger.facilities.xp==5,"network authoritative XP")

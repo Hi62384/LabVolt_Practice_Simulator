@@ -3,14 +3,17 @@ const MathCourses=preload("res://scripts/campus_math_router.gd")
 const Base=preload("res://scripts/campus/courses/course_provider.gd")
 const Network=preload("res://scripts/ac_network.gd")
 const Questions=preload("res://scripts/campus/courses/dc_assignments.gd")
+const Digital=preload("res://scripts/campus/courses/digital_course.gd")
 func grade(assignment: Dictionary,answers: Dictionary) -> Dictionary:
 	return MathCourses.grade(assignment,answers) if assignment.get("course_id","") in MathCourses.PATHS else Base.grade(assignment,answers)
 func public_copy(assignment: Dictionary,marked := false) -> Dictionary:
 	return MathCourses.public_copy(assignment,marked) if assignment.get("course_id","") in MathCourses.PATHS else Base.public_copy(assignment,marked)
-func catalog() -> Array:return Base.catalog()+MathCourses.catalog()
+func catalog() -> Array:return Base.catalog()+[Digital.catalog()]+MathCourses.catalog()
 func weeks(course: String,kind: String) -> Array:
+	if course=="DGS266":return Digital.weeks(kind)
 	return MathCourses.weeks(course,kind) if course in MathCourses.PATHS else Base.weeks(course,kind)
 func lesson(course: String,week: int,kind: String,duration: int=420,difficulty: int=2,seed_value: int=147) -> Dictionary:
+	if course=="DGS266":return Digital.lesson(week,kind,duration)
 	return MathCourses.lesson(course,week,kind,difficulty,seed_value,duration) if course in MathCourses.PATHS else Base.lesson(course,week,kind,duration)
 func lesson_for_assignment(assignment: Dictionary,duration: int=420) -> Dictionary:
 	var result:Dictionary=lesson(str(assignment.get("course_id","ELM253")),int(assignment.get("week",1)),str(assignment.get("kind","lecture")),duration,int(assignment.get("difficulty",2)),int(str(assignment.get("seed",147))))
@@ -30,6 +33,7 @@ func paper_policy(assignment: Dictionary,practice := false) -> Dictionary:
 		policy.formula_sections.append({"id":str(section.get("id","")),"title":str(section.get("title","")),"formulas":formulas})
 	return policy
 func generate(course: String,week: int,kind: String,difficulty: int,seed_value: int) -> Dictionary:
+	if course=="DGS266":return Digital.generate(week,kind,difficulty,seed_value)
 	if course in MathCourses.PATHS:
 		var generated: Dictionary=MathCourses.generate(course,week,kind,difficulty,seed_value)
 		if generated.is_empty() or generated.has("error"):return generated

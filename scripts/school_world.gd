@@ -82,10 +82,7 @@ func build(owner_game: Node) -> void:
 	build_campus_furniture()
 func refresh() -> void:
 	_refresh_floor_leads()
-	if is_instance_valid(dc_instructor_target):
-		var open: bool = school.mode in ["Freeplay", "Creative Freeplay"]
-		dc_instructor_target.collision_layer = 4 if open else 0
-		dc_instructor.get_child(0).visible = open
+	if is_instance_valid(dc_instructor_target):dc_instructor_target.collision_layer=0
 	if old_phase!=school.phase and game.front.in_game and school.mode=="Class":game.sfx.play("bell")
 	old_phase=school.phase
 	timer_label.text="%s  %02d:%02d"%[school.phase.capitalize(),int(school.remaining)/60,int(school.remaining)%60]
@@ -197,7 +194,7 @@ func _create(paper: Dictionary) -> void:
 	hit.shape=shape
 	root.add_child(hit)
 	var viewport := SubViewport.new()
-	viewport.size=Vector2i(512,720)
+	viewport.size=Vector2i(800,240) if paper.has("classroom_board") else Vector2i(512,720)
 	viewport.transparent_bg=false
 	root.add_child(viewport)
 	var mesh := MeshInstance3D.new()
@@ -236,6 +233,11 @@ func _create(paper: Dictionary) -> void:
 		for tooth in range(16):
 			game._box(root,Vector3((tooth-7.5)*.009,.027,.004),Vector3(.003,.002,.007),Color("cfb28a"))
 		game._box(root,Vector3(.078,.029,.009),Vector3(.017,.004,.011),Color("e1c391"))
+	if paper.has("classroom_board"):
+		var tray_marker:=Node3D.new()
+		tray_marker.position=Vector3(-board_size.x*.5+.20,-board_size.y*.5+.07,.035)
+		root.add_child(tray_marker)
+		_build_supply_prop(tray_marker,"marker")
 	var backing: MeshInstance3D = game._box(root,Vector3(0,.022,0),shape.size,Color("253947") if paper.get("calculator",false) else Color("315464") if supply=="notebook" else Color("eee8d7"))
 	if supply=="pencil_case" or is_instance_valid(prop):backing.hide()
 	backing.ignore_occlusion_culling=true
@@ -336,11 +338,14 @@ func _page(visual: Dictionary,paper: Dictionary) -> void:
 	if paper.get("calculator",false):return
 	var supply := str(paper.get("supply_id",""))
 	if supply=="whiteboard":
+		var classroom:=paper.has("classroom_board")
+		var canvas_size:=Vector2(visual.viewport.size)
+		var frame_width:=12.0 if classroom else 20.0
 		var face := ColorRect.new()
 		face.color=Color("e9eee8")
 		visual.viewport.add_child(face)
-		face.size=Vector2(512,720)
-		for rect in [Rect2(0,0,512,20),Rect2(0,700,512,20),Rect2(0,0,20,720),Rect2(492,0,20,720)]:
+		face.size=canvas_size
+		for rect in [Rect2(0,0,canvas_size.x,frame_width),Rect2(0,canvas_size.y-frame_width,canvas_size.x,frame_width),Rect2(0,0,frame_width,canvas_size.y),Rect2(canvas_size.x-frame_width,0,frame_width,canvas_size.y)]:
 			var frame := ColorRect.new()
 			frame.color=Color("6a7980")
 			frame.position=rect.position
@@ -352,11 +357,28 @@ func _page(visual: Dictionary,paper: Dictionary) -> void:
 			stroke.default_color=Color("294658")
 			stroke.begin_cap_mode=Line2D.LINE_CAP_ROUND
 			stroke.end_cap_mode=Line2D.LINE_CAP_ROUND
-			var a: Vector2=segment[0]*Vector2(512,720)
-			var b: Vector2=segment[1]*Vector2(512,720)
+			var a: Vector2=segment[0]*canvas_size
+			var b: Vector2=segment[1]*canvas_size
 			if a.distance_squared_to(b)<1:b=a+Vector2(1,0)
 			stroke.points=PackedVector2Array([a,b])
 			face.add_child(stroke)
+		var notes: Variant=paper.get("board_notes",[])
+		if notes is Array and not notes.is_empty():
+			var note_panel:=ColorRect.new()
+			note_panel.color=Color("d9e5e3")
+			note_panel.position=Vector2(24,158) if classroom else Vector2(24,520)
+			note_panel.size=Vector2(752,70) if classroom else Vector2(464,176)
+			face.add_child(note_panel)
+			var note_text:=Label.new()
+			note_text.position=Vector2(12,8)
+			note_text.size=Vector2(728,56) if classroom else Vector2(440,160)
+			note_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			note_text.add_theme_color_override("font_color",Color("203b49"))
+			note_text.add_theme_font_size_override("font_size",28 if classroom else 21)
+			var lines: Array[String]=[]
+			for entry in notes.slice(0,2 if classroom else 3):lines.append("• "+str(entry.get("text","")).left(100))
+			note_text.text="\n".join(lines)
+			note_panel.add_child(note_text)
 		visual.page_view=face
 		visual.revision=paper.revision
 		visual.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
@@ -458,6 +480,11 @@ func _process(delta: float) -> void:
 			v.root.visible=not local or game.player.enabled
 		elif p.has("wall_normal"):
 			v.root.visible=true
+			var classroom_room:=str(p.get("classroom_board",""))
+			if not classroom_room.is_empty() and is_instance_valid(game.lecture_classes):
+				var sign: Dictionary=game.lecture_classes.signs.get(classroom_room,{})
+				if is_instance_valid(sign.get("board")) and sign.board.active:v.root.visible=false
+			v.hit.disabled=not v.root.visible
 			v.backing.hide()
 			v.root.global_transform=Transform3D(Basis.looking_at(-p.wall_normal,Vector3.UP),p.position)
 			v.hit.rotation.x=PI/2
@@ -479,24 +506,23 @@ func _process(delta: float) -> void:
 func use_supply(button: int, continuation := false) -> bool:
 	var held_id: int=school.held(multiplayer.get_unique_id())
 	var supply := str(school.papers.get(held_id,{}).get("supply_id",""))
-	if continuation and supply!="marker":return false
-	if supply!="marker":
-		if supply.begins_with("bag:"):
-			if button!=MOUSE_BUTTON_LEFT:return false
-		elif supply!="whiteboard" or button!=MOUSE_BUTTON_RIGHT:return false
+	var classroom_marker:=held_id==0
+	if supply!="marker" and not classroom_marker:return false
 	var camera: Camera3D=game.camera
-	var mask := 5 if supply=="marker" else 1
-	var ray := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3,mask)
+	var ray := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3,5)
 	var hit := get_world_3d().direct_space_state.intersect_ray(ray)
 	if hit.is_empty():
 		marker_board=-1
-		return true
-	if supply=="marker":
+		return supply=="marker"
+	if supply=="marker" or classroom_marker:
 		var target: Node3D=hit.collider
 		var id := int(target.get_meta("paper_id",-1))
 		if not school.papers.get(id,{}).has("wall_normal"):
 			marker_board=-1
-			return true
+			return supply=="marker"
+		if classroom_marker and not school.papers[id].has("classroom_board"):
+			marker_board=-1
+			return false
 		var now := Time.get_ticks_msec()
 		if continuation and now-marker_time<55:return true
 		var local := target.to_local(hit.position)
@@ -507,10 +533,6 @@ func use_supply(button: int, continuation := false) -> bool:
 		marker_board=id
 		marker_point=point
 		marker_time=now
-	elif supply=="whiteboard" and absf(hit.normal.y)<.15:
-		school.request({"op":"place","id":held_id,"position":hit.position,"normal":hit.normal})
-	elif supply.begins_with("bag:") and hit.normal.y>.75 and hit.collider.get_meta("role","")!="table":
-		school.request({"op":"place","id":held_id,"position":hit.position})
 	return true
 func interact_held() -> bool:
 	var id: int=school.held(multiplayer.get_unique_id())
@@ -551,13 +573,7 @@ func interact(target: StaticBody3D,right_click: bool) -> bool:
 			if right_click and can_recycle_held_sheet():confirm_trash(held_id)
 			return true
 		"table":
-			if held_id!=0 and not right_click and str(school.papers.get(held_id,{}).get("supply_id",""))!="whiteboard":
-				var ray := PhysicsRayQueryParameters3D.create(game.camera.global_position,game.camera.global_position-game.camera.global_basis.z*3,1)
-				var hit: Dictionary=get_world_3d().direct_space_state.intersect_ray(ray)
-				if not hit.is_empty() and hit.normal.y>.8:
-					var height := .028 if school.papers.get(held_id,{}).get("supply_id","")=="pencil_case" else .015
-					school.request({"op":"place","id":held_id,"position":hit.position+Vector3.UP*height})
-				return true
+			if held_id!=0 and not right_click:return true
 	return false
 
 func can_recycle_held_sheet() -> bool:

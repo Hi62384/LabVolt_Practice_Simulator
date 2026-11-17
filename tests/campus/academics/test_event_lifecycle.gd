@@ -1,0 +1,16 @@
+extends SceneTree
+const Lifecycle=preload("res://scripts/campus/academics/classroom_events/event_lifecycle.gd")
+func _initialize() -> void:
+ var events:=Lifecycle.new()
+ assert(events.begin("a","room",["projector"]))
+ assert(not events.begin("a","room",["worksheet"]))
+ assert(not events.begin("b","room",["projector"]))
+ assert(events.begin("b","other",["projector"]))
+ assert(not events.advance("a","complete"))
+ for phase in ["preparing","announcing","active","interrupted","active","resolving","complete"]:assert(events.advance("a",phase))
+ assert(not events.advance("a","active") and not events.cancel("a"))
+ assert(events.begin("c","room",["projector"]))
+ assert(events.cancel("c") and not events.cancel("c"))
+ assert(events.begin("d","room",["projector"]))
+ events.clear();assert(events.reservations.is_empty() and events.states.is_empty())
+ print("EVENT_LIFECYCLE PASS");quit(0)

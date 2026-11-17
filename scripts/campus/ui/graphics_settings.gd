@@ -4,7 +4,7 @@ const HudTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Layout = preload("res://scripts/ui/hud_settings/layout.gd")
 signal changed(options: Dictionary)
 const SAVE := "user://campus_graphics.cfg"
-const DEFAULTS := {"render_scale":1.0,"resolution":0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":2,"npc_density":"Off","view_distance":120.0,"effects":true,"interaction_hands":true}
+const DEFAULTS := {"render_scale":1.0,"resolution":0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"interaction_hands":true}
 var options := DEFAULTS.duplicate()
 var viewport: Viewport
 var world: Node
@@ -95,7 +95,7 @@ func register_node(node: Node) -> void:
 	elif node is Camera3D: node.far=minf(float(saved.far),float(options.view_distance))
 	elif node is WorldEnvironment and node.environment!=null:
 		node.environment.ssr_enabled=bool(saved.ssr) and options.reflections
-		node.environment.glow_enabled=bool(saved.glow) and options.effects
+		node.environment.glow_enabled=bool(saved.glow) and options.effects and options.bloom
 		node.environment.ssao_enabled=bool(saved.ssao) and options.effects
 		node.environment.ssil_enabled=bool(saved.ssil) and options.effects
 	elif node is GeometryInstance3D:
@@ -125,7 +125,7 @@ func build_controls(parent: VBoxContainer) -> void:
 	var environment := Layout.section(body, "World detail", "Lighting, effects and local presentation", "home")
 	for key in DEFAULTS:
 		var row := VBoxContainer.new(); (quality if key in ["render_scale","resolution","texture","aa"] else environment).add_child(row)
-		var label := Label.new(); label.text={"detail_shadows":"Fine-detail shadows","texture":"Texture filtering","aa":"Anti-aliasing","npc_density":"NPC density","resolution":"Window resolution"}.get(key,key.replace("_"," ").capitalize()); label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; row.add_child(label)
+		var label := Label.new(); label.text={"bloom":"Bloom","detail_shadows":"Fine-detail shadows","texture":"Texture filtering","aa":"Anti-aliasing","npc_density":"NPC density","resolution":"Window resolution"}.get(key,key.replace("_"," ").capitalize()); label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; row.add_child(label)
 		var select := OptionButton.new(); select.size_flags_horizontal=Control.SIZE_EXPAND_FILL; select.custom_minimum_size.y=44; select.tooltip_text=label.text; row.add_child(select)
 		var values: Array=[]; var names: Array=[]
 		match key:

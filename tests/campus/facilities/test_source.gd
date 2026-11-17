@@ -18,7 +18,7 @@ func run() -> void:
 	for id in ["tim_hortons","subway","gym"]:
 		var room=Room.new();parent.add_child(room)
 		var result: Dictionary=room.build({"id":id,"kind":"gym" if id=="gym" else "restaurant","anchor":[26,0,33]},h.menu)
-		assert(result.size()==(5 if id=="gym" else 5))
+		assert(result.size()==(7 if id=="gym" else 5))
 		for key in result:assert(not stations.has(key));stations[key]=result[key]
 		assert(room.nearest(Vector3(26,0,31.8))!="" or id=="gym")
 	var panel=FacilityPanel.new();root.add_child(panel)
@@ -26,11 +26,11 @@ func run() -> void:
 	panel.redraw()
 	var visual:=Node3D.new();parent.add_child(visual)
 	var motion=ActivityVisual.new();parent.add_child(motion);motion.bind_visual(visual)
-	motion.apply_event({"activity":"holding","item":"coffee"})
+	motion.apply_event({"activity":"holding","item":"coffee"},true)
 	assert(motion.food!=null)
-	motion.apply_event({"activity":"emote","emote":"wave","duration_ms":1800})
+	motion.apply_event({"activity":"emote","emote":"wave","duration_ms":1800},false)
 	await process_frame
-	motion.apply_event({"activity":"idle"})
+	motion.apply_event({"activity":"idle"},false)
 	assert(visual.position==Vector3.ZERO)
 	var service=Service.new();parent.add_child(service)
 	service.configure(RefCounted.new(),null,func(_peer):return {"identity":"test","position":Vector3.ZERO,"room_id":"gym","allowed":true,"grounded":true},func(_room):return [1])

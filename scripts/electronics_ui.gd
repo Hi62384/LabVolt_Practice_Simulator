@@ -279,6 +279,9 @@ func study_supplies() -> void:
 		if id!="lab_goggles":_study_supply_card(grid,id)
 	for id in dorm.Backpacks.SIZES:
 		_study_supply_card(grid,id)
+	body.add_child(KitUI.text("PERSONAL ELECTRONICS","Title"))
+	var electronics:=preload("res://scripts/ui/store_bundles_equipment/module.gd")
+	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone"])
 
 func _study_supply_card(parent: Control, id: String) -> void:
 	const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
@@ -290,7 +293,7 @@ func _study_supply_card(parent: Control, id: String) -> void:
 		"calculator_basic":"A large black calculator for basic arithmetic.",
 		"calculator_financial":"Compound value and payment calculations.",
 		"lab_goggles":"Protective eyewear for your head accessory slot.",
-		"flashlight":"Hold it and press F to toggle the beam.",
+		"flashlight":"Hold it and right click to toggle the beam.",
 		"whiteboard":"Hold it and right-click a wall to mount it.",
 		"marker":"Left-click to draw and right-click to erase on any whiteboard."
 	}
@@ -327,7 +330,7 @@ func shop() -> void:
 	title.add_theme_font_size_override("font_size", 23)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var wallet := label(header, "$∞" if economy.get("unlimited_purchases", false) else "$%d" % int(profile.data.dollars))
-	var section := OptionButton.new();section.add_item("Components");section.add_item("Bundles");section.add_item("Store");section.accessibility_name="Store section";header.add_child(section)
+	var section := OptionButton.new();section.add_item("Components");section.add_item("Bundles");section.add_item("Equipment");section.accessibility_name="Store section";header.add_child(section)
 	button(header, "Close", close)
 	var components := VBoxContainer.new();components.size_flags_vertical=Control.SIZE_EXPAND_FILL;body.add_child(components)
 	shop_adapter.build(self,components,{"economy":economy,"balance":wallet})
@@ -335,18 +338,19 @@ func shop() -> void:
 	var bundle_mount := VBoxContainer.new();bundle_mount.size_flags_horizontal=Control.SIZE_EXPAND_FILL;bundles.add_child(bundle_mount)
 	var supplies=preload("res://scripts/ui/store_bundles_equipment/module.gd")
 	supplies.populate(bundle_mount,profile,func(message: String):open("shop",bench);status.text=message,status,"bundles",show_bundle_receipt)
-	var goods := ScrollContainer.new()
-	goods.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	body.add_child(goods)
-	var goods_mount := VBoxContainer.new()
-	goods_mount.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	goods.add_child(goods_mount)
-	supplies.populate(goods_mount,profile,func(message: String):open("shop",bench);status.text=message,status,"equipment")
+	var equipment := ScrollContainer.new()
+	equipment.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	equipment.hide()
+	body.add_child(equipment)
+	var equipment_mount := VBoxContainer.new()
+	equipment_mount.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	equipment.add_child(equipment_mount)
+	supplies.populate(equipment_mount,profile,func(message: String):open("shop",bench);status.text=message,status,"equipment",Callable(),["lab_goggles","kit"])
 	section.item_selected.connect(func(index: int):
 		shop_section=index
 		components.visible=index==0
 		bundles.visible=index==1
-		goods.visible=index==2)
+		equipment.visible=index==2)
 	section.select(shop_section)
 	section.item_selected.emit(shop_section)
 
@@ -473,6 +477,10 @@ func _kit_contents() -> void:
 		open("kits",bench)
 		status.text=message))
 	var remove := KitUI.action("Delete kit","trash",func():
+		for station in game.dc_lab.benches:
+			if station.board_owner==multiplayer.get_unique_id() and station.board.get("authority_kit_id","")==kit_id:
+				status.text="Put this kit's breadboard back before deleting it."
+				return
 		var message: String=profile.delete_kit()
 		kit_editor_open=false
 		open("kits",bench)
@@ -629,6 +637,11 @@ func _kit_part(grid: GridContainer, entry: Dictionary, amount: String, action: S
 
 func _change_kit_part(type: String, amount: int) -> void:
 	_flush_kit_names()
+	var kit_id:=str(profile.data.equipped)
+	for station in game.dc_lab.benches:
+		if station.board_owner==multiplayer.get_unique_id() and station.board.get("authority_kit_id","")==kit_id:
+			status.text="Put this kit's breadboard back before changing its components."
+			return
 	var message: String=profile.set_quantity(type,amount)
 	open("kits",bench)
 	status.text=message

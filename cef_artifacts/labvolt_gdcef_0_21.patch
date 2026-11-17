@@ -1,0 +1,199 @@
+diff --git a/gdcef/browser/src/gdbrowser.cpp b/gdcef/browser/src/gdbrowser.cpp
+index f5b3dcd..6cab63a 100644
+--- a/gdcef/browser/src/gdbrowser.cpp
++++ b/gdcef/browser/src/gdbrowser.cpp
+@@ -259,6 +259,7 @@ void GdBrowserView::_bind_methods()
+     // Methods
+     ClassDB::bind_method(D_METHOD("close"), &GdBrowserView::close);
+     ClassDB::bind_method(D_METHOD("id"), &GdBrowserView::id);
++    ClassDB::bind_method(D_METHOD("blocked_file_dialogs"), &GdBrowserView::blockedFileDialogs);
+     ClassDB::bind_method(D_METHOD("get_error"), &GdBrowserView::getError);
+     ClassDB::bind_method(D_METHOD("is_valid"), &GdBrowserView::isValid);
+     ClassDB::bind_method(D_METHOD("set_texture", "texture"),
+@@ -463,7 +464,8 @@ godot::String GdBrowserView::getError()
+ //------------------------------------------------------------------------------
+ int GdBrowserView::init(godot::String const& url,
+                         CefBrowserSettings const& settings,
+-                        CefWindowInfo const& window_info)
++                        CefWindowInfo const& window_info,
++                        CefRefPtr<CefRequestContext> context)
+ {
+     // Allocate the CEF client and the Godot rendering resources here instead of
+     // in the constructor: Godot also builds throw-away instances of registered
+@@ -491,7 +493,7 @@ int GdBrowserView::init(godot::String const& url,
+     // passed to CefRenderProcessHandler::OnBrowserCreated() in the render
+     // process.
+     m_browser = CefBrowserHost::CreateBrowserSync(
+-        window_info, m_impl, url.utf8().get_data(), settings, nullptr, nullptr);
++        window_info, m_impl, url.utf8().get_data(), settings, nullptr, context);
+ 
+     if ((m_browser == nullptr) || (m_browser->GetHost() == nullptr))
+     {
+diff --git a/gdcef/browser/src/gdbrowser.hpp b/gdcef/browser/src/gdbrowser.hpp
+index a49e880..c1461ea 100644
+--- a/gdcef/browser/src/gdbrowser.hpp
++++ b/gdcef/browser/src/gdbrowser.hpp
+@@ -63,9 +63,11 @@
+ #include "cef_app.h"
+ #include "cef_client.h"
+ #include "cef_display_handler.h"
++#include "cef_dialog_handler.h"
+ #include "cef_drag_handler.h"
+ #include "cef_parser.h"
+ #include "cef_render_handler.h"
++#include "cef_request_context.h"
+ #include "wrapper/cef_helpers.h"
+ 
+ #include <array>
+@@ -124,6 +126,7 @@ private: // CEF interfaces
+                 public CefAudioHandler,
+                 public CefLifeSpanHandler,
+                 public CefDownloadHandler,
++                public CefDialogHandler,
+                 public CefRequestHandler,
+                 public CefResourceRequestHandler,
+                 public CefDragHandler,
+@@ -208,6 +211,26 @@ private: // CEF interfaces
+             return this;
+         }
+ 
++        // Never expose the host computer's filesystem picker to a web page.
++        virtual CefRefPtr<CefDialogHandler> GetDialogHandler() override
++        {
++            return this;
++        }
++
++        virtual bool OnFileDialog(
++            CefRefPtr<CefBrowser>, FileDialogMode,
++            const CefString&, const CefString&,
++            const std::vector<CefString>&,
++            const std::vector<CefString>&,
++            const std::vector<CefString>&,
++            CefRefPtr<CefFileDialogCallback> callback) override
++        {
++            if (m_owner != nullptr)
++                ++m_owner->m_blocked_file_dialogs;
++            callback->Cancel();
++            return true;
++        }
++
+         // ---------------------------------------------------------------------
+         //! \brief Return the handler for request filtering.
+         // ---------------------------------------------------------------------
+@@ -613,6 +636,11 @@ public:
+         return m_id;
+     }
+ 
++    inline int blockedFileDialogs() const
++    {
++        return m_blocked_file_dialogs;
++    }
++
+     // -------------------------------------------------------------------------
+     //! \brief Return the number of browsers created and not yet closed by CEF.
+     //! CloseBrowser() being asynchronous, it is used by GdCEF::shutdown() to
+@@ -1193,7 +1221,8 @@ private:
+     // -------------------------------------------------------------------------
+     int init(godot::String const& url,
+              CefBrowserSettings const& cef_settings,
+-             CefWindowInfo const& window_info);
++             CefWindowInfo const& window_info,
++             CefRefPtr<CefRequestContext> context);
+ 
+     // -------------------------------------------------------------------------
+     //! \brief Called by GdBrowserView::Impl::GetViewRect
+@@ -1409,6 +1438,7 @@ private:
+     //! \brief One to one CEF browser. The GdCEF is the class containing the
+     //! whole browsers.
+     CefRefPtr<CefBrowser> m_browser = nullptr;
++    int m_blocked_file_dialogs = 0;
+ 
+     //! \brief Godot's texture holding the page content (CEF => Godot)
+     godot::Ref<godot::ImageTexture> m_texture;
+diff --git a/gdcef/browser/src/gdcef.cpp b/gdcef/browser/src/gdcef.cpp
+index b2c2043..b08bc53 100644
+--- a/gdcef/browser/src/gdcef.cpp
++++ b/gdcef/browser/src/gdcef.cpp
+@@ -224,6 +224,7 @@ void GdCEF::_bind_methods()
+     ClassDB::bind_method(D_METHOD("get_full_version"), &GdCEF::version);
+     ClassDB::bind_method(D_METHOD("get_version_part"), &GdCEF::versionPart);
+     ClassDB::bind_method(D_METHOD("create_browser"), &GdCEF::createBrowser);
++    ClassDB::bind_method(D_METHOD("release_context", "key"), &GdCEF::releaseContext);
+     ClassDB::bind_method(D_METHOD("shutdown"), &GdCEF::shutdown);
+     ClassDB::bind_method(D_METHOD("is_alive"), &GdCEF::isAlive);
+     ClassDB::bind_method(D_METHOD("get_error"), &GdCEF::getError);
+@@ -257,6 +258,7 @@ void GdCEF::shutdown()
+ 
+     GDCEF_DEBUG("Closing all browsers");
+     m_impl->closeAllBrowsers(true);
++    m_contexts.clear();
+ 
+     // CloseBrowser() is asynchronous and CefShutdown() requires all browsers
+     // to be closed: we are the one pumping the CEF message loop (see
+@@ -753,7 +755,22 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
+     // Complete BrowserView constructor (complete _new())
+     CefBrowserSettings settings;
+     configureBrowser(settings, config);
+-    int id = browser->init(convert_godot_url(url), settings, windowInfo());
++    std::string key = getConfig(config, "session_key", std::string{});
++    CefRefPtr<CefRequestContext> context;
++    if (!key.empty())
++    {
++        auto it = m_contexts.find(key);
++        if (it != m_contexts.end())
++            context = it->second;
++    }
++    if (!context)
++    {
++        CefRequestContextSettings context_settings;
++        context = CefRequestContext::CreateContext(context_settings, nullptr);
++        if (!key.empty())
++            m_contexts.emplace(key, context);
++    }
++    int id = browser->init(convert_godot_url(url), settings, windowInfo(), context);
+     if (id < 0)
+     {
+         GDCEF_ERROR("browser->init() failed: "
+@@ -799,6 +816,11 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
+     return browser;
+ }
+ 
++void GdCEF::releaseContext(godot::String const& key)
++{
++    m_contexts.erase(std::string(key.utf8().get_data()));
++}
++
+ //------------------------------------------------------------------------------
+ void GdCEF::Impl::closeAllBrowsers(bool force_close)
+ {
+diff --git a/gdcef/browser/src/gdcef.hpp b/gdcef/browser/src/gdcef.hpp
+index 61920e0..e9ac507 100644
+--- a/gdcef/browser/src/gdcef.hpp
++++ b/gdcef/browser/src/gdcef.hpp
+@@ -61,7 +61,9 @@
+ 
+ #include "cef_app.h"
+ #include "cef_client.h"
++#include "cef_request_context.h"
+ #include "cef_version.h"
++#include <unordered_map>
+ 
+ class GdBrowserView;
+ 
+@@ -298,6 +300,8 @@ public:
+                                  godot::TextureRect* texture_rect,
+                                  godot::Dictionary config);
+ 
++    void releaseContext(godot::String const& key);
++
+ private:
+ 
+     //! \brief CEF interface implementation
+@@ -338,6 +342,7 @@ private:
+     //! \brief Settings for the CEF browser instances (information set from
+     //! gdscript).
+     BrowsersSettings m_browsers_settings;
++    std::unordered_map<std::string, CefRefPtr<CefRequestContext>> m_contexts;
+     //! \brief Hold last error messages
+     mutable std::stringstream m_error;
+ };

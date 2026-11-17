@@ -1231,37 +1231,27 @@
       ],
       "groups": [
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_ink.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_ink_clear.obj",
           "material": "ink",
           "triangles": 456
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_leaf.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_leaf_clear.obj",
           "material": "leaf",
           "triangles": 252
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_oak.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_oak_clear.obj",
           "material": "oak",
           "triangles": 120
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_paper.obj",
-          "material": "paper",
-          "triangles": 216
-        },
-        {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_steel.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_steel_clear.obj",
           "material": "steel",
           "triangles": 36
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_teal.obj",
-          "material": "teal",
-          "triangles": 2088
-        },
-        {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_terracotta.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_0_terracotta_clear.obj",
           "material": "terracotta",
           "triangles": 240
         }
@@ -1432,37 +1422,27 @@
       ],
       "groups": [
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_ink.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_ink_clear.obj",
           "material": "ink",
           "triangles": 456
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_leaf.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_leaf_clear.obj",
           "material": "leaf",
           "triangles": 252
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_oak.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_oak_clear.obj",
           "material": "oak",
           "triangles": 120
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_paper.obj",
-          "material": "paper",
-          "triangles": 216
-        },
-        {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_steel.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_steel_clear.obj",
           "material": "steel",
           "triangles": 36
         },
         {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_teal.obj",
-          "material": "teal",
-          "triangles": 2088
-        },
-        {
-          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_terracotta.obj",
+          "mesh": "res://assets/campus/decor/service_rooms/meshes/circulation_1_terracotta_clear.obj",
           "material": "terracotta",
           "triangles": 240
         }

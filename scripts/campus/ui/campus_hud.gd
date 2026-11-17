@@ -12,30 +12,33 @@ var last_text := ""
 func _ready() -> void:
 	mouse_filter=Control.MOUSE_FILTER_IGNORE
 	# front_menu assigns a lower legacy offset before add_child; pin this HUD to the viewport corner.
-	position=Vector2(12,12)
+	set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	offset_top=12
+	offset_bottom=62
+	alignment=BoxContainer.ALIGNMENT_CENTER
 	theme=HudTheme.create()
 	# Flow inside the existing HBox root preserves front_menu's typed reference.
-	var flow := HFlowContainer.new()
-	flow.custom_minimum_size.x=minf(1000,get_viewport_rect().size.x-56)
-	flow.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	add_child(flow)
+	var left_space:=Control.new();left_space.size_flags_horizontal=Control.SIZE_EXPAND_FILL;left_space.mouse_filter=Control.MOUSE_FILTER_IGNORE;add_child(left_space)
+	var right_space:=Control.new();right_space.size_flags_horizontal=Control.SIZE_EXPAND_FILL;right_space.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var extras:=HBoxContainer.new();extras.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT);extras.grow_horizontal=Control.GROW_DIRECTION_BEGIN;extras.mouse_filter=Control.MOUSE_FILTER_IGNORE;right_space.add_child(extras)
 	for field in ["location","activity","timer","guidance"]:
 		var card := PanelContainer.new();card.mouse_filter=Control.MOUSE_FILTER_IGNORE
 		var skin := HudTheme.card_style()
 		skin.set_content_margin_all(8)
 		card.add_theme_stylebox_override("panel",skin)
 		var badge := UI.badge("", {"location":"home","activity":"course","timer":"info","guidance":"play"}[field])
-		card.add_child(badge);flow.add_child(card)
+		card.add_child(badge)
+		if field=="location":add_child(card);add_child(right_space)
+		else:extras.add_child(card)
 		var label := badge.get_child(1) as Label
 		label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		label.custom_minimum_size.x=minf(float({"location":180,"activity":140,"timer":60,"guidance":140}[field]),get_viewport_rect().size.x-160)
 		label.tooltip_text=""
 		set(field,label)
-	get_viewport().size_changed.connect(func():flow.custom_minimum_size.x=minf(1000,get_viewport_rect().size.x-56))
 func update_state(room: Dictionary, state: Dictionary, remaining_seconds: float, destination: Dictionary={}) -> void:
 	location.text=Signage.room_hud_identity(room)
 	var mode := str(state.get("mode","Freeplay"))
-	activity.text="Play" if mode=="Freeplay" else mode+" · "+str(state.get("course_id",""))
+	activity.text="" if mode in ["Freeplay","Play"] else mode+" · "+str(state.get("course_id",""))
 	timer.text="%02d:%02d"%[int(maxf(remaining_seconds,0))/60,int(maxf(remaining_seconds,0))%60] if remaining_seconds>=0 else ""
 	guidance.text=""
 	if destination.get("enabled",not destination.is_empty()):

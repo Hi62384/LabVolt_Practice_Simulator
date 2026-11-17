@@ -274,6 +274,7 @@ func _change_board_size(option: int) -> void:
 		notify(error)
 		return
 	canvas.commit()
+	if maker:canvas.reset_interaction()
 	canvas.board=candidate
 	canvas.design_changed.emit(candidate)
 	canvas.fit_board()

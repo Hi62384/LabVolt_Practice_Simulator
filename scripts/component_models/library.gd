@@ -144,6 +144,16 @@ static func tick(model: Dictionary,n: Array,v: Dictionary,old: Dictionary,dt: fl
 	var p: Array=[]
 	for pin in n:p.append(level(voltage(v,pin,g),supply))
 	match kind:
+		"bcd47":
+			var segments: Array = [[0,1,2,3,4,5],[1,2],[0,1,3,4,6],[0,1,2,3,6],[1,2,5,6],[0,2,3,5,6],[0,2,3,4,5,6],[0,1,2],[0,1,2,3,4,5,6],[0,1,2,3,5,6]]
+			var output_pins: Array = [12,11,10,9,8,14,13]
+			var on: Array = []
+			if p[3]==0:pass
+			elif p[2]==0:on=[0,1,2,3,4,5,6]
+			elif p[2]==1 and p[3]==1 and p[4]>=0 and p[0]>=0 and p[1]>=0 and p[5]>=0 and p[6]>=0:
+				var digit: int=int(p[6])+2*int(p[0])+4*int(p[1])+8*int(p[5])
+				if digit<10 and not (digit==0 and p[4]==0):on=segments[digit]
+			for segment in on:s.drive[str(output_pins[segment])]=0
 		"nor":
 			for gate in [[1,2,0],[4,5,3],[7,8,9],[10,11,12]]:
 				if p[gate[0]]>=0 and p[gate[1]]>=0:s.drive[str(gate[2])]=1 if p[gate[0]]==0 and p[gate[1]]==0 else 0

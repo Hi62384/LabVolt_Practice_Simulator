@@ -2,16 +2,43 @@ extends Node3D
 
 const Transfer = preload("res://scripts/ui/personal_inventory/discard_transfer.gd")
 const Lifetime := 120000
+const Store = preload("res://scripts/inventory_authority/store.gd")
+const PcbPreview = preload("res://scripts/campus/lost_found/pcb_preview.gd")
+const ClaimAuthority = preload("res://scripts/campus/lost_found/claim_authority.gd")
+var local_store = Store.new()
+var store_identity := ""
+var session_loaded := false
+var import_retrying := false
+var import_retry_epoch := 0
+var forget_retrying := {}
+var imported_peers := {}
+var import_waiting := {}
+var request_clock := 0.0
+var pending_import := {}
+var host_pending_import := {}
+var import_clock := 0.0
+var import_cursor := 0
+var queued_entries := {}
+var checking_imports := {}
 var game: Node
 var drops := {}
+var claim_pending := {}
+var claimed_tokens := {}
+var pending_commits := {}
+var commit_clock := 0.0
 var views := {}
 var next_id := 1
 var clock_offset := 0
+var usb_handoffs: Node
 
 func build(owner_game: Node) -> void:
 	game=owner_game
-	game.session.restarted.connect(func():drops.clear();_publish())
-	game.session.roster_changed.connect(_publish)
+	usb_handoffs=preload("res://scripts/campus/computers/usb_handoff.gd").new()
+	usb_handoffs.name="UsbHandoffs";add_child(usb_handoffs);usb_handoffs.build(self)
+	game.session.restarted.connect(func():drops.clear();claim_pending.clear();claimed_tokens.clear();pending_commits.clear();imported_peers.clear();import_waiting.clear();pending_import.clear();host_pending_import.clear();import_cursor=0;queued_entries.clear();checking_imports.clear();session_loaded=false;import_retrying=false;import_retry_epoch+=1;forget_retrying.clear();_publish())
+	game.session.roster_changed.connect(_roster_changed)
+	game.session.leaving.connect(_leaving)
+	game.electronics_trade.authority.profile_ready.connect(_profile_ready)
 
 func discard(source: Dictionary) -> void:
 	var point: Vector3 = game.player.global_position-game.player.global_basis.z
@@ -22,7 +49,7 @@ func discard(source: Dictionary) -> void:
 func request_drop(source: Dictionary,point: Vector3) -> void:
 	if multiplayer.is_server():_discard(multiplayer.get_remote_sender_id(),source,point)
 
-func _discard(peer: int,source: Dictionary,point: Vector3) -> void:
+func _discard(peer: int,source: Dictionary,point: Vector3,allow_held_kit := false) -> void:
 	if not game.session.roster.has(peer) or var_to_bytes(source).size()>1024 or not source.get("item") is Dictionary:return
 	if drops.size()>=96:_notice(peer,"Too many discarded items are on the ground.");return
 	var floor_point: Variant = _drop_position(peer,point)
@@ -67,7 +94,7 @@ func _discard(peer: int,source: Dictionary,point: Vector3) -> void:
 		var kit: Dictionary = game.kit_world.kits.get(peer,{})
 		for id in parcel.kits:
 			if game.kit_world.is_placed(peer,id):_notice(peer,"Pick up the kit before discarding it.");return
-		if not kit.is_empty() and not kit.get("stowed",false) and parcel.kits.has(kit.get("id","")):
+		if not kit.is_empty() and not kit.get("stowed",false) and parcel.kits.has(kit.get("id","")) and not (allow_held_kit and kit.get("held",false) and not kit.get("open",false)):
 			_notice(peer,"Stow the kit and return its breadboard first.");return
 		for station in game.dc_lab.benches:
 			if station.board_owner==peer and parcel.kits.has(station.board.get("authority_kit_id","")):
@@ -85,7 +112,8 @@ func _discard(peer: int,source: Dictionary,point: Vector3) -> void:
 				var paper: Dictionary = game.school.papers[id]
 				if paper.owner==peer and Transfer.Dorm.paper_supply(paper)==supply and not paper.get("supply_released",false):game.school.papers.erase(id)
 			game.school.broadcast()
-	drops[next_id]={"position":floor_point,"expires":Time.get_ticks_msec()+Lifetime,"label":label,"parcel":parcel}
+	var token := track_ground(peer,parcel,label)
+	drops[next_id]={"position":floor_point,"expires":0,"label":label,"parcel":parcel,"owner":peer,"token":token}
 	next_id+=1
 	_publish()
 	_notice(peer,"Discarded "+label+".",true)
@@ -115,41 +143,133 @@ func request_pickup(id: int,slots: int) -> void:
 func _pickup(peer: int,id: int,slots: int) -> void:
 	if not game.session.roster.has(peer) or not drops.has(id):return
 	var drop: Dictionary = drops[id]
-	if Time.get_ticks_msec()>=int(drop.expires) or not game.school._near(peer,drop.position):return
+	if (int(drop.expires)>0 and Time.get_ticks_msec()>=int(drop.expires)) or not game.school._near(peer,drop.position):return
 	var parcel: Dictionary = drop.parcel
-	if parcel.has("paper"):
-		if slots<=0:_notice(peer,"Free a hotbar slot first.");return
-		if not game.dc_lab._can_hold_lead(peer):_notice(peer,"Put down the item you are holding first.");return
+	var token:=str(drop.get("token",""))
+	if parcel.has("usb") and peer!=int(drop.get("owner",0)):
+		usb_handoffs.start(peer,id,slots)
+		return
+	var holder: String=""
+	if game.session.online:
+		if token.is_empty() or claim_pending.has(token) or claimed_tokens.has(token):return
+		claim_pending[token]=true
+		holder=Crypto.new().generate_random_bytes(16).hex_encode()
+		var epoch:=import_retry_epoch
+		var reservation: Dictionary=await ClaimAuthority.reserve(self,token,holder)
+		if epoch!=import_retry_epoch:
+			if reservation.get("ok",false):ClaimAuthority.release(self,token,holder)
+			claim_pending.erase(token)
+			return
+		if not reservation.get("ok",false):
+			claim_pending.erase(token)
+			_notice(peer,str(reservation.get("error","Item pickup is unavailable.")))
+			if reservation.get("claimed",false) and drops.get(id,{}).get("token","")==token:
+				forget_ground(int(drop.get("owner",0)),token)
+				drops.erase(id)
+				_fill_tables()
+				_publish()
+			return
+		if not drops.has(id) or str(drops[id].get("token",""))!=token:
+			ClaimAuthority.release(self,token,holder)
+			claim_pending.erase(token)
+			return
+	if not _deliver_drop(peer,slots,drop):
+		if not holder.is_empty():
+			ClaimAuthority.release(self,token,holder)
+			claim_pending.erase(token)
+		return
+	if not holder.is_empty():
+		claimed_tokens[token]=id
+		pending_commits[token]={"id":id,"holder":holder,"owner":int(drop.get("owner",0)),"busy":true}
+		var committed: Dictionary=await ClaimAuthority.commit(self,token,holder)
+		claim_pending.erase(token)
+		if not committed.get("ok",false):
+			if pending_commits.has(token):pending_commits[token].busy=false
+			_notice(peer,"Item delivery needs claim confirmation; please wait.")
+			return
+	_finalized_claim(token,id,int(drop.get("owner",0)))
+
+func _finalized_claim(token: String,id: int,owner: int) -> void:
+	pending_commits.erase(token)
+	forget_ground(owner,token)
+	drops.erase(id)
+	claimed_tokens.erase(token)
+	_fill_tables()
+	_publish()
+
+func _retry_commit(token: String) -> void:
+	if not pending_commits.has(token) or pending_commits[token].busy:return
+	var record: Dictionary=pending_commits[token]
+	record.busy=true
+	var result: Dictionary=await ClaimAuthority.commit(self,token,str(record.holder))
+	if not pending_commits.has(token):return
+	if result.get("ok",false):_finalized_claim(token,int(record.id),int(record.owner))
+	else:record.busy=false
+
+func _deliver_drop(peer: int,slots: int,drop: Dictionary) -> bool:
+	var parcel: Dictionary=drop.parcel
+	if parcel.has("usb"):
+		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
+		var identity: String=game.dorm_interactions.authenticated_identity(peer)
+		var profile: Dictionary=game.dorm_interactions._profile(identity).duplicate(true)
+		var usb: Dictionary=parcel.usb
+		var d: Dictionary=profile.get("dorm",{})
+		var item: Dictionary=d.get("usb_drives",{}).get(str(usb.id),{})
+		if identity!=usb.owner or item.get("location","")!="lost" or int(item.get("capacity_mb",0))!=int(usb.capacity_mb):_notice(peer,"USB ownership could not be verified.");return false
+		if d.get("carry_items",[]).size()+d.get("carried_components",[]).size()>=6:_notice(peer,"Free a hotbar slot first.");return false
+		d.carry_items=d.get("carry_items",[])+["usb:"+str(usb.id)];item.location="hotbar";d.revision+=1
+		var saved: Dictionary=game.dorm_interactions._commit_world_inventory(peer,identity,profile)
+		if not saved.ok:_notice(peer,str(saved.error));return false
+	elif parcel.has("paper"):
+		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
+		if not game.dc_lab._can_hold_lead(peer):_notice(peer,"Put down the item you are holding first.");return false
 		var paper: Dictionary = parcel.paper
+		paper=paper.duplicate(true)
+		paper.id=game.school.next_id
+		game.school.next_id+=1
 		paper.owner=peer
 		paper.held=true
 		paper.stowed=false
 		game.school.papers[paper.id]=paper
 		game.school.broadcast()
 	elif parcel.has("wire"):
-		if slots<=0:_notice(peer,"Free a hotbar slot first.");return
-		if not _give_wire(peer,parcel):_notice(peer,"This cable cannot fit in your hotbar.");return
+		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
+		if not _give_wire(peer,parcel):_notice(peer,"This cable cannot fit in your hotbar.");return false
 	elif parcel.has("food"):
-		if slots<=0:_notice(peer,"Free a hotbar slot first.");return
+		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
 		var result := _move_food(peer,"",parcel.food)
-		if not result.ok:_notice(peer,str(result.error));return
-	elif parcel.has("pcb") and slots>0:
+		if not result.ok:_notice(peer,str(result.error));return false
+	elif parcel.has("pcb"):
+		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
 		var result := _give_pcb(peer,parcel)
-		if not result.ok:_notice(peer,str(result.error));return
+		if not result.ok:_notice(peer,str(result.error));return false
 	else:
 		var dorm = game.dorm_interactions
 		var identity: String = dorm.authenticated_identity(peer)
 		var profile: Dictionary = dorm._profile(identity)
 		if not profile.has("dorm") or not profile.get("pending_trade",{}).is_empty():
-			_notice(peer,"Inventory is unavailable.");return
+			_notice(peer,"Inventory is unavailable.");return false
 		var d: Dictionary = profile.dorm
 		var limit := mini(6,d.get("carry_items",[]).size()+d.get("carried_components",[]).size()+clampi(slots,0,6))
 		var result := Transfer.give(profile,parcel,limit)
-		if not result.ok:_notice(peer,str(result.error));return
+		if not result.ok:_notice(peer,str(result.error));return false
 		var saved: Dictionary = dorm._commit_world_inventory(peer,identity,result.profile)
-		if not saved.ok:_notice(peer,str(saved.error));return
-	drops.erase(id)
-	_publish()
+		if not saved.ok:_notice(peer,str(saved.error));return false
+	return true
+
+func claim_handoff(drop_id: int,holder: String) -> Dictionary:
+	var drop: Dictionary=drops.get(drop_id,{})
+	var token:=str(drop.get("token",""))
+	if token.is_empty() or claim_pending.has(token):return {"ok":false,"error":"Item claim is already in progress."}
+	if claimed_tokens.has(token):return {"ok":false,"error":"Item pickup is already in progress."}
+	claim_pending[token]=true
+	var epoch:=import_retry_epoch
+	var result: Dictionary=await ClaimAuthority.reserve(self,token,holder)
+	claim_pending.erase(token)
+	if epoch!=import_retry_epoch:
+		if result.get("ok",false):ClaimAuthority.release(self,token,holder)
+		return {"ok":false,"error":"Game session changed."}
+	return result
 
 func _take_wire(peer: int,item: Dictionary) -> Dictionary:
 	var index := int(item.get("station",-1))
@@ -319,11 +439,18 @@ func notice(message: String,refresh: bool) -> void:
 
 func _publish() -> void:
 	if not multiplayer.is_server() or not game.session.online:return
+	var public := _public_drops()
+	for peer in game.session.connected_peers():sync_drops.rpc_id(peer,public,Time.get_ticks_msec())
+
+func _public_drops() -> Dictionary:
 	var public := {}
 	for id in drops:
 		var drop: Dictionary=drops[id]
-		public[id]={"position":drop.position,"expires":drop.expires,"label":drop.label}
-	for peer in game.session.connected_peers():sync_drops.rpc_id(peer,public,Time.get_ticks_msec())
+		public[id]={"position":drop.position,"expires":drop.expires,"label":drop.label,"visual":_visual_kind(drop)}
+		if _visual_kind(drop)=="pcb":
+			if not drop.has("pcb_preview"):drop.pcb_preview=PcbPreview.describe(drop.get("parcel",{}).get("pcb",{}))
+			if not drop.pcb_preview.is_empty():public[id].pcb_preview=drop.pcb_preview
+	return public
 
 @rpc("authority","call_remote","reliable")
 func sync_drops(public: Dictionary,server_ticks: int) -> void:
@@ -332,14 +459,36 @@ func sync_drops(public: Dictionary,server_ticks: int) -> void:
 
 func _process(_delta: float) -> void:
 	if not is_instance_valid(game):return
+	if multiplayer.is_server() and not pending_commits.is_empty():
+		commit_clock+=_delta
+		if commit_clock>=3.0:
+			commit_clock=0.0
+			for token in pending_commits.keys():_retry_commit(str(token))
+	if multiplayer.is_server() and game.session.online and not import_waiting.is_empty():
+		request_clock+=_delta
+		if request_clock>=3.0:
+			request_clock=0.0
+			for peer in import_waiting:
+				if game.session.roster.has(peer):request_lost.rpc_id(int(peer))
+	if game.session.online and (not pending_import.is_empty() or not host_pending_import.is_empty()):
+		import_clock+=_delta
+		if import_clock>=2.0:
+			import_clock=0.0
+			if multiplayer.is_server():
+				for token in host_pending_import.keys().slice(0,4):_import_entry(multiplayer.get_unique_id(),str(token),host_pending_import[token])
+			else:_send_pending_import()
+	if not session_loaded and game.front.in_game and not game.session.online:
+		_import_local(1)
 	var now := Time.get_ticks_msec()+clock_offset
 	var changed := false
 	if multiplayer.is_server():
 		for id in drops.keys():
-			if now>=int(drops[id].expires):
+			if int(drops[id].expires)>0 and now>=int(drops[id].expires):
 				drops.erase(id)
 				changed=true
-	if changed:_publish()
+	if changed:
+		_fill_tables()
+		_publish()
 	for id in views.keys():
 		if not drops.has(id):
 			views[id].queue_free()
@@ -349,11 +498,28 @@ func _process(_delta: float) -> void:
 		if not views.has(id):views[id]=_make_view(id,drop)
 		var root: StaticBody3D=views[id]
 		var seconds := maxi(0,ceili((int(drop.expires)-now)/1000.0))
-		root.visible=seconds>0
-		root.collision_layer=4 if seconds>0 else 0
-		var label: Label3D=root.get_node("Countdown")
-		var text := "%s  ·  %d:%02d" % [drop.label,seconds/60,seconds%60]
-		if label.text!=text:label.text=text
+		var permanent := int(drop.expires)==0
+		root.visible=permanent or seconds>0
+		root.collision_layer=4 if root.visible else 0
+
+func _visual_kind(drop: Dictionary) -> String:
+	if drop.has("visual"):return str(drop.visual)
+	var parcel: Dictionary=drop.get("parcel",{})
+	if parcel.has("usb"):return "usb"
+	if parcel.has("wire"):return "wire_%d" % int(parcel.get("color",0))
+	if parcel.has("paper"):
+		var supply := Transfer.Dorm.paper_supply(parcel.paper)
+		return supply if not supply.is_empty() else "paper"
+	if parcel.has("food"):return "food_"+str(parcel.food.get("item",""))
+	if parcel.has("pcb"):return "pcb"
+	var item: Dictionary=parcel.get("item",{})
+	var id:=str(item.get("id",""))
+	match str(item.get("kind","")):
+		"supply":return id
+		"kit":return "kit_"+str(parcel.get("tiers",{}).get(id,"standard"))
+		"bag":return "bag_"+str(parcel.get("bags",{}).get(id,{}).get("size","backpack_small"))
+		"component":return "component:"+str(item.get("type",""))
+	return str(item.get("kind","item"))
 
 func _make_view(id: int,drop: Dictionary) -> StaticBody3D:
 	var root := StaticBody3D.new()
@@ -364,20 +530,332 @@ func _make_view(id: int,drop: Dictionary) -> StaticBody3D:
 	root.set_meta("label","Pick up "+str(drop.label))
 	add_child(root)
 	root.global_position=drop.position
-	game._box(root,Vector3.UP*.055,Vector3(.22,.11,.16),Color("325765"))
-	game._box(root,Vector3.UP*.11,Vector3(.225,.025,.165),Color("cfb183"))
+	var kind := _visual_kind(drop)
+	var prop := Node3D.new();root.add_child(prop)
+	if kind=="usb":
+		game._box(prop,Vector3(0,.014,0),Vector3(.105,.022,.038),Color("315363"))
+		game._box(prop,Vector3(.061,.014,0),Vector3(.025,.012,.027),Color("bdccca"))
+	elif kind in ["flashlight","lab_goggles","marker"]:
+		game.school_world._build_supply_prop(prop,kind)
+		prop.position.y=.05
+	elif kind.begins_with("calculator"):
+		game.school_world._build_calculator_prop(prop,Vector3(.135,.026,.215),kind)
+		prop.rotation.x=-PI/2;prop.position.y=.025
+	elif kind=="pencil_case":
+		var toon=preload("res://scripts/toon_character.gd")
+		toon.ellipsoid(prop,Vector3(0,.03,0),Vector3(.11,.027,.052),toon.material("a45652"),"Pencil case")
+		game._box(prop,Vector3(0,.055,.004),Vector3(.17,.006,.011),Color("633736"))
+	elif kind.begins_with("food_"):
+		prop.add_child(preload("res://scripts/campus/facilities/food_visual.gd").build(kind.trim_prefix("food_")))
+	elif kind.begins_with("bag_"):
+		game.school_world._build_backpack(prop,Vector3(.29,.38,.22),kind.trim_prefix("bag_"))
+		prop.position.y=.19
+	elif kind.begins_with("kit_"):
+		var kit: StaticBody3D=game.kit_world._create_kit_view(0,{"id":"lost","name":str(drop.label),"tier":kind.trim_prefix("kit_")})
+		kit.collision_layer=0;kit.reparent(prop,false)
+	elif kind=="notebook":
+		game._box(prop,Vector3(0,.02,0),Vector3(.23,.034,.31),Color("416b78"))
+		game._box(prop,Vector3(-.09,.038,0),Vector3(.04,.004,.31),Color("254854"))
+	elif kind=="paper":
+		game._box(prop,Vector3(0,.012,0),Vector3(.23,.008,.31),Color("eee8d7"))
+		for row in 5:
+			game._box(prop,Vector3(-.02,.017,-.10+row*.043),Vector3(.15,.001,.004),Color("7e969a"))
+	elif kind=="whiteboard":
+		game._box(prop,Vector3(0,.015,0),Vector3(.30,.03,.22),Color("72858b"))
+		game._box(prop,Vector3(0,.032,0),Vector3(.27,.004,.19),Color("e8eeeb"))
+	elif kind.begins_with("wire_"):
+		var colors: Array=game.JACKET_COLORS
+		var color: Color=colors[clampi(int(kind.trim_prefix("wire_")),0,colors.size()-1)]
+		prop.add_child(preload("res://scripts/cable_mesh.gd").build(Vector3(-.13,.04,0),Vector3(.13,.04,0),color))
+	elif kind=="pcb":
+		var preview: Dictionary=drop.get("pcb_preview",{})
+		if preview.is_empty():preview=PcbPreview.describe(drop.get("parcel",{}).get("pcb",{}))
+		if not PcbPreview.build(game,prop,preview):
+			game._box(prop,Vector3(0,.012,0),Vector3(.23,.024,.16),Color("287258"))
+			game._box(prop,Vector3(0,.032,0),Vector3(.065,.015,.055),Color("252c32"))
+	elif kind.begins_with("component:"):
+		var type := kind.trim_prefix("component:")
+		var model: Dictionary=preload("res://scripts/electronics_catalog.gd").simulation_entry(type)
+		if not model.is_empty():
+			var component=preload("res://scripts/board_components_3d.gd").new();prop.add_child(component)
+			var pin_positions: Array=[]
+			var count: int=model.get("pins",[]).size()
+			for index in count:
+				var side: int=index%2
+				pin_positions.append(Vector2(490.0+side*20.0,220.0+(floori(float(index)/2.0)-floori(float(count)/4.0))*6.0))
+			component.build_device(game,{"id":"lost","type":type,"center":Vector2(500,220),"pins":pin_positions},model)
+			for label in component.find_children("*","Label3D",true,false):label.hide()
+			if component.get_child_count()==0:game._box(prop,Vector3(0,.015,0),Vector3(.07,.025,.05),Color("273a41"))
+		else:game._box(prop,Vector3(0,.015,0),Vector3(.07,.025,.05),Color("273a41"))
+	else:
+		game._box(prop,Vector3.UP*.018,Vector3(.22,.035,.16),Color("e8e1d2"))
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size=Vector3(.27,.16,.21)
 	collision.shape=shape
 	collision.position.y=.08
 	root.add_child(collision)
-	var label := Label3D.new()
-	label.name="Countdown"
-	label.position.y=.24
-	label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size=32
-	label.pixel_size=.003
-	label.outline_size=8
-	root.add_child(label)
 	return root
+
+# The player's own checksummed store travels with their client, never the host.
+func _open_store() -> bool:
+	var identity: String=game.school.local_identity
+	if identity.is_empty():return false
+	if store_identity==identity and local_store.healthy:return true
+	store_identity=identity
+	local_store=Store.new()
+	if local_store.open("user://lost_loot_"+identity.sha256_text().left(24))!=OK:
+		game.ui.log_message("Lost and found save could not be read; existing data was preserved.")
+		return false
+	return true
+
+func _save_entries(entries: Dictionary) -> bool:
+	if not _open_store() or local_store.commit({"entries":entries})!=OK:
+		game.ui.log_message("Could not save lost and found items on this computer.")
+		return false
+	return true
+
+func _local_entries() -> Dictionary:
+	if not _open_store():return {}
+	var entries: Variant=local_store.value.get("entries",{})
+	return entries.duplicate(true) if entries is Dictionary else {}
+
+func track_ground(peer: int,parcel: Dictionary,label: String) -> String:
+	var token := Crypto.new().generate_random_bytes(16).hex_encode()
+	if peer==multiplayer.get_unique_id():cache_ground(token,parcel,label)
+	else:cache_ground.rpc_id(peer,token,parcel,label)
+	return token
+
+@rpc("authority","call_remote","reliable",6)
+func cache_ground(token: String,parcel: Dictionary,label: String) -> void:
+	if not _valid_entry(token,{"parcel":parcel,"label":label}):return
+	var entries := _local_entries()
+	if entries.size()>=96:return
+	entries[token]={"parcel":parcel.duplicate(true),"label":label.left(80),"ground":true}
+	_save_entries(entries)
+
+func forget_ground(peer: int,token: String) -> void:
+	if token.is_empty() or peer<=0:return
+	if peer==multiplayer.get_unique_id():forget_local(token)
+	elif game.session.roster.has(peer):forget_local.rpc_id(peer,token)
+
+@rpc("authority","call_remote","reliable",6)
+func forget_local(token: String) -> void:
+	if not _forget_entry(token) and not forget_retrying.has(token):_retry_forget(token)
+
+func _forget_entry(token: String) -> bool:
+	if not _open_store():return false
+	var entries := _local_entries()
+	if not entries.erase(token):return true
+	return _save_entries(entries)
+
+func _retry_forget(token: String) -> void:
+	forget_retrying[token]=true
+	var epoch := import_retry_epoch
+	for attempt in 3:
+		await get_tree().create_timer(2.0).timeout
+		if epoch!=import_retry_epoch:return
+		if _forget_entry(token):break
+	forget_retrying.erase(token)
+
+func _leaving() -> void:
+	import_retry_epoch+=1
+	import_retrying=false
+	pending_import.clear();host_pending_import.clear();import_clock=0.0;import_cursor=0
+	for token in forget_retrying.keys():_forget_entry(str(token))
+	forget_retrying.clear()
+	if not session_loaded and store_identity.is_empty():return
+	var entries := _local_entries()
+	var changed := false
+	for entry in entries.values():
+		if entry is Dictionary and entry.get("ground",false):entry.ground=false;changed=true
+	if changed:_save_entries(entries)
+	session_loaded=false
+
+func _profile_ready(peer: int) -> void:
+	if not multiplayer.is_server() or imported_peers.has(peer):return
+	if peer==multiplayer.get_unique_id():
+		if _import_local(peer):imported_peers[peer]=true
+		else:_retry_local_import(peer)
+	else:
+		import_waiting[peer]=true
+		request_lost.rpc_id(peer)
+
+@rpc("authority","call_remote","reliable",6)
+func request_lost() -> void:
+	if not _import_local(multiplayer.get_unique_id()):_retry_local_import(multiplayer.get_unique_id())
+
+func _retry_local_import(peer: int) -> void:
+	if import_retrying:return
+	import_retrying=true
+	var epoch := import_retry_epoch
+	for attempt in 3:
+		await get_tree().create_timer(2.0).timeout
+		if epoch!=import_retry_epoch:return
+		if not import_retrying or session_loaded or peer!=multiplayer.get_unique_id():break
+		if _import_local(peer):
+			if multiplayer.is_server():imported_peers[peer]=true
+			break
+	import_retrying=false
+
+func _import_local(peer: int) -> bool:
+	if session_loaded:
+		if not multiplayer.is_server():_send_pending_import()
+		return true
+	if not _open_store():return false
+	var entries := _local_entries()
+	var previous: Dictionary=entries.duplicate(true)
+	entries=_reconcile_local_usb_entries(entries)
+	# Entries left marked ground indicate an interrupted previous session.
+	for entry in entries.values():
+		if entry is Dictionary:entry.ground=false
+	if entries!=previous and not _save_entries(entries):return false
+	session_loaded=true
+	if multiplayer.is_server():
+		if game.session.online:host_pending_import=entries.duplicate(true)
+		_import_entries(peer,entries)
+	else:
+		pending_import=entries.duplicate(true)
+		_send_pending_import()
+	return true
+
+func _send_pending_import() -> void:
+	if not game.session.online or multiplayer.is_server():return
+	var tokens:=pending_import.keys()
+	if tokens.is_empty():import_complete.rpc_id(1);return
+	for offset in mini(4,tokens.size()):
+		var token: String=str(tokens[(import_cursor+offset)%tokens.size()])
+		submit_lost.rpc_id(1,token,pending_import[token])
+	import_cursor=(import_cursor+4)%tokens.size()
+
+@rpc("any_peer","call_remote","reliable",6)
+func import_complete() -> void:
+	if not multiplayer.is_server():return
+	var peer:=multiplayer.get_remote_sender_id()
+	if import_waiting.erase(peer):imported_peers[peer]=true
+
+func _reconcile_local_usb_entries(entries: Dictionary) -> Dictionary:
+	var dorm: Dictionary=game.electronics.profile.data.get("dorm",{})
+	var owner: String=str(dorm.get("owner",""))
+	var drives: Dictionary=dorm.get("usb_drives",{})
+	for token in entries.keys():
+		var usb: Variant=entries[token].get("parcel",{}).get("usb",null) if entries[token] is Dictionary else null
+		if usb is Dictionary and (usb.get("owner","")!=owner or drives.get(str(usb.get("id","")),{}).get("location","")!="lost"):entries.erase(token)
+	for id in drives:
+		var item: Dictionary=drives[id]
+		if item.get("location","")!="lost":continue
+		if not entries.has(id) and entries.size()>=96:continue
+		var archive=preload("res://scripts/campus/computers/usb_archive.gd")
+		if archive.load(owner,str(id),int(item.capacity_mb)).has("error"):continue
+		entries[id]={"parcel":{"usb":{"id":str(id),"owner":owner,"name":str(item.name),"capacity_mb":int(item.capacity_mb)}},"label":str(item.name).left(80),"ground":false}
+	return entries
+
+@rpc("any_peer","call_remote","reliable",6)
+func submit_lost(token: String,entry: Dictionary) -> void:
+	if multiplayer.is_server():_import_entry(multiplayer.get_remote_sender_id(),token,entry)
+
+@rpc("authority","call_remote","reliable",6)
+func import_ack(token: String,result: String) -> void:
+	if not pending_import.has(token):return
+	if result=="claimed":
+		if not _forget_entry(token):return
+	elif result=="invalid":
+		game.ui.log_message("A saved lost-and-found item could not be imported.")
+	elif result!="accepted":return
+	pending_import.erase(token)
+	if pending_import.is_empty():import_complete.rpc_id(1)
+
+func _valid_entry(token: String,entry: Variant) -> bool:
+	if token.length()!=32 or not token.is_valid_hex_number() or not entry is Dictionary:return false
+	if not entry.get("label") is String or str(entry.label).length()>80 or not entry.get("parcel") is Dictionary:return false
+	var parcel: Dictionary=entry.parcel
+	if var_to_bytes(parcel).size()>1048576:return false
+	if parcel.has("usb"):
+		var usb: Variant=parcel.usb
+		return usb is Dictionary and usb.get("id") is String and str(usb.id)==token and str(usb.id).length()==32 and str(usb.id).is_valid_hex_number() and Transfer.Dorm.identity_ok(usb.get("owner")) and usb.get("name") is String and preload("res://scripts/campus/computers/usb_archive.gd").valid_name(usb.name) and int(usb.get("capacity_mb",0)) in [8,32,64,150]
+	if parcel.has("wire"):
+		return parcel.get("dc") is bool and parcel.get("station") is int and int(parcel.station)>=0 and int(parcel.station)<game.session.labs.size() and parcel.get("color") is int and int(parcel.color) in range(4)
+	if parcel.has("food"):return parcel.food is Dictionary and parcel.food.get("item") is String
+	if parcel.has("paper"):return parcel.paper is Dictionary and not game.school._class_assessment(parcel.paper)
+	if not parcel.get("item") is Dictionary:return false
+	for key in ["kits","tiers","bags","stock","instances","supplies","definitions","carried_stock"]:
+		if not parcel.get(key) is Dictionary:return false
+	return parcel.get("carried_instances") is Array and (not parcel.has("pcb") or parcel.pcb is Dictionary)
+
+func _import_entries(peer: int,entries: Dictionary) -> void:
+	if not game.session.roster.has(peer):return
+	for token in entries:
+		if token is String and entries[token] is Dictionary:_import_entry(peer,token,entries[token])
+
+func _import_entry(peer: int,token: String,entry: Dictionary) -> void:
+	if not game.session.roster.has(peer):return
+	if not _valid_entry(token,entry):_ack_import(peer,token,"invalid");return
+	if entry.parcel.has("usb") and str(entry.parcel.usb.owner)!=game.dorm_interactions.authenticated_identity(peer):_ack_import(peer,token,"invalid");return
+	var key:=str(peer)+":"+token
+	if checking_imports.has(key):return
+	if queued_entries.has(key) or drops.values().any(func(drop):return int(drop.get("owner",0))==peer and str(drop.get("token",""))==token):
+		_ack_import(peer,token,"accepted");return
+	var owned:=0
+	for drop in drops.values():
+		if int(drop.get("owner",0))==peer:owned+=1
+	for record in queued_entries.values():
+		if int(record.owner)==peer:owned+=1
+	if owned>=96 or queued_entries.size()>=96:_ack_import(peer,token,"retry");return
+	checking_imports[key]=true
+	var epoch:=import_retry_epoch
+	if game.session.online:
+		var status: Dictionary=await ClaimAuthority.status(self,token)
+		if epoch!=import_retry_epoch or not game.session.roster.has(peer):checking_imports.erase(key);return
+		if not status.get("ok",false):checking_imports.erase(key);_ack_import(peer,token,"retry");return
+		if status.get("claimed",false):
+			checking_imports.erase(key)
+			_ack_import(peer,token,"claimed")
+			return
+	checking_imports.erase(key)
+	queued_entries[key]={"owner":peer,"token":token,"entry":entry.duplicate(true)}
+	_ack_import(peer,token,"accepted")
+	_fill_tables()
+	_publish()
+
+func _ack_import(peer: int,token: String,result: String) -> void:
+	if peer==multiplayer.get_unique_id():
+		if result=="claimed" and not _forget_entry(token):return
+		if result in ["accepted","claimed","invalid"]:host_pending_import.erase(token)
+	elif game.session.roster.has(peer):import_ack.rpc_id(peer,token,result)
+
+func _fill_tables() -> void:
+	for key in queued_entries.keys():
+		if drops.size()>=96:break
+		var record: Dictionary=queued_entries[key]
+		if not game.session.roster.has(int(record.owner)):
+			queued_entries.erase(key)
+			continue
+		var position:=_available_table_position()
+		if not position.is_finite():break
+		var entry: Dictionary=record.entry
+		drops[next_id]={"position":position,"expires":0,"label":str(entry.label),"parcel":entry.parcel.duplicate(true),"owner":int(record.owner),"token":str(record.token)}
+		next_id+=1
+		queued_entries.erase(key)
+
+func _available_table_position() -> Vector3:
+	for slot in 96:
+		var x := -6.65+float(slot%24)*.30
+		var z := (62.35 if int(slot/48)==0 else 65.65) + (-.23 if int(slot/24)%2==0 else .23)
+		var point := Vector3(x,.84,z)
+		if not drops.values().any(func(drop):return drop.position.distance_squared_to(point)<.01):return point
+	return Vector3.INF
+
+func _roster_changed() -> void:
+	if multiplayer.is_server():
+		for peer in imported_peers.keys():
+			if not game.session.roster.has(peer):imported_peers.erase(peer)
+		for peer in import_waiting.keys():
+			if not game.session.roster.has(peer):import_waiting.erase(peer)
+		for id in drops.keys():
+			if drops[id].has("owner") and not game.session.roster.has(drops[id].owner):drops.erase(id)
+		for key in queued_entries.keys():
+			if not game.session.roster.has(int(queued_entries[key].owner)):queued_entries.erase(key)
+		_fill_tables()
+		for id in game.school.floor_leads.keys():
+			if not game.session.roster.has(game.school.floor_leads[id].owner):game.school.floor_leads.erase(id)
+	_publish()

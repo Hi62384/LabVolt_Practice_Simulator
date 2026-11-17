@@ -47,6 +47,7 @@ static func build(bytes: PackedByteArray) -> Node3D:
 static func animate(model: Node, walking: bool,seated := false,resting := false) -> void:
 	preload("res://scripts/campus/dorms/rest/rest_pose.gd").apply(model as Node3D,resting)
 	if resting:return
+	if model.get_meta("facility_activity_pose", false):return
 	var player: AnimationPlayer=(model.get_meta("animation_player") if model.has_meta("animation_player") else null) as AnimationPlayer
 	if player==null:
 		for child in model.find_children("*","AnimationPlayer",true,false):
@@ -57,7 +58,17 @@ static func animate(model: Node, walking: bool,seated := false,resting := false)
 	var desired := "Seated" if seated else ("Walk" if walking else "Idle")
 	for name in player.get_animation_list():
 		if name.to_lower().ends_with(desired.to_lower()):
-			if player.current_animation!=name:
+			if player.current_animation!=name or not player.is_playing():
 				player.get_animation(name).loop_mode=Animation.LOOP_LINEAR
 				player.play(name,.2)
 			return
+
+static func raise_hand(model: Node3D,raised: bool,delta: float) -> void:
+	if not is_instance_valid(model):return
+	var arm: Node3D=model.get_meta("classroom_arm",null) as Node3D if model.has_meta("classroom_arm") else model.find_child("ArmR",true,false) as Node3D
+	if arm==null:return
+	if not model.has_meta("classroom_arm"):model.set_meta("classroom_arm",arm)
+	if not arm.has_meta("classroom_arm_rest"):arm.set_meta("classroom_arm_rest",arm.rotation)
+	var rest: Vector3=arm.get_meta("classroom_arm_rest")
+	var goal:=rest+Vector3(-.45,0.0,2.4) if raised else rest
+	arm.rotation=arm.rotation.lerp(goal,clampf(delta*12.0,0.0,1.0))

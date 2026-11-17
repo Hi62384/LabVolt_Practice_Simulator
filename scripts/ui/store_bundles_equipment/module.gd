@@ -9,17 +9,15 @@ const Portraits = preload("res://scripts/ui/personal_inventory/item_portraits.gd
 
 static func products(profile: Variant) -> Array:
 	var result: Array=[]
-	for bundle in [
-		{"name":"Resistor box","items":{"r1000":10,"r220":10,"r10000":10}},
-		{"name":"Capacitor box","items":{"c0.1":4,"c1.0":4,"c10.0":4}},
-		{"name":"Semiconductor starter","items":{"diode":6,"led":6}}
-	]:
+	for bundle in preload("res://scripts/ui/store_bundles_equipment/bundle_catalog.gd").guaranteed():
 		var price := 0
 		var count := 0
 		for id in bundle.items:
 			price+=int(Catalog.all()[id].price)*int(bundle.items[id])
 			count+=int(bundle.items[id])
-		result.append({"kind":"guaranteed","name":bundle.name,"items":bundle.items,"price":ceili(price*.8),"count":count})
+		var tier := str(bundle.get("kit_tier",""))
+		if not tier.is_empty():price+=int(Profile.KIT_TIERS[tier].price)
+		result.append({"kind":"guaranteed","name":bundle.name,"items":bundle.items,"price":ceili(price*.8),"count":count,"kit_tier":tier})
 	for name in profile.BOXES:
 		var box: Dictionary=profile.BOXES[name]
 		result.append({"kind":"random","name":name,"pool":box.pool,"price":int(box.price),"count":int(box.draws)})
@@ -38,9 +36,20 @@ static func equipment_products() -> Array:
 			"kind": "kit", "tier": tier, "name": kit.name, "price": kit.price, "rarity": kit.rarity,
 			"summary": summary, "description": "%s." % summary
 		})
+	for capacity in preload("res://scripts/campus/computers/usb_inventory.gd").PRICES:
+		result.append({"kind":"usb","capacity_mb":capacity,"name":"%d MB USB drive"%capacity,"price":preload("res://scripts/campus/computers/usb_inventory.gd").PRICES[capacity],"rarity":"Common","summary":"Portable file storage","description":"Save computer files on a removable USB drive."})
+	var laptops: Dictionary=preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS
+	for tier in ["basic","standard","premium"]:
+		var laptop: Dictionary=laptops[tier]
+		var summary: String={"basic":"Entry-level performance","standard":"Faster performance","premium":"Full-speed performance"}[tier]
+		result.append({"kind":"portable_laptop","tier":tier,"name":laptop.name,"price":laptop.price,"rarity":{"basic":"Uncommon","standard":"Rare","premium":"Epic"}[tier],"summary":summary,"description":"Portable computer with %s. Select it and press F to place it; right-click to open and use it. Connect a USB drive to keep files after power-off."%summary.to_lower()})
+	var phones: Dictionary=preload("res://scripts/campus/phones/phone_tiers.gd").TIERS
+	for tier in ["basic","standard","premium"]:
+		var phone: Dictionary=phones[tier]
+		result.append({"kind":"smartphone","tier":tier,"name":phone.name,"price":phone.price,"rarity":{"basic":"Uncommon","standard":"Rare","premium":"Epic"}[tier],"summary":"%d MB photo storage"%int(phone.storage_bytes/1048576),"description":"Right-click to open your phone. Press P while holding it to take an in-game photo. Web browsing is not available yet."})
 	return result
 
-static func populate(parent: Node, profile: Variant, refresh: Callable, status: Label, section: String, reveal := Callable()) -> void:
+static func populate(parent: Node, profile: Variant, refresh: Callable, status: Label, section: String, reveal := Callable(), product_kinds: Array = []) -> void:
 	# The shell mounts Bundles and Equipment in separate section containers.
 	assert(section in ["bundles", "equipment"])
 	var layout := HBoxContainer.new()
@@ -58,6 +67,7 @@ static func populate(parent: Node, profile: Variant, refresh: Callable, status: 
 	var is_bundle := section == "bundles"
 	var portraits := Portraits.new()
 	var entries := products(profile) if is_bundle else equipment_products()
+	if not product_kinds.is_empty():entries=entries.filter(func(product):return str(product.get("kind","")) in product_kinds)
 	for product in entries:
 		var summary: String = product.get("summary", "")
 		if is_bundle:
@@ -75,7 +85,7 @@ static func bundle_art(name: String, opened := false) -> Texture2D:
 	var catalog := Catalog.all()
 	var samples := {"Resistor box":["r1000","r220","r10000"],"Capacitor box":["c0.1","c1.0","c10.0"],
 		"Semiconductor starter":["diode","led","diode","led"],"Basic assortment":["r220","c1.0","button","led"],
-		"Digital assortment":["led_green","hc00","hc04","timer555"],"Builder assortment":["pot10k","buzzer","spi_display","lv_mcu"]}
+		"Digital assortment":["led_green","hc00","hc04","timer555"],"Builder assortment":["pot10k","buzzer","spi_display","lv_mcu"],"ETY155 lab kit":["r1000","r220","pot10k","led"],"DGS266 digital lab kit":["hc00","hc08","flip74","seven_segment"]}
 	var colors := {"Resistor box":"73614a","Capacitor box":"43647d","Semiconductor starter":"704b61",
 		"Basic assortment":"4c6754","Digital assortment":"564b78","Builder assortment":"7a5544"}
 	var entries: Array = []
@@ -94,6 +104,7 @@ static func details(parent: Node, profile: Variant, product: Dictionary, refresh
 			parent.add_child(UI.text("%d independent draws · Per-draw odds" % product.count))
 		var catalog := Catalog.all()
 		var items: Dictionary = product.pool if random else product.items
+		if not str(product.get("kit_tier", "")).is_empty():parent.add_child(UI.text("Includes a large kit case with these components packed inside.","MutedLabel"))
 		for id in items:
 			var entry: Dictionary = catalog[id]
 			var row := HBoxContainer.new()
@@ -113,14 +124,20 @@ static func details(parent: Node, profile: Variant, product: Dictionary, refresh
 		var description := UI.text(product.description)
 		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		parent.add_child(description)
-		parent.add_child(UI.text("Goes to your hotbar, equipped backpack, or dorm cabinet, in that order.","MutedLabel"))
-	var buy := UI.action("Buy for $%d"%product.price,"cart",func():
+		parent.add_child(UI.text("Goes to your hotbar or dorm cabinet." if kind in ["usb","portable_laptop","smartphone"] else "Goes to your hotbar, equipped backpack, or dorm cabinet, in that order.","MutedLabel"))
+	var buy := UI.action("Buy for $%d"%product.price,"cart",Callable())
+	buy.pressed.connect(func():
+		if buy.disabled:return
+		buy.disabled=true
 		var message := ""
 		match kind:
 			"guaranteed": message=profile.purchase_bundle(product.items,product.price)
 			"random": message=profile.buy_box(product.name)
 			"lab_goggles": message=profile.buy_study_tool("lab_goggles")
 			"kit": message=profile.create_kit(product.tier)
+			"usb": message=profile.buy_usb(int(product.capacity_mb))
+			"portable_laptop": message=profile.buy_portable_laptop(str(product.tier))
+			"smartphone": message=profile.buy_smartphone(str(product.tier))
 		var items: Dictionary = profile.last_bundle_receipt if kind in ["guaranteed", "random"] else {}
 		refresh.call(message)
 		if reveal.is_valid() and not items.is_empty():

@@ -147,6 +147,7 @@ func edit(create_new: bool, from_game := false) -> String:
 			network.submit(op,args,pending_apply.id)
 		else:
 			var adapter = editor_studio.coordinator.authoritative_adapter(func():return true)
+			adapter.extra_accessory_count=preload("res://scripts/campus/facilities/accessory_layout.gd").belt_count(game,multiplayer.get_unique_id())
 			var result: Dictionary=adapter.commit_local(profile,args[0],config)
 			if result.get("ok",false):
 				notify_appearance_saved(profile)

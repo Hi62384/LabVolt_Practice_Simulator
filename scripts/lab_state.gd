@@ -219,7 +219,8 @@ func act(peer: int, a: Dictionary, position: Vector3, host := false) -> String:
 		"voltage", "frequency":
 			if not is_finite(float(a.get("delta",0))):
 				return "Invalid dial setting."
-			if position.distance_to(positions.get("variable",Vector3.ZERO)) > 3.25:
+			var control_position: Vector3 = positions.get("frequency",positions.get("variable",Vector3.ZERO)) if op=="frequency" else positions.get("variable",Vector3.ZERO)
+			if position.distance_to(control_position) > 3.25:
 				return "Move within reach of the supply dial."
 			if op == "voltage":
 				level = clampf(level + clampf(float(a.get("delta",0)), -0.05,0.05),0,1)
@@ -234,7 +235,7 @@ func act(peer: int, a: Dictionary, position: Vector3, host := false) -> String:
 			records.clear()
 		"supply_meter", "dyn_measure", "igbt_damping":
 			if position.distance_to(positions.get(op,Vector3.ZERO))>3.25:return "Move within reach of the control."
-			if op=="supply_meter":supply_meter=posmod(supply_meter+int(sign(float(a.get("delta",1)))),14)
+			if op=="supply_meter":supply_meter=posmod(supply_meter+int(sign(float(a.get("delta",1)))),preload("res://scripts/ac_auxiliary.gd").SUPPLY_SELECTOR_LABELS.size())
 			elif op=="dyn_measure":
 				if bool(a.get("pressed",true)):
 					dyn_measure_holders[peer]=true
@@ -316,7 +317,8 @@ func act(peer: int, a: Dictionary, position: Vector3, host := false) -> String:
 		result = ""
 	last_action = "return" if op=="discard" else op
 	revision += 1
-	recalculate()
+	if op in ["plug", "unplug", "undo", "switch", "voltage", "frequency", "dyn_load", "igbt_damping", "daq_output", "breaker", "power", "reset"]:
+		recalculate()
 	return ""
 
 func linked(a: String,b: String) -> bool:

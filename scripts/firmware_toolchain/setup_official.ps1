@@ -1,6 +1,12 @@
-param([string]$InstallRoot=(Join-Path $env:APPDATA 'Godot\app_userdata\LabVolt Cooperative Lab\firmware_toolchain'),[switch]$InstallOfficialAvr,[switch]$DiscoverOnly,[string]$TrustedAvrRoot,[string]$TrustedCoreRoot,[string]$TrustedArmRoot)
+param([string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'LabVolt\FirmwareToolchain'),[switch]$InstallOfficialAvr,[switch]$DiscoverOnly,[string]$TrustedAvrRoot,[string]$TrustedCoreRoot,[string]$TrustedArmRoot)
 $ErrorActionPreference='Stop'
 $utf8=New-Object Text.UTF8Encoding($false)
+function Get-FileHash { param([string]$LiteralPath,[string]$Algorithm='SHA256')
+    $stream=[IO.File]::OpenRead($LiteralPath)
+    try {$sha=[Security.Cryptography.SHA256]::Create();try {$bytes=$sha.ComputeHash($stream)}finally{$sha.Dispose()}}
+    finally {$stream.Dispose()}
+    return @{Hash=([BitConverter]::ToString($bytes).Replace('-',''))}
+}
 function Find-Install {
     $avr=@();$arm=@();$core=@()
     $packages=Join-Path $env:LOCALAPPDATA 'Arduino15\packages\arduino'

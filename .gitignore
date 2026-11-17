@@ -1,5 +1,9 @@
 /.godot/
 /runtime/*.exe
+/runtime/*.log
+/runtime/Godot_v4.5.1-stable_mono_win64.zip
+/runtime/Godot_v4.5.1-stable_mono_win64/
+/.deps/
 /launcher/dist/
 /launcher/__pycache__/
 

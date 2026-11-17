@@ -20,7 +20,7 @@ static func simulation_entry(id: String) -> Dictionary:
 	return _simulation_entries.get(id,{}).duplicate(true)
 static func all() -> Dictionary:
 	var entries := {}
-	for value in [100,220,470,1000,2200,4700,10000,47000,100000]:
+	for value in [100,220,330,470,1000,2200,4700,10000,47000,100000]:
 		entries["r"+str(value)]={"name":"%s Ω resistor"%value,"category":"Basic","kind":"R","value":float(value),"unit":"Ω","rating":"0.25 W · ideal resistance","price":1,"space":1,"rarity":"Common","pins":["1","2"]}
 	for uf in [0.1,1.0,10.0,100.0]:
 		entries["c"+str(uf)]={"name":"%s μF capacitor"%uf,"category":"Basic","kind":"C","value":uf*1e-6,"unit":"F","rating":"50 V · ideal non-polar storage","price":2,"space":1,"rarity":"Common","pins":["1","2"]}
@@ -28,6 +28,7 @@ static func all() -> Dictionary:
 	entries.diode={"name":"Silicon diode","category":"Basic","kind":"D","value":.65,"vf":.65,"ron":2,"unit":"V","rating":"Piecewise-linear forward model; no avalanche","price":2,"space":1,"rarity":"Common","pins":["Anode (A)","Cathode (K)"]}
 	entries.led={"name":"Red LED","category":"Output","kind":"LED","value":1.8,"vf":1.8,"ron":10,"unit":"V","rating":"20 mA nominal · use a series resistor","price":3,"space":1,"rarity":"Common","pins":["Anode (A)","Cathode (K)"]}
 	entries.button={"name":"Momentary button","category":"Input","kind":"button","value":.01,"unit":"Ω","rating":"NO · 10 mΩ closed","price":3,"space":2,"rarity":"Common","pins":["1","2"]}
+	entries.button_nc={"name":"Normally closed pushbutton","category":"Input","kind":"button","normally_closed":true,"value":.01,"unit":"Ω","rating":"NC · opens while pressed · 10 mΩ closed","price":3,"space":2,"rarity":"Common","pins":["1","2"]}
 	entries.toggle={"name":"Toggle switch","category":"Input","kind":"toggle","value":.01,"unit":"Ω","rating":"SPST · latched","price":3,"space":2,"rarity":"Common","pins":["1","2"]}
 	entries.battery={"name":"5 V battery module","category":"PCB","kind":"V","value":5.0,"resistance":1.0,"unit":"V","capacity_ah":0.30,"rating":"0.30 Ah · nominal voltage and internal resistance","price":10,"space":5,"rarity":"Uncommon","pins":["+","−"]}
 	for source in [
@@ -48,6 +49,8 @@ static func all() -> Dictionary:
 	entries.photodiode={"name":"Photodiode","category":"Basic","kind":"photodiode","value":.0008,"unit":"A","rating":"Up to 0.8 mA photocurrent. Adjust simulated light with Interact and the mouse wheel.","price":8,"space":1,"rarity":"Uncommon","pins":["Anode","Cathode"]}
 	entries.solar_panel={"name":"Mini solar panel","category":"Basic","kind":"solar_panel","value":.065,"unit":"A","rating":"Up to 65 mA at full simulated light. Larger body and kit space than a photodiode.","price":22,"space":6,"rarity":"Rare","pins":["+","−"]}
 	entries.seven_segment={"name":"Seven-segment LED · common cathode","category":"Output","kind":"seven_segment","unit":"V","rating":"Educational nine-pin module: a–g, decimal, common cathode. Series resistors required.","price":12,"space":4,"rarity":"Uncommon","pins":["a","b","c","d","e","f","g","DP","COM"]}
+	entries.seven_segment_ca={"name":"Seven-segment LED · common anode","category":"Output","kind":"seven_segment","common_anode":true,"unit":"V","rating":"Educational nine-pin module: a–g, decimal, common anode. Use a series resistor for each segment.","price":12,"space":4,"rarity":"Uncommon","pins":["a","b","c","d","e","f","g","DP","COM"]}
+	entries.ls47={"name":"74LS47 BCD to seven-segment driver · educational","category":"IC","kind":"worker_model","worker_model":"bcd47","pins":["B","C","/LT","/BI","/RBI","D","A","GND","e","d","c","b","a","g","f","VCC"],"unit":"V","rating":"Approximate 5 V BCD decoder, active-low open-collector outputs. Explicit high /LT, /BI and /RBI required for normal operation; 0–9 modeled.","price":10,"space":3,"rarity":"Uncommon","ground":7,"supply":15,"vmin":4.5,"vmax":5.5,"driver":40.0}
 	for entry in [["hc00","74HC00","NAND"],["hc08","74HC08","AND"],["hc32","74HC32","OR"],["hc86","74HC86","XOR"],["hc04","74HC04","NOT"]]:
 		var names: Array=["1A","1B","1Y","2A","2B","2Y","GND","3Y","3A","3B","4Y","4A","4B","VCC"]
 		if entry[2]=="NOT":names=["1A","1Y","2A","2Y","3A","3Y","GND","4Y","4A","5Y","5A","6Y","6A","VCC"]

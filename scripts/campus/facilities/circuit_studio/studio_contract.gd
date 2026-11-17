@@ -7,11 +7,11 @@ const ROLE := "circuit_studio_station"
 const MANIFEST_PATH := "res://assets/campus/circuit_studio/room.json"
 
 const ACTION_PAGES := {
+	"assembly_table": "studio_assembly",
 	"ic_builder": "studio_ic",
 	"pcb_builder": "studio_pcb",
 	"prototype_bench": "design",
 	"firmware_console": "code",
-	"kit_library": "kits",
 }
 
 static func room_record() -> Dictionary:

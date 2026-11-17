@@ -24,8 +24,10 @@ static func apply(world: Node3D) -> void:
 		var z0: float = center.z - size.z * 0.5
 		var z1: float = center.z + size.z * 0.5
 		var door_z: float = float(room.door[2])
-		_add_wall_run(world, face_x, center.y, z0, door_z - half)
-		_add_wall_run(world, face_x, center.y, door_z + half, z1)
+		if room.id in ["tim_hortons", "subway"]: continue
+		if room.id not in world.WINDOW_ROOMS:
+			_add_wall_run(world, face_x, center.y, z0, door_z - half)
+			_add_wall_run(world, face_x, center.y, door_z + half, z1)
 		_add_frame(world, face_x, center.y, door_z, half)
 	# Gap closures exist where rooms do not supply their own wall.
 	for closure in HallwayGeometry.edge_closures():
@@ -45,6 +47,8 @@ static func apply(world: Node3D) -> void:
 	for floor in [0, 1]:
 		for z in [10.7, 27.4, 43.4]:
 			for x in [10.0, 16.0]:
+				if floor == 0 and x == 16.0 and z in [27.4,43.4]: continue
+				if floor == 1 and x == 10.0 and z == 43.4: continue
 				_sconce(world, x, float(floor) * 5, z)
 
 
@@ -100,7 +104,7 @@ static func _add_fixtures(world: Node3D) -> void:
 	var material: StandardMaterial3D = world.material("fff0d8")
 	material.emission_enabled = true
 	material.emission = Color("fff1d8")
-	material.emission_energy_multiplier = .75
+	material.emission_energy_multiplier = 2.0
 	for floor in [0, 1]:
 		var first := -10 if floor == 0 else -2
 		for z in range(first, 68, 5):

@@ -15,9 +15,9 @@ static func extent(type: String, definitions: Dictionary, turns: int) -> Vector2
 		"io_slider","ws2812","io_bar","io_pixels": dimensions = Vector2i(8,3)
 		"io_matrix","io_joystick","io_servo": dimensions = Vector2i(5,5)
 		"io_selector","io_encoder","io_motor","io_vibration","io_bridge","io_relay": dimensions = Vector2i(4,3)
-		"seven_segment": dimensions = Vector2i(4,4)
+		"seven_segment", "seven_segment_ca": dimensions = Vector2i(4,4)
 		"native_uno","native_pico","native_nano": dimensions = Vector2i(8,4)
-		"button","toggle","pot10k","led","led_green","led_blue","led_yellow","buzzer","speaker": dimensions = Vector2i(2,2)
+		"button","button_nc","toggle","pot10k","led","led_green","led_blue","led_yellow","buzzer","speaker": dimensions = Vector2i(2,2)
 		"battery": dimensions = Vector2i(4,3)
 	if type.begins_with("ic:"):
 		var fp: Dictionary = definitions.get(type,{}).get("footprint",{})
@@ -89,8 +89,8 @@ static func view_rect(bp: Dictionary, record: Dictionary, type: String, definiti
 
 static func part_color(type: String) -> Color:
 	if type.begins_with("led"): return Color("a44638")
-	if type.contains("display") or type in ["io_lcd","io_oled","io_tft","seven_segment"]: return Color("2d424e")
-	if type in ["button","toggle","pot10k"]: return Color("aa713b")
+	if type.contains("display") or type in ["io_lcd","io_oled","io_tft","seven_segment","seven_segment_ca"]: return Color("2d424e")
+	if type in ["button","button_nc","toggle","pot10k"]: return Color("aa713b")
 	if type.begins_with("res") or type.begins_with("r_"): return Color("d2b77e")
 	if type.begins_with("cap"): return Color("526e9c")
 	return Color("333d47")

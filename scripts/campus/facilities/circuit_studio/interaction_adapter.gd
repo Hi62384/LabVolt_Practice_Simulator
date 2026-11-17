@@ -31,6 +31,12 @@ func interact(target: Node) -> bool:
 		return true
 	var page:=str(target.get_meta("page",""))
 	if page not in Contract.ACTION_PAGES.values():return true
+	if page=="studio_assembly":
+		if is_instance_valid(builder_window):builder_window.queue_free()
+		builder_window=preload("res://scripts/campus/facilities/circuit_studio/assembly_window.gd").new()
+		add_child(builder_window)
+		builder_window.open_station(game)
+		return true
 	if page in ["studio_ic","studio_pcb"]:
 		if is_instance_valid(builder_window):builder_window.queue_free()
 		builder_window=preload("res://scripts/campus/facilities/circuit_studio/builder_window.gd").new()
@@ -46,11 +52,11 @@ func prompt_for(target: Node) -> String:
 
 func prompt_for_action(action: String) -> String:
 	match action:
+		"assembly_table":return "Design and fabricate an invention"
 		"ic_builder":return "IC Builder · package circuit and configure pins"
 		"pcb_builder":return "PCB Builder · design a reusable board"
 		"prototype_bench":return "Draft and test a custom circuit"
 		"firmware_console":return "Open circuit firmware tools"
-		"kit_library":return "Open kit builder"
 	return "Use Circuit Studio workstation"
 
 func route_complete() -> bool:

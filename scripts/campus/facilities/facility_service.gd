@@ -64,12 +64,27 @@ func unmount_room(id: String) -> void:
 	rooms.erase(id)
 
 func bind_avatar(peer: int, visual: Node3D) -> void:
-	if visuals.has(peer) and is_instance_valid(visuals[peer]):visuals[peer].queue_free()
+	if visuals.has(peer) and is_instance_valid(visuals[peer]):
+		visuals[peer].detach_visual();visuals[peer].queue_free()
 	var activity=ActivityVisual.new();visual.get_parent().add_child(activity);activity.bind_visual(visual)
 	visuals[peer]=activity
+	if is_instance_valid(controller) and controller.visual_states.has(peer):_event(peer,controller.visual_states[peer])
 
 func _event(peer: int, event: Dictionary) -> void:
-	if peer==multiplayer.get_unique_id() and event.get("activity","") in ["idle","seat","exercise","emote"]:local_locked=event.get("activity","")!="idle"
+	if rooms.has("gym") and is_instance_valid(rooms.gym) and is_instance_valid(rooms.gym.gym_bench):
+		rooms.gym.gym_bench.on_room_event(peer,event)
+	if rooms.has("gym") and is_instance_valid(rooms.gym):
+		for machine in rooms.gym.gym_cables:
+			if not is_instance_valid(machine):continue
+			var activity: Node=visuals.get(peer)
+			var avatar: Node3D=activity.visual if is_instance_valid(activity) else null
+			machine.on_room_event(peer,event,avatar)
+			if event.get("activity","")=="exercise" and event.get("station","")==machine.station_id:
+				event=event.duplicate();event.machine_position=machine.global_position
+				event.cable_stance=machine.to_global(Vector3(0,0,1.25))
+	if peer==multiplayer.get_unique_id() and event.get("activity","") in ["idle","seat","exercise","emote","trapped"]:
+		local_locked=event.get("activity","")!="idle"
+		if event.get("activity","") in ["idle","trapped"]:controller.call_deferred("refresh")
 	if visuals.has(peer) and is_instance_valid(visuals[peer]):
 		visuals[peer].apply_event(event,peer!=multiplayer.get_unique_id())
 	if event.has("held"):
@@ -100,5 +115,6 @@ func accept_translation(peer: int, proposed: Vector3, previous: Vector3) -> Vect
 	return previous if controller.host.movement_locked(peer) else proposed
 
 func unbind_avatar(peer: int) -> void:
-	if visuals.has(peer) and is_instance_valid(visuals[peer]):visuals[peer].queue_free()
+	if visuals.has(peer) and is_instance_valid(visuals[peer]):
+		visuals[peer].detach_visual();visuals[peer].queue_free()
 	visuals.erase(peer)

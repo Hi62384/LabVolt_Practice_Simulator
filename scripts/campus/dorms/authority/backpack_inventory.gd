@@ -109,6 +109,8 @@ static func valid(dorm: Dictionary, supplies: Dictionary) -> bool:
 					used_supplies[supply]=int(used_supplies.get(supply,0))+1
 				"component":
 					if not item.get("type") is String or not item.get("instance") is String:return false
+				"phone":
+					if not item.get("id") is String or not dorm.get("smartphones",{}).has(item.id):return false
 				_:return false
 	if equipped_count>1:return false
 	for id in bags:
@@ -168,6 +170,9 @@ static func move(dorm: Dictionary, intent: Dictionary, calculators: Array, world
 				"kit":
 					if "kit:"+key not in carried:return "Kit is not in your hotbar"
 					carried.erase("kit:"+key)
+				"phone":
+					if "phone:"+key not in carried or dorm.get("smartphones",{}).get(key,{}).get("location","")!="hotbar":return "Phone is not in your hotbar"
+					carried.erase("phone:"+key);dorm.smartphones[key].location="packed"
 				"supply":
 					if key not in carried or key.begins_with("kit:") or key.begins_with("bag:"):return "Supply is not in your hotbar"
 					carried.erase(key)
@@ -193,6 +198,7 @@ static func move(dorm: Dictionary, intent: Dictionary, calculators: Array, world
 						stored.append(item.id)
 						dorm.stored_kits=stored
 					"supply":pass
+					"phone":dorm.smartphones[item.id].location="cabinet"
 					_:return "This item cannot go in the cabinet"
 				bag.items.remove_at(index)
 				return ""
@@ -213,6 +219,8 @@ static func move(dorm: Dictionary, intent: Dictionary, calculators: Array, world
 					var parts: Array=dorm.get("carried_components",[]).duplicate(true)
 					parts.append({"type":item.type,"instance":item.instance})
 					dorm.carried_components=parts
+				"phone":
+					dorm.smartphones[item.id].location="hotbar";carried.append("phone:"+str(item.id))
 			bag.items.remove_at(index)
 		_:return "Invalid backpack action"
 	dorm.carry_items=carried

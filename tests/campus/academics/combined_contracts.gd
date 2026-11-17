@@ -27,15 +27,22 @@ func run() -> void:
 			check(str(school.activity.room.number)==("M202" if course=="ETY155" else "M201"),"Course room uses world registry")
 			game.session.poses[1].position=school.room_bridge.point(school.activity.room.center)
 			game.chairs[0].position=game.session.poses[1].position
-			check(school.begin_lesson(),"Actual room and authoritative seat begin teaching")
+			school.class_start.deadline_usec=Time.get_ticks_usec()-1
+			school._process(0.0)
+			check(school.phase=="lesson" and school.remaining==school.teaching_seconds,"Scheduled class begins teaching at host deadline")
 			school.advance(420)
 			var paper: Dictionary=school.papers.values().filter(func(p):return not p.lesson)[0]
 			for i in paper.project.questions.size():paper.answers[str(i)]=str(paper.project.questions[i].answer)
 			school._mark(paper,false)
 			check(is_equal_approx(float(paper.mark.score),100),"Actual generated answer key earns 100% written credit")
 			school.advance(0)
-	check(int(school.course_summary("ETY155").lecture_count)==12,"Twelve ETY155 official lecture attempts retained")
-	check(int(school.course_summary("ELM253").lecture_count)==school.course_bridge.weeks("ELM253","lecture").size(),"ELM253 records retained independently")
+	for course in ["ETY155","ELM253"]:
+		var summary: Dictionary=school.course_summary(course)
+		var lecture_slots:={}
+		for attempt in summary.completed_attempts+summary.open_attempts:
+			for slot in attempt.records:
+				if str(slot).begins_with("lecture:"):lecture_slots[slot]=true
+		check(lecture_slots.size()==school.course_bridge.weeks(course,"lecture").size(),"%s official lecture records retained independently"%course)
 	var current_source_assignment := school.course_bridge.generate("ETY155",12,"lab",2,123)
 	check(not preload("res://scripts/campus/academics/equipment_evidence.gd").new().supports(current_source_assignment).ok,"Unsupported ideal current-source practical explicitly gated")
 	school.free();game.free()

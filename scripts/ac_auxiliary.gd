@@ -2,14 +2,17 @@ extends RefCounted
 ## Electrical model shared by the AC rack and the mixed-board transient solver.
 
 const SUPPLY_PORTS := ["DC_7", "DC_N7", "DC_8", "DC_N8", "LOW_0", "LOW_1"]
+const SUPPLY_CURRENT_LIMITS := {"DC_7":8.0,"DC_8":2.0,"LOW_0":3.0}
 const CONTROL_COMMON := "DAQ_DI2_N"
 const LOGIC_THRESHOLD := 2.5
+const SUPPLY_SELECTOR_PAIRS := [["", ""], ["P_A", "P_N"], ["P_B", "P_N"], ["P_C", "P_N"], ["P_A", "P_B"], ["P_B", "P_C"], ["P_C", "P_A"], ["PV_A", "PV_N"], ["PV_B", "PV_N"], ["PV_C", "PV_N"], ["PV_A", "PV_B"], ["PV_B", "PV_C"], ["PV_C", "PV_A"]]
+const SUPPLY_SELECTOR_LABELS := ["OFF", "1-N", "2-N", "3-N", "1-2", "2-3", "3-1", "4-N", "5-N", "6-N", "4-5", "5-6", "6-4", "7-N", "8-N", "24V"]
 
 static func supplies(level: float) -> Array:
 	return [
-		{"a":"DC_7", "b":"DC_N7", "volts":120.0 * level, "amps":8.0, "dc":true},
-		{"a":"DC_8", "b":"DC_N8", "volts":120.0, "amps":2.0, "dc":true},
-		{"a":"LOW_0", "b":"LOW_1", "volts":24.0, "amps":3.0, "dc":false}
+		{"a":"DC_7", "b":"DC_N7", "volts":120.0 * level, "amps":SUPPLY_CURRENT_LIMITS.DC_7, "dc":true},
+		{"a":"DC_8", "b":"DC_N8", "volts":120.0, "amps":SUPPLY_CURRENT_LIMITS.DC_8, "dc":true},
+		{"a":"LOW_0", "b":"LOW_1", "volts":24.0, "amps":SUPPLY_CURRENT_LIMITS.LOW_0, "dc":false}
 	]
 
 static func daq_outputs(settings: Dictionary) -> Array:

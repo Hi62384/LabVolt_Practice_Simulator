@@ -32,6 +32,15 @@ func _draw() -> void:
 	if course_id=="ETY155":
 		text(Vector2(24,40),"Use the explicitly labelled nodes in the given circuit.",18)
 		return
+	if course_id=="DGS266":
+		text(Vector2(24,38),"Digital logic: an AND output is high only when both inputs are high.",16)
+		wire([Vector2(65,85),Vector2(220,85)]);wire([Vector2(65,140),Vector2(220,140)])
+		draw_rect(Rect2(220,60,115,105),ink,false,2)
+		text(Vector2(245,120),"AND",20)
+		wire([Vector2(335,112),Vector2(520,112)])
+		text(Vector2(45,91),"A");text(Vector2(45,146),"B");text(Vector2(530,118),"Y")
+		text(Vector2(200,195),"Y = A AND B",16)
+		return
 	var left := 65.;var right := 560.
 	match topic:
 		1:

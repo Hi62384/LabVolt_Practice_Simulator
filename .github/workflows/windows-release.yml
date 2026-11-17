@@ -24,22 +24,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
       - name: Install Godot and Windows export template
         shell: pwsh
         run: |
           $engineDir = "$env:RUNNER_TEMP/godot"
-          $templates = "$env:APPDATA/Godot/export_templates/$env:GODOT_VERSION.stable"
+          $templates = "$env:APPDATA/Godot/export_templates/$env:GODOT_VERSION.stable.mono"
           New-Item -ItemType Directory -Force $engineDir,$templates | Out-Null
           $base = "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION-stable"
-          $engine = "Godot_v$env:GODOT_VERSION-stable_win64.exe"
+          $engine = "Godot_v$env:GODOT_VERSION-stable_mono_win64"
           curl.exe --fail --location --retry 3 --output "$engineDir/engine.zip" "$base/$engine.zip"
           if ($LASTEXITCODE) { throw 'Godot download failed' }
           Expand-Archive -Path "$engineDir/engine.zip" -DestinationPath $engineDir
-          curl.exe --fail --location --retry 3 --output "$engineDir/templates.tpz" "$base/Godot_v$env:GODOT_VERSION-stable_export_templates.tpz"
+          curl.exe --fail --location --retry 3 --output "$engineDir/templates.tpz" "$base/Godot_v$env:GODOT_VERSION-stable_mono_export_templates.tpz"
           if ($LASTEXITCODE) { throw 'Godot templates download failed' }
-          tar.exe -xf "$engineDir/templates.tpz" -C $templates --strip-components 1 templates/windows_release_x86_64.exe
+          tar.exe -xf "$engineDir/templates.tpz" -C $templates --strip-components 1 templates/version.txt templates/windows_debug_x86_64.exe templates/windows_release_x86_64.exe
           if ($LASTEXITCODE) { throw 'Windows export template extraction failed' }
-          "GODOT=$engineDir/$($engine.Replace('.exe','_console.exe'))" >> $env:GITHUB_ENV
+          "GODOT=$engineDir/$engine/$($engine)_console.exe" >> $env:GITHUB_ENV
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -69,6 +72,10 @@ jobs:
         run: |
           $game = "$env:RUNNER_TEMP/game"
           New-Item -ItemType Directory -Force $game | Out-Null
+          dotnet restore CollegeSimulator.sln
+          if ($LASTEXITCODE) { throw 'C# restore failed' }
+          dotnet build CollegeSimulator.sln --configuration Release --no-restore
+          if ($LASTEXITCODE) { throw 'C# build failed' }
           & $env:GODOT --headless --path . --import
           if ($LASTEXITCODE) { throw 'Godot import failed' }
           $originalAppData = $env:APPDATA
@@ -78,13 +85,47 @@ jobs:
           $env:APPDATA = $originalAppData
           if ($LASTEXITCODE) { throw 'Play route verification failed' }
           & $env:GODOT --headless --path . --export-release "Windows Desktop" "$game/LabVolt.exe"
-          if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck")) { throw 'Windows export failed' }
+          if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck") -or !(Test-Path "$game/data_CollegeSimulator_windows_x86_64/CollegeSimulator.dll")) { throw 'Windows .NET export failed' }
           $smoke = Join-Path $PWD 'tests/menu_startup/test_menu_routes.gd'
           $log = "$env:RUNNER_TEMP/exported-play.log"
           $env:APPDATA = "$env:RUNNER_TEMP/menu-smoke-export"
           New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
           & $env:GODOT --headless --path $game --main-pack "$game/LabVolt.pck" --script $smoke --log-file $log
           if ($LASTEXITCODE -or !(Select-String -Path $log -SimpleMatch 'MENU_ROUTES PASS') -or (Select-String -Path $log -Pattern 'ERROR:' | Where-Object { $_.Line -notlike '*Failed to read the root certificate store*' })) { throw 'Exported game failed Play verification' }
+          $kernelLog = "$env:RUNNER_TEMP/exported-solver.log"
+          $kernelTest = (Resolve-Path 'tests/electronics/test_mna_csharp_kernel.gd').Path
+          $kernelArgs = @('--headless','--path',('"' + $game + '"'),'--script',('"' + $kernelTest + '"'),'--log-file',('"' + $kernelLog + '"'))
+          $kernelRun = Start-Process -FilePath "$game/LabVolt.exe" -ArgumentList $kernelArgs -WindowStyle Hidden -Wait -PassThru
+          if ($kernelRun.ExitCode -or !(Select-String -Path $kernelLog -SimpleMatch 'MNA_CSHARP_KERNEL PASS' -Quiet)) { throw 'Exported C# circuit solver failed' }
+      - name: Bundle offline instructor voices
+        shell: pwsh
+        run: |
+          $game = "$env:RUNNER_TEMP/game"
+          ./scripts/campus/academics/package_windows_voices.ps1 -GameDirectory $game
+          $env:APPDATA = "$env:RUNNER_TEMP/teacher-voice-test"
+          New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
+          $log = "$env:RUNNER_TEMP/teacher-voice-test.log"
+          $test = (Resolve-Path 'tests/campus/academics/test_real_teacher_voices.gd').Path
+          $voiceArgs = @('--headless','--path',('"' + $game + '"'),'--script',('"' + $test + '"'),'--log-file',('"' + $log + '"'))
+          $voiceTest = Start-Process -FilePath "$game/LabVolt.exe" -ArgumentList $voiceArgs -WindowStyle Hidden -Wait -PassThru
+          if ($voiceTest.ExitCode -or !(Test-Path $log) -or !(Select-String -Path $log -SimpleMatch 'REAL_TEACHER_VOICES PASS' -Quiet)) { throw 'Exported instructor voices failed synthesis verification' }
+      - name: Bundle and verify offline firmware compilers
+        shell: pwsh
+        run: |
+          $game = "$env:RUNNER_TEMP/game"
+          ./scripts/firmware_toolchain/package_windows.ps1 -GameDirectory $game
+          if ($LASTEXITCODE) { throw 'Native compiler packaging failed' }
+          $install = Join-Path $env:LOCALAPPDATA 'LabVolt/FirmwareToolchain'
+          & powershell.exe -NoProfile -NonInteractive -File "$game/firmware_toolchain/install_bundled.ps1" -GameDirectory $game -InstallRoot $install
+          if ($LASTEXITCODE) { throw 'Native compiler acceptance failed' }
+          $script = (Resolve-Path 'tests/firmware_toolchain/test_compile_service.gd').Path
+          foreach ($board in @('uno','nano','pico')) {
+            $env:LABVOLT_TEST_BOARD = $board
+            $log = "$env:RUNNER_TEMP/firmware-$board.log"
+            $args = @('--headless','--path',('"' + $game + '"'),'--main-pack',('"' + "$game/LabVolt.pck" + '"'),'--script',('"' + $script + '"'),'--log-file',('"' + $log + '"'))
+            $test = Start-Process -FilePath "$game/LabVolt.exe" -ArgumentList $args -WindowStyle Hidden -Wait -PassThru
+            if ($test.ExitCode -or !(Select-String -Path $log -SimpleMatch "FIRMWARE_COMPILE PASS $board" -Quiet)) { throw "Exported $board compiler test failed" }
+          }
       - name: Build launcher and package the game
         shell: pwsh
         run: |
@@ -100,7 +141,7 @@ jobs:
         run: |
           $tag = "game-$env:GITHUB_SHA-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
           $endpoint = "repos/$env:GITHUB_REPOSITORY/releases"
-          $releaseId = gh api $endpoint --method POST -f "tag_name=$tag" -f "target_commitish=$env:GITHUB_SHA" -F draft=true -f "name=LabVolt Windows build $env:GITHUB_RUN_NUMBER" -f "body=Download LabVoltLauncher.exe once. It installs this build and checks for future updates on startup." --jq .id
+          $releaseId = gh api $endpoint --method POST -f "tag_name=$tag" -f "target_commitish=$env:GITHUB_SHA" -F draft=true -f "name=College Simulator Windows build $env:GITHUB_RUN_NUMBER" -f "body=Download LabVoltLauncher.exe once. It installs College Simulator and checks for future updates on startup." --jq .id
           if ($LASTEXITCODE) { throw 'Could not create draft release' }
           $files = @(Get-ChildItem "$env:RUNNER_TEMP/release" -File | ForEach-Object FullName)
           for ($i = 0; $i -lt $files.Count; $i += 40) {

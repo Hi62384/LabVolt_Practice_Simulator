@@ -207,7 +207,7 @@ func compile_sources() -> void:
 			if str(name).get_extension() in ["ino","cpp","c"]:entry=str(name);break
 	var language := "micropython" if entry.ends_with(".py") else ""
 	var result: Dictionary=compiler.start(board,source_files(),entry,language)
-	if result.ok:compile_button.disabled=true;status.text="Compiling in an isolated local job… Existing uploaded firmware keeps its current state."
+	if result.ok:compile_button.disabled=true;status.text="Preparing the bundled compiler and checking its safety…" if result.get("status","")=="preparing" else "Compiling in an isolated local job… Existing uploaded firmware keeps its current state."
 	else:compile_finished(result)
 
 func compile_finished(result: Dictionary) -> void:

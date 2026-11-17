@@ -2,7 +2,7 @@ extends RefCounted
 const INK := Color("e8f1f5")
 const MUTED := Color("a8bac6")
 
-static func mount(parent: VBoxContainer, practice: Callable, tutorial: Callable, close: Callable) -> void:
+static func mount(parent: VBoxContainer, practice: Callable, tutorial: Callable, close: Callable, host_class: Callable = Callable(), conversation: Callable = Callable()) -> void:
 	var title := Label.new()
 	title.text="LAB INSTRUCTOR"
 	title.add_theme_font_size_override("font_size",25)
@@ -10,6 +10,8 @@ static func mount(parent: VBoxContainer, practice: Callable, tutorial: Callable,
 	parent.add_child(title)
 	_add_action(parent,"Practice Sheet","Choose a lab week and difficulty, or let the instructor pick a week.",practice)
 	_add_action(parent,"Equipment Tutorial","Learn the equipment and try a guided demonstration.",tutorial)
+	if host_class.is_valid():_add_action(parent,"Host a lab class","Choose a laboratory week and invite students to sign attendance.",host_class)
+	if conversation.is_valid():_add_action(parent,"Talk to instructor","Ask for guidance or have a short conversation.",conversation)
 	var dismiss := Button.new()
 	dismiss.text="Close"
 	dismiss.focus_mode=Control.FOCUS_ALL

@@ -18,6 +18,7 @@ func build(owner_game: Node) -> bool:
 	set_meta("room_id",Contract.ROOM_ID)
 	position=Vector3(0,5,0) # M208 is an upper-floor room; props remain simple room-local coordinates.
 	_workbench(Vector3(25.8,.0,47.0))
+	_assembly_table(Vector3(31.8,0,43.2))
 	_pcb_drafting_desk(Vector3(22.8,0,43.0))
 	_prototype_island(Vector3(29.8,.0,47.0))
 	_firmware_desk(Vector3(26.0,.0,51.2))
@@ -28,6 +29,15 @@ func build(owner_game: Node) -> bool:
 
 func interact(target: Node) -> bool:
 	return is_instance_valid(adapter) and adapter.interact(target)
+
+func _assembly_table(origin: Vector3) -> void:
+	_box(origin+Vector3(0,.74,0),Vector3(3.3,.16,1.55),"dark_wood")
+	for x in [-1.35,1.35]:
+		for z in [-.58,.58]:_box(origin+Vector3(x,.36,z),Vector3(.12,.72,.12),"steel")
+	_box(origin+Vector3(0,.84,0),Vector3(2.3,.04,1.0),"matte_green",false)
+	_box(origin+Vector3(-.64,1.03,-.2),Vector3(.7,.26,.42),"component",false)
+	_cylinder(origin+Vector3(.55,1.04,-.1),.28,.13,"steel")
+	_station(origin+Vector3(0,.94,.1),Vector3(2.4,.24,1.0),"assembly_table")
 
 func is_ready() -> bool:return mounted and is_instance_valid(adapter) and adapter.route_complete()
 
@@ -92,7 +102,6 @@ func _storage_wall(origin: Vector3) -> void:
 	for y in [.45,1.05,1.65,2.25]:
 		for z in [-1.8,-.9,0.,.9,1.8]:
 			_box(origin+Vector3(-.31,y,z),Vector3(.08,.42,.68),"bin_blue" if int(y*10+z*10)%2==0 else "bin_amber",false)
-	_station(origin+Vector3(-.38,1.15,0),Vector3(.2,2.5,4.4),"kit_library")
 
 func _decor(origin: Vector3) -> void:
 	# Acoustic slats, cable reels, plant, rug and warm task lighting dress the studio.

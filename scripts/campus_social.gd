@@ -12,6 +12,9 @@ var avatar_models := {}
 var local_visual: Node3D
 var local_peer := 1
 var catalog_cache := {}
+var muscle_profiles := {}
+var muscle_views := {}
+var muscle_sent := {}
 
 func build(owner_game: Node,facilities: Node) -> void:
 	game=owner_game;service=facilities
@@ -19,7 +22,7 @@ func build(owner_game: Node,facilities: Node) -> void:
 	inspector=preload("res://scripts/campus/ui/profile_inspector.gd").new();layer.add_child(inspector);inspector.position=Vector2(60,60);inspector.hide()
 	inspector.visibility_changed.connect(func():
 		if not inspector.visible and game.front.in_game:game.capture())
-	game.session.restarted.connect(func():visibility.clear();preference_times.clear();last_preferences="";peer_public_ids.clear())
+	game.session.restarted.connect(func():visibility.clear();preference_times.clear();last_preferences="";peer_public_ids.clear();muscle_profiles.clear();muscle_views.clear();muscle_sent.clear())
 	local_visual=Node3D.new();local_visual.name="LocalHeldFood";game.camera.add_child(local_visual);local_visual.position=Vector3(0,-1.3,-0.6)
 	local_peer=multiplayer.get_unique_id();service.bind_avatar(local_peer,local_visual)
 	catalog_cache=preload("res://scripts/electronics_catalog.gd").all()
@@ -95,15 +98,28 @@ func _process(delta: float) -> void:
 		var model: Node3D=avatar.get_node_or_null("CharacterModel")
 		if model!=null and avatar_models.get(peer,0)!=model.get_instance_id():
 			avatar_models[peer]=model.get_instance_id();service.bind_avatar(peer,model)
+		if model!=null:
+			var sizes: Dictionary=muscle_profiles.get(peer,{})
+			var key := [model.get_instance_id(),sizes]
+			if muscle_views.get(peer,[])!=key:
+				preload("res://scripts/campus/facilities/muscle_visual.gd").apply(model,sizes)
+				muscle_views[peer]=key.duplicate(true)
 	for peer in avatar_models.keys():
-		if not game.avatars.has(peer):service.unbind_avatar(peer);avatar_models.erase(peer)
+		if not game.avatars.has(peer):service.unbind_avatar(peer);avatar_models.erase(peer);muscle_views.erase(peer)
 
 func _publish() -> void:
 	var identities := {};var session: Node=game.session
+	var shapes := {}
 	for peer in session.roster:
 		var identity := str(game.school.identities.get(peer,""))
 		if identity.is_empty():continue
 		identities[peer]=identity
+		var ledger: RefCounted=game.electronics_trade.authority.ledger
+		var facility_identity: String=str(ledger.bindings.get(peer,"")) if session.online else str(game.school.local_identity)
+		var facility: Dictionary=service.adapter.load_facilities(facility_identity)
+		var sizes: Dictionary=preload("res://scripts/campus/facilities/gym_progress.gd").muscle_sizes(facility.get("gym",{"muscles":{}}))
+		for muscle in sizes:sizes[muscle]=roundf(float(sizes[muscle])*100.0)/100.0
+		shapes[peer]=sizes
 		session.campus_profile_publish(identity,str(session.roster[peer].name),_source(int(peer)),visibility.get(peer,{"appearance":true,"emotes":true}))
 	for recipient in session.roster:
 		var relevant: Array=[];var mapping := {}
@@ -115,6 +131,31 @@ func _publish() -> void:
 		session.campus_profile_send(int(recipient),relevant)
 		if recipient==1:peer_public_ids=mapping
 		elif session.online:_public_map.rpc_id(int(recipient),mapping)
+		# Body shape is visible on the avatar even outside profile-inspection range.
+		var relevant_shapes:=shapes
+		if int(recipient)==multiplayer.get_unique_id():_receive_muscles(relevant_shapes)
+		elif session.online and muscle_sent.get(recipient,{})!=relevant_shapes:
+			muscle_sent[recipient]=relevant_shapes.duplicate(true)
+			_muscle_map.rpc_id(int(recipient),relevant_shapes)
+	for recipient in muscle_sent.keys():
+		if not session.roster.has(recipient):muscle_sent.erase(recipient)
+
+@rpc("authority","call_remote","reliable",4)
+func _muscle_map(value: Dictionary) -> void:
+	_receive_muscles(value)
+
+func _receive_muscles(value: Dictionary) -> void:
+	if value.size()>8:return
+	var safe:={}
+	var groups: Array=preload("res://scripts/campus/facilities/gym_progress.gd").MUSCLE_GROUPS
+	for peer in value:
+		if not peer is int or int(peer)<1 or not value[peer] is Dictionary:continue
+		var sizes:={}
+		for name in groups:
+			var number: Variant=value[peer].get(name,0.0)
+			if (number is int or number is float) and is_finite(float(number)):sizes[name]=clampf(float(number),0.0,1.0)
+		safe[peer]=sizes
+	muscle_profiles=safe
 
 @rpc("authority","call_remote","reliable",4)
 func _public_map(mapping: Dictionary) -> void:

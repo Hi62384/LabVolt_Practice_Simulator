@@ -42,7 +42,10 @@ def package(game, output, version):
         raise ValueError("Invalid release version")
     output.mkdir(parents=True, exist_ok=True)
     files = []
-    for name in ("LabVolt.exe", "LabVolt.pck"):
+    names = ["LabVolt.exe", "LabVolt.pck"]
+    names.extend(path.relative_to(game).as_posix() for path in sorted(game.rglob("*"))
+                 if path.is_file() and path.relative_to(game).as_posix() not in names)
+    for name in names:
         whole = hashlib.sha256()
         chunks = []
         for data in blocks(game / name):

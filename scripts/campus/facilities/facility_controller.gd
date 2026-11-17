@@ -8,6 +8,8 @@ var interested_peers := Callable() # (room_id)->Array[int], from authoritative z
 var tick_accumulator:=0.0
 var room_states:={}
 var refresh_times:={}
+var visual_states:={}
+var preview_times:={}
 
 func _ready() -> void:
 	host.authority=is_host
@@ -26,9 +28,35 @@ func request(value: Dictionary) -> void:
 	if is_host():_deliver(1,host.act(1,value))
 	else:_request.rpc_id(1,value)
 
+func preview_motion(progress: float,expected_phase: int,expected_reps: int,expected_start: int) -> void:
+	if not connected():return
+	if is_host():_accept_preview(multiplayer.get_unique_id(),progress,expected_phase,expected_reps,expected_start)
+	else:_preview.rpc_id(1,progress,expected_phase,expected_reps,expected_start)
+
+@rpc("any_peer","call_remote","unreliable")
+func _preview(progress: float,expected_phase: int,expected_reps: int,expected_start: int) -> void:
+	if is_host():_accept_preview(multiplayer.get_remote_sender_id(),progress,expected_phase,expected_reps,expected_start)
+
+func _accept_preview(peer: int,progress: float,expected_phase: int,expected_reps: int,expected_start: int) -> void:
+	if not is_finite(progress) or progress<0.0 or progress>1.0 or expected_phase not in [0,1] or expected_reps<0:return
+	var now:=Time.get_ticks_msec()
+	if now-int(preview_times.get(peer,-1000))<120:return
+	var active: Dictionary=host.active.get(peer,{})
+	var context: Dictionary=host.trusted(peer)
+	if active.get("type","")!="exercise" or int(active.get("phase",-1))!=expected_phase or int(active.get("reps",-1))!=expected_reps or int(active.get("started",-1))!=expected_start or context.is_empty() or not host.activity_valid(context,active):return
+	preview_times[peer]=now
+	var phase:=progress if int(active.phase)==0 else 1.0-progress
+	var event:={"activity":"exercise","station":active.station,"exercise":active.exercise,"phase":phase,"weight":active.weight,"reps":active.reps,"half_ms":active.half_ms}
+	if active.has("equipment"):event.equipment=active.equipment
+	if active.has("bench_position"):event.bench_position=active.bench_position
+	if active.has("grip_anchor"):event.grip_anchor=active.grip_anchor
+	if active.has("mat_position"):event.mat_position=active.mat_position
+	_public(str(active.room_id),peer,event)
+
 func refresh() -> void:
 	if not connected():return
 	if is_host():
+		host.commit_recovery(1)
 		var state: Dictionary=host.private_state(1)
 		_restore_placed_order(1,state)
 		owner_result.emit({"ok":true,"state":state})
@@ -41,6 +69,7 @@ func _refresh() -> void:
 	var now:=Time.get_ticks_msec()
 	if now-int(refresh_times.get(peer,-1000))<200:return
 	refresh_times[peer]=now
+	host.commit_recovery(peer)
 	var state: Dictionary=host.private_state(peer)
 	_restore_placed_order(peer,state)
 	_deliver(peer,{"ok":true,"state":state})
@@ -75,20 +104,36 @@ func _public(room: String, peer: int, state: Dictionary) -> void:
 		else:
 			entry.events[order_key] = state.duplicate(true)
 	else:
-		entry.events["activity"] = state.duplicate(true)
+		entry.events["activity"] = {"activity":"idle"} if state.get("activity","") in ["emote","assist","spot_assist"] else state.duplicate(true)
 	room_states[key]=entry
 	# Host sees its local room only; remote recipients selected by zone interest.
 	var recipients: Array=interested_peers.call(room) if interested_peers.is_valid() else []
 	if not peer in recipients:recipients.append(peer)
 	for recipient in recipients:
-		if int(recipient)==multiplayer.get_unique_id():room_event.emit(peer,state)
+		if int(recipient)==multiplayer.get_unique_id():_emit_local(peer,state)
 		elif int(recipient)>1 and int(recipient) in multiplayer.get_peers():_event.rpc_id(int(recipient),peer,state)
 
 @rpc("authority","call_remote","reliable")
-func _event(peer: int, state: Dictionary) -> void:room_event.emit(peer,state)
+func _event(peer: int, state: Dictionary) -> void:_emit_local(peer,state)
+
+func _emit_local(peer: int,state: Dictionary) -> void:
+	if not state.has("held") and state.get("activity","") not in ["holding","consume","place","pickup"]:
+		visual_states[peer]={"activity":"idle"} if state.get("activity","") in ["emote","assist","spot_assist"] else state.duplicate(true)
+	room_event.emit(peer,state)
+
+func reset_presentation() -> void:
+	for peer in visual_states.keys():room_event.emit(int(peer),{"activity":"idle"})
+	visual_states.clear();room_states.clear();preview_times.clear()
+
+func finish_session() -> void:
+	if not is_host():return
+	# The session emits leaving before roster, ledger and transport teardown.
+	for peer in host.active.keys():host.clear_activity(int(peer),"interrupted")
+	if not host.pending_sets.is_empty():push_warning("Gym workout records are still waiting for the profile save. Keep the host open and reconnect the affected student to retry.")
 
 func _left(peer: int) -> void:
-	host.clear_activity(peer);host.last_request.erase(peer);refresh_times.erase(peer)
+	host.clear_activity(peer,"interrupted");host.clear_spot(peer);host.last_request.erase(peer);host.last_assist.erase(peer);refresh_times.erase(peer)
+	visual_states.erase(peer);preview_times.erase(peer)
 	for key in room_states.keys():
 		if int(room_states[key].peer)==peer:
 			var entry: Dictionary = room_states[key]

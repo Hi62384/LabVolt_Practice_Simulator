@@ -10,10 +10,16 @@ config_version=5
 
 [application]
 
-config/name="LabVolt Cooperative Lab"
+config/name="College Simulator"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Godot/app_userdata/LabVolt Cooperative Lab"
 config/description="A cooperative first-person AC electrical laboratory with authoritative ENet multiplayer."
 run/main_scene="res://scenes/Main.tscn"
-config/features=PackedStringArray("4.1", "GL Compatibility")
+config/features=PackedStringArray("4.5", "Mobile")
+
+[audio]
+
+driver/enable_input=true
 
 [display]
 
@@ -23,12 +29,19 @@ window/stretch/mode="canvas_items"
 
 [dotnet]
 
-project/assembly_name="LabVolt Cooperative Lab"
+project/assembly_name="CollegeSimulator"
+
+[network]
+
+labvolt/claim_authority_url="https://labvolt-claim-authority.arshya-ghafaryan.workers.dev"
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+renderer/rendering_method.web="gl_compatibility"
+rendering_device/fallback_to_opengl3=true
+anti_aliasing/quality/use_debanding=true
 limits/opengl/max_renderable_lights=64
 textures/default_filters/anisotropic_filtering_level=3
 anti_aliasing/quality/msaa_3d=2

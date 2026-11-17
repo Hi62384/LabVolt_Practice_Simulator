@@ -45,8 +45,8 @@ func reset() -> void:
 	display.clear(); history.clear(); pending=false; trigger_time=NAN; display_trigger=NAN; truncated=false; last_time=NAN; previous_trigger=NAN; next_sample=-INF; last_publish=-INF; last_crossing=-INF; input_previous=[0.0,0.0]; ac_previous=[0.0,0.0]
 func push(raw: Array) -> void:
 	if raw.size()<5: rejected_rows+=1; return
-	for value in raw.slice(0,5):
-		if not Settings.finite_number(value): rejected_rows+=1; return
+	for index in 5:
+		if not Settings.finite_number(raw[index]): rejected_rows+=1; return
 	var time := float(raw[0])
 	if is_finite(last_time) and time<=last_time: rejected_rows+=1; return
 	var dt := time-last_time if is_finite(last_time) else 0.0
@@ -69,7 +69,8 @@ func push(raw: Array) -> void:
 	if is_finite(previous_trigger) and channel.enabled:
 		crossing=(previous_trigger<float(settings.trigger) and value>=float(settings.trigger)) if settings.edge=="Rising" else (previous_trigger>float(settings.trigger) and value<=float(settings.trigger))
 	if time>=next_sample or crossing:
-		history.append(row.duplicate()); next_sample=time+span/1024.0
+		# row is newly created for this sample and is never modified afterward.
+		history.append(row); next_sample=time+span/1024.0
 		while history.size()>MAX_HISTORY or (history.size()>1 and float(history[0][0])<time-span*2.0): history.pop_front()
 	if crossing and not pending:
 		var fraction := clampf((float(settings.trigger)-previous_trigger)/(value-previous_trigger),0,1)

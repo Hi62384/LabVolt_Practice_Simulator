@@ -9,12 +9,14 @@ func _initialize():
  for i in 120:C.step([dc,bridge],links,.0005)
  assert(dc.result.ok and bridge.result.ok)
  assert(abs(bridge.result.i.R0_1-5./600.)<.00001)
- assert(abs(lab.readings.daq_v[0].length()-5.)<.001)
- assert(lab.readings.daq_i[0].length()>.0083)
+ # DC inputs are reported separately from the AC RMS phasors.
+ assert(lab.readings.daq_v[0].length()<.001)
+ assert(abs(lab.readings.daq_dc_v[0].x-5.)<.001)
+ assert(abs(lab.readings.daq_dc_i[0].x)>.0083)
  lab.switches.R[1]=false
  for i in 120:C.step([dc,bridge],links,.0005)
  assert(abs(bridge.result.i.get("R0_1",0))<.000001)
- assert(lab.readings.daq_i[0].length()<.0001)
+ assert(abs(lab.readings.daq_dc_i[0].x)<.0001)
  print("PASS: external DC supply drives AC resistor bank through DAQ voltage and current inputs, switch removes load")
  quit()
 

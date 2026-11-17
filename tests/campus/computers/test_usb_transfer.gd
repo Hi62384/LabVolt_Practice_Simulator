@@ -1,0 +1,25 @@
+extends SceneTree
+const Transfer=preload("res://scripts/campus/computers/usb_transfer.gd")
+func _initialize() -> void:
+	var data:=PackedByteArray()
+	data.resize(Transfer.CHUNK_SIZE+23)
+	for i in data.size():data[i]=i%251
+	var hash:=HashingContext.new();hash.start(HashingContext.HASH_SHA256);hash.update(data)
+	var digest:=hash.finish().hex_encode()
+	var receiver=Transfer.new()
+	var ok: bool=receiver.begin(data.size(),digest,100)
+	ok=ok and not receiver.append(1,data.slice(0,10),101)
+	ok=ok and receiver.append(0,data.slice(0,Transfer.CHUNK_SIZE),102)
+	ok=ok and receiver.finish(103).has("error")
+	ok=ok and receiver.append(Transfer.CHUNK_SIZE,data.slice(Transfer.CHUNK_SIZE),104)
+	var result: Dictionary=receiver.finish(105)
+	ok=ok and result.get("bytes",PackedByteArray())==data
+	var corrupt=Transfer.new()
+	ok=ok and corrupt.begin(data.size(),"0".repeat(64),100)
+	ok=ok and corrupt.append(0,data.slice(0,Transfer.CHUNK_SIZE),101)
+	ok=ok and corrupt.append(Transfer.CHUNK_SIZE,data.slice(Transfer.CHUNK_SIZE),102)
+	ok=ok and corrupt.finish(103).has("error")
+	var expired=Transfer.new()
+	ok=ok and expired.begin(1,digest,100) and not expired.append(0,PackedByteArray([1]),100+Transfer.TIMEOUT_MS+1)
+	print("USB_TRANSFER ","PASS" if ok else "FAIL")
+	quit(0 if ok else 1)

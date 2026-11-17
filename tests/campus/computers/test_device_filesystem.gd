@@ -1,0 +1,23 @@
+extends SceneTree
+const Drive = preload("res://scripts/campus/computers/device_filesystem.gd")
+
+func _initialize() -> void:
+	var drive = Drive.new(6)
+	assert(drive.make_folder("Notes"))
+	assert(drive.make_folder("Notes/Lab"))
+	assert(drive.write_file("Notes/Lab/a.txt", "hello".to_utf8_buffer()))
+	assert(not drive.write_file("Notes/Lab/b.txt", "too big".to_utf8_buffer()))
+	assert(not drive.write_file("../outside", PackedByteArray()))
+	assert(not Drive.valid_path("Notes/hidden\u007f.txt"))
+	assert(not drive.write_file("Notes/hidden\u007f.txt", PackedByteArray()))
+	assert(not drive.move("Notes", "Notes/Lab/nested"))
+	assert(drive.move("Notes", "School"))
+	assert(drive.entries.has("School/Lab/a.txt"))
+	assert(drive.used_bytes() == 5)
+	assert(drive.write_file("School/Lab/a.txt", "ok".to_utf8_buffer()))
+	assert(drive.used_bytes() == 2)
+	assert(drive.remove("School"))
+	assert(drive.entries.is_empty())
+	assert(Drive.new(999999999).capacity == Drive.MAX_CAPACITY)
+	print("DEVICE_FILESYSTEM PASS")
+	quit()

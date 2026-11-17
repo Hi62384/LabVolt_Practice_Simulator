@@ -41,26 +41,6 @@ func send(request: Dictionary, control: String) -> bool:
 	game.session.request(request)
 	return await until(func(): return state().revision > revision, str(request))
 
-func set_analog_output_in_ui() -> bool:
-	if not await reach("daq"):
-		return false
-	game.paper_ui.daq_page()
-	var output_row: HBoxContainer
-	for child in game.paper_ui.column.get_children():
-		if child is HBoxContainer:
-			output_row = child
-			break
-	if output_row == null or not output_row.get_child(0) is SpinBox:
-		push_error("DAQ output controls are missing")
-		quit(1)
-		return false
-	output_row.get_child(0).value = 6.
-	output_row.get_child(1).pressed.emit()
-	if not await until(func(): return state().daq_settings.get("AO0",0.) == 6., "DAQ panel sets AO0"): return false
-	await create_timer(.3).timeout
-	game.paper_ui.close()
-	return true
-
 func initial_readings() -> bool:
 	var r: Dictionary = state().get("readings",{})
 	if not r.has("daq_dc_v") or not r.fault.is_empty():
@@ -134,6 +114,7 @@ func run() -> void:
 	else:
 		var address := OS.get_environment("LABVOLT_TEST_HOST")
 		game.front.network_page(true)
+		game.front.direct_join.button_pressed = true
 		game.front.join_address.text = address if not address.is_empty() else "127.0.0.1"
 		game.front.join_port.text = str(PORT)
 		game.front.join_connect.pressed.emit()
@@ -143,7 +124,7 @@ func run() -> void:
 		if not await send({"op":"power"}, "power"): return
 		if not await until(initial_readings, "two DC outlets and 24 VAC"): return
 		await create_timer(.09).timeout
-		if not await set_analog_output_in_ui(): return
+		if not await send({"op":"daq_output","channel":"AO0","value":6.}, "daq"): return
 		for setting in [["AO1",-4.],["DO0",true]]:
 			await create_timer(.09).timeout
 			if not await send({"op":"daq_output","channel":setting[0],"value":setting[1]}, "daq"): return

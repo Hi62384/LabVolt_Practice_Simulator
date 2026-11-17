@@ -1,0 +1,39 @@
+extends SceneTree
+const Speech=preload("res://scripts/campus/academics/teacher_speech_player.gd")
+func _initialize() -> void:call_deferred("run")
+func run() -> void:
+	var speech:=Speech.new();root.add_child(speech)
+	var anchor:=Node3D.new();root.add_child(anchor)
+	var head:=Node3D.new();head.name="Head";anchor.add_child(head)
+	var audio:=AudioStreamWAV.new();audio.format=AudioStreamWAV.FORMAT_16_BITS;audio.mix_rate=22050
+	var samples:=PackedByteArray();samples.resize(22050)
+	for i in 11025:
+		var sample:=roundi(sin(float(i)*TAU*440.0/22050.0)*10000.0)
+		samples[i*2]=sample&255;samples[i*2+1]=(sample>>8)&255
+	audio.data=samples
+	assert(not speech.cache_stream("empty",AudioStreamWAV.new()))
+	assert(speech.cache_stream("teacher:hello",audio) and speech.stream_for("teacher:hello")==audio)
+	for i in 40:assert(speech.cache_stream("clip-%d"%i,audio))
+	assert(speech.cached.size()==Speech.MAX_CACHED and speech.stream_for("teacher:hello")==null)
+	assert(speech.accept("room","Jeff",1,"Quiet please",1,anchor,audio))
+	assert(speech.active.has("room") and speech.subtitles.has("room"))
+	assert(not speech.accept("room","Jeff",1,"stale",4,anchor,audio))
+	assert(speech.accept("room","Jeff",2,"Later",0,anchor,audio))
+	assert(speech.queued.room.size()==1)
+	assert(speech.accept("room","Jeff",3,"Safety first",4,anchor,audio))
+	assert(speech.active.room.serial==3)
+	assert(speech.queued.room.size()==1)
+	assert(Speech._pcm_level(audio,.01)>.0)
+	var mouth: MeshInstance3D=head.get_node_or_null("SpeechMouth")
+	assert(is_instance_valid(mouth) and mouth.visible)
+	speech.cancel("room")
+	assert(speech.active.is_empty() and speech.queued.is_empty() and speech.subtitles.is_empty() and not mouth.visible)
+	assert(speech.accept("room","Jeff",4,"Subtitle only",1,anchor))
+	assert(speech.active.is_empty() and speech.subtitles.has("room"))
+	assert(speech.accept("room","Jeff",5,"Before removal",1,anchor,audio))
+	anchor.queue_free();await process_frame
+	speech._process(0.0)
+	assert(speech.active.is_empty())
+	speech.clear_session();assert(speech.last_serial.is_empty() and speech.subtitles.is_empty() and speech.cached.is_empty())
+	print("TEACHER_SPEECH_PLAYER PASS")
+	speech.queue_free();await process_frame;quit(0)

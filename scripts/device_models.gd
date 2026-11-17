@@ -60,7 +60,7 @@ static func expand(model: Dictionary,id: String,nodes: Array,state: Dictionary,v
 			out.append({"id":id+"/upper","kind":"R","a":nodes[0],"b":nodes[1],"value":maxf(.01,float(model.value)*fraction)})
 			out.append({"id":id+"/lower","kind":"R","a":nodes[1],"b":nodes[2],"value":maxf(.01,float(model.value)*(1-fraction))})
 		"seven_segment":
-			for i in 8:out.append({"id":id+"/"+str(i),"kind":"LED","a":nodes[i],"b":nodes[8],"vf":1.8,"ron":10})
+			for i in 8:out.append({"id":id+"/"+str(i),"kind":"LED","a":nodes[8] if model.get("common_anode",false) else nodes[i],"b":nodes[i] if model.get("common_anode",false) else nodes[8],"vf":1.8,"ron":10})
 		"logic":
 			var ground: String=nodes[6];var supply: String=nodes[13]
 			var zero := float(voltages.get(ground,0));var vcc := float(voltages.get(supply,0))-zero
@@ -85,6 +85,8 @@ static func expand(model: Dictionary,id: String,nodes: Array,state: Dictionary,v
 				copy.nominal_value=model.value
 				var measured: Dictionary=runtime.get("__resistors",{}).get(id,{})
 				if preload("res://scripts/physical_resistors.gd").valid(measured) and measured.nominal==model.value and measured.tolerance==model.resistance_tolerance and measured.watts==model.power_rating_w:copy.value=measured.actual
-			if copy.kind in ["button","toggle"]:copy.kind="R";copy.value=.01 if state.get("pressed",false) else 1e12
+			if copy.kind in ["button","toggle"]:
+				var closed: bool=bool(state.get("pressed",false)) != bool(copy.get("normally_closed",false))
+				copy.kind="R";copy.value=.01 if closed else 1e12
 			out.append(copy)
 	return out

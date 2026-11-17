@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "teachers": {
+    "bill_nye": {
+      "teaching": 0.65,
+      "focus": 0.9,
+      "difficulty": 0.75,
+      "talkativeness": 0.5,
+      "description": "AI examples"
+    },
+    "mr_apple": {
+      "teaching": 0.3,
+      "focus": 0.6,
+      "difficulty": 0.4,
+      "talkativeness": 0.9,
+      "description": "personal stories"
+    },
+    "ms_clocks": {
+      "teaching": 0.95,
+      "focus": 0.9,
+      "difficulty": 0.5,
+      "talkativeness": 0.4,
+      "description": "concise explanations"
+    },
+    "mr_phillips": {
+      "teaching": 0.75,
+      "focus": 0.95,
+      "difficulty": 0.4,
+      "talkativeness": 0.65,
+      "description": "serious hints"
+    },
+    "mr_gusto": {
+      "teaching": 0.85,
+      "focus": 0.9,
+      "difficulty": 0.7,
+      "talkativeness": 0.85,
+      "description": "friendly jokes"
+    },
+    "mr_hamstrings": {
+      "teaching": 0.3,
+      "focus": 0.2,
+      "difficulty": 0.7,
+      "talkativeness": 0.95,
+      "description": "casual tangents"
+    },
+    "mr_allu": {
+      "teaching": 0.2,
+      "focus": 0.1,
+      "difficulty": 0.2,
+      "talkativeness": 0.1,
+      "description": "awkward silence"
+    },
+    "bill": {
+      "teaching": 0.4,
+      "focus": 1,
+      "difficulty": 0.9,
+      "talkativeness": 0.5,
+      "description": "order and concentration"
+    },
+    "chad": {
+      "teaching": 0.1,
+      "focus": 0.1,
+      "difficulty": 0.1,
+      "talkativeness": 0.9,
+      "description": "fictional hustle advice"
+    },
+    "brian": {
+      "teaching": 0.3,
+      "focus": 0.95,
+      "difficulty": 0.5,
+      "talkativeness": 0.3,
+      "description": "short temper"
+    },
+    "ms_bird_heart": {
+      "teaching": 0.2,
+      "focus": 0.5,
+      "difficulty": 0.8,
+      "talkativeness": 0.9,
+      "description": "warm encouragement"
+    },
+    "dr_volts": {
+      "teaching": 0.8,
+      "focus": 0.4,
+      "difficulty": 1,
+      "talkativeness": 1,
+      "description": "scientific enthusiasm"
+    },
+    "stanley": {
+      "teaching": 0.05,
+      "focus": 0.05,
+      "difficulty": 0.4,
+      "talkativeness": 0.1,
+      "description": "sleepiness"
+    },
+    "ms_rivera": {
+      "teaching": 0.05,
+      "focus": 0.05,
+      "difficulty": 0.1,
+      "talkativeness": 0.4,
+      "description": "disengagement"
+    },
+    "mr_blake": {
+      "teaching": 0.7,
+      "focus": 0.2,
+      "difficulty": 0.5,
+      "talkativeness": 0.9,
+      "description": "playful humor"
+    },
+    "mr_stone": {
+      "teaching": 0.7,
+      "focus": 1,
+      "difficulty": 1,
+      "talkativeness": 0.6,
+      "description": "military bearing"
+    },
+    "josh_wildes": {
+      "teaching": 0.1,
+      "focus": 0.2,
+      "difficulty": 0.9,
+      "talkativeness": 0.4,
+      "description": "critical comments"
+    },
+    "bradley": {
+      "teaching": 0.7,
+      "focus": 0.5,
+      "difficulty": 0.5,
+      "talkativeness": 0.6,
+      "description": "dramatic pauses"
+    },
+    "jeff": {
+      "teaching": 1,
+      "focus": 1,
+      "difficulty": 1,
+      "talkativeness": 0.3,
+      "description": "strict in class, kind outside class"
+    },
+    "mr_bro": {
+      "teaching": 0.3,
+      "focus": 0.1,
+      "difficulty": 0.3,
+      "talkativeness": 0.9,
+      "description": "fitness tangents"
+    },
+    "ms_lunch": {
+      "teaching": null,
+      "focus": null,
+      "difficulty": null,
+      "talkativeness": null,
+      "description": "strict food-area patrol"
+    }
+  }
+}

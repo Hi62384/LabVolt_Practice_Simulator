@@ -24,7 +24,7 @@ func build(source: Object) -> void:
 	add_child(margin)
 	var column := VBoxContainer.new(); column.add_theme_constant_override("separation",14); margin.add_child(column)
 	var heading := HBoxContainer.new(); column.add_child(heading)
-	var title := Label.new(); title.text="LAB / VOLT   ·   CAMPUS"; title.add_theme_font_size_override("font_size",28); title.size_flags_horizontal=Control.SIZE_EXPAND_FILL; heading.add_child(title)
+	var title := Label.new(); title.text="COLLEGE SIMULATOR   ·   CAMPUS"; title.add_theme_font_size_override("font_size",28); title.size_flags_horizontal=Control.SIZE_EXPAND_FILL; heading.add_child(title)
 	var back := UI.action("Back","back",func():closed.emit(); queue_free());heading.add_child(back)
 	tabs=TabContainer.new(); tabs.size_flags_vertical=Control.SIZE_EXPAND_FILL; column.add_child(tabs)
 	var scroll := ScrollContainer.new(); scroll.name="Courses & activities"; tabs.add_child(scroll)

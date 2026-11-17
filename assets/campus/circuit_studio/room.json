@@ -19,11 +19,11 @@
     "bounds_max": [36, 9, 53]
   },
   "workstations": {
+    "assembly_table": [31.8, 5.94, 43.3],
     "ic_builder": [26.7, 6.47, 47.28],
     "pcb_builder": [22.8, 6.06, 42.88],
     "prototype_bench": [29.8, 5.93, 47],
-    "firmware_console": [25.32, 6.38, 51.38],
-    "kit_library": [33.82, 6.15, 47.8]
+    "firmware_console": [25.32, 6.38, 51.38]
   },
   "clearances": {
     "door_keep_clear_min": [16, 5, 45.8],

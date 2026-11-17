@@ -9,6 +9,9 @@ const GREEN := Color("a3edaa")
 
 var game: Node
 var classroom := ""
+var required_kind := ""
+var required_room := ""
+var allowed_courses: Array = []
 var class_requested: Callable
 var model := {}
 var selected_course := ""
@@ -115,6 +118,8 @@ func _render_courses() -> void:
 			continue
 		for id in ids:
 			var info := _course(id)
+			if not allowed_courses.is_empty() and id not in allowed_courses:continue
+			if not required_kind.is_empty() and (info.tracks[required_kind].is_empty() or (not required_room.is_empty() and str(game.campus.registry.course_room(id,required_kind).get("id",""))!=required_room)):continue
 			var grades: Dictionary = info.gradebook
 			var caption := "%s · %s" % [id, info.display_name]
 			var progress := _progress("Lecture", grades.tracks.lecture)
@@ -144,7 +149,7 @@ func _pick_course(id: String) -> void:
 		return
 	selected_course = id
 	var info := _course(id)
-	selected_kind = "lecture" if not classroom.is_empty() or not info.tracks.lecture.is_empty() else "lab"
+	selected_kind = required_kind if not required_kind.is_empty() else ("lecture" if not classroom.is_empty() or not info.tracks.lecture.is_empty() else "lab")
 	selected_week = {}
 	_render_courses()
 	_render_weeks()
@@ -159,7 +164,7 @@ func _render_weeks() -> void:
 		return
 	var info := _course(selected_course)
 	for kind in ["lecture", "lab"]:
-		if not classroom.is_empty() and kind!="lecture":continue
+		if (not required_kind.is_empty() and kind!=required_kind) or (required_kind.is_empty() and not classroom.is_empty() and kind!="lecture"):continue
 		if not info.tracks[kind].is_empty():
 			var button := _action(tracks, "Lecture" if kind == "lecture" else "Laboratory", "course", _pick_track.bind(kind))
 			button.custom_minimum_size = Vector2(132, 44)

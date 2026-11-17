@@ -61,15 +61,15 @@ func _gui_input(event: InputEvent) -> void:
 		elif not selected_lab_lead.is_empty():selected_lab_lead=""
 		elif not grabbed_hole.is_empty():
 			cancel_grab()
-		elif not first.is_empty():
-			first = ""
 		elif _disconnect_lab_lead_at(input_position):
 			pass
 		elif selected_type=="interact" and _operate_manual_input(event):
 			accept_event()
 			return
-		elif not _delete_component_at(input_position) and not _delete_wire_at(input_position) and not hole.is_empty():
-			_delete_component_at(input_position,hole)
+		else:
+			var removed := _delete_component_at(input_position) or _delete_wire_at(input_position)
+			if not removed and not hole.is_empty():removed=_delete_component_at(input_position,hole)
+			first=""
 		_update_placement()
 		queue_redraw()
 		accept_event()
@@ -193,6 +193,18 @@ func cancel_grab() -> void:
 	first=""
 	placement={}
 	if was_part:grabbed_component.emit("","")
+	queue_redraw()
+
+func reset_interaction() -> void:
+	cancel_grab()
+	hidden_wire_index=-1
+	grabbed_hole=""
+	grabbed_part=""
+	first=""
+	selected_lab_lead=""
+	moving=false
+	drag_preview={}
+	placement={}
 	queue_redraw()
 
 func _finish_grab(hole: String) -> bool:
@@ -498,7 +510,7 @@ func _draw_part(part: Dictionary, entry: Dictionary, ghost: bool) -> void:
 		if part.id in selected: draw_rect(rect.grow(3),Color("ffc66b"),false,2)
 		draw_set_transform(Vector2.ZERO)
 		return
-	if part.type == "seven_segment":
+	if part.type in ["seven_segment", "seven_segment_ca"]:
 		_draw_digit("board/"+str(part.id), width, tint.a)
 		if part.id in selected: draw_rect(rect.grow(3),Color("ffc66b"),false,2)
 		draw_set_transform(Vector2.ZERO)

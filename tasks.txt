@@ -8,16 +8,16 @@
 -freeplay as defaultAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 -game launcher and multiplayer testAAAAAAAAAAAAAAAAAAAAAAAA
 
--lost in found for items you dont pick up before leaving
+-lost in found for items you dont pick up before leavingAAAAAAAAAAA
 
 
 ## 1. Inventory, Items & Facilities
 1. **Multi-Subject Items and Crafting** — More equipment for different courses and the ability to create things beyond electronics.
-2. **Backpack and Inventory System**
-3. **Store and Player Trading Room**
+2. **Backpack and Inventory System**AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+3. **Store and Player Trading Room**AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 4. **Customizable Dorms and Personal Storage** — Dorms contain players' main possessions, equipment, and projects.
-5. **Study Rooms with Shared Whiteboards**
-6. **IC and PCB Design/Manufacturing Room**
+5. **Study Rooms with Shared Whiteboards**AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+6. **IC and PCB Design/Manufacturing Room**AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 7. **Advanced Electronics and Computer Building** — Complex chips, Arduino, programmable components, and functional computers.
 
 ## 2. Communication, Computers & Devices
@@ -59,4 +59,27 @@
 35. **AI-Generated Co-op Jobs and Projects**
 
 
+## 7. No yappination learn only mode
+-line sheet notebook (notebook with a large text thing by default)
+-grid sheet notebook (notebook with grid sheets)
+-improved notebook drawing ui
+-allow having multiple caluclators in hotbar, and choosing which calculator to show
+-2d study desk ui
+-ability to spawn in notebooks, line sheet notebooks pencil case, calculators, and browser screens
+-ability to spawn in class weeks tests/assignments/practice/lecture/explanation sheets
+-inventory sort of system where you can stow away papers and bring other papers
+-ability to add files or export files
+-chatgpt built into it with a chatgpt chat, and talking with mic
+-ability to see notes, and whats on the desk
+-ability to create notes, edit notes, create practice assignments, and simple dynamic animation explanations
+-multiplayer
+
+
+
+#8. inventions
+
+
+
+
 -massive multiplayer always online server
+

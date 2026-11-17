@@ -170,12 +170,25 @@ func _show_open_lab_instructor() -> void:
 	screen.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	var viewport_size := get_viewport().get_visible_rect().size
 	screen.custom_minimum_size=Vector2.ZERO
-	screen.size=Vector2(minf(680,viewport_size.x-48),minf(470,viewport_size.y-48))
+	screen.size=Vector2(minf(680,viewport_size.x-48),minf(620,viewport_size.y-48))
 	screen.position=(viewport_size-screen.size)*0.5
 	screen.show()
-	preload("res://scripts/campus/academics/open_lab/open_lab_panel.gd").mount(column,_show_open_lab_practice,_open_lab_tutorial,close)
+	preload("res://scripts/campus/academics/open_lab/open_lab_panel.gd").mount(column,_show_open_lab_practice,_open_lab_tutorial,close,_host_lab_class,_talk_to_instructor)
 	var first := column.find_children("*","Button",true,false)[0] as Button
 	first.grab_focus()
+
+func _talk_to_instructor() -> void:
+	var room: String=game.campus.registry.locate(game.player.global_position)
+	close()
+	game.faculty.open_conversation(room)
+
+func _host_lab_class() -> void:
+	var room: String=game.campus.registry.locate(game.player.global_position)
+	if room not in ["ac_lab","dc_lab"]:
+		game.ui.log_message("Speak to an instructor inside an electrical lab.")
+		return
+	close()
+	game.lecture_classes.open_lab_picker(room)
 
 func _show_open_lab_practice() -> void:
 	if school.mode not in ["Open Lab","Freeplay","Creative Freeplay"]:return
@@ -440,7 +453,9 @@ func _build_reader() -> void:
 	if not paper.lesson and _editable(paper):
 		_button(toolbar,"Submit test",func():flush();school.request({"op":"submit","id":document_id});close())
 		if paper.project.get("kind","")=="lab":
-			_button(side,"Record current instrument reading",func():flush();school.request({"op":"measure","id":document_id}))
+			var validation := str(paper.project.get("lab_validation",""))
+			var record_label := "Record waveform" if validation=="digital_scope" else ("Record display" if validation=="digital_display" else ("Record binary inputs" if validation=="digital_binary" else ("Record gate levels" if validation.begins_with("digital_") else "Record current instrument reading")))
+			_button(side,record_label,func():flush();school.request({"op":"measure","id":document_id}))
 	view_document=document_id;view_page=page_index;reader_view_key=_reader_key(paper)
 	restore_view.call_deferred(view_document,view_page,reader_generation)
 func remember_view() -> void:
@@ -681,60 +696,6 @@ static func calculate_expression(value: String) -> String:
 	var result=expression.execute([],null,false,true)
 	if expression.has_execute_failed() or not (result is float or result is int) or not is_finite(float(result)):return "Undefined result"
 	return "= "+str(snappedf(float(result),.000000001))
-
-func daq_page() -> void:
-	flush()
-	var station: int=game._active_station()
-	reading=false
-	_clear()
-	game.release_mouse()
-	screen.show()
-	_label(column,"DATA ACQUISITION • RMS / PHASORS",28)
-	_label(column,"E1–E4 measure across nodes. I1–I4 go in series. AI and DO use the DAQ signal common. DI uses its paired return.")
-	var outputs := HBoxContainer.new()
-	column.add_child(outputs)
-	var settings: Dictionary = game.station_snapshots[station].get("daq_settings", {})
-	for i in 2:
-		var analog_channel := "AO%d"%i
-		var digital_channel := "DO%d"%i
-		var voltage := SpinBox.new()
-		voltage.min_value = -10.
-		voltage.max_value = 10.
-		voltage.step = .1
-		voltage.suffix = "V"
-		voltage.value = settings.get(analog_channel, 0.)
-		outputs.add_child(voltage)
-		_button(outputs, "Set " + analog_channel, func():
-			game.session.request({"op":"daq_output","station":station,"channel":analog_channel,"value":voltage.value}))
-		_button(outputs, "Toggle " + digital_channel, func():
-			var latest: Dictionary = game.station_snapshots[station].get("daq_settings", {})
-			game.session.request({"op":"daq_output","station":station,"channel":digital_channel,"value":not latest.get(digital_channel, false)}))
-	var readout := _label(column,"",23)
-	var timer := Timer.new()
-	timer.wait_time=.25
-	column.add_child(timer)
-	timer.timeout.connect(func():
-		var values: Dictionary=game.station_snapshots[station].get("readings",{})
-		var message := ""
-		for i in range(4):
-			var volts: Vector2=values.get("daq_v",[Vector2.ZERO,Vector2.ZERO,Vector2.ZERO,Vector2.ZERO])[i]
-			var amps: Vector2=values.get("daq_i",[Vector2.ZERO,Vector2.ZERO,Vector2.ZERO,Vector2.ZERO])[i]
-			message+="E%d   %.3f V  ∠ %.2f°       I%d   %.4f A  ∠ %.2f°\n"%[i+1,volts.length(),rad_to_deg(volts.angle()),i+1,amps.length(),rad_to_deg(amps.angle())]
-			var dc_volts: Vector2 = values.daq_dc_v[i] if values.has("daq_dc_v") else Vector2.ZERO
-			var dc_amps: Vector2 = values.daq_dc_i[i] if values.has("daq_dc_i") else Vector2.ZERO
-			if absf(dc_volts.x) > .001 or absf(dc_amps.x) > .0001:
-				message += "       DC  %.3f V / %.4f A\n" % [dc_volts.x, dc_amps.x]
-		for i in values.get("daq_analog", []).size():
-			var sample: Dictionary = values.daq_analog[i]
-			message += "AI%d   %.3f V AC   %+.3f V DC%s" % [i, sample.ac_rms, sample.dc, "\n" if i % 2 else "     "]
-		for i in values.get("daq_digital", []).size():
-			message += "DI%d %s    " % [i, "HIGH" if values.daq_digital[i] else "LOW"]
-		var latest: Dictionary = game.station_snapshots[station].get("daq_settings", {})
-		message += "\nAO0 %.1f V  AO1 %.1f V     DO0 %s  DO1 %s" % [latest.get("AO0",0.),latest.get("AO1",0.),"HIGH" if latest.get("DO0",false) else "LOW","HIGH" if latest.get("DO1",false) else "LOW"]
-		readout.text=message
-	)
-	timer.start()
-	_button(column,"Return to laboratory",close)
 
 func edit_annotation(item: Dictionary) -> void:
 	if is_instance_valid(tool_case):tool_case.set_selection(item);return

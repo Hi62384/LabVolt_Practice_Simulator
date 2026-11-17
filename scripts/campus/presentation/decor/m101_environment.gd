@@ -33,7 +33,7 @@ func _material(key: String) -> StandardMaterial3D:
 	if key == "diffuser":
 		mat.emission_enabled = true
 		mat.emission = C[key]
-		mat.emission_energy_multiplier = .48
+		mat.emission_energy_multiplier = 2.0
 	materials[key]=mat
 	return mat
 
@@ -51,20 +51,8 @@ func _build_floor(root: Node3D) -> void:
 	for ix in range(20):
 		for iz in range(14):
 			positions["tile_alt" if (ix+iz)%7==0 else "tile"].append(Vector3(-9.5+ix,.012,-3.5+iz))
-	var tile := BoxMesh.new()
-	tile.size = Vector3(.984,.012,.984)
 	for key in positions:
-		var batch := MultiMesh.new()
-		batch.transform_format = MultiMesh.TRANSFORM_3D
-		batch.mesh = tile
-		batch.instance_count = positions[key].size()
-		for index in batch.instance_count:
-			batch.set_instance_transform(index, Transform3D(Basis.IDENTITY, positions[key][index]))
-		var mesh := MultiMeshInstance3D.new()
-		mesh.multimesh = batch
-		mesh.material_override = _material(key)
-		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mesh)
+		preload("res://scripts/campus/performance/lit_tile_batches.gd").build(root,positions[key],Vector3(.984,.012,.984),_material(key))
 	# Thin, noncolliding work-zone boundary. Existing tables and walking routes stay fixed.
 	for x in [-6.0,0.0,6.0]:
 		_box(root,"WorkBoundary",Vector3(x,.028,-1.63),Vector3(4.8,.004,.031),"notice")
@@ -80,9 +68,6 @@ func _build_walls(root: Node3D) -> void:
 		_box(root,"SideUpperWall",Vector3(x,2.59,3),Vector3(.035,2.70,13.72),"wall")
 		_box(root,"SideBaseboard",Vector3(x+.032,.08,3),Vector3(.045,.15,13.72),"navy")
 	# East doorway remains fully open. Solid side segments stop before its centre opening.
-	for z in [-2.08,8.08]:
-		_box(root,"DoorSideLower",Vector3(9.88,.62,z),Vector3(.035,1.22,3.6),"dado")
-		_box(root,"DoorSideUpper",Vector3(9.88,2.59,z),Vector3(.035,2.70,3.6),"wall")
 
 func _build_ceiling(root: Node3D) -> void:
 	# Flush under the existing Y=4.05 shell, with a slim suspended strip in each bay.
@@ -94,7 +79,10 @@ func _build_ceiling(root: Node3D) -> void:
 		for z in [0.0,6.0]:
 			_box(root,"LightFrame",Vector3(x,3.94,z),Vector3(4.4,.11,.31),"navy")
 			_box(root,"LightDiffuser",Vector3(x,3.876,z),Vector3(4.31,.025,.24),"diffuser")
-			Fixtures.down(root, Vector3(x,3.82,z), 1.25, 7.2)
+			var light:=Fixtures.down(root, Vector3(x,3.82,z), 1.25, 7.2)
+			# Even ceiling fill avoids hard-edged fixture shadows cutting across the
+			# tiled floor and work surfaces.
+			light.shadow_enabled=false
 
 func _build_furniture_finish(root: Node3D) -> void:
 	# Top skins follow the exact legacy desk positions; no existing table collision changes.

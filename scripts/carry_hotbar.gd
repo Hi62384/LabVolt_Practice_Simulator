@@ -3,6 +3,7 @@ const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const InventoryTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
 const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+const AccessoryLayout = preload("res://scripts/campus/facilities/accessory_layout.gd")
 const SUPPLY_RARITY := {
 	"calculator":"Rare", "calculator_financial":"Uncommon", "flashlight":"Uncommon",
 	"lab_goggles":"Uncommon", "whiteboard":"Rare",
@@ -22,8 +23,14 @@ var equipped_badges: Array[Label]=[]
 var switching := false
 var food_model: Node3D
 var food_visual_key := ""
+var accessory_positions := {}
+var accessory_catalog := {}
 func build(owner_game: Node) -> void:
 	game=owner_game;layer=11
+	var preferences:=ConfigFile.new()
+	if preferences.load("user://accessory_layout.cfg")==OK:
+		var saved: Variant=preferences.get_value("layout","positions",{})
+		if saved is Dictionary:accessory_positions=saved
 	normal_style=InventoryTheme.card_style("Common")
 	var badge_style := StyleBoxFlat.new()
 	badge_style.bg_color=Color("9aefdd")
@@ -64,6 +71,22 @@ func build(owner_game: Node) -> void:
 	game.session.restarted.connect(func():slots=[{},{},{},{},{},{}];active=-1)
 func title(item: Dictionary) -> String:
 	match item.get("kind",""):
+		"cosmetic_accessory":return str(item.get("name","Accessory"))
+		"gym_belt":return "Weight belt · %.1f kg" % float(game.gym_barbells.belt_mass(int(item.get("id",-1))))
+		"gym_plate":return "%.1f lb weight plate" % float(item.get("lb",0))
+		"gym_barbell":return "Barbell · %.1f kg" % float(game.gym_barbells.loaded_mass(str(item.get("id",""))))
+		"gym_dumbbells":return "%.1f lb dumbbell pair" % float(item.get("lb",0))
+		"ac_laptop":return "AC lab laptop"
+		"portable_laptop":
+			var laptop: Dictionary=game.electronics.profile.data.get("dorm",{}).get("portable_laptops",{}).get(item.get("id",""),{})
+			return str(preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS.get(laptop.get("tier",""),{}).get("name","Laptop"))
+		"ac_usb":return "Laptop USB cable"
+		"smartphone":
+			var phone: Dictionary=game.electronics.profile.data.get("dorm",{}).get("smartphones",{}).get(item.get("id",""),{})
+			return str(preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.get(phone.get("tier",""),{}).get("name","Smartphone"))
+		"usb":
+			var drive: Dictionary=game.electronics.profile.data.get("dorm",{}).get("usb_drives",{}).get(item.get("id",""),{})
+			return "%s · %d MB" % [drive.get("name","USB drive"),int(drive.get("capacity_mb",0))]
 		"food":return str(game.campus_services.facilities.controller.host.menu.get(item.type,{}).get("name","Food"))
 		"notebook":return "Notebook"
 		"calculator":return str(Dorm.TOOLS.get(item.get("type","calculator"),"Calculator"))
@@ -158,6 +181,12 @@ func _sync_dorm_items() -> void:
 			add_item({"kind":"calculator","type":key,"dorm_item":key})
 		elif key.begins_with("bag:"):
 			add_item({"kind":"backpack","id":key.trim_prefix("bag:"),"dorm_item":key})
+		elif key.begins_with("usb:"):
+			add_item({"kind":"usb","id":key.trim_prefix("usb:"),"dorm_item":key})
+		elif key.begins_with("laptop:"):
+			add_item({"kind":"portable_laptop","id":key.trim_prefix("laptop:"),"dorm_item":key})
+		elif key.begins_with("phone:"):
+			add_item({"kind":"smartphone","id":key.trim_prefix("phone:"),"dorm_item":key})
 		else:add_item({"kind":key,"dorm_item":key})
 	for part in components:add_item(part)
 func add_item(item: Dictionary) -> int:
@@ -234,6 +263,8 @@ func _process(_delta: float) -> void:
 		var index := add_item({"kind":"dc_wire","color":game.dc_lab.lead_color,"station":game.dc_lab.picked_station})
 		if index>=0:active=index
 	_sync_food()
+	_sync_ac_items()
+	_sync_gym_items()
 	var held_kit: Dictionary=game.kit_world.kits.get(multiplayer.get_unique_id(),{})
 	if held_kit.get("held",false):
 		for i in slots.size():
@@ -243,8 +274,80 @@ func _process(_delta: float) -> void:
 	var hotbar_used := 0
 	for slot in slots:
 		if not slot.is_empty():hotbar_used+=1
-	game.player.load_speed=Dorm.Backpacks.speed_multiplier(game.electronics.profile.data.get("dorm",{}),hotbar_used,slots.size())
+	game.player.load_speed=game.carry_load.multiplier(multiplayer.get_unique_id()) if is_instance_valid(game.carry_load) else 1.0
 	if bar.visible:_paint_slots()
+
+func _sync_gym_items() -> void:
+	if not is_instance_valid(game.gym_weights):return
+	var items: Array=game.gym_weights.items
+	var peer:=multiplayer.get_unique_id()
+	for i in slots.size():
+		var item: Dictionary=slots[i]
+		if item.get("kind","")!="gym_dumbbells":continue
+		var id:=int(item.get("id",-1))
+		if id not in range(items.size()) or int(items[id].owner)!=peer or items[id].where not in ["held","stowed"]:
+			slots[i]={}
+			if active==i:active=-1
+	for id in items.size():
+		if int(items[id].owner)!=peer or items[id].where not in ["held","stowed"]:continue
+		var slot:=add_item({"kind":"gym_dumbbells","id":id,"lb":items[id].lb})
+		if slot>=0 and items[id].where=="held":active=slot
+	if not is_instance_valid(game.gym_barbells):return
+	var bars: Dictionary=game.gym_barbells.bars
+	for i in slots.size():
+		var item: Dictionary=slots[i]
+		if item.get("kind","")!="gym_barbell":continue
+		var id:=str(item.get("id",""))
+		if not bars.has(id) or int(bars[id].owner)!=peer or bars[id].where not in ["held","stowed"]:
+			slots[i]={}
+			if active==i:active=-1
+	for id in bars:
+		if int(bars[id].owner)!=peer or bars[id].where not in ["held","stowed"]:continue
+		var slot:=add_item({"kind":"gym_barbell","id":id})
+		if slot>=0 and bars[id].where=="held":active=slot
+	var plates: Array=game.gym_barbells.plates
+	for i in slots.size():
+		var item: Dictionary=slots[i]
+		if item.get("kind","")!="gym_plate":continue
+		var id:=int(item.get("id",-1))
+		if id not in range(plates.size()) or int(plates[id].owner)!=peer or plates[id].where not in ["held","stowed"]:
+			slots[i]={}
+			if active==i:active=-1
+	for id in plates.size():
+		if int(plates[id].owner)!=peer or plates[id].where not in ["held","stowed"]:continue
+		var slot:=add_item({"kind":"gym_plate","id":id,"lb":plates[id].lb})
+		if slot>=0 and plates[id].where=="held":active=slot
+	var belts: Array=game.gym_barbells.belts
+	for i in slots.size():
+		var item: Dictionary=slots[i]
+		if item.get("kind","")!="gym_belt":continue
+		var id:=int(item.get("id",-1))
+		if id not in range(belts.size()) or int(belts[id].owner)!=peer or belts[id].where not in ["held","stowed"]:
+			slots[i]={}
+			if active==i:active=-1
+	for id in belts.size():
+		if int(belts[id].owner)!=peer or belts[id].where not in ["held","stowed"]:continue
+		var slot:=add_item({"kind":"gym_belt","id":id})
+		if slot>=0 and belts[id].where=="held":active=slot
+func _sync_ac_items() -> void:
+	if not is_instance_valid(game.ac_laptops):return
+	var state: Dictionary=game.ac_laptops.state
+	var peer:=multiplayer.get_unique_id()
+	for i in slots.size():
+		var item: Dictionary=slots[i]
+		var kind:=str(item.get("kind",""))
+		if kind not in ["ac_laptop","ac_usb"]:continue
+		var list: Array=state.get("laptops" if kind=="ac_laptop" else "cables",[])
+		var id:=int(item.get("id",-1))
+		if id not in range(list.size()) or int(list[id].owner)!=peer or list[id].where not in ["held","stowed","partial"]:
+			slots[i]={}
+			if active==i:active=-1
+	for spec in [["laptops","ac_laptop"],["cables","ac_usb"]]:
+		var list: Array=state.get(spec[0],[])
+		for id in list.size():
+			if int(list[id].owner)!=peer or list[id].where not in ["held","stowed","partial"]:continue
+			var index:=add_item({"kind":spec[1],"id":id})
+			if index>=0 and list[id].where in ["held","partial"]:active=index
 
 func selected_food() -> Dictionary:
 	if active >= 0 and slots[active].get("kind") == "food":return slots[active]
@@ -305,6 +408,25 @@ func _paint_slots() -> void:
 			if buttons[i].tooltip_text!=hint:buttons[i].tooltip_text=hint
 	painted_active=active
 func stow() -> bool:
+	if is_instance_valid(game.gym_barbells):
+		var belt: int=game.gym_barbells.held_belt(multiplayer.get_unique_id())
+		if belt>=0:game.gym_barbells.request_belt("stow",belt)
+		var plate: int=game.gym_barbells.held_plate(multiplayer.get_unique_id())
+		if plate>=0:game.gym_barbells.request_plate("stow",plate)
+		var bar: String=game.gym_barbells.held_bar(multiplayer.get_unique_id())
+		if not bar.is_empty():game.gym_barbells.request("stow_bar",bar,0.0,0)
+	if is_instance_valid(game.gym_weights):
+		var pair: int=game.gym_weights.held_id(multiplayer.get_unique_id())
+		if pair>=0:game.gym_weights.request("stow",pair)
+	if is_instance_valid(game.ac_laptops):
+		var cable: int=game.ac_laptops._held("cables")
+		if cable>=0:
+			if game.ac_laptops.state.cables[cable].where=="partial":game.ui.log_message("Connect or disconnect the USB cable first.");return false
+			game.ac_laptops.request("stow_cable")
+		var laptop: int=game.ac_laptops._held("laptops")
+		if laptop>=0:
+			if game.ac_laptops._attached(laptop)>=0:game.ui.log_message("Disconnect the USB cable before stowing the laptop.");return false
+			game.ac_laptops.request("stow_laptop")
 	if game.dc_lab.lead_color>=0:
 		if add_item({"kind":"dc_wire","color":game.dc_lab.lead_color,"station":game.dc_lab.picked_station})<0:
 			game.ui.log_message("All six slots are full. Return the cable or free a slot first.")
@@ -361,6 +483,12 @@ func select_slot(index: int) -> void:
 					switching=false
 					return
 			game.school.request({"op":kind})
+		"gym_dumbbells":game.gym_weights.request("equip",int(item.id))
+		"gym_barbell":game.gym_barbells.request("equip_bar",str(item.id),0.0,0)
+		"gym_plate":game.gym_barbells.request_plate("equip",int(item.id))
+		"gym_belt":game.gym_barbells.request_belt("equip",int(item.id))
+		"ac_laptop":game.ac_laptops.request("equip_laptop",int(item.id))
+		"ac_usb":game.ac_laptops.request("equip_cable",int(item.id))
 		"board":game.dc_lab.request(int(item.id),{"op":"carry_board"})
 		"paper":game.school.request({"op":"equip_paper","id":int(item.id)})
 		"wire":game.session.request({"op":"unstash","station":int(item.station),"color":int(item.color)})
@@ -374,6 +502,14 @@ func manager(parent: Node) -> void:
 	parent.theme=InventoryTheme.create()
 	var dorm: Dictionary=game.electronics.profile.data.get("dorm",{})
 	var back_id := Dorm.Backpacks.equipped(dorm)
+	var pending_usb: Dictionary=game.electronics.profile.data.get("usb_received_pending",{})
+	var pending_out: Dictionary=game.electronics.profile.data.get("usb_handoff_pending",{})
+	var pending_buy: Dictionary=game.electronics.profile.data.get("usb_purchase_pending",{})
+	if not pending_usb.is_empty() or not pending_out.is_empty() or not pending_buy.is_empty():
+		var warning:=UI.text("USB transaction awaiting confirmation. Reconnect to the game where it began to resolve it; the local archive is preserved.","MutedLabel")
+		warning.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		warning.add_theme_color_override("font_color",Color("ffd287"))
+		parent.add_child(warning)
 	parent.add_child(UI.text("Hotbar","SubtitleLabel"))
 	var hotbar_grid := preload("res://scripts/ui/design_system/responsive_grid.gd").new()
 	hotbar_grid.minimum_card_width=120
@@ -395,6 +531,7 @@ func manager(parent: Node) -> void:
 		if active==index and not item.is_empty():tile.text+=" · Equipped"
 		tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		card.add_child(tile)
+		if item.get("kind","")=="usb":card.add_child(UI.action("Rename","info",_rename_usb_dialog.bind(str(item.id))))
 		tile.set_drag_forwarding(_drag_hotbar_slot.bind(tile,index),_can_drop_hotbar_slot.bind(index),_drop_hotbar_slot.bind(index))
 		var discard_entry := _pack_entry(item)
 		if item.get("kind","") in ["paper","wire","dc_wire","food","board"]:discard_entry=item.duplicate()
@@ -408,14 +545,38 @@ func manager(parent: Node) -> void:
 			var entry := _pack_entry(item)
 			if not entry.is_empty():
 				card.add_child(UI.action("Pack","plus",_bag_intent.bind({"op":"bag_pack","bag":back_id,"item":entry})))
-	parent.add_child(UI.text("Body accessories","SubtitleLabel"))
+	parent.add_child(UI.text("Equipped gear","SubtitleLabel"))
 	var accessories := HBoxContainer.new()
 	parent.add_child(accessories)
 	var goggles_on: bool=dorm.get("worn_supplies",{}).get("head","")=="lab_goggles"
 	var head_item := {"kind":"lab_goggles"} if goggles_on else {}
 	var back_item := {"kind":"backpack","id":back_id,"type":dorm.backpacks[back_id].size} if not back_id.is_empty() else {}
-	_accessory_tile(accessories,"Head","user",head_item,_toggle_goggles.bind(false),{"location":"head","item":{"kind":"supply","id":"lab_goggles"}})
-	_accessory_tile(accessories,"Back","inventory",back_item,_bag_intent.bind({"op":"bag_move","bag":back_id,"destination":"hotbar"}),{"location":"back","item":{"kind":"bag","id":back_id}})
+	var belt_id: int=game.gym_barbells.worn_belt(multiplayer.get_unique_id()) if is_instance_valid(game.gym_barbells) else -1
+	var worn:={}
+	if goggles_on:worn["goggles"]={"item":head_item,"remove":_toggle_goggles.bind(false)}
+	if not back_id.is_empty():worn["backpack"]={"item":back_item,"remove":_bag_intent.bind({"op":"bag_move","bag":back_id,"destination":"hotbar"})}
+	if belt_id>=0:worn["belt"]={"item":{"kind":"gym_belt","id":belt_id},"remove":_remove_belt.bind(belt_id)}
+	accessory_positions=AccessoryLayout.resolve(accessory_positions,worn.keys())
+	for index in AccessoryLayout.COUNT:
+		var key:=""
+		for category in accessory_positions:
+			if int(accessory_positions[category])==index:key=str(category);break
+		var item: Dictionary=worn.get(key,{}).get("item",{})
+		var action: Callable=worn.get(key,{}).get("remove",Callable())
+		var tile:=UI.action("Slot %d · %s" % [index+1,"Empty" if item.is_empty() else title(item)],"inventory",action)
+		tile.icon=portraits.texture(item,game.electronics.profile)
+		tile.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER;tile.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
+		tile.add_theme_constant_override("icon_max_width",58);tile.custom_minimum_size.y=94;tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		if not item.is_empty():style_inventory_tile(tile,item);tile.tooltip_text+="\nClick to unequip · drag to rearrange"
+		else:tile.tooltip_text="Drag equipped gear here"
+		accessories.add_child(tile)
+		tile.set_drag_forwarding(_drag_accessory.bind(tile,key),_can_drop_accessory.bind(index),_drop_accessory.bind(index))
+	for key in worn:
+		if accessory_positions.has(key):continue
+		var extra: Dictionary=worn[key]
+		parent.add_child(UI.action("Remove extra · %s" % title(extra.item),"inventory",extra.remove))
+	if worn.size()>AccessoryLayout.COUNT:
+		parent.add_child(UI.text("Equipped gear exceeds four slots. Unequip extras to make room.","MutedLabel"))
 	if not back_id.is_empty():
 		var bag: Dictionary=dorm.backpacks[back_id]
 		var capacity: int=Dorm.Backpacks.SIZES[bag.size].capacity
@@ -446,6 +607,72 @@ func _drag_hotbar_slot(_position: Vector2, tile: Button, index: int) -> Variant:
 	tile.set_drag_preview(preview)
 	return {"hotbar_slot":index,"item":slots[index].duplicate()}
 
+func _drag_accessory(_position: Vector2,tile: Button,key: String) -> Variant:
+	if key.is_empty() or not accessory_positions.has(key):return null
+	var preview:=Label.new();preview.text=key.capitalize();tile.set_drag_preview(preview)
+	return {"accessory_key":key,"slot":accessory_positions[key]}
+
+func _can_drop_accessory(_position: Vector2,data: Variant,destination: int) -> bool:
+	if not data is Dictionary:return false
+	if data.has("accessory_key"):
+		return accessory_positions.has(data.accessory_key) and int(accessory_positions[data.accessory_key])==int(data.get("slot",-1)) and int(data.slot)!=destination
+	var source:=int(data.get("hotbar_slot",-1))
+	if source not in range(slots.size()) or slots[source]!=data.get("item"):return false
+	var kind:=str(slots[source].get("kind",""))
+	var category: String={"lab_goggles":"goggles","backpack":"backpack","gym_belt":"belt"}.get(kind,"")
+	return not category.is_empty() and not accessory_positions.has(category) and destination not in accessory_positions.values()
+
+func _drop_accessory(position: Vector2,data: Variant,destination: int) -> void:
+	if not _can_drop_accessory(position,data,destination):return
+	if data.has("hotbar_slot"):
+		var index:=int(data.hotbar_slot);var item: Dictionary=slots[index]
+		var category: String={"lab_goggles":"goggles","backpack":"backpack","gym_belt":"belt"}[str(item.kind)]
+		accessory_positions[category]=destination
+		_save_accessory_layout()
+		if item.kind=="lab_goggles":_toggle_goggles(true)
+		elif item.kind=="backpack":_bag_intent({"op":"bag_move","bag":item.id,"destination":"back"})
+		else:_wear_belt_from_slot(index,int(item.id))
+		return
+	accessory_positions=AccessoryLayout.move(accessory_positions,str(data.accessory_key),destination)
+	_save_accessory_layout()
+	game.electronics.open.call_deferred("inventory",game.electronics.bench)
+
+func _save_accessory_layout() -> void:
+	var preferences:=ConfigFile.new();preferences.set_value("layout","positions",accessory_positions);preferences.save("user://accessory_layout.cfg")
+
+func _remove_cosmetic_accessory(slot: String) -> void:
+	_apply_cosmetic_accessory({"op":"unequip","slot":slot})
+
+func _apply_cosmetic_accessory(intent: Dictionary) -> void:
+	var profile: RefCounted=game.electronics.profile
+	if profile.authority_submit.is_valid():
+		profile.authority_submit.call("avatar_cosmetic",[intent])
+		game.electronics.status.text="Waiting for host…"
+		return
+	var coordinator=preload("res://scripts/avatar_cosmetics/core/coordinator.gd").new()
+	if not coordinator.load_catalog():
+		game.electronics.status.text="Cosmetics catalog unavailable";return
+	var adapter=coordinator.authoritative_adapter(func():return true)
+	adapter.extra_accessory_count=AccessoryLayout.belt_count(game,multiplayer.get_unique_id())
+	var result: Dictionary=adapter.commit_local(profile,intent)
+	if not result.get("ok",false):
+		game.electronics.status.text=str(result.get("error","Could not remove accessory"));return
+	game.characters.notify_appearance_saved(profile)
+	game.electronics.open.call_deferred("inventory",game.electronics.bench)
+
+func _wear_belt_from_slot(index: int,id: int) -> void:
+	game.electronics.close()
+	if active!=index:await select_slot(index)
+	var deadline:=Time.get_ticks_msec()+2000
+	while game.gym_barbells.held_belt(multiplayer.get_unique_id())!=id and Time.get_ticks_msec()<deadline:
+		await get_tree().process_frame
+	if game.gym_barbells.held_belt(multiplayer.get_unique_id())==id:game.gym_barbells.request_belt("wear",id)
+	else:game.ui.log_message("Could not equip the weight belt.")
+
+func _remove_belt(id: int) -> void:
+	if not slots.any(func(slot):return slot.is_empty()):game.ui.log_message("Free a hotbar slot first.");return
+	if stow():game.gym_barbells.request_belt("unwear",id);game.electronics.close()
+
 func _can_drop_hotbar_slot(_position: Vector2, data: Variant, destination: int) -> bool:
 	if switching or not data is Dictionary:return false
 	var source := int(data.get("hotbar_slot",-1))
@@ -460,6 +687,26 @@ func _drop_hotbar_slot(position: Vector2, data: Variant, destination: int) -> vo
 	if active==source:active=destination
 	elif active==destination:active=source
 	game.electronics.open.call_deferred("inventory",game.electronics.bench)
+
+func _rename_usb_dialog(id: String) -> void:
+	var drives: Dictionary=game.electronics.profile.data.get("dorm",{}).get("usb_drives",{})
+	if not drives.has(id):return
+	var dialog:=ConfirmationDialog.new();dialog.title="Rename USB drive";dialog.ok_button_text="Save"
+	var field:=LineEdit.new();field.max_length=40;field.text=str(drives[id].name)
+	dialog.add_child(field);game.electronics.screen.add_child(dialog)
+	var validate:=func(value: String):
+		var valid: bool=preload("res://scripts/campus/computers/usb_archive.gd").valid_name(value)
+		dialog.get_ok_button().disabled=not valid
+		dialog.dialog_text="" if valid else "Enter a name using 1–40 visible characters."
+	field.text_changed.connect(validate)
+	dialog.confirmed.connect(func():
+		if dialog.get_ok_button().disabled:return
+		dialog.get_ok_button().disabled=true
+		_bag_intent({"op":"rename_usb","id":id,"name":field.text})
+		dialog.queue_free())
+	dialog.canceled.connect(dialog.queue_free)
+	validate.call(field.text)
+	dialog.popup_centered(Vector2i(380,120));field.grab_focus();field.select_all()
 
 func _equip_inventory_slot(index: int, item: Dictionary) -> void:
 	if slots[index]!=item or active==index:return
@@ -515,6 +762,7 @@ func _pack_entry(item: Dictionary) -> Dictionary:
 		"kit":
 			if not key.is_empty():return {"kind":"kit","id":item.id}
 		"component":return {"kind":"component","type":item.type,"instance":item.instance}
+		"smartphone":return {"kind":"phone","id":item.id}
 		_:
 			if Dorm.TOOLS.has(key):return {"kind":"supply","id":key}
 	return {}
@@ -522,6 +770,7 @@ func _pack_entry(item: Dictionary) -> Dictionary:
 func _unpack_item(entry: Dictionary) -> Dictionary:
 	if entry.kind=="supply":return {"kind":"calculator" if entry.id in Dorm.CALCULATORS else entry.id,"type":entry.id}
 	if entry.kind=="bag":return {"kind":"backpack","id":entry.id}
+	if entry.kind=="phone":return {"kind":"smartphone","id":entry.id}
 	return entry
 
 func _bag_intent(intent: Dictionary, show_inventory := true) -> void:

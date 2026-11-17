@@ -30,7 +30,7 @@ func _run() -> void:
 		assert(model.choose_hole(holes[index]) == "")
 		model.connections[index].name = ["VCC","GND","INPUT","OUTPUT","RESET","CLOCK"][index]
 	model.prepare_package()
-	assert(model.width == 1 and model.length == 3 and model.pins.size() == 6)
+	assert(model.width == 2 and model.length == 3 and model.pins.size() == 6)
 	assert(model.pins[1].node == model.pins[2].node)
 	model.resize_package(10,3)
 	assert(model.pins.size() == 6 and model.pins[3].position.x == 10)
@@ -75,7 +75,7 @@ func _run() -> void:
 	assert(not ledger.transact(1,"too_early","ic_upgrade",[old,id,bp,"apply"]).ok)
 	assert(Profile.same(original_profile,ledger.account(1).profile))
 	var acquisition := ledger.transact(1,"shortage","ic_upgrade",[old,id,bp,"purchase"])
-	assert(acquisition.ok and acquisition.profile.inventory.led == 20)
+	assert(acquisition.ok and acquisition.profile.inventory.led == 22)
 	var mounted := Board.empty()
 	mounted.definitions = acquisition.profile.blueprints
 	var mounted_part := Placement.maker_candidate(mounted,Board.catalog(mounted),{old:1},false,old,"","E3",1)
@@ -84,6 +84,7 @@ func _run() -> void:
 	mounted.wires = [["P1","A3"],["N1","A2"]]
 	mounted.parts.append(_part("source","battery","P1","N1"))
 	var stocked: Dictionary = acquisition.profile.duplicate(true)
+	assert(ledger.transact(1,"stock_old","kit_quantity",["starter",old,1]).ok)
 	stocked.kits.starter.items[old] = 1
 	stocked.kits.starter.board = mounted
 	assert(ledger.transact(1,"mount_template","metadata",[stocked]).ok)
@@ -97,7 +98,7 @@ func _run() -> void:
 	var solution := preload("res://scripts/electronics_solver.gd").new().solve(actual.parts,actual.wires,.01)
 	assert(solution.ok and absf(float(solution.i.get("board/placement_preview/resistor",0))) > .001)
 	assert(ledger.recall(1))
-	assert(upgraded.profile.inventory.led == 0 and upgraded.profile.inventory.r1000 == 10)
+	assert(upgraded.profile.inventory.led == 2 and upgraded.profile.inventory.r1000 == 10)
 	assert(ledger.account(2).profile.inventory[old] == 1 and not ledger.account(2).profile.inventory.has(id))
 	assert(ledger.transact(1,"apply","ic_upgrade",[old,id,bp,"apply"]).ok)
 	assert(not ledger.transact(1,"apply_again","ic_upgrade",[old,id,bp,"apply"]).ok)

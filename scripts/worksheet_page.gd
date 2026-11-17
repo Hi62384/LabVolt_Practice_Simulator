@@ -30,7 +30,9 @@ func _ready() -> void:
 	body=VBoxContainer.new();body.add_theme_constant_override("separation",13);margin.add_child(body)
 	var lesson: bool=paper.lesson
 	var p: Dictionary=paper.project
-	text(str(p.get("course_id","ELM253"))+"     /     "+("BASIC DC ELECTRICITY" if p.get("course_id","")=="ETY155" else "AC ELECTRICAL SYSTEMS"),14)
+	var course_id := str(p.get("course_id","ELM253"))
+	var course_title := "DIGITAL ELECTRONICS" if course_id=="DGS266" else ("BASIC DC ELECTRICITY" if course_id=="ETY155" else "AC ELECTRICAL SYSTEMS")
+	text(course_id+"     /     "+course_title,14)
 	text("NOTEBOOK" if paper.get("notebook",false) else "EQUIPMENT GUIDE" if paper.get("guide",false) else "GUIDED LESSON" if lesson else "LABORATORY ASSIGNMENT",13,Color("547c82"))
 	text(p.title,28)
 	text("Name: "+str(paper.owner_name)+"     •     "+["Beginner","Easy","Normal","Hard","Expert"][clampi(int(p.difficulty),0,4)],15)
@@ -51,7 +53,7 @@ func _ready() -> void:
 			0:
 				text("01  /  "+("UNDERSTAND THE CIRCUIT" if lesson else "OBJECTIVE & GIVEN DATA"),20)
 				text(p.theory if lesson else "Use the circuit and the given quantities below. Show your method, then record your answers on page 3.")
-				var diagram := preload("res://scripts/worksheet_diagram.gd").new();diagram.topic=int(p.topic);diagram.course_id=str(p.get("course_id","ELM253"));diagram.descriptor=p.get("diagram",{});body.add_child(diagram)
+				var diagram := preload("res://scripts/worksheet_diagram.gd").new();diagram.topic=int(p.get("topic",0));diagram.course_id=course_id;diagram.descriptor=p.get("diagram",{});body.add_child(diagram)
 				text("Figure 1. Concept diagram — use the specified values and connections.",13,Color("66716f"))
 				text("HOW TO USE THE EQUIPMENT" if lesson else "GIVEN QUANTITIES",17)
 				text(("Turn to the following pages for the equipment and wiring instructions." if not instruction_pages.is_empty() else teaching.equipment) if lesson else p.data,17)

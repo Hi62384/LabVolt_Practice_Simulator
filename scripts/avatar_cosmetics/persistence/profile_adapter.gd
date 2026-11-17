@@ -20,6 +20,7 @@ var sanitize_body: Callable
 var is_authority: Callable
 var required_slots: Array
 var seed_equipment: Callable
+var extra_accessory_count:=0
 
 func _init(definitions: Dictionary = {}, resolver: Callable = Callable(), body_sanitizer: Callable = Callable(), required: Array = []) -> void:
 	catalog = definitions
@@ -85,6 +86,8 @@ func apply_authoritative(profile: Dictionary, intent: Variant, legacy_character:
 	var changed := _apply_one(next, intent)
 	if not changed.ok:
 		return changed
+	if not preload("res://scripts/campus/facilities/accessory_layout.gd").permits_change(next,changed.profile,extra_accessory_count):
+		return _failure("Remove an accessory to free a slot")
 	next = changed.profile
 	if var_to_bytes(next).size() > MAX_BYTES:
 		return _failure("Profile exceeds persistence limit")
@@ -184,6 +187,12 @@ func _resolve(profile: Dictionary, draft: Dictionary) -> Dictionary:
 		return _failure("Equipment resolver failed")
 	if not resolved.errors.is_empty():
 		return _failure("Invalid equipment", resolved.errors)
+	var equipment: Dictionary=resolved.state.get("equipped",{})
+	var prior: Dictionary=profile.get("avatar_cosmetics",{}).get("equipped",{})
+	if profile.get("dorm",{}).get("worn_supplies",{}).get("head","")=="lab_goggles" and not equipment.get("eyewear",{}).is_empty() and equipment.get("eyewear")!=prior.get("eyewear"):
+		return _failure("Remove your lab goggles before equipping eyewear")
+	if not preload("res://scripts/campus/dorms/authority/backpack_inventory.gd").equipped(profile.get("dorm",{})).is_empty() and not equipment.get("back",{}).is_empty() and equipment.get("back")!=prior.get("back"):
+		return _failure("Remove your backpack before equipping a back accessory")
 	var next := profile.duplicate(true); next.avatar_cosmetics = resolved.state.duplicate(true)
 	return {"ok": true, "profile": next}
 

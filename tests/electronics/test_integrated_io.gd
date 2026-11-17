@@ -7,7 +7,7 @@ func run():
  var design=load("res://scripts/breadboard_model.gd").empty()
  design.parts=[{"id":"pad","type":"io_keypad","a":"A1","b":"F1","pins":["A1","F1","A2","F2","A3","F3","A4"]}]
  assert(station.apply({"op":"board","design":design})=="");station.board_owner=1
- game.session.roster[2]={"name":"Other"};game.session.poses[2]={"position":Vector3(-6,0,8)}
+ game.session.roster[2]={"name":"Other"};game.session.poses[2]={"position":Vector3(-6,0,8)+lab.campus_offset}
  var epoch=station.board_epoch
  lab._accept_checked(2,0,{"op":"input","id":"board/pad","board_epoch":epoch,"command":{"op":"key","key":0,"pressed":true,"revision":0}})
  assert(station.board.io_controls["board/pad"].keys==1)
@@ -25,7 +25,7 @@ func run():
  assert(station.board.get("io_controls",{}).is_empty())
  # Same actor, same device, same board: a retired view may not release a new view.
  var current_epoch=station.board_epoch
- game.player.position=Vector3(-6,0,8)
+ game.player.position=Vector3(-6,0,8)+lab.campus_offset
  lab._accept_checked(1,0,{"op":"input","id":"board/pad","board_epoch":current_epoch,"view_token":"new-view","command":{"op":"key","key":2,"pressed":true,"revision":0}})
  assert(station.board.io_controls["board/pad"].keys==4)
  lab._accept_checked(1,0,{"op":"input","id":"board/pad","board_epoch":current_epoch,"view_token":"retired-view","command":{"op":"release","revision":1}})

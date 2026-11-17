@@ -16,9 +16,23 @@ static func placed(item: String, servings: int, peer: int, title: String) -> Sta
 
 static func build(item: String, servings: int = 4) -> Node3D:
 	var food := Node3D.new()
-	match item:
+	var appearance := str(preload("res://scripts/campus/facilities/facility_host.gd").MENU.get(item,{}).get("art",item))
+	if item=="bagel":
+		var bagel := TorusMesh.new()
+		bagel.inner_radius=.025;bagel.outer_radius=.085
+		_piece(food,bagel,Vector3(0,.027,0),"c99050",Vector3(1,.7,1))
+		if servings<2:_bite(food,.005,.047)
+		return food
+	if item=="cookie":
+		_cylinder(food,.075,.075,.02,.015,"c79355")
+		for i in 8:
+			var angle := TAU*i/8.0
+			_oval(food,Vector3(cos(angle)*.045,.027,sin(angle)*.045),Vector3(.009,.003,.008),"513529")
+		if servings<2:_bite(food,.005,.047)
+		return food
+	match appearance:
 		"coffee", "tea":
-			var color := "a82f37" if item == "coffee" else "ac6142"
+			var color := "a82f37" if appearance == "coffee" else "ac6142"
 			var cup := CylinderMesh.new()
 			cup.top_radius=.06;cup.bottom_radius=.043;cup.height=.135;cup.cap_top=false
 			var shell := _piece(food,cup,Vector3(0,.0675,0),color)
@@ -27,7 +41,7 @@ static func build(item: String, servings: int = 4) -> Node3D:
 			rim.inner_radius=.056;rim.outer_radius=.063
 			_piece(food,rim,Vector3(0,.135,0),"e9d2a8")
 			var height := .122*clampf(servings/3.0,0,1)
-			_cylinder(food,lerpf(.042,.058,height/.135),.042,height,.006+height*.5,"38251d" if item=="coffee" else "b7773c")
+			_cylinder(food,lerpf(.042,.058,height/.135),.042,height,.006+height*.5,"38251d" if appearance=="coffee" else "b7773c")
 		"water":
 			var height := .127*clampf(servings/3.0,0,1)
 			_cylinder(food,.044,.044,height,.004+height*.5,"71b8d4")
@@ -42,7 +56,7 @@ static func build(item: String, servings: int = 4) -> Node3D:
 			_piece(food,dough,Vector3(0,.029,0),"bf7839")
 			var icing := TorusMesh.new()
 			icing.inner_radius=.029;icing.outer_radius=.083
-			_piece(food,icing,Vector3(0,.039,0),"d88a9d",Vector3(1,.66,1))
+			_piece(food,icing,Vector3(0,.039,0),"623d30" if item=="chocolate_donut" else "d88a9d",Vector3(1,.66,1))
 			for i in 12:
 				var angle := TAU*i/12.0
 				var sprinkle := BoxMesh.new()
@@ -53,7 +67,7 @@ static func build(item: String, servings: int = 4) -> Node3D:
 			var length := .245
 			_oval(food,Vector3(0,.019,0),Vector3(length,.038,.094),"bb7839")
 			_oval(food,Vector3(0,.036,0),Vector3(length,.022,.102),"659544")
-			_oval(food,Vector3(0,.047,0),Vector3(length*.94,.021,.09),"bc7951" if item=="chicken_sub" else "bb4736")
+			_oval(food,Vector3(0,.047,0),Vector3(length*.94,.021,.09),"bc7951" if appearance=="chicken_sub" else "bb4736")
 			_oval(food,Vector3(0,.064,0),Vector3(length,.052,.095),"de9e52")
 			for i in 4:
 				_oval(food,Vector3((i-1.5)*length*.16,.088,.006*(i%2)),Vector3(.014,.005,.004),"f3d59d")

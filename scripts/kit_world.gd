@@ -39,7 +39,7 @@ func apply(peer: int,action: Dictionary) -> void:
 		if "kit:"+id not in dorm.get("carry_items",[]) or is_placed(peer,id):return
 		var title := str(profile.kits[id].name).left(32)
 		if kits.has(peer) and not kits[peer].get("stowed",false):return
-		kits[peer]={"id":id,"owner":peer,"name":title,"held":true,"stowed":false,"open":false,"position":pose}
+		kits[peer]={"id":id,"owner":peer,"name":title,"tier":str(profile.get("kit_tiers",{}).get(id,"standard")),"held":true,"stowed":false,"open":false,"position":pose}
 	elif op in ["place","drop"]:
 		if not kits.has(peer):return
 		var pos=action.get("position")
@@ -76,7 +76,7 @@ func apply(peer: int,action: Dictionary) -> void:
 				if not error.is_empty():_notice(peer,error);return
 				kit.open=true
 			"return_held_board":
-				if kit.open and board>=0 and game.dc_lab.benches[board].board_held:_recall_board(peer,board,kit)
+				if kit.open and board>=0 and game.dc_lab.benches[board].board_held and _recall_board(peer,board,kit):kit.open=false
 			"close":
 				if action.get("recall",false) and board>=0 and not _recall_board(peer,board,kit):return
 				kit.open=false
@@ -151,6 +151,31 @@ func sync() -> void:
 func receive(data: Dictionary,world_kits: Dictionary) -> void:
 	kits=data
 	placed=world_kits
+func _create_kit_view(peer: int,kit: Dictionary) -> StaticBody3D:
+	var tier:=str(kit.get("tier","standard"))
+	var styles:={
+		"compact":{"width":.52,"height":.18,"depth":.34,"body":"566e4b","lid":"92a66f","trim":"cad6a6"},
+		"standard":{"width":.65,"height":.20,"depth":.40,"body":"284654","lid":"c1a76b","trim":"dbe0c7"},
+		"extended":{"width":.72,"height":.22,"depth":.42,"body":"315d82","lid":"70a1c3","trim":"d8c18c"},
+		"large":{"width":.78,"height":.25,"depth":.45,"body":"56416f","lid":"8c72a2","trim":"e5c881"}}
+	var style:Dictionary=styles.get(tier,styles.standard)
+	var w:float=style.width;var h:float=style.height;var d:float=style.depth
+	var root:=StaticBody3D.new();root.collision_layer=4;root.collision_mask=0
+	root.set_meta("role","kit");root.set_meta("owner",peer);root.set_meta("kit_id",kit.id);root.set_meta("label",kit.name);root.set_meta("tier",tier);add_child(root)
+	game._box(root,Vector3(0,h*.5,0),Vector3(w,h,d),Color(style.body))
+	var lid=game._box(root,Vector3(0,h+.018,0),Vector3(w+.02,.036,d+.02),Color(style.lid));lid.name="Lid"
+	root.set_meta("lid_closed",Vector3(0,h+.018,0));root.set_meta("lid_open",Vector3(0,h+d*.46,-d*.45))
+	for x in [-w*.32,w*.32]:game._box(root,Vector3(x,h*.65,-d*.505),Vector3(.035,.075,.018),Color(style.trim))
+	if tier in ["extended","large"]:
+		for x in [-w*.37,w*.37]:game._box(lid,Vector3(x,.021,0),Vector3(.032,.008,d*.92),Color(style.trim))
+		game._box(root,Vector3(0,h*.45,-d*.54),Vector3(w*.28,.025,.03),Color(style.trim))
+	if tier=="large":
+		for x in [-w*.42,w*.42]:game._box(root,Vector3(x,.035,d*.49),Vector3(.07,.07,.045),Color("202b38"))
+	elif tier=="compact":game._box(lid,Vector3(0,.021,0),Vector3(.15,.008,.045),Color(style.trim))
+	var hit:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=Vector3(w+.03,h+.07,d+.04);hit.shape=box;hit.position.y=h*.5;root.add_child(hit)
+	var lid_hit:=CollisionShape3D.new();lid_hit.name="LidHit";var lid_shape:=BoxShape3D.new();lid_shape.size=Vector3(w+.02,.045,d+.02);lid_hit.shape=lid_shape;root.add_child(lid_hit)
+	return root
+
 func _process(_delta: float) -> void:
 	if not is_instance_valid(game):return
 	var world := placed.duplicate()
@@ -161,19 +186,10 @@ func _process(_delta: float) -> void:
 		var kit: Dictionary=world[key]
 		var peer := int(kit.owner)
 		if not visuals.has(key):
-			var root := StaticBody3D.new();root.collision_layer=4;root.collision_mask=0;root.set_meta("role","kit");root.set_meta("owner",peer);root.set_meta("kit_id",kit.id);root.set_meta("label",kit.name);add_child(root)
-			game._box(root,Vector3(0,.1,0),Vector3(.65,.2,.4),Color("284654"))
-			var lid=game._box(root,Vector3(0,.218,0),Vector3(.67,.035,.42),Color("c1a76b"));lid.name="Lid"
-			var hit := CollisionShape3D.new();var box := BoxShape3D.new();box.size=Vector3(.68,.26,.44);hit.shape=box;hit.position.y=.12;root.add_child(hit)
-			var lid_hit := CollisionShape3D.new()
-			lid_hit.name="LidHit"
-			var lid_shape := BoxShape3D.new()
-			lid_shape.size=Vector3(.67,.045,.42)
-			lid_hit.shape=lid_shape
-			root.add_child(lid_hit)
-			visuals[key]=root
+			visuals[key]=_create_kit_view(peer,kit)
 		var root: StaticBody3D=visuals[key];root.visible=not kit.stowed;root.collision_layer=0 if kit.stowed or kit.held else 4
-		var lid: Node3D=root.get_node("Lid");lid.rotation.x=-1.3 if kit.open else 0;lid.position=Vector3(0,.4,-.18) if kit.open else Vector3(0,.218,0)
+		var lid: Node3D=root.get_node("Lid");lid.rotation.x=-1.3 if kit.open else 0
+		lid.position=root.get_meta("lid_open") if kit.open else root.get_meta("lid_closed")
 		var lid_hit := root.get_node("LidHit") as CollisionShape3D
 		lid_hit.transform=lid.transform
 		if kit.held:
@@ -195,10 +211,7 @@ func can_return_held_board(target: Node) -> bool:
 func interact(target: Node,right: bool) -> bool:
 	if not is_instance_valid(target):return false
 	var role := str(target.get_meta("role",""))
-	if role=="table" and not right and held():
-		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(game.camera.global_position,game.camera.global_position-game.camera.global_basis.z*3,1))
-		if not hit.is_empty() and hit.normal.y>.8:request({"op":"place","position":hit.position+Vector3(0,.015,0)})
-		return true
+	if role=="table" and not right and held():return true
 	if role!="kit":return false
 	if int(target.get_meta("owner"))!=multiplayer.get_unique_id():game.ui.log_message("This kit belongs to another player.");return true
 	var id := str(target.get_meta("kit_id",""))
@@ -221,7 +234,7 @@ func menu(parent: Node) -> void:
 	var UI = preload("res://scripts/ui/design_system/widgets.gd")
 	parent.theme=preload("res://scripts/ui/design_system/theme.gd").create()
 	var picture := TextureRect.new()
-	picture.texture=game.hotbar.portraits.texture({"kind":"board"},ui.profile)
+	picture.texture=game.hotbar.portraits.texture({"kind":"kit","id":menu_kit_id},ui.profile)
 	picture.custom_minimum_size.y=76
 	picture.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED

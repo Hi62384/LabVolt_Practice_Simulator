@@ -23,6 +23,7 @@ var ui: CanvasLayer
 var accumulator := 0.0
 var inventory_clock := 0.0
 var broadcast_clock := 0.0
+var port_refresh_clock := 0.0
 var rate_limits := {}
 var picked_port := ""
 var picked_station := -1
@@ -49,11 +50,13 @@ var peer_fields := {}
 var bench_interest: Node
 var external_links: Array=[]
 var ac_bridges: Array=[]
+var simulation_budget_usec := 4000
 var pending_endpoints := {}
 var external_root: Node3D
 var external_signature := ""
 var benches_ready := false
 var saved_departing_pcbs := {}
+var fixture_port_cache := {}
 
 func build(owner_game: Node) -> void:
 	game=owner_game
@@ -259,10 +262,7 @@ func aimed_breadboard_lead(target: Node, index: int) -> String:
 	return ""
 
 func interact(target: Node,right: bool) -> bool:
-	if is_instance_valid(target) and target.get_meta("role","")=="table" and not right and held_board()>=0:
-		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(game.camera.global_position,game.camera.global_position-game.camera.global_basis.z*3.6,1))
-		if not hit.is_empty() and hit.normal.y>.8:request(held_board(),{"op":"place_board","position":hit.position+Vector3(0,.03,0)})
-		return true
+	if is_instance_valid(target) and target.get_meta("role","")=="table" and not right and held_board()>=0:return true
 	if is_instance_valid(target) and target.get_meta("role","")=="socket":
 		var index := AC_OFFSET+int(target.get_meta("station",0));var port := str(target.get_meta("id",""))
 		if right:
@@ -366,7 +366,32 @@ func _detach_external_end(index: int, port: String) -> bool:
 		return true
 	return false
 
+func board_cable_pairs(index: int) -> Array:
+	var pairs: Array=[]
+	if index not in range(states.size()):return pairs
+	for wire in states[index].get("wires",[]):
+		if wire.size()!=2:continue
+		for side in 2:
+			var board_port:=str(wire[side]);var other:=str(wire[1-side])
+			if Station.board_port(board_port) and not Station.board_port(other) and ports[index].has(board_port) and ports[index].has(other):
+				pairs.append([ports[index][board_port],ports[index][other]])
+	var links: Array=states[0].get("external_links",[]) if not states.is_empty() else []
+	for link in links:
+		for endpoint in [link.a,link.b]:
+			if int(endpoint.station)!=index or not Station.board_port(str(endpoint.port)):continue
+			var other: Dictionary=_other_end(link,index,str(endpoint.port))
+			var other_index:=int(other.get("station",-1));var other_port:=str(other.get("port",""))
+			var other_ports: Dictionary={}
+			if other_index>=AC_OFFSET and other_index-AC_OFFSET in range(game.session.labs.size()):other_ports=game.session.labs[other_index-AC_OFFSET].positions
+			elif other_index in range(ports.size()):other_ports=ports[other_index]
+			if ports[index].has(endpoint.port) and other_ports.has(other_port):pairs.append([ports[index][endpoint.port],other_ports[other_port]])
+	return pairs
+
 func _can_hold_lead(peer: int) -> bool:
+	if is_instance_valid(game.ac_laptops):
+		for kind in ["laptops","cables"]:
+			for item in game.ac_laptops.state.get(kind,[]):
+				if item.get("owner",0)==peer and item.get("where","") in ["held","partial"]:return false
 	return game.school.held(peer) == 0 and not game.school._holding_cable(peer) and not game.school._holding_kit(peer) and held_board(peer) < 0
 
 static func _other_end(link: Dictionary, index: int, port: String) -> Dictionary:
@@ -438,6 +463,7 @@ func request(index: int,action: Dictionary) -> void:
 func command(index: int,action: Dictionary) -> void:
 	if multiplayer.is_server():accept(multiplayer.get_remote_sender_id(),index,action)
 func accept(peer: int,index: int,action: Dictionary) -> void:
+	if is_instance_valid(game.health) and game.health.locked(peer):return
 	_accept_checked(peer,index,action)
 	if index>=0 and index<benches.size() and game.session.roster.has(peer) and action.get("op")=="input" and action.get("command") is Dictionary and var_to_bytes(action).size()<=24000:
 		var id := str(action.get("id",""));var epoch := int(action.get("board_epoch",-1));var request_id := int(action.get("request_id",-1))
@@ -688,6 +714,14 @@ func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 			op="stow_board"
 			action={"op":op}
 	if op=="place_board":
+		var proposed=action.get("position")
+		if proposed is Vector3 and station.board_held:
+			var shift: Vector3=proposed-physical_boards[index].global_position
+			for pair in board_cable_pairs(index):
+				if (pair[0]+shift).distance_to(pair[1])>5.0:
+					if peer==1:feedback("A connected cable cannot reach that far.")
+					else:feedback.rpc_id(peer,"A connected cable cannot reach that far.")
+					return
 		var pos=action.get("position")
 		if action.get("ground",false):
 			pos=game.school.ground_drop_position(pos,peer)
@@ -723,7 +757,7 @@ func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 			return
 	if io_command and io_release and io_guard.leases.get(str(index)+":"+str(action.id),{}).get("peer",-1)==peer:
 		action=action.duplicate(true);action.command.revision=station.board.get("io_controls",{}).get(str(action.id),{}).get("revision",0)
-	var academic_before: Array=station.netlist().duplicate(true) if game.school.formal_active() else []
+	var academic_before: Array=station.netlist().duplicate(true) if game.school.formal_active() or game.lecture_classes.has_active_lab_assessment(peer,index) else []
 	var message: String=station.apply(action)
 	if message.is_empty() and op=="wire" and action.get("physical",false):
 		carried_leads.erase(peer)
@@ -731,7 +765,7 @@ func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 		pending_endpoints.erase(peer)
 		if peer==1:_finish_kit_lead()
 		else:_finish_kit_lead.rpc_id(peer)
-	if message=="" and game.school.activity.get("course_id","")=="ETY155":game.school.observe_equipment_action(peer,index,op,academic_before)
+	if message=="":game.school.observe_equipment_action(peer,index,op,academic_before)
 	if message=="" and io_command:io_guard.commit(peer,index,str(action.id),io_type,station.board.get("io_controls",{}).get(str(action.id),{}),str(action.get("view_token","")))
 	if message=="" and (op=="recall" or (op=="board" and not editing_kit)):remove_board_links(index)
 	if message=="" and op=="input" and action.get("hold",false):
@@ -771,19 +805,60 @@ func _process(delta: float) -> void:
 		accumulator=minf(accumulator+delta,.04)
 		var steps := mini(80,int(accumulator/.0005))
 		var _step := 0
-		var simulation_deadline := Time.get_ticks_usec()+4000
 		native_host.refresh(benches)
 		var coupled_stations: Array=benches+ac_bridges if not external_links.is_empty() else []
 		var solver_links: Array=[]
 		for link in external_links:
 			solver_links.append({"a":{"station":_solver_index(link.a.station),"port":link.a.port},"b":{"station":_solver_index(link.b.station),"port":link.b.port}})
 		var coupled_groups := Coupling.groups_for(coupled_stations.size(),solver_links) if not solver_links.is_empty() else []
+		# An inter-bench lead must not make unrelated idle benches run at the
+		# 2 kHz circuit rate. Update those benches once, as in the unlinked path.
+		if steps>0 and not native_host.active and not coupled_groups.is_empty():
+			var active_groups: Array=[]
+			for group in coupled_groups:
+				if group.size()!=1 or int(group[0])>=benches.size():
+					active_groups.append(group)
+					continue
+				var idle_bench=benches[int(group[0])]
+				idle_bench.linked=false
+				if idle_bench.master or idle_bench.generator.enabled or idle_bench.board_simulating():
+					active_groups.append(group)
+				elif not idle_bench.portable_slot:
+					idle_bench.step(maxf(.0005,delta))
+			coupled_groups=active_groups
+		var simulation_deadline := Time.get_ticks_usec()+simulation_budget_usec
+		# The idle path used to repeat 80 empty substeps per frame. Preserve the
+		# single idle update, then consume the same simulation-time remainder.
+		if steps>0 and solver_links.is_empty() and not native_host.active and not benches.any(func(bench):return bench.master or bench.generator.enabled or bench.board_simulating()):
+			for bench in benches:
+				bench.linked=false
+				if not bench.portable_slot:bench.step(maxf(.0005,delta))
+			_step=steps
+		var linear_plan := {}
+		var checked_linear_plan := false
+		# Reuse last frame's validated topology immediately. A first full step is
+		# still required after edits or when no cache exists, but not every frame.
+		if steps>0 and not solver_links.is_empty() and not native_host.active:
+			linear_plan=Coupling.linear_frame_plan(coupled_stations,solver_links,coupled_groups,.0005)
+			if not linear_plan.is_empty():
+				checked_linear_plan=true
+				if simulation_budget_usec==4000 and delta<=.018:simulation_deadline+=2000
 		while _step<steps and Time.get_ticks_usec()<simulation_deadline:
 			if native_host.active:
 				var completed: bool=native_host.advance(benches+ac_bridges,solver_links,.0005,false)
 				if completed:_step+=1
 				continue
-			if not solver_links.is_empty():Coupling.step(coupled_stations,solver_links,.0005,coupled_groups)
+			if not solver_links.is_empty():
+				if _step>0 and not checked_linear_plan:
+					linear_plan=Coupling.linear_frame_plan(coupled_stations,solver_links,coupled_groups,.0005)
+					checked_linear_plan=true
+					# Use modest extra time only for the validated fast path when the
+					# previous frame was already close to 60 Hz. Slower frames keep
+					# the normal budget so the simulation cannot monopolize rendering.
+					if not linear_plan.is_empty() and simulation_budget_usec==4000 and delta<=.018:
+						simulation_deadline+=2000
+				if linear_plan.is_empty() or not Coupling.linear_frame_step(linear_plan,coupled_stations,.0005):
+					linear_plan={};Coupling.step(coupled_stations,solver_links,.0005,coupled_groups)
 			else:
 				for bench in benches:
 					bench.linked=false
@@ -797,6 +872,9 @@ func _process(delta: float) -> void:
 		if broadcast_clock>=.1:broadcast_clock=0;broadcast()
 		if is_instance_valid(trace):trace.end_span(snapshot_span)
 	var presentation_span: int=trace.begin_span("dc_lab_presentation") if is_instance_valid(trace) else -1
+	port_refresh_clock += delta
+	var refresh_fixture_ports := port_refresh_clock >= .1
+	if refresh_fixture_ports:port_refresh_clock = 0.0
 	var next_bounds: Array[AABB]=[]
 	for board in physical_boards:
 		var bounds: AABB=board.cable_bounds()
@@ -814,7 +892,9 @@ func _process(delta: float) -> void:
 			continue
 		var state: Dictionary=states[index]
 		if index<FIXED_BENCHES:drawer_views[index].sync(bool(state.get("drawer_open", false)))
+		var board_span: int=trace.begin_span("dc_board_update_%d"%index) if is_instance_valid(trace) else -1
 		physical_boards[index].update_state(state)
+		if is_instance_valid(trace):trace.end_span(board_span)
 		for id in ports[index].keys():
 			if Station.board_port(id) and not physical_boards[index].external_ports.has(id):
 				ports[index].erase(id)
@@ -826,11 +906,19 @@ func _process(delta: float) -> void:
 			ports[index][id]=point
 		if index<FIXED_BENCHES:
 			var fixture_relevant: bool=instrument_fixtures[index].global_position.distance_squared_to(game.camera.global_position)<=144.0
-			var physical_ports: Dictionary=instrument_fixtures[index].port_positions()
-			for id in physical_ports:
-				if ports[index].get(id)!=physical_ports[id]:drawn_wires[index]={};external_signature=""
-				ports[index][id]=physical_ports[id]
+			if refresh_fixture_ports:
+				var fixture=instrument_fixtures[index]
+				var cached: Dictionary=fixture_port_cache.get(index,{})
+				if cached.is_empty() or cached.get("transform")!=fixture.global_transform:
+					cached={"transform":fixture.global_transform,"ports":fixture.port_positions()}
+					fixture_port_cache[index]=cached
+				var physical_ports: Dictionary=cached.ports
+				for id in physical_ports:
+					if ports[index].get(id)!=physical_ports[id]:drawn_wires[index]={};external_signature=""
+					ports[index][id]=physical_ports[id]
+			var fixture_span: int=trace.begin_span("dc_fixture_observe") if is_instance_valid(trace) else -1
 			instrument_fixtures[index].observe(state,delta,fixture_relevant)
+			if is_instance_valid(trace):trace.end_span(fixture_span)
 		var wiring := {"wires":state.wires,"colors":state.get("lead_colors",[])}
 		if wiring!=drawn_wires[index]:
 			drawn_wires[index]=wiring
@@ -939,13 +1027,17 @@ func broadcast() -> void:
 			for field in ["ammeters","voltmeters","wattmeters","daq_v","daq_i","daq_dc_v","daq_dc_i","daq_analog","daq_digital","dynamo_voltage","igbt"]:
 				if bridge.lab.readings.has(field):live[field]=bridge.lab.readings[field]
 			game.session.publish_ac_readings(i,bridge.lab.revision,live)
-	states.clear()
+	var next_states: Array=[]
 	for index in benches.size():
 		var state: Dictionary = benches[index].snapshot()
 		state["drawer_open"] = drawer_open[index]
 		state["lead_colors"] = benches[index].lead_colors.duplicate()
-		states.append(state)
-	states[0].external_links=external_links.duplicate(true)
+		if index==0:state.external_links=external_links.duplicate(true)
+		# Preserve the previous snapshot objects when nothing changed. Physical
+		# board presentation uses their identity to avoid expensive rebuilds.
+		if index<states.size() and states[index]==state:next_states.append(states[index])
+		else:next_states.append(state)
+	states=next_states
 	if is_instance_valid(bench_interest):bench_interest.publish()
 	ui.refresh()
 @rpc("authority","call_remote","unreliable_ordered",3)

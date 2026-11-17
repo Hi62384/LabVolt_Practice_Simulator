@@ -35,8 +35,6 @@ var relay_setup_waiting := false
 var relay_login_pending := false
 var room_notice: Label
 var notice_time := 0.0
-var quota_peer: MultiplayerPeer
-var quota_tick := 0.0
 var join_connect: Button
 var join_back: Button
 var join_spinner: ProgressBar
@@ -44,7 +42,7 @@ var join_timeout: Timer
 func build(owner_game: Node) -> void:
 	game=owner_game
 	add_child(relay_account)
-	layer=20
+	layer=60 # Menus must remain usable above the death overlay.
 	screen=Control.new()
 	screen.theme=MenuTheme.create()
 	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -77,7 +75,7 @@ func build(owner_game: Node) -> void:
 	title.add_theme_font_size_override("font_size",38)
 	column.add_child(title)
 	var subtitle := Label.new()
-	subtitle.text="C O L L E G E   S I M U L A T O R"
+	subtitle.text="Y O U R   C A M P U S   •   Y O U R   L A B"
 	subtitle.modulate=Color("80dfc5")
 	subtitle.add_theme_font_size_override("font_size",12)
 	column.add_child(subtitle)
@@ -197,7 +195,7 @@ func home() -> void:
 		game.session.leave()
 	if not in_game and is_instance_valid(game.menu_campus):game.menu_campus.show_menu()
 	screen.show()
-	clear("home","LAB/VOLT")
+	clear("home","College Simulator")
 	text("Learn. Explore. Experiment.")
 	button("Host Game",func():network_page(false))
 	button("Singleplayer",singleplayer_page)
@@ -294,7 +292,7 @@ func relay_account_page() -> void:
 		button("Log Out", _relay_logout)
 	elif relay_identity.has("accounts"):
 		if not relay_onboarding_url.is_empty():
-			text("Finish Cloudflare Workers setup in your browser. LabVolt will connect the relay automatically when it is ready.")
+			text("Finish Cloudflare Workers setup in your browser. College Simulator will connect the relay automatically when it is ready.")
 			button("Open Cloudflare Workers Setup", func(): OS.shell_open(relay_onboarding_url))
 		else:
 			text("Choose the Cloudflare account to use for hosting.")
@@ -302,7 +300,7 @@ func relay_account_page() -> void:
 			button(str(account.get("name", "Cloudflare")), _relay_deploy.bind(account))
 		button("Sign In Again", _relay_login)
 	else:
-		text("Authorize LabVolt in your browser. You can create a Cloudflare account there if needed.")
+		text("Authorize College Simulator in your browser. You can create a Cloudflare account there if needed.")
 		button("Log In with Cloudflare", _relay_login)
 	if not relay_account.connected():
 		button("Open Cloudflare Dashboard", func(): OS.shell_open("https://dash.cloudflare.com/"))
@@ -420,7 +418,6 @@ func _start_play(offline: bool) -> void:
 		game.session.start_relay_host(peer, player_name)
 		if relay_account.connected():
 			peer.room_code = RelayAccount.invite(str(relay_account.identity.host), peer.room_code)
-			quota_peer = peer
 	var result: Dictionary = game.school.start_activity({"mode": "Freeplay"})
 	if not result.get("ok", false):
 		game.session.leave()
@@ -591,8 +588,6 @@ func leave_game() -> void:
 	leaving_game=true
 	joining=false
 	notice_time = 0.0
-	_save_relay_usage()
-	quota_peer = null
 	_campus_navigate("")
 	game._stand_from_chair()
 	game.session.leave()
@@ -631,29 +626,15 @@ func _show_room_notice(code: String) -> void:
 	room_notice.text = "Room code  " + code
 	notice_time = 5.0
 
-func _save_relay_usage() -> void:
-	if quota_peer == null:
-		return
-	relay_account.record_usage(quota_peer.metered_connections, quota_peer.metered_messages)
-	quota_peer.metered_connections = 0
-	quota_peer.metered_messages = 0
-
 func _process(delta: float) -> void:
-	if quota_peer != null:
-		quota_tick += delta
-		if quota_tick >= 5.0:
-			quota_tick = 0.0
-			_save_relay_usage()
-		if quota_peer.get_connection_status() == MultiplayerPeer.CONNECTION_DISCONNECTED:
-			_save_relay_usage()
-			quota_peer = null
 	if is_instance_valid(room_notice):
 		notice_time = maxf(0, notice_time - delta)
 		room_notice.visible = notice_time > 0 and in_game and not screen.visible
 		room_notice.position = Vector2((get_viewport().get_visible_rect().size.x - room_notice.size.x) * 0.5, 24)
 	campus_tick+=delta
 	if is_instance_valid(campus_hud):
-		campus_hud.visible=in_game and not screen.visible and game.client_preferences.values.hud
+		var computer_open: bool=is_instance_valid(game.computer_room_adapter) and is_instance_valid(game.computer_room_adapter.desktop) and game.computer_room_adapter.desktop.visible
+		campus_hud.visible=in_game and not screen.visible and not computer_open and game.client_preferences.values.hud
 		if in_game and campus_tick>=0.25 and is_instance_valid(campus_adapter) and is_instance_valid(campus_adapter.registry):
 			campus_tick=0.0
 			var registry: Object=campus_adapter.registry

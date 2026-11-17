@@ -7,6 +7,11 @@ const Interface = preload("res://scripts/lab_ui.gd")
 const CableMesh = preload("res://scripts/cable_mesh.gd")
 var supply_flashlight: SpotLight3D
 var open_lab_tutorial
+var ac_laptops: Node3D
+var portable_laptops: Node3D
+var smartphones: Node3D
+var health: Node
+var lost_found_room: Node3D
 
 var cable_obstacles:Array[AABB]=[]
 var inspect_camera: Camera3D
@@ -18,11 +23,17 @@ var hotbar: CanvasLayer
 var electronics_trade: Node
 var kit_world: Node3D
 var discarded_items: Node3D
+var gym_weights: Node3D
+var gym_barbells: Node3D
+var carry_load: Node
 var lecture_classes: Node3D
+var faculty: Node3D
+var classroom_projectiles: Node3D
 var campus_services: Node
 var campus: Node3D
 var shop_room: Node3D
 var circuit_studio: Node
+var invention_world: Node3D
 var washroom_finish: Node
 var dorm_rest: Node
 var dorm_interactions: Node
@@ -58,10 +69,15 @@ var held_item_name: Label
 var drawer: Node3D
 var lab_challenges: Node
 var session: Node
+var host_openai: Node
+var browser_assistant: Node
 var ui: CanvasLayer
 var snapshot := {}
 var avatars := {}
 var avatar_targets := {}
+var text_chat: Node
+var voice_chat: Node
+var assessment_focus_guard: Node
 var avatar_last_movement := {}
 var physical_readouts := {}
 var meter_targets := {}
@@ -115,6 +131,13 @@ func _ready() -> void:
 	session.restarted.connect(func():chair_packet_revisions.clear();standing_pending=false;standing_chair_index=-1)
 	session.campus_enabled=true
 	add_child(session)
+	host_openai=preload("res://scripts/campus/ai/host_openai_client.gd").new()
+	host_openai.name="HostOpenAI"
+	add_child(host_openai)
+	browser_assistant=preload("res://scripts/campus/ai/browser_assistant_service.gd").new()
+	browser_assistant.name="BrowserAssistant"
+	add_child(browser_assistant)
+	browser_assistant.build(self)
 	characters=preload("res://scripts/character_library.gd").new()
 	add_child(characters)
 	ui = Interface.new()
@@ -133,16 +156,28 @@ func _ready() -> void:
 	_character_selected()
 	held_hint=Label.new()
 	held_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	held_hint.position=Vector2(-220,-126)
-	held_hint.size=Vector2(440,24)
+	held_hint.position=Vector2(-300,-177)
+	held_hint.size=Vector2(600,24)
 	held_hint.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	var hint_font:=SystemFont.new();hint_font.font_names=PackedStringArray(["Segoe UI","Arial"]);hint_font.font_weight=600
+	held_hint.add_theme_font_override("font",hint_font)
 	held_hint.add_theme_font_size_override("font_size",14)
+	held_hint.add_theme_color_override("font_outline_color",Color(0.02,0.07,0.10,.95))
+	held_hint.add_theme_constant_override("outline_size",3)
+	held_hint.hide()
+	held_hint.add_theme_color_override("font_color",Color("c2d9da"))
 	ui.add_child(held_hint)
 	held_item_name=Label.new()
 	held_item_name.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	held_item_name.position=Vector2(-250,-150)
+	held_item_name.position=Vector2(-250,-146)
 	held_item_name.size=Vector2(500,24)
 	held_item_name.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	held_item_name.add_theme_font_override("font",hint_font)
+	held_item_name.add_theme_font_size_override("font_size",17)
+	held_item_name.add_theme_color_override("font_outline_color",Color(0.02,0.07,0.10,.95))
+	held_item_name.add_theme_constant_override("outline_size",3)
+	held_item_name.hide()
+	held_item_name.add_theme_color_override("font_color",Color("a8f0d7"))
 	ui.add_child(held_item_name)
 	session.changed.connect(_receive_state)
 	session.ac_readings_changed.connect(_receive_ac_readings)
@@ -223,18 +258,62 @@ func _ready() -> void:
 	dc_lab.build(self)
 	electronics=preload("res://scripts/electronics_ui.gd").new();add_child(electronics);electronics.build(self)
 	hotbar=preload("res://scripts/carry_hotbar.gd").new();add_child(hotbar);hotbar.build(self)
+	ac_laptops=preload("res://scripts/campus/ac_laptops/service.gd").new()
+	ac_laptops.name="ACLaptops";add_child(ac_laptops);ac_laptops.build(self)
+	portable_laptops=preload("res://scripts/campus/computers/portable_world.gd").new()
+	portable_laptops.name="PortableLaptops";add_child(portable_laptops);portable_laptops.build(self)
+	smartphones=preload("res://scripts/campus/phones/phone_service.gd").new()
+	smartphones.name="Smartphones";add_child(smartphones);smartphones.build(self)
+	health=preload("res://scripts/campus/health/service.gd").new()
+	health.name="Health";add_child(health);health.build(self)
 	shop_room=preload("res://scripts/shop_room.gd").new();add_child(shop_room);shop_room.build_campus(self,campus)
+	circuit_studio=preload("res://scripts/campus/facilities/circuit_studio/mount_controller.gd").new()
+	circuit_studio.name="CircuitStudio"
+	add_child(circuit_studio)
+	circuit_studio.install(self,campus)
 	kit_world=preload("res://scripts/kit_world.gd").new();add_child(kit_world);kit_world.build(self)
 	electronics_trade=preload("res://scripts/electronics_trade.gd").new();add_child(electronics_trade);electronics_trade.build(self)
+	invention_world=preload("res://scripts/campus/facilities/circuit_studio/invention_world.gd").new()
+	invention_world.name="InventionWorld";add_child(invention_world);invention_world.build(self)
 	dorm_interactions=preload("res://scripts/campus/dorms/integration/coordinator.gd").new()
 	dorm_interactions.name="Dorms";add_child(dorm_interactions);dorm_interactions.build(self)
 	discarded_items=preload("res://scripts/ui/personal_inventory/discard_world.gd").new()
 	discarded_items.name="DiscardedItems";add_child(discarded_items);discarded_items.build(self)
 	lecture_classes=preload("res://scripts/campus/academics/class_start/room_classes.gd").new()
 	lecture_classes.name="LectureClasses";add_child(lecture_classes);lecture_classes.build(self)
+	faculty=preload("res://scripts/campus/academics/faculty.gd").new()
+	faculty.name="Faculty";add_child(faculty);faculty.build(self)
+	classroom_projectiles=preload("res://scripts/campus/academics/classroom_projectiles.gd").new()
+	classroom_projectiles.name="ClassroomProjectiles";add_child(classroom_projectiles);classroom_projectiles.build(self)
 	preload("res://scripts/room_finish.gd").build(self)
 	campus_services=preload("res://scripts/campus_integration.gd").new()
 	campus_services.name="CampusServices";add_child(campus_services);campus_services.build(self)
+	gym_weights=preload("res://scripts/campus/facilities/gym_weights.gd").new()
+	gym_weights.name="GymWeights";add_child(gym_weights);gym_weights.build(self)
+	gym_barbells=preload("res://scripts/campus/facilities/gym_barbells.gd").new()
+	gym_barbells.name="GymBarbells";add_child(gym_barbells);gym_barbells.build(self)
+	campus_services.facilities.controller.host.barbell_mass=func(station):return gym_barbells.mass(station)
+	campus_services.facilities.controller.host.held_barbell_mass=func(peer):return gym_barbells.held_mass(peer)
+	campus_services.facilities.controller.host.worn_belt_mass=func(peer):return gym_barbells.worn_belt_mass(peer)
+	campus_services.facility_panel.barbell_mass=func(station):return gym_barbells.held_mass(multiplayer.get_unique_id()) if station=="held" else gym_barbells.mass(station)
+	campus_services.facility_panel.capture_game=func():release_mouse()
+	campus_services.facility_panel.cable_resistance=func(station):return campus_services.cable_resistance(str(station))
+	campus_services.facility_panel.placement_key_name=func():return OS.get_keycode_string(player.keys.place_item)
+	carry_load=preload("res://scripts/campus/facilities/carry_load_service.gd").new();carry_load.name="CarryLoad";add_child(carry_load);carry_load.game=self
+	campus_services.facilities.controller.host.player_body_mass=func(peer):return preload("res://scripts/campus/facilities/gym_progress.gd").body_mass(carry_load.profile_for(peer))
+	session.carry_speed_guard=func(peer):return carry_load.multiplier(peer)
+	campus_services.facilities.controller.host.dumbbell_mass=func(peer):return gym_weights.held_mass(peer)
+	campus_services.facility_panel.dumbbell_mass=func():return gym_weights.held_mass(multiplayer.get_unique_id())
+	var interior_shadows=preload("res://scripts/campus/presentation/lighting/interior_shadows.gd").new()
+	interior_shadows.name="InteriorShadowBudget";add_child(interior_shadows);interior_shadows.build(self)
+	lost_found_room=preload("res://scripts/campus/lost_found/room.gd").new()
+	lost_found_room.name="LostAndFound";add_child(lost_found_room);lost_found_room.build(self)
+	text_chat=preload("res://scripts/campus/chat/chat.gd").new()
+	text_chat.name="TextChat";add_child(text_chat);text_chat.build(self)
+	voice_chat=preload("res://scripts/campus/voice/voice_chat.gd").new()
+	voice_chat.name="VoiceChat";add_child(voice_chat);voice_chat.build(self)
+	assessment_focus_guard=preload("res://scripts/campus/academics/attention/focus_guard.gd").new()
+	assessment_focus_guard.name="AssessmentFocusGuard";add_child(assessment_focus_guard);assessment_focus_guard.build(self)
 	# Bridge uses School.formal_active(); challenge setup requires EMPTY PE demo profile and no external links.
 	# Only trusted host controls may end a PE demonstration while de-energized; no arbitrary profile RPC.
 	lab_challenges=preload("res://scripts/lab_challenges/bridge.gd").new()
@@ -263,6 +342,7 @@ func _build_player() -> void:
 	player.name = "FirstPersonPlayer"
 	add_child(player)
 	player.position = Vector3(13,0,-18)
+	player.cable_motion_guard=_limit_cable_motion
 	camera = player.eyes
 	cables_root = Node3D.new()
 	add_child(cables_root)
@@ -363,6 +443,8 @@ func capture() -> void:
 	player.enabled = true
 
 func release_mouse() -> void:
+	if is_instance_valid(held_hint):held_hint.hide()
+	if is_instance_valid(held_item_name):held_item_name.hide()
 	_set_highlighted_target(null)
 	if is_instance_valid(dc_lab):dc_lab.release_physical_io()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -405,6 +487,10 @@ func open_carried_calculator(model := "") -> void:
 	window.popup_centered(calculator_size)
 
 func _input(event: InputEvent) -> void:
+	if is_instance_valid(smartphones) and smartphones.route(event):return
+	if is_instance_valid(text_chat):
+		if text_chat.route_event(event):get_viewport().set_input_as_handled();return
+		if text_chat.typing:return
 	if is_instance_valid(front) and front.page == "settings" and is_instance_valid(front.menu_page) and front.menu_page.handle_binding(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -421,6 +507,7 @@ func _input(event: InputEvent) -> void:
 			open_carried_calculator()
 			get_viewport().set_input_as_handled()
 			return
+	if is_instance_valid(campus_services) and is_instance_valid(campus_services.facility_panel) and campus_services.facility_panel.handle_workout_input(event):get_viewport().set_input_as_handled();return
 	if is_instance_valid(campus_services) and campus_services.route_event(event):get_viewport().set_input_as_handled();return
 	if is_instance_valid(dc_lab) and dc_lab.route_io_event(event):
 		get_viewport().set_input_as_handled();return
@@ -438,13 +525,16 @@ func _input(event: InputEvent) -> void:
 		electronics.close()
 		get_viewport().set_input_as_handled()
 		return
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_F and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED:
-		if school.papers.get(school.held(multiplayer.get_unique_id()),{}).get("supply_id","")=="flashlight":
-			_toggle_supply_flashlight()
-			return
-		toggle_inspection();return
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE or event.physical_keycode == KEY_ESCAPE):
 		get_viewport().set_input_as_handled()
+		if is_instance_valid(ac_laptops) and is_instance_valid(ac_laptops.panel) and ac_laptops.panel.visible:
+			ac_laptops._close_view(true)
+			return
+		if is_instance_valid(gym_weights) and is_instance_valid(gym_weights.panel) and gym_weights.panel.visible:
+			gym_weights._close();return
+		if is_instance_valid(gym_barbells) and gym_barbells.panel.visible:
+			gym_barbells._close();return
+		if is_instance_valid(faculty) and faculty.close_conversation():return
 		if is_instance_valid(lecture_classes) and lecture_classes.close_picker():return
 		if player.inspecting:end_inspection();return
 		if is_instance_valid(dorm_interactions) and dorm_interactions.close_storage():
@@ -462,7 +552,22 @@ func _input(event: InputEvent) -> void:
 			return
 		front.escape()
 		return
+	var incapacitated: bool=is_instance_valid(health) and health.locked(multiplayer.get_unique_id())
+	if incapacitated:return
 	if event is InputEventKey and event.pressed and not event.echo and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED:
+		if event.physical_keycode==player.keys.throw_paper and front.in_game and player.enabled and not player.inspecting:
+			classroom_projectiles.request_throw()
+			get_viewport().set_input_as_handled()
+			return
+		var placement_action: String=preload("res://scripts/campus/items/placement_input.gd").action(event,player.keys,true,front.in_game,player.enabled,player.inspecting,false)
+		if placement_action=="inspect":
+			get_viewport().set_input_as_handled()
+			toggle_inspection()
+			return
+		if placement_action=="place":
+			get_viewport().set_input_as_handled()
+			_place_held_item()
+			return
 		if is_instance_valid(player.seated) and event.physical_keycode == player.keys.jump:
 			_stand_from_chair()
 			return
@@ -472,9 +577,6 @@ func _input(event: InputEvent) -> void:
 				return
 		if event.physical_keycode in [KEY_TAB,player.keys.inventory]:electronics.open("inventory");return
 		if event.physical_keycode == player.keys.kits:electronics.open("kits");return
-		if event.physical_keycode == player.keys.drop_lead:
-			_drop_held_item()
-			return
 
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
@@ -482,7 +584,7 @@ func _input(event: InputEvent) -> void:
 		if drag_knob != "":
 			drag_amount += (event.relative.x-event.relative.y)*0.0015
 			if absf(drag_amount) >= 0.008:
-				session.request({"op":drag_knob,"delta":drag_amount,"station":drag_station})
+				session.request({"op":drag_knob,"delta":drag_amount*40.0 if drag_knob=="frequency" else drag_amount,"station":drag_station})
 				drag_amount = 0
 		else:
 			if player.inspecting:
@@ -496,18 +598,30 @@ func _input(event: InputEvent) -> void:
 			drag_knob = ""
 			interaction_presentation.cancel_actor(multiplayer.get_unique_id())
 		elif event.pressed:
+			if event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT] and is_instance_valid(portable_laptops) and portable_laptops.interact(current_target,event.button_index==MOUSE_BUTTON_RIGHT):return
+			if event.button_index==MOUSE_BUTTON_LEFT and is_instance_valid(gym_barbells) and gym_barbells.click_bar_target(current_target):return
+			if event.button_index==MOUSE_BUTTON_RIGHT and is_instance_valid(gym_barbells) and not gym_barbells.held_bar(multiplayer.get_unique_id()).is_empty():
+				if campus.registry.locate(player.global_position)!="gym":ui.log_message("Use the barbell in the gym.");return
+				release_mouse();campus_services.facility_panel.open_for("gym/barbell","barbell");return
+			if event.button_index==MOUSE_BUTTON_RIGHT and is_instance_valid(gym_weights) and gym_weights.held_id(multiplayer.get_unique_id())>=0:
+				if campus.registry.locate(player.global_position)!="gym":ui.log_message("Use the dumbbells in the gym.");return
+				release_mouse();campus_services.facility_panel.open_for("gym/dumbbell","curl");return
+			if event.button_index==MOUSE_BUTTON_RIGHT and school.papers.get(school.held(multiplayer.get_unique_id()),{}).get("supply_id","")=="flashlight":
+				_toggle_supply_flashlight();get_viewport().set_input_as_handled();return
+			if event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT] and is_instance_valid(ac_laptops) and ac_laptops.interact(current_target,event.button_index==MOUSE_BUTTON_RIGHT):return
 			if event.button_index==MOUSE_BUTTON_RIGHT and is_instance_valid(current_target) and current_target.get_meta("role","")=="trash":
 				school_world.interact(current_target,true)
 				return
 			if event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT] and school_world.use_supply(event.button_index):return
 			if event.button_index == MOUSE_BUTTON_LEFT:
-				if _aims_at_control("variable") or _aims_at_control("dyn_load"):
-					drag_knob = "voltage" if _aims_at_control("variable") else "dyn_load"
+				if _aims_at_control("variable") or _aims_at_control("dyn_load") or _aims_at_control("frequency"):
+					drag_knob = "voltage" if _aims_at_control("variable") else ("frequency" if _aims_at_control("frequency") else "dyn_load")
 					drag_station=_active_station();drag_amount=0
 				else:
 					activate(false)
 			elif event.button_index == MOUSE_BUTTON_RIGHT:
-				if dc_lab.attach_held_lead_to_board(current_target):pass
+				if is_instance_valid(invention_world) and invention_world.interact(current_target,true):pass
+				elif dc_lab.attach_held_lead_to_board(current_target):pass
 				elif school_world.interact_held():pass
 				elif kit_world.interact(current_target,true):pass
 				elif dc_lab.interact(current_target,true):pass
@@ -518,6 +632,8 @@ func _input(event: InputEvent) -> void:
 					_request({"op":"voltage" if _aims_at_control("variable") else "dyn_load","delta":amount*.025})
 				elif _aims_at_control("supply_meter"):
 					_request({"op":"supply_meter","delta":amount})
+				elif _aims_at_control("frequency"):
+					_request({"op":"frequency","delta":amount})
 				elif dc_lab.scroll_instrument(current_target,amount<0,event.shift_pressed):pass
 				else:
 					camera.fov = clampf(camera.fov-amount*4,28,78)
@@ -556,30 +672,76 @@ func _input(event: InputEvent) -> void:
 				KEY_BRACKETLEFT,KEY_BRACKETRIGHT:
 					_request({"op":"frequency","delta":1 if event.keycode==KEY_BRACKETRIGHT else -1})
 
-func _drop_held_item() -> void:
+func _placement_surface() -> Dictionary:
+	var peer := multiplayer.get_unique_id()
+	var ray := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3.0,5)
+	var hit: Dictionary=get_world_3d().direct_space_state.intersect_ray(ray)
+	return preload("res://scripts/campus/items/placement_target.gd").choose(hit,player.global_position,func(point):return school.ground_drop_position(point,peer))
+
+func _place_held_item() -> void:
+	if is_instance_valid(ac_laptops) and ac_laptops._held("laptops")>=0 and is_instance_valid(current_target) and current_target.get_meta("role","")=="ac_laptop_cabinet":
+		ac_laptops.request("store_laptop")
+		return
+	var surface := _placement_surface()
+	var gym_point: Vector3=surface.position if not surface.is_empty() else player.global_position
+	if is_instance_valid(gym_barbells):
+		var belt: int=gym_barbells.held_belt(multiplayer.get_unique_id())
+		if belt>=0:gym_barbells.request_belt("drop",belt,gym_point);return
+		var plate: int=gym_barbells.held_plate(multiplayer.get_unique_id())
+		if plate>=0:gym_barbells.request_plate("drop",plate,"",0,gym_point);return
+		var bar: String=gym_barbells.held_bar(multiplayer.get_unique_id())
+		if not bar.is_empty():gym_barbells.request("drop_bar",bar,0.0,0,gym_point);return
+	if is_instance_valid(gym_weights):
+		var pair: int=gym_weights.held_id(multiplayer.get_unique_id())
+		if pair>=0:gym_weights.request("drop",pair,gym_point);return
+	if is_instance_valid(ac_laptops) and ac_laptops._held("laptops")>=0:
+		if not surface.is_empty():ac_laptops.place_held(surface.position+Vector3.UP*.04)
+		else:ui.log_message("No clear flat surface to place the laptop.")
+		return
+	if is_instance_valid(ac_laptops) and ac_laptops._held("cables")>=0:
+		if not surface.is_empty():ac_laptops.request("drop_cable",-1,surface.position)
+		else:ui.log_message("No clear ground to place the USB cable.")
+		return
 	var peer := multiplayer.get_unique_id()
 	var paper_id: int=school.held(peer)
 	var board: int=dc_lab.held_board()
 	var holding_kit: bool=kit_world.held()
 	var holding_food: bool=not hotbar.selected_food().is_empty()
 	var holding_lead: bool=school._holding_cable(peer)
-	if paper_id==0 and board<0 and not holding_kit and not holding_food and not holding_lead:return
-	var forward: Vector3=-player.global_basis.z
-	var ground: Variant=school.ground_drop_position(player.global_position+forward*1.0,peer)
-	if ground==null:
-		ui.log_message("Face a clear spot on the floor to drop the item.")
+	if paper_id==0 and board<0 and not holding_kit and not holding_food and not holding_lead:
+		if is_instance_valid(portable_laptops):portable_laptops.place_selected()
+		return
+	if paper_id!=0 and school.papers.get(paper_id,{}).get("supply_id","")=="whiteboard":
+		var wall_ray := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3.0,1)
+		var wall_hit: Dictionary=get_world_3d().direct_space_state.intersect_ray(wall_ray)
+		if not wall_hit.is_empty() and absf(wall_hit.normal.y)<.15:
+			school.request({"op":"place","id":paper_id,"position":wall_hit.position,"normal":wall_hit.normal})
+			return
+	if surface.is_empty():
+		ui.log_message("No clear flat surface to place the item.")
 	elif paper_id!=0:
-		school.request({"op":"drop","id":paper_id,"position":ground})
+		var paper: Dictionary=school.papers.get(paper_id,{})
+		if surface.table and paper.get("supply_id","")!="whiteboard":
+			var height := .028 if paper.get("supply_id","")=="pencil_case" else .015
+			school.request({"op":"place","id":paper_id,"position":surface.position+Vector3.UP*height})
+		else:school.request({"op":"drop","id":paper_id,"position":surface.position})
 	elif board>=0:
-		dc_lab.request(board,{"op":"place_board","position":ground,"ground":true})
+		dc_lab.request(board,{"op":"place_board","position":surface.position+(Vector3.UP*.03 if surface.table else Vector3.ZERO),"ground":not surface.table})
 	elif holding_kit:
-		kit_world.request({"op":"drop","position":ground})
+		kit_world.request({"op":"place" if surface.table else "drop","position":surface.position+(Vector3.UP*.015 if surface.table else Vector3.ZERO)})
 	elif holding_food:
-		campus_services.facility_panel.request_direct({"op":"place","order_id":hotbar.selected_food().id,"position":ground,"ground":true})
+		campus_services.facility_panel.request_direct({"op":"place","order_id":hotbar.selected_food().id,"position":surface.position,"ground":not surface.table})
 	else:
-		school.request({"op":"drop_floor_lead","position":ground})
+		var floor_point: Variant=surface.position if not surface.table else school.ground_drop_position(player.global_position,peer)
+		if floor_point is Vector3:school.request({"op":"drop_floor_lead","position":floor_point})
 
 func activate(from_interact_key := true) -> void:
+	if is_instance_valid(invention_world) and invention_world.interact(current_target,false):return
+	if is_instance_valid(portable_laptops) and portable_laptops.interact(current_target,false):return
+	if is_instance_valid(faculty) and faculty.interact(current_target):return
+	if is_instance_valid(gym_barbells) and gym_barbells.interact(current_target):return
+	if is_instance_valid(gym_weights) and gym_weights.interact(current_target):return
+	if is_instance_valid(ac_laptops) and ac_laptops.interact(current_target,false):return
 	if from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","")=="table":return
 	if is_instance_valid(dorm_rest) and player.resting:return
 	if not from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","") in ["dorm_room_prop","dorm_personal_station","dorm_decorate","dorm_door","shop_station"]:
@@ -629,8 +791,8 @@ func activate(from_interact_key := true) -> void:
 				_request({"op":"voltage","delta":.025})
 			elif _aims_at_control("dyn_load"):
 				_request({"op":"dyn_load"})
-			elif _aims_at_control("daq"):
-				paper_ui.daq_page()
+			elif _aims_at_control("frequency"):
+				_request({"op":"frequency","delta":1.0})
 			elif _aims_at_control("supply_meter") or _aims_at_control("igbt_damping"):
 				_request({"op":str(current_target.get_meta("id"))})
 			elif _aims_at_control("dyn_measure"):
@@ -672,7 +834,6 @@ func _set_highlighted_target(target: StaticBody3D) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(ui):
 		return
-	if player.enabled:_constrain_carried_lead()
 	ui.hud.visible = front.in_game and client_preferences.values.hud and telemetry and snapshot.get("mode","") != "Practical Exam" and not ui.menu.visible and not ui.sheet.visible
 	ui.objective.visible = ui.hud.visible
 	ui.log_label.visible = player.enabled and client_preferences.values.notifications
@@ -689,44 +850,57 @@ func _physics_process(delta: float) -> void:
 	held_hint.text = ""
 	if is_instance_valid(hotbar) and not hotbar.selected_food().is_empty():
 		var item: Dictionary=hotbar.selected_food()
-		var drink: bool=item.type in ["coffee","tea","water"]
-		held_hint.text = "Right click: %s  •  Left click tabletop: place" % ("sip" if drink else "take a bite")
+		var drink: bool=str(preload("res://scripts/campus/facilities/facility_host.gd").MENU.get(item.type,{}).get("kind",""))=="drink"
+		held_hint.text = "Right click: %s  •  %s: place" % ["sip" if drink else "take a bite",OS.get_keycode_string(player.keys.place_item)]
+	if is_instance_valid(gym_weights) and gym_weights.held_id(multiplayer.get_unique_id())>=0:
+		held_hint.text="Dumbbell pair · Right click: exercise · %s: place" % OS.get_keycode_string(player.keys.place_item)
+	if is_instance_valid(gym_barbells) and not gym_barbells.held_bar(multiplayer.get_unique_id()).is_empty():
+		held_hint.text="Barbell · Right click: exercise · %s: place" % OS.get_keycode_string(player.keys.place_item)
+	if is_instance_valid(gym_barbells) and gym_barbells.held_plate(multiplayer.get_unique_id())>=0:
+		held_hint.text="Weight plate · Click a bar sleeve or weight belt to attach · Click a rack to return · %s: place" % OS.get_keycode_string(player.keys.place_item)
+	if is_instance_valid(gym_barbells) and gym_barbells.held_belt(multiplayer.get_unique_id())>=0:
+		held_hint.text="Weight belt · In your inventory; drag it to an accessory slot to wear · %s: place" % OS.get_keycode_string(player.keys.place_item)
 	if is_instance_valid(player.seated):
 		var stand_key := OS.get_keycode_string(player.keys.jump)
 		held_hint.text = "%s: stand" % stand_key if player.seated.fixed_seat else "WASD: roll  •  Mouse: look ±90°  •  Ctrl + mouse: swivel  •  %s: stand" % stand_key
 	for cable in leads:
 		if cable.owner==multiplayer.get_unique_id():
-			held_hint.text="Click terminals to attach lead  •  %s: drop lead  •  Backspace: return cable" % OS.get_keycode_string(player.keys.drop_lead)
+			held_hint.text="Click terminals to attach lead  •  %s: place lead  •  Backspace: return cable" % OS.get_keycode_string(player.keys.place_item)
 	if is_instance_valid(dc_lab) and dc_lab.lead_color >= 0:
-		held_hint.text = "Click terminals to attach lead  •  %s: drop lead  •  Backspace: return cable" % OS.get_keycode_string(player.keys.drop_lead)
+		held_hint.text = "Click terminals to attach lead  •  %s: place lead  •  Backspace: return cable" % OS.get_keycode_string(player.keys.place_item)
 	if is_instance_valid(school) and school.held(multiplayer.get_unique_id())!=0:
 		var held_paper: Dictionary = school.papers.get(school.held(multiplayer.get_unique_id()),{})
 		if held_paper.get("notebook",false):
-			held_hint.text="Right click: open notebook • Left click tabletop: place"
+			held_hint.text="Right click: open notebook • %s: place" % OS.get_keycode_string(player.keys.place_item)
 		elif held_paper.get("calculator",false):
-			held_hint.text="Right click: use calculator • Left click tabletop: place"
+			held_hint.text="Right click: use calculator • %s: place on a flat surface" % OS.get_keycode_string(player.keys.place_item)
 		elif held_paper.get("supply_id","")=="lab_goggles":
-			held_hint.text="Right click: equip goggles • Left click tabletop: place"
+			held_hint.text="Right click: equip goggles • %s: place" % OS.get_keycode_string(player.keys.place_item)
 		elif held_paper.get("supply_id","")=="pencil_case":
-			held_hint.text="Left click tabletop: place"
+			held_hint.text="%s: place" % OS.get_keycode_string(player.keys.place_item)
 		elif held_paper.get("supply_id","")=="flashlight":
-			held_hint.text="F: toggle flashlight"
+			held_hint.text="Right click: toggle flashlight"
 		elif held_paper.get("supply_id","")=="marker":
 			held_hint.text="Left click: draw  ·  Right click: erase"
 		elif held_paper.get("supply_id","")=="whiteboard":
-			held_hint.text="Right click a wall: mount whiteboard"
+			held_hint.text="%s: mount on a wall or place on the floor" % OS.get_keycode_string(player.keys.place_item)
 		elif str(held_paper.get("supply_id","")).begins_with("bag:"):
-			held_hint.text="Right click: equip backpack • Left click ground: place"
+			held_hint.text="Right click: equip backpack • %s: place" % OS.get_keycode_string(player.keys.place_item)
 		else:
-			held_hint.text="Right click: read sheet • Left click tabletop: place"
+			held_hint.text="Right click: read sheet • %s: place" % OS.get_keycode_string(player.keys.place_item)
 	if player.resting:
 		held_hint.text="%s: get up" % OS.get_keycode_string(player.keys.jump)
+	elif is_instance_valid(ac_laptops) and ac_laptops._held("laptops")>=0:
+		held_hint.text="%s: place laptop on a flat surface" % OS.get_keycode_string(player.keys.place_item)
+	elif is_instance_valid(ac_laptops) and ac_laptops._held("cables")>=0:
+		held_hint.text="Click laptop USB, then DAQ Computer I/O  •  Return cable to cabinet"
 	elif school.held(multiplayer.get_unique_id())!=0 or kit_world.held() or dc_lab.held_board()>=0 or not hotbar.selected_food().is_empty():
-		var drop_hint := "%s: drop on floor" % OS.get_keycode_string(player.keys.drop_lead)
-		held_hint.text=drop_hint if held_hint.text.is_empty() else held_hint.text+"  •  "+drop_hint
+		var drop_hint := "%s: place on a flat surface" % OS.get_keycode_string(player.keys.place_item)
+		if held_hint.text.is_empty():held_hint.text=drop_hint
+		elif not "place" in held_hint.text.to_lower():held_hint.text+="  •  "+drop_hint
 	held_item_name.text=hotbar.held_title()
 	held_item_name.visible=front.in_game and player.enabled and not player.resting and not held_item_name.text.is_empty()
-	held_hint.visible=player.enabled and client_preferences.values.prompts
+	held_hint.visible=front.in_game and player.enabled and client_preferences.values.prompts and not held_hint.text.is_empty()
 	ui.prompt.text = ""
 	if current_target:
 		var role: String = current_target.get_meta("role","")
@@ -746,22 +920,39 @@ func _physics_process(delta: float) -> void:
 			if _target_state().get("powered",false) and _target_state().get("mode","")!="Free Laboratory":
 				hint = "Turn power off to change cables"
 			elif not held.is_empty() and (held.a == port or held.b == port):
-				hint = "Right click: unplug this end | G: put cable down"
+				hint = "Right click: unplug this end | %s: place cable" % OS.get_keycode_string(player.keys.place_item)
 			elif not held.is_empty() or dc_lab.lead_color>=0:
 				hint = "Click: " + ("stack plug here" if occupied else "attach cable here")
 			else:
 				hint = "Right click: unplug cable" if occupied else "Open the cable drawer first"
 		elif role=="kit":
 			hint="Click: return breadboard and close kit" if kit_world.can_return_held_board(current_target) else "Left click: pick up kit · Right click: open kit"
+		elif role=="faculty_teacher":
+			hint="%s - Talk to %s" % [key_name,str(current_target.get_meta("label","teacher"))]
 		elif role=="lecture_desk":
 			var room := str(current_target.get_meta("room",""))
-			hint="Class in progress" if lecture_classes.public_classes.has(room) else "Click: set up class"
+			if lecture_classes.public_classes.has(room):hint="Class in progress"
+			elif room in ["ac_lab","dc_lab"]:hint="Click: choose a lab course and lab week"
+			else:hint="Click: choose a course and lecture week"
 		elif role=="lecture_attendance":
 			hint="Click: sign attendance"
+		elif role=="gym_barbell_sleeve" and is_instance_valid(gym_barbells) and gym_barbells.trapped.has(str(current_target.get_meta("station",""))):
+			hint="%s - Help lift barbell" % key_name
+		elif role=="gym_barbell_sleeve":
+			hint="Click: attach held plate to this sleeve" if gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Barbell sleeve · click to load plates"
+		elif role=="gym_barbell_plate":hint="Click: remove %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
+		elif role=="gym_barbell_rack":hint="Click: pick up barbell · right-click held bar for exercises"
+		elif role=="gym_plate_rack_item":hint="Click: pick up %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
+		elif role=="gym_dumbbell_pair":hint="Click: pick up %.1f lb dumbbell pair" % float(gym_weights.items[int(current_target.get_meta("id",-1))].lb)
+		elif role=="gym_dumbbell_rack_slot":hint="Click: return held dumbbells here" if gym_weights.held_id(multiplayer.get_unique_id())>=0 else "Empty dumbbell rack slot"
+		elif role=="gym_belt_plate":hint="Click: remove plate from weight belt"
+		elif role=="gym_weight_belt":hint="Click: add held plate" if gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Click: take weight belt to inventory"
+		elif role in ["gym_dumbbell_rack","gym_dumbbell_floor","gym_barbell_sleeve","gym_barbell_floor","gym_plate_rack","gym_plate_floor","gym_weight_belt"]:
+			hint="%s - %s" % [key_name,str(current_target.get_meta("label","Dumbbells"))]
 		elif role=="discarded_item":
 			hint="Click: "+str(current_target.get_meta("label","Pick up item"))
 		elif role=="table" and kit_world.held():
-			hint="Left click: place kit"
+			hint="%s: place kit" % OS.get_keycode_string(player.keys.place_item)
 		elif role=="shop_station":
 			hint="%s - %s" % [key_name,str(current_target.get_meta("label","Shop counter"))]
 		elif role=="dc_board":
@@ -789,6 +980,8 @@ func _physics_process(delta: float) -> void:
 			hint=str(current_target.get_meta("label",current_target.get_meta("dc_port")))+" · Click: connect lead · Right click: disconnect"
 		elif role=="computer":
 			hint="%s - Classroom computer" % key_name
+		elif role=="public_computer_usb":
+			hint="%s - Connect or remove USB drive" % key_name
 		elif role=="teacher":
 			hint="Right click: talk to instructor"
 		elif role=="paper":
@@ -796,9 +989,9 @@ func _physics_process(delta: float) -> void:
 		elif role=="trash":
 			hint="Right click: recycle held sheet" if school_world.can_recycle_held_sheet() else "Paper recycling"
 		elif role=="table" and school.held(multiplayer.get_unique_id())!=0:
-			hint="Left click on tabletop: place held item"
+			hint="%s: place held item" % OS.get_keycode_string(player.keys.place_item)
 		elif role=="table":
-			hint="Left click on tabletop: place board" if dc_lab.held_board()>=0 else ""
+			hint="%s: place board" % OS.get_keycode_string(player.keys.place_item) if dc_lab.held_board()>=0 else ""
 		elif role=="chair":
 			hint="%s - Sit" % key_name
 		elif role=="display":
@@ -809,7 +1002,11 @@ func _physics_process(delta: float) -> void:
 			hint = "Click: take " + str(current_target.get_meta("label","cable")).to_lower()
 		elif _aims_at_control("variable"):
 			hint = "Drag / wheel: voltage • [ ] frequency"
-		if not str(current_target.get_meta("label","")).is_empty():
+		elif _aims_at_control("frequency"):
+			hint = "Drag / wheel: frequency"
+		var laptop_hint: String = ac_laptops.hint(current_target) if is_instance_valid(ac_laptops) else ""
+		if not laptop_hint.is_empty():hint=laptop_hint
+		if not str(current_target.get_meta("label","")).is_empty() or not laptop_hint.is_empty():
 			ui.prompt.text = hint
 		if assistance and telemetry and role=="socket":
 			var id: String = current_target.get_meta("id")
@@ -854,6 +1051,7 @@ func _receive_state(data: Dictionary) -> void:
 	interaction_presentation.set_local_peer(multiplayer.get_unique_id())
 	var previous_stations: Array=station_snapshots
 	var previous: Dictionary = snapshot
+	var previous_leads := leads.duplicate(true)
 	snapshot = data
 	drawer.sync(bool(data.get("drawer_open",false)))
 	station_snapshots=[data]+data.get("stations",[])
@@ -866,6 +1064,8 @@ func _receive_state(data: Dictionary) -> void:
 		for i in range(9):
 			var k := "%s_%d"%[kind,i]
 			var on: bool = toggles[kind][i]
+			if not previous.is_empty() and previous.get("switches", {}).has(kind) and previous.switches[kind][i] == on:
+				continue
 			create_tween().tween_property(switch_meshes[k].handle,"rotation:z",-.38 if on else .38,.12)
 			switch_meshes[k].indicator.material_override = _mat(Color("58ef88") if on else Color("56616e"),.2,on)
 	for i in range(3):
@@ -894,10 +1094,12 @@ func _receive_state(data: Dictionary) -> void:
 	for i in range(1,station_snapshots.size()):
 		if i<previous_stations.size() and station_snapshots[i].revision!=previous_stations[i].revision and player.position.distance_to(Vector3(_station_x(i),0,-2))<5:
 			sfx.play(str(station_snapshots[i].get("last_action","ui")))
-	_render_stations()
-	_render_wires()
+	_render_stations(previous_stations)
+	if previous.is_empty() or previous_leads != leads:
+		_render_wires()
 	_render_carried()
 	interaction_presentation.reconcile(data)
+	if is_instance_valid(ac_laptops):ac_laptops.update_indicators()
 	if readings.fault != "":
 		ui.log_message(str(readings.fault))
 		sfx.play("trip")
@@ -982,22 +1184,59 @@ func held_lead_connector(parent: Node3D, color: Color, point: Vector3) -> MeshIn
 	connector.rotation.x = PI * .5
 	return connector
 
-func _constrain_carried_lead() -> void:
+func _carried_cable_pairs() -> Array:
+	var pairs: Array=[]
 	var peer := multiplayer.get_unique_id()
+	if is_instance_valid(dc_lab):
+		var board_index: int=dc_lab.held_board(peer)
+		if board_index>=0:pairs.append_array(dc_lab.board_cable_pairs(board_index))
+		if dc_lab.lead_color>=0 and not dc_lab.picked_port.is_empty():
+			var index: int=dc_lab.picked_station
+			var anchor_ports: Dictionary={}
+			if index>=dc_lab.AC_OFFSET and index-dc_lab.AC_OFFSET in range(session.labs.size()):anchor_ports=session.labs[index-dc_lab.AC_OFFSET].positions
+			elif index in range(dc_lab.ports.size()):anchor_ports=dc_lab.ports[index]
+			if anchor_ports.has(dc_lab.picked_port):pairs.append([held_cable_position(),anchor_ports[dc_lab.picked_port]])
+	if is_instance_valid(ac_laptops):
+		var usb: int=ac_laptops._held("cables")
+		if usb>=0 and ac_laptops.state.cables[usb].where=="partial":
+			var attached_laptop: int=ac_laptops.state.cables[usb].laptop
+			if attached_laptop in range(ac_laptops.laptop_roots.size()):pairs.append([held_cable_position(),ac_laptops.laptop_roots[attached_laptop].global_position])
+		var laptop: int=ac_laptops._held("laptops")
+		var cable: int=ac_laptops._attached(laptop) if laptop>=0 else -1
+		if cable>=0 and ac_laptops.state.cables[cable].where=="connected":
+			var station: int=ac_laptops.state.cables[cable].station
+			if station in range(session.labs.size()):
+				var endpoints: Array=ac_laptops._cable_endpoints(ac_laptops.state.cables[cable])
+				if endpoints.size()==2:pairs.append(endpoints)
 	for cable in leads:
-		var a_connected: bool=cable.a!=""
-		var b_connected: bool=cable.b!=""
+		var a_connected: bool=cable.a!="";var b_connected: bool=cable.b!=""
 		if cable.owner!=peer or a_connected==b_connected:continue
-		var anchor := _stack_position(cable.a if a_connected else cable.b,cable.id,0 if a_connected else 1)
-		var offset := held_cable_position()-anchor
-		var excess := offset.length()-5.0
-		if excess<=0.0:continue
-		var correction := -offset.normalized()*excess
-		if is_instance_valid(player.seated):
-			player.seated.move_and_collide(correction)
-			player.global_position=player.seated.global_position
-		else:
-			player.move_and_collide(correction)
+		pairs.append([held_cable_position(),_stack_position(cable.a if a_connected else cable.b,cable.id,0 if a_connected else 1)])
+	return pairs
+
+# Clip the intended movement at each cable's hard spherical reach before moving.
+static func _clip_cable_motion(motion: Vector3,pairs: Array,reach := 5.0) -> Vector3:
+	var result:=motion
+	for pair in pairs:
+		var offset: Vector3=pair[0]-pair[1]
+		var projected:=offset+result
+		if projected.length_squared()<=reach*reach:continue
+		var a:=result.length_squared()
+		if a<.00000001:continue
+		var b:=2.0*offset.dot(result)
+		var c:=offset.length_squared()-reach*reach
+		if c>=0:
+			# A stale pose can start outside the sphere. Only allow a step that
+			# shortens the cable until the player can move back within reach.
+			if projected.length_squared()>=offset.length_squared():result=Vector3.ZERO
+			continue
+		var discriminant:=maxf(0.0,b*b-4.0*a*c)
+		var fraction:=clampf((-b+sqrt(discriminant))/(2.0*a),0.0,1.0)
+		result*=fraction
+	return result
+
+func _limit_cable_motion(motion: Vector3) -> Vector3:
+	return _clip_cable_motion(motion,_carried_cable_pairs())
 
 func _render_carried() -> void:
 	if not is_instance_valid(carried_root):
@@ -1198,8 +1437,11 @@ func _station_x(number: int) -> float:
 	return 0.0 if number==0 else (-6.0 if number==1 else 6.0)
 
 func _active_station() -> int:
-	if is_instance_valid(current_target) and (current_target.has_meta("station") or str(current_target.get_meta("role","")) in ["socket","switch","control","rack","drawer"]):
-		return int(current_target.get_meta("station",0))
+	if is_instance_valid(current_target):
+		if current_target.has_meta("station"):
+			var station: Variant=current_target.get_meta("station")
+			if station is int:return station
+		if str(current_target.get_meta("role","")) in ["socket","switch","control","rack","drawer"]:return 0
 	return 1 if player.position.x < -3 else (2 if player.position.x > 3 else 0)
 
 func _target_state() -> Dictionary:
@@ -1207,6 +1449,8 @@ func _target_state() -> Dictionary:
 	return station_snapshots[index] if index<station_snapshots.size() else snapshot
 
 func _request(action: Dictionary) -> void:
+	if is_instance_valid(ac_laptops) and (ac_laptops._held("laptops")>=0 or ac_laptops._held("cables")>=0) and action.get("op","") in ["pickup","grab","unplug"]:
+		ui.log_message("Put down the laptop or USB cable first.");return
 	if is_instance_valid(dc_lab) and dc_lab.held_board()>=0 and action.get("op","") in ["pickup","grab","unplug"]:ui.log_message("Place or stow your circuit board first.");return
 	if is_instance_valid(kit_world) and kit_world.held() and action.get("op","") in ["pickup","grab","unplug"]:ui.log_message("Place or stow your kit first.");return
 	if is_instance_valid(school) and school.held(multiplayer.get_unique_id())!=0 and str(action.get("op","")) in ["pickup","grab","unplug"]:
@@ -1253,7 +1497,7 @@ func _sync_station_meters(equipment: Node3D, data: Dictionary) -> void:
 		equipment.needle_bodies["WATT%d"%i].rotation.z=deg_to_rad(60-clampf(data.readings.wattmeters[i]/250,-.1,1)*120)
 	_sync_supply_controls(equipment,data)
 
-func _render_stations() -> void:
+func _render_stations(previous_stations: Array = []) -> void:
 	for n in range(stations.size()):
 		if n+1>=station_snapshots.size():
 			continue
@@ -1262,6 +1506,8 @@ func _render_stations() -> void:
 		stations[n].drawer.sync(data.drawer_open)
 		for kind in ["R","L","C"]:
 			for i in range(9):
+				if n+1 < previous_stations.size() and previous_stations[n+1].get("switches", {}).has(kind) and previous_stations[n+1].switches[kind][i] == data.switches[kind][i]:
+					continue
 				var item: Dictionary=equipment.switch_meshes["%s_%d"%[kind,i]]
 				item.handle.rotation.z=-.38 if data.switches[kind][i] else .38
 				item.indicator.material_override=_mat(Color("58ef88") if data.switches[kind][i] else Color("56616e"),.2,data.switches[kind][i])
@@ -1448,10 +1694,12 @@ func _set_avatar_model(peer: int,avatar: Node3D) -> void:
 
 func _sync_supply_controls(equipment: Node,data: Dictionary) -> void:
 	equipment.control_bodies.variable.rotation.z=deg_to_rad(135.-270.*float(data.level))
+	equipment.control_bodies.frequency.rotation.z=deg_to_rad(135.-270.*(float(data.frequency)-45.)/20.)
+	equipment.frequency_display.text="%.0f Hz" % float(data.frequency)
 	equipment.control_bodies.power.rotation.z=0 if data.powered else PI
 	equipment.control_bodies.dyn_load.rotation.z=deg_to_rad(135.-270.*float(data.dyn_load))
 	var selected: int=int(data.get("supply_meter",1))
-	equipment.control_bodies.supply_meter.rotation.z=deg_to_rad(135.-270.*selected/13.)
+	equipment.control_bodies.supply_meter.rotation.z=deg_to_rad(135.-270.*selected/float(preload("res://scripts/ac_auxiliary.gd").SUPPLY_SELECTOR_LABELS.size()-1))
 	equipment.control_bodies.igbt_damping.rotation.z=-.6 if data.get("igbt_damping",false) else .6
 	var legs: Array = data.readings.get("igbt", {}).get("legs", [0,0,0])
 	for i in equipment.igbt_indicators.size():
@@ -1460,7 +1708,7 @@ func _sync_supply_controls(equipment: Node,data: Dictionary) -> void:
 		indicator.albedo_color = Color("fd9660") if active else Color("5f342d")
 		indicator.emission_enabled = active
 		indicator.emission = Color("e9672b")
-	var pairs := [["",""],["P_A","P_N"],["P_B","P_N"],["P_C","P_N"],["P_A","P_B"],["P_B","P_C"],["P_C","P_A"],["PV_A","PV_N"],["PV_B","PV_N"],["PV_C","PV_N"],["PV_A","PV_B"]]
+	var pairs: Array = preload("res://scripts/ac_auxiliary.gd").SUPPLY_SELECTOR_PAIRS
 	var volts: Dictionary=data.readings.voltages
 	var value := 0.0
 	var suffix := "AC"
@@ -1495,7 +1743,7 @@ func toggle_inspection() -> void:
 		if (fov is int or fov is float) and is_finite(float(fov)):camera.fov=clampf(float(fov),28,78)
 		var offset:Variant=remembered.get("offset",Vector2.ZERO)
 		if offset is Vector2 and offset.is_finite():camera.rotation=inspect_rotation+Vector3(clampf(offset.x,-.5,.5),clampf(offset.y,-.7,.7),0)
-	ui.log_message("Inspection · mouse to aim · wheel to zoom · F or Esc to return")
+	ui.log_message("Inspection · mouse to aim · wheel to zoom · %s or Esc to return" % OS.get_keycode_string(player.keys.inspect))
 func end_inspection() -> void:
 	if player.inspecting and is_instance_valid(inspect_camera) and inspection_view_key!="":
 		inspection_views[inspection_view_key]={"fov":inspect_camera.fov,"offset":Vector2(inspect_camera.rotation.x-inspect_rotation.x,inspect_camera.rotation.y-inspect_rotation.y)}

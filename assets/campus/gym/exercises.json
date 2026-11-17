@@ -1,0 +1,284 @@
+{
+  "version": 1,
+  "exercises": {
+    "pushup": {
+      "capacity_kg": 42,
+      "bodyweight_load_kg": 28,
+      "muscles": {
+        "chest": 1,
+        "triceps": 0.55,
+        "front_deltoids": 0.35
+      }
+    },
+    "pullup": {
+      "capacity_kg": 48,
+      "bodyweight_load_kg": 42,
+      "muscles": {
+        "lats": 1,
+        "biceps": 0.55,
+        "forearms": 0.3
+      }
+    },
+    "benchpress": {
+      "capacity_kg": 55,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "chest": 1,
+        "triceps": 0.65,
+        "front_deltoids": 0.45
+      }
+    },
+    "squat": {
+      "capacity_kg": 70,
+      "bodyweight_load_kg": 32,
+      "muscles": {
+        "quadriceps": 1,
+        "glutes": 0.85,
+        "lower_back": 0.25
+      }
+    },
+    "curl": {
+      "capacity_kg": 24,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "biceps": 1,
+        "forearms": 0.35
+      }
+    },
+    "deadlift": {
+      "capacity_kg": 90,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "glutes": 1,
+        "hamstrings": 0.9,
+        "lower_back": 0.65,
+        "forearms": 0.35
+      }
+    },
+    "romanian_deadlift": {
+      "capacity_kg": 75,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "hamstrings": 1,
+        "glutes": 0.9,
+        "lower_back": 0.45
+      }
+    },
+    "front_raise": {
+      "capacity_kg": 20,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "front_deltoids": 1,
+        "upper_chest": 0.25
+      }
+    },
+    "upright_row": {
+      "capacity_kg": 32,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "side_deltoids": 1,
+        "trapezius": 0.7,
+        "biceps": 0.3
+      }
+    },
+    "overhead_extension": {
+      "capacity_kg": 25,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "triceps": 1,
+        "front_deltoids": 0.2
+      }
+    },
+    "bent_over_row": {
+      "capacity_kg": 50,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "lats": 1,
+        "upper_back": 0.9,
+        "biceps": 0.5,
+        "lower_back": 0.25
+      }
+    },
+    "shrug": {
+      "capacity_kg": 85,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "trapezius": 1,
+        "forearms": 0.35
+      }
+    },
+    "wrist_curl": {
+      "capacity_kg": 18,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "forearms": 1
+      }
+    },
+    "calf_raise": {
+      "capacity_kg": 80,
+      "bodyweight_load_kg": 35,
+      "muscles": {
+        "calves": 1
+      }
+    },
+    "lateral_raise": {
+      "capacity_kg": 13,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "side_deltoids": 1,
+        "trapezius": 0.2
+      }
+    },
+    "reverse_fly": {
+      "capacity_kg": 13,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "rear_deltoids": 1,
+        "upper_back": 0.55
+      }
+    },
+    "chest_fly": {
+      "capacity_kg": 30,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "chest": 1,
+        "front_deltoids": 0.3
+      }
+    },
+    "overhead_press": {
+      "capacity_kg": 38,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "front_deltoids": 1,
+        "side_deltoids": 0.6,
+        "triceps": 0.65
+      }
+    },
+    "good_morning": {
+      "capacity_kg": 55,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "hamstrings": 1,
+        "glutes": 0.8,
+        "lower_back": 0.65
+      }
+    },
+    "incline_press": {
+      "capacity_kg": 48,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "upper_chest": 1,
+        "front_deltoids": 0.7,
+        "triceps": 0.55
+      }
+    },
+    "chest_supported_row": {
+      "capacity_kg": 45,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "lats": 1,
+        "upper_back": 0.9,
+        "biceps": 0.5
+      }
+    },
+    "hanging_leg_raise": {
+      "capacity_kg": 40,
+      "bodyweight_load_kg": 24,
+      "muscles": {
+        "abdominals": 1,
+        "hip_flexors": 0.7,
+        "forearms": 0.2
+      }
+    },
+    "dip": {
+      "capacity_kg": 50,
+      "bodyweight_load_kg": 38,
+      "muscles": {
+        "triceps": 1,
+        "chest": 0.75,
+        "front_deltoids": 0.55
+      }
+    },
+    "cable_fly": {
+      "capacity_kg": 32,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "chest": 1,
+        "front_deltoids": 0.3
+      }
+    },
+    "cable_reverse_fly": {
+      "capacity_kg": 14,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "rear_deltoids": 1,
+        "upper_back": 0.55
+      }
+    },
+    "cable_press": {
+      "capacity_kg": 48,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "chest": 1,
+        "triceps": 0.6,
+        "front_deltoids": 0.45
+      }
+    },
+    "lat_pulldown": {
+      "capacity_kg": 45,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "lats": 1,
+        "biceps": 0.6,
+        "upper_back": 0.35
+      }
+    },
+    "cable_row": {
+      "capacity_kg": 45,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "lats": 1,
+        "upper_back": 0.9,
+        "biceps": 0.5
+      }
+    },
+    "tricep_pushdown": {
+      "capacity_kg": 27,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "triceps": 1
+      }
+    },
+    "cable_crunch": {
+      "capacity_kg": 42,
+      "bodyweight_load_kg": 0,
+      "muscles": {
+        "abdominals": 1
+      }
+    },
+    "crunch": {
+      "capacity_kg": 30,
+      "bodyweight_load_kg": 15,
+      "muscles": {
+        "abdominals": 1
+      }
+    },
+    "leg_raise": {
+      "capacity_kg": 34,
+      "bodyweight_load_kg": 20,
+      "muscles": {
+        "abdominals": 1,
+        "hip_flexors": 0.7
+      }
+    },
+    "pike_pushup": {
+      "capacity_kg": 35,
+      "bodyweight_load_kg": 25,
+      "muscles": {
+        "front_deltoids": 1,
+        "triceps": 0.65,
+        "upper_chest": 0.35
+      }
+    }
+  }
+}

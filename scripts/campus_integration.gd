@@ -27,7 +27,9 @@ func build(owner_game: Node) -> void:
 	game=owner_game
 	game.school.configure_campus(game.campus.registry,provider,preload("res://scripts/campus_equipment_adapter.gd").new(game))
 	game.session.academic_equipment_guard=func(peer,index,action):return (action.get("op")=="dyn_measure" and action.get("pressed",true)==false) or game.school.equipment_access(peer,index,"ELM253")
-	game.session.academic_equipment_observer=func(peer,index,action,before):game.school.equipment_adapter.observe_ac_action(peer,index,action,before)
+	game.session.academic_equipment_observer=func(peer,index,action,before):
+		game.school.equipment_adapter.observe_ac_action(peer,index,action,before)
+		if is_instance_valid(game.faculty):game.faculty.report_equipment_fault(peer,index,action,before)
 	game.school.activity_started.connect(_activity_spawn)
 	game.school_world.build_campus_furniture()
 	adapter.configure(game.school,game.campus.registry,provider)
@@ -43,8 +45,12 @@ func build(owner_game: Node) -> void:
 	facilities=preload("res://scripts/campus/facilities/facility_service.gd").new()
 	facilities.name="Facilities";add_child(facilities)
 	facilities.configure(game.campus.registry,game.electronics_trade.authority.ledger,_facility_context,_interested)
+	game.session.leaving.connect(facilities.controller.finish_session)
+	game.session.restarted.connect(facilities.controller.reset_presentation)
 	facilities.controller.host.table_surface=game.school._table_position
 	facilities.controller.host.floor_surface=game.school.ground_drop_position
+	facilities.controller.host.public_event.connect(func(_room: String, peer: int, event: Dictionary):
+		if event.get("activity","")=="consume":game.health.heal_from_food(peer))
 	facilities.install_movement_hooks(game.session,game.player)
 	elevator_service=preload("res://scripts/campus/elevator/elevator_service.gd").new()
 	elevator_service.name="ElevatorService";add_child(elevator_service)
@@ -61,7 +67,8 @@ func build(owner_game: Node) -> void:
 		facility_panel.direct.clear()
 		facility_panel.direct_in_flight=false
 		facility_panel.pending=false
-		facilities.controller.host.active.clear();facilities.controller.host.seats.clear()
+		facilities.controller.host.active.clear();facilities.controller.host.seats.clear();facilities.controller.host.spotters.clear()
+		facilities.controller.host.gym_recovery_clock.clear()
 		facilities.controller.host.last_request.clear();facilities.controller.room_states.clear()
 		facility_panel.state.clear()
 		for order in facilities.table_food.values():
@@ -76,6 +83,13 @@ func build(owner_game: Node) -> void:
 	for id in ["gym","tim_hortons","subway"]:facilities.mount_room(id,game.campus)
 	gym_motion=preload("res://scripts/campus/presentation/decor/m105/gym_equipment_motion.gd").new()
 	gym_motion.name="GymEquipmentMotion";game.campus.add_child(gym_motion)
+	gym_motion.grip_position=func(peer: int):
+		var activity: Node=facilities.visuals.get(peer)
+		if not is_instance_valid(activity) or not activity.arms.has("ArmL") or not activity.arms.has("ArmR"):return null
+		var joints=preload("res://scripts/campus/facilities/arm_bend.gd")
+		var left: Node3D=joints.hand_for(activity.arms.ArmL.node)
+		var right: Node3D=joints.hand_for(activity.arms.ArmR.node)
+		return (left.global_position+right.global_position)*.5 if is_instance_valid(left) and is_instance_valid(right) else null
 	facilities.controller.room_event.connect(gym_motion.on_room_event)
 	var gym_decor=preload("res://scripts/campus/presentation/decor/m105/m105_decor.gd").new()
 	game.campus.add_child(gym_decor)
@@ -100,6 +114,10 @@ func build(owner_game: Node) -> void:
 		game.computer_room_adapter.name="ComputerClassroomAdapter"
 		game.add_child(game.computer_room_adapter)
 		if not game.computer_room_adapter.build(game,m203_room):push_error("M203 station integration failed")
+		var commons=preload("res://scripts/campus/presentation/decor/computer_rooms/commons_room.gd").new()
+		commons.name="ComputerCommons";add_child(commons)
+		room_finish_results.computer_commons=commons.mount(game.campus,game.computer_room_adapter)
+		if not room_finish_results.computer_commons:push_error("Computer commons integration failed")
 	service_decor=preload("res://scripts/campus/presentation/decor/service_rooms/service_room_decor.gd").new()
 	add_child(service_decor)
 	room_finish_results.service={}
@@ -113,7 +131,7 @@ func build(owner_game: Node) -> void:
 			if service_decor.built.has(id) and is_instance_valid(service_decor.built[id]):service_decor.built[id].queue_free()
 	social_decor=preload("res://scripts/campus/presentation/decor/social_rooms/social_rooms.gd").new()
 	social_decor.name="SocialRoomDecor";game.campus.add_child(social_decor)
-	for id in ["cafeteria","tim_hortons","subway","library","study"]:
+	for id in ["cafeteria","tim_hortons","subway","library"]:
 		if not social_decor.build_room(id,game.campus.registry,game.campus):continue
 		if id in ["library","study"]:
 			var center: Vector3=game.campus.registry.vector(game.campus.registry.get_room(id).center)
@@ -121,10 +139,6 @@ func build(owner_game: Node) -> void:
 			study_finish.position=center;game.campus.add_child(study_finish)
 			if study_finish.build(id) and game.campus.register_content(id,study_finish):study_finishes[id]=study_finish
 			else:study_finish.queue_free()
-			var resources:=preload("res://scripts/campus/presentation/decor/social_rooms/study_resources.gd").new()
-			game.campus.add_child(resources)
-			if resources.install(game,adapter,id,center) and game.campus.register_content(id,resources):study_resources[id]=resources
-			else:resources.queue_free()
 		if id=="cafeteria":
 			var cafeteria_finish:=preload("res://scripts/campus/presentation/decor/social_rooms/m104_finish.gd").new()
 			cafeteria_finish.name="M104Finish"
@@ -144,13 +158,29 @@ func build(owner_game: Node) -> void:
 	if social_decor.roots.has("subway") and facilities.rooms.has("subway") and social_decor.replaced_visuals.has("subway"):
 		var subway_root: Node3D=social_decor.roots["subway"]
 		var subway_finish:=preload("res://scripts/campus/presentation/decor/social_rooms/m108_subway_finish.gd").new()
-		subway_finish.name="M108SubwayFinish";subway_finish.position=Vector3(26,0,47)
+		subway_finish.name="M108SubwayFinish";subway_finish.position=Vector3(26,0,47);subway_finish.rotation.y=PI
+		subway_root.rotation.y=PI
+		var furniture: Node3D=facilities.rooms.get("subway")
+		if is_instance_valid(furniture):
+			furniture.rotation.y=PI
+			for station in furniture.stations.values():
+				for key in ["position","seat_position"]:
+					if station.has(key): station[key]=Vector3(26,0,47)+Basis(Vector3.UP,PI)*(station[key]-Vector3(26,0,47))
+				if station.has("seat_yaw"):station.seat_yaw+=PI
+			facilities.controller.host.anchors.merge(furniture.stations,true)
+		for station in social_decor.seat_anchors.get("subway",{}).values():
+			for key in ["position","seat_position"]:
+				if station.has(key):station[key]=Vector3(26,0,47)+Basis(Vector3.UP,PI)*(station[key]-Vector3(26,0,47))
+			station.seat_yaw+=PI
 		subway_finish.build(facilities.controller.host.menu)
 		game.campus.add_child(subway_finish)
 		if game.campus.register_content("subway",subway_finish):
 			for visual in subway_root.get_children():
-				if not visual.name.begins_with("WindowInset"):visual.visible=false
+				if visual is GeometryInstance3D:visual.visible=false
 		else:subway_finish.queue_free()
+	var quiet_study=preload("res://scripts/campus/presentation/decor/social_rooms/quiet_study.gd").new()
+	quiet_study.name="QuietStudy";game.campus.add_child(quiet_study)
+	if quiet_study.build(game.campus):facilities.controller.host.anchors.merge(quiet_study.seat_anchors,true)
 	for id in social_decor.roots:
 		facilities.controller.host.anchors.merge(social_decor.seat_anchors.get(id, {}), true)
 	if social_decor.roots.has("cafeteria"):
@@ -228,8 +258,9 @@ func aimed_prompt() -> String:
 
 func _aimed_facility() -> Dictionary:
 	var target: Node = game.current_target
-	if not is_instance_valid(target) or not target.get_meta("role","") in ["facility_seat","restaurant_cashier","gym_equipment"]:
+	if not is_instance_valid(target) or not target.get_meta("role","") in ["facility_seat","restaurant_cashier","gym_equipment","gym_progress"]:
 		return {}
+	if target.get_meta("role","")=="gym_progress":return {"id":"gym/progress","kind":"gym_progress"}
 	var id := str(target.get_meta("station",""))
 	var point: Vector3 = game.player.global_position
 	var host: RefCounted = facilities.controller.host
@@ -241,9 +272,29 @@ func _aimed_order() -> bool:
 	var target: Node=game.current_target
 	return is_instance_valid(target) and target.get_meta("role","")=="facility_food" and target.get_meta("owner",-1)==multiplayer.get_unique_id()
 
+func _route_bench_equipment(event: InputEvent) -> bool:
+	if not (event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT):return false
+	var kind:=""
+	if is_instance_valid(game.gym_barbells) and not game.gym_barbells.held_bar(multiplayer.get_unique_id()).is_empty():kind="bench_barbell"
+	elif is_instance_valid(game.gym_weights) and game.gym_weights.held_id(multiplayer.get_unique_id())>=0:kind="bench_dumbbell"
+	if kind.is_empty():return false
+	var bench:=_aimed_facility()
+	if bench.get("kind","")!="benchpress":return false
+	game.release_mouse();facility_panel.open_for(bench.id,kind)
+	return true
+
 func route_event(event: InputEvent) -> bool:
 	if game==null:return false
+	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and is_instance_valid(game.current_target) and game.current_target.get_meta("role","")=="gym_cable_pin":
+		var station:=str(game.current_target.get_meta("station",""))
+		var weight:=int(game.current_target.get_meta("weight",5))
+		var machine:=_cable_machine(station)
+		if is_instance_valid(machine):
+			machine.set_resistance(weight)
+			game.ui.log_message("Cable resistance set to %d kg. Choose an exercise at the machine." % weight)
+			return true
 	if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED and not game.school.formal_active():
+		if _route_bench_equipment(event):return true
 		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.interact and _aimed_order():
 			if facility_panel.has_order_space.call():facility_panel.request_direct({"op":"pickup","order_id":str(game.current_target.get_meta("order_id","0"))})
 			else:game.ui.log_message("Free a hotbar slot first.")
@@ -289,13 +340,23 @@ func route_event(event: InputEvent) -> bool:
 					return true
 	return false
 
+func cable_resistance(station: String) -> int:
+	var machine:=_cable_machine(station)
+	return machine.selected_resistance() if is_instance_valid(machine) else 5
+
+func _cable_machine(station: String) -> Node:
+	if not is_instance_valid(facilities) or not facilities.rooms.has("gym"):return null
+	for machine in facilities.rooms.gym.gym_cables:
+		if is_instance_valid(machine) and str(machine.station_id)==station:return machine
+	return null
+
 func _install_clothing_store(layer: CanvasLayer) -> void:
 	clothing_room=preload("res://scripts/campus/facilities/clothing_store/room_builder.gd").new()
 	clothing_room.position=Vector3(2,5,49);clothing_room.rotation.y=PI/2
 	game.campus.add_child(clothing_room)
 	# The campus shell supplies floor/wall collision and the exact corridor doorway.
 	for child in clothing_room.get_children():
-		if str(child.name) in ["Floor","BackWall","LeftWall","RightWall","EntryHeader","EntryLeft","EntryRight"]:child.hide()
+		if str(child.name) in ["Floor","BackWall","LeftWall","RightWall","EntryHeader","EntryLeft","EntryRight","FeatureWall","BrandPanel","Lighthouse","LanternRoom"] or (child is Label3D and child.text.begins_with("M207")):child.hide()
 	game.campus.register_content("clothing_store",clothing_room)
 	clothing_panel=preload("res://scripts/campus/facilities/clothing_store/store_panel.gd").new()
 	layer.add_child(clothing_panel);clothing_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);clothing_panel.hide()
@@ -308,7 +369,9 @@ func _install_clothing_store(layer: CanvasLayer) -> void:
 		else:
 			var cosmetics = preload("res://scripts/avatar_cosmetics/core/coordinator.gd").new()
 			if not cosmetics.load_catalog():return
-			var result: Dictionary=cosmetics.authoritative_adapter(func():return true).commit_local(profile,request.intent)
+			var adapter=cosmetics.authoritative_adapter(func():return true)
+			adapter.extra_accessory_count=preload("res://scripts/campus/facilities/accessory_layout.gd").belt_count(game,multiplayer.get_unique_id())
+			var result: Dictionary=adapter.commit_local(profile,request.intent)
 			clothing_panel.accept_purchase(clothing_pending,result,profile.data);clothing_pending="")
 	game.electronics_trade.authority.operation_result.connect(func(op: String,result: Dictionary):
 		if op in ["cosmetic_purchase","avatar_cosmetic"] and clothing_pending!="":

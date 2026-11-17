@@ -1,6 +1,7 @@
 extends RefCounted
 ## Constructed only by the host. No client supplies snapshots, bindings or marks.
 const Solver = preload("res://scripts/electronics_solver.gd")
+const Digital = preload("res://scripts/campus/academics/digital_evidence.gd")
 var game: Node
 var observations := {}
 var verified_steps := {}
@@ -24,6 +25,8 @@ func restore_recovery(data: Dictionary) -> void:
 	retained_measurements=data.get("retained_measurements",{}).duplicate(true)
 
 func supports(assignment: Dictionary) -> Dictionary:
+	if assignment.get("course_id","")=="DGS266" and assignment.get("practical",{}).get("type","") in ["digital_truth_table","digital_interlock","digital_flipflop","digital_scope","digital_display","digital_binary","digital_simplify","digital_combination"]:
+		return {"ok":true,"error":""} if game!=null and is_instance_valid(game.dc_lab) else {"ok":false,"error":"Digital lab equipment is unavailable."}
 	if assignment.get("course_id","")!="ETY155":return {"ok":false,"error":"An authoritative AC experiment rubric adapter is required for this ELM253 practical. Lecture and legacy classes remain available."}
 	if assignment.get("reference_parts",[]).is_empty():return {"ok":false,"error":"The practical has no validated physical circuit specification."}
 	for capability in assignment.get("practical",{}).get("capabilities",[]):
@@ -34,6 +37,14 @@ func supports(assignment: Dictionary) -> Dictionary:
 	return {"ok":true,"error":""}
 
 func capture(peer: int,bench: int,assignment: Dictionary) -> Dictionary:
+	if assignment.get("course_id","")=="DGS266":
+		if game==null or not game.multiplayer.is_server() or not is_instance_valid(game.dc_lab) or bench<0 or bench>=game.dc_lab.benches.size():return {}
+		var station=game.dc_lab.benches[bench]
+		var is_scope: bool=assignment.get("practical",{}).get("type","")=="digital_scope"
+		if station.linked or (not is_scope and not station.board_simulating()):return {"digital_rows":{}}
+		var saved: Dictionary=observations.get(_key(peer,bench,assignment),{})
+		var signature := Digital.signature(station.board,station.wires)
+		return {"digital_rows":saved.get("rows",{}).duplicate(true) if saved.get("signature","")==signature else {}}
 	if game==null or not game.multiplayer.is_server() or assignment.get("course_id","")!="ETY155":return {}
 	if not is_instance_valid(game.dc_lab) or bench<0 or bench>=game.dc_lab.benches.size():return {}
 	var station=game.dc_lab.benches[bench]
@@ -116,6 +127,38 @@ func _match(expected: Array,actual: Array,roots: Dictionary,index: int,bindings:
 	return {}
 
 func record_measurement(peer: int,bench: int,assignment: Dictionary) -> bool:
+	if assignment.get("course_id","")=="DGS266":
+		if game==null or not game.multiplayer.is_server() or bench<0 or bench>=game.dc_lab.benches.size():return false
+		var station=game.dc_lab.benches[bench]
+		var practical_type := str(assignment.get("practical",{}).get("type",""))
+		if station.linked or (practical_type!="digital_scope" and not station.board_simulating()):return false
+		var samples: Array=[]
+		match practical_type:
+			"digital_flipflop":samples=Digital.flip_samples(station.board,station.result,station.firmware_states)
+			"digital_binary":samples=Digital.binary_samples(station.board,station.result)
+			"digital_simplify":samples=Digital.combinational_samples(station.board,station.wires,station.result,4)
+			"digital_combination":samples=Digital.combinational_samples(station.board,station.wires,station.result,5)
+			"digital_display":samples=Digital.display_samples(station.board,station.wires,station.result,station.firmware_states,station.netlist())
+			"digital_scope":
+				var sample := Digital.scope_sample(station)
+				if not sample.is_empty():samples=[sample]
+			_:samples=Digital.samples(station.board,station.result)
+		if practical_type=="digital_interlock":samples=samples.filter(func(sample):return sample.kind=="AND")
+		if samples.is_empty():return false
+		var key := _key(peer,bench,assignment)
+		var signature := Digital.signature(station.board,station.wires)
+		if observations.get(key,{}).get("signature","")!=signature:observations[key]={"signature":signature,"rows":{}}
+		for sample in samples:
+			if practical_type=="digital_flipflop":
+				var gate: Dictionary=observations[key].rows.get_or_add(sample.gate,{"required":2,"values":{},"previous":{}})
+				var previous: Dictionary=gate.previous
+				if not previous.is_empty() and not previous.clock and sample.clock and previous.data==sample.data:
+					gate.values[str(int(sample.data))]=(sample.output==sample.data and sample.state==sample.data)
+				gate.previous={"clock":sample.clock,"data":sample.data}
+			else:
+				var gate: Dictionary=observations[key].rows.get_or_add(sample.gate,{"required":sample.required,"values":{}})
+				gate.values[str(sample.row)]=sample.correct
+		return true
 	var evidence := capture(peer,bench,assignment)
 	if evidence.is_empty() or not evidence.get("topology",false):return false
 	var target := str(evidence.bindings.get(str(assignment.get("practical",{}).get("target","")),""))
@@ -151,6 +194,14 @@ func record_measurement(peer: int,bench: int,assignment: Dictionary) -> bool:
 	return true
 
 func grade(assignment: Dictionary,evidence: Dictionary,_student_procedure: Dictionary={}) -> Dictionary:
+	if assignment.get("course_id","")=="DGS266":
+		var best := 0.0
+		for gate in evidence.get("digital_rows",{}).values():
+			var correct := 0
+			for value in gate.get("values",{}).values():
+				if value:correct+=1
+			best=maxf(best,100.0*correct/maxi(1,int(gate.get("required",4))))
+		return {"score":best,"verified":true,"reason":"Host-recorded powered gate input and output levels across truth-table rows."}
 	if not evidence.get("topology",false):return {"score":0.0,"verified":false,"reason":"Required components and actual electrical connectivity were not found."}
 	var actual: Dictionary=evidence.result
 	var reference: Array=assignment.get("reference_parts",[]).duplicate(true)

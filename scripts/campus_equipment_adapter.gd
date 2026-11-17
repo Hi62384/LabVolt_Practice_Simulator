@@ -5,7 +5,7 @@ var ac_steps := {}
 var ac_retained := {}
 
 func supports(assignment: Dictionary) -> Dictionary:
-	if assignment.get("course_id","")=="ETY155":return super.supports(assignment)
+	if assignment.get("course_id","") in ["ETY155","DGS266"]:return super.supports(assignment)
 	if assignment.get("physical_ac_plan",{}).get("banks",[]).is_empty():return {"ok":false,"error":"This practical has no realizable AC bank plan."}
 	return {"ok":true,"error":""}
 
@@ -29,7 +29,7 @@ func _ac_roots(lab: RefCounted,instruments: bool) -> Dictionary:
 	return roots
 
 func capture(peer: int,bench: int,assignment: Dictionary) -> Dictionary:
-	if assignment.get("course_id","")=="ETY155":return super.capture(peer,bench,assignment)
+	if assignment.get("course_id","") in ["ETY155","DGS266"]:return super.capture(peer,bench,assignment)
 	if game==null or not game.multiplayer.is_server() or bench<0 or bench>=game.session.labs.size():return {}
 	var lab: RefCounted=game.session.labs[bench]
 	var plan: Dictionary=assignment.get("physical_ac_plan",{})
@@ -60,7 +60,7 @@ func capture(peer: int,bench: int,assignment: Dictionary) -> Dictionary:
 	return {"ac":true,"topology":topology,"readings":lab.readings.duplicate(true),"plan":plan,"observations":ac_observations.get(_key(peer,bench,assignment),{}).duplicate(true),"steps":ac_steps.get(_key(peer,bench,assignment),[]).duplicate()}
 
 func record_measurement(peer: int,bench: int,assignment: Dictionary) -> bool:
-	if assignment.get("course_id","")=="ETY155":return super.record_measurement(peer,bench,assignment)
+	if assignment.get("course_id","") in ["ETY155","DGS266"]:return super.record_measurement(peer,bench,assignment)
 	var evidence := capture(peer,bench,assignment)
 	if not evidence.get("topology",false):return false
 	var lab: RefCounted=game.session.labs[bench]
@@ -82,15 +82,22 @@ func record_measurement(peer: int,bench: int,assignment: Dictionary) -> bool:
 	return not ac_observations[key].is_empty()
 
 func observe_ac_action(peer: int,bench: int,action: Dictionary,before: Dictionary) -> void:
-	if not game.school.formal_active() or game.school.activity.get("course_id","")!="ELM253":return
-	var assignment: Dictionary=game.school.project;var key := _key(peer,bench,assignment)
+	var assignment: Dictionary={}
+	if game.school.formal_active() and game.school.activity.get("course_id","")=="ELM253":
+		assignment=game.school.project
+	elif is_instance_valid(game.lecture_classes):
+		var assigned: Dictionary=game.lecture_classes.assigned_lab(peer)
+		if assigned.get("course","")!="ELM253" or int(assigned.get("bench",-1))!=bench:return
+		assignment=game.school.papers.get(int(assigned.get("paper",0)),{}).get("project",{})
+	if assignment.is_empty():return
+	var key := _key(peer,bench,assignment)
 	if not ac_steps.has(key):ac_steps[key]=[]
 	var op := str(action.get("op",""))
 	if op in ["plug","unplug","switch"] and not before.get("powered",true) and not "power_off_before_wiring" in ac_steps[key]:ac_steps[key].append("power_off_before_wiring")
 	if before.get("powered",false) and not game.session.labs[bench].powered and ac_observations.get(key,{}).size()==2 and not "power_off_after_measurement" in ac_steps[key]:ac_steps[key].append("power_off_after_measurement")
 
 func grade(assignment: Dictionary,evidence: Dictionary,procedure: Dictionary={}) -> Dictionary:
-	if assignment.get("course_id","")=="ETY155":return super.grade(assignment,evidence,procedure)
+	if assignment.get("course_id","") in ["ETY155","DGS266"]:return super.grade(assignment,evidence,procedure)
 	if not evidence.get("topology",false):return {"score":0.0,"verified":false,"reason":"Build and power the specified physical AC network; then record its actual instruments."}
 	var expected: Dictionary=assignment.reference_ac.result
 	var operating := true

@@ -4,6 +4,7 @@ var front: AnimatableBody3D
 var bags: Array[StaticBody3D] = []
 var opened := false
 var motion: Tween
+static var coil_mesh: ArrayMesh
 
 func build(game: Node) -> void:
 	position=Vector3(0,.40,-2.72)
@@ -47,12 +48,17 @@ func build(game: Node) -> void:
 		material.roughness=.23
 		plastic.material_override=material
 		game._box(bag,Vector3(0,.047,-.29),Vector3(.52,.008,.015),Color("c4d4d5"))
-		for loop in range(3):
-			for segment in range(24):
-				var a := TAU*segment/24
-				var b := TAU*(segment+1)/24
-				var radius := .16+loop*.012
-				game._line(bag,Vector3(cos(a)*radius,.012+loop*.008,sin(a)*radius),Vector3(cos(b)*radius,.012+loop*.008,sin(b)*radius),.009,game.JACKET_COLORS[i])
+		if coil_mesh==null:
+			var surface:=SurfaceTool.new();surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+			for loop in range(3):
+				var points: Array[Vector3]=[]
+				for segment in 25:
+					var angle:=TAU*segment/24.0;var radius:=.16+loop*.012
+					points.append(Vector3(cos(angle)*radius,.012+loop*.008,sin(angle)*radius))
+				surface.append_from(preload("res://scripts/cable_mesh.gd").tube(points),0,Transform3D.IDENTITY)
+			coil_mesh=surface.commit()
+		var coil:=MeshInstance3D.new();coil.mesh=coil_mesh;coil.material_override=game._mat(game.JACKET_COLORS[i]);coil.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;bag.add_child(coil)
+		bag.visible=false
 		var collision := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size=Vector3(.56,.12,.66)
@@ -69,4 +75,5 @@ func sync(value: bool) -> void:
 	motion=create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
 	motion.tween_property(tray,"position:z",.85 if opened else 0.0,.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	for bag in bags:
+		bag.visible=opened
 		bag.collision_layer=1 if opened else 0

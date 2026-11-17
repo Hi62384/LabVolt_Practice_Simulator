@@ -3,7 +3,6 @@ extends Node
 const PROFILE := "user://relay-account.cfg"
 const LOGIN_CANCEL := "user://relay-account/cancel-login"
 const BUNDLE := "res://relay/relay-tools-4.158.0.zip"
-const DAILY_REQUESTS := 100000
 var identity := {}
 var busy := false
 
@@ -125,28 +124,7 @@ static func parse_invite(value: String, fallback: String) -> Dictionary:
 	return {"code": code, "endpoint": "wss://labvolt-relay.%s.workers.dev" % slug}
 
 static func dashboard(account_id: String) -> String:
+	var pattern := RegEx.create_from_string("^[0-9a-fA-F]{32}$")
+	if pattern.search(account_id) == null:
+		return "https://dash.cloudflare.com/"
 	return "https://dash.cloudflare.com/" + account_id + "/workers-and-pages"
-
-func record_usage(connections: int, messages: int) -> void:
-	if connections == 0 and messages == 0:
-		return
-	var meter := _load_meter()
-	var counts: Vector2i = meter.get_value(_meter_key(), "counts", Vector2i.ZERO)
-	meter.set_value(_meter_key(), "counts", counts + Vector2i(connections, messages))
-	meter.save("user://relay-usage.cfg")
-
-func estimated_remaining() -> int:
-	var counts: Vector2i = _load_meter().get_value(_meter_key(), "counts", Vector2i.ZERO)
-	return maxi(0, DAILY_REQUESTS - counts.x - ceili(counts.y / 20.0))
-
-func _meter_key() -> String:
-	return str(identity.get("account_id", ""))
-
-func _load_meter() -> ConfigFile:
-	var meter := ConfigFile.new()
-	meter.load("user://relay-usage.cfg")
-	var today := Time.get_date_string_from_system(true)
-	if meter.get_value("meter", "utc_date", "") != today:
-		meter.clear()
-		meter.set_value("meter", "utc_date", today)
-	return meter

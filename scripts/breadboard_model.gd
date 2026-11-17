@@ -15,6 +15,7 @@ static func catalog(board: Dictionary) -> Dictionary:
 	return entries
 static func pins(part: Dictionary) -> Array:return part.get("pins",[part.get("a",""),part.get("b","")])
 static func manual_input_type(type: String) -> String:
+	if type=="button_nc":return "button"
 	if type in ["button","toggle","pot10k","variable_cap","variable_inductor","photodiode","solar_panel"]:return type
 	if type in Sources.CONTROLS:return type
 	if type.begins_with("cv1:"):

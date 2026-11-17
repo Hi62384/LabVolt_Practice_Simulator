@@ -1,8 +1,8 @@
-# LabVolt Cooperative Laboratory
+# College Simulator
 
 For step-by-step AC/DC breadboard and custom-IC practice, see [Practice quick-start](docs/practice/QUICK_START.md). The [feature ledger](docs/practice/FEATURE_LEDGER.md) separates implemented behavior, existing verification and deadline deferrals.
 
-Run **Run.cmd** in this project folder. It uses the bundled Godot runtime; older exported executables do not include these changes. F11 or Alt+Enter toggles fullscreen.
+Run **Run.cmd** in this project folder. It prepares the matching Godot 4.5.1 .NET runtime, builds the C# circuit kernel, and starts the game; an initial run needs internet access for the .NET packages. Older exported executables do not include these changes. F11 or Alt+Enter toggles fullscreen.
 
 ## Start a session
 
@@ -64,7 +64,7 @@ Open **Electronics · Shop & Kits** for owned parts, kits, notebooks, breadboard
 
 The three DC stations have independent triple-channel supplies, four adjustable current sources, function generators, meters and oscilloscopes. Source outputs and scope traces come from the electrical solve. Each oscilloscope has independent channel settings, trigger controls, recording and cursors. Routed PCB traces and editable board outlines affect actual connectivity and manufacturing validation. AC/DC links include supplies, passive banks, instruments, DAQ and transformer coupling. Practical course work checks the real circuit and measurements at the assigned bench.
 
-Native Uno R3, classic ATmega328P Nano and Pico devices accept validated compiled machine-code images through the in-game Code page. Source drafts, upload, run/stop/reset/step, breakpoints and serial inspection are available. Execution is host-controlled and connected to actual circuit GPIO/ADC. SPI modes 0–3, 7-bit open-drain I2C and electrically serialized UART use the shared circuit timeline. LabVoltScript remains a separate educational backend. The source compiler frontend and isolated Windows broker are installed, but source compilation stays disabled until the local compiler passes all trusted boundary and runtime checks. Editing/saving source and importing images remain available; there is no unrestricted compiler fallback.
+Native Uno R3, classic ATmega328P Nano and Pico devices accept validated compiled machine-code images through the in-game Code page. Source drafts, upload, run/stop/reset/step, breakpoints and serial inspection are available. Execution is host-controlled and connected to actual circuit GPIO/ADC. SPI modes 0–3, 7-bit open-drain I2C and electrically serialized UART use the shared circuit timeline. LabVoltScript remains a separate educational backend. Windows x64 releases bundle checksum-pinned AVR-GCC 16.1.0, Arduino AVR core 1.8.6, and xPack Arm GCC 15.2.1. The first source compile prepares those files locally and runs file, network, timeout, output, descendant, memory and Uno/Nano/Pico build checks before enabling source compilation. Players need no separate compiler download or hardware. Editing/saving source and importing images remain available if local acceptance fails; there is no unrestricted compiler fallback.
 
 ## Scope and model limits
 
@@ -76,4 +76,4 @@ Course sources guide topics, difficulty and diagram conventions. Assessed calcul
 
 ## Validation
 
-Run `python tests/run_tests.py --godot "path/to/Godot_console.exe" --visual` for electrical, gameplay, UI, school, instrument, and multiplayer regression checks. `tests/school_network.gd` is an additional two-process reconnect/grade test (`host` and `client` roles, port 24919). Tests use accelerated Class time rather than waiting 36 minutes.
+Run `python tests/run_tests.py --godot "runtime/Godot_v4.5.1-stable_mono_win64/Godot_v4.5.1-stable_mono_win64_console.exe" --visual` for electrical, gameplay, UI, school, instrument, and multiplayer regression checks. `tests/school_network.gd` is an additional two-process reconnect/grade test (`host` and `client` roles, port 24919). Tests use accelerated Class time rather than waiting 36 minutes.

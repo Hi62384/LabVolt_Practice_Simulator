@@ -43,7 +43,7 @@ func build(profile: RefCounted,draft: Dictionary) -> void:
 	var exposed_start := get_child_count()
 	note("Expose individual IC surface devices. A PCB always displays every installed component. Edit the circuit layout in the designer.")
 	for part in design.parts:
-		if part.type not in ["button","toggle","pot10k","led","led_green","led_blue","led_yellow","seven_segment","spi_display","lv_mcu","buzzer","speaker"] and not str(part.type).begins_with("ic:") and not str(part.type).begins_with("io_"):continue
+		if part.type not in ["button","button_nc","toggle","pot10k","led","led_green","led_blue","led_yellow","seven_segment","seven_segment_ca","spi_display","lv_mcu","buzzer","speaker"] and not str(part.type).begins_with("ic:") and not str(part.type).begins_with("io_"):continue
 		var toggle := CheckButton.new();toggle.text="Expose "+str(part.id)+" · "+str(profile.catalog().get(part.type,{}).get("name",part.type));toggle.button_pressed=str(part.id) in exposed;add_child(toggle)
 		toggle.disabled=kind.text=="PCB"
 		kind.item_selected.connect(func(_i):toggle.disabled=kind.text=="PCB")

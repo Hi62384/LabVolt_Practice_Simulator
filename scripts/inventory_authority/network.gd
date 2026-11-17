@@ -112,6 +112,18 @@ func challenge(host_id: String) -> void:
 	if host_id.length()>96 or bound:return
 	var p=game.electronics.profile
 	if not p.data.get("pending_trade",{}).is_empty():return # Legacy journal recovery runs first.
+	for pending in p.data.get("laptop_purchase_pending",{}).values():
+		if pending.get("host","")!=host_id:
+			game.ui.log_message("A laptop purchase is awaiting confirmation. Reconnect to the game where it began.")
+			return
+	for pending in p.data.get("usb_write_pending",{}).values():
+		if pending.get("host","")!=host_id:
+			game.ui.log_message("A USB write is awaiting confirmation. Reconnect to the game where it began.")
+			return
+	for pending in p.data.get("phone_purchase_pending",{}).values():
+		if pending.get("host","")!=host_id:
+			game.ui.log_message("A phone purchase is awaiting confirmation. Reconnect to the game where it began.")
+			return
 	var credentials: Dictionary=p.data.get("authority_credentials",{}).duplicate(true)
 	if not credentials.has(host_id):
 		credentials[host_id]=Crypto.new().generate_random_bytes(32).hex_encode()
@@ -148,16 +160,26 @@ func execute(peer: int,action: Dictionary) -> void:
 	else:
 		ledger.creative = game.school.mode == "Creative Freeplay"
 		var live_boards := {}
-		if action.get("op") == "ic_upgrade":
+		if action.get("op") in ["ic_upgrade","kit_quantity","delete_kit"]:
 			for slot in game.dc_lab.benches.size():
 				if game.dc_lab.benches[slot].board_owner==peer:live_boards[slot]=game.dc_lab.benches[slot].board
 		var position: Vector3 = game.player.global_position if peer == 1 else game.session.poses.get(peer, {}).get("position", Vector3.ZERO)
-		if action.get("op") == "sell_component" and not game.shop_room.near_component_counter(position):
+		if action.get("op") == "create_kit" and not game.shop_room.near_components_store(position):
+			result = ledger.failure("Visit the Electronics Store to buy a kit")
+		elif action.get("op") in ["duplicate_kit","delete_kit"] and not game.shop_room.near_kit_builder(position):
+			result = ledger.failure("Visit the Components Counter to edit a kit")
+		elif action.get("op") == "sell_component" and not game.shop_room.near_component_counter(position):
 			result = ledger.failure("Visit the Component Counter to sell")
+		elif action.get("op") == "kit_quantity" and not game.shop_room.near_kit_builder(position):
+			result = ledger.failure("Visit the Components Counter to edit kit components")
 		elif action.get("op") == "remove_kit_board_components" and not game.shop_room.near_kit_builder(position):
 			result = ledger.failure("Visit the Components Counter to remove breadboard components.")
 		elif action.get("op") == "dorm" and action.args.size() == 1 and action.args[0] is Dictionary and game.kit_world.blocks_dorm_transfer(peer, action.args[0]):
 			result = ledger.failure("Pick up and stow the kit before transferring it")
+		elif action.get("op") == "dorm" and action.args.size() == 1 and action.args[0] is Dictionary and game.portable_laptops.blocks_dorm_transfer(peer,action.args[0]):
+			result = ledger.failure("Pick up the laptop before storing it")
+		elif not _accessory_change_allowed(peer,action):
+			result = ledger.failure("Remove an accessory to free a slot")
 		else:
 			result=ledger.transact(peer,id,str(action.get("op","")),action.args,{},live_boards)
 		for slot in result.get("upgraded_boards",{}):
@@ -165,6 +187,25 @@ func execute(peer: int,action: Dictionary) -> void:
 		result.erase("upgraded_boards")
 	result.request_id=id
 	send_snapshot(peer,result)
+
+func _accessory_change_allowed(peer: int,action: Dictionary) -> bool:
+	var layout=preload("res://scripts/campus/facilities/accessory_layout.gd")
+	if layout.belt_count(game,peer)==0:return true
+	if action.get("op","") not in ["dorm","avatar_cosmetic","cosmetic_purchase"] or action.args.size()!=1 or not action.args[0] is Dictionary:return true
+	var account: Dictionary=ledger.account(peer)
+	var profile: Dictionary=account.get("profile",{})
+	if profile.is_empty():return true
+	var preview: Dictionary
+	if action.op=="dorm":
+		preview=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd").apply_intent(profile,str(ledger.bindings.get(peer,"")),action.args[0],account.get("deployment",{}))
+	else:
+		var coordinator=preload("res://scripts/avatar_cosmetics/core/coordinator.gd").new()
+		if not coordinator.load_catalog():return true
+		var adapter=coordinator.authoritative_adapter(func():return true)
+		adapter.extra_accessory_count=1
+		preview=adapter.apply_authoritative(profile,action.args[0])
+	if not preview.get("ok",false):return preview.get("error","")!="Remove an accessory to free a slot"
+	return layout.permits_change(profile,preview.profile,1)
 func send_snapshot(peer: int,result: Dictionary) -> void:
 	if peer==1:receive_snapshot(result)
 	elif game.session.roster.has(peer):receive_snapshot.rpc_id(peer,result)
@@ -215,11 +256,36 @@ func receive_snapshot(result: Dictionary) -> void:
 			game.ui.log_message("Host inventory restored. Previous local progress retained at "+game.electronics.profile.reconciliation_backup)
 			game.electronics.profile.reconciliation_backup=""
 		bound=true
+		if not game.electronics.profile.data.get("usb_received_pending",{}).is_empty() or not game.electronics.profile.data.get("usb_handoff_pending",{}).is_empty() or not game.electronics.profile.data.get("usb_purchase_pending",{}).is_empty():
+			game.ui.log_message("A USB transaction is awaiting confirmation. Reconnect to the game where it began to recover it.")
+		if not game.electronics.profile.data.get("laptop_purchase_pending",{}).is_empty():game.ui.log_message("A laptop purchase is awaiting confirmation. Reconnect to the game where it began.")
+		if not game.electronics.profile.data.get("phone_purchase_pending",{}).is_empty():game.ui.log_message("A phone purchase is awaiting confirmation. Reconnect to the game where it began.")
 	elif not result.get("error","").is_empty():game.ui.log_message(str(result.error))
 	if game.electronics.has_method("kit_names_result"):game.electronics.kit_names_result(id,bool(result.get("ok",false)),result.get("profile",{}) if result.get("profile",{}) is Dictionary else {},str(result.get("error","Host rejected metadata")))
 	var operation := ""
 	if not pending.is_empty() and pending[0].id==id:
 		operation=str(pending[0].get("op",""))
+		if operation=="buy_usb" and not result.get("ok",false) and pending[0].args.size()==3:
+			var profile=game.electronics.profile
+			var before: Dictionary=profile.data.duplicate(true)
+			profile.data.get("usb_purchase_pending",{}).erase(str(pending[0].args[2]))
+			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
+			if profile.save()!=OK:profile.data=before
+			profile.authority_submit=callback
+		if operation=="buy_portable_laptop" and not result.get("ok",false) and pending[0].args.size()==3:
+			var profile=game.electronics.profile
+			var before: Dictionary=profile.data.duplicate(true)
+			profile.data.get("laptop_purchase_pending",{}).erase(str(pending[0].args[2]))
+			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
+			if profile.save()!=OK:profile.data=before
+			profile.authority_submit=callback
+		if operation=="buy_smartphone" and not result.get("ok",false) and pending[0].args.size()==3:
+			var profile=game.electronics.profile
+			var before: Dictionary=profile.data.duplicate(true)
+			profile.data.get("phone_purchase_pending",{}).erase(str(pending[0].args[2]))
+			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
+			if profile.save()!=OK:profile.data=before
+			profile.authority_submit=callback
 		if str(pending[0].get("op","")) in ["buy","buy_configured"] and is_instance_valid(game.electronics.shop_adapter):game.electronics.shop_adapter.received(id,result)
 		operation_result.emit(str(pending[0].get("op","")),result)
 		pending.pop_front()
@@ -240,7 +306,7 @@ func receive_snapshot(result: Dictionary) -> void:
 	if operation=="sell_component" and game.electronics.active and game.electronics.current_page=="counter":
 		game.electronics.status.text=str(result.get("message",result.get("error","Sale unavailable")))
 		game.electronics.status.show()
-	if operation=="remove_kit_board_components" and game.electronics.active and game.electronics.current_page=="kits":
+	if operation in ["remove_kit_board_components","kit_quantity","delete_kit"] and game.electronics.active and game.electronics.current_page=="kits":
 		game.electronics.status.text=str(result.get("message",result.get("error","")))
 func request_world(index: int,action: Dictionary) -> void:
 	if not game.session.online:game.dc_lab.request(index,action);return

@@ -183,7 +183,7 @@ func hole_at(point: Vector2) -> String:
 	if row<0 or row>=int(board.rows):return ""
 	var letters := hole_letters()
 	for col in letters.length():
-		if _grid_point(row,col).distance_squared_to(local)<81:
+		if _grid_point(row,col).distance_squared_to(local)<126.5625:
 			return letters[col]+str(row+1)
 	return ""
 
@@ -476,7 +476,7 @@ func _draw() -> void:
 					var point := at(pin)
 					draw_line(point,point.clamp(panel.position,panel.end),Color("7b8b92"),maxf(1,2*zoom),true)
 			draw_solar_cells(panel,1.0)
-		elif part.type=="seven_segment":
+		elif part.type in ["seven_segment","seven_segment_ca"]:
 			draw_style_box(style(Color("20272a")),Rect2(mid-Vector2(15,24)*zoom,Vector2(30,48)*zoom))
 			var segments := [[Vector2(-8,-18),Vector2(8,-18)],[Vector2(9,-16),Vector2(9,-2)],[Vector2(9,2),Vector2(9,16)],[Vector2(-8,18),Vector2(8,18)],[Vector2(-9,2),Vector2(-9,16)],[Vector2(-9,-16),Vector2(-9,-2)],[Vector2(-8,0),Vector2(8,0)]]
 			for index in 7:
@@ -866,7 +866,7 @@ func _draw_mounted_part(definition: Dictionary, child: Dictionary, outline: Rect
 	if type.begins_with("ic:"):
 		_draw_nested(board.get("definitions",{}).get(type,{}),bounds,id+"/",font,depth)
 		return
-	if type in ["spi_display","seven_segment"]:
+	if type in ["spi_display","seven_segment","seven_segment_ca"]:
 		var turn := int(definition.surface_layout[child.id].turns)+int(definition.get("orientation_turns",0))+mounting
 		var dimensions := bounds.size if turn%2 == 0 else Vector2(bounds.size.y,bounds.size.x)
 		draw_set_transform(center,turn*PI/2)

@@ -28,7 +28,6 @@ func build_room() -> void:
 	_service_bench()
 	build_storage_rack(self,Vector3(35.36, 0, 1.55))
 	build_storage_rack(self,Vector3(35.36, 0, 6.4))
-	Plant.mount(self, Vector3(17.18, 0, 7.35))
 	Plant.mount(self, Vector3(34.83, 0, 8.95))
 	Signage.mount(self, "SOLDERING  /  TEST & REPAIR", Vector3(30.1, 2.85, -3.73), 0, Vector2(4.8, .34), 39)
 

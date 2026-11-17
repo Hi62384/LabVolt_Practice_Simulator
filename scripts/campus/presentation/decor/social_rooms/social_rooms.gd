@@ -43,7 +43,7 @@ func build_room(id: String, registry: Object, campus: Node3D) -> bool:
 		node.name = str(group.mesh).to_pascal_case()
 		node.multimesh = mm
 		node.material_override = _material(str(group.material))
-		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		node.visibility_range_end = 37
 		stage.add_child(node)
 	var c: Array = profile.center

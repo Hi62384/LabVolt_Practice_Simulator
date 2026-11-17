@@ -94,6 +94,7 @@ func install_project(board: Dictionary) -> String:
 	if not error.is_empty():return error
 	if not _save_draft(board):
 		return "Could not restore the working circuit."
+	host.canvas.reset_interaction()
 	host.canvas.board = board
 	workspace.sync_board_options()
 	refresh_maker_catalog()
@@ -168,14 +169,14 @@ func accept_candidate(candidate: Dictionary) -> Dictionary:
 			if not error.is_empty():break
 	if error!="":
 		host.canvas.history=accepted_history.duplicate(true);host.canvas.future=accepted_future.duplicate(true)
-		host.canvas.board=previous.duplicate(true);host.canvas.queue_redraw();workspace.notify(error);return {"ok":false,"error":error}
+		host.canvas.reset_interaction();host.canvas.board=previous.duplicate(true);host.canvas.queue_redraw();workspace.notify(error);return {"ok":false,"error":error}
 	if not host.designing:kit.board=candidate.duplicate(true)
 	var saved: bool=_save_draft(candidate) if host.designing else host.profile.save()==OK
 	if not saved:
 		host.canvas.history=accepted_history.duplicate(true);host.canvas.future=accepted_future.duplicate(true)
 		if not host.designing:kit.board=previous
-		host.canvas.board=previous.duplicate(true);workspace.notify("Save failed · edit reverted");host.canvas.queue_redraw();return {"ok":false,"error":"Save failed"}
-	host.canvas.board=candidate.duplicate(true);host.canvas.queue_redraw()
+		host.canvas.reset_interaction();host.canvas.board=previous.duplicate(true);workspace.notify("Save failed · edit reverted");host.canvas.queue_redraw();return {"ok":false,"error":"Save failed"}
+	host.canvas.reset_interaction();host.canvas.board=candidate.duplicate(true);host.canvas.queue_redraw()
 	host.canvas.capture.samples.clear()
 	if is_instance_valid(projects): projects.mark_dirty()
 	else: workspace.notify("Editing · saved")
@@ -232,7 +233,7 @@ func apply_property(payload: Dictionary) -> Dictionary:
 			if candidate.has("instance_ids"):candidate.instance_ids.erase(str(part.id))
 			var error: String=Model.validate(candidate,_stock(),host.designing or host.creative)
 			if error!="":return {"ok":false,"error":error}
-			host.canvas.commit();host.canvas.board=candidate
+			host.canvas.commit();host.canvas.reset_interaction();host.canvas.board=candidate
 			var result := accept_candidate(candidate)
 			if result.ok: host.canvas.refresh_selection()
 			return result

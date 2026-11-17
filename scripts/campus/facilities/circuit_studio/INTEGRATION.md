@@ -1,17 +1,46 @@
-# Custom Circuit Studio integration
+# Integrated Invention Studio
 
-This package is additive and owns no profile, inventory, authority or circuit state. IC and PCB targets now open separate local workstation windows through `builder_window.gd`. IC locks the existing package form to IC; PCB locks it to PCB and embeds the existing `pcb_design/editor.gd` for outline/copper. The form retains `package_store.save_package`; the board editor retains `document.save_copy`; purchase/craft retain `profile.obtain_ic`. Source editing, firmware and kits remain explicit handoffs to existing electronics pages. Source inspection found no standalone custom-package file import/export action to relocate; firmware image import remains on the delegated Code page.
+M208 is registered in the campus directory and mounted by `game.gd`. It has
+five physical workstations: assembly table, IC builder, PCB builder, prototype
+bench, and firmware console. The room is streamed with the campus and the mount
+checks its registry coordinates against `assets/campus/circuit_studio/room.json`.
 
-The five station actions are `ic_builder`, `pcb_builder`, `prototype_bench`, `firmware_console`, `kit_library`. IC and PCB route keys are `studio_ic` and `studio_pcb`, consumed by the adapter rather than passed to `electronics.open`. Shared main dispatch still needs only `controller.interact(target)`. The independent builder windows contain no universal electronics tab bar. A shared design-system owner may apply a reusable Theme to each window after it is created; no dependency on an unpublished theme API is introduced.
+The assembly table opens `assembly_window.gd`. Players can save designs of up
+to 32 direct parts and 64 expanded parts on a 0.3 m grid. The palette includes
+wood, aluminum and plastic structure; wheels and hinges; battery, switches,
+motors, servos, and references to existing custom PCB blueprints. Designs can
+nest other invention blueprints to four levels. The editor validates cycles,
+collisions, control assignments, power and part bounds and shows a top-down
+preview. Its material bill and per-copy price are derived by `assembly_model.gd`.
 
-## Shared hooks (main integrator)
+Blueprints are stored in the electronics profile. Offline fabrication saves a
+copy and applies the current economy purchase policy (the present playtest
+policy allows unlimited purchases). Online fabrication uses the host inventory ledger; a
+client metadata update cannot mint copies. Once copies exist, editing saves a
+new blueprint revision; the host rejects modifications to fabricated revisions.
+Existing IC/PCB copy and crafting paths remain in the electronics profile.
 
-Preimages observed 2026-11-06 (SHA-256): `game.gd` `F451FBA3D1132A5E7616DF4B4FF34FFA5F81D42F95A68A12A633354981BEB251`; `shop_room.gd` `3A5FDA0FFD807BE261FDEDD5B195447BFF959EDDD8FFAB73042FCEC5887D1031`; registry JSON `77CAC595787C0AFEE16BE22E1DF18FF8952AAA1534F11CCC1DD37AD86999BB25`. Rebase these hooks if those preimages changed; do not overwrite concurrent work.
+`invention_world.gd` lets each owned copy be placed once at a time, retrieved,
+and operated nearby. The host validates ownership, blueprint, placement and
+control proximity, then shares the placed state. Hold controls have a short
+renewable lease and an exclusive holder. Toggle controls latch. A battery,
+matching switch, motor and wheel give visible rotation and floor movement;
+servos show control-driven angular motion.
 
-1. Merge `assets/campus/circuit_studio/room.json.room` into `assets/campus/world/room_registry.json.rooms`. M208 uses the currently unallocated upper-floor east slot at centre `(26,5,47)`, opposite the upper-floor west gap and connected to the existing floor-2 corridor. Rebase/relocate it if concurrent registry work has claimed that slot, keeping the manifest and content coordinates aligned. Do not mount until registry validation succeeds.
-2. After `electronics`, `shop_room` and `campus` exist in `game.gd`, instantiate `CircuitStudioMountController`, add it to the game, and call `install(self,campus)`. Store it (for example `circuit_studio`) for interaction dispatch.
-3. In `activate()`, route `circuit_studio.interact(current_target)` before `shop_room.interact(...)`.
-4. In the shop builder, find the legacy station whose `page == "ics"`. Set its visibility and collision layer from `mount_controller.legacy_custom_circuits_enabled()` only after `install()` returns. A failed or partial mount must leave that station visible and interactive. Do not delete the legacy station.
-5. Register/map/directory/signage code should use the merged registry record. The content itself calls `campus.register_content("circuit_studio",room)` and contains only presentation collision plus local interaction metadata; it adds no RPC or personal save state.
+A design may map one custom PCB's supply, ground and output pins to controls A
+and B. The host runs that PCB in the existing DC station circuit and firmware
+simulator with a 5 V supply. Outputs above 2.5 V activate a drive configured as
+PCB; `Both` requires the manual control and PCB output. The mounted PCB panel
+reports live voltages and operates supported manual inputs, including switches,
+knobs, encoders, keypads, sliders, selectors, joysticks and touch inputs. At
+most eight mounted PCBs simulate in a session to bound frame work. Other PCB
+copies remain available at the standalone bench for full trace inspection and
+lead wiring. The moving world body is an educational rigid assembly model; it
+does not model structural stress or motor torque against varying loads.
 
-The coordinates are a contract proposal. Main owns final shared-world placement and must verify the slot remains unallocated before integration.
+Checks: `tests/campus/circuit_studio/assembly_flow_test.gd` covers nested
+validation, price, persistence, host fabrication and forged-copy rejection.
+`tests/menu_startup/test_menu_routes.gd` covers both Play routes, the five
+mounted stations, editor windows, world placement, PCB-driven movement and retrieval.
+`tests/campus/circuit_studio/pcb_drive_test.gd` checks voltage-gated motion
+signals and mounted encoder input through the host circuit runtime.

@@ -14,7 +14,8 @@ func texture(item: Dictionary, profile: RefCounted) -> Texture2D:
 		if kind == "component":
 			cache[key]=Components.texture(profile.catalog().get(item.type,{}))
 		elif kind == "food":
-			cache[key]=load("res://assets/ui/food_menu/%s.svg" % type) as Texture2D
+			var catalog: Dictionary=preload("res://scripts/campus/facilities/facility_host.gd").MENU
+			cache[key]=load("res://assets/ui/food_menu/%s.svg" % str(catalog.get(type,{}).get("art",type))) as Texture2D
 		else:
 			var art := _draw(kind,int(item.get("color",0)),type)
 			var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="96" viewBox="0 0 128 96">'+art+'</svg>'
@@ -25,6 +26,22 @@ func texture(item: Dictionary, profile: RefCounted) -> Texture2D:
 
 func _draw(kind: String, color_index: int, type: String) -> String:
 	match kind:
+		"smartphone":
+			return '<rect x="42" y="8" width="44" height="80" rx="8" fill="#182b36" stroke="#9ab4b7" stroke-width="3"/><rect x="46" y="15" width="36" height="65" rx="3" fill="#315c6a"/><rect x="56" y="12" width="16" height="3" rx="1" fill="#abc4c2"/><circle cx="64" cy="84" r="2" fill="#95aaa9"/>'
+		"usb":
+			return '<g transform="rotate(-20 64 48)"><rect x="22" y="34" width="66" height="29" rx="7" fill="#315363" stroke="#a4c5c6" stroke-width="3"/><path d="M88 40h19v17H88z" fill="#c3d0cc"/><path d="M97 44h4v3h-4zm0 7h4v3h-4z" fill="#50626a"/><rect x="30" y="42" width="34" height="12" rx="3" fill="#1b3946"/><circle cx="76" cy="48" r="3" fill="#81e5c1"/></g>'
+		"gym_belt":
+			return '<ellipse cx="64" cy="48" rx="42" ry="20" fill="none" stroke="#95765c" stroke-width="13"/><rect x="56" y="27" width="16" height="10" rx="2" fill="#d5c7a6"/>'
+		"gym_plate":
+			return '<circle cx="64" cy="48" r="30" fill="#33454c" stroke="#91a3a4" stroke-width="4"/><circle cx="64" cy="48" r="8" fill="#172b36" stroke="#b2c1c0" stroke-width="3"/>'
+		"gym_barbell":
+			return '<path d="M8 48h112" stroke="#b1c1c1" stroke-width="6"/><path d="M19 31h9v34h-9zm11-7h10v48H30zm58 0h10v48H88zm12 7h9v34h-9z" fill="#293d45" stroke="#82969a" stroke-width="2"/>'
+		"gym_dumbbells":
+			return '<path d="M25 48h78" stroke="#a8b7b9" stroke-width="10"/><path d="M24 29h13v38H24zm-9 6h9v26h-9zm76-6h13v38H91zm13 6h9v26h-9z" fill="#263a43" stroke="#80969a" stroke-width="3"/>'
+		"ac_laptop", "portable_laptop":
+			return '<path d="M25 24h78v48H25z" fill="#738d98"/><path d="M30 29h68v37H30z" fill="#1c3d4c"/><path d="M21 72h86l8 8H13z" fill="#a5b8bb"/>'
+		"ac_usb":
+			return '<path d="M22 53C8 19 96 17 101 48S29 78 28 54s72-27 73 5" fill="none" stroke="#859ba2" stroke-width="6"/><path d="M20 49h12v10H20zm77 7h12v10H97z" fill="#dce3de"/>'
 		"paper", "notebook":
 			var art := '<g transform="rotate(-13 64 48)"><rect x="36" y="14" width="56" height="73" rx="4" fill="#142230" opacity=".65"/>'
 			if kind=="notebook":

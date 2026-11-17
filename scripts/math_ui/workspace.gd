@@ -34,6 +34,7 @@ var reference_section:=""
 var complex_form: OptionButton
 var angle_unit: OptionButton
 var classification: OptionButton
+var empty_set_check: CheckBox
 var roots_container: VBoxContainer
 var roots_editors: Array=[]
 var triangle_container: VBoxContainer
@@ -50,7 +51,7 @@ func configure(data: Dictionary, can_edit: bool, access: Dictionary={}, parse_ca
 	if is_instance_valid(demonstration_timer):demonstration_timer.stop()
 	demonstration_timer=null
 	values.clear();fields.clear();field_kinds.clear();field_labels.clear();roots_editors.clear();triangle_editors.clear()
-	graph=null;table=null;reference_panel=null;reference_choice=null;complex_form=null;angle_unit=null;classification=null;graph_function_kind=null;graph_parameter_entries.clear()
+	graph=null;table=null;reference_panel=null;reference_choice=null;complex_form=null;angle_unit=null;classification=null;empty_set_check=null;graph_function_kind=null;graph_parameter_entries.clear()
 	for child in get_children(): remove_child(child);child.queue_free()
 	var title:=Label.new();title.text=str(data.get("prompt","Mathematics"));title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(title)
 	var toolbar := HFlowContainer.new();toolbar.theme=preload("res://scripts/ui/design_system/theme.gd").create();add_child(toolbar)
@@ -75,8 +76,11 @@ func configure(data: Dictionary, can_edit: bool, access: Dictionary={}, parse_ca
 		"triangle":
 			triangle_container=VBoxContainer.new();add_child(triangle_container)
 			_add_triangle()
+			empty_set_check=CheckBox.new();empty_set_check.text="No triangle solution";empty_set_check.disabled=not editable;empty_set_check.toggled.connect(func(_pressed):_notify());add_child(empty_set_check)
 			var add:=Button.new();add.text="Add alternate triangle (SSA)";add.disabled=not editable;add.pressed.connect(_add_triangle);add_child(add)
-		"solutions", "restrictions", "multiple": _field("values","Solutions / excluded values (comma separated)")
+		"solutions", "restrictions", "multiple":
+			_field("values","Solutions / excluded values (comma separated)")
+			empty_set_check=CheckBox.new();empty_set_check.text="No values (empty set)";empty_set_check.disabled=not editable;empty_set_check.toggled.connect(func(_pressed):_notify());add_child(empty_set_check)
 		"system":
 			classification=OptionButton.new()
 			for label in ["Unique solution","No solution","Infinitely many solutions"]: classification.add_item(label)
@@ -315,13 +319,16 @@ func answer() -> Variant:
 			for root_item in roots_editors:roots.append({"real":root_item.real.value(),"imag":root_item.imag.value()})
 			return {"values":roots}
 		"triangle":
+			if is_instance_valid(empty_set_check) and empty_set_check.button_pressed:return {"solutions":[]}
 			var triangles:=[]
 			for item in triangle_editors:
 				var triangle:Dictionary={}
 				for key in item.fields:triangle[key]=item.fields[key].text
 				triangles.append(triangle)
 			return {"solutions":triangles}
-		"solutions", "restrictions", "multiple":return {"values":_list(result.get("values",""))} if not str(result.get("values","")).strip_edges().is_empty() else ""
+		"solutions", "restrictions", "multiple":
+			if is_instance_valid(empty_set_check) and empty_set_check.button_pressed:return {"values":[]}
+			return {"values":_list(result.get("values",""))} if not str(result.get("values","")).strip_edges().is_empty() else ""
 		"system":
 			if classification.selected>0:return {"classification":"none" if classification.selected==1 else "infinite"}
 		"rational":result.excluded=_list(result.get("excluded","")) if not str(result.get("excluded","")).strip_edges().is_empty() else "";return result
@@ -351,7 +358,7 @@ func snapshot() -> Dictionary:
 	inputs._graph_parameters={}
 	for key in graph_parameter_entries:inputs._graph_parameters[key]=graph_parameter_entries[key].text
 	inputs._graph_function_kind=graph_function_kind.selected if is_instance_valid(graph_function_kind) else 0
-	return {"version":1,"question_id":str(problem.get("id","")),"answer":answer(),"inputs":inputs,"page":page,"drawing":drawing,"view":graph.snapshot() if is_instance_valid(graph) else {},"reference_section":reference_section,"complex_form":complex_form.selected if is_instance_valid(complex_form) else 0,"angle_unit":angle_unit.selected if is_instance_valid(angle_unit) else 0,"classification":classification.selected if is_instance_valid(classification) else 0}
+	return {"version":1,"question_id":str(problem.get("id","")),"answer":answer(),"inputs":inputs,"page":page,"drawing":drawing,"view":graph.snapshot() if is_instance_valid(graph) else {},"reference_section":reference_section,"complex_form":complex_form.selected if is_instance_valid(complex_form) else 0,"angle_unit":angle_unit.selected if is_instance_valid(angle_unit) else 0,"classification":classification.selected if is_instance_valid(classification) else 0,"empty_set":empty_set_check.button_pressed if is_instance_valid(empty_set_check) else false}
 
 func restore(state: Dictionary) -> bool:
 	if str(state.get("question_id",""))!=str(problem.get("id","")) or not Notation.json_safe(state):return false
@@ -366,6 +373,7 @@ func restore(state: Dictionary) -> bool:
 	if is_instance_valid(table):table.configure({"columns":table.columns,"rows":state.get("answer",{}).get("rows",[]) if state.get("answer") is Dictionary else state.get("answer",[])},editable)
 	if is_instance_valid(complex_form):complex_form.select(clampi(int(state.get("complex_form",0)),0,2));angle_unit.select(clampi(int(state.get("angle_unit",0)),0,1));_complex_visibility()
 	if is_instance_valid(classification):classification.select(clampi(int(state.get("classification",0)),0,2))
+	if is_instance_valid(empty_set_check):empty_set_check.set_pressed_no_signal(bool(state.get("empty_set",false)))
 	if kind=="roots":
 		for item in roots_editors:item.row.queue_free()
 		roots_editors.clear()

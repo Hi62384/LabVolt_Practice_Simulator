@@ -4,11 +4,14 @@ const Rooms = preload("res://scripts/campus/world/room_registry.gd")
 const Pending = preload("res://scripts/campus/academics/pending_assessment.gd")
 const Metadata = preload("res://scripts/campus/academics/record_metadata.gd")
 const TeachingBoard = preload("res://scripts/campus/academics/teaching_board.gd")
+const LessonBoardState = preload("res://scripts/campus/academics/lesson_board_state.gd")
 const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
 const ArrivalSeconds := 120.0
 const LessonSeconds := 420.0
 const AssignmentSeconds := 1800.0
+## Classroom activities include host-measured physical lab rounds.
+const CLASSROOM_EVENTS_ENABLED := true
 
 var game: Node
 var school: Node
@@ -22,6 +25,7 @@ var cards := {}
 var check_clock := 0.0
 var publish_clock := 0.0
 var received_at := 0
+var classroom_events: Node
 
 func build(owner: Node) -> void:
 	game=owner
@@ -37,10 +41,13 @@ func build(owner: Node) -> void:
 	announcements.offset_right=-22
 	announcements.offset_top=80
 	announcements.add_theme_constant_override("separation",8)
-	for room in Rooms.LECTURE_ROOMS:_build_sign(room)
+	for room in Rooms.LECTURE_ROOMS + ["ac_lab","dc_lab"]:_build_sign(room)
 	game.session.leaving.connect(_session_leaving)
 	game.session.restarted.connect(_reset)
 	game.session.roster_changed.connect(_check_students)
+	if CLASSROOM_EVENTS_ENABLED:
+		classroom_events=preload("res://scripts/campus/academics/classroom_events/controller.gd").new()
+		classroom_events.name="ClassroomEvents";add_child(classroom_events);classroom_events.configure(game);classroom_events.enabled=true
 
 func interact(target: Node) -> bool:
 	if not is_instance_valid(target) or target.get_meta("role","") not in ["lecture_desk","lecture_attendance"]:return false
@@ -61,6 +68,21 @@ func interact(target: Node) -> bool:
 		game.release_mouse()
 	return true
 
+func open_lab_picker(room: String) -> void:
+	if room not in ["ac_lab","dc_lab"] or is_instance_valid(picker):return
+	if public_classes.has(room):
+		game.ui.log_message("A class is already in progress in this laboratory.")
+		return
+	picker=preload("res://scripts/campus/ui/host_game_page.gd").new()
+	picker.classroom=str(game.campus.registry.get_room(room).number)
+	picker.required_kind="lab"
+	picker.required_room=room
+	picker.class_requested=func(config: Dictionary):_send("start",room,config)
+	overlay.add_child(picker)
+	picker.build(game)
+	picker.closed.connect(close_picker)
+	game.release_mouse()
+
 func close_picker() -> bool:
 	if not is_instance_valid(picker):return false
 	picker.hide()
@@ -78,7 +100,7 @@ func command(op: String,room: String,config: Dictionary) -> void:
 	if multiplayer.is_server():_apply(multiplayer.get_remote_sender_id(),op,room,config)
 
 func _apply(peer: int,op: String,room: String,config: Dictionary) -> void:
-	if room not in Rooms.LECTURE_ROOMS or not game.session.roster.has(peer) or var_to_bytes(config).size()>1024:return
+	if room not in Rooms.LECTURE_ROOMS + ["ac_lab","dc_lab"] or not game.session.roster.has(peer) or var_to_bytes(config).size()>1024:return
 	var error := "Approach the desk in the lecture room."
 	if _inside(peer,room) and signs.has(room) and _position(peer).distance_to(signs[room].desk)<=3.6:
 		if op=="start":error=_start(room,config)
@@ -102,24 +124,34 @@ func _start(room: String,config: Dictionary) -> String:
 	var course := str(config.get("course_id",""))
 	var week := int(config.get("week",0))
 	var level := int(config.get("difficulty",-1))
-	if course not in school.course_ids() or config.get("kind")!="lecture" or level not in range(5):return "Choose a lecture and difficulty."
+	var kind := "lab" if room in ["ac_lab","dc_lab"] else "lecture"
+	if course not in school.course_ids() or config.get("kind")!=kind or level not in range(5):return "Choose an appropriate course week and difficulty."
+	if kind=="lab" and str(game.campus.registry.course_room(course,"lab").get("id",""))!=room:return "That course is not taught in this laboratory."
 	var extra_id := str(config.get("gradebook_assessment_id",""))
 	var extra := {}
 	if not extra_id.is_empty():
 		for option in school.official_extra_assessments(course):
-			if option.id==extra_id and option.kind=="lecture":
+			if option.id==extra_id and option.kind==kind:
 				extra=option
 				week=int(option.content_week)
 				break
 		if extra.is_empty():return "That assessment is unavailable."
-	var weeks: Array=school.course_bridge.weeks(course,"lecture")
-	if week<1 or week>weeks.size():return "That lecture week is unavailable."
-	var room_info: Dictionary=game.campus.registry.activity_room(course,"lecture",room)
-	if room_info.is_empty():return "Lecture room unavailable."
-	var lesson: Dictionary=school.course_bridge.generate(course,week,"lecture",level,school.random.randi())
-	if lesson.is_empty() or lesson.has("error"):return "Could not prepare the lecture."
+	var weeks: Array=school.course_bridge.weeks(course,kind)
+	if week<1 or week>weeks.size():return "That course week is unavailable."
+	var room_info: Dictionary=game.campus.registry.activity_room(course,kind,room if kind=="lecture" else "")
+	if room_info.is_empty():return "The selected room is unavailable."
+	var lesson: Dictionary=school.course_bridge.generate(course,week,kind,level,school.random.randi())
+	if lesson.is_empty() or lesson.has("error"):return "Could not prepare the class."
+	if kind=="lab" and not lesson.get("practical",{}).is_empty():
+		if lesson.practical.get("blocked",false):return str(lesson.practical.get("reason","Required practical equipment is unavailable."))
+		var capability: Dictionary=school.equipment_adapter.call("supports",lesson)
+		if not capability.get("ok",false):return str(capability.get("error","Practical grading is unavailable."))
+	var teacher: String=game.faculty.current.get(room,"") if kind=="lab" else ""
+	if teacher.is_empty() or course not in preload("res://scripts/campus/academics/faculty_roster.gd").entry(teacher).get("courses",[]):teacher=game.faculty.pick_lecture(course)
+	if teacher.is_empty():return "No eligible teacher is available right now."
+	if course not in preload("res://scripts/campus/academics/faculty_roster.gd").entry(teacher).courses:return "The current lab instructor does not teach that course."
 	var teaching: Dictionary=school.course_bridge.lesson_for_assignment(lesson,LessonSeconds)
-	classes[room]={"id":Crypto.new().generate_random_bytes(16).hex_encode(),"room":room_info,"course":course,"week":week,"difficulty":level,"extra":extra,"title":str(extra.get("title",lesson.get("title",course))),"phase":"arrival","deadline":_now()+ArrivalSeconds,"teaching":teaching,"students":{}}
+	classes[room]={"id":Crypto.new().generate_random_bytes(16).hex_encode(),"room":room_info,"course":course,"kind":kind,"teacher":teacher,"week":week,"difficulty":level,"extra":extra,"title":str(extra.get("title",lesson.get("title",course))),"phase":"arrival","deadline":_now()+ArrivalSeconds,"teaching":teaching,"students":{}}
 	return ""
 
 func _sign(peer: int,room: String) -> String:
@@ -132,14 +164,29 @@ func _sign(peer: int,room: String) -> String:
 	for other in classes.values():
 		var enrolled: Dictionary=other.students.get(identity,{})
 		if not enrolled.is_empty() and not enrolled.get("done",false):return "You are already attending another class."
-	var assignment: Dictionary=school.course_bridge.generate(activity.course,activity.week,"lecture",activity.difficulty,school.random.randi())
+	var assignment: Dictionary=school.course_bridge.generate(activity.course,activity.week,str(activity.get("kind","lecture")),activity.difficulty,school.random.randi())
 	if assignment.is_empty() or assignment.has("error"):return "Could not prepare your assessment."
+	if str(activity.get("kind","lecture"))=="lab" and not assignment.get("practical",{}).is_empty():
+		if assignment.practical.get("blocked",false):return str(assignment.practical.get("reason","Required practical equipment is unavailable."))
+		var capability: Dictionary=school.equipment_adapter.call("supports",assignment)
+		if not capability.get("ok",false):return str(capability.get("error","Practical grading is unavailable."))
 	var extra: Dictionary=activity.extra
-	assignment.official_curriculum_id=str(extra.get("id","lecture:%d" % int(activity.week)))
+	assignment.official_curriculum_id=str(extra.get("id","%s:%d" % [str(activity.get("kind","lecture")),int(activity.week)]))
 	if not extra.is_empty():
 		assignment.title=extra.title
 		assignment.official_assessment_title=extra.title
-	activity.students[identity]={"peer":peer,"project":assignment,"done":false,"paper":0,"failure":""}
+	var bench := -1
+	if activity.get("kind","")=="lab" and activity.course in ["ETY155","ELM253","DGS266"]:
+		var count: int=game.session.labs.size() if activity.course=="ELM253" else game.dc_lab.benches.size()
+		if count<1:return "No laboratory bench is available."
+		var counts := []
+		counts.resize(count)
+		counts.fill(0)
+		for participant in activity.students.values():
+			var used := int(participant.get("bench",-1))
+			if used>=0 and used<counts.size():counts[used]+=1
+		bench=counts.find(counts.min())
+	activity.students[identity]={"peer":peer,"project":assignment,"replay":school._is_replay(identity,assignment),"done":false,"paper":0,"failure":"","bench":bench}
 	school.record_room_attendance(peer,activity.id,assignment,phase=="lesson")
 	return ""
 
@@ -177,10 +224,12 @@ func _process(delta: float) -> void:
 		if publish_clock>=1.0:
 			publish_clock=0.0
 			_publish()
+	if is_instance_valid(classroom_events):classroom_events.step(_now())
 	_update_views()
 
 func _advance() -> void:
 	var changed := false
+	var assessment_intros: Array[String]=[]
 	for room in classes.keys():
 		var activity: Dictionary=classes[room]
 		if activity.phase=="assignment" and activity.students.values().all(func(student):return student.done):
@@ -194,12 +243,17 @@ func _advance() -> void:
 				activity.deadline=_now()+LessonSeconds
 				changed=true
 			"lesson":
-				if _begin_assignment(room,activity):changed=true
+				if _begin_assignment(room,activity):
+					changed=true
+					assessment_intros.append(room)
 			"assignment":
 				for identity in activity.students:
 					var student: Dictionary=activity.students[identity]
 					if not student.done:_settle(activity,identity,true,str(student.failure))
 	if changed:_publish()
+	if is_instance_valid(classroom_events) and classroom_events.enabled and is_instance_valid(game.faculty):
+		for room in assessment_intros:
+			if classes.has(room):game.faculty.present_assessment_intro(room,str(classes[room].teacher),str(classes[room].course))
 
 func _begin_assignment(room: String, activity: Dictionary) -> bool:
 	var records: Array[Dictionary]=[]
@@ -208,27 +262,33 @@ func _begin_assignment(room: String, activity: Dictionary) -> bool:
 		var connected_peer: Variant=school.identities.find_key(identity)
 		var peer := int(connected_peer) if connected_peer!=null else 0
 		student.peer=peer
-		var record: Dictionary=school._enrollment_record(identity,activity.id,student.project,peer==1)
-		record.room_class=true
-		records.append(record)
+		if not student.get("replay",false):
+			var record: Dictionary=school._enrollment_record(identity,activity.id,student.project,peer==1)
+			record.room_class=true
+			records.append(record)
 	if not records.is_empty() and Pending.enroll(school.archive,records,school._persist_archive)!=OK:return false
+	if is_instance_valid(classroom_events) and classroom_events.enabled:classroom_events.begin_assessment(room,str(activity.id),_now())
 	activity.phase="assignment"
 	activity.deadline=_now()+AssignmentSeconds
 	var desk := 0
-	for record in records:
-		var student: Dictionary=activity.students[record.profile]
-		student.project.merge(Metadata.from_project(record),true)
+	for identity in activity.students:
+		var student: Dictionary=activity.students[identity]
+		if not student.get("replay",false):
+			var record: Dictionary=records.filter(func(candidate: Dictionary):return candidate.profile==identity)[0]
+			student.project.merge(Metadata.from_project(record),true)
 		var peer := int(student.peer)
 		if not _inside(peer,room):
 			student.failure="Was outside the classroom when the assessment started."
-			_settle(activity,record.profile,false,student.failure)
+			_settle(activity,identity,false,student.failure)
 			continue
 		var id: int=school._give(peer,student.project,false,false,true)
 		if id<=0:continue
 		var paper: Dictionary=school.papers[id]
 		paper.class_round=-1
 		paper.assessment_id=activity.id
+		paper.replay=bool(student.get("replay",false))
 		paper.room_class=room
+		paper.room_bench=int(student.get("bench",-1))
 		var desk_count: int=activity.room.desks.size()
 		paper.position=activity.room.desks[desk%desk_count]+Vector3(.29*floori(float(desk)/desk_count),.045,0)
 		paper.held=paper.held and game.dc_lab.held_board(peer)<0
@@ -243,7 +303,7 @@ func _settle(activity: Dictionary,identity: String,expired: bool,reason: String)
 	var student: Dictionary=activity.students[identity]
 	var paper: Dictionary=school.papers.get(student.paper,{})
 	if paper.is_empty():
-		paper={"identity":identity,"owner":student.peer,"project":student.project,"answers":{},"mark":{},"revision":0,"class_round":-1,"assessment_id":activity.id,"lesson":false}
+		paper={"identity":identity,"owner":student.peer,"project":student.project,"answers":{},"mark":{},"revision":0,"class_round":-1,"assessment_id":activity.id,"lesson":false,"replay":bool(student.get("replay",false))}
 	school._mark(paper,expired,reason)
 	if not paper.mark.is_empty():
 		student.done=true
@@ -251,6 +311,19 @@ func _settle(activity: Dictionary,identity: String,expired: bool,reason: String)
 			paper.held=false
 			paper.stowed=true
 		school.broadcast()
+
+func assigned_lab(peer: int) -> Dictionary:
+	for room in ["dc_lab","ac_lab"]:
+		var activity: Dictionary=classes.get(room,{})
+		if activity.get("phase","")!="assignment":continue
+		var student: Dictionary=activity.get("students",{}).get(str(school.identities.get(peer,"")),{})
+		if not student.is_empty() and not student.get("done",true) and int(student.get("bench",-1))>=0:
+			return {"bench":int(student.bench),"course":str(activity.course),"paper":int(student.get("paper",0))}
+	return {}
+
+func has_active_lab_assessment(peer: int,bench: int) -> bool:
+	var assignment := assigned_lab(peer)
+	return assignment.get("course","")=="ETY155" and int(assignment.get("bench",-1))==bench
 
 func paper_action_allowed(peer: int,paper: Dictionary,op: String) -> bool:
 	if not paper.mark.is_empty():return true
@@ -271,6 +344,7 @@ func paper_submitted(paper: Dictionary) -> void:
 	if not student.is_empty() and activity.id==paper.assessment_id:student.done=true
 
 func _session_leaving() -> void:
+	if is_instance_valid(classroom_events):classroom_events.disable()
 	if not multiplayer.is_server():return
 	for activity in classes.values():
 		if activity.phase!="assignment":continue
@@ -278,6 +352,9 @@ func _session_leaving() -> void:
 			if not activity.students[identity].done:_settle(activity,identity,false,"Session ended before the assessment was completed.")
 
 func _reset() -> void:
+	if is_instance_valid(classroom_events):
+		classroom_events.disable()
+		classroom_events.enabled=CLASSROOM_EVENTS_ENABLED
 	classes.clear()
 	public_classes.clear()
 	if is_instance_valid(picker):
@@ -286,18 +363,7 @@ func _reset() -> void:
 
 func _stage(activity: Dictionary) -> Dictionary:
 	var elapsed := LessonSeconds-maxf(0.0,float(activity.deadline)-_now())
-	var stages: Array=activity.teaching.get("stages",[])
-	if stages.is_empty():
-		return {"title":activity.title,"text":activity.teaching.get("worked",activity.teaching.get("equipment_text",""))}
-	for index in stages.size():
-		var stage: Dictionary=stages[index]
-		elapsed-=float(stage.get("duration_seconds",stage.get("duration",LessonSeconds/stages.size())))
-		if elapsed<0.0 or index==stages.size()-1:
-			var current := stage.duplicate()
-			current.index=index
-			current.count=stages.size()
-			return current
-	return {}
+	return LessonBoardState.at(activity.teaching,str(activity.title),elapsed,LessonSeconds)
 
 func _publish() -> void:
 	for peer in game.session.roster:
@@ -307,7 +373,7 @@ func _publish() -> void:
 			var activity: Dictionary=classes[room]
 			var student: Dictionary=activity.students.get(identity,{})
 			var stage := _stage(activity) if activity.phase=="lesson" and _inside(int(peer),room) else {}
-			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage}
+			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage}
 		if int(peer)==multiplayer.get_unique_id():receive(public)
 		elif game.session.online and game.session.peer_connected_now(int(peer)):receive.rpc_id(int(peer),public)
 
@@ -320,10 +386,26 @@ func _build_sign(room: String) -> void:
 	var info: Dictionary=game.campus.registry.get_room(room)
 	if info.is_empty():return
 	var center: Vector3=game.campus.registry.vector(info.center)
-	var desk := center+Vector3(-4.45 if room=="elm253_lecture" else 4.45,.88,-3.85)
+	var floor_y: float=game.campus.registry.vector(info.get("bounds_min",[center.x,0.0,center.z])).y
+	var desk := Vector3(center.x+(-4.45 if room=="elm253_lecture" else 4.45),floor_y,center.z-3.85)
+	# Lab class tables sit near the entry aisle so they are visible and reachable
+	# without colliding with the instructor, lab benches, or equipment.
+	if room=="ac_lab":desk=Vector3(6.2,floor_y,3.0)
+	elif room=="dc_lab":desk=Vector3(6.2,floor_y,19.0)
+	var class_table:=StaticBody3D.new()
+	class_table.position=desk
+	class_table.collision_layer=4;class_table.collision_mask=0
+	class_table.set_meta("role","lecture_desk");class_table.set_meta("room",room)
+	class_table.set_meta("label","Choose a lab class" if room in ["ac_lab","dc_lab"] else "Start a lecture class")
+	add_child(class_table)
+	var table_hit:=CollisionShape3D.new();var table_shape:=BoxShape3D.new();table_shape.size=Vector3(1.5,.18,.85);table_hit.shape=table_shape;table_hit.position.y=.78;class_table.add_child(table_hit)
+	game._box(class_table,Vector3(0,.78,0),Vector3(1.5,.12,.85),Color("a98265"))
+	for x in [-.65,.65]:
+		for z in [-.32,.32]:game._box(class_table,Vector3(x,.38,z),Vector3(.07,.76,.07),Color("53666e"))
+	for x in [-.61,.61]:game._box(class_table,Vector3(x,.70,0),Vector3(.055,.08,.60),Color("53666e"))
 	var body := StaticBody3D.new()
-	body.position=desk+Vector3(.46,.09,.05)
-	body.collision_layer=0
+	body.position=desk+Vector3(.48,.87,.05)
+	body.collision_layer=4
 	body.collision_mask=0
 	body.set_meta("role","lecture_attendance")
 	body.set_meta("room",room)
@@ -361,7 +443,10 @@ func _update_views() -> void:
 		sign.body.visible=signing
 		sign.body.collision_layer=4 if signing else 0
 		sign.marker.text="✓" if info.get("signed",false) else "!"
-		var teaching: bool=info.get("phase","")=="lesson" and not info.get("stage",{}).is_empty() and game.front.in_game and game.campus.registry.room_contains(room,game.player.global_position)
+		var physical_board_event: bool=is_instance_valid(classroom_events) and classroom_events.enabled and is_instance_valid(classroom_events.service) and classroom_events.service.rooms.has(room) and classroom_events.service.rooms[room].round.mode=="board"
+		var projected_event: bool=is_instance_valid(classroom_events) and is_instance_valid(classroom_events.projector) and classroom_events.projector.active_room==room and classroom_events.projector.board.visible
+		var event_board_active: bool=physical_board_event or projected_event
+		var teaching: bool=info.get("phase","")=="lesson" and not event_board_active and not info.get("stage",{}).is_empty() and game.front.in_game and game.campus.registry.room_contains(room,game.player.global_position)
 		if sign.board.active!=teaching:sign.board.set_room_active(teaching)
 		var lesson_key := "%s:%d" % [info.id,int(info.stage.get("index",0))] if teaching else ""
 		if sign.lesson_key!=lesson_key:

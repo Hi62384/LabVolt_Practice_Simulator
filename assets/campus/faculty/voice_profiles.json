@@ -1,0 +1,174 @@
+{
+  "version": 1,
+  "backend": "piper",
+  "voices": {
+    "bill_nye": {
+      "target": "clear, friendly, educated, moderately serious male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 549,
+      "rate": 1.0,
+      "gain": 1.0,
+      "pause_ms": 180
+    },
+    "mr_apple": {
+      "target": "cheerful, expressive, talkative male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 834,
+      "rate": 1.12,
+      "gain": 1.0,
+      "pause_ms": 110
+    },
+    "ms_clocks": {
+      "target": "clear, efficient, fast female",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 359,
+      "rate": 1.14,
+      "gain": 1.0,
+      "pause_ms": 100
+    },
+    "mr_phillips": {
+      "target": "serious, controlled, calm male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 416,
+      "rate": 0.92,
+      "gain": 0.9,
+      "pause_ms": 230
+    },
+    "mr_gusto": {
+      "target": "warm, energetic, humorous male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 397,
+      "rate": 1.08,
+      "gain": 1.05,
+      "pause_ms": 140
+    },
+    "mr_hamstrings": {
+      "target": "casual, youthful, relaxed male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 663,
+      "rate": 1.02,
+      "gain": 0.95,
+      "pause_ms": 150
+    },
+    "mr_allu": {
+      "target": "quiet, slow, unsettling male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 720,
+      "rate": 0.76,
+      "gain": 0.6,
+      "pause_ms": 420
+    },
+    "bill": {
+      "target": "deep, serious, commanding male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 435,
+      "rate": 0.88,
+      "gain": 1.1,
+      "pause_ms": 220
+    },
+    "ms_lunch": {
+      "target": "sharp, loud, impatient female",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 207,
+      "rate": 1.1,
+      "gain": 1.2,
+      "pause_ms": 90
+    },
+    "chad": {
+      "target": "confident, fast, motivational male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 606,
+      "rate": 1.2,
+      "gain": 1.1,
+      "pause_ms": 90
+    },
+    "brian": {
+      "target": "quiet, monotone male, explosive when angry",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 568,
+      "rate": 0.82,
+      "gain": 0.7,
+      "pause_ms": 260
+    },
+    "ms_bird_heart": {
+      "target": "warm, soft, elderly female",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 587,
+      "rate": 0.88,
+      "gain": 0.8,
+      "pause_ms": 250
+    },
+    "dr_volts": {
+      "target": "eccentric, excitable, dramatic scientist male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 0,
+      "rate": 1.15,
+      "gain": 1.05,
+      "pause_ms": 110
+    },
+    "stanley": {
+      "target": "slow, tired, elderly male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 36,
+      "rate": 0.74,
+      "gain": 0.7,
+      "pause_ms": 390
+    },
+    "ms_rivera": {
+      "target": "bored, casual, disengaged female",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 74,
+      "rate": 0.9,
+      "gain": 0.75,
+      "pause_ms": 260
+    },
+    "mr_blake": {
+      "target": "expressive, energetic, playful male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 777,
+      "rate": 1.18,
+      "gain": 1.05,
+      "pause_ms": 100
+    },
+    "mr_stone": {
+      "target": "deep, forceful, military commanding male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 473,
+      "rate": 0.96,
+      "gain": 1.2,
+      "pause_ms": 140
+    },
+    "josh_wildes": {
+      "target": "cold, condescending, hostile male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 739,
+      "rate": 0.9,
+      "gain": 0.9,
+      "pause_ms": 230
+    },
+    "bradley": {
+      "target": "confident, smooth, cool male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 55,
+      "rate": 0.98,
+      "gain": 0.95,
+      "pause_ms": 170
+    },
+    "jeff": {
+      "target": "deep, controlled, authoritative male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 454,
+      "rate": 0.86,
+      "gain": 1.1,
+      "pause_ms": 200
+    },
+    "mr_bro": {
+      "target": "energetic, informal, gym enthusiast male",
+      "model": "res://assets/campus/faculty/voices/en_US-libritts_r-medium.onnx",
+      "speaker": 511,
+      "rate": 1.12,
+      "gain": 1.05,
+      "pause_ms": 130
+    }
+  }
+}

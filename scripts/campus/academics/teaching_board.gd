@@ -13,6 +13,7 @@ var surface: MeshInstance3D
 var column: VBoxContainer
 var signature := ""
 var active := false
+var event_mode := false
 signal diagram_action_requested(action: String, data: Dictionary)
 
 func _ready() -> void:
@@ -64,14 +65,22 @@ func show_content(course: String, phase: String, heading: String, stage: Diction
 	for child in column.get_children():
 		column.remove_child(child)
 		child.queue_free()
-	_label(_limited(course,36)+"  ·  "+_limited(heading,90),39,column,Color("8dddeb"))
-	_label(_limited(status,180),26,column,Color("b9cbd5"))
+	_label(_limited(course,36)+"  ·  "+_limited(heading,90),50 if event_mode else 52,column,Color("8dddeb"))
+	_label(_limited(status,180),36 if event_mode else 40,column,Color("b9cbd5"))
 	if phase == "lesson":_lesson(stage)
 	else:_label(_limited(str(stage.get("text","")),1200),33,column)
 	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 func _lesson(stage: Dictionary) -> void:
-	_label("%d / %d  ·  %s"%[int(stage.get("index",0))+1,maxi(1,int(stage.get("count",1))),_limited(str(stage.get("title","Lesson")),100)],34,column,Color("ffd198"))
+	_label("%d / %d  ·  %s"%[int(stage.get("index",0))+1,maxi(1,int(stage.get("count",1))),_limited(str(stage.get("title","Lesson")),100)],46 if event_mode else 54,column,Color("ffd198"))
+	var history: Variant=stage.get("board_history",[])
+	if history is Array and not history.is_empty():
+		var trail:=VBoxContainer.new();trail.add_theme_constant_override("separation",4);column.add_child(trail)
+		for entry in history.slice(maxi(0,history.size()-2),history.size()):
+			if not entry is Dictionary:continue
+			var note:=str(entry.get("title",""))
+			if not str(entry.get("formula","")).is_empty():note+=" · "+str(entry.formula)
+			_label(_limited(note,62),40,trail,Color("b6d5dd"))
 	var row := HBoxContainer.new()
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation",28)
@@ -81,9 +90,9 @@ func _lesson(stage: Dictionary) -> void:
 	words.size_flags_stretch_ratio = 1.1
 	words.add_theme_constant_override("separation",15)
 	row.add_child(words)
-	_label(_limited(str(stage.get("text",stage.get("caption",""))),1300),30,words)
+	_label(_limited(str(stage.get("text",stage.get("caption",""))),320 if not event_mode else 1300),50 if event_mode else 58,words)
 	for field in ["formulas","worked"]:
-		if not str(stage.get(field,"")).is_empty():_label(_limited(str(stage[field]),430),29,words,Color("e9d49e"))
+		if not str(stage.get(field,"")).is_empty():_label(_limited(str(stage[field]),220 if not event_mode else 430),48 if not event_mode else 29,words,Color("e9d49e"))
 	var problem: Dictionary = stage.get("problem",{}) if stage.get("problem",{}) is Dictionary else {}
 	var notation: Variant = stage.get("math",problem.get("ast",{}))
 	if notation is Dictionary and not notation.is_empty():
@@ -96,14 +105,14 @@ func _lesson(stage: Dictionary) -> void:
 			var expression := ExpressionView.new()
 			words.add_child(expression)
 			expression.set_expression(parsed.ast)
-		else:_label(_limited(notation,240),29,words)
+		else:_label(_limited(notation,180 if not event_mode else 240),48 if not event_mode else 29,words)
 	var visual: Variant = stage.get("diagram",problem.get("diagram",{}))
 	if visual is Dictionary and not visual.is_empty():_visual(row,visual)
 	var steps: Variant = stage.get("steps",[])
 	if steps is Array:
 		for item in steps.slice(0,4):
-			if item is Dictionary:_label("• "+_limited(str(item.get("text","")),260),25,words)
-			elif item is String:_label("• "+_limited(item,260),25,words)
+			if item is Dictionary:_label("• "+_limited(str(item.get("text","")),160 if not event_mode else 260),40 if not event_mode else 25,words)
+			elif item is String:_label("• "+_limited(item,160 if not event_mode else 260),40 if not event_mode else 25,words)
 
 func _visual(parent: Node, data: Dictionary) -> void:
 	data = _bounded_diagram(data)

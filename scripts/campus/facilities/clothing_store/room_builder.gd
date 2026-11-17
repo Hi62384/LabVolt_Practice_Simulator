@@ -19,6 +19,7 @@ func _ready() -> void:
 	_build_displays()
 	_build_lounge()
 	_build_fitting_rooms()
+	_build_window_displays()
 	_build_lighting()
 
 func registry_record(world_origin: Vector3) -> Dictionary:
@@ -128,6 +129,22 @@ func _build_fitting_rooms() -> void:
 		_cylinder("FittingStool",.22,.46,Vector3(x+.42,.23,-7.37),Color("ad8057"))
 		_box("ClothingHook",Vector3(.09,.14,.13),Vector3(x-.43,1.94,-7.76),Color("c7b38c"))
 
+func _build_window_displays() -> void:
+	# The backdrops sit behind the hallway glazing; displays face the corridor.
+	for x in [-5.5,5.5]:
+		_box("DisplayCurtain",Vector3(2.12,2.12,.08),Vector3(x,1.98,6.82),Color("334e58"))
+		for fold in range(12):
+			_box("DisplayCurtainFold",Vector3(.075,2.10,.025),Vector3(x-.99+fold*.18,1.98,6.88+(fold%2)*.018),Color("45616a"))
+		_box("DisplayPlatform",Vector3(1.45,.13,.75),Vector3(x,.11,7.32),Color("c4a275"),.5)
+		var skin:=Color("e0d9cb")
+		_sphere("WindowMannequinHead",Vector3(.18,.24,.17),Vector3(x,2.12,7.32),skin)
+		_cylinder("WindowMannequinNeck",.09,.15,Vector3(x,1.89,7.32),skin)
+		_garment(Vector3(x,1.50,7.32),Color("486b73") if x<0 else Color("995a63"),"jackets" if x<0 else "hoodies",0.0,.16)
+		for side in [-1.0,1.0]:
+			_sphere("WindowMannequinArm",Vector3(.07,.23,.073),Vector3(x+side*.39,1.36,7.32),skin).rotation.z=side*.18
+			_sphere("WindowMannequinLeg",Vector3(.13,.43,.14),Vector3(x+side*.125,.81,7.32),Color("414f59"))
+			_sphere("WindowMannequinShoe",Vector3(.108,.07,.18),Vector3(x+side*.125,.41,7.39),Color("292d37"))
+
 func _shop_target(at: Vector3, size: Vector3, category: String, label: String) -> void:
 	var target := StaticBody3D.new()
 	target.position = at
@@ -148,6 +165,7 @@ func _build_lighting() -> void:
 		_box("Track", Vector3(.1, .09, 12.2), Vector3(x, 3.92, .2), Color("302c29"), .42)
 		for z in [-4.5, 1.0, 5.2]:
 			_cylinder("TrackHead", .19, .23, Vector3(x, 3.75, z), Color("453a32"))
+			if x != 0.0 and z == 1.0: continue
 			var light := OmniLight3D.new(); light.name = "WarmTrackLight"; light.position = Vector3(x, 3.65, z); light.omni_range = 5.2; light.light_energy = .62; light.light_color = Color("ffe0ad"); add_child(light)
 
 func _material(color: Color, roughness: float, metallic := 0.0) -> StandardMaterial3D:

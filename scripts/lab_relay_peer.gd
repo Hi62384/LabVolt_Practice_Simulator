@@ -5,8 +5,6 @@ const TIMEOUT_MS := 10000
 const MAX_QUEUED_BYTES := 4 * MAX_PACKET
 
 var room_code := ""
-var metered_messages := 0
-var metered_connections := 1
 var failure := ""
 var _socket := WebSocketPeer.new()
 var _status := CONNECTION_DISCONNECTED
@@ -43,7 +41,6 @@ func _poll() -> void:
 			if _socket.was_string_packet():
 				_control(JSON.parse_string(packet.get_string_from_utf8()))
 			elif _status == CONNECTION_CONNECTED and packet.size() > 4:
-				if _hosting: metered_messages += 1
 				if _peers.has(packet.decode_s32(0)):
 					_packets.append(packet)
 			if _status == CONNECTION_DISCONNECTED:
@@ -73,7 +70,6 @@ func _control(value: Variant) -> void:
 				_peers[1] = true
 				peer_connected.emit(1)
 		"joined":
-			metered_connections += 1
 			if _hosting and _status == CONNECTION_CONNECTED and id > 1:
 				if _refuse:
 					_disconnect_peer(id, true)
@@ -100,7 +96,6 @@ func _put_packet_script(packet: PackedByteArray) -> Error:
 	frame.encode_s32(0, _target)
 	frame.append_array(packet)
 	var error := _socket.put_packet(frame)
-	if _hosting and error == OK: metered_messages += 1
 	return error
 
 func _get_packet_script() -> PackedByteArray:

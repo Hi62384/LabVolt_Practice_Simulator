@@ -35,3 +35,6 @@ func _rebuild() -> void:
 func _close() -> void:
 	hide();queue_free()
 	if is_instance_valid(game) and game.front.in_game:game.capture()
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:_close()

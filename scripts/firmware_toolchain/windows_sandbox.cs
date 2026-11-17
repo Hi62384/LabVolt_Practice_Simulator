@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
 
 namespace LabVolt.Toolchain {
@@ -48,7 +49,7 @@ public sealed class WindowsSandbox : IDisposable {
     readonly List<KeyValuePair<string,byte[]>> aclBackups=new List<KeyValuePair<string,byte[]>>();
     readonly Stopwatch lifetime=Stopwatch.StartNew();
     public bool IsolationExercised { get; private set; }
-    public string Isolation { get { return "Windows LPAC, no capabilities, job-limited"; } }
+    public string Isolation { get { return "Windows AppContainer, no capabilities, job-limited"; } }
     public WindowsSandbox() {
         int hr=CreateAppContainerProfile(profile,"LabVolt isolated compiler","Temporary offline firmware compiler",IntPtr.Zero,0,out sid);
         if(hr!=0) throw new InvalidOperationException("CreateAppContainerProfile failed: 0x"+hr.ToString("X8")+". No compiler executed; no reduced-isolation fallback.");
@@ -76,6 +77,9 @@ public sealed class WindowsSandbox : IDisposable {
     void SetJob<T>(int info,T value) { IntPtr p=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(T)));try { Marshal.StructureToPtr(value,p,false);Ensure(SetInformationJobObject(job,info,p,(uint)Marshal.SizeOf(typeof(T))),"SetInformationJobObject"); } finally {Marshal.FreeHGlobal(p);} }
     public void GrantDirectory(string directory,bool write) {
         string path=Path.GetFullPath(directory);
+        // The UCRT redirects AppContainer TEMP below LOCALAPPDATA/Packages.
+        // Keep that path inside the monitored, disposable compiler job.
+        if(write)Directory.CreateDirectory(Path.Combine(path,"Packages",profile.ToLowerInvariant(),"AC","Temp"));
         foreach(string item in Directory.EnumerateFileSystemEntries(path,"*",SearchOption.AllDirectories))
             if((File.GetAttributes(item)&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("Reparse points are forbidden in compiler roots");
         DirectorySecurity acl=Directory.GetAccessControl(path);
@@ -116,20 +120,21 @@ public sealed class WindowsSandbox : IDisposable {
     }
     public int Run(string executable,string[] args,string directory,string log,string cancel,int timeoutMs) {
         if(lifetime.ElapsedMilliseconds>90000)throw new TimeoutException("Aggregate compiler wall limit reached");
-        IntPtr list=IntPtr.Zero,size=IntPtr.Zero,caps=IntPtr.Zero,policy=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
+        IntPtr list=IntPtr.Zero,size=IntPtr.Zero,caps=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
         IntPtr stdout=IntPtr.Zero,stdin=IntPtr.Zero;PROCESS_INFORMATION process=new PROCESS_INFORMATION();bool created=false,assigned=false;
         try {
             SECURITY_ATTRIBUTES security=new SECURITY_ATTRIBUTES();security.length=Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));security.inherit=true;
             // CREATE_NEW refuses guest-precreated links instead of following them.
             stdout=CreateFile(log,0x40000000,3,ref security,1,0x80,IntPtr.Zero);Ensure(stdout!=new IntPtr(-1),"Create new output file");
             stdin=CreateFile("NUL",0x80000000,3,ref security,3,0x80,IntPtr.Zero);Ensure(stdin!=new IntPtr(-1),"Open NUL input");
-            InitializeProcThreadAttributeList(IntPtr.Zero,3,0,ref size);list=Marshal.AllocHGlobal(size);
-            Ensure(InitializeProcThreadAttributeList(list,3,0,ref size),"InitializeProcThreadAttributeList");
+            InitializeProcThreadAttributeList(IntPtr.Zero,2,0,ref size);list=Marshal.AllocHGlobal(size);
+            Ensure(InitializeProcThreadAttributeList(list,2,0,ref size),"InitializeProcThreadAttributeList");
             SECURITY_CAPABILITIES capabilities=new SECURITY_CAPABILITIES();capabilities.sid=sid;
             caps=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)));Marshal.StructureToPtr(capabilities,caps,false);
             Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x20009,caps,(IntPtr)Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)),IntPtr.Zero,IntPtr.Zero),"Set AppContainer capabilities");
-            policy=Marshal.AllocHGlobal(4);Marshal.WriteInt32(policy,1);
-            Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x2000F,policy,(IntPtr)4,IntPtr.Zero,IntPtr.Zero),"Enforce LPAC opt-out");
+            // LPAC's broad-package opt-out prevents this unpackaged GCC from
+            // launching cc1plus on Windows. Standard AppContainer still has no
+            // capabilities; the acceptance suite verifies its actual boundary.
             handles=Marshal.AllocHGlobal(IntPtr.Size*2);Marshal.WriteIntPtr(handles,0,stdout);Marshal.WriteIntPtr(handles,IntPtr.Size,stdin);
             Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x20002,handles,(IntPtr)(IntPtr.Size*2),IntPtr.Zero,IntPtr.Zero),"Whitelist inherited handles");
             STARTUPINFOEX startup=new STARTUPINFOEX();startup.startup.cb=Marshal.SizeOf(typeof(STARTUPINFOEX));startup.attributes=list;
@@ -170,7 +175,7 @@ public sealed class WindowsSandbox : IDisposable {
         finally {
             if(process.thread!=IntPtr.Zero)CloseHandle(process.thread);if(process.process!=IntPtr.Zero)CloseHandle(process.process);
             if(stdout!=IntPtr.Zero&&stdout!=new IntPtr(-1))CloseHandle(stdout);if(stdin!=IntPtr.Zero&&stdin!=new IntPtr(-1))CloseHandle(stdin);
-            if(list!=IntPtr.Zero){DeleteProcThreadAttributeList(list);Marshal.FreeHGlobal(list);}if(caps!=IntPtr.Zero)Marshal.FreeHGlobal(caps);if(policy!=IntPtr.Zero)Marshal.FreeHGlobal(policy);if(handles!=IntPtr.Zero)Marshal.FreeHGlobal(handles);if(environment!=IntPtr.Zero)Marshal.FreeHGlobal(environment);
+            if(list!=IntPtr.Zero){DeleteProcThreadAttributeList(list);Marshal.FreeHGlobal(list);}if(caps!=IntPtr.Zero)Marshal.FreeHGlobal(caps);if(handles!=IntPtr.Zero)Marshal.FreeHGlobal(handles);if(environment!=IntPtr.Zero)Marshal.FreeHGlobal(environment);
         }
     }
     public void Stop() { if(job!=IntPtr.Zero)TerminateJobObject(job,125); }
@@ -189,14 +194,53 @@ public sealed class WindowsSandbox : IDisposable {
         }
     }
     public static string ReadText(string path,int maximum) { return Encoding.UTF8.GetString(ReadBytes(path,maximum)); }
+    public static void VerifyManifestFiles(string root,string[] paths,string[] hashes,string[] selectedPrefixes) {
+        if(paths==null||hashes==null||paths.Length!=hashes.Length||paths.Length>20000)throw new InvalidOperationException("Invalid compiler manifest file list");
+        if(selectedPrefixes==null||selectedPrefixes.Length==0)throw new InvalidOperationException("No selected compiler dependencies");
+        string prefix=Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar)+Path.DirectorySeparatorChar;
+        var diskFiles=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var folders=new Queue<string>();folders.Enqueue(root);
+        while(folders.Count>0)foreach(string entry in Directory.GetFileSystemEntries(folders.Dequeue())) {
+            FileAttributes flags=File.GetAttributes(entry);
+            if((flags&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("Linked compiler dependency is forbidden");
+            if((flags&FileAttributes.Directory)!=0)folders.Enqueue(entry);else diskFiles.Add(entry);
+        }
+        var known=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using(SHA256 sha=SHA256.Create()) {
+            for(int i=0;i<paths.Length;i++) {
+                string relative=paths[i];
+                if(String.IsNullOrEmpty(relative)||Path.IsPathRooted(relative)||relative.IndexOf('\0')>=0)throw new InvalidOperationException("Unsafe compiler dependency path");
+                string full=Path.GetFullPath(Path.Combine(root,relative.Replace('/',Path.DirectorySeparatorChar)));
+                if(!full.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)||!known.Add(full))throw new InvalidOperationException("Duplicate or escaping compiler dependency path");
+                if(!diskFiles.Contains(full))throw new InvalidOperationException("Trusted dependency is missing: "+relative);
+                bool selected=false;
+                foreach(string part in selectedPrefixes)if(relative.StartsWith(part+"/",StringComparison.OrdinalIgnoreCase)){selected=true;break;}
+                if(selected) {
+                    byte[] digest;
+                    using(FileStream stream=new FileStream(full,FileMode.Open,FileAccess.Read,FileShare.Read,65536,FileOptions.SequentialScan))digest=sha.ComputeHash(stream);
+                    string actual=BitConverter.ToString(digest).Replace("-","");
+                    if(!actual.Equals(hashes[i],StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Trusted dependency changed: "+relative);
+                }
+            }
+        }
+        if(diskFiles.Count!=known.Count)throw new InvalidOperationException("Unlisted file in trusted compiler root");
+    }
     public static void CheckTree(string directory) {
         long bytes=0;int count=0;Queue<string> folders=new Queue<string>();folders.Enqueue(directory);
-        while(folders.Count>0)foreach(string path in Directory.EnumerateFileSystemEntries(folders.Dequeue())) {
-            FileAttributes flags=File.GetAttributes(path);
-            if((flags&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("Compiler produced a forbidden reparse point");
-            if(++count>256)throw new InvalidOperationException("Compiler workspace entry limit exceeded");
-            if((flags&FileAttributes.Directory)!=0)folders.Enqueue(path);else bytes+=new FileInfo(path).Length;
-            if(bytes>32L*1024*1024)throw new InvalidOperationException("Compiler workspace byte monitor exceeded");
+        while(folders.Count>0) {
+            string[] entries;
+            try { entries=Directory.GetFileSystemEntries(folders.Dequeue()); }
+            catch(DirectoryNotFoundException) { continue; } // Compiler removed a temporary directory.
+            foreach(string path in entries) {
+                try {
+                    FileAttributes flags=File.GetAttributes(path);
+                    if((flags&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("Compiler produced a forbidden reparse point");
+                    if(++count>256)throw new InvalidOperationException("Compiler workspace entry limit exceeded");
+                    if((flags&FileAttributes.Directory)!=0)folders.Enqueue(path);else bytes+=new FileInfo(path).Length;
+                    if(bytes>32L*1024*1024)throw new InvalidOperationException("Compiler workspace byte monitor exceeded");
+                } catch(FileNotFoundException) { } // GCC removed a temporary file during this scan.
+                  catch(DirectoryNotFoundException) { }
+            }
         }
     }
     public static void CleanupJob(string directory) {

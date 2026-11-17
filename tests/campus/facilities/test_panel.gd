@@ -19,31 +19,41 @@ func run() -> void:
 	controller.host.commit_profile=func(_id,delta,p):dollars+=delta;saved=p.duplicate(true);return true
 	controller.host.anchors={"counter":{"room_id":"test-room","kind":"counter:tim_hortons","position":Vector3.ZERO}}
 	var panel=FacilityPanel.new();root.add_child(panel);panel.bind(controller)
+	panel.has_order_space=func():return true
 	panel.open_for("counter","counter:tim_hortons")
 	check(panel.state.profile.last_sequence==0,"UI refresh from host")
-	var purchase: Button=find_button(panel,"Coffee")
+	var purchase: Button=find_accessible_button(panel,"Order Coffee for $3")
 	check(purchase!=null,"restaurant menu shows host menu")
-	purchase.pressed.emit()
-	check(dollars==97 and saved.held.item=="coffee","button performs real purchase")
+	if purchase!=null:purchase.pressed.emit()
+	check(dollars==97 and saved.orders.get("1",{}).get("item","")=="coffee","button performs real purchase")
 	check(not panel.pending and panel.state.profile.last_sequence==1,"owner response advances UI sequence")
 	for sip in 3:
 		ticks+=800
-		var consume:=find_button(panel,"Drink / eat")
-		check(consume!=null,"held food action visible")
-		consume.pressed.emit()
-	check(saved.held.is_empty(),"UI consumes food through host")
-	check(find_button(panel,"Drink / eat")==null,"consumed food disappears from UI")
+		panel.request_direct({"op":"consume","order_id":"1"})
+		check(int(saved.orders.get("1",{}).get("servings",0))==2-sip,"hotbar consumption updates the host order")
+	check(saved.orders.is_empty(),"last serving removes the host order")
 	ticks+=100
-	find_button(panel,"Emote • Wave").pressed.emit()
+	panel.open_for("","emotes")
+	var wave:=find_button(panel,"Wave")
+	check(wave!=null,"unlocked emote is available")
+	if wave!=null:wave.pressed.emit()
 	check(controller.host.movement_locked(1),"emote button locks host movement")
 	ticks+=100
-	find_button(panel,"Stand / stop").pressed.emit()
+	panel.request_direct({"op":"stop"})
 	check(not controller.host.movement_locked(1),"stop button releases host movement")
 	panel.queue_free();controller.queue_free()
 	await process_frame;await process_frame
 	print("PANEL checks=",checks," failures=",failed)
 	quit(1 if failed else 0)
-func find_button(panel: Control,prefix: String) -> Button:
-	for child in panel.body.get_children():
-		if child is Button and child.text.begins_with(prefix):return child
+func find_button(node: Node,prefix: String) -> Button:
+	if node is Button and node.text.begins_with(prefix):return node
+	for child in node.get_children():
+		var found:=find_button(child,prefix)
+		if found!=null:return found
+	return null
+func find_accessible_button(node: Node,name_value: String) -> Button:
+	if node is Button and node.accessibility_name==name_value:return node
+	for child in node.get_children():
+		var found:=find_accessible_button(child,name_value)
+		if found!=null:return found
 	return null

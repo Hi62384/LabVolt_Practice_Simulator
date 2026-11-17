@@ -51,7 +51,10 @@ func add_pin(point: Vector2i) -> bool:
 func remove_pin(index: int) -> bool:
 	if pins.size()<=1:error="Keep at least one pin";return false
 	if index<0 or index>=pins.size():return false
-	pins.remove_at(index);return validate()==""
+	var previous := pins.duplicate(true)
+	pins.remove_at(index)
+	if validate()!="":pins=previous;return false
+	return true
 
 func rotate() -> bool:
 	var old_pins:=pins.duplicate(true);var old_footprint: Dictionary=draft.footprint.duplicate(true)

@@ -94,6 +94,10 @@ func update_state(state: Dictionary) -> void:
   io_views={};io_retiring={};io_pointer_positions={};board_epoch=next_epoch
  var held: bool=state.get("board_held",false)
  var board: Dictionary=state.get("board",{})
+ # Empty, already-hidden boards have no geometry or device state to present.
+ # Keep the full transition path for epoch changes, held items and pending IO.
+ if board.is_empty() and presented and not presented_visible and not held and not epoch_changed and io_views.is_empty() and io_retiring.is_empty():
+  return
  standalone_pcb=board.get("standalone",false)
  portable_kit_board=not standalone_pcb and not str(board.get("authority_kit_id","")).is_empty()
  display_scale=.20 if portable_kit_board or (standalone_pcb and board.get("authority_kit_id","existing_kit")=="") else 1.0
@@ -345,11 +349,11 @@ func rebuild_controls() -> void:
    box.size.z = clampf(footprint.y*.78/440.*footprint_scale,.032,.082)
   collision.shape=box;control.add_child(collision)
   control.set_meta("role","dc_code" if part.type in ["lv_mcu","native_uno","native_pico","native_nano"] else "dc_input");control.set_meta("dc_station",station_index);control.set_meta("part_id",str(part.id))
-  control.set_meta("input_type",str(part.type))
+  control.set_meta("input_type",preload("res://scripts/breadboard_model.gd").manual_input_type(str(part.type)) if str(part.type)=="button_nc" else str(part.type))
   if control.get_meta("role")=="dc_code":
    control.set_meta("label","Open programming editor")
-  elif part.type=="button":
-   control.set_meta("label","Hold click or Interact to press")
+  elif part.type in ["button","button_nc"]:
+   control.set_meta("label","NC: hold click or Interact to open" if part.type=="button_nc" else "Hold click or Interact to press")
   elif part.type=="toggle":
    control.set_meta("label","Click to toggle switch")
   elif part.type=="battery_generator":
@@ -392,8 +396,8 @@ func sync_io_surfaces(state: Dictionary) -> void:
  var active := {}
  for device in devices:
   var model: Dictionary=io_catalog.get(str(device.type),{})
-  if device.type in ["spi_display","seven_segment"]:
-   model={"kind":device.type,"category":"Output"}
+  if device.type in ["spi_display","seven_segment","seven_segment_ca"]:
+   model={"kind":"seven_segment" if device.type=="seven_segment_ca" else device.type,"category":"Output"}
   if model.is_empty():continue
   var id := str(device.id);var kind := str(model.kind);active[id]=true
   if io_views.has(id) and str(io_views[id].kind)!=kind:

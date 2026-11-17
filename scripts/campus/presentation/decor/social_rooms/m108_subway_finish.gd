@@ -13,7 +13,7 @@ func _mat(hex: String, transparent: bool = false) -> StandardMaterial3D:
 	if hex == "f8f6df" or hex == "f7e9ab":
 		m.emission_enabled = true
 		m.emission = m.albedo_color
-		m.emission_energy_multiplier = .44
+		m.emission_energy_multiplier = 2.0
 	if transparent:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.albedo_color.a = .25
@@ -58,10 +58,6 @@ func build(_menu: Dictionary) -> void:
 	for z in range(-5,6,2):
 		_box(Vector3(0,.034,float(z)), Vector3(19.65,.004,.012), "626c6d", "Tile joint")
 	# Rear wall and ceiling are inset to avoid touching the campus shell or door.
-	_box(Vector3(0,2.55,-5.88),Vector3(19.5,2.65,.07),"e9e6db","Off-white upper wall")
-	_box(Vector3(0,.65,-5.82),Vector3(19.5,1.28,.08),"74858c","Blue-gray lower wall")
-	_box(Vector3(0,1.31,-5.76),Vector3(19.5,.035,.045),"f3cb48","Yellow wall trim")
-	_box(Vector3(0,.12,-5.73),Vector3(19.5,.2,.05),"526b72","Baseboard")
 	_box(Vector3(0,3.86,0),Vector3(19.5,.065,11.6),"d9dcd5","Suspended ceiling")
 	for x in range(-8,9,2):
 		_box(Vector3(float(x),3.817,0),Vector3(.015,.008,11.45),"abb5b5","Ceiling grid")

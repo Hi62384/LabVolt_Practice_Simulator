@@ -89,7 +89,6 @@ func _landing(floor_id: int) -> void:
 	for x in [15.75, 16.46]:
 		_box(Vector3(x, y + 3.43, 59), Vector3(0.08, 0.4, 1.15), "294e68", false)
 		indicators.append(_text("1", Vector3(x + (-0.06 if x < 16 else 0.06), y + 3.43, 59), -PI / 2 if x < 16 else PI / 2, 32))
-	_text("ELEVATOR", Vector3(15.73, y + 3.85, 59), -PI / 2, 29)
 	_box(Vector3(15.87, y + 1.3, 60.35), Vector3(0.12, 0.65, 0.4), "294e68", false)
 	_box(Vector3(16.35, y + 1.35, 60.45), Vector3(0.12, 0.9, 0.42), "294e68", false)
 	_button(floor_id, -1)
@@ -104,9 +103,11 @@ func _landing(floor_id: int) -> void:
 	light.omni_range = 5.0; light.light_energy = 0.65; light.shadow_enabled = false; add_child(light)
 	# Waiting furniture against the west wall, beyond the stair landing.
 	# Cabin and Z58..60 aperture stay clear. The X13..16 upper route stays entirely clear.
-	_box(Vector3(10.55, y + 0.46, 64.4), Vector3(0.55, 0.12, 1.8), "486879")
-	_box(Vector3(10.22, y + 0.85, 64.4), Vector3(0.09, 0.65, 1.8), "859aa5")
-	for z in [63.75, 65.05]: _box(Vector3(10.55, y + 0.2, z), Vector3(0.4, 0.4, 0.09), "294e68")
+	var bench_x := 15.45 if floor_id==0 else 10.55
+	var back_x := 15.78 if floor_id==0 else 10.22
+	_box(Vector3(bench_x, y + 0.46, 64.4), Vector3(0.55, 0.12, 1.8), "486879")
+	_box(Vector3(back_x, y + 0.85, 64.4), Vector3(0.09, 0.65, 1.8), "859aa5")
+	for z in [63.75, 65.05]: _box(Vector3(bench_x, y + 0.2, z), Vector3(0.4, 0.4, 0.09), "294e68")
 	_box(Vector3(10.55, y + 0.25, 66), Vector3(0.45, 0.5, 0.45), "7c898e")
 	_box(Vector3(10.55, y + 0.8, 66), Vector3(0.5, 0.7, 0.5), "6f8b79", false)
 

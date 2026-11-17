@@ -2,6 +2,7 @@ extends RefCounted
 # Connected stations use one MNA solution: no one-way voltage copying.
 const Solver=preload("res://scripts/electronics_solver.gd")
 const Board=preload("res://scripts/breadboard_model.gd")
+const LinearAC=preload("res://scripts/campus/performance/linear_ac_fast_path.gd")
 static func groups_for(count: int, links: Array) -> Array:
 	var groups: Array=[]
 	for i in count:groups.append([i])
@@ -12,6 +13,33 @@ static func groups_for(count: int, links: Array) -> Array:
 			if int(link.b.station) in group:right=group
 		if left!=right:left.append_array(right);groups.erase(right)
 	return groups
+
+# Called once per frame, after a regular step has built a validated fast cache.
+# Other active groups retain the ordinary scheduler and cannot use this plan.
+static func linear_frame_plan(stations: Array,links: Array,groups: Array,dt: float) -> Dictionary:
+	var main: Array=[];var singles: Array=[]
+	for group in groups:
+		if group.size()==1 and stations[group[0]].has_method("_netlist"):
+			singles.append(int(group[0]))
+		elif group.size()==2 and main.is_empty():main=group
+		else:return {}
+	if main.is_empty():return {}
+	var relevant := links.filter(func(link):return int(link.a.station) in main)
+	var desc: Dictionary=LinearAC.descriptor(main,stations,relevant,dt)
+	if desc.is_empty():return {}
+	var dc=stations[int(desc.dc)];var cache: Dictionary=dc.linear_ac_cache
+	if cache.is_empty() or not cache.get("eligible",true) or cache.key!=desc.key:return {}
+	return {"group":main,"cache":cache,"dc":int(desc.dc),"ac":int(desc.ac),"fuse":dc.fuse,"revision":dc.revision,"board_epoch":dc.board_epoch,"singles":singles}
+
+static func linear_frame_step(plan: Dictionary,stations: Array,dt: float) -> bool:
+	var dc=stations[int(plan.dc)];var ac=stations[int(plan.ac)]
+	# Either of these may change during finish_step when a protective device trips.
+	if not ac.lab.powered or dc.fuse!=plan.fuse or dc.revision!=plan.revision or dc.board_epoch!=plan.board_epoch:return false
+	var time:=maxf(dc.solver.time,ac.solver.time)
+	if not LinearAC.advance(plan.cache,plan.group,stations,time,dt):return false
+	for index in plan.singles:
+		stations[index].linked=false;stations[index].step(dt)
+	return true
 
 static func step(stations: Array,links: Array,dt: float,groups: Array = []) -> void:
 	if groups.is_empty():groups=groups_for(stations.size(),links)
@@ -36,10 +64,17 @@ static func step(stations: Array,links: Array,dt: float,groups: Array = []) -> v
 			station.can_reuse_static_solution=false
 			if not station.button_releases.is_empty():station.release_due_buttons(newest)
 			var simulating: bool=station.board_simulating()
-			key.append([station.revision,station.board_epoch,simulating])
+			key.append([station.revision,station.board_epoch,simulating,station.portable_slot,
+				station.master,station.channels,station.current_source,station.auxiliary_sources,
+				station.generator,station.resistance,station.capacitance,station.fuse,station.wires])
 			if (simulating and station._fixed_board_expansion().is_empty()) or (station.generator.enabled and station.generator.wave!="DC"):
 				cacheable=false
 		var anchor=stations[group[0]]
+		var fast_desc: Dictionary=LinearAC.descriptor(group,stations,group_links,dt)
+		if not fast_desc.is_empty():
+			var dc_station=stations[int(fast_desc.dc)]
+			if not dc_station.linear_ac_cache.is_empty() and dc_station.linear_ac_cache.key==fast_desc.key and dc_station.linear_ac_cache.get("eligible",true):
+				if LinearAC.advance(dc_station.linear_ac_cache,group,stations,newest,dt):continue
 		var cache: Dictionary=anchor.coupled_cache if cacheable else {}
 		if not cache.is_empty() and cache.key==key and cache.solver.time==newest and cache.solver.reuse_flat_solution(cache.batteries,dt):
 			for i in group:
@@ -80,17 +115,34 @@ static func step(stations: Array,links: Array,dt: float,groups: Array = []) -> v
 			var prefix := "station%d/"%i
 			for name in station.solver.memory:solver.memory[prefix+str(name)]=station.solver.memory[name]
 			for name in station.solver.battery_discharge:solver.battery_discharge[prefix+str(name)]=station.solver.battery_discharge[name]
-			for source in station.netlist():
-				var part: Dictionary=source.duplicate()
-				for field in ["id","a","b","control","cp","cn","high","coupled"]:
-					if part.has(field):part[field]=prefix+str(part[field])
-				parts.append(part)
+			var sources: Array=station.netlist_active() if station.has_method("netlist_active") else station.netlist()
+			var prefixed: Array=[]
+			var mapped: Dictionary=station.prefixed_netlist_cache if station.get("prefixed_netlist_cache") is Dictionary else {}
+			if not mapped.is_empty() and is_same(mapped.get("source"),sources) and mapped.get("prefix")==prefix:
+				prefixed=mapped.parts
+				# The AC cache mutates only source values; preserve every other field.
+				for part_index in sources.size():
+					if sources[part_index].has("value"):prefixed[part_index].value=sources[part_index].value
+			else:
+				for source in sources:
+					var part: Dictionary=source.duplicate()
+					for field in ["id","a","b","control","cp","cn","high","coupled"]:
+						if part.has(field):part[field]=prefix+str(part[field])
+					prefixed.append(part)
+				if station.get("prefixed_netlist_cache") is Dictionary:
+					station.prefixed_netlist_cache={"source":sources,"prefix":prefix,"parts":prefixed}
+			parts.append_array(prefixed)
 			var local_wires: Array=station.wires.duplicate()
 			if not station.board.is_empty() and (not station.has_method("board_simulating") or station.board_simulating()):
 				local_wires.append_array(station.board_wires() if station.has_method("board_wires") else Board.wires_only(station.board))
 			for wire in local_wires:wires.append([prefix+str(wire[0]),prefix+str(wire[1])])
 		for link in group_links:
 			wires.append(["station%d/%s"%[link.a.station,link.a.port],"station%d/%s"%[link.b.station,link.b.port]])
+		if not fast_desc.is_empty():
+			var dc_station=stations[int(fast_desc.dc)]
+			if dc_station.linear_ac_cache.is_empty() or dc_station.linear_ac_cache.key!=fast_desc.key:
+				dc_station.linear_ac_cache=LinearAC.build(fast_desc,parts,wires,group)
+				if dc_station.linear_ac_cache.is_empty():dc_station.linear_ac_cache={"key":fast_desc.key.duplicate(true),"eligible":false}
 		var solved: Dictionary=solver.solve(parts,wires,dt,dt==0.)
 		var local_results := {}
 		for i in group:

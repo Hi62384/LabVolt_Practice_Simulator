@@ -10,7 +10,7 @@ func mat(hex: String) -> StandardMaterial3D:
 	if hex == "fff1db":
 		m.emission_enabled = true
 		m.emission = m.albedo_color
-		m.emission_energy_multiplier = .42
+		m.emission_energy_multiplier = 2.0
 	mats[hex] = m
 	return m
 func panel(at: Vector3, size: Vector3, hex: String) -> void:
@@ -52,16 +52,16 @@ func build() -> void:
 	tiles(floor_a,Vector3(.984,.012,.984),"67787b")
 	tiles(floor_b,Vector3(.984,.012,.984),"718185")
 	# Blue-gray wainscot, cream upper wall, and a continuous baseboard.
-	for z in [-5.88,5.88]:
+	for z in [-5.88]:
 		panel(Vector3(0,1.0,z),Vector3(19.82,1.9,.035),"536d76")
 		panel(Vector3(0,2.95,z),Vector3(19.82,1.99,.035),"d9ded6")
 		panel(Vector3(0,.11,z-.03 if z>0 else z+.03),Vector3(19.82,.20,.07),"344f59")
 	panel(Vector3(9.88,1,0),Vector3(.035,1.9,11.8),"536d76")
 	panel(Vector3(9.88,2.95,0),Vector3(.035,1.99,11.8),"d9ded6")
-	for z in [-3.65,3.65]:
-		panel(Vector3(-9.88,1,z),Vector3(.035,1.9,4.55),"536d76")
-		panel(Vector3(-9.88,2.95,z),Vector3(.035,1.99,4.55),"d9ded6")
-		panel(Vector3(-9.83,.11,z),Vector3(.07,.20,4.55),"344f59")
+	for z in [-4.55,4.55]:
+		panel(Vector3(-9.88,1,z),Vector3(.035,1.9,2.8),"536d76")
+		panel(Vector3(-9.88,2.95,z),Vector3(.035,1.99,2.8),"d9ded6")
+		panel(Vector3(-9.83,.11,z),Vector3(.07,.20,2.8),"344f59")
 	# Suspended grid below original 4.15m shell ceiling; no collision or lights.
 	var ceiling_a: Array = []; var ceiling_b: Array = []
 	for x in range(10):

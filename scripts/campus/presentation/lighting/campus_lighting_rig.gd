@@ -72,6 +72,10 @@ func _build_once() -> void:
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.glow_enabled = true
+	environment.glow_bloom = 0.10
+	environment.glow_hdr_threshold = 0.68
+	environment.glow_hdr_scale = 2.5
+	environment.glow_intensity = 0.75
 	environment.glow_hdr_luminance_cap = 64.0
 	world_environment.environment = environment
 
@@ -82,8 +86,8 @@ func _build_once() -> void:
 		add_child(sun)
 	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	sun.directional_shadow_max_distance = 90.0
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_max_distance = 45.0
 	sun.shadow_bias = 0.07
 	sun.shadow_normal_bias = 1.4
 	sun.light_angular_distance = 1.1
@@ -118,5 +122,5 @@ func _apply_time_of_day() -> void:
 	sky_material.ground_horizon_color = NIGHT_GROUND_HORIZON.lerp(DAY_GROUND_HORIZON, day_mix).lerp(Color("b9785f"), twilight * 0.25)
 	sky_material.sun_curve = lerpf(0.04, 0.12, day_mix)
 	world_environment.environment.background_energy_multiplier = lerpf(0.18, 0.92, day_mix) * brightness_scale
-	world_environment.environment.ambient_light_energy = lerpf(0.075, 0.16, day_mix) * brightness_scale
+	world_environment.environment.ambient_light_energy = lerpf(0.11, 0.22, day_mix) * brightness_scale
 	world_environment.environment.ambient_light_color = Color("8ea5c8").lerp(Color("e6e8eb"), day_mix)

@@ -7,6 +7,9 @@ var lab_challenge_observer := Callable()
 var lab_challenge_brief := Callable()
 var academic_equipment_observer: Callable
 var facility_translation_guard: Callable
+var carry_speed_guard: Callable
+var health_block_action: Callable
+var health_pose_guard: Callable
 var campus_enabled := false
 ## ENet authority: clients send actions, never solutions or equipment snapshots.
 signal appearance_received(peer: int,data: PackedByteArray)
@@ -205,13 +208,15 @@ func register(player_name: String) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	if roster.size() >= MAX_PLAYERS or roster.has(id):
 		return
-	roster[id] = {"name":player_name.strip_edges().left(24),"ready":false}
+	var clean_name:=player_name.replace("\n"," ").replace("\r"," ").replace("\t"," ").strip_edges().left(24)
+	roster[id] = {"name":clean_name if not clean_name.is_empty() else "Student","ready":false}
 	poses[id] = {"position":(Vector3(13,0,-18) if campus_enabled else Vector3(0,0,1.75)),"yaw":0.0,"pitch":0.0,"crouch":false}
 	_send_connected("_roster",[roster])
 	_snapshot.rpc_id(id,world_snapshot())
 	if uses_relay(): relay_pose_dirty = true
 	for peer in appearances:
 		_queue_appearance(id,int(peer),appearances[peer])
+	roster_changed.emit()
 	_send_connected("_chat",["%s joined the laboratory." % roster[id].name])
 
 func _left(id: int) -> void:
@@ -220,6 +225,7 @@ func _left(id: int) -> void:
 		return
 	if online and was_host and multiplayer.multiplayer_peer.get_connection_status()==MultiplayerPeer.CONNECTION_DISCONNECTED:return
 	roster.erase(id)
+	last_chat.erase(id)
 	poses.erase(id);shop_returns.erase(id)
 	appearances.erase(id)
 	appearance_incoming.erase(id)
@@ -272,6 +278,7 @@ func _action(action: Dictionary) -> void:
 func apply_action(id: int, action: Dictionary) -> void:
 	if not roster.has(id) or action.size() > 12:
 		return
+	if health_block_action.is_valid() and health_block_action.call(id,action):return
 	for key in ["delta","index","id","color","task","seed","v","i","p","station","element"]:
 		if action.has(key) and (not typeof(action[key]) in [TYPE_INT,TYPE_FLOAT] or not is_finite(float(action[key]))):
 			return
@@ -395,13 +402,20 @@ func accept_pose(id: int,data: Dictionary) -> void:
 	var pos: Vector3 = data.position
 	if not pos.is_finite():
 		return
+	if health_pose_guard.is_valid():pos=health_pose_guard.call(id,pos)
 	var now := Time.get_ticks_msec()
 	var elapsed := clampf((now-float(last_pose.get(id,now-100)))/1000.0,0.01,0.5)
 	var old: Vector3 = poses.get(id,{}).get("position",(Vector3(13,0,-18) if campus_enabled else Vector3(0,0,1.75)))
 	if facility_translation_guard.is_valid():pos=facility_translation_guard.call(id,pos,old)
 	var displacement := pos-old
+	var carry_scale:=clampf(float(carry_speed_guard.call(id)),.2,1.0) if carry_speed_guard.is_valid() else 1.0
 	if displacement.length() > 6.0*elapsed+0.4:
 		pos = old + displacement.normalized()*(6.0*elapsed)
+	if carry_scale<1.0:
+		var horizontal:=Vector2(pos.x-old.x,pos.z-old.z)
+		if horizontal.length()>6.0*elapsed*carry_scale+0.4:
+			horizontal=horizontal.normalized()*(6.0*elapsed*carry_scale)
+			pos.x=old.x+horizontal.x;pos.z=old.z+horizontal.y
 	if campus_enabled:
 		pos.x=clampf(pos.x,-9.6,35.6)
 		var dorm_min_x := DormLayout.CORRIDOR_X_MIN - DormLayout.ROOM_WIDTH
@@ -434,6 +448,7 @@ func _poses(data: Dictionary) -> void:
 
 func chat(value: String) -> void:
 	if online and not multiplayer.is_server():
+		if multiplayer.multiplayer_peer.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED:return
 		_chat_request.rpc_id(1,value)
 	else:
 		accept_chat(1,value)
@@ -444,17 +459,18 @@ func _chat_request(value: String) -> void:
 		accept_chat(multiplayer.get_remote_sender_id(),value)
 
 func accept_chat(id: int,value: String) -> void:
-	if not roster.has(id) or Time.get_ticks_msec()-int(last_chat.get(id,-1000)) < 600:
+	if not multiplayer.is_server() or not roster.has(id) or value.length()>1000 or Time.get_ticks_msec()-int(last_chat.get(id,-1000)) < 600:
 		return
-	last_chat[id] = Time.get_ticks_msec()
-	var message := value.strip_edges().replace("\n"," ").left(240)
+	var message := value.replace("\n"," ").replace("\r"," ").replace("\t"," ").strip_edges().left(100)
 	if message=="":return
+	last_chat[id] = Time.get_ticks_msec()
 	chat_received.emit(id,str(roster[id].name),message)
 	if online:_send_connected("_player_chat",[id,str(roster[id].name),message])
 
 @rpc("authority","call_remote","reliable")
-func _player_chat(peer: int,sender: String,message: String) -> void:
-	chat_received.emit(peer,sender,message)
+func _player_chat(peer: int,_sender: String,message: String) -> void:
+	if not roster.has(peer) or message.is_empty() or message.length()>100:return
+	chat_received.emit(peer,str(roster[peer].name),message)
 
 @rpc("authority","call_remote","reliable")
 func _chat(value: String) -> void:

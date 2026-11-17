@@ -1,0 +1,32 @@
+extends SceneTree
+const Toon=preload("res://scripts/toon_character.gd")
+const Visual=preload("res://scripts/campus/facilities/muscle_visual.gd")
+func _initialize():
+ var config=Toon.defaults();config.outfit="Tee"
+ var avatar: Node3D=Toon.build(config);root.add_child(avatar)
+ var sleeve: MeshInstance3D=avatar.get_node("Body/ArmL/Sleeve")
+ var torso: MeshInstance3D=avatar.get_node("Body/TailoredTop")
+ var leg: MeshInstance3D=avatar.get_node("LegL/Trouser")
+ var garment:=Node3D.new();garment.name="SleeveL";avatar.get_node("Body/ArmL").add_child(garment)
+ var cloth:=MeshInstance3D.new();var cloth_mesh:=BoxMesh.new();cloth_mesh.size=Vector3(.13,.16,.13);cloth.mesh=cloth_mesh;cloth.position.y=-.14;garment.add_child(cloth)
+ var original_sleeve:=sleeve.mesh;var original_torso:=torso.mesh;var original_leg:=leg.mesh
+ var original_cloth:=cloth.mesh
+ var arm_bounds:=sleeve.mesh.get_aabb();var torso_bounds:=torso.mesh.get_aabb();var leg_bounds:=leg.mesh.get_aabb()
+ Visual.apply(avatar,{"biceps":1.0,"triceps":1.0,"chest":1.0,"quadriceps":1.0,"hamstrings":1.0})
+ assert(sleeve.mesh.get_aabb().size.x>arm_bounds.size.x)
+ assert(torso.mesh.get_aabb().size.z>torso_bounds.size.z)
+ assert(leg.mesh.get_aabb().size.x>leg_bounds.size.x)
+ assert(cloth.mesh.get_aabb().size.x>cloth_mesh.size.x)
+ var changed:=sleeve.mesh.get_aabb()
+ Visual.apply(avatar,{"biceps":1.0,"triceps":1.0,"chest":1.0,"quadriceps":1.0,"hamstrings":1.0})
+ assert(sleeve.mesh.get_aabb().is_equal_approx(changed))
+ Visual.apply(avatar,{})
+ assert(sleeve.mesh==original_sleeve and torso.mesh==original_torso and leg.mesh==original_leg and cloth.mesh==original_cloth)
+ var social=preload("res://scripts/campus_social.gd").new()
+ social._receive_muscles({2:{"biceps":2.0,"chest":NAN,"triceps":-.5,"private":100}})
+ assert(social.muscle_profiles[2].biceps==1.0 and social.muscle_profiles[2].triceps==0.0)
+ assert(not social.muscle_profiles[2].has("private") and not social.muscle_profiles[2].has("chest"))
+ social.free()
+ avatar.free()
+ print("PASS independent muscle deformation and non-cumulative restoration")
+ quit()

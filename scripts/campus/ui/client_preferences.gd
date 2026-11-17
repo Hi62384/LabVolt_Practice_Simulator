@@ -5,6 +5,9 @@ const BUS_NAMES := {"master": "Master", "effects": "Effects", "ambience": "Ambie
 const DEFAULTS := {
 	"display_mode": 0, "width": 0, "height": 0, "vsync": true, "fps": 60, "fov": 72.0,
 	"master": 1.0, "effects": 1.0, "ambience": 1.0, "interface": 1.0,
+	"teacher_mic_sensitivity": 1.0,
+	"teacher_mic_detection": true,
+	"teacher_speech": true, "teacher_subtitles": true,
 	"prompts": true, "notifications": true, "room_names": true, "hud": true, "assists": true,
 	"relay_pose_rate": 10, "relay_skip_idle": true,
 	"ui_scale": 1.0, "high_contrast": false, "analyzer_shapes": false, "reduced_motion": false,
@@ -32,6 +35,8 @@ func load_settings(owner: Node) -> void:
 	values.fps = clampi(values.fps, 0, 360)
 	values.fov = clampf(values.fov, 55, 95)
 	values.ui_scale = clampf(values.ui_scale, 0.85, 1.25)
+	if not is_finite(values.teacher_mic_sensitivity):values.teacher_mic_sensitivity=1.0
+	values.teacher_mic_sensitivity=clampf(values.teacher_mic_sensitivity,.5,2.0)
 	for key in BUS_NAMES:
 		values[key] = clampf(values[key], 0.0, 1.0)
 
@@ -53,6 +58,10 @@ func apply(key: String) -> void:
 			AudioServer.set_bus_volume_db(index, linear_to_db(maxf(0.0001, values[key])))
 		return
 	match key:
+		"teacher_speech", "teacher_subtitles":
+			if is_instance_valid(game.faculty) and is_instance_valid(game.faculty.speech_player):
+				game.faculty.speech_player.configure(values.teacher_speech,values.teacher_subtitles)
+				if not values.teacher_speech and is_instance_valid(game.faculty.speech_synth):game.faculty.speech_synth.clear_session()
 		"vsync":
 			if DisplayServer.get_name() != "headless":
 				DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if values.vsync else DisplayServer.VSYNC_DISABLED)
@@ -79,7 +88,7 @@ func apply(key: String) -> void:
 				game.menu_campus.refresh_motion()
 
 func apply_all() -> void:
-	apply_display(values.display_mode, Vector2i(values.width, values.height))
+	await apply_display(values.display_mode, Vector2i(values.width, values.height))
 	for key in DEFAULTS:
 		apply(key)
 
@@ -89,6 +98,10 @@ func apply_display(mode: int, resolution: Vector2i) -> void:
 	var window := game.get_window()
 	window.mode = [Window.MODE_WINDOWED, Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN][mode]
 	if mode == 0 and resolution.x > 0 and resolution.y > 0:
+		# Wait for the display server to finish leaving fullscreen before sizing
+		# the window; an immediate size assignment can be discarded on Windows.
+		await game.get_tree().process_frame
+		if not is_instance_valid(window): return
 		var area := DisplayServer.screen_get_usable_rect(window.current_screen)
 		var requested := resolution.min(area.size)
 		window.size = requested

@@ -337,6 +337,9 @@ func _show_directory() -> void:
 func submit_intent(operation_id: String,intent: Dictionary) -> Dictionary:
 	# Local UI adapter only. Multiplayer mutation is still authenticated by the
 	# inventory RPC's sender and ledger binding; no payload identity is accepted.
+	var key:=str(intent.get("item",""))
+	if key.begins_with("laptop:") and is_instance_valid(game.get("portable_laptops")) and game.portable_laptops.placed.has(key.trim_prefix("laptop:")):
+		return {"ok":false,"error":"Pick up the laptop before storing it."}
 	if game.session.online:
 		game.electronics_trade.authority.submit_dorm(operation_id,intent)
 		return {"ok":false,"pending":true}
@@ -351,6 +354,8 @@ func submit_intent(operation_id: String,intent: Dictionary) -> Dictionary:
 	if game.kit_world.blocks_dorm_transfer(multiplayer.get_unique_id(),intent):return {"ok":false,"error":"Pick up and stow the kit before transferring it"}
 	var applied: Dictionary=Dorm.apply_intent(profile.data,game.school.local_identity,intent,reservations)
 	if not applied.ok:return applied
+	var accessories=preload("res://scripts/campus/facilities/accessory_layout.gd")
+	if not accessories.permits_change(profile.data,applied.profile,accessories.belt_count(game,multiplayer.get_unique_id())):return {"ok":false,"error":"Remove an accessory to free a slot"}
 	var before: Dictionary=profile.data
 	profile.data=applied.profile
 	profile.data.dorm_receipts=receipts.duplicate(true);profile.data.dorm_receipts[operation_id]=digest
@@ -566,6 +571,24 @@ func _build_storage() -> void:
 			_cabinet_tile(carried,title,item,"Store",_cabinet_transfer.bind({"op":"carry_item","item":key,"carry":false},false))
 		elif not Dorm.Backpacks.has_kit(dorm_data,str(id)):
 			_cabinet_tile(stored,title,item,"Move to hotbar",_cabinet_transfer.bind({"op":"carry_item","item":key,"carry":true},true))
+	for id in dorm_data.get("usb_drives",{}):
+		var drive: Dictionary=dorm_data.usb_drives[id]
+		if drive.location not in ["hotbar","cabinet"]:continue
+		var take: bool=drive.location=="cabinet"
+		var label := "%s · %d MB" % [drive.name,int(drive.capacity_mb)]
+		_cabinet_tile(stored if take else carried,label,{"kind":"usb","id":id},"Move to hotbar" if take else "Store",_cabinet_transfer.bind({"op":"carry_item","item":"usb:"+str(id),"carry":take},take))
+	for id in dorm_data.get("portable_laptops",{}):
+		var laptop: Dictionary=dorm_data.portable_laptops[id]
+		if laptop.location not in ["hotbar","cabinet"]:continue
+		var take: bool=laptop.location=="cabinet"
+		var label: String=preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS[laptop.tier].name
+		_cabinet_tile(stored if take else carried,label,{"kind":"portable_laptop","id":id},"Move to hotbar" if take else "Store",_cabinet_transfer.bind({"op":"carry_item","item":"laptop:"+str(id),"carry":take},take))
+	for id in dorm_data.get("smartphones",{}):
+		var phone: Dictionary=dorm_data.smartphones[id]
+		if phone.location not in ["hotbar","cabinet"]:continue
+		var take: bool=phone.location=="cabinet"
+		var label: String=preload("res://scripts/campus/phones/phone_tiers.gd").TIERS[phone.tier].name
+		_cabinet_tile(stored if take else carried,label,{"kind":"smartphone","id":id},"Move to hotbar" if take else "Store",_cabinet_transfer.bind({"op":"carry_item","item":"phone:"+str(id),"carry":take},take))
 	for id in bags:
 		var bag: Dictionary=bags[id]
 		if bag.location not in ["cabinet","hotbar"]:continue

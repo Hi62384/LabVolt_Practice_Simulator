@@ -10,7 +10,7 @@ const CATEGORIES := {
 	"Graphics & Display":"meter", "Audio":"volume", "Controls":"keyboard",
 	"Gameplay":"play", "Accessibility":"user", "Host Server":"network"}
 const RESOLUTIONS := [Vector2i.ZERO, Vector2i(1280,720), Vector2i(1366,768), Vector2i(1600,900), Vector2i(1920,1080), Vector2i(2560,1440)]
-const RESERVED := [KEY_F, KEY_Q, KEY_Z, KEY_P, KEY_C, KEY_F8, KEY_F11, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_R, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]
+const RESERVED := [KEY_Q, KEY_Z, KEY_P, KEY_C, KEY_F7, KEY_F8, KEY_F11, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_R, KEY_BRACKETLEFT, KEY_BRACKETRIGHT]
 
 var game: Node
 var prefs: RefCounted
@@ -108,16 +108,18 @@ func _host_server_controls() -> void:
 		_button(body, "Copy Room Code", "", func(): DisplayServer.clipboard_set(code))
 	var account = game.front.relay_account
 	if account.connected():
-		_label(body, "Estimated daily requests left · %d / %d" % [account.estimated_remaining(), account.DAILY_REQUESTS], 16)
-		var note := _label(body, "Counts this installation’s relay traffic. Account-wide usage and compute limits are in Cloudflare. Resets at midnight UTC.", 14)
+		_label(body, "Cloudflare account usage", 16)
+		var note := _label(body, "View actual account-wide usage in Cloudflare. Each WebSocket connection is a Worker request; messages and Durable Objects usage are measured separately.", 14)
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		_button(body, "View Cloudflare Usage", "meter", func(): OS.shell_open("https://dash.cloudflare.com/" + str(account.identity.account_id) + "/workers-and-pages"))
+		_button(body, "View Cloudflare Usage", "meter", func(): OS.shell_open(account.dashboard(str(account.identity.get("account_id", "")))))
 	else:
-		_label(body, "Connect a relay account from Host Game to track usage.", 15)
+		_label(body, "Connect a relay account from Host Game to open Cloudflare usage.", 15)
 	_label(body, "Multiplayer optimization", 18)
 	_slider("Movement updates per second", 5, 20, 1, prefs.values.relay_pose_rate,
 		func(value: float): _preference(int(value), "relay_pose_rate"), "%.0f", 1)
 	_toggle("Skip unchanged movement updates", prefs.values.relay_skip_idle, _preference.bind("relay_skip_idle"))
+	_label(body,"OpenAI API",18)
+	_openai_controls()
 
 func _reflow() -> void:
 	layout.vertical = size.x < 760
@@ -141,6 +143,18 @@ func _select(category: String) -> void:
 		"Audio":
 			for spec in [["Master volume","master"],["Sound effects","effects"],["Environmental ambience","ambience"],["UI sounds","interface"]]:
 				_slider(spec[0], 0, 1, .01, prefs.values[spec[1]], _preference.bind(spec[1]), "%.0f%%", 100)
+			_label(body, "Teacher hearing", 18)
+			_toggle("Allow teachers to react to my microphone", prefs.values.teacher_mic_detection, _preference.bind("teacher_mic_detection"))
+			_slider("Microphone sensitivity", .5, 2.0, .05, prefs.values.teacher_mic_sensitivity, _preference.bind("teacher_mic_sensitivity"), "%.0f%%", 100)
+			var hint:=_label(body,"Used only while push-to-talk is active. Higher values make teachers more sensitive to your microphone.",14)
+			hint.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			var privacy_note:=_label(body,"Turning off teacher reactions does not mute push-to-talk voice chat.",14)
+			privacy_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			_label(body, "Teacher replies", 18)
+			_toggle("Play teacher speech when a voice is available", prefs.values.teacher_speech, _preference.bind("teacher_speech"))
+			_toggle("Show teacher subtitles", prefs.values.teacher_subtitles, _preference.bind("teacher_subtitles"))
+			var mic_test:=preload("res://scripts/campus/voice/microphone_meter.gd").new()
+			body.add_child(mic_test);mic_test.build(func():return prefs.values.teacher_mic_sensitivity)
 		"Controls": _input_controls()
 		"Host Server": _host_server_controls()
 		"Gameplay":
@@ -158,6 +172,88 @@ func _select(category: String) -> void:
 			_toggle("Analyzer polarity symbols", prefs.values.analyzer_shapes, _preference.bind("analyzer_shapes"))
 			_toggle("Reduced motion", prefs.values.reduced_motion, _preference.bind("reduced_motion"))
 	_update_display_action()
+
+func _openai_controls() -> void:
+	var service: Node=game.host_openai
+	if not service.host_allowed():
+		_label(body,"Only the game host can configure or use the OpenAI connection.",15)
+		return
+	var note:=_label(body,"The host's API key stays in this game process. It is never saved in game settings or sent to other players. You can also set OPENAI_API_KEY before starting the host.",14)
+	note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var classroom_note:=_label(body,"When enabled, classroom lesson context and student questions are sent from the host to OpenAI. Recording a question also sends up to six seconds of audio for transcription. These requests use the host's paid API account.",14)
+	classroom_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	_label(body,"Connection: "+service.credential_source(),15,T.ACCENT)
+	var key_row:=_row("API key for this run")
+	var key_field:=LineEdit.new()
+	key_field.secret=true
+	key_field.placeholder_text="Paste an OpenAI API key"
+	key_field.size_flags_horizontal=SIZE_EXPAND_FILL
+	key_row.add_child(key_field)
+	var key_actions:=HBoxContainer.new();body.add_child(key_actions)
+	_button(key_actions,"Use Key","check",func():
+		if service.set_session_key(key_field.text):
+			key_field.clear()
+			_notice("API key is ready for this host session. It was not saved to disk.")
+		else:_notice("Enter a valid OpenAI API key. The key was not saved."))
+	_button(key_actions,"Forget Session Key","close",func():
+		service.clear_session_key()
+		key_field.clear()
+		_notice("Session key removed. Environment key, if set, remains available."))
+	var model_row:=_row("Model ID")
+	var model_field:=LineEdit.new()
+	model_field.text=service.model
+	model_field.max_length=64
+	model_field.size_flags_horizontal=SIZE_EXPAND_FILL
+	model_row.add_child(model_field)
+	var output:=_openai_spin("Maximum output tokens",16,2048,service.max_output_tokens)
+	var minute:=_openai_spin("Requests per minute",1,10,service.requests_per_minute)
+	var daily:=_openai_spin("Requests per day",1,200,service.requests_per_day)
+	var enabled_check:=CheckButton.new()
+	enabled_check.text="Allow host OpenAI requests"
+	enabled_check.button_pressed=service.enabled
+	body.add_child(enabled_check)
+	_button(body,"Save OpenAI Settings","check",func():
+		var error: Error=service.configure(model_field.text.strip_edges(),int(output.value),int(minute.value),int(daily.value),enabled_check.button_pressed)
+		_notice("OpenAI settings saved." if error==OK else "Could not save OpenAI settings. Check the model ID."))
+	var test_button:=_button(body,"Test Connection","network",func():
+		_notice("Checking OpenAI connection…")
+		var result: Dictionary=await service.test_connection()
+		if is_inside_tree() and active=="Host Server":_notice(str(result.get("message",result.get("error","Connection failed.")))))
+	var prompt_row:=_row("Try a prompt")
+	var prompt_field:=LineEdit.new()
+	prompt_field.placeholder_text="Ask a short question"
+	prompt_field.max_length=4000
+	prompt_field.size_flags_horizontal=SIZE_EXPAND_FILL
+	prompt_row.add_child(prompt_field)
+	var answer:=_label(body,"",14,T.ACCENT)
+	answer.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	_button(body,"Send Prompt","play",func():
+		answer.text="Waiting for OpenAI…"
+		var result: Dictionary=await service.respond(prompt_field.text)
+		if is_instance_valid(answer):answer.text=str(result.get("text",result.get("error","No response."))))
+	_label(body,"Create a fictional instructor",18)
+	var course_row:=_row("Course")
+	var course_choice:=OptionButton.new()
+	for course in ["MTH147","MTH255","ETY155","ELM253","DGS266"]:course_choice.add_item(course)
+	course_row.add_child(course_choice)
+	var style_row:=_row("Teaching style")
+	var style_field:=LineEdit.new();style_field.max_length=120;style_field.placeholder_text="For example: patient and practical";style_field.size_flags_horizontal=SIZE_EXPAND_FILL;style_row.add_child(style_field)
+	_button(body,"Create Instructor","play",func():
+		if not is_instance_valid(game.faculty):_notice("Enter a game before creating an instructor.");return
+		_notice("Creating instructor…")
+		var created: Dictionary=await game.faculty.generate_teacher(course_choice.get_item_text(course_choice.selected),style_field.text)
+		if is_inside_tree() and active=="Host Server":_notice("%s can now teach that course this session."%str(created.get("name","")) if created.get("ok",false) else str(created.get("error","Could not create instructor."))))
+	var limits:=_label(body,"Requests use the host's OpenAI account. The daily count includes connection checks and failed requests: %d of %d used today."%[service.used_today,service.requests_per_day],13)
+	limits.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	test_button.disabled=service.busy
+
+func _openai_spin(title: String,low: int,high: int,value: int) -> SpinBox:
+	var row:=_row(title)
+	var spin:=SpinBox.new()
+	spin.min_value=low;spin.max_value=high;spin.step=1;spin.value=value
+	spin.size_flags_horizontal=SIZE_EXPAND_FILL
+	row.add_child(spin)
+	return spin
 
 func _display_controls() -> void:
 	_choice("Display mode", ["Windowed","Borderless Fullscreen","Fullscreen"], pending_mode, func(index):
@@ -209,7 +305,7 @@ func _input_controls() -> void:
 	_toggle("Head bob", game.player.head_bob, _control.bind("head_bob"))
 	_label(body, "Keyboard bindings", 18)
 	for action in game.player.keys:
-		var names := {"forward":"Move forward","back":"Move backward","left":"Strafe left","right":"Strafe right","read_sheet":"Read held worksheet","drop_lead":"Drop held item","emotes":"Open emotes"}
+		var names := {"voice":"Push to talk","forward":"Move forward","back":"Move backward","left":"Strafe left","right":"Strafe right","read_sheet":"Read held worksheet","place_item":"Place held item","inspect":"Inspect device","emotes":"Open emotes","call_teacher":"Call lab instructor","throw_paper":"Throw paper ball in classroom"}
 		var row := _row(names.get(action, str(action).replace("_"," ").capitalize()))
 		binding_buttons[action] = _button(row, OS.get_keycode_string(game.player.keys[action]), "keyboard", _start_binding.bind(action))
 		binding_buttons[action].custom_minimum_size.x = 120
@@ -270,7 +366,12 @@ func _reset() -> void:
 			preset = "Medium"
 			pending_mode = 0
 			pending_resolution = Vector2i.ZERO
-		"Audio": keys = Prefs.BUS_NAMES.keys()
+		"Audio":
+			keys = Prefs.BUS_NAMES.keys()
+			keys.append("teacher_mic_sensitivity")
+			keys.append("teacher_mic_detection")
+			keys.append("teacher_speech")
+			keys.append("teacher_subtitles")
 		"Controls":
 			game.player.sensitivity = .00225
 			game.player.invert_vertical = false
@@ -286,7 +387,7 @@ func _reset() -> void:
 
 func _update_display_action() -> void:
 	apply_button.visible = active == "Graphics & Display"
-	apply_button.disabled = pending_mode == prefs.values.display_mode and pending_resolution == Vector2i(prefs.values.width, prefs.values.height)
+	apply_button.disabled = previewing
 
 func _apply_display() -> void:
 	var window := get_window()
@@ -294,7 +395,7 @@ func _apply_display() -> void:
 	previous_size = window.size
 	previous_position = window.position
 	previewing = true
-	prefs.apply_display(pending_mode, pending_resolution)
+	await prefs.apply_display(pending_mode, pending_resolution)
 	confirmation = ConfirmationDialog.new()
 	confirmation.title = "Keep display settings?"
 	confirmation.ok_button_text = "Keep Changes"

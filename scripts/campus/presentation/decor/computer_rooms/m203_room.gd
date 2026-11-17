@@ -88,7 +88,7 @@ func _box(at: Vector3,size: Vector3,key: String) -> void:
 		if key == "light":
 			material.emission_enabled = true
 			material.emission = material.albedo_color
-			material.emission_energy_multiplier = .40
+			material.emission_energy_multiplier = 2.0
 		materials[key]=material
 	var part:=MeshInstance3D.new();part.mesh=meshes[mesh_key];part.material_override=materials[key]
 	part.position=at;part.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;root.add_child(part)

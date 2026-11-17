@@ -3,11 +3,15 @@ const Solver = preload("res://scripts/electronics_solver.gd")
 const PORTS = ["CH1+","CH1-","CH2+","CH2-","CH3+","CH3-","GEN","REF","VΩ","COM","A","S1","S2","GND","R1a","R1b","R2a","R2b","Ca","Cb","Da","Db","B1","B2","B3","B4","IS+","IS-","IS2+","IS2-","IS3+","IS3-","IS4+","IS4-","X1","X2","X3","X4","X5","X6","X7","X8","X9","X10","X11","X12","X13","X14","X15","X16","X17","X18","X19","X20","X21","X22","X23","X24","X25","X26","X27","X28","X29","X30","X31","X32","X33","X34","X35","X36","X37","X38","X39","X40","X41","X42","X43","X44","X45","X46","X47","X48","X49","X50","X51","X52","X53","X54","X55","X56","X57","X58","X59","X60","X61","X62","X63","X64"]
 var solver = Solver.new()
 var linked := false
+var linked_ports := {}
+var prune_disconnected_passives := true
 var audio_ids: Array=[]
 var audio_samples := {}
 var board := {}
 var board_owner := 0
 var board_epoch := 0
+var solved_board_epoch := -1
+var solved_revision := -1
 var static_step_key := []
 var can_reuse_static_solution := false
 var static_batteries := []
@@ -133,6 +137,32 @@ func board_wires() -> Array:
 	return expanded_board_wires
 
 var portable_slot := false
+var active_netlist_key: Array=[]
+var active_netlist_cache: Array=[]
+var prefixed_netlist_cache := {}
+var fast_linear_ac_enabled := true
+var linear_ac_cache := {}
+
+func netlist_active() -> Array:
+	# Firmware, live boards and time-varying generators must be rebuilt each step.
+	if board_simulating() or (generator.enabled and generator.wave!="DC"):
+		return netlist()
+	var key := [portable_slot,master,channels,current_source,auxiliary_sources,generator,resistance,capacitance,fuse,prune_disconnected_passives,linked_ports,wires]
+	if active_netlist_key!=key:
+		active_netlist_cache=netlist()
+		if prune_disconnected_passives:
+			var occupied := linked_ports.duplicate()
+			for wire in wires:
+				for port in wire:occupied[port]=true
+			var removable := ["r0","r1","cap","diode","ammeter","vmeter","S1","S2"]
+			var complete: Array=active_netlist_cache
+			active_netlist_cache=complete.filter(func(part):return part.id not in removable or occupied.has(part.a) or occupied.has(part.b))
+			# Keep one isolated passive in an otherwise empty fixed bench so the
+			# transient solver still advances when it has no external source.
+			if active_netlist_cache.is_empty() and not portable_slot:
+				active_netlist_cache=complete.filter(func(part):return part.id=="vmeter")
+		active_netlist_key=key.duplicate(true)
+	return active_netlist_cache
 
 func netlist() -> Array:
 	var parts: Array=[]
@@ -169,16 +199,18 @@ func netlist() -> Array:
 
 func step(dt := .0005) -> void:
 	prepare_step(dt)
-	var key := [revision,board_epoch,board_simulating(),dt]
+	var key := [revision,board_epoch,board_simulating(),dt,portable_slot,master,channels,current_source,auxiliary_sources,generator,resistance,capacitance,fuse,wires]
 	if dt>0 and not linked and can_reuse_static_solution and static_step_key==key and is_same(result,solver.last) and solver.reuse_flat_solution(static_batteries,dt):
 		finish_step(true)
 		return
-	static_step_key=key
+	static_step_key=key.duplicate(true)
 	can_reuse_static_solution=false
 	var leads: Array=wires.duplicate(true)
 	if board_simulating():leads.append_array(board_wires())
 	var parts := netlist()
 	result=solver.solve(parts,leads,dt,dt==0.)
+	solved_board_epoch=board_epoch
+	solved_revision=revision
 	if dt>0 and not linked and result.get("ok",false) and not (generator.enabled and generator.wave!="DC"):
 		var fixed_board := not board_simulating() or not _fixed_board_expansion().is_empty()
 		if fixed_board and not wires.any(func(w):return "Ca" in w or "Cb" in w) and float(solver.memory.get("cap",0.0))==0.0:
@@ -317,9 +349,10 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			else:return "Unknown current source control"
 		"carry_board", "stow_board":
 			if board.is_empty():return "No board to carry"
-			if linked:return "Disconnect inter-bench leads before moving the board."
-			for wire in wires:
-				if board_port(str(wire[0])) or board_port(str(wire[1])):return "Disconnect all board leads before moving it."
+			if op=="stow_board":
+				if linked:return "Disconnect inter-bench leads before stowing the board."
+				for wire in wires:
+					if board_port(str(wire[0])) or board_port(str(wire[1])):return "Disconnect board leads before stowing it."
 			board_held=op=="carry_board";board_stowed=op=="stow_board"
 		"place_board":
 			if not board_held:return "Pick up the board first"
@@ -464,7 +497,9 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 
 func public_device_states() -> Dictionary:
 	var public := {}
-	if not board_simulating():return public
+	# Passive boards have no firmware to publish. Avoid constructing the full
+	# component catalog and walking the board on every network snapshot.
+	if not board_simulating() or firmware_states.is_empty():return public
 	# Filter before cloning: large nonvolatile byte maps never enter publication.
 	for id in firmware_states:
 		var visible := {}

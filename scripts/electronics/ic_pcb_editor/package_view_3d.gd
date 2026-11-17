@@ -136,7 +136,7 @@ func _mount_parts(board_size: Vector3) -> void:
 					for i in bands.size():
 						var band := _cylinder(dimensions.y*.275,dimensions.x*.075,Vector3(dimensions.x*(-.26+i*.15),dimensions.y*.27,0),Color(bands[i].color),host)
 						band.rotation.z = PI/2
-			"button", "toggle":
+			"button", "button_nc", "toggle":
 				_box(Vector3(dimensions.x,height*.48,dimensions.y),top*.48,Color("333c43"),host)
 				_cylinder(minf(dimensions.x,dimensions.y)*.25,height*.65,Vector3(0,height*.69,0),Color("c6594c"),host)
 			_:

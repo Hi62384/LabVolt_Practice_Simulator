@@ -44,6 +44,125 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 			var migrated: Dictionary=Dorm.migrate(imported,identity)
 			if not migrated.ok:return failure(migrated.error)
 			imported=migrated.profile
+			# A delayed local snapshot cannot undo host-committed carry and cabinet
+			# transfers when the player reconnects on a new peer.
+			var host_dorm: Dictionary=state.accounts[identity].profile.dorm
+			var adopted_host_dorm: bool=int(imported.dorm.get("revision",0))<int(host_dorm.get("revision",0))
+			if adopted_host_dorm:
+				imported.dorm=host_dorm.duplicate(true)
+			# A reconnecting client may have last saved "connected" before the
+			# host observed its disconnect. Never resurrect that stale mount; no
+			# workstation can remain attached to an unbound player.
+			var incoming_drives: Dictionary=imported.dorm.get("usb_drives",{})
+			var previous_drives: Dictionary=state.accounts[identity].profile.dorm.get("usb_drives",{})
+			for write_token in imported.get("usb_write_pending",{}).keys():
+				var pending: Dictionary=imported.usb_write_pending[write_token]
+				var recorded: Dictionary=state.accounts[identity].get("usb_write_commits",{}).get(write_token,{})
+				if not recorded.is_empty() and (recorded.get("id","")!=pending.id or int(recorded.get("capacity",0))!=int(pending.capacity)):return failure("USB write conflicts with host record")
+				if not imported.has("usb_write_decisions"):imported.usb_write_decisions={}
+				imported.usb_write_decisions[write_token]=not recorded.is_empty()
+				imported.usb_write_pending.erase(write_token)
+			var incoming_laptops: Dictionary=imported.dorm.get("portable_laptops",{})
+			var previous_laptops: Dictionary=state.accounts[identity].profile.dorm.get("portable_laptops",{})
+			for laptop_id in imported.get("laptop_purchase_pending",{}).keys():
+				var purchase: Dictionary=state.accounts[identity].get("laptop_purchases",{}).get(laptop_id,{})
+				if purchase.is_empty():
+					imported.laptop_purchase_pending.erase(laptop_id)
+					if not imported.has("laptop_purchase_resolved"):imported.laptop_purchase_resolved={}
+					imported.laptop_purchase_resolved[laptop_id]=true
+					continue
+				if not previous_laptops.has(laptop_id) or imported.laptop_purchase_pending[laptop_id].tier!=purchase.item.tier or (incoming_laptops.has(laptop_id) and not adopted_host_dorm):return failure("Pending laptop purchase conflicts with host record")
+				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending laptop purchase")
+				imported.dollars-=int(purchase.debit)
+				if adopted_host_dorm:
+					imported.laptop_purchase_pending.erase(laptop_id)
+					continue
+				var recovered: Dictionary=purchase.item.duplicate(true)
+				var carried: Array=imported.dorm.get("carry_items",[])
+				if carried.size()+imported.dorm.get("carried_components",[]).size()<6:
+					recovered.location="hotbar";carried.append("laptop:"+str(laptop_id));imported.dorm.carry_items=carried
+				elif Dorm.storage_used(imported.dorm)<Dorm.CAPACITY:recovered.location="cabinet"
+				else:return failure("Free a hotbar or dorm storage slot to recover your laptop")
+				incoming_laptops[laptop_id]=recovered;imported.laptop_purchase_pending.erase(laptop_id)
+			if not incoming_laptops.is_empty():imported.dorm.portable_laptops=incoming_laptops
+			var incoming_phones: Dictionary=imported.dorm.get("smartphones",{})
+			var previous_phones: Dictionary=state.accounts[identity].profile.dorm.get("smartphones",{})
+			for phone_id in imported.get("phone_purchase_pending",{}).keys():
+				var purchase: Dictionary=state.accounts[identity].get("phone_purchases",{}).get(phone_id,{})
+				if purchase.is_empty():
+					imported.phone_purchase_pending.erase(phone_id)
+					if not imported.has("phone_purchase_resolved"):imported.phone_purchase_resolved={}
+					imported.phone_purchase_resolved[phone_id]=true
+					continue
+				if not previous_phones.has(phone_id) or imported.phone_purchase_pending[phone_id].tier!=purchase.item.tier or (incoming_phones.has(phone_id) and not adopted_host_dorm):return failure("Pending phone purchase conflicts with host record")
+				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending phone purchase")
+				imported.dollars-=int(purchase.debit)
+				if adopted_host_dorm:
+					imported.phone_purchase_pending.erase(phone_id)
+					continue
+				var recovered: Dictionary=purchase.item.duplicate(true)
+				var carried: Array=imported.dorm.get("carry_items",[])
+				if carried.size()+imported.dorm.get("carried_components",[]).size()<6:
+					recovered.location="hotbar";carried.append("phone:"+str(phone_id));imported.dorm.carry_items=carried
+				elif Dorm.storage_used(imported.dorm)<Dorm.CAPACITY:recovered.location="cabinet"
+				else:return failure("Free a hotbar or dorm storage slot to recover your phone")
+				incoming_phones[phone_id]=recovered;imported.phone_purchase_pending.erase(phone_id)
+			if not incoming_phones.is_empty():imported.dorm.smartphones=incoming_phones
+			# A locally staged purchase may have committed before its reply was
+			# lost. Recover the recorded debit and item exactly once on rebind.
+			for usb_id in imported.get("usb_purchase_pending",{}).keys():
+				var purchase: Dictionary=state.accounts[identity].get("usb_purchases",{}).get(usb_id,{})
+				if purchase.is_empty():
+					imported.usb_purchase_pending.erase(usb_id)
+					if not imported.has("usb_purchase_resolved"):imported.usb_purchase_resolved={}
+					imported.usb_purchase_resolved[usb_id]=true
+					continue
+				if not previous_drives.has(usb_id) or int(imported.usb_purchase_pending[usb_id])!=int(purchase.item.capacity_mb):return failure("Pending USB purchase conflicts with host record")
+				if incoming_drives.has(usb_id) and not adopted_host_dorm:return failure("Pending USB purchase conflicts with inventory")
+				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending USB purchase")
+				imported.dollars-=int(purchase.debit)
+				if adopted_host_dorm:
+					imported.usb_purchase_pending.erase(usb_id)
+					continue
+				var recovered: Dictionary=purchase.item.duplicate(true)
+				var carried: Array=imported.dorm.get("carry_items",[])
+				if carried.size()+imported.dorm.get("carried_components",[]).size()<6:
+					recovered.location="hotbar";carried.append("usb:"+str(usb_id));imported.dorm.carry_items=carried
+				elif Dorm.storage_used(imported.dorm)<Dorm.CAPACITY:recovered.location="cabinet"
+				else:recovered.location="lost"
+				incoming_drives[usb_id]=recovered;imported.usb_purchase_pending.erase(usb_id)
+			for usb_id in incoming_drives:
+				var incoming: Dictionary=incoming_drives[usb_id]
+				var previous: Dictionary=previous_drives.get(usb_id,{})
+				if incoming.get("location","")=="connected" and previous.get("location","") in ["connected","lost"] and int(incoming.get("capacity_mb",0))==int(previous.get("capacity_mb",-1)):
+					incoming.location="lost"
+				elif incoming.get("location","")=="handoff" and previous.get("location","") in ["lost","handoff"]:
+					incoming.location="lost";imported.get("usb_handoff_pending",{}).erase(usb_id)
+			# A prepared sender may reconnect with its pre-commit profile. A
+			# committed release is authoritative and cannot be imported again.
+			for usb_id in state.accounts[identity].get("usb_released",{}):
+				if incoming_drives.get(usb_id,{}).get("location","")=="handoff":incoming_drives.erase(usb_id);imported.get("usb_handoff_pending",{}).erase(usb_id)
+			# A recipient may disconnect after its archive is staged but before
+			# receiving the inventory snapshot. Restore that committed delivery.
+			for usb_id in state.accounts[identity].get("usb_deliveries",{}):
+				var delivery: Dictionary=state.accounts[identity].usb_deliveries[usb_id]
+				if imported.get("usb_received_pending",{}).get(usb_id,{}).get("token","")==delivery.token:imported.usb_received_pending.erase(usb_id)
+				if imported.get("usb_delivery_receipts",{}).get(usb_id,"")==delivery.token:continue
+				if incoming_drives.has(usb_id) and (int(incoming_drives[usb_id].get("capacity_mb",0))!=int(delivery.item.capacity_mb) or str(incoming_drives[usb_id].get("name",""))!=str(delivery.item.name)):return failure("USB delivery conflicts with local drive")
+				if not incoming_drives.has(usb_id):
+					var recovered: Dictionary=delivery.item.duplicate(true)
+					var carried: Array=imported.dorm.get("carry_items",[])
+					if carried.size()+imported.dorm.get("carried_components",[]).size()<6:
+						recovered.location="hotbar";carried.append("usb:"+str(usb_id));imported.dorm.carry_items=carried
+					else:recovered.location="lost"
+					incoming_drives[usb_id]=recovered
+				if not imported.has("usb_delivery_receipts"):imported.usb_delivery_receipts={}
+				imported.usb_delivery_receipts[usb_id]=delivery.token
+			if not incoming_drives.is_empty():imported.dorm.usb_drives=incoming_drives
+			# Facilities progression is owned by this ledger once its adapter has
+			# committed it. A stale reconnecting client must not roll it back.
+			if bool(state.accounts[identity].get("facilities_authority",false)):
+				imported.facilities=state.accounts[identity].profile.get("facilities",{}).duplicate(true)
 			if not Profile.same(imported,state.accounts[identity].profile):
 				var next := state.duplicate(true)
 				next.accounts[identity].profile=imported;next.accounts[identity].revision+=1
@@ -79,6 +198,33 @@ static func _sync_upgraded_templates(profile: Dictionary) -> void:
 		kit.board = logic.resolve_board(profile,kit.board)
 
 func unbind(peer: int) -> void:bindings.erase(peer)
+
+## Call only after the recipient has durably verified its staged archive and
+## the sender has durably reserved the drive locally. Both ledger updates are
+## committed in one generation; reconnect markers protect lost acknowledgements.
+func commit_usb_handoff(source_peer: int,target_peer: int,id: String,token: String) -> Dictionary:
+	if source_peer==target_peer or not bindings.has(source_peer) or not bindings.has(target_peer):return failure("Both players must be connected")
+	if id.length()!=32 or not id.is_valid_hex_number() or token.length()!=32 or not token.is_valid_hex_number():return failure("Invalid handoff")
+	var source_id: String=bindings[source_peer];var target_id: String=bindings[target_peer]
+	var next: Dictionary=state.duplicate(true)
+	var source: Dictionary=next.accounts[source_id];var target: Dictionary=next.accounts[target_id]
+	var source_dorm: Dictionary=source.profile.dorm;var target_dorm: Dictionary=target.profile.dorm
+	var item: Dictionary=source_dorm.get("usb_drives",{}).get(id,{})
+	if item.get("location","")!="handoff" or source.profile.get("usb_handoff_pending",{}).get(id,"")!=token or target_dorm.get("usb_drives",{}).has(id):return failure("USB ownership changed")
+	if target_dorm.get("carry_items",[]).size()+target_dorm.get("carried_components",[]).size()>=6:return failure("Recipient needs a free hotbar slot")
+	var delivered: Dictionary=item.duplicate(true);delivered.location="hotbar"
+	source_dorm.usb_drives.erase(id);source.profile.get("usb_handoff_pending",{}).erase(id);source_dorm.revision+=1
+	if not target_dorm.has("usb_drives"):target_dorm.usb_drives={}
+	target_dorm.usb_drives[id]=delivered;target_dorm.carry_items=target_dorm.get("carry_items",[])+["usb:"+id];target_dorm.revision+=1
+	if not source.has("usb_released"):source.usb_released={}
+	if not target.has("usb_deliveries"):target.usb_deliveries={}
+	source.usb_released[id]=token;target.usb_deliveries[id]={"token":token,"item":delivered.duplicate(true)}
+	if not target.profile.has("usb_delivery_receipts"):target.profile.usb_delivery_receipts={}
+	target.profile.usb_delivery_receipts[id]=token
+	source.revision+=1;target.revision+=1
+	if not Profile.valid(source.profile) or not Profile.valid(target.profile):return failure("Invalid handoff profiles")
+	if not persist(next):return failure("Could not save USB handoff")
+	return {"ok":true,"source":snapshot(source_peer),"target":snapshot(target_peer)}
 func failure(message: String) -> Dictionary:return {"ok":false,"error":message}
 func snapshot(peer: int) -> Dictionary:
 	if not bindings.has(peer):return failure("Profile is not bound")
@@ -125,6 +271,23 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 			if not args.is_empty():return failure("Invalid kit copy")
 			message=p.duplicate_kit()
 			if not p.operation_succeeded:return failure(message)
+		"delete_kit":
+			if args.size()!=1 or not args[0] is String or not p.data.kits.has(args[0]):return failure("Invalid kit deletion")
+			for record in deployment_slots(deployment).values():
+				if record.get("kit","")==args[0]:return failure("Put the breadboard back in its kit first")
+			for board in live_boards.values():
+				if board.get("authority_kit_id","")==args[0]:return failure("Put the breadboard back in its kit first")
+			message=p.delete_kit(args[0])
+			if not p.operation_succeeded:return failure(message)
+		"kit_quantity":
+			if args.size()!=3 or not args[0] is String or not args[1] is String or not Profile.quantity(args[2]):return failure("Invalid kit component change")
+			if not p.data.kits.has(args[0]):return failure("Kit not found")
+			for record in deployment_slots(deployment).values():
+				if record.get("kit","")==args[0]:return failure("Put the breadboard back in its kit first")
+			for board in live_boards.values():
+				if board.get("authority_kit_id","")==args[0]:return failure("Put the breadboard back in its kit first")
+			message=p.set_kit_quantity(args[0],args[1],int(args[2]))
+			if not p.operation_succeeded:return failure(message)
 		"remove_kit_board_components":
 			if args.size()!=1 or not args[0] is String:return failure("Invalid kit")
 			for record in deployment_slots(deployment).values():
@@ -134,6 +297,24 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 		"study_tool":
 			if args.size() not in [1,2] or not args[0] is String or (args.size()==2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid study supply")
 			message=p.buy_study_tool(args[0],args[1] if args.size()==2 else 6)
+			if not p.operation_succeeded:return failure(message)
+		"buy_usb":
+			if args.size()!=3 or not args[0] is int or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid USB purchase")
+			for account_data in state.accounts.values():
+				if account_data.profile.get("dorm",{}).get("usb_drives",{}).has(args[2]):return failure("USB identity already exists")
+			message=p.buy_usb(args[0],args[1],args[2])
+			if not p.operation_succeeded:return failure(message)
+		"buy_portable_laptop":
+			if args.size()!=3 or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid laptop purchase")
+			for account_data in state.accounts.values():
+				if account_data.profile.get("dorm",{}).get("portable_laptops",{}).has(args[2]):return failure("Laptop identity already exists")
+			message=p.buy_portable_laptop(args[0],args[1],args[2])
+			if not p.operation_succeeded:return failure(message)
+		"buy_smartphone":
+			if args.size()!=3 or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid phone purchase")
+			for account_data in state.accounts.values():
+				if account_data.profile.get("dorm",{}).get("smartphones",{}).has(args[2]):return failure("Phone identity already exists")
+			message=p.buy_smartphone(args[0],args[1],args[2])
 			if not p.operation_succeeded:return failure(message)
 		"dorm":
 			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid dorm intent")
@@ -195,6 +376,9 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 		"obtain":
 			if args.size()!=2 or not args[0] is String or not args[1] is bool:return failure("Invalid crafting request")
 			message=p.obtain_ic(args[0],args[1])
+		"invention_fabricate":
+			if args.size()!=1 or not args[0] is String:return failure("Invalid invention request")
+			message=p.fabricate_invention(args[0])
 		"capacity":
 			var debit := preload("res://scripts/economy/temporary_playtest/policy.gd").purchase_debit(p.data.dollars,50,true)
 			if not debit.ok or p.data.capacity>99980:return failure("Capacity upgrade unavailable")
@@ -203,17 +387,27 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 			# Price is derived by the server, never from a client supplied number.
 			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid bundle")
 			var matched := false
-			for bundle in [{"name":"Resistor box","items":{"r1000":10,"r220":10,"r10000":10}},{"name":"Capacitor box","items":{"c0.1":4,"c1.0":4,"c10.0":4}},{"name":"Semiconductor starter","items":{"diode":6,"led":6}}]:
+			for bundle in preload("res://scripts/ui/store_bundles_equipment/bundle_catalog.gd").guaranteed():
 				if bundle.items==args[0]:
 					var cost := 0
 					for type in bundle.items:cost+=int(preload("res://scripts/electronics_catalog.gd").all()[type].price)*int(bundle.items[type])
+					if not str(bundle.get("kit_tier","")).is_empty():cost+=int(p.KIT_TIERS[bundle.kit_tier].price)
 					bundle_name = bundle.name
 					message=p.purchase_bundle(bundle.items,maxi(1,ceili(cost*.8)));matched=true;break
 			if not matched:return failure("Unknown bundle")
 		"metadata":
 			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid metadata")
 			var incoming: Dictionary=args[0]
-			for key in ["kits","equipped","circuit_draft","notebook","notebook_pages","notebook_page","blueprints","programs","favorites","ic_library"]:
+			if incoming.get("inventions") is Dictionary:
+				for invention_id in a.profile.get("invention_copies",{}):
+					if int(a.profile.invention_copies[invention_id])>0 and (not incoming.inventions.has(invention_id) or not Profile.same(incoming.inventions[invention_id],a.profile.get("inventions",{}).get(invention_id,{}))):return failure("Fabricated invention blueprints are immutable; save a new revision")
+			# Existing kit stock moves through the dedicated host operation, not a
+			# client-supplied replacement of the whole profile metadata document.
+			if incoming.get("kits") is Dictionary:
+				for kit_id in a.profile.get("kits",{}):
+					if not incoming.kits.has(kit_id):return failure("Delete kits at the Components Counter")
+					if incoming.kits.has(kit_id) and incoming.kits[kit_id] is Dictionary and not Profile.same(incoming.kits[kit_id].get("items",{}),a.profile.kits[kit_id].get("items",{})):return failure("Edit kit components at the Components Counter")
+			for key in ["kits","equipped","circuit_draft","notebook","notebook_pages","notebook_page","blueprints","programs","favorites","ic_library","inventions"]:
 				if incoming.has(key):p.data[key]=incoming[key].duplicate(true) if incoming[key] is Dictionary or incoming[key] is Array else incoming[key]
 			# Validate untrusted field types before dereferencing the blueprint library.
 			if not Profile.valid(p.data):return failure("Invalid profile metadata")
@@ -225,7 +419,7 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 				if a.profile.ic_library[key].get("manufactured",false): p.mark_manufactured(key)
 			if not Profile.valid(p.data):return failure("Invalid profile metadata")
 		_ :return failure("Unsupported client operation")
-	if op in ["buy_configured","buy","analyzer","box","cosmetic","obtain","bundle","avatar_cosmetic","cosmetic_purchase","ic_upgrade"] and not p.operation_succeeded:return failure(message)
+	if op in ["buy_configured","buy","analyzer","box","cosmetic","obtain","invention_fabricate","bundle","avatar_cosmetic","cosmetic_purchase","ic_upgrade"] and not p.operation_succeeded:return failure(message)
 	if not Profile.valid(p.data):return failure("Invalid resulting profile")
 	if Dorm.adds_stock_shortage(a.profile,p.data,deployment):return failure("Some components are already packed, stored or deployed")
 	var reservations: Dictionary=Dorm.reserved(p.data,deployment)
@@ -235,6 +429,15 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 	for kit in p.data.kits.values():
 			if not kit.board.get("component_runtime",{}).is_empty():kit.board=Persistent.materialize(p.data,kit.board)
 	target.profile=p.data;target.deployment=deployment;target.revision+=1;target.receipts[id]=digest
+	if op=="buy_usb":
+		if not target.has("usb_purchases"):target.usb_purchases={}
+		target.usb_purchases[args[2]]={"item":p.data.dorm.usb_drives[args[2]].duplicate(true),"debit":int(a.profile.dollars)-int(p.data.dollars)}
+	if op=="buy_portable_laptop":
+		if not target.has("laptop_purchases"):target.laptop_purchases={}
+		target.laptop_purchases[args[2]]={"item":p.data.dorm.portable_laptops[args[2]].duplicate(true),"debit":int(a.profile.dollars)-int(p.data.dollars)}
+	if op=="buy_smartphone":
+		if not target.has("phone_purchases"):target.phone_purchases={}
+		target.phone_purchases[args[2]]={"item":p.data.dorm.smartphones[args[2]].duplicate(true),"debit":int(a.profile.dollars)-int(p.data.dollars)}
 	if not p.last_bundle_receipt.is_empty():
 		target.last_bundle = {"id":id,"name":bundle_name,"items":p.last_bundle_receipt}
 	if not persist(next):return failure("Host save failed; request can be retried")

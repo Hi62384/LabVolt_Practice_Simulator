@@ -19,6 +19,7 @@ var spin := 0.0
 var spin_goal := 0.0
 var previous_turn_target := 0.0
 var wheels: Array = []
+var idle_floor_check := 0.0
 
 func build(game: Node3D) -> void:
 	roll_audio=AudioStreamPlayer3D.new()
@@ -74,13 +75,15 @@ func build(game: Node3D) -> void:
 	add_collision_exception_with(target)
 
 func _physics_process(delta: float) -> void:
+	var moved_externally := position.distance_squared_to(previous_position)>0.00000001
+	var travelled := position.distance_to(previous_position)
+	previous_position=position
 	if roll_audio!=null:
-		var speed := position.distance_to(previous_position)/maxf(delta,.001)
-		previous_position=position
-		roll_audio.volume_db=-38+clampf(speed*8,0,12)
-		if speed>.08 and not roll_audio.playing:
-			roll_audio.play()
-		elif speed<=.08:
+		var speed := travelled/maxf(delta,.001)
+		if speed>.08:
+			roll_audio.volume_db=-38+clampf(speed*8,0,12)
+			if not roll_audio.playing:roll_audio.play()
+		elif speed<=.08 and roll_audio.playing:
 			roll_audio.stop()
 	if swivel==null:
 		return
@@ -93,6 +96,12 @@ func _physics_process(delta: float) -> void:
 			position=position.lerp(network_target,1-exp(-18*delta))
 			swivel.rotation.y=lerp_angle(swivel.rotation.y,network_yaw,1-exp(-18*delta))
 		return
+	# A settled empty chair does not need a collision sweep every physics tick.
+	# Recheck the floor periodically so a removed or moving support still wakes it.
+	if not occupied and not moved_externally and is_on_floor() and get_platform_velocity().length_squared()<0.000001 and Vector2(velocity.x,velocity.z).length_squared()<0.00000001 and absf(spin)<0.000001 and absf(spin_goal)<0.000001:
+		idle_floor_check+=delta
+		if idle_floor_check<0.25:return
+	idle_floor_check=0.0
 	var wish := drive
 	var facing := drive_yaw
 	if is_instance_valid(rider):
@@ -128,7 +137,23 @@ func _physics_process(delta: float) -> void:
 	velocity.x=horizontal.x
 	velocity.z=horizontal.y
 	velocity.y=-2
+	# Apply the rider's cable reach before moving, just as walking does.
+	if is_instance_valid(rider) and "cable_motion_guard" in rider and rider.cable_motion_guard.is_valid() and delta>0:
+		velocity=rider.cable_motion_guard.call(velocity*delta)/delta
+	var impact_velocity := velocity
 	move_and_slide()
+	# Bounce only from a fast horizontal impact; floor contacts must not launch
+	# the chair and glancing collisions retain their tangential momentum.
+	for index in get_slide_collision_count():
+		var normal := get_slide_collision(index).get_normal()
+		normal.y=0
+		if normal.length_squared()<.25:continue
+		normal=normal.normalized()
+		var incoming := Vector3(impact_velocity.x,0,impact_velocity.z).dot(normal)
+		if incoming < -1.5:
+			var rebound := Vector3(impact_velocity.x,0,impact_velocity.z) - normal * (1.45*incoming)
+			velocity.x=rebound.x;velocity.z=rebound.z
+			break
 	for wheel in wheels:
 		wheel.rotate_y(Vector2(velocity.x,velocity.z).length()*delta/.055)
 

@@ -2,13 +2,16 @@ extends CharacterBody3D
 const SafeRecovery = preload("res://scripts/campus/presentation/navigation_safety/safe_recovery.gd")
 const DEFAULT_KEYS := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D,
 	"sprint": KEY_SHIFT, "crouch": KEY_CTRL, "jump": KEY_SPACE, "interact": KEY_E,
-	"inventory": KEY_TAB, "kits": KEY_K, "read_sheet": KEY_N, "drop_lead": KEY_G, "emotes": KEY_H,
-	"slot_1": KEY_1, "slot_2": KEY_2, "slot_3": KEY_3, "slot_4": KEY_4, "slot_5": KEY_5, "slot_6": KEY_6}
+	"inventory": KEY_TAB, "kits": KEY_K, "read_sheet": KEY_N, "place_item": KEY_F, "inspect": KEY_I, "emotes": KEY_H, "call_teacher": KEY_T, "throw_paper": KEY_G,
+	"voice": KEY_V, "slot_1": KEY_1, "slot_2": KEY_2, "slot_3": KEY_3, "slot_4": KEY_4, "slot_5": KEY_5, "slot_6": KEY_6}
 var safe_recovery = SafeRecovery.new(Vector3(13,0.05,-18))
 var facility_movement_locked: Callable
+var cable_motion_guard: Callable
 var load_speed := 1.0
 var facility_seat := {}
 var inspecting := false
+var chat_typing := false
+var shock_locked := false
 var resting := false
 var rest_anchor := Transform3D.IDENTITY
 var seated: CharacterBody3D
@@ -47,7 +50,7 @@ func _ready() -> void:
 	load_settings()
 
 func down(action: String) -> bool:
-	return enabled and Input.is_physical_key_pressed(keys[action])
+	return enabled and not chat_typing and Input.is_physical_key_pressed(keys[action])
 
 func look(relative: Vector2) -> void:
 	var horizontal := relative.x*sensitivity if invert_horizontal else -relative.x*sensitivity
@@ -71,6 +74,9 @@ func end_rest(destination: Vector3) -> void:
 	collider.set_deferred("disabled",false);eyes.position.y=1.65
 
 func _physics_process(delta: float) -> void:
+	if shock_locked:
+		velocity=Vector3.ZERO
+		return
 	if resting:
 		global_position=rest_anchor.origin;velocity=Vector3.ZERO
 		rotation.y=lerp_angle(rotation.y,yaw_target,1-exp(-25*delta))
@@ -112,6 +118,8 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 4.4
 	else:
 		velocity.y = 0
+	if cable_motion_guard.is_valid() and delta>0:
+		velocity=cable_motion_guard.call(velocity*delta)/delta
 	move_and_slide()
 	# Only the owning peer's movement is corrected; normal pose replication follows.
 	if is_on_floor() and not is_instance_valid(seated):
@@ -142,8 +150,19 @@ func load_settings() -> void:
 	invert_horizontal = bool(cfg.get_value("controls","invert_horizontal",false))
 	for action in keys:
 		var key: Variant = cfg.get_value("keys",action,keys[action])
+		if action == "place_item" and not cfg.has_section_key("keys",action):
+			key = cfg.get_value("keys","drop_lead",keys[action])
+			if key == KEY_G:key = KEY_F
 		if key is int and key > 0 and key not in [KEY_ESCAPE, KEY_F11]:
 			keys[action] = key
+	if keys.place_item != KEY_F:
+		for action in keys:
+			if action!="place_item" and keys[action]==keys.place_item:
+				keys.place_item=KEY_F
+				break
+	for action in keys:
+		if action!="place_item" and keys[action]==keys.place_item:
+			keys[action]=DEFAULT_KEYS[action]
 
 func sit(chair: CharacterBody3D) -> void:
 	if resting or seated!=null or chair.rider!=null:
@@ -151,10 +170,11 @@ func sit(chair: CharacterBody3D) -> void:
 	chair_entry_position=global_position
 	seated=chair
 	chair.rider=self
-	chair.swivel.rotation.y=chair.fixed_yaw if chair.fixed_seat else rotation.y
+	if chair.fixed_seat:chair.swivel.rotation.y=chair.fixed_yaw
 	if chair.fixed_seat:pitch_target=0.0
 	seated_look.enter(chair.swivel.rotation.y)
 	yaw_target=seated_look.chair_turn
+	rotation.y=yaw_target
 	chair.previous_turn_target=yaw_target
 	chair.turn_target=yaw_target
 	collider.disabled=true

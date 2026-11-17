@@ -37,6 +37,42 @@
   },
   "rooms": [
     {
+      "id": "circuit_studio",
+      "number": "M208",
+      "title": "Custom Circuit Studio",
+      "kind": "circuit_studio",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "circuit_studio",
+      "center": [26, 5, 47],
+      "size": [20, 4, 12],
+      "door": [16, 5, 47],
+      "door_width": 2.4,
+      "approach": [13, 5, 47],
+      "anchor": [26, 5, 47],
+      "neighbors": ["hall_f1"],
+      "bounds_min": [16, 5, 41],
+      "bounds_max": [36, 9, 53]
+    },
+    {
+      "id": "computer_commons",
+      "number": "M209",
+      "title": "Computer Commons",
+      "kind": "computer_commons",
+      "building": "MAIN",
+      "floor": 1,
+      "zone": "computer_commons",
+      "center": [26, 5, 65],
+      "size": [20, 4, 6],
+      "door": [16, 5, 65],
+      "door_width": 3.2,
+      "approach": [14.5, 5, 65],
+      "anchor": [26, 5, 65],
+      "neighbors": ["hall_f1"],
+      "bounds_min": [16, 5, 62],
+      "bounds_max": [36, 9, 68]
+    },
+    {
       "id": "clothing_store",
       "number": "M207",
       "title": "Harbor Outfitters",
@@ -299,7 +335,7 @@
         0,
         19
       ],
-      "door_width": 2.4,
+      "door_width": 6.0,
       "approach": [
         13,
         0,
@@ -517,6 +553,13 @@
       ]
     },
     {
+      "id": "lost_found", "number": "M109", "title": "Lost and Found",
+      "kind": "lost_found", "building": "MAIN", "floor": 0, "zone": "lost_found",
+      "center": [0, 0, 64], "size": [20, 4, 8], "door": [10, 0, 64],
+      "door_width": 2.4, "approach": [13, 0, 64], "anchor": [0, 0, 64],
+      "neighbors": ["hall_f0"], "bounds_min": [-10, 0, 60], "bounds_max": [10, 4, 68]
+    },
+    {
       "id": "elm253_lecture",
       "number": "M201",
       "title": "Lecture Classroom",
@@ -709,52 +752,11 @@
       ]
     },
     {
-      "id": "study",
-      "number": "M205",
-      "title": "Quiet Study",
-      "kind": "study",
-      "building": "MAIN",
-      "floor": 1,
-      "zone": "study",
-      "center": [
-        0,
-        5,
-        33
-      ],
-      "size": [
-        20,
-        4,
-        12
-      ],
-      "door": [
-        10,
-        5,
-        33
-      ],
-      "door_width": 2.4,
-      "approach": [
-        13,
-        5,
-        33
-      ],
-      "anchor": [
-        0,
-        5,
-        33
-      ],
-      "neighbors": [
-        "hall_f1"
-      ],
-      "bounds_min": [
-        -10.0,
-        5,
-        27.0
-      ],
-      "bounds_max": [
-        10.0,
-        9,
-        39.0
-      ]
+      "id": "study", "number": "M205", "title": "Quiet Study", "kind": "study",
+      "building": "MAIN", "floor": 1, "zone": "study",
+      "center": [5, 5, 33], "size": [10, 4, 8], "door": [10, 5, 33],
+      "door_width": 2.4, "approach": [13, 5, 33], "anchor": [5, 5, 33],
+      "neighbors": ["hall_f1"], "bounds_min": [0, 5, 29], "bounds_max": [10, 9, 37]
     },
     {
       "id": "washroom_2",
@@ -811,6 +813,10 @@
       "lab": "ac_lab"
     },
     "ETY155": {
+      "lecture": "ety155_lecture",
+      "lab": "dc_lab"
+    },
+    "DGS266": {
       "lecture": "ety155_lecture",
       "lab": "dc_lab"
     },

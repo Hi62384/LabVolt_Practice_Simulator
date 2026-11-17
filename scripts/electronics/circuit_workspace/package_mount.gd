@@ -43,7 +43,7 @@ static func mount(host: Node, parent: Control, kind: String, draft: Dictionary, 
 	var ids: Array=[]
 	var selected: Array=editor.model.draft.get("exposed",[]).duplicate()
 	for part in kit.board.parts:
-		if str(part.type) not in ["button","toggle","pot10k","led","led_green","led_blue","led_yellow","seven_segment","spi_display","lv_mcu","buzzer","speaker"] and not str(part.type).begins_with("ic:") and not str(part.type).begins_with("io_"):continue
+		if str(part.type) not in ["button","button_nc","toggle","pot10k","led","led_green","led_blue","led_yellow","seven_segment","seven_segment_ca","spi_display","lv_mcu","buzzer","speaker"] and not str(part.type).begins_with("ic:") and not str(part.type).begins_with("io_"):continue
 		ids.append(str(part.id));exposed.get_popup().add_check_item(str(part.id)+" · "+str(part.type),ids.size()-1);exposed.get_popup().set_item_checked(ids.size()-1,str(part.id) in selected)
 	exposed.get_popup().hide_on_checkable_item_selection=false
 	exposed.get_popup().id_pressed.connect(func(index):

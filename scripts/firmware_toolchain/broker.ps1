@@ -2,6 +2,12 @@ param([Parameter(Mandatory=$true)][string]$JobDirectory,[string]$Manifest,[switc
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2
 $utf8=New-Object System.Text.UTF8Encoding($false)
+function Get-FileHash { param([string]$LiteralPath,[string]$Algorithm='SHA256')
+    $stream=[IO.File]::OpenRead($LiteralPath)
+    try {$sha=[Security.Cryptography.SHA256]::Create();try {$bytes=$sha.ComputeHash($stream)}finally{$sha.Dispose()}}
+    finally {$stream.Dispose()}
+    return @{Hash=([BitConverter]::ToString($bytes).Replace('-',''))}
+}
 $sandbox=$null
 $dependenciesVerified=$false
 $result=@{ok=$false;status='broker_failed';error='Compiler did not run';diagnostics=@()}
@@ -20,23 +26,16 @@ try {
     if(-not [IO.Directory]::Exists($JobDirectory)){throw 'Host job directory missing'}
     if(([IO.File]::GetAttributes($JobDirectory) -band [IO.FileAttributes]::ReparsePoint) -ne 0){throw 'Job directory cannot be a reparse point'}
     Add-Type -Path (Join-Path $PSScriptRoot 'windows_sandbox.cs')
-    try { $sandbox=New-Object LabVolt.Toolchain.WindowsSandbox }
-    catch { $result.status='sandbox_unavailable';$result.error=$_.Exception.GetBaseException().Message;throw }
-    if($ProbeOnly){$result=@{ok=$true;status='profile_created_runtime_unverified';isolation=$sandbox.Isolation;diagnostics=@()};Write-Result $result;exit 0}
+    if($ProbeOnly){
+        try {$sandbox=New-Object LabVolt.Toolchain.WindowsSandbox}
+        catch {$result.status='sandbox_unavailable';$result.error=$_.Exception.GetBaseException().Message;throw}
+        $result=@{ok=$true;status='profile_created_runtime_unverified';isolation=$sandbox.Isolation;diagnostics=@()};Write-Result $result;exit 0
+    }
     if(-not [IO.File]::Exists($Manifest)){$result.status='dependencies_missing';throw 'Run the host-owned official dependency setup; no trusted compiler manifest is installed'}
     if((Get-Item -LiteralPath $Manifest).Length -gt 8388608){throw 'Trusted manifest exceeds bounds'}
     $hostManifest=Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json
     if($hostManifest.schema -ne 1){throw 'Unsupported trusted toolchain manifest'}
     $tools=Under-Root (Split-Path -Parent $Manifest) ([string]$hostManifest.tools_root)
-    $knownFiles=@{}
-    foreach($record in $hostManifest.files){
-        $file=Under-Root $tools ([string]$record.path)
-        if($knownFiles.ContainsKey($file)){throw 'Duplicate dependency manifest entry'}
-        $knownFiles[$file]=$true
-        if(-not [IO.File]::Exists($file) -or (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant() -ne ([string]$record.sha256).ToLowerInvariant()){throw ('Trusted dependency changed or is missing: '+$record.path)}
-    }
-    foreach($file in Get-ChildItem -LiteralPath $tools -Recurse -File){if(-not $knownFiles.ContainsKey($file.FullName)){throw 'Unlisted file in trusted compiler root'}}
-    $dependenciesVerified=$true
     $requestPath=Join-Path $JobDirectory 'request.json'
     if((Get-Item -LiteralPath $requestPath).Length -gt 2097152){throw 'Compile request exceeds bounds'}
     $request=Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
@@ -46,6 +45,16 @@ try {
     if([string]$request.board -notin @($hostManifest.targets.PSObject.Properties.Name)){$result.status='dependencies_missing';throw ('No trusted '+$request.board+' toolchain is installed')}
     $target=$hostManifest.targets.($request.board)
     if($null -eq $target){$result.status='dependencies_missing';throw ('No trusted '+$request.board+' toolchain is installed')}
+    if($request.board -in @('uno','nano')){$selected=[string[]]@('avr','arduino-core')}else{$selected=[string[]]@('arm')}
+    foreach($key in @('cxx','cc','objcopy','objdump')){if(-not ([string]$target.$key).Replace('\','/').StartsWith($selected[0]+'/',[StringComparison]::OrdinalIgnoreCase)){throw 'Compiler target escapes its verified dependency partition'}}
+    if($request.board -in @('uno','nano')){foreach($key in @('core','variant')){if(-not ([string]$target.$key).Replace('\','/').StartsWith('arduino-core/',[StringComparison]::OrdinalIgnoreCase)){throw 'Arduino target escapes its verified core partition'}}}
+    $paths=[string[]]@($hostManifest.files|ForEach-Object {[string]$_.path})
+    $hashes=[string[]]@($hostManifest.files|ForEach-Object {[string]$_.sha256})
+    [LabVolt.Toolchain.WindowsSandbox]::VerifyManifestFiles($tools,$paths,$hashes,$selected)
+    $dependenciesVerified=$true
+    # Start the sandbox's aggregate wall clock after trusted dependency checks.
+    try {$sandbox=New-Object LabVolt.Toolchain.WindowsSandbox}
+    catch {$result.status='sandbox_unavailable';$result.error=$_.Exception.GetBaseException().Message;throw}
     $files=@($request.files.PSObject.Properties)
     if($files.Count -lt 1 -or $files.Count -gt 16){throw 'Project requires 1-16 files'}
     $names=New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)

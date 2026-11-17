@@ -16,9 +16,11 @@ func _init() -> void:
 	var mount_source:=FileAccess.get_file_as_string("res://scripts/campus/facilities/circuit_studio/mount_controller.gd")
 	assert(mount_source.contains("mount_succeeded=room.is_ready()"))
 	assert(mount_source.contains("return not mount_succeeded"))
-	var ui_source:=FileAccess.get_file_as_string("res://scripts/electronics_ui.gd")
-	for action in ["Open circuit designer","New empty circuit design","Inspect package","Edit a copy","Outline / copper","Use standalone","Craft from components"]:
-		assert(ui_source.contains(action),"Existing action missing: "+action)
+	var registry:=preload("res://scripts/campus/world/room_registry.gd").new()
+	assert(registry.get_room(Contract.ROOM_ID).get("center")==room.center)
+	var ui_source:=FileAccess.get_file_as_string("res://scripts/electronics/ic_pcb_editor/converter_ui.gd")
+	for action in ["Blueprint saved.","Buy · $", "Open as standalone PCB", "Duplicate as New Blueprint"]:
+		assert(ui_source.contains(action),"Studio blueprint action missing: "+action)
 	print("CIRCUIT_STUDIO_SOURCE_CONTRACT_OK")
 	quit()
 

@@ -1,0 +1,10 @@
+{
+  "name": "labvolt-claim-authority",
+  "account_id": "60f08ec4718d47c25c3feb5f154fb13b",
+  "main": "worker.mjs",
+  "compatibility_date": "2025-08-01",
+  "durable_objects": {
+    "bindings": [{ "name": "CLAIMS", "class_name": "Claim" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Claim"] }]
+}
