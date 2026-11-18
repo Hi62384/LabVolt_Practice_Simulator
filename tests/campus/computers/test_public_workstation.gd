@@ -31,9 +31,23 @@ func run() -> void:
 	if station.screen_material.albedo_texture!=null or station.led_material.albedo_color.r>.25:
 		push_error("Powered-off monitor or LED lit");quit(1);return
 	computers.request({"op":"power","station":id})
-	if station.screen.material_override.albedo_texture!=game.computer_room_adapter.idle_render.get_texture() or station.power_led.material_override.albedo_color.g<.6:
+	if station.screen.material_override.albedo_texture!=game.computer_room_adapter.boot_render.get_texture() or station.power_led.material_override.albedo_color.g<.6:
 		push_error("Powered monitor or LED did not update");quit(1);return
+	if args.size()>1 and args[1]=="capture":
+		var camera := Camera3D.new()
+		station.add_child(camera)
+		camera.position=Vector3(.12,1.17,.86)
+		camera.look_at(station.screen.global_position)
+		camera.make_current()
+		await create_timer(.48).timeout
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("res://.godot/campus-os-boot.png")
+		camera.queue_free()
+		game.player.eyes.make_current()
 	if not computers.stations[id].power.powered:push_error("Workstation did not power on");quit(1);return
+	computers.request({"op":"enter","station":id})
+	if computers.sessions.has(1):push_error("Boot accepted a premature login");quit(1);return
+	await create_timer(1.7).timeout
 	computers.request({"op":"enter","station":id})
 	if not computers.sessions.has(1) or not computers.local_snapshot.get("public_device",false):
 		push_error("Public desktop did not open");quit(1);return
@@ -72,8 +86,10 @@ func run() -> void:
 	computers.last_request.erase(1)
 	find_button(desktop,"New").pressed.emit()
 	desktop.path_field.text="Labs/note.txt";desktop.editor.text="temporary"
-	find_button(desktop,"Save  Ctrl+S").pressed.emit()
-	if not computers.local_snapshot.files.has("Labs/note.txt"):push_error("Save failed");quit(1);return
+	desktop.editor.text_changed.emit()
+	await create_timer(.7).timeout
+	if not computers.local_snapshot.files.has("Labs/note.txt"):push_error("Autosave failed");quit(1);return
+	desktop._switch_app("Files")
 	computers.last_request.erase(1)
 	var folder_index:=-1
 	for index in desktop.file_list.item_count:
@@ -83,8 +99,20 @@ func run() -> void:
 	find_button(desktop,"Rename").pressed.emit()
 	if not computers.local_snapshot.files.has("Work/note.txt") or "Work" not in computers.local_snapshot.folders:
 		push_error("Folder rename lost its contents");quit(1);return
-	computers._accept(1,{"op":"exit","lease":computers.local_snapshot.lease,"revision":computers.local_snapshot.revision})
+	desktop._switch_app("Calculator")
+	desktop.app_window.position=Vector2(585,110)
+	desktop.app_window.size=Vector2(360,480)
+	desktop.windows.Calculator.rect=Rect2(desktop.app_window.position,desktop.app_window.size)
+	var saved_rect: Rect2=desktop.windows.Calculator.rect
+	if args.size()>1 and args[1]=="capture":
+		await process_frame;await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("res://.godot/campus-os-windows.png")
+	desktop._request_exit()
+	if computers.sessions.has(1):push_error("Exit did not release the session");quit(1);return
 	computers.request({"op":"enter","station":id})
+	if desktop.windows.Calculator.rect!=saved_rect or desktop.windows.Calculator.shell!=calculator_window:
+		push_error("Re-entry failed to restore application windows");quit(1);return
+	desktop._switch_app("Files")
 	if not computers.local_snapshot.get("files",{}).has("Work/note.txt"):
 		push_error("Powered computer lost files after leaving");quit(1);return
 	computers.last_request.erase(1)
@@ -102,6 +130,7 @@ func run() -> void:
 	if computers.stations[id].power.powered or computers.sessions.has(1) or computers.public_workspaces.has(id):
 		push_error("Power off failed to clear session");quit(1);return
 	computers.request({"op":"power","station":id})
+	await create_timer(1.7).timeout
 	computers.request({"op":"enter","station":id})
 	if not computers.sessions.has(1) or not computers.local_snapshot.files.is_empty():
 		push_error("Restart retained temporary files");quit(1);return

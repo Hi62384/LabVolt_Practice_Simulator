@@ -17,6 +17,7 @@ var workout_state := {}
 var workout_phase := 0.0
 var workout_camera_home := Transform3D.IDENTITY
 var workout_camera_moved := false
+var workout_look_origin:=Vector2.ZERO
 
 func attach(value: Node) -> void:
 	game = value
@@ -271,19 +272,91 @@ func _restore_workout_camera() -> void:
 		if is_instance_valid(game.player):game.player.workout_camera_override = false
 	workout_camera_moved = false
 
-func _workout_camera(camera: Camera3D, exercise: String, bar: Node3D, delta: float) -> void:
-	var bench: Variant = workout_state.get("bench_position")
-	if not bench is Vector3 or not is_instance_valid(bar) or exercise not in ["benchpress","incline_press","chest_fly"]:
+func _workout_camera(camera: Camera3D, exercise: String, bar: Node3D, machine: Node3D, raised: float, delta: float) -> void:
+	var bench: Variant=workout_state.get("bench_position")
+	var mat: Variant=workout_state.get("mat_position")
+	var fixed_grip: Variant=workout_state.get("grip_anchor")
+	var eye:=Vector3.ZERO
+	var target:=Vector3.ZERO
+	if is_instance_valid(machine):
+		var yaw:=float(workout_state.get("workout_facing",game.player.yaw_target))
+		var forward:=Basis(Vector3.UP,yaw)*Vector3.FORWARD
+		eye=game.player.global_position+Vector3(0,1.62,0)
+		if exercise in ["cable_row","lat_pulldown"]:eye.y-=.30
+		target=eye+forward+Vector3(0,-.24,0)
+	elif bench is Vector3:
+		var mode: String=preload("res://scripts/campus/facilities/gym_bench.gd").position_for(exercise)
+		match mode:
+			"flat","incline":
+				eye=bench+Vector3(0,.83 if mode=="flat" else 1.05,.22)
+				target=bar.global_position if is_instance_valid(bar) and workout_state.get("equipment","")!="dumbbell" else bench+Vector3(0,1.42,-.30)
+			"supported":
+				eye=bench+Vector3(0,1.03,-.23)
+				target=eye+Vector3(0,-.40,.75)
+			_:
+				eye=bench+Vector3(0,1.18,.46)
+				target=eye+Vector3(0,-.06,-1)
+	elif mat is Vector3 and exercise in ["pushup","pike_pushup"]:
+		eye=mat+Vector3(0,lerpf(.36,.53,raised),.42)
+		target=mat+Vector3(0,.03,.72)
+	elif fixed_grip is Vector3:
+		if exercise=="dip":
+			eye=fixed_grip+Vector3(0,lerpf(.31,.58,raised),-.16)
+			target=fixed_grip+Vector3(0,0,.35)
+		else:
+			eye=fixed_grip+Vector3(0,lerpf(-.54,-.12,raised),.26)
+			target=fixed_grip
+	else:
 		_restore_workout_camera()
 		return
 	if not workout_camera_moved:
-		workout_camera_home = camera.transform
-		workout_camera_moved = true
-		game.player.workout_camera_override = true
-	var position: Vector3 = bench + Vector3(0,.83 if exercise=="benchpress" else 1.05,.22)
-	var target := Vector3(bar.global_position.x,bar.global_position.y,bar.global_position.z)
-	var desired := Transform3D(Basis.looking_at((target-position).normalized(),Vector3.UP),position)
-	camera.global_transform = camera.global_transform.interpolate_with(desired,1.0 if game.player.reduced_motion else minf(delta*6.0,1.0))
+		workout_camera_home=camera.transform
+		workout_camera_moved=true
+		workout_look_origin=Vector2(game.player.yaw_target,game.player.pitch_target)
+		game.player.workout_camera_override=true
+	var head_look:=Vector2(clampf(wrapf(game.player.yaw_target-workout_look_origin.x,-PI,PI),-.28,.28),clampf(game.player.pitch_target-workout_look_origin.y,-.21,.21))
+	var aim:=Basis.looking_at((target-eye).normalized(),Vector3.UP)*Basis.from_euler(Vector3(head_look.y,head_look.x,0))
+	var desired:=Transform3D(aim,eye)
+	camera.global_transform=camera.global_transform.interpolate_with(desired,1.0 if game.player.reduced_motion else minf(delta*6.0,1.0))
+
+func _cable_grip(movement: String, side: float, raised: float) -> Vector3:
+	var start:=Vector3(side*.24,-.28,-.54)
+	var end:=Vector3(side*.21,-.12,-.67)
+	match movement:
+		"cable_fly":
+			start=Vector3(side*.62,-.12,-.46)
+			end=Vector3(side*.08,-.14,-.78)
+		"cable_reverse_fly":
+			start=Vector3(side*.12,-.22,-.72)
+			end=Vector3(side*.62,-.12,-.46)
+		"cable_press":
+			start=Vector3(side*.29,-.25,-.36)
+			end=Vector3(side*.21,-.14,-.76)
+		"lat_pulldown":
+			start=Vector3(side*.22,.31,-.62)
+			end=Vector3(side*.22,-.23,-.40)
+		"cable_row":
+			start=Vector3(side*.22,-.34,-.77)
+			end=Vector3(side*.22,-.28,-.38)
+		"lateral_raise":
+			start=Vector3(side*.21,-.52,-.51)
+			end=Vector3(side*.60,-.13,-.52)
+		"front_raise":
+			start=Vector3(side*.24,-.49,-.51)
+			end=Vector3(side*.24,.01,-.77)
+		"overhead_press","overhead_extension":
+			start=Vector3(side*.24,-.18,-.47)
+			end=Vector3(side*.24,.32,-.62)
+		"curl":
+			start=Vector3(side*.22,-.44,-.56)
+			end=Vector3(side*.22,-.01,-.46)
+		"tricep_pushdown":
+			start=Vector3(side*.22,-.10,-.52)
+			end=Vector3(side*.22,-.46,-.61)
+		"cable_crunch":
+			start=Vector3(side*.22,.13,-.45)
+			end=Vector3(side*.22,-.23,-.50)
+	return start.lerp(end,raised)
 
 func _update_workout(delta: float) -> void:
 	if workout_state.is_empty():
@@ -298,8 +371,14 @@ func _update_workout(delta: float) -> void:
 	var station := str(workout_state.get("station", ""))
 	var machine: Node3D = game.campus_services._cable_machine(station) if station.begins_with("gym/cable_") else null
 	var bar: Node3D = game.campus_services.gym_motion.bars.get(station)
-	if active:_workout_camera(camera,exercise,bar,delta)
+	if active:_workout_camera(camera,exercise,bar,machine,raised,delta)
 	else:_restore_workout_camera()
+	if active and is_instance_valid(machine):
+		var yaw:=float(workout_state.get("workout_facing",game.player.yaw_target))
+		var base:=Basis.from_euler(Vector3(-.24,yaw,0))
+		var eye: Vector3=game.player.global_position+Vector3(0,1.62,0)
+		if exercise in ["cable_row","lat_pulldown"]:eye.y-=.30
+		machine.position_local_grips(game.multiplayer.get_unique_id(),eye+base*_cable_grip(exercise,-1,raised),eye+base*_cable_grip(exercise,1,raised))
 	var handheld_bar: Node3D = game.gym_barbells.bar_hand
 	var pair: Node3D = game.gym_weights.held_visual
 	for arm in workout_arms:
@@ -320,21 +399,47 @@ func _update_workout(delta: float) -> void:
 			grip.z += raised*.15
 		else:
 			grip.y += raised*.15
+		var fixed_grip: Variant=workout_state.get("grip_anchor")
+		var mat: Variant=workout_state.get("mat_position")
+		if fixed_grip is Vector3:
+			grip=camera.to_local(fixed_grip+Vector3(side*(.48 if exercise=="dip" else .36),0,0))
+		elif mat is Vector3 and exercise in ["pushup","pike_pushup"]:
+			grip=camera.to_local(mat+Vector3(side*.27,.035,.49))
 		if is_instance_valid(machine):
 			var grip_node: Node3D = machine.second_handle if not left and machine.second_handle.visible else machine.handle
 			var offset := Vector3.ZERO if machine.second_handle.visible else Vector3(side*.22,0,0)
 			var actual := camera.to_local(grip_node.to_global(offset))
-			if actual.z < -.12 and actual.distance_to(shoulder) < .92:
-				grip = actual
+			grip = actual
 		elif is_instance_valid(bar):
 			var actual := camera.to_local(bar.to_global(Vector3(side*.27,0,0)))
-			if actual.z < -.12 and actual.distance_to(shoulder) < .92:
-				grip = actual
+			grip = actual
 		elif is_instance_valid(pair) and workout_state.get("equipment") == "dumbbell":
 			var weight := pair.get_node_or_null("LeftDumbbell" if left else "RightDumbbell") as Node3D
-			if weight:weight.position = grip
+			if weight:
+				match exercise:
+					"curl":
+						var elbow:=Vector3(side*.31,-.62,-.26)
+						var arc:=lerpf(.20,2.15,raised)
+						grip=elbow+Vector3(0,-cos(arc),-sin(arc))*.30
+						weight.rotation=Vector3(arc-PI*.5,PI*.5,0)
+					"lateral_raise":
+						var arc:=lerpf(.15,PI*.48,raised)
+						grip=shoulder+Vector3(side*sin(arc),-cos(arc),-.16)*.55
+						weight.rotation=Vector3(0,0,side*arc)
+					"front_raise":
+						var arc:=lerpf(.12,PI*.53,raised)
+						grip=shoulder+Vector3(0,-cos(arc),-sin(arc))*.55
+						weight.rotation=Vector3(arc,0,0)
+					"overhead_press","incline_press","benchpress":
+						grip=Vector3(side*.29,lerpf(-.24,.25,raised),lerpf(-.39,-.50,raised))
+						weight.rotation=Vector3(0,PI*.5,0)
+					"bent_over_row","chest_supported_row","cable_row":
+						grip=Vector3(side*.24,lerpf(-.66,-.39,raised),lerpf(-.64,-.34,raised))
+						weight.rotation=Vector3.ZERO
+				weight.position=grip
 		elif is_instance_valid(handheld_bar) and workout_state.get("equipment") == "barbell":
-			handheld_bar.position = Vector3(0,grip.y,grip.z)
+			handheld_bar.position=Vector3(0,grip.y,grip.z)
+			grip=camera.to_local(handheld_bar.to_global(Vector3(side*.26,0,0)))
 		var hand := arm.find_child("Hand*",true,false) as Node3D
 		if not is_instance_valid(hand):continue
 		var reach := grip-shoulder

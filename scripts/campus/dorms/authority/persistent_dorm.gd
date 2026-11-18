@@ -445,7 +445,6 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 		"wear_goggles":
 			var carried: Array=d.get("carry_items",[]).duplicate()
 			if bool(intent.get("wear",false)):
-				if not next.get("avatar_cosmetics",{}).get("equipped",{}).get("eyewear",{}).is_empty():return fail("Remove your equipped eyewear before wearing goggles")
 				if not carried.has("lab_goggles") or d.get("worn_supplies",{}).has("head"):return fail("Put goggles in your hotbar first")
 				carried.erase("lab_goggles")
 				d.worn_supplies={"head":"lab_goggles"}
@@ -456,7 +455,6 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 				d.erase("worn_supplies")
 			d.carry_items=carried
 		"bag_move","bag_pack","bag_unpack":
-			if intent.op=="bag_move" and intent.get("destination","")=="back" and not next.get("avatar_cosmetics",{}).get("equipped",{}).get("back",{}).is_empty():return fail("Remove your back accessory before wearing a backpack")
 			var before := storage_used(d)
 			var error := Backpacks.move(d,intent,CALCULATORS)
 			if not error.is_empty():return fail(error)

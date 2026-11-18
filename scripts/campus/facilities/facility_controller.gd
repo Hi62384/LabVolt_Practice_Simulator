@@ -2,12 +2,14 @@ extends Node
 ## Same node path on all peers. No full-save or currency broadcast.
 signal owner_result(result: Dictionary)
 signal room_event(peer: int, state: Dictionary)
+signal sandwich_rejected(message: String)
 signal cable_selection_rejected(message: String)
 const Rules=preload("res://scripts/campus/facilities/facility_host.gd")
 var host=Rules.new()
 var interested_peers := Callable() # (room_id)->Array[int], from authoritative zone service
 var tick_accumulator:=0.0
 var room_states:={}
+var sandwich_request_times: Dictionary = {}
 var refresh_times:={}
 var visual_states:={}
 var preview_times:={}
@@ -15,6 +17,7 @@ var preview_times:={}
 func _ready() -> void:
 	host.authority=is_host
 	host.live_lifts = true
+	host.physical_sandwich_orders = true
 	host.live_lift_result.connect(_deliver)
 	host.public_event.connect(_public)
 	multiplayer.peer_disconnected.connect(_left)
@@ -30,6 +33,30 @@ func request(value: Dictionary) -> void:
 	if not connected():return
 	if is_host():_deliver(1,host.act(1,value))
 	else:_request.rpc_id(1,value)
+
+func sandwich_action(station: String, choice: String) -> void:
+	if not connected(): return
+	if is_host(): _sandwich_for(multiplayer.get_unique_id(),station,choice)
+	else: _sandwich_request.rpc_id(1,station,choice)
+
+@rpc("any_peer","call_remote","reliable")
+func _sandwich_request(station: String, choice: String) -> void:
+	if not is_host() or station.length()>40 or choice.length()>40:return
+	var sender := multiplayer.get_remote_sender_id()
+	var now := Time.get_ticks_msec()
+	if choice!="cancel" and now-int(sandwich_request_times.get(sender,-1000))<80:return
+	sandwich_request_times[sender]=now
+	_sandwich_for(sender,station,choice)
+
+func _sandwich_for(peer: int, station: String, choice: String) -> void:
+	var result: Dictionary = host.sandwich_action(peer,station,choice)
+	if result.ok: return
+	if peer == multiplayer.get_unique_id(): sandwich_rejected.emit(result.error)
+	else: _sandwich_rejection.rpc_id(peer,result.error)
+
+@rpc("authority","call_remote","reliable")
+func _sandwich_rejection(message: String) -> void:
+	sandwich_rejected.emit(message)
 
 func select_cable_weight(station: String, weight: int) -> void:
 	if not connected():
@@ -135,7 +162,10 @@ func _public(room: String, peer: int, state: Dictionary) -> void:
 	if not is_host():return
 	var key:=room+"/"+str(peer)
 	var entry: Dictionary=room_states.get(key,{"room_id":room,"peer":peer,"events":{}})
-	if state.has("held"):
+	if state.get("activity","")=="sandwich_counter":
+		if state.prep.is_empty(): entry.events.erase("sandwich_counter")
+		else: entry.events["sandwich_counter"] = state.duplicate(true)
+	elif state.has("held"):
 		var order_key := "food/" + str(state.get("order_id", "0"))
 		if str(state.held.get("station", "")).is_empty():
 			entry.events.erase(order_key)
@@ -155,24 +185,27 @@ func _public(room: String, peer: int, state: Dictionary) -> void:
 func _event(peer: int, state: Dictionary) -> void:_emit_local(peer,state)
 
 func _emit_local(peer: int,state: Dictionary) -> void:
-	if not state.has("held") and state.get("activity","") not in ["holding","consume","place","pickup","cable_pin"]:
+	if not state.has("held") and state.get("activity","") not in ["holding","consume","place","pickup","cable_pin","sandwich_counter"]:
 		visual_states[peer]={"activity":"idle"} if state.get("activity","") in ["emote","assist","spot_assist"] else state.duplicate(true)
 	room_event.emit(peer,state)
 
 func reset_presentation() -> void:
 	for peer in visual_states.keys():room_event.emit(int(peer),{"activity":"idle"})
-	visual_states.clear();room_states.clear();preview_times.clear()
+	visual_states.clear();room_states.clear();preview_times.clear();sandwich_request_times.clear()
 	for station in host.cable_weights:
 		room_event.emit(multiplayer.get_unique_id(), {"activity":"cable_pin","station":station,"weight":5})
 	host.cable_weights.clear()
 
 func finish_session() -> void:
 	if not is_host():return
+	host.clear_sandwich()
 	# The session emits leaving before roster, ledger and transport teardown.
 	for peer in host.active.keys():host.clear_activity(int(peer),"interrupted")
 	if not host.pending_sets.is_empty():push_warning("Gym workout records are still waiting for the profile save. Keep the host open and reconnect the affected student to retry.")
 
 func _left(peer: int) -> void:
+	if host.sandwich_counter.owner==peer: host.clear_sandwich()
+	sandwich_request_times.erase(peer)
 	host.clear_activity(peer,"interrupted");host.last_request.erase(peer);host.last_assist.erase(peer);refresh_times.erase(peer)
 	visual_states.erase(peer);preview_times.erase(peer)
 	for key in room_states.keys():

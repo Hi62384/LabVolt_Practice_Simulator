@@ -1,20 +1,8 @@
 extends RefCounted
 ## Slot order is presentation metadata; ownership remains with the existing authorities.
 const COUNT:=4
-const COSMETIC_SLOTS:=["head","eyewear","ears","neck","hands","wrist_left","wrist_right","back"]
-
-static func cosmetic_entries(profile: Dictionary) -> Dictionary:
-	var result:={}
-	var equipped: Variant=profile.get("avatar_cosmetics",{}).get("equipped",{})
-	if not equipped is Dictionary:return result
-	for slot in COSMETIC_SLOTS:
-		var entry: Variant=equipped.get(slot,{})
-		if entry is Dictionary and entry.get("id","") is String and not entry.get("id","").is_empty():
-			result["cosmetic/"+slot]=entry.id
-	return result
-
 static func persistent_count(profile: Dictionary) -> int:
-	var count:=cosmetic_entries(profile).size()
+	var count:=0
 	var dorm: Variant=profile.get("dorm",{})
 	if not dorm is Dictionary:return count
 	if dorm.get("worn_supplies",{}).get("head","")=="lab_goggles":count+=1

@@ -277,5 +277,12 @@ func _process(delta: float) -> void:
   if id>=0:
    held_visual=_pair_model(float(items[id].lb));game.camera.add_child(held_visual)
    for child in held_visual.get_children():child.position=Vector3(-.23 if child.name=="LeftDumbbell" else .23,-.28,-.52)
- if is_instance_valid(held_visual):held_visual.visible=game.front.in_game and game.player.enabled
+ if is_instance_valid(held_visual):
+  var hide_idle_gear: bool=game.workout_hides_carried_items()
+  var exercise: Dictionary=game.campus_services.facility_panel.state.get("active",{})
+  held_visual.visible=game.front.in_game and game.player.enabled and (not hide_idle_gear or exercise.get("equipment")=="dumbbell")
+  if not hide_idle_gear:
+   for child in held_visual.get_children():
+    child.position=Vector3(-.23 if child.name=="LeftDumbbell" else .23,-.28,-.52)
+    child.rotation=Vector3.ZERO
  _sync_remote_visuals()

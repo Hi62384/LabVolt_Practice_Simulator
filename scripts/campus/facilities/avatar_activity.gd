@@ -46,7 +46,7 @@ func apply_event(value: Dictionary, show_food: bool) -> void:
 	restore()
 	state=value.duplicate(true);elapsed=0
 	if state.get("activity","") in ["exercise","trapped"] and state.get("exercise","")=="squat":squat_bend.bind(legs)
-	if state.get("activity","")=="exercise" and state.get("exercise","") in ["curl","wrist_curl","overhead_extension","tricep_pushdown","pullup","dip","upright_row","cable_row"]:arm_bend.bind(arms)
+	if state.get("activity","")=="exercise" and state.get("exercise","") in ["curl","wrist_curl","overhead_extension","tricep_pushdown","pullup","dip","upright_row","cable_row","pushup","pike_pushup"]:arm_bend.bind(arms)
 	if state.get("activity", "") in ["exercise", "trapped", "spotting", "assist", "spot_assist", "emote"]:
 		_hold_animation()
 	smooth_phase=1.0-float(state.get("phase",0))
@@ -113,8 +113,8 @@ func _process(delta: float) -> void:
 		if kind=="pushup":
 			# The avatar faces local +Z. Tilt forward into a prone position;
 			# rotating backwards made push-ups face the ceiling.
-			target.basis=original.basis.rotated(Vector3.RIGHT,1.20+phase*.10)
-			target.origin.y+=.08
+			target.basis=original.basis.rotated(Vector3.RIGHT,1.19+phase*.26)
+			target.origin.y+=.025
 		elif kind in ["crunch","leg_raise"]:
 			target.basis=original.basis.rotated(Vector3.RIGHT,-1.35)
 			target.origin.y-=.05
@@ -264,6 +264,19 @@ func _process(delta: float) -> void:
 			elif kind=="dip":arm_bend.apply(1.1*phase,0.0)
 			elif kind=="upright_row":arm_bend.apply(0.0,0.0,1.25*phase)
 			elif kind=="cable_row":arm_bend.apply(1.1*phase,0.0)
+			elif kind in ["pushup","pike_pushup"]:arm_bend.apply(.94*phase,0.0)
+		if state.get("mat_position") is Vector3 and kind in ["pushup","pike_pushup"]:
+			for key in arms:
+				var arm: Node3D=arms[key].node
+				var hand:=arm_bend.hand_for(arm)
+				if not is_instance_valid(hand):continue
+				var side: float=-1.0 if key=="ArmL" else 1.0
+				var contact: Vector3=arm.get_parent().to_local(state.mat_position+Vector3(side*.27,.035,.49))
+				var aim: Vector3=contact-arm.position
+				var current: Vector3=arm.basis*hand.position
+				if aim.length_squared()>.001 and current.length_squared()>.001:
+					var correction:=Basis(Quaternion(current.normalized(),aim.normalized()))
+					arm.basis=(correction*arm.basis).scaled(Vector3.ONE*clampf(aim.length()/current.length(),.81,1.19))
 		if state.get("grip_anchor") is Vector3 and arms.has("ArmL") and arms.has("ArmR"):
 			var joints=preload("res://scripts/campus/facilities/arm_bend.gd")
 			var left: Node3D=joints.hand_for(arms.ArmL.node)

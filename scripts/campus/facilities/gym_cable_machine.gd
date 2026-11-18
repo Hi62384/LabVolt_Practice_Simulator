@@ -8,6 +8,11 @@ var exercise:=""
 var selected:=1
 var handle: Node3D
 var second_handle: Node3D
+var single_grip: Node3D
+var long_grip: Node3D
+var loading_mount: Node3D
+const PLATE_LIMIT := 3
+const PLATE_SPACING := .092
 var cable: MeshInstance3D
 var second_cable: MeshInstance3D
 var routed_cable: MeshInstance3D
@@ -19,11 +24,12 @@ var weights: Array[MeshInstance3D]=[]
 var selection_pin: MeshInstance3D
 const PIN_X := .15
 const PIN_FRONT := .226
-const HANDLE_REST := Vector3(0, 1.80, .38)
+const HANDLE_REST := Vector3(0, 2.035, .39)
 const TETHER_ANCHOR := Vector3(.28, 1.46, .23)
 var tether: Array[MeshInstance3D] = []
 const SIDE_GUIDE := Vector3(.86, 1.42, .48)
 var pin_targets: Array[StaticBody3D]=[]
+var highlighted_pin: MeshInstance3D
 var dark: StandardMaterial3D
 var steel: StandardMaterial3D
 var left_hand: Node3D
@@ -42,7 +48,7 @@ func build(id: String) -> void:
 		weights.append(plate)
 		var kg := (20 - i) * 5
 		var plate_label := TextMesh.new()
-		plate_label.text = "%d kg" % kg
+		plate_label.text = "%d lb" % roundi(kg*2.20462262)
 		plate_label.pixel_size = .001
 		plate_label.font_size = 38
 		plate_label.depth = .001
@@ -55,17 +61,37 @@ func build(id: String) -> void:
 		var pin_target:=StaticBody3D.new();pin_target.name="CableWeightPin_%d" % kg
 		pin_target.position=Vector3(PIN_X,.16+i*.075,PIN_FRONT+.02);pin_target.collision_layer=4;pin_target.collision_mask=0
 		pin_target.set_meta("role","gym_cable_pin");pin_target.set_meta("station",id);pin_target.set_meta("weight",kg)
-		pin_target.set_meta("label","Set cable resistance to %d kg" % kg)
+		pin_target.set_meta("label","Set to %d lb" % roundi(kg*2.20462262))
 		var pin_hit:=CollisionShape3D.new();var pin_shape:=BoxShape3D.new();pin_shape.size=Vector3(.06,.065,.06);pin_hit.shape=pin_shape;pin_target.add_child(pin_hit);add_child(pin_target);pin_targets.append(pin_target)
 	selection_pin = _cylinder(self, Vector3(PIN_X,.16,.254), .010, .09, steel)
 	_cylinder(self, TETHER_ANCHOR, .025, .016, dark)
 	# The knob is part of the pin assembly. Its transform follows the shaft.
 	var knob := _cylinder(selection_pin, Vector3(0,.050,0), .025, .028, _material(Color("bb9657"),.56,.35))
 	knob.rotation.x = 0
-	_box(self, Vector3(0,1.80,.225), Vector3(.42,.06,.12), steel)
+	_box(self, Vector3(0,1.99,.225), Vector3(.42,.055,.12), steel)
 	for x in [-.17,.17]:
-		_box(self, Vector3(x,1.774,.34), Vector3(.052,.033,.24), steel)
-		_box(self, Vector3(x,1.80,.445), Vector3(.052,.078,.036), dark)
+		_box(self, Vector3(x,2.007,.34), Vector3(.048,.022,.22), steel)
+		_box(self, Vector3(x,2.035,.449), Vector3(.048,.075,.028), dark)
+	loading_mount=Node3D.new()
+	loading_mount.name="CableLoadingPost"
+	loading_mount.position=Vector3(0,1.62,.38)
+	add_child(loading_mount)
+	_box(loading_mount,Vector3(0,0,-.13),Vector3(.32,.043,.42),steel)
+	var post:=_cylinder(loading_mount,Vector3(0,.169,0),.050,.32,steel)
+	post.rotation.x=0
+	var load_target:=StaticBody3D.new()
+	load_target.collision_layer=4;load_target.collision_mask=0
+	load_target.set_meta("role","gym_cable_load");load_target.set_meta("station",id)
+	loading_mount.add_child(load_target)
+	_add_solid_box(load_target,Vector3(0,.17,0),Vector3(.14,.33,.12))
+	highlighted_pin=MeshInstance3D.new()
+	var highlight_ring:=TorusMesh.new()
+	highlight_ring.inner_radius=.017;highlight_ring.outer_radius=.024
+	highlight_ring.rings=12;highlight_ring.ring_segments=6
+	highlighted_pin.mesh=highlight_ring
+	highlighted_pin.material_override=_material(Color("e2b767"),.56,.2)
+	highlighted_pin.rotation.x=PI*.5;add_child(highlighted_pin)
+	highlighted_pin.hide()
 	var pulley:=MeshInstance3D.new();var wheel:=CylinderMesh.new();wheel.top_radius=.12;wheel.bottom_radius=.12;wheel.height=.07;wheel.radial_segments=16
 	pulley.mesh=wheel;pulley.material_override=dark;pulley.rotation.z=PI/2;pulley.position=Vector3(0,2.3,.13);add_child(pulley)
 	var lower_pulley:=MeshInstance3D.new();lower_pulley.mesh=wheel;lower_pulley.material_override=dark
@@ -91,9 +117,10 @@ func build(id: String) -> void:
 		overhead.position = Vector3(guide.x, 2.30, .13)
 		add_child(overhead)
 	handle=Node3D.new();handle.position=HANDLE_REST;add_child(handle)
-	_box(handle,Vector3.ZERO,Vector3(.52,.05,.05),steel)
-	for x in [-.26,.26]:_box(handle,Vector3(x,-.08,0),Vector3(.05,.20,.05),dark)
-	second_handle=handle.duplicate() as Node3D;add_child(second_handle);second_handle.hide()
+	long_grip=_build_grip(handle,.52)
+	single_grip=_build_grip(handle,.125)
+	single_grip.hide()
+	second_handle=Node3D.new();add_child(second_handle);_build_grip(second_handle,.125);second_handle.hide()
 	cable=MeshInstance3D.new();var wire:=CylinderMesh.new();wire.top_radius=.012;wire.bottom_radius=.012;wire.height=1.0;wire.radial_segments=8;cable.mesh=wire;cable.material_override=dark;add_child(cable)
 	second_cable=MeshInstance3D.new();second_cable.mesh=wire;second_cable.material_override=dark;add_child(second_cable);second_cable.hide()
 	routed_cable=MeshInstance3D.new();routed_cable.mesh=wire;routed_cable.material_override=dark;add_child(routed_cable);routed_cable.hide()
@@ -112,14 +139,12 @@ func build(id: String) -> void:
 	var target := StaticBody3D.new()
 	target.collision_layer=4
 	target.collision_mask=0
-	target.position=Vector3(-.54,1.59,.18)
+	target.position=Vector3(0,2.05,.27)
 	target.set_meta("role","gym_equipment")
 	target.set_meta("station",id)
 	target.set_meta("label","Open cable exercises")
 	add_child(target)
-	_box(target,Vector3.ZERO,Vector3(.22,.26,.14),dark)
-	_box(target,Vector3(0,0,.076),Vector3(.12,.10,.018),_material(Color("73978f"),.6,.2))
-	_add_solid_box(target,Vector3.ZERO,Vector3(.23,.27,.15))
+	_add_solid_box(target,Vector3.ZERO,Vector3(1.00,.22,.27))
 	var solid:=StaticBody3D.new();solid.collision_layer=1;solid.collision_mask=0;add_child(solid)
 	var solid_hit:=CollisionShape3D.new();var solid_shape:=BoxShape3D.new();solid_shape.size=Vector3(1.16,2.4,.22);solid_hit.shape=solid_shape;solid_hit.position=Vector3(0,1.2,-.18);solid.add_child(solid_hit)
 	# The steel frame, feet and top crossbar are solid too; the ray target above
@@ -132,6 +157,11 @@ func build(id: String) -> void:
 		_add_solid_box(solid, Vector3(SIDE_GUIDE.x * side, .71, .26), Vector3(.12, 1.42, .14))
 		_add_solid_box(solid, Vector3(SIDE_GUIDE.x * side, .06, .26), Vector3(.26, .12, .64))
 	_update_pin();_update_wire();set_process(false)
+
+func highlight_pin(target: Node3D) -> void:
+	var active:=is_instance_valid(target) and target in pin_targets and occupant==0
+	highlighted_pin.visible=active
+	if active:highlighted_pin.position=target.position-Vector3(0,0,.032)
 
 func selected_resistance() -> int:
 	return clampi(selected,1,20)*5
@@ -155,7 +185,7 @@ func on_room_event(peer: int,event: Dictionary, avatar: Node3D=null) -> void:
 		if is_instance_valid(avatar):
 			left_hand=_avatar_hand(avatar,"ArmL")
 			right_hand=_avatar_hand(avatar,"ArmR")
-		set_resistance(int(event.get("weight",5)))
+		set_resistance(int(event.get("selector_weight", event.get("weight",5))))
 		set_process(true)
 	elif peer==occupant and event.get("activity","")!="exercise":
 		occupant=0;target_phase=0.0;left_hand=null;right_hand=null;set_process(true)
@@ -175,17 +205,25 @@ func _process(delta: float) -> void:
 	var grip_y:=base_y-phase*.48 if high else base_y+phase*.46 if low else base_y
 	handle.position=HANDLE_REST if occupant==0 else Vector3(0,grip_y,.55+phase*.42)
 	var dual:=occupant!=0 and exercise in ["cable_press","cable_fly","cable_reverse_fly","lateral_raise","front_raise","overhead_extension"]
-	handle.scale=Vector3(.20,1,1) if dual else Vector3.ONE
+	long_grip.visible=not dual;single_grip.visible=dual
+	handle.basis=Basis.IDENTITY
 	second_handle.visible=dual;second_cable.visible=dual
 	if dual:
 		handle.position.x=-.26
 		second_handle.position=handle.position+Vector3(.52,0,0)
-		second_handle.scale=handle.scale
 	if occupant!=0 and is_instance_valid(left_hand) and is_instance_valid(right_hand):
 		if dual:
 			handle.global_position=left_hand.global_position
 			second_handle.global_position=right_hand.global_position
-		else:handle.global_position=(left_hand.global_position+right_hand.global_position)*.5
+		else:
+			var grip_delta:=to_local(right_hand.global_position)-to_local(left_hand.global_position)
+			handle.global_position=(left_hand.global_position+right_hand.global_position)*.5
+			if grip_delta.length_squared()>.001:
+				if grip_delta.x<0:grip_delta=-grip_delta
+				handle.basis=Basis(Quaternion(Vector3.RIGHT,grip_delta.normalized()))
+	for grip in [handle,second_handle]:
+		grip.set_meta("connector",grip.transform*Vector3(0,.113,0))
+	loading_mount.position.y=1.62+.24*phase
 	for i in weights.size():weights[i].position.y=.16+i*.075+(.24*phase if i>=weights.size()-selected else 0.0)
 	selection_pin.position.y = weights[weights.size() - selected].position.y
 	for i in pin_targets.size():
@@ -193,6 +231,39 @@ func _process(delta: float) -> void:
 	_update_tether()
 	_update_wire()
 	if occupant==0 and is_zero_approx(phase):set_process(false)
+
+func _build_grip(parent: Node3D, width: float) -> Node3D:
+	var assembly:=Node3D.new()
+	parent.add_child(assembly)
+	var grip:=_cylinder(assembly,Vector3.ZERO,.026,width,steel)
+	grip.rotation=Vector3(0,0,PI*.5)
+	var sleeve:=_cylinder(assembly,Vector3.ZERO,.029,width*.75,dark)
+	sleeve.rotation=Vector3(0,0,PI*.5)
+	for side in [-1.0,1.0]:
+		var start:=Vector3(side*width*.44,.016,0)
+		var end:=Vector3(side*.023,.081,0)
+		var strut:=_box(assembly,(start+end)*.5,Vector3(.016,start.distance_to(end)+.006,.017),steel)
+		strut.basis=Basis(Quaternion(Vector3.UP,(end-start).normalized()))
+	var connector:=MeshInstance3D.new()
+	var loop:=TorusMesh.new()
+	loop.inner_radius=.011;loop.outer_radius=.022;loop.rings=12;loop.ring_segments=8
+	connector.mesh=loop;connector.material_override=steel;connector.rotation.x=PI*.5
+	connector.position.y=.090;assembly.add_child(connector)
+	return assembly
+
+func position_local_grips(peer: int, left: Vector3, right: Vector3) -> void:
+	if occupant!=peer:return
+	if second_handle.visible:
+		handle.global_position=left
+		second_handle.global_position=right
+	else:
+		handle.global_position=(left+right)*.5
+		var direction:=to_local(right)-to_local(left)
+		if direction.length_squared()>.001:
+			handle.basis=Basis(Quaternion(Vector3.RIGHT,direction.normalized()))
+	for grip in [handle,second_handle]:
+		grip.set_meta("connector",grip.transform*Vector3(0,.113,0))
+	_update_wire()
 
 func _update_wire() -> void:
 	var low:=occupant!=0 and exercise in ["curl","front_raise","lateral_raise","overhead_press"]
@@ -203,11 +274,11 @@ func _update_wire() -> void:
 	for section in route_sections:section.visible=around_player
 	for section in second_route_sections:section.visible=around_player and second_cable.visible
 	if around_player:
-		_route_cable(cable,routed_cable,route_sections,pulley,handle.position,-1.0)
-		if second_cable.visible:_route_cable(second_cable,second_routed_cable,second_route_sections,pulley,second_handle.position,1.0)
+		_route_cable(cable,routed_cable,route_sections,pulley,handle.get_meta("connector",handle.transform*Vector3(0,.113,0)),-1.0)
+		if second_cable.visible:_route_cable(second_cable,second_routed_cable,second_route_sections,pulley,second_handle.get_meta("connector",second_handle.transform*Vector3(0,.113,0)),1.0)
 	else:
-		_position_cable(cable,pulley,handle.position)
-		if second_cable.visible:_position_cable(second_cable,pulley,second_handle.position)
+		_position_cable(cable,pulley,handle.get_meta("connector",handle.transform*Vector3(0,.113,0)))
+		if second_cable.visible:_position_cable(second_cable,pulley,second_handle.get_meta("connector",second_handle.transform*Vector3(0,.113,0)))
 	# The pin lifts the selected upper stack, so its top attachment follows it.
 	_position_cable(stack_cable,Vector3(0,2.3,.13),Vector3(0,.16+(weights.size()-1)*.075+.035+.24*phase,.10))
 

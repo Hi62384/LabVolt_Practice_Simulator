@@ -45,12 +45,30 @@ func run() -> void:
 	load_kg = 200.0
 	assert(_action(host,"start").ok)
 	for press in 20:
-		if host.active[1].type == "trapped":break
 		assert(_action(host,"effort").ok)
-		host.tick()
-		if host.active[1].type == "exercise":assert(host.active[1].lift_progress < 1.0 and host.active[1].reps == 0)
-	assert(host.active[1].type == "trapped" and host.trapped_damage_rate(1) > 0.0)
-	assert(saved.gym.history.size() == 2 and saved.gym.history.back().outcome == "failure")
+		assert(host.active[1].type=="exercise" and host.active[1].lift_progress<.12 and host.active[1].reps==0)
+	now+=1500
+	host.tick()
+	assert(host.active[1].type=="exercise" and host._progress_at(host.active[1],now)==0.0)
+	assert(_action(host,"effort").ok)
+	assert(_action(host,"cancel").ok)
+	assert(not host.movement_locked(1))
+	load_kg=Host.GymProgress.capacity(saved.gym,"benchpress")*.91
+	assert(_action(host,"start").ok)
+	for press in 4:assert(_action(host,"effort").ok)
+	assert(_action(host,"cancel").ok and host.active[1].quit_after_lower)
+	now+=1000+int(host.active[1].half_ms)
+	host.tick()
+	assert(not host.movement_locked(1))
+	assert(_action(host,"start").ok)
+	for press in 4:assert(_action(host,"effort").ok)
+	assert(host.active[1].lift_progress>=.2)
+	now+=1800
+	host.tick()
+	assert(host.active[1].type=="trapped" and host.trapped_damage_rate(1)==0.0)
+	now+=4500
+	assert(host.trapped_damage_rate(1)>0.0)
+	assert(saved.gym.history.size()==4 and saved.gym.history.back().outcome=="failure")
 	host.clear_activity(1)
 	host.anchors["gym/cable_0"] = {"kind":"cable","position":Vector3.ZERO,"room_id":"gym"}
 	assert(not host.set_cable_weight(1,"gym/cable_0",22).ok)
@@ -60,7 +78,8 @@ func run() -> void:
 	assert(not host.act(1,request).ok)
 	now += 100
 	request.weight = 25
-	assert(host.act(1,request).ok and host.active[1].weight == 25)
+	host.cable_extra_mass=func(_station):return 6.25
+	assert(host.act(1,request).ok and is_equal_approx(host.active[1].weight,31.25) and host.active[1].selector_weight==25)
 	assert(not host.set_cable_weight(1,"gym/cable_0",40).ok)
 	print("LIVE_LIFT PASS")
 	quit()

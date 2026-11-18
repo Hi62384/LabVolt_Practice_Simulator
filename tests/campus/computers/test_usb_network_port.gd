@@ -145,7 +145,7 @@ func run() -> void:
 		await create_timer(.5).timeout
 		if disconnect_case:
 			service.request({"op":"power","station":station})
-			await create_timer(.2).timeout
+			await create_timer(1.8).timeout
 			service.request({"op":"enter","station":station})
 			if not await until(func():return service.local_snapshot.get("public_device",false),"USB desktop before disconnect"):return
 			var intact: Dictionary=Archive.load(game.school.local_identity,drive_id,8)
@@ -170,7 +170,7 @@ func run() -> void:
 			print("USB_CLIENT_DISCONNECT PASS")
 			game.session.leave();game.queue_free();await process_frame;quit();return
 		service.request({"op":"power","station":station})
-		await create_timer(.2).timeout
+		await create_timer(1.8).timeout
 		service.request({"op":"enter","station":station})
 		if not await until(func():return service.local_snapshot.get("files",{}).has("network.txt"),"USB desktop opened"):return
 		if save_error_case:

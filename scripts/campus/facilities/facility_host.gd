@@ -12,6 +12,11 @@ const STATION_EXERCISES := {"pushup":["pushup","crunch","leg_raise","pike_pushup
 const WEIGHTS := {"pushup":[0],"pullup":[0],"benchpress":[10,20,40],"squat":[10,20,40],"curl":[5,10,20],"crunch":[0],"leg_raise":[0],"pike_pushup":[0],"hanging_leg_raise":[0],"dip":[0]}
 const GymProgress = preload("res://scripts/campus/facilities/gym_progress.gd")
 const EMOTES := {"wave":1800,"cheer":2200,"flex":2200,"victory":2600}
+const CounterRules = preload("res://scripts/campus/facilities/sandwich_counter_rules.gd")
+var sandwich_counter = CounterRules.new()
+var sandwich_targets: Dictionary = {}
+var physical_sandwich_orders := false
+
 const MENU := {
  "coffee":{"venue":"tim_hortons","name":"Coffee","price":3,"servings":3,"kind":"drink","category":"Hot drinks","art":"coffee"},
  "tea":{"venue":"tim_hortons","name":"Tea","price":2,"servings":3,"kind":"drink","category":"Hot drinks","art":"tea"},
@@ -50,6 +55,9 @@ var anchors := {}
 signal live_lift_result(peer: int, result: Dictionary)
 var live_lifts := false
 var cable_weights := {}
+var cable_extra_mass := Callable()
+var exercise_alignment := Callable()
+var apply_exercise_alignment := Callable()
 var active := {}
 var seats := {}
 var last_request := {}
@@ -179,11 +187,44 @@ func set_cable_weight(peer: int, station: String, weight: int) -> Dictionary:
 	if seats.has(station):
 		return fail("Wait until this cable machine is free.")
 	if weight < 5 or weight > 100 or weight % 5 != 0:
-		return fail("Select a marked weight from 5 to 100 kg.")
+		return fail("Select a marked weight from 11 to 220 lb.")
 	cable_weights[station] = weight
 	return {"ok":true}
 
 func fail(message: String) -> Dictionary:return {"ok":false,"error":message}
+
+func sandwich_action(peer: int, counter: String, choice: String) -> Dictionary:
+	var c := trusted(peer)
+	if choice == "cancel":
+		if sandwich_counter.owner == peer: clear_sandwich()
+		return {"ok":true}
+	if c.is_empty() or c.room_id != "subway" or not c.get("allowed",false) or not c.get("grounded",false):
+		return fail("Stand near the Subway counter.")
+	if choice == "begin":
+		if not reachable(c,counter) or anchors[counter].kind != "counter:subway" or not active.get(peer,{}).is_empty():
+			return fail("Approach the Subway cashier.")
+		if not sandwich_counter.start(peer,counter,now()): return fail("Another customer is using the counter.")
+	else:
+		if sandwich_counter.owner != peer: return fail("Start an order with the cashier.")
+		if choice != "advance/next" and (not sandwich_targets.has(choice) or c.position.distance_to(sandwich_targets[choice]) > 3.5):
+			return fail("Move closer to the ingredient.")
+		if not _near_sandwich(c) or not sandwich_counter.choose(choice,now()):
+			return fail("Complete the current step before continuing.")
+	_publish_sandwich()
+	return {"ok":true}
+
+func clear_sandwich() -> void:
+	var peer: int = sandwich_counter.owner
+	if peer == 0: return
+	sandwich_counter.clear()
+	public_event.emit("subway",peer,{"activity":"sandwich_counter","prep":{}})
+
+func _near_sandwich(c: Dictionary) -> bool:
+	var anchor: Dictionary = anchors.get(sandwich_counter.station,{})
+	return c.get("room_id","") == "subway" and anchor.has("position") and c.position.distance_to(anchor.position) <= 5.0
+
+func _publish_sandwich() -> void:
+	public_event.emit("subway",sandwich_counter.owner,{"activity":"sandwich_counter","prep":sandwich_counter.snapshot(now())})
 
 func act(peer: int, request: Dictionary) -> Dictionary:
 	var c:=trusted(peer)
@@ -205,6 +246,14 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	if op in ["cancel","stand","stop"]:
 		if current.get("type","")=="trapped":return fail("Work the bar free, or ask for help")
 		var saved:=true
+		if live_lifts and current.get("type","")=="exercise" and _can_pin(current) and _progress_at(current,t)>.001:
+			if not current.get("quit_after_lower",false):
+				current.lower_from = _progress_at(current,t)
+				current.quit_after_lower = true
+				current.phase = 2
+				current.last_beat = t
+				public_event.emit(str(current.room_id),peer,_exercise_event(current))
+			return {"ok":true,"state":private_state(peer)}
 		if current.get("type","")=="exercise":
 			var stopped:=p.duplicate(true)
 			if not stopped.has("gym"):stopped.gym=GymProgress.empty()
@@ -236,22 +285,31 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	var event: Dictionary={}
 	var rescue_target := 0
 	var rescue_gain := 0.0
-	if op=="buy":
+	if op in ["buy","sandwich_checkout"]:
 		if not current.is_empty():return fail("Finish the current activity first")
 		if p.orders.size()>=24 or carried_order_count(p.orders)>=6:return fail("No room for another order")
 		var item:=str(request.get("item",""))
-		if not menu.has(item) or not reachable(c,station):return fail("Approach the ordering counter")
+		var custom: Dictionary = {}
+		if op=="sandwich_checkout":
+			if sandwich_counter.owner!=peer or sandwich_counter.step!=6 or not _near_sandwich(c):return fail("Finish the sandwich at the counter.")
+			station=sandwich_counter.station
+			item="sandwich"
+			custom=sandwich_counter.recipe
+		elif request.has("recipe"):
+			if physical_sandwich_orders:return fail("Build your sandwich at the physical counter.")
+			var offered: Variant=request.recipe
+			if item!="sandwich" or not Sandwich.valid(offered):return fail("Select valid sandwich ingredients")
+			custom=offered
+		if not menu.has(item) or (op!="sandwich_checkout" and not reachable(c,station)):return fail("Approach the ordering counter")
 		var entry: Dictionary=menu[item]
 		if anchors[station].get("kind","")!="counter:"+str(entry.venue):return fail("Wrong restaurant")
 		if not entry.price is int or int(entry.price)<0 or int(entry.price)>10000:return fail("Invalid host price")
 		dollars=-int(entry.price)
 		var order := {"item":item,"servings":int(entry.servings),"station":""}
-		if request.has("recipe"):
-			var recipe: Variant=request.recipe
-			if item!="sandwich" or not Sandwich.valid(recipe):return fail("Select valid sandwich ingredients")
-			dollars=-Sandwich.price(recipe)
-			order.recipe=recipe.duplicate(true)
-			order.servings=Sandwich.servings(recipe)
+		if not custom.is_empty():
+			dollars=-Sandwich.price(custom)
+			order.recipe=custom.duplicate(true)
+			order.servings=Sandwich.servings(custom)
 		next.orders[str(seq)]=order
 		event={"activity":"holding","order_id":str(seq),"held":order.duplicate(true)}
 	elif op in ["consume","place","pickup"]:
@@ -316,7 +374,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			if weight<=0:return fail("Pick up a barbell first")
 			if bench_bar and (not barbell_mass.is_valid() or float(barbell_mass.call(station))>0.0):return fail("Clear the bench rack before using your carried bar")
 		elif station_type=="cable":
-			if not weight is int or weight<5 or weight>100 or weight%5!=0:return fail("Choose a cable resistance from 5 to 100 kg")
+			if not weight is int or weight<5 or weight>100 or weight%5!=0:return fail("Choose a cable resistance from 11 to 220 lb")
 			if live_lifts and weight != cable_weights.get(station, 5):
 				return fail("The selector pin changed. Check the stack before starting.")
 		elif station_type in ["benchpress","squat"]:
@@ -325,6 +383,10 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		elif not weight is int or not weight in WEIGHTS[exercise]:return fail("Unsupported exercise weight")
 		if station_type in ["pushup","pullup"] and worn_belt_mass.is_valid():weight=float(weight)+maxf(0.0,float(worn_belt_mass.call(peer)))
 		next_active={"type":"exercise","exercise":exercise,"station":station,"position":c.position,"room_id":c.room_id,"started":t,"last_beat":t,"phase":0,"reps":0,"weight":weight}
+		if station_type=="cable":
+			next_active.selector_weight=weight
+			if cable_extra_mass.is_valid():next_active.weight=float(weight)+maxf(0.0,float(cable_extra_mass.call(station)))
+			weight=next_active.weight
 		next_active.identity=str(c.identity)
 		next_active.initial_muscles=GymProgress.set_snapshot(next.gym,exercise)
 		var body_mass: Variant=player_body_mass.call(peer) if player_body_mass.is_valid() else 70.0
@@ -338,6 +400,11 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			if anchors[station].get(grip_key) is Vector3:next_active.grip_anchor=anchors[station][grip_key]
 		if station_type=="pushup" and anchors[station].get("mat_position") is Vector3:
 			next_active.mat_position=anchors[station].mat_position
+		if exercise_alignment.is_valid():
+			var alignment: Dictionary=exercise_alignment.call(peer,station,exercise,c.position)
+			if alignment.is_empty():return fail("Clear the space around the equipment.")
+			next_active.position=alignment.position
+			next_active.workout_facing=alignment.yaw
 		next_active.half_ms=GymProgress.movement_ms(next.gym,exercise,float(weight),int(EXERCISES[exercise])/2,next_active.body_mass)
 		if live_lifts:
 			_prepare_raise(next_active, next.gym, t)
@@ -356,7 +423,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	elif op=="beat":
 		if current.get("type","")!="exercise" or not activity_valid(c,current):return fail("Start an exercise first")
 		if live_lifts:
-			if int(current.phase) != 2 or t-int(current.last_beat) < int(current.half_ms):return fail("Wait until the weight is down")
+			if current.get("quit_after_lower",false) or int(current.phase) != 2 or t-int(current.last_beat) < int(current.half_ms):return fail("Wait until the weight is down")
 		elif int(current.phase)!=1:return fail("Lower the weight first")
 		var gap:=t-int(current.last_beat)
 		if gap>15000:
@@ -428,6 +495,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	next.last_sequence=seq
 	next.revision=int(p.revision)+1
 	if not valid_profile(next) or not bool(commit_profile.call(str(c.identity),dollars,next.duplicate(true))):return fail("Purchase or save failed; nothing changed")
+	if op=="sandwich_checkout": clear_sandwich()
 	gym_recovery_clock[c.identity]=t
 	if op=="consume":last_bite[c.identity]=t
 	if current.has("station"):seats.erase(current.station)
@@ -435,6 +503,8 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	else:
 		active[peer]=next_active
 		if next_active.has("station"):seats[next_active.station]=peer
+	if op=="start" and apply_exercise_alignment.is_valid() and next_active.has("workout_facing"):
+		apply_exercise_alignment.call(peer,next_active.position,next_active.workout_facing)
 	public_event.emit(str(c.room_id),peer,event)
 	if rescue_target!=0 and active.has(rescue_target):
 		last_assist[peer]=t
@@ -456,15 +526,16 @@ func _progress_at(value: Dictionary, t: int) -> float:
 		0:
 			return 1.0
 		2:
-			return 1.0 - smoothstep(0.0, float(value.half_ms), float(t-int(value.last_beat)))
+			return float(value.get("lower_from",1.0)) * (1.0 - smoothstep(0.0, float(value.half_ms), float(t-int(value.last_beat))))
 		_:
 			var settings: Vector3 = value.lift_settings
-			var elapsed := maxf(0.0, float(t-int(value.lift_at)-220)/1000.0)
+			var grace := lerpf(200.0,0.0,smoothstep(.73,1.0,settings.z))
+			var elapsed := maxf(0.0, (float(t-int(value.lift_at))-grace)/1000.0)
 			return maxf(0.0, float(value.lift_progress)-settings.y*elapsed)
 
 func _effort_failed(value: Dictionary, t: int) -> bool:
 	var settings: Vector3 = value.lift_settings
-	return (settings.z < 1.0 and float(value.lift_progress) >= settings.z) or (float(value.lift_progress) > 0.0 and _progress_at(value, t) <= 0.0)
+	return _can_pin(value) and float(value.lift_progress) >= .20 and settings.z >= .9 and _progress_at(value,t) <= .005
 
 func _lift_effort(peer: int, value: Dictionary) -> Dictionary:
 	if value.get("type") != "exercise" or int(value.phase) != 1:
@@ -473,7 +544,10 @@ func _lift_effort(peer: int, value: Dictionary) -> Dictionary:
 	if _effort_failed(value,t):
 		return {"failed":true}
 	var settings: Vector3 = value.lift_settings
-	value.lift_progress = minf(settings.z, _progress_at(value, t)+settings.x)
+	# A stalled attempt may be restarted. A mechanically overloaded bar loses
+	# at least the force gained per press at the minimum legal network interval.
+	var gain := lerpf(settings.x,minf(settings.x,settings.y*.065),smoothstep(.90,1.0,settings.z))
+	value.lift_progress = minf(1.0, _progress_at(value, t)+gain)
 	value.lift_at = t
 	value.last_beat = t
 	if value.lift_progress >= 1.0:
@@ -483,13 +557,17 @@ func _lift_effort(peer: int, value: Dictionary) -> Dictionary:
 		return {"failed":true}
 	return {"ok":true, "lift":{"phase":value.phase,"lift_progress":value.lift_progress}}
 
+func _can_pin(value: Dictionary) -> bool:
+	return value.get("equipment","") != "dumbbell" and value.get("exercise","") in ["benchpress","incline_press","squat"] and value.get("station","") in ["gym/benchpress","gym/squat"]
+
 func _failed_lift(value: Dictionary, gym: Dictionary, t: int) -> Dictionary:
-	if value.get("equipment","") == "dumbbell" or value.exercise not in ["benchpress","incline_press","squat"] or value.station not in ["gym/benchpress","gym/squat"]:
+	if not _can_pin(value):
 		return {}
 	var capacity := GymProgress.capacity(gym, str(value.exercise))
 	value.type = "trapped"
 	value.progress = 0.0
 	value.last_wiggle = t
+	value.trapped_at = t
 	value.direction = -1
 	value.trap_load_ratio = clampf(float(value.weight) / maxf(capacity, 1.0), .5, 4.0)
 	return value
@@ -498,7 +576,11 @@ func trapped_damage_rate(peer: int) -> float:
 	var value: Dictionary = active.get(peer, {})
 	if value.get("type") != "trapped":
 		return 0.0
-	return 1.5 + 1.6 * float(value.get("trap_load_ratio", 1.0))
+	var ratio := float(value.get("trap_load_ratio",1.0))
+	if ratio <= .85:return 0.0
+	var grace := lerpf(4200.0,0.0,smoothstep(.95,1.65,ratio))
+	if now()-int(value.get("trapped_at",0)) < grace:return 0.0
+	return minf(11.0, .6 + 4.1 * pow(maxf(0.0,ratio-.88),1.3))
 
 func trap_event(value: Dictionary) -> Dictionary:
 	var event:={"activity":"trapped","station":value.station,"exercise":value.exercise,"weight":value.weight,"progress":value.progress}
@@ -512,7 +594,7 @@ func _exercise_event(value: Dictionary) -> Dictionary:
 		var progress := _progress_at(value, now())
 		event.lift_progress = progress
 		event.phase = progress if str(value.station).begins_with("gym/cable_") else 1.0-progress
-	for key in ["equipment","bench_position","grip_anchor","mat_position"]:
+	for key in ["equipment","bench_position","grip_anchor","mat_position","selector_weight"]:
 		if value.has(key):event[key]=value[key]
 	return event
 
@@ -555,6 +637,12 @@ func _flush_pending(identity: String) -> bool:
 	return true
 
 func tick() -> void:
+	if sandwich_counter.owner > 0:
+		var customer := trusted(sandwich_counter.owner)
+		if customer.is_empty() or not customer.get("allowed",false) or not _near_sandwich(customer) or sandwich_counter.expired(now()):
+			clear_sandwich()
+		elif sandwich_counter.tick(now()):
+			_publish_sandwich()
 	for peer in active.keys():
 		var c:=trusted(int(peer))
 		var a: Dictionary=active[peer]
@@ -562,7 +650,7 @@ func tick() -> void:
 			var t := now()
 			var op := ""
 			if int(a.phase) == 2 and t-int(a.last_beat) >= int(a.half_ms):
-				op = "beat"
+				op = "cancel" if a.get("quit_after_lower",false) else "beat"
 			elif int(a.phase) == 1 and _effort_failed(a, t):
 				op = "rep_fail"
 			if not op.is_empty() and t-int(last_request.get(peer,-1000)) >= 80:

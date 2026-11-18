@@ -38,6 +38,7 @@ func run() -> void:
 	service.request({"op":"usb_port","station":station})
 	if service.stations[station].power.usb.is_empty():push_error("Port failed to mount");quit(1);return
 	service.request({"op":"power","station":station})
+	await create_timer(1.8).timeout
 	service.request({"op":"enter","station":station})
 	if service.local_snapshot.is_empty():push_error("Desktop failed to open");quit(1);return
 	service.request({"op":"save","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"path":"notes.txt","text":"USB test","version":0})
@@ -65,11 +66,14 @@ func run() -> void:
 		if game.hotbar.slots[i].get("id","")==id:game.hotbar.active=i
 	service.request({"op":"usb_port","station":station})
 	service.request({"op":"power","station":station})
+	await create_timer(1.8).timeout
 	service.request({"op":"enter","station":station})
 	if service.local_snapshot.get("files",{}).get("notes.txt",{}).get("text","")!="USB test":push_error("Another workstation did not reopen the USB file");quit(1);return
 	service._reset()
 	if profile.data.dorm.usb_drives[id].location!="lost":push_error("Connected USB was not marked lost on leave");quit(1);return
 	var lost: Node=game.discarded_items
+	# The simulated restart resets the inventory import guard as a real leave does.
+	lost._leaving()
 	lost._import_local(1)
 	var drop_id: int=-1
 	for key in lost.drops:

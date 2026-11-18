@@ -32,6 +32,7 @@ func run() -> void:
 		var hit: Dictionary=game.get_world_3d().direct_space_state.intersect_ray(ray)
 		if not is_instance_valid(hit.get("collider")) or hit.collider.get_meta("role","")!="public_computer_power" or hit.collider.get_meta("station","")!=id:fail("Power target inaccessible "+id);return
 		game.computers.request({"op":"power","station":id})
+		await create_timer(1.8).timeout
 		game.computers.request({"op":"enter","station":id})
 		if not game.computers.sessions.has(1):fail("Session failed "+id);return
 		if id=="commons_r0_c0":

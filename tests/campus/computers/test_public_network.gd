@@ -26,6 +26,7 @@ func run() -> void:
 		game.school.local_identity="network-host"
 		game.player.global_position=second_point;game.session.poses[1]={"position":second_point}
 		service.request({"op":"power","station":second})
+		await create_timer(1.8).timeout
 		service.request({"op":"enter","station":second})
 		if not service.local_snapshot.get("public_device",false):push_error("Host workstation did not open");quit(1);return
 		service.request({"op":"save","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"path":"host.txt","text":"host","version":0})
@@ -36,7 +37,14 @@ func run() -> void:
 		if not await until(func():return game.session.roster.size()==1,"client left"):return
 		if not service.stations[id].power.powered or not service.public_workspaces[id].files.has("network.txt"):
 			push_error("Power or files changed when user left");quit(1);return
+		service._close(1,true)
+		game.player.global_position=point
 		game.session.poses[1]={"position":point}
+		service.request({"op":"enter","station":id})
+		if not service.sessions.has(1):
+			push_error("A subsequent user could not take the disconnected user's seat");quit(1);return
+		if service.local_snapshot.get("files",{}).has("network.txt"):
+			push_error("A subsequent user inherited another user's volatile workspace");quit(1);return
 		service.request({"op":"power","station":id})
 		if service.public_workspaces.has(id) or service.stations[id].power.powered:
 			push_error("Host power off did not clear the workspace");quit(1);return
@@ -51,7 +59,7 @@ func run() -> void:
 			return game.session.poses.get(game.multiplayer.get_unique_id(),{}).get("position",Vector3.INF).distance_to(point)<.6
 		,"position accepted"):return
 		service.request({"op":"power","station":id})
-		await create_timer(.3).timeout
+		await create_timer(1.8).timeout
 		service.request({"op":"enter","station":id})
 		if not await until(func():return service.local_snapshot.get("public_device",false),"desktop opened"):return
 		service.request({"op":"save","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"path":"network.txt","text":"hello","version":0})

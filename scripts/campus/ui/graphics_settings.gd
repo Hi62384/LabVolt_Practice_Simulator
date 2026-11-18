@@ -4,7 +4,7 @@ const HudTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Layout = preload("res://scripts/ui/hud_settings/layout.gd")
 signal changed(options: Dictionary)
 const SAVE := "user://campus_graphics.cfg"
-const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"interaction_hands":true}
+const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"lighting_quality":1,"shadow_quality":2,"bloom_quality":2,"interaction_hands":true}
 const PRESETS := ["Low", "Medium", "High", "Ultra", "Custom"]
 var quality_preset := "Medium"
 var save_error := OK
@@ -25,6 +25,8 @@ func load_settings(path := SAVE) -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path)!=OK: return
 	for key in DEFAULTS: _validate(key,cfg.get_value("graphics",key,DEFAULTS[key]))
+	if not cfg.has_section_key("graphics","shadow_quality") and not options.shadows: options.shadow_quality=0
+	if not cfg.has_section_key("graphics","bloom_quality") and not options.bloom: options.bloom_quality=0
 	var saved := str(cfg.get_value("graphics", "preset", ""))
 	quality_preset = "Custom"
 	if saved == "Custom":
@@ -44,7 +46,7 @@ func _validate(key: String, value: Variant) -> bool:
 		"render_scale": options[key]=clampf(float(value),0.5,1.0)
 		"view_distance": options[key]=clampf(float(value),30.0,240.0)
 		"texture": options[key]=clampi(int(value),0,2)
-		"aa": options[key]=clampi(int(value),0,3)
+		"aa","lighting_quality","shadow_quality","bloom_quality": options[key]=clampi(int(value),0,3)
 		"npc_density":
 			if str(value) not in ["Off","Low","Medium","High"]: return false
 			options[key]=str(value)
@@ -52,6 +54,8 @@ func _validate(key: String, value: Variant) -> bool:
 	return true
 func set_option(key: String, value: Variant) -> bool:
 	if not _validate(key,value): return false
+	if key=="shadow_quality": options.shadows=options.shadow_quality>0
+	elif key=="bloom_quality": options.bloom=options.bloom_quality>0
 	quality_preset = "Custom"
 	_apply_and_save()
 	return true
@@ -71,10 +75,10 @@ func _apply_and_save() -> void:
 func _preset_options(level: String) -> Dictionary:
 	var values := DEFAULTS.duplicate()
 	var low := level=="Low"
-	values.merge({"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low,"bloom":not low,"lights":not low},true)
+	values.merge({"lighting_quality":0 if low else 2,"shadow_quality":0 if low else 3,"bloom_quality":0 if low else 3,"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low,"bloom":not low,"lights":not low},true)
 	if level=="Medium": return DEFAULTS.duplicate()
 	if level=="Ultra":
-		values.merge({"detail_shadows":true, "aa":3, "view_distance":240.0}, true)
+		values.merge({"detail_shadows":true, "aa":3, "view_distance":240.0,"lighting_quality":3}, true)
 	return values
 func set_crowd_adapter(adapter: Object) -> void:
 	crowd=adapter; apply()
@@ -116,7 +120,7 @@ func register_node(node: Node, recursive := true) -> void:
 	node_refs[id]=weakref(node)
 	if not originals.has(id):
 		var original := {}
-		if node is Light3D: original={"shadow":node.shadow_enabled,"visible":node.visible}
+		if node is Light3D: original={"shadow":node.shadow_enabled,"visible":node.visible,"range":node.spot_range if node is SpotLight3D else 0.0,"energy":node.light_energy,"specular":node.light_specular,"blur":node.shadow_blur}
 		elif node is ReflectionProbe or node is GPUParticles3D or node is CPUParticles3D: original={"visible":node.visible}
 		elif node is Camera3D: original={"far":node.far}
 		elif node is WorldEnvironment and node.environment!=null: original={"reflected":node.environment.reflected_light_source,"ssr":node.environment.ssr_enabled,"glow":node.environment.glow_enabled,"ssao":node.environment.ssao_enabled,"ssil":node.environment.ssil_enabled}
@@ -124,7 +128,17 @@ func register_node(node: Node, recursive := true) -> void:
 		originals[id]=original
 	var saved: Dictionary=originals[id]
 	if node is Light3D:
-		node.shadow_enabled=bool(saved.shadow) and options.shadows
+		var quality := int(options.shadow_quality) if options.shadows else 0
+		node.shadow_enabled=bool(saved.shadow) and quality>0
+		node.shadow_blur=float(saved.blur)*[1.0,.6,1.0,1.55][quality]
+		if node is DirectionalLight3D and node.shadow_enabled:
+			node.directional_shadow_mode=DirectionalLight3D.SHADOW_ORTHOGONAL if quality==1 else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if quality==2 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+		elif node is SpotLight3D and node.get_meta("room_fixture",false):
+			var lighting := int(options.lighting_quality)
+			node.light_energy=float(saved.energy)*[.65,1.0,1.24,1.46][lighting]
+			node.spot_range=float(saved.range)*[.9,1.0,1.0,1.05][lighting]
+			node.light_specular=float(saved.specular)*([.65,1.15,1.6,2.0][lighting] if options.reflections else 0.25)
+			if quality>=2 and node.get_meta("shadow_fixture",false): node.shadow_enabled=true
 		# Room fixtures provide basic illumination even with accent lights disabled.
 		if not node is DirectionalLight3D:
 			node.visible = bool(saved.visible) and (bool(options.lights) or bool(node.get_meta("room_fixture", false)))
@@ -134,7 +148,12 @@ func register_node(node: Node, recursive := true) -> void:
 	elif node is WorldEnvironment and node.environment!=null:
 		node.environment.ssr_enabled=bool(saved.ssr) and options.reflections
 		node.environment.reflected_light_source = int(saved.reflected) if options.reflections else Environment.REFLECTION_SOURCE_DISABLED
-		node.environment.glow_enabled=bool(saved.glow) and options.bloom
+		var bloom_level := int(options.bloom_quality) if options.bloom else 0
+		node.environment.glow_enabled=bool(saved.glow) and bloom_level>0
+		if bool(saved.glow):
+			node.environment.glow_intensity=[0.0,.34,.68,.92][bloom_level]
+			node.environment.glow_hdr_threshold=[1.0,.92,.80,.70][bloom_level]
+			node.environment.glow_bloom=0.0
 		node.environment.ssao_enabled=bool(saved.ssao) and options.effects
 		node.environment.ssil_enabled=bool(saved.ssil) and options.effects
 	elif node is GeometryInstance3D:
@@ -159,19 +178,22 @@ func register_node(node: Node, recursive := true) -> void:
 func build_controls(parent: VBoxContainer) -> void:
 	var body := Layout.section(parent, "Graphics", "Applies immediately • choose a preset or tune each setting", "palette")
 	var presets := Layout.flow(body)
-	for level in ["Low","Medium","High"]:
+	for level in PRESETS.slice(0,4):
 		var b := UI.action(level, "palette", func():preset(level)); presets.add_child(b)
 	var quality := Layout.section(body, "Image quality", "Render scale, filtering and anti-aliasing", "settings")
 	var environment := Layout.section(body, "World detail", "Lighting, effects and local presentation", "home")
 	for key in DEFAULTS:
+		if key in ["shadows","bloom"]: continue
 		var row := VBoxContainer.new(); (quality if key in ["render_scale","texture","aa"] else environment).add_child(row)
-		var label := Label.new(); label.text={"bloom":"Bloom","detail_shadows":"Fine-detail shadows","texture":"Texture filtering","aa":"Anti-aliasing","npc_density":"NPC density"}.get(key,key.replace("_"," ").capitalize()); label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; row.add_child(label)
+		var label := Label.new(); label.text={"bloom_quality":"Bloom","lighting_quality":"Lighting quality","shadow_quality":"Shadow quality","reflections":"Reflections and highlights","detail_shadows":"Fine-detail shadows","texture":"Texture filtering","aa":"Anti-aliasing","npc_density":"NPC density"}.get(key,key.replace("_"," ").capitalize()); label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; row.add_child(label)
 		var select := OptionButton.new(); select.size_flags_horizontal=Control.SIZE_EXPAND_FILL; select.custom_minimum_size.y=44; select.tooltip_text=label.text; row.add_child(select)
 		var values: Array=[]; var names: Array=[]
 		match key:
 			"render_scale": values=[0.5,0.65,0.75,1.0]; names=["50%","65%","75%","100%"]
 			"texture": values=[0,1,2]; names=["Nearest mipmaps","Filtered · 4×","Filtered · 16×"]
 			"aa": values=[0,1,2,3]; names=["Off","MSAA 2×","MSAA 4×","MSAA 8×"]
+			"lighting_quality": values=[0,1,2,3]; names=["Low","Medium","High","Ultra"]
+			"shadow_quality","bloom_quality": values=[0,1,2,3]; names=["Off","Low","Medium","High"]
 			"npc_density": values=["Off","Low","Medium","High"]; names=values
 			"view_distance": values=[30.0,60.0,100.0,120.0,180.0,240.0]; names=["30 m","60 m","100 m","120 m","180 m","240 m"]
 			_: values=[false,true]; names=["Off","On"]

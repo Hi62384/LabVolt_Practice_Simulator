@@ -205,18 +205,21 @@ func _check_food_icons() -> void:
 	for item: String in rules.menu:
 		_check(portraits.texture({"kind":"food","type":item}, null) != null, item + " inventory icon missing")
 	for venue: String in ["tim_hortons", "subway"]:
-		var panel = preload("res://scripts/campus/facilities/facility_panel.gd").new()
-		root.add_child(panel)
-		panel.state = {"menu":rules.menu}
-		panel._food_menu(venue, Color.WHITE, Color.BLACK)
-		var icons: Array[Node] = panel.find_children("*", "TextureRect", true, false)
-		var expected := 0
+		var categories := {}
 		for entry in rules.menu.values():
-			if entry.venue == venue:expected += 1
-		_check(icons.size() == expected, venue + " menu must display every food icon")
-		for icon: TextureRect in icons:
-			_check(icon.texture != null, venue + " menu food icon missing")
-		panel.queue_free()
+			if entry.venue == venue:categories[entry.category]=int(categories.get(entry.category,0))+1
+		for category in categories:
+			var panel = preload("res://scripts/campus/facilities/facility_panel.gd").new()
+			root.add_child(panel)
+			panel.state = {"menu":rules.menu}
+			if venue=="tim_hortons":panel.cafe_category=category
+			else:panel.subway_category=category
+			panel._restaurant_menu(venue, Color.WHITE, Color.BLACK)
+			var icons: Array[Node] = panel.find_children("*", "TextureRect", true, false)
+			_check(icons.size() == int(categories[category]), venue + " category must display every food icon")
+			for icon: TextureRect in icons:
+				_check(icon.texture != null, venue + " menu food icon missing")
+			panel.queue_free()
 
 func _finish() -> void:
 	for failure in failures:push_error(failure)

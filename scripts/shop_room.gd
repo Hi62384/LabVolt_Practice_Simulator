@@ -33,11 +33,20 @@ func _build_campus_store() -> void:
 	retail.name="CampusStore"
 	retail.position=center-Vector3(26,0,5)
 	campus_world.add_child(retail)
-	var stations: Dictionary = retail.build()
+	var stations: Dictionary = retail.build(true,false)
 	stations.shop.position=Vector3(21,0,10.24)
 	stations.shop.rotation.y=PI
 	component_counters.append(stations.shop)
-	stations.trade.position=Vector3(31.75,0,9.65)
+	stations.trade.position=Vector3(31.75,0,9.48)
+	for seat in retail.trade_seats:
+		game._add_chair(seat.global_position,seat.global_rotation.y)
+		var chair: CharacterBody3D=game.chairs.back()
+		chair.fixed_seat=true
+		chair.fixed_yaw=seat.global_rotation.y
+		chair.set_physics_process(false)
+		chair.reparent(seat)
+		seat.collision_layer=0
+		for mesh in chair.find_children("*","VisualInstance3D",true,false):mesh.hide()
 	workshop_decor.stock_counter(stations.shop)
 	var supplies := Node3D.new()
 	supplies.position=Vector3(26,0,10.24)
@@ -51,7 +60,7 @@ func _build_campus_store() -> void:
 func _build_study_display(retail: Node3D) -> void:
 	var shelf := Node3D.new()
 	shelf.name="StudySuppliesDisplay"
-	shelf.position=Vector3(34.7,0,-.38)
+	shelf.position=Vector3(33.9,0,-.42)
 	retail.add_child(shelf)
 	for x in [-1.25,1.25]:
 		game._box(shelf,Vector3(x,.79,0),Vector3(.1,1.58,.45),Color("465f62"))
@@ -76,9 +85,9 @@ func _finish_campus_store(retail: Node3D) -> void:
 	for z in [-.86,10.86]:
 		game._box(retail,Vector3(26,.55,z),Vector3(19.62,1.10,.036),Color("547489"))
 		game._box(retail,Vector3(26,1.11,z),Vector3(19.62,.053,.06),Color("a58264"))
-	for z in [1.45,4.65,7.85]:
-		workshop_decor.build_storage_rack(retail,Vector3(35.48,0,z))
-	for x in [20.9,24.1,27.3,30.5]:
+	for z in [1.68,4.94,8.20]:
+		workshop_decor.build_storage_rack(retail,Vector3(35.47,0,z))
+	for x in [20.3,23.55,26.8,30.05]:
 		workshop_decor.build_storage_rack(retail,Vector3(x,0,-.46),0.0)
 	for point in [Vector3(17.25,0,1.05),Vector3(17.5,0,9.45),Vector3(34.72,0,9.65)]:
 		Plant.mount(retail,point)

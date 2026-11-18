@@ -71,6 +71,7 @@ func bind_avatar(peer: int, visual: Node3D) -> void:
 	if is_instance_valid(controller) and controller.visual_states.has(peer):_event(peer,controller.visual_states[peer])
 
 func _event(peer: int, event: Dictionary) -> void:
+	if event.get("activity")=="sandwich_counter":return
 	if event.get("activity") == "cable_pin":
 		if rooms.has("gym") and is_instance_valid(rooms.gym):
 			for machine in rooms.gym.gym_cables:

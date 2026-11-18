@@ -66,16 +66,15 @@ func route(from_id: String, to_id: String) -> PackedVector3Array:
 
 ## Academic adapter derives every field from the same room record.
 ## The academic world owns actual desk/chair creation at these suggested slots.
-const LECTURE_ROOMS := ["elm253_lecture", "ety155_lecture"]
-
-func open_lecture_rooms() -> Array[String]:
+func lecture_rooms() -> Array[String]:
 	var result: Array[String]=[]
 	for id in rooms:
-		if rooms[id].kind=="lecture" and id not in LECTURE_ROOMS:result.append(id)
+		if rooms[id].kind=="lecture":result.append(id)
+	result.sort_custom(func(a: String,b: String):return str(rooms[a].number)<str(rooms[b].number))
 	return result
 
 func activity_room(course_id: String, kind: String, lecture_room := "") -> Dictionary:
-	if kind=="lecture" and not lecture_room.is_empty() and lecture_room not in LECTURE_ROOMS:return {}
+	if kind=="lecture" and not lecture_room.is_empty() and get_room(lecture_room).get("kind","")!="lecture":return {}
 	var room := get_room(lecture_room) if kind=="lecture" and not lecture_room.is_empty() else course_room(course_id,kind)
 	if room.is_empty(): return {}
 	var center := vector(room.center)

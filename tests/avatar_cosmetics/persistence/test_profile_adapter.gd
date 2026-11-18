@@ -93,16 +93,8 @@ func _initialize() -> void:
 	var conflicts:=adapter.migrate(base_profile())
 	conflicts.owned_cosmetics.append_array(["eyewear.test","back.test"])
 	conflicts.dorm={"worn_supplies":{"head":"lab_goggles"},"backpacks":{"bag":{"location":"back"}}}
-	check(not adapter.apply_authoritative(conflicts,{"op":"equip","id":"eyewear.test"}).ok,"cosmetic eyewear cannot overlap goggles")
-	check(not adapter.apply_authoritative(conflicts,{"op":"equip","id":"back.test"}).ok,"cosmetic back accessory cannot overlap backpack")
-	var full:=adapter.migrate(base_profile())
-	full.owned_cosmetics.append("head.helmet")
-	full.avatar_cosmetics.equipped={"neck":{"id":"necklace"},"ears":{"id":"earrings"},"back":{"id":"pack"}}
-	adapter.extra_accessory_count=1
-	var blocked:=adapter.apply_authoritative(full,{"op":"equip","id":"head.helmet"})
-	check(not blocked.ok and blocked.error.contains("free a slot"),"worn belt reserves one of four accessory slots")
-	adapter.extra_accessory_count=0
-	check(adapter.apply_authoritative(full,{"op":"equip","id":"head.helmet"}).ok,"fourth accessory should be allowed")
+	check(adapter.apply_authoritative(conflicts,{"op":"equip","id":"eyewear.test"}).ok,"cosmetic eyewear remains independent")
+	check(adapter.apply_authoritative(conflicts,{"op":"equip","id":"back.test"}).ok,"cosmetic back item remains independent")
 
 	var disk := FixtureProfile.new(); disk.data = base_profile()
 	var saved := adapter.commit_local(disk, {"op":"purchase", "id":"head.helmet"})

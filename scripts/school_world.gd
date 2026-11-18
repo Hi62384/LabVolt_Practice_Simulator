@@ -476,7 +476,7 @@ func _process(delta: float) -> void:
 				v.root.global_transform=Transform3D(basis,hand-basis*Vector3(.073,0,.012))
 			else:
 				v.root.global_transform=Transform3D(basis,hand-basis*Vector3(shape.x*.43,-shape.z*.32,0))
-			v.root.visible=not local or game.player.enabled
+			v.root.visible=not local or (game.player.enabled and not game.workout_hides_carried_items())
 		elif p.has("wall_normal"):
 			v.root.visible=true
 			var classroom_room:=str(p.get("classroom_board",""))
@@ -652,37 +652,10 @@ func confirm_trash(id: int) -> void:
 func build_campus_furniture() -> void:
 	if not classroom_roots.is_empty() or school.room_bridge.registry==null:return
 	var layout=preload("res://scripts/campus/academics/classroom_layout.gd")
-	for id in school.room_bridge.registry.open_lecture_rooms():
-		var room: Dictionary=school.room_bridge.registry.get_room(id)
-		var center: Vector3=school.room_bridge.point(room.center)
-		var furniture := Node3D.new()
-		furniture.name=id.to_pascal_case()+"Furniture"
-		add_child(furniture)
-		classroom_roots.append(furniture)
-		game.campus.register_content(id,furniture)
-		for z in [-1.0,2.0]:
-			for x in [-4.0,0.0,4.0]:
-				var desk := StaticBody3D.new()
-				desk.position=center+Vector3(x,.765,z)
-				desk.set_meta("role","table")
-				desk.set_meta("label","Student desk")
-				furniture.add_child(desk)
-				var hit := CollisionShape3D.new()
-				var shape := BoxShape3D.new()
-				shape.size=Vector3(1.7,.07,.8)
-				hit.shape=shape
-				desk.add_child(hit)
-				preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_furniture_skin.gd").dress_desk(desk)
-				game._add_chair(center+Vector3(x,0,z+1.0))
-				var chair: Node3D=game.chairs.back()
-				chair.reparent(furniture)
-				preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_chair_skin.gd").dress(chair)
-		game.campus.box(furniture,center+Vector3(-3.8,.38,-3.6),Vector3(1.5,.76,.72),"4e697e")
-		game.campus.box(furniture,center+Vector3(-3.8,.80,-3.6),Vector3(1.65,.08,.82),"ac8864")
-	for course in ["ELM253","ETY155"]:
-		var room: Dictionary=school.room_bridge.room(course,"lecture")
+	for id in school.room_bridge.registry.lecture_rooms():
+		var room: Dictionary=school.room_bridge.room("","lecture",id)
 		if room.is_empty():continue
-		var furniture := Node3D.new();furniture.name=course+"ClassroomFurniture";add_child(furniture);classroom_roots.append(furniture)
+		var furniture := Node3D.new();furniture.name=id.to_pascal_case()+"Furniture";add_child(furniture);classroom_roots.append(furniture)
 		game.campus.register_content(str(room.id),furniture)
 		var slots: Array=room.get("desks",layout.desks(room))
 		var seats: Array=room.get("seats",[])
@@ -692,7 +665,9 @@ func build_campus_furniture() -> void:
 			var hit := CollisionShape3D.new();var shape := BoxShape3D.new();shape.size=Vector3(1.7,.07,.8);hit.shape=shape;desk.add_child(hit)
 			preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_furniture_skin.gd").dress_desk(desk)
 			game._add_chair(school.room_bridge.point(seats[index]) if index<seats.size() else position+Vector3(0,-.895,-.9))
-			preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_chair_skin.gd").dress(game.chairs.back())
+			var chair: Node3D=game.chairs.back()
+			chair.reparent(furniture)
+			preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_chair_skin.gd").dress(chair)
 		var bin := StaticBody3D.new();bin.position=layout.recycling(room);bin.set_meta("role","trash");bin.add_to_group("paper_recycling");bin.set_meta("label","Paper recycling");furniture.add_child(bin)
 		var bin_hit := CollisionShape3D.new();var bin_shape := CylinderShape3D.new();bin_shape.radius=.32;bin_shape.height=.7;bin_hit.shape=bin_shape;bin_hit.position.y=.35;bin.add_child(bin_hit)
 		game._cylinder(bin,Vector3(0,.35,0),.3,.7,Color("3c6670"))

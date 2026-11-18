@@ -16,7 +16,7 @@ func _mat(hex: String, transparent: bool = false) -> StandardMaterial3D:
 		m.emission_energy_multiplier = 2.0
 	if transparent:
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.albedo_color.a = .25
+		m.albedo_color.a = .13
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		m.roughness = .18
 	mats[key] = m
@@ -52,11 +52,17 @@ func _sign(at: Vector3, value: String, size: float = .004, color: String = "ffff
 func build(_menu: Dictionary) -> void:
 	# All coordinates are room local. Keep the west door at x=-10 and the
 	# four service seats at the existing facility positions.
-	_box(Vector3(0,.0055,0), Vector3(20,.025,12), "777d7d", "Matte tile floor")
-	for x in range(-9,10,2):
-		_box(Vector3(float(x),.034,0), Vector3(.012,.004,11.65), "626c6d", "Tile joint")
-	for z in range(-5,6,2):
-		_box(Vector3(0,.034,float(z)), Vector3(19.65,.004,.012), "626c6d", "Tile joint")
+	var floor_mesh := PlaneMesh.new()
+	floor_mesh.size = Vector2(20,12)
+	var finish := ShaderMaterial.new()
+	finish.shader = preload("res://scripts/campus/presentation/decor/social_rooms/ceramic_floor.gdshader")
+	var floor_surface := MeshInstance3D.new()
+	floor_surface.name = "CeramicTileFloor"
+	floor_surface.mesh = floor_mesh
+	floor_surface.material_override = finish
+	floor_surface.position.y = .018
+	floor_surface.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(floor_surface)
 	# Rear wall and ceiling are inset to avoid touching the campus shell or door.
 	_box(Vector3(0,3.86,0),Vector3(19.5,.065,11.6),"d9dcd5","Suspended ceiling")
 	for x in range(-8,9,2):
@@ -66,7 +72,9 @@ func build(_menu: Dictionary) -> void:
 	for x in [-6.0,0.0,6.0]:
 		for z in [-3.3,2.6]:
 			_box(Vector3(x,3.78,z),Vector3(1.55,.045,.42),"f8f6df","Rectangular ceiling light")
-			preload("res://scripts/campus/presentation/fixture_light.gd").down(self,Vector3(x,3.73,z),.86,6.5)
+			var fixture := preload("res://scripts/campus/presentation/fixture_light.gd").down(self,Vector3(x,3.73,z),1.12,6.5)
+			fixture.distance_fade_enabled=true
+			if x==0.0 and z==2.6: fixture.set_meta("shadow_fixture",true)
 	# Existing service counter collision is 6 x .8 at z=-2.5. The
 	# visual shell is directly supported by that exact footprint.
 	_box(Vector3(0,.56,-2.5),Vector3(6.03,1.1,.82),"167849","Long green counter")
@@ -74,24 +82,20 @@ func build(_menu: Dictionary) -> void:
 		_box(Vector3(x,.54,-2.07),Vector3(.025,.83,.025),"2d9560","Counter front detail")
 	_box(Vector3(0,1.135,-2.5),Vector3(6.22,.105,1.02),"dfcba7","Continuous countertop")
 	_box(Vector3(-1.45,1.19,-2.5),Vector3(2.95,.055,.74),"a4a9a3","Preparation well")
-	# Eight metal wells, each with solid food above its bottom and below glass.
-	var foods := ["d8ad70","73a443","bd3534","e8c64c","b2d974","aa6b55","e0c9a0","5e9c4f"]
-	for i in 8:
-		var x := -2.68 + i*.35
-		_box(Vector3(x,1.23,-2.48),Vector3(.31,.065,.58),"929b99","Ingredient tray")
-		_box(Vector3(x,1.274,-2.48),Vector3(.25,.022,.47),foods[i],"Supported topping")
-	for x in [-2.94,.05]:
-		_box(Vector3(x,1.44,-2.48),Vector3(.045,.5,.78),"576e68","Glass support")
-	_box(Vector3(-1.45,1.68,-2.48),Vector3(2.96,.028,.79),"d7f4e9","Preparation sneeze guard",true)
-	_box(Vector3(-1.45,1.47,-2.09),Vector3(2.96,.42,.02),"d7f4e9","Front glass",true)
+	# Narrow posts support the glass; the rear remains open for staff.
+	for x in [-2.9,.02]:
+		for z in [-2.78,-2.16]:
+			_box(Vector3(x,1.36,z),Vector3(.024,.34,.024),"6d8980","Glass support")
+	_box(Vector3(-1.45,1.54,-2.45),Vector3(2.94,.018,.65),"d7f4e9","Sneeze guard top",true)
+	_box(Vector3(-1.45,1.37,-2.119),Vector3(2.94,.334,.012),"d7f4e9","Sneeze guard front",true)
 	# Bread rests on the counter, register and pickup remain to the east.
 	_box(Vector3(.45,1.19,-2.52),Vector3(.82,.045,.62),"47534c","Bread tray")
 	for i in 3:
 		_box(Vector3(.22+i*.21,1.25,-2.52),Vector3(.17,.09,.41),"d5a46b","Bread loaf")
-	_box(Vector3(1.44,1.25,-2.64),Vector3(.65,.13,.38),"26383a","Register base")
-	_box(Vector3(1.44,1.57,-2.75),Vector3(.58,.47,.07),"243f46","Register screen")
-	_box(Vector3(2.4,1.19,-2.5),Vector3(.85,.025,.65),"ece7d7","Pickup mat")
-	for x in [1.86,2.02,2.18]:
+	_box(Vector3(1.42,1.25,-2.79),Vector3(.65,.13,.38),"26383a","Register base")
+	_box(Vector3(1.42,1.57,-2.88),Vector3(.58,.47,.07),"243f46","Register screen")
+	_box(Vector3(1.84,1.19,-2.35),Vector3(.36,.019,.38),"ece7d7","Pickup mat")
+	for x in [1.75,1.90,2.04]:
 		_box(Vector3(x,1.3,-2.56),Vector3(.07,.22,.07),"e9c749","Condiment bottle")
 	# Shelves and stock sit against the rear wall; staff aisle remains open.
 	for y in [.42,1.36,2.12]:
@@ -103,6 +107,7 @@ func build(_menu: Dictionary) -> void:
 	for x in [-2.45,-.8,.8,2.45]:
 		_box(Vector3(x,3.48,-3.44),Vector3(.23,.024,.23),"f8f6df","Canopy lamp")
 	_box(Vector3(-5.7,2.8,-5.68),Vector3(3.6,.84,.12),"167849","Wall logo backing")
+	_sign(Vector3(-5.7,2.8,-5.60),"SUBWAY",.012,"fff4b3")
 	_box(Vector3(5.45,2.72,-5.68),Vector3(2.5,1.15,.12),"e8debd","Sandwich poster backing")
 	_box(Vector3(-1.95,1.7,-2.045),Vector3(.9,.24,.02),"f3ce42","Order sign backing")
 	_sign(Vector3(-1.95,1.7,-2.027),"ORDER",.0035,"184b37")

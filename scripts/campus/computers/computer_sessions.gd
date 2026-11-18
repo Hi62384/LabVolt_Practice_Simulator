@@ -2,6 +2,7 @@ extends Node
 signal desktop_changed(snapshot: Dictionary)
 signal occupancy_changed(occupancy: Dictionary)
 signal power_changed(power: Dictionary)
+signal boot_changed(boot: Dictionary)
 signal operation_failed(message: String)
 signal usb_write_prepared(station: String, token: String)
 signal usb_write_committed(station: String, token: String)
@@ -17,6 +18,8 @@ var workspaces := {}
 var workspace_identities := {}
 var restored := {}
 var public_workspaces := {}
+var station_users := {}
+var power_cycle := 0
 var last_request := {}
 var serial := 0
 var local_snapshot := {}
@@ -53,7 +56,7 @@ func register_portable(id: String,anchor: Vector3,owner: String,tier: String) ->
 
 func unregister_portable(id: String) -> bool:
 	if not stations.has(id) or not stations[id].get("portable",false) or stations[id].power.powered or not stations[id].power.usb.is_empty() or sessions.values().any(func(session):return session.station==id):return false
-	stations.erase(id);public_workspaces.erase(id);return true
+	stations.erase(id);public_workspaces.erase(id);station_users.erase(id);return true
 
 func _has_access(peer: int,entry: Dictionary) -> bool:
 	if entry.get("portable",false):return game.session.poses.get(peer,{}).get("position",Vector3.INF).distance_to(entry.anchor)<=3
@@ -105,7 +108,12 @@ func _accept(peer: int, action: Dictionary) -> void:
 		var device=stations[id].power
 		if usb_writes.has(id):_error(peer,"Wait for the USB save to finish.");return
 		if device.powered:_power_off(id)
-		else:device.turn_on(Time.get_ticks_msec());_publish()
+		else:
+			device.turn_on(Time.get_ticks_msec())
+			power_cycle+=1
+			stations[id].cycle=power_cycle
+			if not stations[id].get("portable",false):stations[id].ready_at=Time.get_ticks_msec()+1600
+			_publish()
 		return
 	if op=="enter":
 		if sessions.has(peer):
@@ -117,10 +125,15 @@ func _accept(peer: int, action: Dictionary) -> void:
 		var entry: Dictionary=stations[id]
 		if not _private_allowed(peer,entry):return
 		if entry.has("power") and not entry.power.powered:_error(peer,"Turn on this computer first.");return
+		if Time.get_ticks_msec()<int(entry.get("ready_at",0)):_error(peer,"Campus OS is starting.");return
+		if entry.has("power") and not entry.power.usb.is_empty() and str(entry.power.usb.get("owner",""))!=_identity(peer):
+			_error(peer,"This workstation has another player's USB drive connected.");return
 		var position: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
 		if position.distance_to(entry.anchor)>3:return
 		if not entry.get("portable",false):
 			var chair = game.chairs[entry.chair]
+			if chair.occupant!=0 and not game.session.roster.has(chair.occupant):
+				game._release_chair(chair.occupant)
 			if chair.occupant==0:game._claim_chair(peer,entry.chair)
 			if chair.occupant!=peer:return
 		serial+=1
@@ -132,16 +145,22 @@ func _accept(peer: int, action: Dictionary) -> void:
 		if entry.get("portable",false):sessions[peer].tier=entry.tier
 		if entry.has("power"):
 			entry.power.touch(Time.get_ticks_msec())
-			if not public_workspaces.has(id):
-				public_workspaces[id]={"files":{},"editor":{}}
+			var profiles: Dictionary=station_users.get_or_add(id,{})
+			var owner_key := identity if not identity.is_empty() else "connection:%d"%peer
+			if not profiles.has(owner_key):
+				if profiles.size()>=16:profiles.erase(profiles.keys()[0])
+				var local_drive=preload("res://scripts/campus/computers/device_filesystem.gd").new()
+				profiles[owner_key]={"workspace":{"files":{},"editor":{}},"drive":local_drive}
 				if not entry.power.usb.is_empty():
-					entry.power.drive=entry.power.usb.drive
-					for path in entry.power.drive.entries:
-						var file: Dictionary=entry.power.drive.entries[path]
+					for path in entry.power.usb.drive.entries:
+						var file: Dictionary=entry.power.usb.drive.entries[path]
 						if file.type=="file" and Files.path(path)==path:
 							var bytes: PackedByteArray=file.data
 							var text:=bytes.get_string_from_utf8()
-							if text.to_utf8_buffer()==bytes:public_workspaces[id].files[path]={"text":text,"version":1}
+							if text.to_utf8_buffer()==bytes:profiles[owner_key].workspace.files[path]={"text":text,"version":1}
+			public_workspaces[id]=profiles[owner_key].workspace
+			entry.power.drive=profiles[owner_key].drive if entry.power.usb.is_empty() else entry.power.usb.drive
+			sessions[peer].power_cycle=int(entry.get("cycle",0))
 			workspaces[peer]=public_workspaces[id]
 			restored[peer]=true
 			sessions[peer].public_device=true
@@ -594,6 +613,16 @@ func _publish() -> void:
 		if stations[id].has("power"):power[id]=stations[id].power.powered
 	power_changed.emit(power)
 	if game.session.online:_power_state.rpc(power)
+	var boot := {}
+	for id in stations:
+		var remaining := int(stations[id].get("ready_at",0))-Time.get_ticks_msec()
+		if power.get(id,false) and remaining>0:boot[id]=int(stations[id].get("cycle",0))
+	boot_changed.emit(boot)
+	if game.session.online:_boot_state.rpc(boot)
+
+@rpc("authority","call_remote","reliable",6)
+func _boot_state(boot: Dictionary) -> void:
+	if multiplayer.get_remote_sender_id()==1:boot_changed.emit(boot)
 @rpc("authority","call_remote","reliable",6)
 func _occupancy(public: Dictionary) -> void:
 	if multiplayer.get_remote_sender_id()==1:occupancy_changed.emit(public)
@@ -617,6 +646,7 @@ func _power_off(id: String) -> void:
 	if not stations.has(id) or not stations[id].has("power"):return
 	stations[id].power.turn_off()
 	public_workspaces.erase(id)
+	station_users.erase(id)
 	for peer in sessions.keys():
 		if sessions[peer].station==id:
 			workspaces.erase(peer);restored.erase(peer)
@@ -706,6 +736,7 @@ func _reset() -> void:
 					if profile.save()!=OK:profile.data=before
 					else:device.usb={}
 	public_workspaces.clear()
+	station_users.clear()
 	restored.clear()
 	last_request.clear()
 	local_snapshot.clear()

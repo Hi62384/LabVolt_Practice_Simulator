@@ -73,6 +73,37 @@ func run():
   assert(host.act(1,request).ok and profile.orders[ids[1]].recipe==second)
  assert(profile.orders[ids[1]].servings==5)
  assert(Host.valid_profile(profile))
+ host.physical_sandwich_orders=true
+ host.context=func(peer):return {"identity":"test:"+str(peer),"room_id":"subway","position":Vector3.ZERO,"allowed":true,"grounded":true}
+ host.anchors["counter"]={"room_id":"subway","position":Vector3.ZERO,"kind":"counter:subway"}
+ for key in ["bread/wheat","size/foot","protein/chicken","cheese/swiss","toast/yes","vegetables/lettuce","sauces/mustard"]:
+  host.sandwich_targets[key]=Vector3.ZERO
+ clock+=100
+ assert(not host.act(1,{"op":"buy","item":"sandwich","station":"counter","sequence":profile.last_sequence+1,"recipe":second}).ok)
+ assert(host.sandwich_action(1,"counter","begin").ok)
+ assert(not host.sandwich_action(2,"counter","begin").ok)
+ assert(not host.sandwich_action(2,"counter","bread/wheat").ok)
+ assert(not host.sandwich_action(1,"counter","toast/yes").ok)
+ for key in ["bread/wheat","size/foot","protein/chicken","cheese/swiss","advance/next","toast/yes"]:
+  assert(host.sandwich_action(1,"counter",key).ok)
+ assert(host.sandwich_counter.snapshot(clock).oven_ms==10800)
+ clock+=10799
+ host.tick()
+ assert(host.sandwich_counter.step==3)
+ assert(not host.sandwich_action(1,"counter","vegetables/lettuce").ok)
+ assert(not host.act(1,{"op":"sandwich_checkout","sequence":profile.last_sequence+1}).ok)
+ clock+=100
+ host.tick()
+ for key in ["vegetables/lettuce","advance/next","sauces/mustard","advance/next"]:
+  assert(host.sandwich_action(1,"counter",key).ok)
+ clock+=100
+ assert(host.act(1,{"op":"sandwich_checkout","sequence":profile.last_sequence+1}).ok)
+ assert(last_charge==-Sandwich.price(second))
+ assert(profile.orders.values().back().recipe.vegetables==["lettuce"])
+ assert(host.sandwich_counter.owner==0)
+ assert(host.sandwich_action(2,"counter","begin").ok)
+ assert(host.sandwich_action(2,"counter","cancel").ok)
+ assert(host.sandwich_counter.owner==0)
  print("CUSTOM_SUBWAY_HOST PASS")
  print("PASS expanded restaurant purchases, assets, models and cashiers")
  quit()

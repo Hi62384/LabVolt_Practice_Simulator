@@ -199,7 +199,7 @@ func _process(_delta: float) -> void:
 			var fallback: Vector3=game.camera.to_global(Vector3(.37,-.27,-.59)) if local else pose.get("position",Vector3.ZERO)+Vector3(0,1.2,0)
 			var hand: Vector3=game.held_item_position(peer,fallback)
 			root.global_transform=Transform3D(basis,hand-basis*Vector3(.26,.20,.23))
-			root.visible=not local or game.player.enabled
+			root.visible=not local or (game.player.enabled and not game.workout_hides_carried_items())
 		else:root.position=kit.position;root.rotation=Vector3.ZERO
 func can_return_held_board(target: Node) -> bool:
 	var peer := multiplayer.get_unique_id()

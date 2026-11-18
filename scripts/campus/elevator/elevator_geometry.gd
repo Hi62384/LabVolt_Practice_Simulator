@@ -12,7 +12,7 @@ const CABIN_FRONT := 16.35
 var world: Node3D
 var leaves: Dictionary = {}
 var barriers: Dictionary = {}
-var indicators: Array[Label3D] = []
+var indicators: Array[Node3D] = []
 var controls: Dictionary = {}
 var tweens: Dictionary = {}
 var sound: AudioStreamPlayer3D
@@ -87,10 +87,11 @@ func _landing(floor_id: int) -> void:
 		_box(Vector3(16.0,y+2.04,z),Vector3(.10,4.08,2),"859aa5")
 		_box(Vector3(CABIN_FRONT,y+CABIN_HEIGHT*.5,z),Vector3(.08,CABIN_HEIGHT,2),"859aa5")
 	_box(Vector3(16.12,y+(4.08+DOOR_HEIGHT)*.5,DOOR_Z),Vector3(.22,4.08-DOOR_HEIGHT,WIDTH),"e3e9e6")
-	for z in [57.955,60.045]:
-		_box(Vector3(16.03,y+DOOR_HEIGHT*.5,z),Vector3(.46,DOOR_HEIGHT,.12),"294e68")
-	_box(Vector3(16.03,y+DOOR_HEIGHT+.08,DOOR_Z),Vector3(.46,.16,2.22),"294e68")
-	_box(Vector3(16.0,y+.015,DOOR_Z),Vector3(.45,.03,WIDTH),"b4bec0",false)
+	# Keep the facing trims ahead of the shell and separate from the sliding leaf plane.
+	for z in [57.953,60.047]:
+		_box(Vector3(15.91,y+DOOR_HEIGHT*.5,z),Vector3(.16,DOOR_HEIGHT,.094),"29404f",false)
+	_box(Vector3(15.91,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.16,.124,2.188),"29404f",false)
+	_box(Vector3(16.08,y+.011,DOOR_Z),Vector3(.38,.022,WIDTH),"b4bec0",false)
 	var pair: Array[MeshInstance3D] = []
 	for side in [-1, 1]:
 		pair.append(_box(Vector3(DOOR_X, y + DOOR_HEIGHT * .5, DOOR_Z + side * .5), Vector3(.09, DOOR_HEIGHT, .995), "9daeb6", false))
@@ -98,11 +99,10 @@ func _landing(floor_id: int) -> void:
 	var body := StaticBody3D.new(); body.position = Vector3(DOOR_X, y + DOOR_HEIGHT * .5, DOOR_Z)
 	var collision := CollisionShape3D.new(); var box := BoxShape3D.new(); box.size = Vector3(.22, DOOR_HEIGHT, WIDTH)
 	collision.shape = box; body.add_child(collision); add_child(body); barriers[floor_id] = collision
-	for x in [15.75, 16.46]:
-		_box(Vector3(x, y + DOOR_HEIGHT + .34, DOOR_Z), Vector3(.08,.24,.78), "294e68", false)
-		indicators.append(_text("1", Vector3(x + (-0.06 if x < 16 else 0.06), y + DOOR_HEIGHT + .34, DOOR_Z), -PI / 2 if x < 16 else PI / 2, 32))
-	_box(Vector3(15.87, y + 1.3, 60.35), Vector3(0.12, 0.65, 0.4), "294e68", false)
-	_box(Vector3(16.35, y + 1.35, 60.45), Vector3(0.12, 0.9, 0.42), "294e68", false)
+	_floor_display(15.785,y+2.48,-1.0)
+	_floor_display(16.421,y+2.48,1.0)
+	_box(Vector3(15.87, y + 1.3, 60.35), Vector3(0.08, 0.40, 0.30), "294e68", false)
+	_box(Vector3(16.35, y + 1.35, 60.45), Vector3(0.06, 0.66, 0.34), "294e68", false)
 	_button(floor_id, -1)
 	for stop in [0, 1]: _button(floor_id, stop)
 	_box(Vector3(CABIN_BACK-.16,y+1,DOOR_Z),Vector3(.07,.07,2.62),"486879")
@@ -128,6 +128,25 @@ func _landing(floor_id: int) -> void:
 	_box(Vector3(10.55, y + 0.25, 66), Vector3(0.45, 0.5, 0.45), "7c898e")
 	_box(Vector3(10.55, y + 0.8, 66), Vector3(0.5, 0.7, 0.5), "6f8b79", false)
 
+func _floor_display(x: float,y: float,facing: float) -> void:
+	_box(Vector3(x,y,DOOR_Z),Vector3(.06,.18,.48),"263946",false)
+	_box(Vector3(x+facing*.035,y,DOOR_Z),Vector3(.012,.132,.41),"101c24",false)
+	for floor_id in 2:
+		var digit := Node3D.new()
+		digit.name="FloorDigit%d"%(floor_id+1)
+		add_child(digit)
+		indicators.append(digit)
+		var segments := [[Vector2(0,0),false],[Vector2(-.013,.04),true],[Vector2(0,-.047),true]] if floor_id==0 else [
+			[Vector2(0,.047),true],[Vector2(.028,.023),false],[Vector2(0,0),true],
+			[Vector2(-.028,-.023),false],[Vector2(0,-.047),true]]
+		for segment in segments:
+			var point: Vector2=segment[0]
+			var horizontal: bool=segment[1]
+			var mesh := _box(Vector3(x+facing*.045,y+point.y,DOOR_Z-point.x*facing),Vector3(.003,.010 if horizontal else (.079 if floor_id==0 else .035),.046 if horizontal else .010),"83deda",false)
+			mesh.material_override=_material("83deda",true)
+			mesh.reparent(digit)
+		digit.visible=floor_id==0
+
 func apply_snapshot(state: Dictionary, animate: bool = true) -> void:
 	var phase: String = state.phase
 	var floor_id: int = state.floor
@@ -143,8 +162,8 @@ func apply_snapshot(state: Dictionary, animate: bool = true) -> void:
 			var z: float = 59.0 + side * (1.55 if open else 0.5)
 			var duration := maxf(0.05, 0.8 - float(state.elapsed)) if animate and phase in ["opening", "closing"] else 0.0
 			tween.tween_property(leaves[landing][index], "position:z", z, duration)
-	for indicator in indicators:
-		indicator.text = str(floor_id + 1) + (" → " + str(int(state.destination) + 1) if phase == "moving" else "")
+	for index in indicators.size():
+		indicators[index].visible=index%2==floor_id
 	for key in controls:
 		var parts: PackedStringArray = key.split(":")
 		var stop: int = int(parts[1]); var landing: int = int(parts[0])

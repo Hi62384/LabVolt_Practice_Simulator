@@ -22,7 +22,7 @@ func run() -> void:
 	game.player.global_position = bench
 	game.player.yaw_target = 0.0
 	game.player.pitch_target = -.16
-	rules.context = func(_peer):return {"identity":"student", "position":bench, "room_id":"gym", "allowed":true, "grounded":true}
+	rules.context = func(_peer):return {"identity":"student", "position":game.player.global_position, "room_id":"gym", "allowed":true, "grounded":true}
 	rules.load_profile = func(_identity):return saved.duplicate(true)
 	rules.commit_profile = func(_identity,_dollars,value):saved=value.duplicate(true);return true
 	rules.barbell_mass = func(_station):return load_kg
@@ -39,7 +39,7 @@ func run() -> void:
 	panel.open_for("gym/benchpress","benchpress")
 	_button(panel,"Start set").pressed.emit()
 	await _wait_real(.11)
-	assert(panel.visible and panel.rep_control.live and not panel.menu_layout.visible)
+	assert(panel.visible and panel.rep_control.live and not panel.menu_layout.visible, "Workout did not start: "+panel.last_error)
 	var original: Control = panel.rep_control
 	assert(panel.handle_workout_input(effort))
 	await _wait_real(.115)
@@ -64,21 +64,23 @@ func run() -> void:
 	assert(saved.gym.history.back().outcome == "voluntary")
 
 	await _wait_real(.11)
-	load_kg = 200.0
+	load_kg = Host.GymProgress.capacity(saved.gym,"incline_press")*.93
 	panel.open_for("gym/benchpress","benchpress")
 	_button(panel,"Start set").pressed.emit()
 	await _wait_real(.11)
-	for i in 28:
-		if rules.active[1].type == "trapped":break
+	for i in 20:
 		panel.handle_workout_input(effort)
 		await _wait_real(.105)
-	assert(rules.active[1].type == "trapped" and not panel.menu_layout.visible)
+		if rules.active[1].lift_progress>=.24:break
+	assert(rules.active[1].lift_progress>=.24,"Loaded bar never left supports: %s" % str(rules.active[1]))
+	await _wait_real(2.4)
+	assert(rules.active[1].type=="trapped" and not panel.menu_layout.visible,"Bar did not pin after an uncontrolled drop: %s" % str(rules.active[1]))
 	assert(panel.handle_workout_input(escape) and panel.visible)
 	await process_frame
 	await process_frame
 	assert(panel.size.y < 210 and panel.trap_instruction.is_visible_in_tree())
 	await _capture("workout-pinned")
-	await _wait_real(.32)
+	await _wait_real(4.6)
 	assert(float(game.health.people[1].health) < 100.0 and not game.health.people[1].dead)
 	game.health.people[1].health = .1
 	await _wait_real(.32)

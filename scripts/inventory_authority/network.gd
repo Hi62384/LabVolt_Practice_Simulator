@@ -191,19 +191,11 @@ func execute(peer: int,action: Dictionary) -> void:
 func _accessory_change_allowed(peer: int,action: Dictionary) -> bool:
 	var layout=preload("res://scripts/campus/facilities/accessory_layout.gd")
 	if layout.belt_count(game,peer)==0:return true
-	if action.get("op","") not in ["dorm","avatar_cosmetic","cosmetic_purchase"] or action.args.size()!=1 or not action.args[0] is Dictionary:return true
+	if action.get("op","")!="dorm" or action.args.size()!=1 or not action.args[0] is Dictionary:return true
 	var account: Dictionary=ledger.account(peer)
 	var profile: Dictionary=account.get("profile",{})
 	if profile.is_empty():return true
-	var preview: Dictionary
-	if action.op=="dorm":
-		preview=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd").apply_intent(profile,str(ledger.bindings.get(peer,"")),action.args[0],account.get("deployment",{}))
-	else:
-		var coordinator=preload("res://scripts/avatar_cosmetics/core/coordinator.gd").new()
-		if not coordinator.load_catalog():return true
-		var adapter=coordinator.authoritative_adapter(func():return true)
-		adapter.extra_accessory_count=1
-		preview=adapter.apply_authoritative(profile,action.args[0])
+	var preview: Dictionary=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd").apply_intent(profile,str(ledger.bindings.get(peer,"")),action.args[0],account.get("deployment",{}))
 	if not preview.get("ok",false):return preview.get("error","")!="Remove an accessory to free a slot"
 	return layout.permits_change(profile,preview.profile,1)
 func send_snapshot(peer: int,result: Dictionary) -> void:

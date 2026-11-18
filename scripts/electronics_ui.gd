@@ -164,7 +164,10 @@ func open(page := "shop",index := -1,show_projects := true) -> void:
 		elif page=="kit_world":title.text="Portable kit"
 	var economy: Dictionary=profile.get_meta("economy_display",{}) if profile.authority_submit.is_valid() else preload("res://scripts/economy/temporary_playtest/policy.gd").display_snapshot(true)
 	if page=="kit_world":button(bar,"Close",close)
-	elif page not in ["shop","design"]:label(bar,"Unlimited" if economy.get("unlimited_purchases",false) else "$%d"%profile.data.dollars);button(bar,"Close",close)
+	elif page not in ["shop","design"]:
+		if page!="inventory" or not economy.get("unlimited_purchases",false):
+			label(bar,"Unlimited" if economy.get("unlimited_purchases",false) else "$%d"%profile.data.dollars)
+		button(bar,"Close",close)
 	status=label(column,"" if page=="shop" else "Creative access · ordinary inventory unchanged" if creative else "")
 	if page in ["inventory","kit_world"]:status.hide()
 	var scroll := ScrollContainer.new();page_scroll=scroll;scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(scroll)

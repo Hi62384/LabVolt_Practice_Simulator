@@ -1,6 +1,5 @@
 extends Node3D
 
-const Rooms = preload("res://scripts/campus/world/room_registry.gd")
 const Pending = preload("res://scripts/campus/academics/pending_assessment.gd")
 const Metadata = preload("res://scripts/campus/academics/record_metadata.gd")
 const TeachingBoard = preload("res://scripts/campus/academics/teaching_board.gd")
@@ -41,7 +40,7 @@ func build(owner: Node) -> void:
 	announcements.offset_right=-22
 	announcements.offset_top=80
 	announcements.add_theme_constant_override("separation",8)
-	for room in Rooms.LECTURE_ROOMS + ["ac_lab","dc_lab"]:_build_sign(room)
+	for room in game.campus.registry.lecture_rooms() + ["ac_lab","dc_lab"]:_build_sign(room)
 	game.session.leaving.connect(_session_leaving)
 	game.session.restarted.connect(_reset)
 	game.session.roster_changed.connect(_check_students)
@@ -100,10 +99,10 @@ func command(op: String,room: String,config: Dictionary) -> void:
 	if multiplayer.is_server():_apply(multiplayer.get_remote_sender_id(),op,room,config)
 
 func _apply(peer: int,op: String,room: String,config: Dictionary) -> void:
-	if room not in Rooms.LECTURE_ROOMS + ["ac_lab","dc_lab"] or not game.session.roster.has(peer) or var_to_bytes(config).size()>1024:return
+	if room not in game.campus.registry.lecture_rooms() + ["ac_lab","dc_lab"] or not game.session.roster.has(peer) or var_to_bytes(config).size()>1024:return
 	var error := "Approach the desk in the lecture room."
 	if _inside(peer,room) and signs.has(room) and _position(peer).distance_to(signs[room].desk)<=3.6:
-		if op=="start":error=_start(room,config)
+		if op=="start":error=_start(room,config) if peer==1 else "Only the host can start a class."
 		elif op=="sign":error=_sign(peer,room)
 		else:return
 	if peer==multiplayer.get_unique_id():action_result(op,error)
@@ -388,7 +387,7 @@ func _build_sign(room: String) -> void:
 	var center: Vector3=game.campus.registry.vector(info.center)
 	var floor_y: float=game.campus.registry.vector(info.get("bounds_min",[center.x,0.0,center.z])).y
 	var room_size: Vector3 = game.campus.registry.vector(info.size)
-	var desk := Vector3(center.x+(-4.45 if room=="elm253_lecture" else 4.45),floor_y,center.z - room_size.z * .5 + 2.15)
+	var desk := Vector3(center.x+(-4.45 if float(info.door[0])>center.x else 4.45),floor_y,center.z - room_size.z * .5 + 2.15)
 	# Lab class tables sit near the entry aisle so they are visible and reachable
 	# without colliding with the instructor, lab benches, or equipment.
 	if room in ["ac_lab", "dc_lab"]:

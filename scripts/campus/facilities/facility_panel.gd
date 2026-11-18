@@ -2,9 +2,9 @@ extends PanelContainer
 const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const HudTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
-const Sandwich = preload("res://scripts/campus/facilities/sandwich_recipe.gd")
 const Rules = preload("res://scripts/campus/facilities/facility_host.gd")
 signal direct_error(message: String)
+signal sandwich_builder_requested(station: String)
 ## The world interaction supplies the selected cashier or exercise station.
 var controller: Node
 var placement_key_name := Callable()
@@ -18,8 +18,7 @@ var service_actions: Array[Button]=[]
 var last_error:=""
 var cafe_category := ""
 var cafe_selection := ""
-var sandwich_step := -1
-var sandwich := Sandwich.DEFAULT.duplicate(true)
+var subway_category := "Subs"
 var direct := {}
 var direct_in_flight := false
 var has_order_space := Callable()
@@ -27,6 +26,7 @@ var orders_changed := Callable()
 var dumbbell_mass := Callable()
 var barbell_mass := Callable()
 var cable_resistance := Callable()
+var cable_extra_mass := Callable()
 var capture_game := Callable()
 var preview_workout := Callable()
 var rep_control: Control
@@ -88,6 +88,7 @@ func close_or_end_workout() -> void:
 				hide()
 
 func _end_workout(active: Dictionary) -> void:
+	if active.get("quit_after_lower",false):return
 	var resting := int(active.get("phase", 0)) == 0
 	if active.has("lift_settings"):
 		resting = int(active.phase) == 1 and float(active.lift_progress) == 0.0
@@ -96,7 +97,6 @@ func _end_workout(active: Dictionary) -> void:
 
 func open_for(id: String,kind: String) -> void:
 	cafe_category="";cafe_selection=""
-	sandwich_step=-1;sandwich=Sandwich.DEFAULT.duplicate(true)
 	station_id=id;station_kind=kind;visible=true
 	position=regular_position;custom_minimum_size=regular_minimum
 	showing_gym_progress=false
@@ -200,8 +200,9 @@ func redraw() -> void:
 	var gym := Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell","bench_barbell","gym_progress"]
 	var tim := station_kind=="counter:tim_hortons"
 	var accent := Color("a72c3c") if tim else Color("147343") if restaurant else Color("d2a95b")
-	var surface := Color("2d1b1a") if tim else Color("15291e") if restaurant else Color("182528") if gym else Tokens.SURFACE
-	add_theme_stylebox_override("panel", Tokens.surface(surface, accent if restaurant or gym else Tokens.BORDER, 18))
+	var surface := Color("f8eee4") if tim else Color("f3f2dd") if restaurant else Color("182528") if gym else Tokens.SURFACE
+	body.theme = _restaurant_theme(accent, surface) if restaurant else null
+	add_theme_stylebox_override("panel", Tokens.surface(surface, accent if restaurant or gym else Tokens.BORDER, 16))
 	var title := station_kind.trim_prefix("counter:").replace("_"," ").capitalize()
 	if gym:
 		title=str({"pushup":"Exercise mat","pullup":"Pull-up & dip station","benchpress":"Bench press","squat":"Squat","curl":"Biceps curl","bench_dumbbell":"Bench · Dumbbells","bench_barbell":"Bench · Barbell"}.get(station_kind,title))
@@ -209,6 +210,16 @@ func redraw() -> void:
 	close.visible = gym
 	if gym:
 		body.add_child(UI.text(title, "TitleLabel"))
+	elif restaurant:
+		var header := HBoxContainer.new()
+		body.add_child(header)
+		var branded := _restaurant_label(title, 29, accent)
+		branded.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		header.add_child(branded)
+		var dismiss := Button.new()
+		dismiss.text = "Close"
+		dismiss.pressed.connect(hide)
+		header.add_child(dismiss)
 	else:
 		body.add_child(UI.header(title if not title.is_empty() else "Campus service", subtitle, hide))
 	status=Label.new();status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;body.add_child(status)
@@ -243,13 +254,7 @@ func redraw() -> void:
 		else:_workout(a, accent)
 	elif not a.is_empty():button("Stand / stop",{"op":"stop"})
 	elif restaurant:
-		if tim:_cafe_menu(accent)
-		elif sandwich_step>=0:_sandwich_builder()
-		else:
-			body.add_child(UI.action("Build a sandwich","plus",func():
-				sandwich_step=0
-				redraw(),true))
-			_food_menu("subway",accent,surface)
+		_restaurant_menu(station_kind.trim_prefix("counter:"), accent, surface)
 	if restaurant and has_order_space.is_valid() and not has_order_space.call():
 		body.add_child(UI.text("Free a hotbar slot before ordering.","MutedLabel"))
 	elif restaurant and Rules.carried_order_count(state.profile.get("orders",{}))>0:
@@ -261,8 +266,7 @@ func _position_panel() -> void:
 	if is_instance_valid(rep_control) or is_instance_valid(trap_content):
 		position = Vector2((viewport.x-size.x)*.5, viewport.y-size.y-144)
 	elif station_kind.begins_with("counter:"):
-		var compact := station_kind=="counter:tim_hortons" or sandwich_step>=0
-		size=(Vector2(470,515) if compact else Vector2(600,620)).min(viewport-Vector2(24,24))
+		size=Vector2(724,555).min(viewport-Vector2(24,24))
 		position=(viewport-size)*.5
 	elif Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell", "bench_barbell", "gym_progress"]:
 		var compact := station_kind != "gym_progress" and not showing_gym_progress
@@ -325,139 +329,119 @@ func handle_workout_input(event: InputEvent) -> bool:
 		return bool(rep_control.handle_input(event))
 	return false
 
-func _cafe_menu(accent: Color) -> void:
-	var categories := OptionButton.new()
-	categories.accessibility_name="Menu category"
-	var category_names: Array[String]=[]
-	for entry in state.menu.values():
-		if entry.venue=="tim_hortons" and entry.category not in category_names:
-			category_names.append(entry.category)
-			categories.add_item(entry.category)
-	if category_names.is_empty():return
-	if cafe_category not in category_names:cafe_category=category_names[0]
-	categories.select(category_names.find(cafe_category))
-	categories.item_selected.connect(func(index: int):
-		cafe_category=category_names[index]
-		redraw())
-	body.add_child(categories)
-	for id in state.menu:
-		var entry: Dictionary=state.menu[id]
-		if entry.venue!="tim_hortons" or entry.category!=cafe_category:continue
-		var choice := Button.new()
-		choice.text="%s    $%d" % [entry.name,entry.price]
-		choice.icon=load("res://assets/ui/food_menu/%s.svg" % entry.art)
-		choice.expand_icon=true
-		choice.custom_minimum_size.y=45
-		choice.alignment=HORIZONTAL_ALIGNMENT_LEFT
-		choice.disabled=pending
-		choice.toggle_mode=true
-		choice.button_pressed=id==cafe_selection
-		choice.add_theme_stylebox_override("pressed",Tokens.surface(accent.darkened(.26),accent,8))
-		choice.pressed.connect(func():
-			cafe_selection=id
+func _restaurant_theme(accent: Color, surface: Color) -> Theme:
+	var result := HudTheme.create()
+	var ink := Color("252b23")
+	for type in ["Label", "SubtitleLabel", "TitleLabel", "MutedLabel", "Button", "CheckBox", "CheckButton", "OptionButton"]:
+		result.set_color("font_color", type, ink)
+		result.set_color("font_hover_color", type, ink)
+		result.set_color("font_focus_color", type, ink)
+		result.set_color("font_pressed_color", type, Color.WHITE)
+		result.set_color("font_disabled_color", type, Color("6b7064"))
+	for type in ["Button", "OptionButton", "PrimaryButton", "QuietButton"]:
+		for state in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+			var fill := surface.lightened(.5)
+			if state in ["pressed", "hover_pressed"]:
+				fill = accent
+			elif state == "hover":
+				fill = surface.lerp(accent,.10)
+			elif state == "disabled":
+				fill = surface.darkened(.08)
+			var style := Tokens.surface(fill, surface.lerp(accent,.25), 9)
+			style.content_margin_top = 7
+			style.content_margin_bottom = 7
+			result.set_stylebox(state,type,style)
+	return result
+
+func _restaurant_label(value: String, height: int, tint: Color) -> Label:
+	var label := Label.new()
+	label.text = value
+	label.add_theme_font_size_override("font_size",height)
+	label.add_theme_color_override("font_color",tint)
+	return label
+
+const KIOSK_ILLUSTRATIONS := ["iced_coffee","lemon_iced_tea","chocolate_donut","maple_donut","bagel","egg_bagel","chicken_wrap","cookie"]
+
+func _restaurant_menu(venue: String, accent: Color, surface: Color) -> void:
+	var tim := venue=="tim_hortons"
+	var categories := ["Hot drinks","Cold drinks","Bakery","Breakfast","Lunch"] if tim else ["Subs","Sides","Drinks"]
+	var category := cafe_category if tim else subway_category
+	if category not in categories: category=categories[0]
+	if not tim:
+		var build := Button.new()
+		build.text = "Build Your Own Sandwich"
+		build.custom_minimum_size.y = 50
+		build.add_theme_stylebox_override("normal",Tokens.surface(Color("f2ce4b"),Color("d0ad36"),9))
+		build.add_theme_stylebox_override("hover",Tokens.surface(Color("ffe785"),Color("d0ad36"),9))
+		build.pressed.connect(func():
+			hide()
+			sandwich_builder_requested.emit(station_id))
+		body.add_child(build)
+	var tabs := HFlowContainer.new()
+	tabs.add_theme_constant_override("h_separation",6)
+	tabs.add_theme_constant_override("v_separation",5)
+	body.add_child(tabs)
+	for name in categories:
+		var tab := Button.new()
+		tab.text = name
+		tab.toggle_mode = true
+		tab.set_pressed_no_signal(category==name)
+		tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tab.pressed.connect(func():
+			if tim:cafe_category=name
+			else:subway_category=name
 			redraw())
-		body.add_child(choice)
-	var order: Dictionary=state.menu.get(cafe_selection,{})
-	if order.is_empty():return
-	body.add_child(UI.text("Your order · %s" % order.name,"SubtitleLabel"))
-	var confirm := button("Confirm order · $%d" % order.price,{"op":"buy","station":station_id,"item":cafe_selection})
-	confirm.disabled=pending or (has_order_space.is_valid() and not has_order_space.call())
-
-func _sandwich_builder() -> void:
-	var steps := ["Bread","Size","Protein and cheese","Toasting","Vegetables","Sauces","Review order"]
-	body.add_child(UI.text("%s · %d / %d" % [steps[sandwich_step],sandwich_step+1,steps.size()],"SubtitleLabel"))
-	match sandwich_step:
-		0:_sandwich_options("Bread","bread",Sandwich.BREAD)
-		1:_sandwich_options("Size","size",Sandwich.SIZE)
-		2:
-			_sandwich_options("Protein","protein",Sandwich.PROTEIN)
-			_sandwich_options("Cheese","cheese",Sandwich.CHEESE)
-		3:
-			var heated := CheckButton.new()
-			heated.text="Toast sandwich"
-			heated.button_pressed=sandwich.heated
-			heated.toggled.connect(func(selected: bool):sandwich.heated=selected)
-			body.add_child(heated)
-		4:_sandwich_checks("vegetables",Sandwich.VEGETABLES,5)
-		5:_sandwich_checks("sauces",Sandwich.SAUCES,3)
-		6:
-			body.add_child(UI.text(Sandwich.title(sandwich),"TitleLabel"))
-			body.add_child(UI.text("%s · %s · %s" % [Sandwich.BREAD[sandwich.bread],Sandwich.CHEESE[sandwich.cheese],"Toasted" if sandwich.heated else "Untoasted"]))
-			var vegetables := Sandwich.names(sandwich.vegetables,Sandwich.VEGETABLES)
-			var sauces := Sandwich.names(sandwich.sauces,Sandwich.SAUCES)
-			body.add_child(UI.text(vegetables if not vegetables.is_empty() else "No added vegetables"))
-			body.add_child(UI.text(sauces if not sauces.is_empty() else "No sauces"))
-	var nav := HBoxContainer.new()
-	body.add_child(nav)
-	nav.add_child(UI.action("Menu" if sandwich_step==0 else "Back","back",func():
-		sandwich_step-=1
-		redraw()))
-	if sandwich_step<steps.size()-1:
-		nav.add_child(UI.action("Next","play",func():
-			sandwich_step+=1
-			redraw(),true))
-	else:
-		var confirm := button("Confirm order · $%d" % Sandwich.price(sandwich),{"op":"buy","station":station_id,"item":"sandwich","recipe":sandwich.duplicate(true)},nav)
-		confirm.disabled=pending or (has_order_space.is_valid() and not has_order_space.call())
-
-func _sandwich_options(label: String, field: String, options: Dictionary) -> void:
-	body.add_child(UI.text(label))
-	var select := OptionButton.new()
-	select.accessibility_name=label
-	var choices := options.keys()
-	for id in choices:select.add_item(options[id])
-	select.select(choices.find(sandwich[field]))
-	select.item_selected.connect(func(index: int):sandwich[field]=choices[index])
-	body.add_child(select)
-
-func _sandwich_checks(field: String, options: Dictionary, limit: int) -> void:
-	body.add_child(UI.text("Choose up to %d" % limit))
-	for id in options:
-		var control := CheckBox.new()
-		control.text=options[id]
-		control.button_pressed=id in sandwich[field]
-		control.toggled.connect(func(selected: bool):
-			if not selected:sandwich[field].erase(id)
-			elif sandwich[field].size()<limit:sandwich[field].append(id)
-			else:control.set_pressed_no_signal(false))
-		body.add_child(control)
-
-func _food_menu(venue: String, accent: Color, surface: Color) -> void:
-	var categories: Array[String]=[]
+		tabs.add_child(tab)
+	var visible_products := 0
 	for entry in state.menu.values():
-		if entry.venue==venue and not str(entry.get("category", "Other")) in categories:categories.append(str(entry.get("category", "Other")))
-	for category in categories:
-		body.add_child(UI.text(category, "SubtitleLabel"))
-		var grid := preload("res://scripts/ui/design_system/responsive_grid.gd").new()
-		grid.minimum_card_width=145
-		grid.maximum_columns=3
-		grid.add_theme_constant_override("h_separation",8)
-		grid.add_theme_constant_override("v_separation",8)
-		body.add_child(grid)
-		for item in state.menu:
-			var entry: Dictionary=state.menu[item]
-			if entry.venue!=venue or str(entry.get("category", "Other"))!=category:continue
-			var card := PanelContainer.new()
-			card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-			card.add_theme_stylebox_override("panel",Tokens.surface(surface.lightened(.07),accent,10))
-			grid.add_child(card)
-			var contents := VBoxContainer.new()
-			contents.add_theme_constant_override("separation",8)
-			card.add_child(contents)
-			var artwork := TextureRect.new()
-			artwork.texture=load("res://assets/ui/food_menu/%s.svg" % str(entry.get("art",item))) as Texture2D
-			artwork.custom_minimum_size.y=88
-			artwork.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
-			artwork.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			contents.add_child(artwork)
-			var name_label := UI.text(str(entry.name),"SubtitleLabel")
-			name_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
-			contents.add_child(name_label)
-			var order := button("Order · $%d" % entry.price,{"op":"buy","station":station_id,"item":item},contents)
-			order.accessibility_name="Order %s for $%d" % [entry.name,entry.price]
-			order.disabled=pending or (has_order_space.is_valid() and not has_order_space.call())
-			order.add_theme_stylebox_override("normal",Tokens.surface(accent.darkened(.28),accent,8))
-			order.add_theme_stylebox_override("hover",Tokens.surface(accent.darkened(.10),accent,8))
+		if entry.venue==venue and entry.category==category:visible_products+=1
+	var grid := GridContainer.new()
+	grid.columns=3 if visible_products==3 and size.x>=530.0 else 2
+	grid.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation",8)
+	grid.add_theme_constant_override("v_separation",8)
+	body.add_child(grid)
+	for item in state.menu:
+		var entry: Dictionary=state.menu[item]
+		if entry.venue!=venue or entry.category!=category:continue
+		var card := PanelContainer.new()
+		card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		card.add_theme_stylebox_override("panel",Tokens.surface(Color.WHITE, accent if cafe_selection==item else surface.darkened(.14),10))
+		grid.add_child(card)
+		var contents := VBoxContainer.new()
+		contents.add_theme_constant_override("separation",4)
+		card.add_child(contents)
+		var artwork := TextureRect.new()
+		var art := str(item) if item in KIOSK_ILLUSTRATIONS else str(entry.get("art",item))
+		var path := "res://assets/ui/food_menu/%s.svg" % art
+		if not ResourceLoader.exists(path):path="res://assets/ui/food_menu/%s.svg" % str(entry.get("art",item))
+		artwork.texture=load(path) as Texture2D
+		artwork.custom_minimum_size.y=67
+		artwork.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+		artwork.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		contents.add_child(artwork)
+		var title := _restaurant_label(entry.name,16,Color("252b23"))
+		title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+		title.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		contents.add_child(title)
+		var choose := Button.new()
+		choose.text = "Selected · $%d" % entry.price if cafe_selection==item else "$%d  ·  Select" % entry.price
+		choose.accessibility_name = "Select %s for $%d" % [entry.name,entry.price]
+		choose.disabled=pending
+		choose.pressed.connect(func():
+			cafe_selection=item
+			redraw())
+		contents.add_child(choose)
+	var order: Dictionary=state.menu.get(cafe_selection,{})
+	var summary := HBoxContainer.new()
+	var title := "%s  ·  $%d" % [order.name,order.price] if order.get("venue","")==venue else "Select an item to review your order"
+	var selected := _restaurant_label(title,17,accent)
+	selected.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	summary.add_child(selected)
+	body.add_child(summary)
+	if order.get("venue","")!=venue:return
+	var confirm := button("Confirm order",{"op":"buy","station":station_id,"item":cafe_selection},summary)
+	confirm.disabled=pending or (has_order_space.is_valid() and not has_order_space.call())
 
 func _show_trap_hud(active: Dictionary) -> void:
 	menu_layout.hide()
@@ -517,9 +501,18 @@ func _gym_progress(accent: Color) -> void:
 	var muscles := _progress_tab(tabs, "Muscles")
 	for muscle in Rules.GymProgress.MUSCLE_GROUPS:
 		var values: Dictionary = gym.get("muscles", {}).get(muscle, {})
-		muscles.add_child(UI.text("%s  ·  %.1f%% size" % [muscle.replace("_", " ").capitalize(), 100.0 * float(sizes[muscle])], "SubtitleLabel"))
 		var meters := HBoxContainer.new()
 		muscles.add_child(meters)
+		var muscle_name: String=muscle.replace("_"," ").capitalize()
+		var icon:=preload("res://scripts/campus/facilities/gym_muscle_icon.gd").new()
+		icon.muscle=muscle
+		icon.tooltip_text=muscle_name
+		meters.add_child(icon)
+		var name_label:=UI.text(muscle_name,"SubtitleLabel")
+		name_label.custom_minimum_size.x=92
+		name_label.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+		name_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		meters.add_child(name_label)
 		_progress_meter(meters, "Growth", float(sizes[muscle]), accent)
 		_progress_meter(meters, "Strength", float(values.get("strength", 0.0)), accent)
 		_progress_meter(meters, "Fatigue", float(values.get("fatigue", 0.0)), Color("dc8a76"))
@@ -529,7 +522,7 @@ func _gym_progress(accent: Color) -> void:
 	sets.add_child(UI.text("No recorded sets yet" if history.is_empty() else "%d recent sets" % history.size(), "SubtitleLabel"))
 	for i in range(history.size()-1, -1, -1):
 		var entry: Dictionary = history[i]
-		sets.add_child(UI.text("%s  ·  %d reps  ·  %.1f kg" % [exercise_name(entry.exercise), int(entry.reps), float(entry.weight_kg)], "SubtitleLabel"))
+		sets.add_child(UI.text("%s  ·  %d reps  ·  %.1f lb" % [exercise_name(entry.exercise), int(entry.reps), float(entry.weight_kg)*2.20462262], "SubtitleLabel"))
 		var details := "%s  ·  Relative load %.0f%%" % [str(entry.outcome).replace("_"," ").capitalize(), 100.0 * float(entry.relative_effort)]
 		if entry.has("stimulus_added"):
 			details += "  ·  Stimulus +%.1f%%" % (100.0 * float(entry.stimulus_added))
@@ -628,7 +621,8 @@ func _exercise_choices() -> void:
 		start.disabled = pending
 		if station_kind == "cable":
 			request.weight = int(cable_resistance.call(station_id)) if cable_resistance.is_valid() else 5
-			summary.text = "%s · %d kg on the stack" % [exercise_name(exercise), request.weight]
+			var extra:=float(cable_extra_mass.call(station_id)) if cable_extra_mass.is_valid() else 0.0
+			summary.text = "%s · %d lb total" % [exercise_name(exercise),roundi((float(request.weight)+extra)*2.20462262)]
 		elif station_kind in ["barbell", "bench_barbell", "benchpress", "squat", "curl", "bench_dumbbell"]:
 			var dumbbells := station_kind in ["curl", "bench_dumbbell"]
 			var mass := 0.0
@@ -638,12 +632,12 @@ func _exercise_choices() -> void:
 				mass = float(barbell_mass.call(station_id if station_kind in ["benchpress", "squat"] else "held"))
 			if station_kind in ["bench_barbell", "bench_dumbbell"]:
 				request.equipment = "dumbbell" if dumbbells else "barbell"
-			summary.text = "%s · %.1f kg %s" % [exercise_name(exercise), mass, "dumbbell pair" if dumbbells else "barbell"] if mass > 0 else ("Equip a pair of dumbbells" if dumbbells else "A barbell is required")
+			summary.text = "%s · %.1f lb %s" % [exercise_name(exercise),mass*2.20462262, "dumbbell pair" if dumbbells else "barbell"] if mass > 0 else ("Equip a pair of dumbbells" if dumbbells else "A barbell is required")
 			start.disabled = pending or mass <= 0
 		else:
 			summary.text = exercise_name(exercise)
 			for kg in Rules.WEIGHTS[exercise]:
-				load_choice.add_item("Bodyweight" if kg == 0 else "%d kg" % kg, kg)
+				load_choice.add_item("Bodyweight" if kg == 0 else "%d lb" % roundi(kg*2.20462262), kg)
 			load_choice.select(0)
 			request.weight = load_choice.get_item_id(0)
 			load_choice.show()

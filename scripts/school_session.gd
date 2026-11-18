@@ -508,7 +508,7 @@ func _sync_supply_world() -> bool:
 func _ensure_classroom_whiteboards() -> bool:
 	if room_bridge.registry==null:return false
 	var changed := false
-	for room_id in ["elm253_lecture","ety155_lecture","study"]+room_bridge.registry.open_lecture_rooms():
+	for room_id in room_bridge.registry.lecture_rooms()+["study"]:
 		if papers.values().any(func(item):return item.get("classroom_board","")==room_id):continue
 		var room: Dictionary=room_bridge.registry.get_room(room_id)
 		if room.is_empty():continue

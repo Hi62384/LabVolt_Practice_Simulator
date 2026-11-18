@@ -11,6 +11,12 @@ var indicators := {}
 var desktop_overlay: SubViewportContainer
 var desktop_render: SubViewport
 var idle_render: SubViewport
+var boot_render: SubViewport
+var boot_cover: ColorRect
+var boot_spinner: Label
+var boot_seen := {}
+var boot_until := {}
+var boot_timer: Timer
 var local_screen_station := ""
 var idle_clock: Label
 var public_id := "m203_r3_c4"
@@ -42,6 +48,8 @@ func build(owner_game: Node, mounted_room: Node3D) -> bool:
 	desktop_render.add_child(desktop)
 	desktop.build(game.computers,game)
 	_build_idle_display()
+	_build_boot_display()
+	game.computers.boot_changed.connect(_boot_changed)
 	_update_indicators()
 	game.computers.desktop_changed.connect(_desktop_changed)
 	game.computers.power_changed.connect(_power)
@@ -185,6 +193,73 @@ func _update_idle_clock() -> void:
 	idle_clock.text=time
 	idle_render.render_target_update_mode=SubViewport.UPDATE_ONCE
 
+func _build_boot_display() -> void:
+	boot_render=SubViewport.new()
+	boot_render.size=Vector2i(384,216)
+	boot_render.disable_3d=true
+	boot_render.render_target_update_mode=SubViewport.UPDATE_DISABLED
+	add_child(boot_render)
+	var background:=ColorRect.new()
+	background.color=Color("11273e")
+	background.size=Vector2(boot_render.size)
+	boot_render.add_child(background)
+	var mark:=Label.new()
+	mark.text="◈"
+	mark.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	mark.position=Vector2(0,45)
+	mark.size=Vector2(384,60)
+	mark.add_theme_font_size_override("font_size",44)
+	mark.add_theme_color_override("font_color",Color("77e2dc"))
+	background.add_child(mark)
+	var title:=Label.new()
+	title.text="Campus OS"
+	title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	title.position=Vector2(0,106)
+	title.size=Vector2(384,30)
+	title.add_theme_font_size_override("font_size",22)
+	background.add_child(title)
+	boot_spinner=Label.new()
+	boot_spinner.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	boot_spinner.position=Vector2(0,148)
+	boot_spinner.size=Vector2(384,28)
+	boot_spinner.add_theme_font_size_override("font_size",20)
+	background.add_child(boot_spinner)
+	boot_timer=Timer.new()
+	boot_timer.wait_time=.08
+	boot_timer.timeout.connect(_tick_boot)
+	add_child(boot_timer)
+	boot_cover=ColorRect.new()
+	boot_cover.color=Color("050b12")
+	boot_cover.size=Vector2(boot_render.size)
+	background.add_child(boot_cover)
+
+func _boot_changed(state: Dictionary) -> void:
+	for id in boot_until.keys():
+		if not state.has(id):boot_until.erase(id)
+	for id in state:
+		if boot_seen.get(id,-1)==state[id]:continue
+		boot_seen[id]=state[id]
+		boot_until[id]=Time.get_ticks_msec()+1600
+	if not boot_until.is_empty() and boot_timer.is_stopped():boot_timer.start()
+	_tick_boot()
+	_update_indicators()
+
+func _tick_boot() -> void:
+	var now:=Time.get_ticks_msec()
+	var changed:=false
+	for id in boot_until.keys():
+		if now>=int(boot_until[id]):
+			boot_until.erase(id)
+			changed=true
+	if changed:_update_indicators()
+	if boot_until.is_empty():
+		boot_timer.stop()
+		return
+	var remaining:=int(boot_until.values().max())-now
+	boot_cover.color.a=clampf((remaining-1390)/210.0,0.0,1.0)
+	boot_spinner.text=["◐","◓","◑","◒"][posmod(now/120,4)]
+	boot_render.render_target_update_mode=SubViewport.UPDATE_ONCE
+
 func _power(power: Dictionary) -> void:
 	power_states=power
 	_update_indicators()
@@ -198,7 +273,9 @@ func _update_indicators() -> void:
 		if public_ids.has(id) and multiplayer.is_server():
 			var device: Variant=game.computers.stations.get(id,{}).get("power")
 			powered=is_instance_valid(device) and device.powered
-		indicators[id].set_display(powered,private_screen if id==local_screen_station else ambient)
+		var texture: Texture2D=private_screen if id==local_screen_station else ambient
+		if powered and boot_until.has(id):texture=boot_render.get_texture()
+		indicators[id].set_display(powered,texture)
 
 func _teaching() -> void:
 	if is_instance_valid(idle_clock):_update_idle_clock()

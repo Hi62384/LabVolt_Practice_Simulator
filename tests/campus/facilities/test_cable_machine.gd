@@ -41,12 +41,13 @@ func run() -> void:
 	machine.on_room_event(1,{"activity":"exercise","station":"gym/cable_0","exercise":"lat_pulldown","phase":1,"weight":25})
 	for i in 50:machine._process(.02)
 	check(machine.selected==5 and machine.phase>.9,"stack failed to select and rise")
+	check(is_equal_approx(machine.loading_mount.position.y,1.62+.24*machine.phase),"plate loading post detached from moving stack")
 	check(machine.selected_resistance() == 25, "selected resistance disagrees with the pin")
 	check(is_equal_approx(machine.selection_pin.position.y, machine.weights[-5].position.y), "pin is detached from the bottom plate of the selected stack")
 	check(machine.pin_targets[-5].get_meta("weight") == 25, "pin target disagrees with the selected stack plate")
 	var top: Vector3=machine.cable.position-machine.cable.basis.y*.5
 	var end: Vector3=machine.cable.position+machine.cable.basis.y*.5
-	check(top.distance_to(Vector3(0,2.3,.13))<.001 and end.distance_to(machine.handle.position)<.001,"cable endpoints detached")
+	check(top.distance_to(Vector3(0,2.3,.13))<.001 and end.distance_to(machine.handle.get_meta("connector"))<.001,"cable endpoints detached")
 	var stack_start: Vector3=machine.stack_cable.position-machine.stack_cable.basis.y*.5
 	var stack_end: Vector3=machine.stack_cable.position+machine.stack_cable.basis.y*.5
 	var stack_top: Vector3=machine.weights[-1].position+Vector3(0,.035,0)
@@ -62,14 +63,14 @@ func run() -> void:
 	check(machine.second_handle.visible and machine.second_cable.visible,"fly did not show both cable grips")
 	check(machine.handle.global_position.distance_to(avatar.get_node("Body/ArmL/Hand").global_position)<.001 and machine.second_handle.global_position.distance_to(avatar.get_node("Body/ArmR/Hand").global_position)<.001,"fly grips did not follow both hands")
 	var second_end: Vector3=machine.second_routed_cable.position+machine.second_routed_cable.basis.y*.5
-	check(second_end.distance_to(machine.second_handle.position)<.001,"second cable detached from its grip")
+	check(second_end.distance_to(machine.second_handle.get_meta("connector"))<.001,"second cable detached from its grip")
 	machine.on_room_event(1,{"activity":"exercise","station":"gym/cable_0","exercise":"cable_press","phase":1,"weight":25},avatar)
 	machine._process(.02)
 	check(machine.routed_cable.visible and machine.second_routed_cable.visible,"chest press did not route both cables around the lifter")
 	var routed_end: Vector3=machine.routed_cable.position+machine.routed_cable.basis.y*.5
 	var guide_end: Vector3=machine.cable.position+machine.cable.basis.y*.5
 	var next_start: Vector3=machine.route_sections[0].position-machine.route_sections[0].basis.y*.5
-	check(routed_end.distance_to(machine.handle.position)<.001 and next_start.distance_to(guide_end)<.001,"routed cable segments detached")
+	check(routed_end.distance_to(machine.handle.get_meta("connector"))<.001 and next_start.distance_to(guide_end)<.001,"routed cable segments detached")
 	for i in machine.route_sections.size()-1:
 		var section_end: Vector3=machine.route_sections[i].position+machine.route_sections[i].basis.y*.5
 		var next_start_point: Vector3=machine.route_sections[i+1].position-machine.route_sections[i+1].basis.y*.5
@@ -86,7 +87,7 @@ func run() -> void:
 				var joint_start: Vector3=chain[i+1].position-chain[i+1].basis.y*.5
 				check(joint_end.distance_to(joint_start)<.001,"cable opened a gap during movement")
 			var tip: Vector3=chain[-1].position+chain[-1].basis.y*.5
-			check(tip.distance_to(pair[3].position)<.001,"cable tip lost its grip during movement")
+			check(tip.distance_to(pair[3].get_meta("connector"))<.001,"cable tip lost its grip during movement")
 	machine.on_room_event(1,{"activity":"exercise","station":"gym/cable_0","exercise":"lateral_raise","phase":1,"weight":25},avatar)
 	machine._process(.02)
 	var low_start: Vector3=machine.cable.position-machine.cable.basis.y*.5

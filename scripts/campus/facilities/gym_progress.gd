@@ -157,11 +157,10 @@ static func lift_parameters(available: float, required: float) -> Vector3:
  var strain := clampf(ratio, 0.0, 1.0)
  var gain := lerpf(.18, .072, strain)
  var decay := lerpf(.055, .21, strain)
- var limit := 1.0
- if ratio > 1.0:
-  gain *= .78
-  limit = clampf(1.0 / ratio, .08, .98)
- return Vector3(gain, decay, limit)
+ var overload := maxf(0.0, ratio - 1.0)
+ gain /= 1.0 + overload * 3.8
+ decay += overload * .33
+ return Vector3(gain, decay, ratio)
 
 static func movement_ms(state: Dictionary,exercise: String,kg: float,base_ms: int,body_kg: float=70.0) -> int:
  var ratio:=effective_load(exercise,kg,body_kg)/maxf(capacity(state,exercise),.001)

@@ -6,6 +6,7 @@ var provider = preload("res://scripts/campus_course_provider.gd").new()
 var adapter = preload("res://scripts/campus/ui/campus_adapter.gd").new()
 var facilities: Node3D
 var facility_panel: PanelContainer
+var sandwich_counter: Node3D
 var binding_key := ""
 var refresh_clock := 0.0
 var gym_motion: Node3D
@@ -103,7 +104,7 @@ func build(owner_game: Node) -> void:
 	room_finish_results.m101=m101_environment.mount(game.campus,game.campus.registry)
 	teaching_finish=preload("res://scripts/campus/presentation/decor/teaching_rooms/teaching_room_finish.gd").new()
 	add_child(teaching_finish)
-	room_finish_results.teaching=teaching_finish.mount_approved(game.campus,game.campus.registry,["elm253_lecture","ety155_lecture"])
+	room_finish_results.teaching=teaching_finish.mount_approved(game.campus,game.campus.registry,game.campus.registry.lecture_rooms())
 	var m103_finish=preload("res://scripts/campus/presentation/decor/m103_room_finish.gd").new()
 	add_child(m103_finish)
 	room_finish_results.m103=m103_finish.mount(game.campus,game.campus.registry)
@@ -179,6 +180,10 @@ func build(owner_game: Node) -> void:
 		subway_finish.build(facilities.controller.host.menu)
 		game.campus.add_child(subway_finish)
 		if game.campus.register_content("subway",subway_finish):
+			sandwich_counter=preload("res://scripts/campus/facilities/sandwich_counter.gd").new()
+			sandwich_counter.name="InteractiveSandwichCounter"
+			subway_finish.add_child(sandwich_counter)
+			sandwich_counter.bind(game,facilities.controller,furniture.get_node_or_null("Cashier") if is_instance_valid(furniture) else null)
 			for visual in subway_root.get_children():
 				if visual is GeometryInstance3D:visual.visible=false
 		else:subway_finish.queue_free()
@@ -195,6 +200,7 @@ func build(owner_game: Node) -> void:
 	facility_panel.orders_changed = func():game.hotbar._sync_food()
 	facility_panel.has_order_space=func():return game.hotbar.slots.any(func(slot):return slot.is_empty())
 	facility_panel.direct_error.connect(game.ui.log_message)
+	if is_instance_valid(sandwich_counter): facility_panel.sandwich_builder_requested.connect(sandwich_counter.begin)
 	_install_clothing_store(layer)
 	facility_panel.position=Vector2(60,60);facility_panel.hide()
 	facility_panel.visibility_changed.connect(func():
@@ -203,6 +209,8 @@ func build(owner_game: Node) -> void:
 	social=preload("res://scripts/campus_social.gd").new();social.name="PublicProfiles";add_child(social);social.build(game,facilities)
 
 func _bind_facilities() -> void:
+	facilities.controller.host.exercise_alignment=_exercise_alignment
+	facilities.controller.host.apply_exercise_alignment=_relocate
 	var ledger: RefCounted=game.electronics_trade.authority.ledger
 	var key: String=str(game.session.online)+":"+str(ledger.get_instance_id())+":"+game.school.local_identity+":"+str(game.electronics.profile.get_instance_id())
 	if key==binding_key:return
@@ -216,6 +224,50 @@ func _bind_facilities() -> void:
 		facilities.controller.host.load_profile=next.load_facilities
 		facilities.controller.host.commit_profile=next.commit
 	else:facilities.use_offline_profile(game.school.local_identity,game.electronics.profile)
+
+func _exercise_alignment(peer: int,station: String,exercise: String,current: Vector3) -> Dictionary:
+	var anchors: Dictionary=facilities.controller.host.anchors
+	var anchor: Dictionary=anchors.get(station,{})
+	var point:=current
+	var yaw: float=game.session.poses.get(peer,{}).get("yaw", game.player.yaw_target)
+	var machine:=_cable_machine(station)
+	if is_instance_valid(machine):
+		point=machine.to_global(Vector3(0,0,1.25))
+		var facing: Vector3=machine.global_position-point
+		if exercise in ["cable_fly","cable_press","overhead_extension"]:facing=-facing
+		yaw=atan2(-facing.x,-facing.z)
+	elif anchor.get("kind")=="pullup":
+		var grip: Vector3=anchor.get("dip_grip" if exercise=="dip" else "pullup_grip",anchor.position)
+		point=Vector3(grip.x,current.y,grip.z)
+		yaw=0.0 if exercise!="dip" else PI
+	elif anchor.get("kind")=="pushup":
+		var mat: Vector3=anchor.mat_position
+		point=Vector3(mat.x,current.y,mat.z+.39)
+		yaw=0.0
+	elif anchor.get("kind")=="benchpress":
+		var bench: Vector3=anchor.bench_position
+		point=Vector3(bench.x,current.y,bench.z+1.0)
+		yaw=0.0
+	elif anchor.get("kind")=="squat":
+		point=anchor.position
+		yaw=0.0
+	if point.distance_to(current)<.12:return {"position":current,"yaw":yaw}
+	# Test torso clearance without treating the floor/mat under the player's
+	# feet as an obstruction. Collision and position checks stay on the host.
+	var capsule:=CapsuleShape3D.new()
+	capsule.radius=.27
+	capsule.height=1.34
+	var query:=PhysicsShapeQueryParameters3D.new()
+	query.shape=capsule
+	query.transform=Transform3D(Basis.IDENTITY,point+Vector3.UP*.99)
+	query.collision_mask=1
+	query.exclude=[game.player.get_rid()]
+	if not game.player.get_world_3d().direct_space_state.intersect_shape(query,1).is_empty():return {}
+	for other in game.session.poses:
+		if int(other)==peer:continue
+		var position: Vector3=game.session.poses[other].get("position",Vector3.INF)
+		if position.distance_to(point)<.68:return {}
+	return {"position":point,"yaw":yaw}
 
 func _facility_context(peer: int) -> Dictionary:
 	if not game.session.roster.has(peer):return {}
@@ -241,6 +293,10 @@ func _profile_committed(identity: String) -> void:
 		if authority.ledger.bindings[peer]==identity:authority.send_snapshot(int(peer),authority.ledger.snapshot(int(peer)))
 
 func _process(delta: float) -> void:
+	if is_instance_valid(facilities) and facilities.rooms.has("gym") and is_instance_valid(facilities.rooms.gym):
+		var aimed: Variant=game.current_target if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED else null
+		for cable_machine in facilities.rooms.gym.gym_cables:cable_machine.highlight_pin(aimed)
+
 	if game==null:return
 	refresh_clock+=delta
 	if refresh_clock<0.2:return
@@ -255,6 +311,13 @@ func aimed_prompt() -> String:
 	if not game.player.facility_seat.is_empty(): return "%s - Stand" % interact_key
 	if game.school.formal_active(): return ""
 	if _aimed_order():return "%s - Pick up %s" % [interact_key,game.current_target.get_meta("label","order")]
+	var target: Node=game.current_target
+	if is_instance_valid(target):
+		match target.get_meta("role",""):
+			"gym_cable_load":
+				if game.gym_barbells.held_plate(multiplayer.get_unique_id())>=0:return "%s - Add weight plate" % interact_key
+			"gym_cable_plate":
+				return "%s - %s weight plate" % [interact_key,"Add" if game.gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Remove"]
 	var aimed := _aimed_facility()
 	if aimed.is_empty(): return ""
 	var action := "Open cable exercises" if aimed.kind=="cable" else ("Sit" if aimed.kind=="seat" else ("Cashier" if str(aimed.kind).begins_with("counter:") else str(aimed.kind).capitalize()))
@@ -276,6 +339,24 @@ func _aimed_order() -> bool:
 	var target: Node=game.current_target
 	return is_instance_valid(target) and target.get_meta("role","")=="facility_food" and target.get_meta("owner",-1)==multiplayer.get_unique_id()
 
+func _route_cable_plate() -> bool:
+	var target: Node=game.current_target
+	if not is_instance_valid(target) or not target.get_meta("role","") in ["gym_cable_load","gym_cable_plate"]:return false
+	var station:=str(target.get_meta("station",""))
+	var machine:=_cable_machine(station)
+	if not is_instance_valid(machine) or machine.occupant!=0:return true
+	var peer:=multiplayer.get_unique_id()
+	var held: int=game.gym_barbells.held_plate(peer)
+	if held>=0:
+		if game.gym_barbells.cable_plates(station).size() >= machine.PLATE_LIMIT:
+			game.ui.log_message("This loading post is full.")
+		else:game.gym_barbells.request_plate("cable_attach",held,station)
+	elif target.get_meta("role","")=="gym_cable_plate":
+		if game.hotbar.slots.any(func(slot):return slot.is_empty()) and game.hotbar.stow():
+			game.gym_barbells.request_plate("cable_detach",int(target.get_meta("id",-1)),station)
+		else:game.ui.log_message("Free a hotbar slot to remove the plate.")
+	return true
+
 func _route_bench_equipment(event: InputEvent) -> bool:
 	if not (event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT):return false
 	var kind:=""
@@ -289,7 +370,8 @@ func _route_bench_equipment(event: InputEvent) -> bool:
 
 func route_event(event: InputEvent) -> bool:
 	if game==null:return false
-	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and is_instance_valid(game.current_target) and game.current_target.get_meta("role","")=="gym_cable_pin":
+	if is_instance_valid(sandwich_counter) and sandwich_counter.route_event(event):return true
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.interact and is_instance_valid(game.current_target) and game.current_target.get_meta("role","")=="gym_cable_pin":
 		var station:=str(game.current_target.get_meta("station",""))
 		var weight:=int(game.current_target.get_meta("weight",5))
 		var machine:=_cable_machine(station)
@@ -300,6 +382,7 @@ func route_event(event: InputEvent) -> bool:
 			facilities.controller.select_cable_weight(station,weight)
 			return true
 	if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED and not game.school.formal_active():
+		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.interact and _route_cable_plate():return true
 		if _route_bench_equipment(event):return true
 		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.interact and _aimed_order():
 			if facility_panel.has_order_space.call():facility_panel.request_direct({"op":"pickup","order_id":str(game.current_target.get_meta("order_id","0"))})
@@ -376,7 +459,6 @@ func _install_clothing_store(layer: CanvasLayer) -> void:
 			var cosmetics = preload("res://scripts/avatar_cosmetics/core/coordinator.gd").new()
 			if not cosmetics.load_catalog():return
 			var adapter=cosmetics.authoritative_adapter(func():return true)
-			adapter.extra_accessory_count=preload("res://scripts/campus/facilities/accessory_layout.gd").belt_count(game,multiplayer.get_unique_id())
 			var result: Dictionary=adapter.commit_local(profile,request.intent)
 			clothing_panel.accept_purchase(clothing_pending,result,profile.data);clothing_pending="")
 	game.electronics_trade.authority.operation_result.connect(func(op: String,result: Dictionary):
@@ -391,18 +473,18 @@ func _activity_spawn(entrance: Vector3) -> void:
 		index+=1
 		_relocate(int(peer),target)
 
-func _relocate(peer: int,target: Vector3) -> void:
+func _relocate(peer: int,target: Vector3,yaw := 0.0) -> void:
 	var epoch: int=int(game.session.pose_epochs.get(peer,0))+1
 	game.session.pose_epochs[peer]=epoch
 	game._release_chair(peer)
-	game.session.poses[peer]={"position":target,"yaw":0.0,"pitch":0.0,"crouch":false,"seated":false}
+	game.session.poses[peer]={"position":target,"yaw":yaw,"pitch":0.0,"crouch":false,"seated":false}
 	game.session.last_pose[peer]=Time.get_ticks_msec()
 	game.session.pose_received.emit(peer,game.session.poses[peer])
-	if peer==1:_relocate_local(target,epoch)
-	elif game.session.online:_relocate_local.rpc_id(peer,target,epoch)
+	if peer==1:_relocate_local(target,epoch,yaw)
+	elif game.session.online:_relocate_local.rpc_id(peer,target,epoch,yaw)
 
 @rpc("authority","call_remote","reliable",4)
-func _relocate_local(target: Vector3,epoch: int) -> void:
+func _relocate_local(target: Vector3,epoch: int,yaw: float) -> void:
 	game.session.local_pose_epoch=epoch
 	if game.player.inspecting:game.end_inspection()
 	if is_instance_valid(game.player.seated):
@@ -410,4 +492,5 @@ func _relocate_local(target: Vector3,epoch: int) -> void:
 		game.player.collider.set_deferred("disabled",false)
 	game.standing_pending=false
 	game.player.global_position=target;game.player.velocity=Vector3.ZERO
+	game.player.yaw_target=yaw;game.player.rotation.y=yaw
 

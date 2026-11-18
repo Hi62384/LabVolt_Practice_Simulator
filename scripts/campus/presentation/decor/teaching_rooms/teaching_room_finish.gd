@@ -5,8 +5,6 @@ extends Node3D
 const ROOMS := {
 	"ac_lab":{"number":"M101","accent":"b49357","base":0.0,"west":-10.0,"east":10.0,"south":-4.0,"north":10.0,"door_east":true},
 	"dc_lab":{"number":"M103","accent":"518681","base":0.0,"west":-10.0,"east":10.0,"south":13.0,"north":25.0,"door_east":true},
-	"elm253_lecture":{"number":"M201","accent":"b49357","base":5.0,"west":-10.0,"east":10.0,"south":-3.0,"north":9.0,"door_east":true},
-	"ety155_lecture":{"number":"M202","accent":"518681","base":5.0,"west":16.0,"east":36.0,"south":-3.0,"north":9.0,"door_east":false},
 	"computer":{"number":"M203","accent":"677da0","base":5.0,"west":-10.0,"east":10.0,"south":13.0,"north":25.0,"door_east":true}
 }
 const WOOD := Color("aa8263")
@@ -16,22 +14,28 @@ var mounted: Dictionary={}
 var materials := {}
 
 func mount(room_id: String,campus: Node,registry: Object) -> bool:
-	if not ROOMS.has(room_id) or not is_instance_valid(campus) or not is_instance_valid(registry):return false
+	if not is_instance_valid(campus) or not is_instance_valid(registry):return false
 	if mounted.has(room_id):return is_instance_valid(mounted[room_id])
 	var room: Dictionary=registry.call("get_room",room_id)
-	if room.is_empty() or str(room.get("number",""))!=str(ROOMS[room_id].number):return false
+	if room.is_empty():return false
+	if room.get("kind")=="lecture":
+		var root := Node3D.new()
+		root.name="TeachingFinish_"+room_id
+		campus.add_child(root)
+		_lecture(root,campus,room,{"door_east":float(room.door[0])>float(room.center[0])})
+		if not campus.call("register_content",room_id,root):
+			root.queue_free()
+			return false
+		mounted[room_id]=root
+		return true
+	if not ROOMS.has(room_id) or str(room.number)!=str(ROOMS[room_id].number):return false
 	var p: Dictionary=ROOMS[room_id]
-	# Refuse stale profiles if the authoritative room shell moves or resizes.
-	var low: Array=room.get("bounds_min",[]);var high: Array=room.get("bounds_max",[])
+	var low: Array=room.get("bounds_min",[])
+	var high: Array=room.get("bounds_max",[])
 	if low.size()!=3 or high.size()!=3:return false
 	if absf(float(low[0])-float(p.west))>.01 or absf(float(high[0])-float(p.east))>.01:return false
 	if absf(float(low[1])-float(p.base))>.01 or absf(float(low[2])-float(p.south))>.01 or absf(float(high[2])-float(p.north))>.01:return false
 	var root:=Node3D.new();root.name="TeachingFinish_"+room_id;campus.add_child(root)
-	if room.get("kind") == "lecture":
-		_lecture(root, campus, room, p)
-		if not campus.call("register_content",room_id,root):root.queue_free();return false
-		mounted[room_id]=root
-		return true
 	var accent:=Color(str(p.accent));var cx: float=(float(p.west)+float(p.east))*.5
 	# Continuous dado and crown on solid south/north walls; 0.12 m inset clears shell.
 	for z in [float(p.south)+.14,float(p.north)-.14]:

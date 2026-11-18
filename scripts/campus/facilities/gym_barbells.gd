@@ -348,7 +348,7 @@ func _refresh() -> void:
 	if selected_station.begins_with("belt/"):
 		_refresh_belt();return
 	var title:=Label.new();title.text="BARBELL  /  PLATE LOADING";title.add_theme_font_size_override("font_size",22);list.add_child(title)
-	detail=Label.new();detail.text="Total %.1f kg  ·  bar %.0f kg" % [loaded_mass(selected_station),BAR_KG];list.add_child(detail)
+	detail=Label.new();detail.text="Total %.1f lb  ·  bar %.0f lb" % [loaded_mass(selected_station)*2.20462262,BAR_KG*2.20462262];list.add_child(detail)
 	var hint:=Label.new();hint.text="Bring a plate from the rack to attach it to either sleeve.";list.add_child(hint)
 	for lb in SIZES:
 		var available:=0
@@ -401,7 +401,7 @@ func _refresh_belt() -> void:
 	var id:=int(selected_station.trim_prefix("belt/"))
 	if id not in range(belts.size()):return
 	var title:=Label.new();title.text="WEIGHT BELT";title.add_theme_font_size_override("font_size",22);list.add_child(title)
-	var status:=Label.new();status.text="Total %.1f kg · belt %.1f kg" % [belt_mass(id),BELT_KG];list.add_child(status)
+	var status:=Label.new();status.text="Total %.1f lb · belt %.1f lb" % [belt_mass(id)*2.20462262,BELT_KG*2.20462262];list.add_child(status)
 	for plate in plates:
 		if plate.station==selected_station:
 			var label:=Label.new();label.text="Attached: %.1f lb" % float(plate.lb);list.add_child(label)
@@ -470,6 +470,18 @@ func _accept_plate(peer: int,op: String,id: int,station: String,side: int,point:
 	if point!=null and (not point is Vector3 or not point.is_finite()):return
 	var position: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
 	if not position.is_finite() or game.campus_services.facilities.controller.host.movement_locked(peer):return
+	if op in ["cable_attach","cable_detach"]:
+		var machine: Node=game.campus_services._cable_machine(station)
+		if not is_instance_valid(machine) or game.campus_services.facilities.controller.host.seats.has(station):return
+		if position.distance_to(machine.loading_mount.global_position-Vector3.UP)>3.0:return
+		var stack:=cable_plates(station)
+		if op=="cable_detach":
+			if stack.is_empty() or id!=int(stack.back()) or held_plate(peer)>=0:return
+			plates[id].station="";plates[id].side=0;plates[id].order=0;plates[id].where="held";plates[id].owner=peer
+		else:
+			if id not in range(plates.size()) or int(plates[id].owner)!=peer or plates[id].where!="held" or stack.size()>=machine.PLATE_LIMIT:return
+			serial+=1;plates[id].station=station;plates[id].where="attached";plates[id].owner=0;plates[id].side=0;plates[id].order=serial
+		_publish();return
 	if op in ["belt_attach","belt_detach"]:
 		var suffix:=station.trim_prefix("belt/")
 		if not station.begins_with("belt/") or not suffix.is_valid_int():return
@@ -604,6 +616,39 @@ func _receive(value: Array, bar_state: Dictionary, belt_state: Array) -> void:
 	if value.size()!=plates.size() or bar_state.size()!=POSITIONS.size() or belt_state.size()!=belts.size() or (value==plates and bar_state==bars and belt_state==belts):return
 	plates=value.duplicate(true);bars=bar_state.duplicate(true);belts=belt_state.duplicate(true);_render()
 
+func cable_plates(station: String) -> Array[int]:
+	var stack: Array[int]=[]
+	for id in plates.size():
+		if plates[id].where=="attached" and plates[id].station==station:stack.append(id)
+	stack.sort_custom(func(a,b):return int(plates[a].order)<int(plates[b].order))
+	return stack
+
+func cable_extra_mass(station: String) -> float:
+	var mass:=0.0
+	for id in cable_plates(station):
+		mass+=float(plates[id].lb)*LB_TO_KG
+	return mass
+
+func _render_cable_plate(plate_id: int, machine: Node, ordinal: int, topmost: bool) -> void:
+	var plate: Dictionary=plates[plate_id]
+	var target:=StaticBody3D.new()
+	target.name="CablePlate_%d" % plate_id
+	target.collision_layer=4 if topmost else 0;target.collision_mask=0
+	target.set_meta("role","gym_cable_plate");target.set_meta("station",plate.station)
+	target.set_meta("id",plate_id)
+	machine.loading_mount.add_child(target)
+	var level: float=.067+ordinal*machine.PLATE_SPACING
+	target.position.y=level
+	var visual:=_plate_model(float(plate.lb))
+	target.add_child(visual)
+	visual.position.y=.10
+	visual.create_tween().tween_property(visual,"position:y",0.0,.20).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var hit:=CollisionShape3D.new()
+	var shape:=CylinderShape3D.new()
+	shape.radius=lerpf(.10,.30,sqrt(clampf(float(plate.lb),0.0,45.0)/45.0));shape.height=.084
+	hit.shape=shape;target.add_child(hit)
+	models[plate_id]=target
+
 func _render() -> void:
 	for peer in remote_belts.keys():_clear_remote_belt(int(peer))
 	for node in belt_models.values():
@@ -672,6 +717,13 @@ func _render() -> void:
 	attached.sort_custom(func(a,b):return int(plates[a].order)<int(plates[b].order))
 	for id in attached:
 		var plate: Dictionary=plates[id]
+		if str(plate.station).begins_with("gym/cable_"):
+			var machine: Node=game.campus_services._cable_machine(plate.station)
+			if is_instance_valid(machine):
+				var stack:=cable_plates(plate.station)
+				var ordinal:=stack.find(id)
+				_render_cable_plate(id,machine,ordinal,ordinal==stack.size()-1)
+			continue
 		if plate.station=="" or not motion.bars.has(plate.station):continue
 		var key: String=plate.station+str(plate.side)
 		var ordinal:=int(counts.get(key,0));counts[key]=ordinal+1
@@ -946,20 +998,24 @@ func _process(delta: float) -> void:
 		if is_instance_valid(plate_hand):plate_hand.queue_free();plate_hand=null
 		if id>=0:
 			plate_hand=_plate_model(float(plates[id].lb));game.camera.add_child(plate_hand);plate_hand.position=Vector3(.30,-.30,-.58);plate_hand.rotation.x=.65
-	if is_instance_valid(plate_hand):plate_hand.visible=game.front.in_game and game.player.enabled
+	var hide_idle_gear: bool=game.workout_hides_carried_items()
+	if is_instance_valid(plate_hand):plate_hand.visible=game.front.in_game and game.player.enabled and not hide_idle_gear
 	var belt_id:=held_belt(multiplayer.get_unique_id())
 	if belt_id!=belt_visual_id:
 		belt_visual_id=belt_id
 		if is_instance_valid(belt_hand):belt_hand.queue_free();belt_hand=null
 		if belt_id>=0:
 			belt_hand=_belt_model(belt_id);game.camera.add_child(belt_hand);belt_hand.position=Vector3(.30,-.25,-.6);belt_hand.rotation.x=.7
-	if is_instance_valid(belt_hand):belt_hand.visible=game.front.in_game and game.player.enabled
+	if is_instance_valid(belt_hand):belt_hand.visible=game.front.in_game and game.player.enabled and not hide_idle_gear
 	var bar_station:=held_bar(multiplayer.get_unique_id())
 	if bar_station!=bar_visual_id:
 		bar_visual_id=bar_station
 		if is_instance_valid(bar_hand):bar_hand.queue_free();bar_hand=null
 		if not bar_station.is_empty():bar_hand=_bar_model(bar_station);game.camera.add_child(bar_hand);bar_hand.position=Vector3(0,-.34,-.92);bar_hand.scale=Vector3(.55,.55,.55)
-	if is_instance_valid(bar_hand):bar_hand.visible=game.front.in_game and game.player.enabled
+	if is_instance_valid(bar_hand):
+		var exercise: Dictionary=game.campus_services.facility_panel.state.get("active",{})
+		bar_hand.visible=game.front.in_game and game.player.enabled and (not hide_idle_gear or exercise.get("equipment")=="barbell")
+		if not hide_idle_gear:bar_hand.position=Vector3(0,-.34,-.92)
 	if not multiplayer.is_server() or not game.session.online:return
 	broadcast_timer+=delta
 	if broadcast_timer>=5.0:

@@ -59,7 +59,7 @@ func material(color: String) -> StandardMaterial3D:
 
 func _room_lighting(room: Dictionary) -> void:
 	var id := str(room.id)
-	if id.begins_with("circulation") or id in ["ac_lab", "dc_lab", "shop", "elm253_lecture", "ety155_lecture", "computer", "washroom_1", "washroom_2", "subway", "clothing_store"]:return
+	if room.kind=="lecture" or id.begins_with("circulation") or id in ["ac_lab", "dc_lab", "shop", "elm253_lecture", "ety155_lecture", "computer", "washroom_1", "washroom_2", "subway", "clothing_store"]:return
 	var light_rig := Node3D.new()
 	light_rig.name = str(room.number) + "InteriorLighting"
 	light_rig.position = registry.vector(room.center)

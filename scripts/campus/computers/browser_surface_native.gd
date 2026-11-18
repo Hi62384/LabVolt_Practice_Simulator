@@ -3,6 +3,7 @@ extends VBoxContainer
 ## closes its own tabs, renderer surfaces and attachment capability.
 const MAX_ATTACHMENT_BYTES:=8*1024*1024
 const MAX_TABS:=8
+const HOME_URL:="https://www.google.com/"
 const Policy=preload("res://scripts/campus/ai/browser_assistant_policy.gd")
 const WAV=preload("res://scripts/campus/academics/teacher_ai.gd")
 static var runtime: Node
@@ -112,7 +113,14 @@ func _build() -> void:
  var quick:=HBoxContainer.new();quick.alignment=BoxContainer.ALIGNMENT_CENTER;quick.add_theme_constant_override("separation",10);home_screen.add_child(quick)
  for site in [{"label":"Google","url":"https://www.google.com"},{"label":"Wikipedia","url":"https://www.wikipedia.org"}]:
   var shortcut:=Button.new();shortcut.text=str(site.label);shortcut.pressed.connect(func():address.text=str(site.url);_navigate());quick.add_child(shortcut)
- status=Label.new();status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(status)
+ status=Label.new();status.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ status.add_theme_color_override("font_color",Color("ffe1bc"))
+ status.add_theme_font_size_override("font_size",12)
+ status.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+ status.offset_top=-25;status.offset_left=6;status.offset_right=-6
+ status.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+ status.z_index=2
+ holder.add_child(status)
  assistant_panel=VBoxContainer.new();assistant_panel.hide();add_child(assistant_panel)
  var privacy:=Label.new();privacy.text="Ask about this page. Visible page text, your question and chosen attachment go through the host to OpenAI.";privacy.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;assistant_panel.add_child(privacy)
  assistant_input=LineEdit.new();assistant_input.placeholder_text="Ask about the current page";assistant_input.max_length=Policy.MAX_QUESTION;assistant_input.text_submitted.connect(func(_value: String):_assistant_ask());assistant_panel.add_child(assistant_input)
@@ -143,12 +151,14 @@ func _runtime_ready() -> bool:
 func _add_tab() -> void:
  if not is_instance_valid(runtime) or tabs.size()>=MAX_TABS:return
  var surface:=TextureRect.new();surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);surface.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;surface.stretch_mode=TextureRect.STRETCH_SCALE;surface.focus_mode=Control.FOCUS_ALL;holder.add_child(surface)
- var browser: Variant=runtime.create_browser("about:blank",surface,{"allow_downloads":false,"javascript":true,"javascript_access_clipboard":false,"session_key":session_key})
+ var browser: Variant=runtime.create_browser(HOME_URL if device_kind=="computer" else "about:blank",surface,{"allow_downloads":false,"javascript":true,"javascript_access_clipboard":false,"session_key":session_key})
  if not is_instance_valid(browser):surface.queue_free();status.text="Browser tab failed: "+str(runtime.get_error());return
  tabs.append({"browser":browser,"surface":surface,"title":"New tab"});active=tabs.size()-1
  var browser_ref: WeakRef=weakref(browser)
  browser.connect("on_page_loaded",func(_view,_http_code):if browser_ref.get_ref()!=null:_loaded(browser_ref.get_ref()))
- browser.connect("on_page_failed_loading",func(_code,message,_view):if browser_ref.get_ref()==_browser():status.text="Page failed: "+str(message).left(160))
+ browser.connect("on_page_failed_loading",func(_code,message,_view):if browser_ref.get_ref()==_browser():
+  status.text="Connection failed · "+str(message).left(120)
+  if device_kind=="computer":home_screen.hide())
  surface.gui_input.connect(func(event):if browser_ref.get_ref()!=null:_forward(browser_ref.get_ref(),surface,event))
  surface.resized.connect(func():if browser_ref.get_ref()!=null:browser_ref.get_ref().resize(surface.size))
  browser.resize(holder.size);_refresh()
@@ -162,12 +172,30 @@ func _refresh() -> void:
  for child in tab_row.get_children():tab_row.remove_child(child);child.queue_free()
  for i in tabs.size():
   var index:=i
-  var button:=Button.new();button.text=str(tabs[i].title).left(12 if device_kind=="phone" else 24);button.toggle_mode=true;button.button_pressed=i==active;button.pressed.connect(func():active=index;_refresh());tab_row.add_child(button)
-  var stop:=Button.new();stop.text="×";stop.tooltip_text="Close tab";stop.disabled=tabs.size()<=1;stop.pressed.connect(func():_close_tab_at(index));tab_row.add_child(stop)
+  var shell:=PanelContainer.new()
+  var skin:=StyleBoxFlat.new()
+  skin.bg_color=Color("405369") if i==active else Color("2b3b50")
+  skin.corner_radius_top_left=8;skin.corner_radius_top_right=8
+  skin.content_margin_left=3;skin.content_margin_right=3
+  shell.add_theme_stylebox_override("panel",skin)
+  tab_row.add_child(shell)
+  var line:=HBoxContainer.new()
+  line.add_theme_constant_override("separation",2)
+  shell.add_child(line)
+  var button:=Button.new()
+  button.flat=true
+  var browser: Variant=tabs[i].browser
+  var url:=str(browser.get_url()) if is_instance_valid(browser) else ""
+  var glyph:="G" if url.begins_with(HOME_URL) else "◎"
+  button.text=glyph+"  "+str(tabs[i].title).left(12 if device_kind=="phone" else 22)
+  button.pressed.connect(func():active=index;status.text="";_refresh())
+  line.add_child(button)
+  var stop:=Button.new();stop.flat=true;stop.text="×";stop.tooltip_text="Close tab"
+  stop.disabled=tabs.size()<=1;stop.pressed.connect(func():_close_tab_at(index));line.add_child(stop)
  var plus:=Button.new();plus.text="+";plus.disabled=tabs.size()>=MAX_TABS or not is_instance_valid(runtime);plus.pressed.connect(_add_tab);tab_row.add_child(plus)
  for i in tabs.size():tabs[i].surface.visible=i==active
  var browser: Variant=_browser()
- if is_instance_valid(home_screen):home_screen.visible=browser==null or str(browser.get_url())=="about:blank"
+ if is_instance_valid(home_screen):home_screen.visible=device_kind!="computer" and (browser==null or str(browser.get_url())=="about:blank")
  address.text=str(browser.get_url()) if browser!=null and str(browser.get_url())!="about:blank" else ""
  back.disabled=browser==null or not browser.has_previous_page()
  forward.disabled=browser==null or not browser.has_next_page()
@@ -190,8 +218,8 @@ func _close_tab_at(index: int) -> void:
 func _home() -> void:
  var browser: Variant=_browser()
  if browser==null:return
- browser.load_url("about:blank")
- if is_instance_valid(home_screen):home_screen.show()
+ browser.load_url(HOME_URL if device_kind=="computer" else "about:blank")
+ if is_instance_valid(home_screen):home_screen.visible=device_kind!="computer"
  address.clear()
  status.text=""
 
@@ -234,7 +262,7 @@ func _loaded(browser: Variant) -> void:
   if tabs[i].browser!=browser:continue
   tabs[i].title=str(browser.get_title()) if not str(browser.get_title()).is_empty() else str(browser.get_url()).left(24)
   browser.execute_javascript(_upload_script())
-  if i==active:status.text="Loaded "+str(browser.get_url()).left(100);_refresh()
+  if i==active:status.text="";_refresh()
   return
 
 func _forward(browser: Variant,surface: TextureRect,event: InputEvent) -> void:

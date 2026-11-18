@@ -74,10 +74,9 @@ func title(item: Dictionary) -> String:
 		"food":
 			if item.has("recipe"):return preload("res://scripts/campus/facilities/sandwich_recipe.gd").title(item.recipe)
 			return str(preload("res://scripts/campus/facilities/facility_host.gd").MENU.get(item.get("type",""),{}).get("name","Food"))
-		"cosmetic_accessory":return str(item.get("name","Accessory"))
-		"gym_belt":return "Weight belt · %.1f kg" % float(game.gym_barbells.belt_mass(int(item.get("id",-1))))
+		"gym_belt":return "Weight belt · %.1f lb" % (float(game.gym_barbells.belt_mass(int(item.get("id",-1)))) / game.gym_barbells.LB_TO_KG)
 		"gym_plate":return "%.1f lb weight plate" % float(item.get("lb",0))
-		"gym_barbell":return "Barbell · %.1f kg" % float(game.gym_barbells.loaded_mass(str(item.get("id",""))))
+		"gym_barbell":return "Barbell · %.1f lb" % (float(game.gym_barbells.loaded_mass(str(item.get("id","")))) / game.gym_barbells.LB_TO_KG)
 		"gym_dumbbells":return "%.1f lb dumbbell pair" % float(item.get("lb",0))
 		"ac_laptop":return "AC lab laptop"
 		"portable_laptop":
@@ -383,7 +382,7 @@ func _sync_food() -> void:
 			food_model=preload("res://scripts/campus/facilities/food_visual.gd").build(item,int(held.servings),held.get("recipe",{}))
 			game.camera.add_child(food_model)
 	if is_instance_valid(food_model):
-		food_model.visible=game.player.enabled
+		food_model.visible=game.player.enabled and not game.workout_hides_carried_items()
 		var grip: Vector3=game.held_item_position(multiplayer.get_unique_id(),game.camera.to_global(Vector3(.22,-.22,-.48)))
 		food_model.global_position=grip+game.camera.global_basis*Vector3(-.035,.015,-.055)
 
@@ -564,12 +563,6 @@ func manager(parent: Node) -> void:
 	if goggles_on:worn["goggles"]={"item":head_item,"remove":_toggle_goggles.bind(false)}
 	if not back_id.is_empty():worn["backpack"]={"item":back_item,"remove":_bag_intent.bind({"op":"bag_move","bag":back_id,"destination":"hotbar"})}
 	if belt_id>=0:worn["belt"]={"item":{"kind":"gym_belt","id":belt_id},"remove":_remove_belt.bind(belt_id)}
-	var cosmetic_entries := AccessoryLayout.cosmetic_entries(game.electronics.profile.data)
-	for key in cosmetic_entries:
-		var slot: String=key.trim_prefix("cosmetic/")
-		var id := str(cosmetic_entries[key])
-		var label := id.get_slice(".",id.get_slice_count(".")-1).replace("_"," ").capitalize()
-		worn[key]={"item":{"kind":"cosmetic_accessory","name":label},"remove":_remove_cosmetic_accessory.bind(slot)}
 	accessory_positions=AccessoryLayout.resolve(accessory_positions,worn.keys())
 	for index in AccessoryLayout.COUNT:
 		var key:=""
@@ -580,8 +573,12 @@ func manager(parent: Node) -> void:
 		var tile:=UI.action("Slot %d · %s" % [index+1,"Empty" if item.is_empty() else title(item)],"inventory",action)
 		tile.icon=portraits.texture(item,game.electronics.profile)
 		tile.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER;tile.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
-		tile.add_theme_constant_override("icon_max_width",58);tile.custom_minimum_size.y=94;tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		if not item.is_empty():style_inventory_tile(tile,item);tile.tooltip_text+="\nClick to unequip · drag to rearrange"
+		tile.expand_icon=true
+		tile.add_theme_constant_override("icon_max_width",62);tile.custom_minimum_size.y=104;tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		if not item.is_empty():
+			style_inventory_tile(tile,item)
+			tile.text=title(item)
+			tile.tooltip_text+="\nClick to unequip · drag to rearrange"
 		else:tile.tooltip_text="Drag equipped gear here"
 		accessories.add_child(tile)
 		tile.set_drag_forwarding(_drag_accessory.bind(tile,key),_can_drop_accessory.bind(index),_drop_accessory.bind(index))
@@ -653,26 +650,6 @@ func _drop_accessory(position: Vector2,data: Variant,destination: int) -> void:
 
 func _save_accessory_layout() -> void:
 	var preferences:=ConfigFile.new();preferences.set_value("layout","positions",accessory_positions);preferences.save("user://accessory_layout.cfg")
-
-func _remove_cosmetic_accessory(slot: String) -> void:
-	_apply_cosmetic_accessory({"op":"unequip","slot":slot})
-
-func _apply_cosmetic_accessory(intent: Dictionary) -> void:
-	var profile: RefCounted=game.electronics.profile
-	if profile.authority_submit.is_valid():
-		profile.authority_submit.call("avatar_cosmetic",[intent])
-		game.electronics.status.text="Waiting for host…"
-		return
-	var coordinator=preload("res://scripts/avatar_cosmetics/core/coordinator.gd").new()
-	if not coordinator.load_catalog():
-		game.electronics.status.text="Cosmetics catalog unavailable";return
-	var adapter=coordinator.authoritative_adapter(func():return true)
-	adapter.extra_accessory_count=AccessoryLayout.belt_count(game,multiplayer.get_unique_id())
-	var result: Dictionary=adapter.commit_local(profile,intent)
-	if not result.get("ok",false):
-		game.electronics.status.text=str(result.get("error","Could not remove accessory"));return
-	game.characters.notify_appearance_saved(profile)
-	game.electronics.open.call_deferred("inventory",game.electronics.bench)
 
 func _wear_belt_from_slot(index: int,id: int) -> void:
 	game.electronics.close()
@@ -764,7 +741,7 @@ func _accessory_tile(parent: Control, slot_name: String, icon_key: String, item:
 	tile.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	tile.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
 	tile.add_theme_constant_override("icon_max_width",58)
-	tile.custom_minimum_size.y=94
+	tile.custom_minimum_size.y=104
 	tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	tile.disabled=item.is_empty()
 	parent.add_child(tile)

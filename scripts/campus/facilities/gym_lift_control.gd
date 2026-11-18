@@ -9,7 +9,8 @@ signal effort_requested
 var live := false
 var displayed_target := 0.0
 var last_effort := -1000
-var lift_limit := 1.0
+var strength_ratio := 0.0
+var fill_style: StyleBoxFlat
 
 var phase := 0
 var reps := 0
@@ -26,9 +27,11 @@ func configure(capacity: float, load: float, active_phase: int, completed_reps: 
 	var parameters := preload("res://scripts/campus/facilities/gym_progress.gd").lift_parameters(capacity, load)
 	click_gain = parameters.x
 	drain_rate = parameters.y
-	lift_limit = parameters.z
+	strength_ratio = parameters.z
+	_refresh_strain()
 	displayed_target = live_progress
-	progress = live_progress if live else (minf(.36, lift_limit) if phase==1 else 1.0)
+	if not live or not is_instance_valid(movement):
+		progress = live_progress if live else (.36 if phase==1 else 1.0)
 	if is_instance_valid(movement):
 		movement.value = progress
 		_refresh_text()
@@ -38,7 +41,13 @@ func configure(capacity: float, load: float, active_phase: int, completed_reps: 
 	var row:=HBoxContainer.new();row.add_theme_constant_override("separation",14);add_child(row)
 	movement=ProgressBar.new();movement.min_value=0;movement.max_value=1;movement.value=progress;movement.show_percentage=false
 	movement.fill_mode=ProgressBar.FILL_BOTTOM_TO_TOP;movement.custom_minimum_size=Vector2(32,82);movement.size_flags_vertical=Control.SIZE_SHRINK_CENTER
-	movement.accessibility_name="Rep progress, from bottom failure to top completion";row.add_child(movement)
+	movement.accessibility_name="Lift progress";row.add_child(movement)
+	var track:=StyleBoxFlat.new()
+	track.bg_color=Color("26373d");track.set_corner_radius_all(5)
+	movement.add_theme_stylebox_override("background",track)
+	fill_style=StyleBoxFlat.new();fill_style.set_corner_radius_all(5)
+	movement.add_theme_stylebox_override("fill",fill_style)
+	_refresh_strain()
 	var copy:=VBoxContainer.new();copy.size_flags_horizontal=Control.SIZE_EXPAND_FILL;row.add_child(copy)
 	instruction=Label.new();instruction.add_theme_font_size_override("font_size",19);copy.add_child(instruction)
 	rep_label=Label.new();rep_label.add_theme_font_size_override("font_size",15);copy.add_child(rep_label)
@@ -49,7 +58,12 @@ func configure(capacity: float, load: float, active_phase: int, completed_reps: 
 func _refresh_text() -> void:
 	if not is_instance_valid(instruction):return
 	instruction.text="Click to lower" if phase==0 else ("Lowering the weight" if phase==2 else "Tap E to raise")
-	rep_label.text="%d reps  ·  Keep the bar above the bottom" % reps if phase==1 else "%d reps completed" % reps
+	rep_label.text="%d reps  ·  %s strain" % [reps,"High" if strength_ratio>=1.0 else "Moderate" if strength_ratio>=.70 else "Light"]
+
+func _refresh_strain() -> void:
+	if not is_instance_valid(fill_style):return
+	var strain:=clampf(strength_ratio,0.0,1.5)
+	fill_style.bg_color=Color("38c8ab").lerp(Color("e3c14c"),inverse_lerp(.25,.95,minf(strain,.95))) if strain<.95 else Color("e3c14c").lerp(Color("e86a4c"),inverse_lerp(.95,1.5,strain))
 
 func handle_input(event: InputEvent) -> bool:
 	if live:
@@ -60,13 +74,11 @@ func handle_input(event: InputEvent) -> bool:
 		if event.keycode==KEY_X and phase==0:
 			finish_requested.emit();return true
 		if event.keycode==KEY_E and phase==1:
-			progress=minf(lift_limit,progress+click_gain);movement.value=progress
+			progress=minf(1.0,progress+click_gain);movement.value=progress
 			motion_changed.emit(progress)
-			if lift_limit < 1.0 and progress >= lift_limit:
-				phase=0;set_process(false);failed.emit();return true
 			if progress>=1.0:
 				phase=0;reps+=1;rep_requested.emit();_refresh_text();set_process(false)
-			else:_refresh_text()
+			else:_refresh_text();set_process(true)
 			return true
 	return false
 
@@ -96,4 +108,5 @@ func _process(delta: float) -> void:
 	progress=maxf(0.0,progress-delta*drain_rate);movement.value=progress
 	motion_changed.emit(progress)
 	if progress<=0.0:
-		phase=0;set_process(false);failed.emit();return
+		# The bottom is a stable resting position for another attempt.
+		set_process(false)

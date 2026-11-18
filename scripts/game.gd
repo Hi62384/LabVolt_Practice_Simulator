@@ -292,6 +292,7 @@ func _ready() -> void:
 	gym_weights.name="GymWeights";add_child(gym_weights);gym_weights.build(self)
 	gym_barbells=preload("res://scripts/campus/facilities/gym_barbells.gd").new()
 	gym_barbells.name="GymBarbells";add_child(gym_barbells);gym_barbells.build(self)
+	campus_services.facilities.controller.host.cable_extra_mass=gym_barbells.cable_extra_mass
 	campus_services.facilities.controller.host.barbell_mass=func(station):return gym_barbells.mass(station)
 	campus_services.facilities.controller.host.held_barbell_mass=func(peer):return gym_barbells.held_mass(peer)
 	campus_services.facilities.controller.host.worn_belt_mass=func(peer):return gym_barbells.worn_belt_mass(peer)
@@ -301,6 +302,7 @@ func _ready() -> void:
 		if front.in_game and not front.leaving_game:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 			player.enabled = true
+	campus_services.facility_panel.cable_extra_mass=gym_barbells.cable_extra_mass
 	campus_services.facility_panel.cable_resistance=func(station):return campus_services.cable_resistance(str(station))
 	campus_services.facility_panel.placement_key_name=func():return OS.get_keycode_string(player.keys.place_item)
 	carry_load=preload("res://scripts/campus/facilities/carry_load_service.gd").new();carry_load.name="CarryLoad";add_child(carry_load);carry_load.game=self
@@ -952,7 +954,7 @@ func _physics_process(delta: float) -> void:
 		elif role=="gym_barbell_plate":hint="Click: remove %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_barbell_rack":hint="Click: pick up barbell · right-click held bar for exercises"
 		elif role=="gym_plate_rod":hint="%s - %s" % [key_name, current_target.get_meta("label", "Return plate")]
-		elif role=="gym_cable_pin":hint="Click - " + str(current_target.get_meta("label", "Select resistance"))
+		elif role=="gym_cable_pin":hint="%s - %s" % [key_name, current_target.get_meta("label", "Select resistance")]
 		elif role=="gym_plate_rack_item":hint="Click: pick up %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_pair":hint="Click: pick up %.1f lb dumbbell pair" % float(gym_weights.items[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_rack_slot":hint="Click: return held dumbbells here" if gym_weights.held_id(multiplayer.get_unique_id())>=0 else "Empty dumbbell rack slot"
@@ -1161,15 +1163,20 @@ func _draw_cable(root: Node3D,c: Dictionary,a: Vector3,b: Vector3) -> void:
 		interaction_presentation.bind_connector(connector,int(c.id)/10000,int(c.id)%10000,end_index)
 		interaction_presentation.bind_connector(plug,int(c.id)/10000,int(c.id)%10000,end_index)
 
+func workout_hides_carried_items() -> bool:
+	return is_instance_valid(campus_services) and is_instance_valid(campus_services.facility_panel) and campus_services.facility_panel.state.get("active",{}).get("type","") in ["exercise","trapped"]
+
 func _process(_delta: float) -> void:
+	var exercising:=workout_hides_carried_items()
 	if is_instance_valid(interaction_presentation) and is_instance_valid(player):
 		var peer := multiplayer.get_unique_id()
 		var holding: bool = (is_instance_valid(school) and school.held(peer)!=0
 			or is_instance_valid(hotbar) and not hotbar.selected_food().is_empty()
 			or is_instance_valid(kit_world) and kit_world.held()
 			or is_instance_valid(dc_lab) and (dc_lab.held_board(peer)>=0 or dc_lab.lead_color>=0))
-		interaction_presentation.set_local_item_held(player.enabled and holding)
+		interaction_presentation.set_local_item_held(player.enabled and holding and not exercising)
 	if is_instance_valid(carried_root) and is_instance_valid(camera):
+		carried_root.visible=not exercising
 		var trace: Node=get_meta("campus_hitch_trace",null) if has_meta("campus_hitch_trace") else null
 		var span: int=trace.begin_span("carried_lead_visuals") if is_instance_valid(trace) else -1
 		_render_carried()
@@ -1797,6 +1804,9 @@ func _apply_supply_accessories(peer: int, model: Node3D) -> void:
 	var gear: Dictionary=school.worn_gear.get(peer,{})
 	if model.get_meta("supply_gear",{})==gear:return
 	model.set_meta("supply_gear",gear.duplicate())
+	var backpack_worn := not str(gear.get("back","")).is_empty()
+	for cosmetic in model.find_children("Accessory_accessory_back_*","Node3D",true,false):
+		cosmetic.visible=not backpack_worn
 	for node_name in ["PhysicalGoggles","PhysicalBackpack"]:
 		var old := model.find_child(node_name,true,false)
 		if is_instance_valid(old):
@@ -1806,7 +1816,7 @@ func _apply_supply_accessories(peer: int, model: Node3D) -> void:
 	if gear.get("head",false):
 		var head := model.find_child("Head",true,false) as Node3D
 		if is_instance_valid(head):
-			var glasses := Node3D.new();glasses.name="PhysicalGoggles";head.add_child(glasses)
+			var glasses := Node3D.new();glasses.name="PhysicalGoggles";glasses.position.z=.045;head.add_child(glasses)
 			var frame := Toon.material("3a7182")
 			var lens := Toon.material("acddeb",.3)
 			for side in [-1.0,1.0]:

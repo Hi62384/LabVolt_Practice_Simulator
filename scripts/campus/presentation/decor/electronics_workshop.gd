@@ -115,12 +115,13 @@ func _board_vise(parent: Node3D, at: Vector3) -> void:
 
 func stock_counter(counter: Node3D) -> void:
 	_box(counter, Vector3(0,.08,0), Vector3(2.81,.14,.76), DARK)
-	_box(counter, Vector3(0,1.046,.455), Vector3(2.98,.029,.026), EDGE)
-	_box(counter, Vector3(.31,1.10,-.19), Vector3(2.06,.105,.48), FRAME)
-	_box(counter, Vector3(.31,1.34,-.34), Vector3(2.06,.47,.055), FRAME)
+	_box(counter, Vector3(0,1.032,.464), Vector3(2.98,.026,.021), EDGE)
+	_box(counter, Vector3(.31,1.087,-.19), Vector3(2.06,.074,.48), FRAME)
+	_box(counter, Vector3(.31,1.288,-.401), Vector3(2.06,.40,.045), FRAME)
 	for row in 2:
+		if row==1:_box(counter,Vector3(.31,1.304,-.215),Vector3(2.06,.032,.32),FRAME)
 		for column in 6:
-			var bin := Vector3(-.53+column*.336,1.13+row*.21,-.11-row*.12)
+			var bin := Vector3(-.53+column*.336,1.145+row*.196,-.215)
 			_parts_bin(counter, bin, ["b59d71","77a08f","ad7772","b99a55","7b94ad","9d87a8"][column])
 	for x in [-.92,-.46]:
 		_box(counter, Vector3(x,1.066,.23), Vector3(.36,.018,.25), "547a75")
@@ -217,18 +218,18 @@ func build_storage_rack(parent: Node3D, at: Vector3, yaw := -PI*.5) -> void:
 	rack.position = at
 	rack.rotation.y = yaw
 	parent.add_child(rack)
-	_box(rack, Vector3(0,1.09,-.3), Vector3(2.58,2.18,.13), FRAME, true)
+	_box(rack, Vector3(0,1.09,-.304), Vector3(2.34,2.18,.055), FRAME, true)
 	for x in [-1.23,1.23]:
 		_box(rack, Vector3(x,1.11,0), Vector3(.12,2.22,.66), FRAME, true)
 	for row in 4:
 		var y := .12+row*.56
-		_box(rack, Vector3(0,y,0), Vector3(2.56,.078,.66), PANEL, true)
+		_box(rack, Vector3(0,y,0), Vector3(2.34,.078,.55), PANEL, true)
 		for column in 3:
 			var x := -.79+column*.79
-			var body := Vector3(x,y+.219,-.025)
+			var body := Vector3(x,y+.202,-.009)
 			var color: String = "a9845a" if row >= 2 else ["668897","5c7589","708c89"][column]
-			_box(rack, body, Vector3(.66,.35,.48), color, true)
-			_box(rack, body+Vector3(0,.18,0), Vector3(.68,.048,.50), color)
+			_box(rack, body, Vector3(.64,.326,.47), color, true)
+			_box(rack, body+Vector3(0,.186,0), Vector3(.67,.046,.49), color)
 			_box(rack, body+Vector3(0,.035,.248), Vector3(.23,.081,.016), "c4ba9e")
 			_box(rack, body+Vector3(0,-.043,.249), Vector3(.19,.03,.021), DARK)
 
