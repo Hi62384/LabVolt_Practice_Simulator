@@ -26,13 +26,6 @@ func mount(campus: Node3D) -> bool:
 		visual.mesh=mesh;visual.material_override=mat
 		visual.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		stage.add_child(visual)
-	# The authored finish contains decorative timber strips; cover those strips
-	# with a single matte rubber surface while retaining the room's floor collider.
-	var rubber:=MeshInstance3D.new();rubber.name="RubberGymFloor"
-	var floor_mesh:=PlaneMesh.new();floor_mesh.size=Vector2(19.55,11.75);rubber.mesh=floor_mesh
-	var floor_material:=StandardMaterial3D.new();floor_material.albedo_color=Color("59686d");floor_material.roughness=.96
-	rubber.material_override=floor_material;rubber.position.y=.019;rubber.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	stage.add_child(rubber)
 	var furniture := StaticBody3D.new()
 	furniture.name = "PerimeterFurniture"
 	furniture.collision_mask = 0
@@ -43,7 +36,7 @@ func mount(campus: Node3D) -> bool:
 	for x in [-5.6,4.8]:
 		_add_hit(furniture,Vector3(x,.44,5.1),Vector3(2.2,.88,.56))
 	_add_hit(furniture,Vector3(7.3,.83,4.78),Vector3(2.07,1.66,.72))
-	for x in [1.0,2.2,3.4]:
+	for x in [.55,1.68,2.81]:
 		_add_hit(furniture,Vector3(x,.35,5.15),Vector3(.74,.7,.74))
 	# Use an existing green changing locker for gym progress. The hit target sits
 	# just in front of its door, where the player can see and interact with it.
@@ -56,8 +49,8 @@ func mount(campus: Node3D) -> bool:
 	# shallow base and raised side lips visibly support the balls instead of
 	# letting them appear to hover between horizontal bars.
 	var cradle_mat:=StandardMaterial3D.new();cradle_mat.albedo_color=Color("354650");cradle_mat.roughness=.78;cradle_mat.metallic=.28
-	for x in [1.0,2.2,3.4]:
-		_add_box(stage,Vector3(x,.075,5.15),Vector3(.76,.09,.62),cradle_mat)
+	for x in [.55,1.68,2.81]:
+		_add_box(stage,Vector3(x,.029,5.15),Vector3(.76,.022,.62),cradle_mat)
 		for side in [-1.0,1.0]:_add_box(stage,Vector3(x,.18,5.15+side*.25),Vector3(.76,.20,.07),cradle_mat)
 	campus.add_child(stage)
 	if campus.has_method("register_content"):campus.call("register_content","gym",stage)

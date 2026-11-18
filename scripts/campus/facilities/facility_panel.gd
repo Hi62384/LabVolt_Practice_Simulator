@@ -30,6 +30,7 @@ var rep_control: Control
 var regular_position := Vector2(60,60)
 var regular_minimum := Vector2(300,240)
 var showing_gym_progress := false
+var close: Button
 
 static func exercise_name(id: String) -> String:
 	return str({"pushup":"Push-up","pike_pushup":"Pike push-up","pullup":"Pull-up","benchpress":"Bench press","curl":"Biceps curl","dip":"Dip"}.get(id,id.replace("_"," ").capitalize()))
@@ -39,10 +40,15 @@ func _ready() -> void:
 	custom_minimum_size=Vector2(300,240)
 	size=Vector2(minf(600,get_viewport_rect().size.x-32),minf(620,get_viewport_rect().size.y-32))
 	add_theme_stylebox_override("panel",HudTheme.card_style())
+	var layout := VBoxContainer.new()
+	add_child(layout)
+	close = UI.action("Close", "close", hide)
+	layout.add_child(close)
 	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.follow_focus=true
-	add_child(scroll)
+	layout.add_child(scroll)
 	body.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	scroll.add_child(body)
 	body.add_theme_constant_override("separation",12)
@@ -130,7 +136,11 @@ func redraw() -> void:
 	if gym:
 		title=str({"pushup":"Exercise mat","pullup":"Pull-up & dip station","benchpress":"Bench press","squat":"Squat","curl":"Biceps curl","bench_dumbbell":"Bench · Dumbbells","bench_barbell":"Bench · Barbell"}.get(station_kind,title))
 	var subtitle := "DRINKS & BAKERY" if tim else "SUBS & DRINKS" if restaurant else "CAMPUS GYM  /  TRAINING STATION" if gym else ""
-	body.add_child(UI.header(title if not title.is_empty() else "Campus service", subtitle, hide))
+	close.visible = gym
+	if gym:
+		body.add_child(UI.text(title, "TitleLabel"))
+	else:
+		body.add_child(UI.header(title if not title.is_empty() else "Campus service", subtitle, hide))
 	status=Label.new();status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;body.add_child(status)
 	if state.is_empty():status.text="Connecting to campus host…";return
 	var pending_count: int=int(state.get("pending_workouts",0))
@@ -155,6 +165,10 @@ func redraw() -> void:
 		_show_exercise_hud(a)
 		return
 	position=regular_position;custom_minimum_size=regular_minimum
+	var target_size := Vector2(600, 620)
+	if gym and station_kind != "gym_progress" and not showing_gym_progress:
+		target_size = Vector2(460, 330)
+	size = target_size.min(get_viewport_rect().size - position - Vector2(12,12))
 	if gym:
 		if station_kind=="gym_progress":_gym_progress(accent)
 		elif showing_gym_progress and a.is_empty():_gym_progress(accent)
@@ -169,6 +183,7 @@ func redraw() -> void:
 		body.add_child(UI.text("Select your order in the hotbar. Right click to eat or drink, or press %s to place it on a flat surface." % key_name,"MutedLabel"))
 
 func _show_exercise_hud(active: Dictionary) -> void:
+	close.hide()
 	for child in body.get_children():body.remove_child(child);child.queue_free()
 	custom_minimum_size=Vector2(410,112);size=custom_minimum_size
 	var viewport:=get_viewport_rect().size
@@ -227,7 +242,9 @@ func _food_menu(venue: String, accent: Color, surface: Color) -> void:
 
 func _workout(active: Dictionary, accent: Color) -> void:
 	var metrics := VBoxContainer.new()
-	if not active.is_empty():
+	if active.is_empty():
+		body.add_child(metrics)
+	else:
 		var summary := PanelContainer.new()
 		summary.add_theme_stylebox_override("panel", Tokens.surface(Color("26373a"), accent, 12))
 		body.add_child(summary)
@@ -282,105 +299,170 @@ func _workout(active: Dictionary, accent: Color) -> void:
 			body.add_child(UI.text("Stay close and ready to assist the lifter.","MutedLabel"))
 			button("Stop spotting",{"op":"unspot"})
 			return
-		metrics.add_child(UI.text("Choose an exercise", "TitleLabel"))
 		if station_kind in ["benchpress","squat"]:
 			button("Spot the next lift",{"op":"spot","station":station_id})
-		if station_kind=="cable":
-			_cable_choices()
-			return
-		var labels := {"pushup":"Push-up","crunch":"Crunch","leg_raise":"Leg raise","pike_pushup":"Pike push-up","pullup":"Pull-up","hanging_leg_raise":"Hanging leg raise","dip":"Dip","benchpress":"Bench press","squat":"Squat","curl":"Biceps curl","deadlift":"Deadlift","romanian_deadlift":"Romanian deadlift","front_raise":"Front raise","upright_row":"Upright row","wrist_curl":"Wrist curl","overhead_extension":"Overhead extension","bent_over_row":"Bent-over row","shrug":"Shrug","lateral_raise":"Lateral raise","reverse_fly":"Reverse fly","calf_raise":"Calf raise"}
-		var exercises: Array=Rules.BENCH_DUMBBELL_EXERCISES if station_kind=="bench_dumbbell" else Rules.BENCH_BARBELL_EXERCISES if station_kind=="bench_barbell" else Rules.STATION_EXERCISES[station_kind]
-		var categories := ["CHEST", "BACK", "SHOULDERS", "ARMS", "LEGS", "CORE", "OTHER"]
-		for category in categories:
-			var category_exercises: Array=[]
-			for exercise in exercises:
-				if _exercise_category(str(exercise))==category:category_exercises.append(exercise)
-			if category_exercises.is_empty():continue
-			body.add_child(UI.text(category,"MutedLabel"))
-			for exercise in category_exercises:
-				body.add_child(UI.text(str(labels.get(exercise,exercise.capitalize())),"SubtitleLabel"))
-				var loads := HFlowContainer.new()
-				body.add_child(loads)
-				if station_kind in ["barbell","bench_barbell"]:
-					var mass: float=float(barbell_mass.call("held")) if barbell_mass.is_valid() else 0.0
-					var request:={"op":"start","station":station_id,"exercise":exercise}
-					if station_kind=="bench_barbell":request.equipment="barbell"
-					var load_button := button("Carried bar · %.1f kg" % mass if mass>0 else "Pick up a barbell first",request,loads)
-					load_button.disabled=mass<=0 or pending
-				elif station_kind in ["curl","bench_dumbbell"]:
-					var mass: float=float(dumbbell_mass.call()) if dumbbell_mass.is_valid() else 0.0
-					var request := {"op":"start","station":station_id,"exercise":exercise}
-					if station_kind=="bench_dumbbell":request.equipment="dumbbell"
-					var load_button := button("Equipped pair · %.1f kg total" % mass if mass>0 else "Equip dumbbells first",request,loads)
-					load_button.disabled=mass<=0 or pending
-				elif station_kind in ["benchpress","squat"]:
-					var mass: float=float(barbell_mass.call(station_id)) if barbell_mass.is_valid() else 0.0
-					var load_button := button("Loaded bar · %.1f kg" % mass if mass>0 else "Barbell unavailable",{"op":"start","station":station_id,"exercise":exercise},loads)
-					load_button.disabled=mass<=0 or pending
-				else:
-					for kg in Rules.WEIGHTS[exercise]:
-						var load_button := button("Bodyweight" if kg==0 else "%d kg" % kg,{"op":"start","station":station_id,"exercise":exercise,"weight":kg},loads)
-						load_button.custom_minimum_size.x=130
-		if station_kind=="curl":
-			body.add_child(UI.text("Chest fly","SubtitleLabel"))
-			var supported:=button("Use a supported bench",{"op":"start","station":station_id,"exercise":"chest_fly"})
-			supported.disabled=true
+		_exercise_choices()
 	else:
 		button("Stand / stop",{"op":"stop"})
 
 func _exercise_category(exercise: String) -> String:
 	if exercise in ["pushup","benchpress","incline_press","chest_fly","cable_fly","cable_press"] or exercise.begins_with("dip"):return "CHEST"
 	if exercise in ["pullup","lat_pulldown","cable_row","bent_over_row","deadlift","romanian_deadlift","shrug","reverse_fly","cable_reverse_fly"]:return "BACK"
-	if "raise" in exercise or "overhead" in exercise or "shoulder" in exercise or exercise in ["upright_row","lateral_raise"]:return "SHOULDERS"
 	if exercise in ["curl","wrist_curl","tricep_pushdown","overhead_extension"]:return "ARMS"
-	if exercise in ["squat","calf_raise"]:return "LEGS"
 	if "crunch" in exercise or "leg_raise" in exercise or exercise=="plank":return "CORE"
+	if "raise" in exercise or "overhead" in exercise or "shoulder" in exercise or exercise in ["upright_row","lateral_raise"]:return "SHOULDERS"
+	if exercise in ["squat","calf_raise"]:return "LEGS"
 	return "OTHER"
 
 func _gym_progress(accent: Color) -> void:
-	var gym: Dictionary=state.profile.get("gym",{"muscles":{}})
-	var sizes: Dictionary=Rules.GymProgress.muscle_sizes(gym)
-	body.add_child(UI.text("MUSCLE PROGRESS", "TitleLabel"))
-	body.add_child(UI.text("Overall strength  %.1f%%  ·  Training adapts during recovery" % (100.0*Rules.GymProgress.overall_strength(gym)),"MutedLabel"))
-	for name in Rules.GymProgress.MUSCLE_GROUPS:
-		var muscle: Dictionary=gym.get("muscles",{}).get(name,{})
-		var row:=PanelContainer.new()
-		row.add_theme_stylebox_override("panel",Tokens.surface(Color("26373a"),accent,8))
-		body.add_child(row)
-		var detail:=VBoxContainer.new();row.add_child(detail)
-		detail.add_child(UI.text("%s  ·  %.1f%% size" % [str(name).replace("_"," ").capitalize(),100.0*float(sizes[name])],"SubtitleLabel"))
-		detail.add_child(UI.text("Fatigue %.0f%%  ·  Pending stimulus %.0f%%" % [100.0*float(muscle.get("fatigue",0.0)),100.0*float(muscle.get("stimulus",0.0))],"MutedLabel"))
-	var history: Array=gym.get("history",[])
-	if not history.is_empty():
-		var last: Dictionary=history.back()
-		body.add_child(UI.text("LAST SET", "SubtitleLabel"))
-		body.add_child(UI.text("%s  ·  %d reps  ·  %.1f kg  ·  %s" % [str(last.exercise).replace("_"," ").capitalize(),int(last.reps),float(last.weight_kg),str(last.outcome).replace("_"," ").capitalize()],"MutedLabel"))
-		var names:=PackedStringArray()
-		for name in last.muscles:names.append(str(name).replace("_"," ").capitalize())
-		body.add_child(UI.text("Muscles: "+", ".join(names),"MutedLabel"))
-		body.add_child(UI.text("Relative load %.0f%%  ·  %.0f seconds" % [100.0*float(last.relative_effort),float(last.duration_seconds)],"MutedLabel"))
-		if last.has("fatigue_added") and last.has("stimulus_added"):
-			body.add_child(UI.text("Fatigue added %.1f%%  ·  Training stimulus added %.1f%%" % [100.0*float(last.fatigue_added),100.0*float(last.stimulus_added)],"MutedLabel"))
-	body.add_child(UI.action("Back to exercises", "back", func():showing_gym_progress=false;redraw()))
+	var gym: Dictionary = state.profile.get("gym", {"muscles":{}})
+	var sizes: Dictionary = Rules.GymProgress.muscle_sizes(gym)
+	var history: Array = gym.get("history", [])
+	var total_growth := 0.0
+	var total_fatigue := 0.0
+	for muscle in Rules.GymProgress.MUSCLE_GROUPS:
+		total_growth += float(sizes[muscle])
+		total_fatigue += float(gym.get("muscles", {}).get(muscle, {}).get("fatigue", 0.0))
+	var count: int = Rules.GymProgress.MUSCLE_GROUPS.size()
+	var overview := HBoxContainer.new()
+	body.add_child(overview)
+	_progress_meter(overview, "Overall strength", Rules.GymProgress.overall_strength(gym), accent)
+	_progress_meter(overview, "Mean growth", total_growth / count, accent)
+	_progress_meter(overview, "Mean fatigue", total_fatigue / count, Color("dc8a76"))
+	var completed := history.filter(func(entry):return entry.outcome == "voluntary" or entry.outcome == "failure").size()
+	body.add_child(UI.text("%d completed sets in recent history" % completed, "MutedLabel"))
 
-func _cable_choices() -> void:
-	body.add_child(UI.text("Exercise", "SubtitleLabel"))
-	var select:=OptionButton.new();select.size_flags_horizontal=Control.SIZE_EXPAND_FILL;body.add_child(select)
-	var labels:={"cable_fly":"Cable fly","cable_reverse_fly":"Reverse fly","cable_press":"Chest press","lat_pulldown":"Lat pulldown","cable_row":"Cable row","lateral_raise":"Lateral raise","front_raise":"Front raise","overhead_press":"Shoulder press","curl":"Biceps curl","tricep_pushdown":"Triceps pushdown","overhead_extension":"Overhead extension","cable_crunch":"Cable crunch"}
-	var grouped: Dictionary={"CHEST": ["cable_fly","cable_press"],"BACK": ["lat_pulldown","cable_row"],"SHOULDERS": ["cable_reverse_fly","lateral_raise","front_raise","overhead_press"],"ARMS": ["curl","tricep_pushdown","overhead_extension"],"CORE": ["cable_crunch"]}
-	var first_exercise: String=Rules.CABLE_EXERCISES[0]
-	for category in grouped:
-		var available: Array=[]
-		for exercise in grouped[category]:
-			if exercise in Rules.CABLE_EXERCISES:available.append(exercise)
-		if available.is_empty():continue
-		select.add_separator(category)
-		for exercise in available:
-			var index:=select.item_count;select.add_item(str(labels.get(exercise,exercise.capitalize())));select.set_item_metadata(index,exercise)
-			if first_exercise.is_empty():first_exercise=exercise
-	var request:={"op":"start","station":station_id,"exercise":first_exercise,"weight":int(cable_resistance.call(station_id)) if cable_resistance.is_valid() else 5}
-	select.item_selected.connect(func(index: int):request.exercise=str(select.get_item_metadata(index)))
-	button("Start set",request)
+	var tabs := TabContainer.new()
+	tabs.custom_minimum_size.y = clampf(get_viewport_rect().size.y - 330, 160, 365)
+	body.add_child(tabs)
+	var muscles := _progress_tab(tabs, "Muscles")
+	for muscle in Rules.GymProgress.MUSCLE_GROUPS:
+		var values: Dictionary = gym.get("muscles", {}).get(muscle, {})
+		muscles.add_child(UI.text("%s  ·  %.1f%% size" % [muscle.replace("_", " ").capitalize(), 100.0 * float(sizes[muscle])], "SubtitleLabel"))
+		var meters := HBoxContainer.new()
+		muscles.add_child(meters)
+		_progress_meter(meters, "Growth", float(sizes[muscle]), accent)
+		_progress_meter(meters, "Strength", float(values.get("strength", 0.0)), accent)
+		_progress_meter(meters, "Fatigue", float(values.get("fatigue", 0.0)), Color("dc8a76"))
+		_progress_meter(meters, "Stimulus", float(values.get("stimulus", 0.0)), Color("80b9ae"), "Pending training stimulus")
+
+	var sets := _progress_tab(tabs, "Training history")
+	sets.add_child(UI.text("No recorded sets yet" if history.is_empty() else "%d recent sets" % history.size(), "SubtitleLabel"))
+	for i in range(history.size()-1, -1, -1):
+		var entry: Dictionary = history[i]
+		sets.add_child(UI.text("%s  ·  %d reps  ·  %.1f kg" % [exercise_name(entry.exercise), int(entry.reps), float(entry.weight_kg)], "SubtitleLabel"))
+		var details := "%s  ·  Relative load %.0f%%" % [str(entry.outcome).replace("_"," ").capitalize(), 100.0 * float(entry.relative_effort)]
+		if entry.has("stimulus_added"):
+			details += "  ·  Stimulus +%.1f%%" % (100.0 * float(entry.stimulus_added))
+		var label := UI.text(details, "MutedLabel")
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		sets.add_child(label)
+	if station_kind != "gym_progress":
+		body.add_child(UI.action("Back to exercises", "back", func():showing_gym_progress=false;redraw()))
+
+func _progress_tab(tabs: TabContainer, title: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = title
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs.add_child(scroll)
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+	return content
+
+func _progress_meter(parent: Container, title: String, amount: float, color: Color, tooltip := "") -> void:
+	var column := VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(column)
+	var caption := UI.text("%s %.0f%%" % [title, amount * 100.0], "MutedLabel")
+	caption.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	caption.tooltip_text = tooltip
+	column.add_child(caption)
+	var meter := ProgressBar.new()
+	meter.show_percentage = false
+	meter.value = amount * 100.0
+	meter.custom_minimum_size.y = 6
+	meter.add_theme_stylebox_override("fill", Tokens.surface(color, color, 3))
+	column.add_child(meter)
+
+func _exercise_icon(category: String) -> Texture2D:
+	match category:
+		"CHEST": return preload("res://assets/ui/design_system/icons/gym-press.svg")
+		"BACK": return preload("res://assets/ui/design_system/icons/gym-pull.svg")
+		"SHOULDERS": return preload("res://assets/ui/design_system/icons/gym-raise.svg")
+		"ARMS": return preload("res://assets/ui/design_system/icons/gym-curl.svg")
+		_: return UI.icon("play")
+
+func _exercise_choices() -> void:
+	var exercises: Array = Rules.STATION_EXERCISES.get(station_kind, [])
+	if station_kind == "bench_dumbbell":
+		exercises = Rules.BENCH_DUMBBELL_EXERCISES
+	elif station_kind == "bench_barbell":
+		exercises = Rules.BENCH_BARBELL_EXERCISES
+	var select := OptionButton.new()
+	select.accessibility_name = "Exercise"
+	select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(select)
+	var summary := UI.text("", "MutedLabel")
+	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(summary)
+	var load_choice := OptionButton.new()
+	body.add_child(load_choice)
+	load_choice.name = "ExerciseLoad"
+	var request := {"op":"start", "station":station_id}
+	var start := button("Start set", request)
+	var first := -1
+	for category in ["CHEST", "BACK", "SHOULDERS", "ARMS", "LEGS", "CORE", "OTHER"]:
+		var heading_added := false
+		for exercise in exercises:
+			if _exercise_category(exercise) != category:
+				continue
+			if not heading_added:
+				select.add_separator(category)
+				heading_added = true
+			var index := select.item_count
+			select.add_icon_item(_exercise_icon(category), exercise_name(exercise))
+			select.set_item_metadata(index, exercise)
+			if first < 0:
+				first = index
+	if station_kind == "curl":
+		select.add_item("Chest fly · Requires a supported bench")
+		select.set_item_disabled(select.item_count - 1, true)
+	var update := func(index: int):
+		var exercise := str(select.get_item_metadata(index))
+		request.exercise = exercise
+		request.erase("weight")
+		load_choice.clear()
+		load_choice.hide()
+		start.disabled = pending
+		if station_kind == "cable":
+			request.weight = int(cable_resistance.call(station_id)) if cable_resistance.is_valid() else 5
+			summary.text = "%s · %d kg on the stack" % [exercise_name(exercise), request.weight]
+		elif station_kind in ["barbell", "bench_barbell", "benchpress", "squat", "curl", "bench_dumbbell"]:
+			var dumbbells := station_kind in ["curl", "bench_dumbbell"]
+			var mass := 0.0
+			if dumbbells and dumbbell_mass.is_valid():
+				mass = float(dumbbell_mass.call())
+			elif not dumbbells and barbell_mass.is_valid():
+				mass = float(barbell_mass.call(station_id if station_kind in ["benchpress", "squat"] else "held"))
+			if station_kind in ["bench_barbell", "bench_dumbbell"]:
+				request.equipment = "dumbbell" if dumbbells else "barbell"
+			summary.text = "%s · %.1f kg %s" % [exercise_name(exercise), mass, "dumbbell pair" if dumbbells else "barbell"] if mass > 0 else ("Equip a pair of dumbbells" if dumbbells else "A barbell is required")
+			start.disabled = pending or mass <= 0
+		else:
+			summary.text = exercise_name(exercise)
+			for kg in Rules.WEIGHTS[exercise]:
+				load_choice.add_item("Bodyweight" if kg == 0 else "%d kg" % kg, kg)
+			load_choice.select(0)
+			request.weight = load_choice.get_item_id(0)
+			load_choice.show()
+	load_choice.item_selected.connect(func(index: int): request.weight = load_choice.get_item_id(index))
+	select.item_selected.connect(update)
+	if first >= 0:
+		select.select(first)
+		update.call(first)
+	else:
+		start.disabled = true
 
 func _process(_delta: float) -> void:
 	if visible and is_instance_valid(workout_step) and not pending:

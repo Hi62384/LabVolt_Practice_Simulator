@@ -387,22 +387,34 @@ func _build_sign(room: String) -> void:
 	if info.is_empty():return
 	var center: Vector3=game.campus.registry.vector(info.center)
 	var floor_y: float=game.campus.registry.vector(info.get("bounds_min",[center.x,0.0,center.z])).y
-	var desk := Vector3(center.x+(-4.45 if room=="elm253_lecture" else 4.45),floor_y,center.z-3.85)
+	var room_size: Vector3 = game.campus.registry.vector(info.size)
+	var desk := Vector3(center.x+(-4.45 if room=="elm253_lecture" else 4.45),floor_y,center.z - room_size.z * .5 + 2.15)
 	# Lab class tables sit near the entry aisle so they are visible and reachable
 	# without colliding with the instructor, lab benches, or equipment.
-	if room=="ac_lab":desk=Vector3(6.2,floor_y,3.0)
-	elif room=="dc_lab":desk=Vector3(6.2,floor_y,19.0)
-	var class_table:=StaticBody3D.new()
-	class_table.position=desk
-	class_table.collision_layer=4;class_table.collision_mask=0
-	class_table.set_meta("role","lecture_desk");class_table.set_meta("room",room)
-	class_table.set_meta("label","Choose a lab class" if room in ["ac_lab","dc_lab"] else "Start a lecture class")
-	add_child(class_table)
-	var table_hit:=CollisionShape3D.new();var table_shape:=BoxShape3D.new();table_shape.size=Vector3(1.5,.18,.85);table_hit.shape=table_shape;table_hit.position.y=.78;class_table.add_child(table_hit)
-	game._box(class_table,Vector3(0,.78,0),Vector3(1.5,.12,.85),Color("a98265"))
-	for x in [-.65,.65]:
-		for z in [-.32,.32]:game._box(class_table,Vector3(x,.38,z),Vector3(.07,.76,.07),Color("53666e"))
-	for x in [-.61,.61]:game._box(class_table,Vector3(x,.70,0),Vector3(.055,.08,.60),Color("53666e"))
+	if room in ["ac_lab", "dc_lab"]:
+		var end := room_size.z * .5 - 1.65
+		desk = Vector3(center.x + room_size.x * .5 - 1.35, floor_y, center.z + (end if room == "ac_lab" else -end))
+	if room in ["ac_lab", "dc_lab"]:
+		var class_table:=StaticBody3D.new()
+		class_table.position=desk
+		class_table.collision_layer=5;class_table.collision_mask=0
+		class_table.set_meta("role","lecture_desk");class_table.set_meta("room",room)
+		class_table.set_meta("label","Choose a lab class" if room in ["ac_lab","dc_lab"] else "Start a lecture class")
+		add_child(class_table)
+		var table_hit:=CollisionShape3D.new();var table_shape:=BoxShape3D.new();table_shape.size=Vector3(1.5,.12,.85);table_hit.shape=table_shape;table_hit.position.y=.78;class_table.add_child(table_hit)
+		game._box(class_table,Vector3(0,.78,0),Vector3(1.5,.12,.85),Color("a98265"))
+		for x in [-.65,.65]:
+			for z in [-.32,.32]:
+				var leg_position := Vector3(x,.38,z)
+				var leg_size := Vector3(.07,.76,.07)
+				game._box(class_table,leg_position,leg_size,Color("53666e"))
+				var leg := CollisionShape3D.new()
+				var shape := BoxShape3D.new()
+				shape.size = leg_size
+				leg.shape = shape
+				leg.position = leg_position
+				class_table.add_child(leg)
+		for x in [-.61,.61]:game._box(class_table,Vector3(x,.70,0),Vector3(.055,.08,.60),Color("53666e"))
 	var body := StaticBody3D.new()
 	body.position=desk+Vector3(.48,.87,.05)
 	body.collision_layer=4

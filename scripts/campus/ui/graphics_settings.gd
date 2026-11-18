@@ -4,7 +4,7 @@ const HudTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Layout = preload("res://scripts/ui/hud_settings/layout.gd")
 signal changed(options: Dictionary)
 const SAVE := "user://campus_graphics.cfg"
-const DEFAULTS := {"render_scale":1.0,"resolution":0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"interaction_hands":true}
+const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"interaction_hands":true}
 var options := DEFAULTS.duplicate()
 var viewport: Viewport
 var world: Node
@@ -30,8 +30,7 @@ func _validate(key: String, value: Variant) -> bool:
 	if not DEFAULTS.has(key): return false
 	match key:
 		"render_scale": options[key]=clampf(float(value),0.5,1.0)
-		"view_distance": options[key]=clampf(float(value),100.0,240.0)
-		"resolution": options[key]=clampi(int(value),0,3)
+		"view_distance": options[key]=clampf(float(value),30.0,240.0)
 		"texture": options[key]=clampi(int(value),0,2)
 		"aa": options[key]=clampi(int(value),0,3)
 		"npc_density":
@@ -46,7 +45,7 @@ func set_option(key: String, value: Variant) -> bool:
 func preset(level: String) -> void:
 	var low := level=="Low"
 	options=DEFAULTS.duplicate()
-	options.merge({"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low},true)
+	options.merge({"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low,"bloom":not low,"lights":not low},true)
 	if level=="Medium": options=DEFAULTS.duplicate()
 	if level=="Ultra":
 		options.merge({"detail_shadows":true, "aa":3, "view_distance":240.0}, true)
@@ -66,14 +65,27 @@ func apply() -> void:
 		if node_refs[id].get_ref()==null:
 			node_refs.erase(id); originals.erase(id); texture_materials.erase(id)
 	if is_instance_valid(world):
+		if not get_tree().node_added.is_connected(_node_added):
+			get_tree().node_added.connect(_node_added)
 		var hands=world.get("interaction_presentation")
 		if is_instance_valid(hands):hands.set_enabled(bool(options.interaction_hands))
 		register_node(world)
+func _node_added(node: Node) -> void:
+	if not is_instance_valid(world) or not world.is_ancestor_of(node):
+		return
+	if node is GeometryInstance3D or node is Light3D or node is Camera3D or node is WorldEnvironment or node is ReflectionProbe or node is GPUParticles3D or node is CPUParticles3D:
+		call_deferred("_register_added", weakref(node))
+
+func _register_added(reference: WeakRef) -> void:
+	var node: Node = reference.get_ref()
+	if is_instance_valid(node) and node.is_inside_tree():
+		register_node(node, false)
+
 func _material_copy(source: BaseMaterial3D) -> BaseMaterial3D:
 	var id := source.get_instance_id()
 	if not shared_material_copies.has(id): shared_material_copies[id]=source.duplicate()
 	return shared_material_copies[id]
-func register_node(node: Node) -> void:
+func register_node(node: Node, recursive := true) -> void:
 	var id := node.get_instance_id()
 	node_refs[id]=weakref(node)
 	if not originals.has(id):
@@ -81,7 +93,7 @@ func register_node(node: Node) -> void:
 		if node is Light3D: original={"shadow":node.shadow_enabled,"visible":node.visible}
 		elif node is ReflectionProbe or node is GPUParticles3D or node is CPUParticles3D: original={"visible":node.visible}
 		elif node is Camera3D: original={"far":node.far}
-		elif node is WorldEnvironment and node.environment!=null: original={"ssr":node.environment.ssr_enabled,"glow":node.environment.glow_enabled,"ssao":node.environment.ssao_enabled,"ssil":node.environment.ssil_enabled}
+		elif node is WorldEnvironment and node.environment!=null: original={"reflected":node.environment.reflected_light_source,"ssr":node.environment.ssr_enabled,"glow":node.environment.glow_enabled,"ssao":node.environment.ssao_enabled,"ssil":node.environment.ssil_enabled}
 		elif node is GeometryInstance3D: original={"end":node.visibility_range_end,"cast":node.cast_shadow,"fine":_fine_detail(node)}
 		originals[id]=original
 	var saved: Dictionary=originals[id]
@@ -95,7 +107,8 @@ func register_node(node: Node) -> void:
 	elif node is Camera3D: node.far=minf(float(saved.far),float(options.view_distance))
 	elif node is WorldEnvironment and node.environment!=null:
 		node.environment.ssr_enabled=bool(saved.ssr) and options.reflections
-		node.environment.glow_enabled=bool(saved.glow) and options.effects and options.bloom
+		node.environment.reflected_light_source = int(saved.reflected) if options.reflections else Environment.REFLECTION_SOURCE_DISABLED
+		node.environment.glow_enabled=bool(saved.glow) and options.bloom
 		node.environment.ssao_enabled=bool(saved.ssao) and options.effects
 		node.environment.ssil_enabled=bool(saved.ssil) and options.effects
 	elif node is GeometryInstance3D:
@@ -115,26 +128,26 @@ func register_node(node: Node) -> void:
 							node.set_surface_override_material(surface,copy); copies.append(copy)
 				texture_materials[id]=copies
 			for material in texture_materials[id]: material.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if options.texture==0 else BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	for child in node.get_children(): register_node(child)
+	if recursive:
+		for child in node.get_children(): register_node(child)
 func build_controls(parent: VBoxContainer) -> void:
 	var body := Layout.section(parent, "Graphics", "Applies immediately • choose a preset or tune each setting", "palette")
 	var presets := Layout.flow(body)
 	for level in ["Low","Medium","High"]:
 		var b := UI.action(level, "palette", func():preset(level)); presets.add_child(b)
-	var quality := Layout.section(body, "Image quality", "Resolution, filtering and anti-aliasing", "settings")
+	var quality := Layout.section(body, "Image quality", "Render scale, filtering and anti-aliasing", "settings")
 	var environment := Layout.section(body, "World detail", "Lighting, effects and local presentation", "home")
 	for key in DEFAULTS:
-		var row := VBoxContainer.new(); (quality if key in ["render_scale","resolution","texture","aa"] else environment).add_child(row)
-		var label := Label.new(); label.text={"bloom":"Bloom","detail_shadows":"Fine-detail shadows","texture":"Texture filtering","aa":"Anti-aliasing","npc_density":"NPC density","resolution":"Window resolution"}.get(key,key.replace("_"," ").capitalize()); label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; row.add_child(label)
+		var row := VBoxContainer.new(); (quality if key in ["render_scale","texture","aa"] else environment).add_child(row)
+		var label := Label.new(); label.text={"bloom":"Bloom","detail_shadows":"Fine-detail shadows","texture":"Texture filtering","aa":"Anti-aliasing","npc_density":"NPC density"}.get(key,key.replace("_"," ").capitalize()); label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART; row.add_child(label)
 		var select := OptionButton.new(); select.size_flags_horizontal=Control.SIZE_EXPAND_FILL; select.custom_minimum_size.y=44; select.tooltip_text=label.text; row.add_child(select)
 		var values: Array=[]; var names: Array=[]
 		match key:
 			"render_scale": values=[0.5,0.65,0.75,1.0]; names=["50%","65%","75%","100%"]
-			"resolution": values=[0,1,2,3]; names=["Current window","1280 × 720","1600 × 900","1920 × 1080"]
 			"texture": values=[0,1,2]; names=["Nearest mipmaps","Filtered · 4×","Filtered · 16×"]
 			"aa": values=[0,1,2,3]; names=["Off","MSAA 2×","MSAA 4×","MSAA 8×"]
 			"npc_density": values=["Off","Low","Medium","High"]; names=values
-			"view_distance": values=[100.0,120.0,180.0,240.0]; names=["100 m","120 m","180 m","240 m"]
+			"view_distance": values=[30.0,60.0,100.0,120.0,180.0,240.0]; names=["30 m","60 m","100 m","120 m","180 m","240 m"]
 			_: values=[false,true]; names=["Off","On"]
 		if key=="npc_density":
 			density_controls.append(select); select.disabled=not (is_instance_valid(crowd) and crowd.has_method("set_density")); select.tooltip_text="Requires the campus local crowd module. Saved density applies when it is connected."

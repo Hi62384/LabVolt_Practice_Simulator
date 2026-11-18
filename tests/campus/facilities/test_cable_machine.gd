@@ -26,6 +26,8 @@ func run() -> void:
 			now+=100
 			var blocked=host.act(2,{"op":"start","station":"gym/cable_0","exercise":exercise,"weight":5,"sequence":1})
 			check(not blocked.ok,"occupied station accepted another player")
+			result=host.act(1,{"op":"lower","sequence":int(profiles["1"].last_sequence)+1})
+			check(result.ok,"could not lower the cable handle")
 			now+=int(host.active[1].half_ms)
 			result=host.act(1,{"op":"beat","sequence":int(profiles["1"].last_sequence)+1})
 			check(result.ok,"cable movement failed")
@@ -39,6 +41,9 @@ func run() -> void:
 	machine.on_room_event(1,{"activity":"exercise","station":"gym/cable_0","exercise":"lat_pulldown","phase":1,"weight":25})
 	for i in 50:machine._process(.02)
 	check(machine.selected==5 and machine.phase>.9,"stack failed to select and rise")
+	check(machine.weight_display.text.ends_with("25 kg"), "machine display disagrees with selected resistance")
+	check(is_equal_approx(machine.selection_pin.position.y, machine.weights[-5].position.y), "pin is detached from the bottom plate of the selected stack")
+	check(machine.pin_targets[-5].get_meta("weight") == 25, "pin target disagrees with the selected stack plate")
 	var top: Vector3=machine.cable.position-machine.cable.basis.y*.5
 	var end: Vector3=machine.cable.position+machine.cable.basis.y*.5
 	check(top.distance_to(Vector3(0,2.3,.13))<.001 and end.distance_to(machine.handle.position)<.001,"cable endpoints detached")
@@ -104,13 +109,18 @@ func run() -> void:
 	var panel=preload("res://scripts/campus/facilities/facility_panel.gd").new();root.add_child(panel)
 	panel.station_kind="cable";panel.station_id="gym/cable_0"
 	panel.state={"level":1,"profile":profiles["1"],"active":{}}
+	panel.cable_resistance = func(_station: String): return panel.get_meta("pin_kg")
+	panel.set_meta("pin_kg", 35)
 	panel.redraw()
-	check(panel.find_children("*","OptionButton",true,false).size()==1,"exercise selector missing")
-	check(panel.find_children("*","SpinBox",true,false).size()==1,"resistance selector missing")
 	var fake:=FakeController.new();root.add_child(fake);panel.controller=fake
 	var selector: OptionButton=panel.find_children("*","OptionButton",true,false)[0]
-	selector.select(3);selector.item_selected.emit(3)
-	var load: SpinBox=panel.find_children("*","SpinBox",true,false)[0];load.value=35
+	check(selector.get_selected_metadata() != null, "exercise selector did not select an exercise")
+	check(not panel.find_child("ExerciseLoad", true, false).visible, "cable selector offered a second resistance control")
+	for i in selector.item_count:
+		if selector.get_item_metadata(i) == "lat_pulldown":
+			selector.select(i)
+			selector.item_selected.emit(i)
+			break
 	for node in panel.find_children("*","Button",true,false):
 		if node.text=="Start set":node.pressed.emit();break
 	check(fake.last.get("exercise","")=="lat_pulldown" and fake.last.get("weight",0)==35,"selection was not sent to host")

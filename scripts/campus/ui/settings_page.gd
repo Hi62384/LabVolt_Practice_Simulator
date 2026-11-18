@@ -28,9 +28,11 @@ var save_timer: Timer
 var pending_mode := 0
 var pending_resolution := Vector2i.ZERO
 var previewing := false
+var display_edited := false
 var previous_mode: Window.Mode
 var previous_size: Vector2i
 var previous_position: Vector2i
+var previous_screen: int
 var confirmation: ConfirmationDialog
 var countdown := 0
 var preset := "Custom"
@@ -39,7 +41,7 @@ func build(owner: Node) -> void:
 	game = owner
 	prefs = game.client_preferences
 	graphics = game.ui.graphics_controller
-	pending_mode = prefs.values.display_mode
+	pending_mode = _active_window_mode()
 	pending_resolution = Vector2i(prefs.values.width, prefs.values.height)
 	theme = SkinFactory.create()
 	set_anchors_and_offsets_preset(PRESET_FULL_RECT)
@@ -256,7 +258,8 @@ func _openai_spin(title: String,low: int,high: int,value: int) -> SpinBox:
 	return spin
 
 func _display_controls() -> void:
-	_choice("Display mode", ["Windowed","Borderless Fullscreen","Fullscreen"], pending_mode, func(index):
+	_choice("Display mode", ["Windowed","Borderless Fullscreen","Exclusive Fullscreen","Maximized"], pending_mode, func(index):
+		display_edited = true
 		pending_mode = index
 		choices.resolution.disabled = index != 0
 		_update_display_action())
@@ -264,6 +267,7 @@ func _display_controls() -> void:
 	for resolution in RESOLUTIONS.slice(1):
 		titles.append("%d × %d" % [resolution.x, resolution.y])
 	choices.resolution = _choice("Window resolution", titles, maxi(0, RESOLUTIONS.find(pending_resolution)), func(index):
+		display_edited = true
 		pending_resolution = RESOLUTIONS[index]
 		_update_display_action())
 	choices.resolution.disabled = pending_mode != 0
@@ -283,11 +287,12 @@ func _display_controls() -> void:
 		if preset != "Custom":
 			graphics.preset(preset)
 			_select(active))
+	_quality_choice("Render scale", "render_scale", [.5,.65,.75,.85,1.0], ["50%","65%","75%","85%","100%"])
 	_quality_choice("Anti-aliasing", "aa", [0,1,2,3], ["Off","MSAA 2×","MSAA 4×","MSAA 8×"])
 	_quality_choice("Texture filtering", "texture", [0,1,2], ["Nearest mipmaps","Filtered 4×","Filtered 16×"])
-	_quality_choice("View distance", "view_distance", [30.0,60.0,120.0,180.0,240.0], ["30 m","60 m","120 m","180 m","240 m"])
+	_quality_choice("View distance", "view_distance", [30.0,60.0,100.0,120.0,180.0,240.0], ["30 m","60 m","100 m","120 m","180 m","240 m"])
 	_quality_choice("Ambient campus crowd", "npc_density", ["Off","Low","Medium","High"], ["Off","Low","Medium","High"])
-	for spec in [["Cast shadows","shadows"],["Fine-detail shadows","detail_shadows"],["Local lights","lights"],["Particle effects","effects"],["First-person interaction hands","interaction_hands"]]:
+	for spec in [["Cast shadows","shadows"],["Fine-detail shadows","detail_shadows"],["Accent lights","lights"],["Reflections","reflections"],["Bloom","bloom"],["Particle effects","effects"],["First-person interaction hands","interaction_hands"]]:
 		_toggle(spec[0], graphics.options[spec[1]], _quality.bind(spec[1]))
 
 func _quality_choice(label: String, key: String, values: Array, names: Array) -> void:
@@ -364,6 +369,7 @@ func _reset() -> void:
 			keys = ["vsync","fps","fov"]
 			graphics.preset("Medium")
 			preset = "Medium"
+			display_edited = true
 			pending_mode = 0
 			pending_resolution = Vector2i.ZERO
 		"Audio":
@@ -389,13 +395,32 @@ func _update_display_action() -> void:
 	apply_button.visible = active == "Graphics & Display"
 	apply_button.disabled = previewing
 
+func _active_window_mode() -> int:
+	var index := Prefs.WINDOW_MODES.find(game.get_window().mode)
+	return index if index >= 0 else int(prefs.values.display_mode)
+
 func _apply_display() -> void:
+	if previewing:
+		return
+	if not display_edited:
+		_save()
+		return
 	var window := get_window()
+	var target: Window.Mode = Prefs.WINDOW_MODES[pending_mode]
+	var requested := pending_resolution.min(DisplayServer.screen_get_usable_rect(window.current_screen).size)
+	var resolution_changed := target == Window.MODE_WINDOWED and requested != Vector2i.ZERO and window.size != requested
+	if target == window.mode and not resolution_changed:
+		_commit_display()
+		return
 	previous_mode = window.mode
 	previous_size = window.size
 	previous_position = window.position
+	previous_screen = window.current_screen
 	previewing = true
+	_update_display_action()
 	await prefs.apply_display(pending_mode, pending_resolution)
+	if not previewing or not is_inside_tree():
+		return
 	confirmation = ConfirmationDialog.new()
 	confirmation.title = "Keep display settings?"
 	confirmation.ok_button_text = "Keep Changes"
@@ -419,26 +444,44 @@ func _apply_display() -> void:
 	clock.start()
 
 func _confirm_display() -> void:
+	if not previewing:
+		return
 	previewing = false
+	_dismiss_confirmation()
+	_commit_display()
+
+func _commit_display() -> void:
+	display_edited = false
 	prefs.values.display_mode = pending_mode
 	prefs.values.width = pending_resolution.x
 	prefs.values.height = pending_resolution.y
-	confirmation.queue_free()
 	_save()
 	_update_display_action()
+
+func _dismiss_confirmation() -> void:
+	if is_instance_valid(confirmation):
+		confirmation.hide()
+		confirmation.queue_free()
+		confirmation = null
 
 func _restore_display() -> void:
 	if not previewing:
 		return
 	previewing = false
+	_dismiss_confirmation()
 	var window := game.get_window()
-	window.mode = previous_mode
 	if previous_mode == Window.MODE_WINDOWED:
+		window.mode = Window.MODE_WINDOWED
+		window.current_screen = previous_screen
 		window.size = previous_size
 		window.position = previous_position
-	if is_instance_valid(confirmation):
-		confirmation.queue_free()
-	pending_mode = prefs.values.display_mode
+	else:
+		window.current_screen = previous_screen
+		window.mode = previous_mode
+	display_edited = false
+	pending_mode = Prefs.WINDOW_MODES.find(previous_mode)
+	if pending_mode < 0:
+		pending_mode = int(prefs.values.display_mode)
 	pending_resolution = Vector2i(prefs.values.width, prefs.values.height)
 	if is_inside_tree():
 		_select(active)

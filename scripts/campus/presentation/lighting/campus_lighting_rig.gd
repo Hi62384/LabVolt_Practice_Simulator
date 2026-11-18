@@ -1,6 +1,6 @@
 class_name CampusLightingRig
 extends Node3D
-## Compatibility-renderer-safe campus sky and key lighting.
+## Campus sky, exterior key light and interior fill.
 ## One directional light supplies shadows; interiors remain readable through sky ambient fill.
 
 @export_range(0.0, 24.0, 0.05) var time_of_day := 13.5:
@@ -113,8 +113,8 @@ func _apply_time_of_day() -> void:
 	var azimuth_degrees := (time_of_day / 24.0) * 360.0 - 70.0
 	sun.rotation_degrees = Vector3(-elevation_degrees, azimuth_degrees, 0.0)
 	sun.light_color = Color("ffb178").lerp(Color("fff7ea"), clampf(daylight * 1.8, 0.0, 1.0))
-	sun.light_energy = lerpf(0.035, 0.30, day_mix) * brightness_scale
-	interior_fill.light_energy = lerpf(0.015, 0.035, day_mix) * brightness_scale
+	sun.light_energy = lerpf(0.035, 0.41, day_mix) * brightness_scale
+	interior_fill.light_energy = lerpf(0.025, 0.055, day_mix) * brightness_scale
 
 	sky_material.sky_top_color = NIGHT_SKY_TOP.lerp(DAY_SKY_TOP, day_mix)
 	sky_material.sky_horizon_color = NIGHT_SKY_HORIZON.lerp(DAY_SKY_HORIZON, day_mix).lerp(Color("f1a06f"), twilight * 0.38)
@@ -122,5 +122,5 @@ func _apply_time_of_day() -> void:
 	sky_material.ground_horizon_color = NIGHT_GROUND_HORIZON.lerp(DAY_GROUND_HORIZON, day_mix).lerp(Color("b9785f"), twilight * 0.25)
 	sky_material.sun_curve = lerpf(0.04, 0.12, day_mix)
 	world_environment.environment.background_energy_multiplier = lerpf(0.18, 0.92, day_mix) * brightness_scale
-	world_environment.environment.ambient_light_energy = lerpf(0.11, 0.22, day_mix) * brightness_scale
+	world_environment.environment.ambient_light_energy = lerpf(0.17, 0.31, day_mix) * brightness_scale
 	world_environment.environment.ambient_light_color = Color("8ea5c8").lerp(Color("e6e8eb"), day_mix)

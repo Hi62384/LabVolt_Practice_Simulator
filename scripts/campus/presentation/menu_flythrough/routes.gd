@@ -72,7 +72,7 @@ static func catalog() -> Array[Dictionary]:
 		"speed": 0.72,
 		"transition": "crossfade",
 		"weight": 1.7,
-		"rooms": PackedStringArray(["study", "campus_store"]),
+		"rooms": PackedStringArray(["study", "campus_store", "circuit_studio"]),
 	})
 	result.append({
 		"id": "ac_lab_door_view",
@@ -212,7 +212,7 @@ static func catalog() -> Array[Dictionary]:
 		"speed": 0.43,
 		"transition": "crossfade",
 		"weight": 0.9,
-		"rooms": PackedStringArray(["campus_store"]),
+		"rooms": PackedStringArray(["campus_store", "circuit_studio"]),
 	})
 	result.append({
 		"id": "elm253_lecture_interior",
@@ -282,7 +282,7 @@ static func catalog() -> Array[Dictionary]:
 		"speed": 0.5,
 		"transition": "crossfade",
 		"weight": 1.15,
-		"rooms": PackedStringArray(["campus_store"]),
+		"rooms": PackedStringArray(["campus_store", "circuit_studio"]),
 	})
 	result.append({
 		"id": "dorm_hall_preview",

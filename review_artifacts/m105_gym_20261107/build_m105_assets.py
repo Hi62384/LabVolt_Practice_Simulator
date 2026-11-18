@@ -13,7 +13,7 @@ PALETTE = {
  'oak': ['b99160', .78, 0], 'oak_light':['cda977',.8,0],
  'ink':['253a44',.7,.12], 'steel':['9baaad',.32,.7],
  'porcelain':['ecede5',.24,0], 'teal':['317a7d',.76,0],
- 'rubber':['30383b',.95,0], 'line':['ece6d3',.8,0],
+ 'gym_floor':['59686d',.96,0], 'rubber':['30383b',.95,0], 'line':['ece6d3',.8,0],
  'mirror':['b3d4d5',.16,.8], 'leaf':['4e7161',.9,0],
  'terracotta':['b16d51',.82,0], 'paper':['e1d5b8',.9,0]}
 
@@ -98,9 +98,7 @@ def plant(a,x,z):
 def gym():
     a=Author()
     # Metre-sized plank courses: baked and grouped, rather than hundreds of nodes.
-    for row in range(23):
-        z=-5.7+row*.5
-        a.object('maple_course_%02d'%row,lambda z=z,row=row:a.box('oak_light' if row%3 else 'oak',(0,.009,z),(19.65,.012,.494)),'surface')
+    a.object('rubber_training_floor',lambda:a.box('gym_floor',(0,.010,0),(19.82,.016,11.82)),'surface')
     def markings():
         for z in [-4.7,4.7]:a.box('line',(0,.018,z),(16,.004,.045))
         for x in [-8,8]:a.box('line',(x,.018,0),(.045,.004,9.44))
@@ -124,10 +122,15 @@ def gym():
     # Animated barbells/dumbbell are assembled once by GymEquipmentMotion.
     def rack():
         for x in [6.3,8.3]:
-            a.tube('ink',(x,.07,4.45),(x,1.65,4.45),.035)
-            a.tube('ink',(x,.07,5.1),(x,1.65,5.1),.035)
+            a.tube('ink',(x,.02,4.45),(x,1.65,4.45),.035)
+            a.tube('ink',(x,.02,5.1),(x,1.65,5.1),.035)
         for y in [.2,.85,1.5]:
             for z in [4.45,5.1]:a.tube('steel',(6.3,y,z),(8.3,y,z),.025)
+        for x in [6.3,8.3]:
+            a.tube('ink',(x,.61,4.45),(x,.61,5.1),.035)
+        for z in [4.46,5.09]:
+            a.box('steel',(7.3,.61,z),(2.0,.05,.06))
+        a.box('ink',(7.3,.62,4.775),(2.0,.04,.65))
         for x in [6.65,7.3,7.95]:
             a.ball('terracotta',(x,.91,4.78),(.25,.27,.25))
     a.object('open_ball_storage',rack)
@@ -143,8 +146,6 @@ def gym():
         for x in [-6,0,6]:
             def ceiling(x=x,z=z):
                 a.box('paper',(x,3.98,z),(5.7,.03,3.7))
-                a.box('ink',(x,3.955,z),(1.8,.025,.42))
-                a.box('porcelain',(x,3.94,z),(1.68,.016,.32))
             a.object('ceiling_bay_%s_%s'%(x,z),ceiling,'ceiling')
     for x in [-6.3,6.3]:
         def poster(x=x):
@@ -155,7 +156,7 @@ def gym():
     # Low impact stretching edge; graphics sit on the existing floor.
     for x in [-6.4,-3.7,-1]:
         a.object('rolled_stretch_mat_%s'%x,lambda x=x:(a.box('rubber',(x,.025,-4.37),(1.35,.035,1.92)),a.tube('teal',(x-.55,.085,-5.3),(x+.55,.085,-5.3),.05,12)),'surface')
-    for x in [1,2.2,3.4]:
+    for x in [.55,1.68,2.81]:
         def medicine(x=x):
             a.ball('rubber',(x,.36,5.15),(.37,.34,.37))
             a.ring('teal',(x,.68,5.15),.116,.116,.02)
@@ -274,7 +275,14 @@ def main():
 
 if __name__=='__main__':
     import sys
-    if '--production-teal-only' in sys.argv:
+    if '--production-gym' in sys.argv:
+        output = ROOT/'assets/campus/decor/m105'
+        path = output/'profiles.json'
+        payload = json.loads(path.read_text(encoding='utf-8'))
+        payload['profiles']['gym'] = save('gym',gym(),payload['profiles']['gym']['origin'],output)
+        payload['materials']['gym_floor'] = PALETTE['gym_floor']
+        path.write_text(json.dumps(payload,indent=2)+'\n',encoding='utf-8')
+    elif '--production-teal-only' in sys.argv:
         output = ROOT/'assets/campus/decor/m105'
         path = output/'profiles.json'
         payload = json.loads(path.read_text(encoding='utf-8'))

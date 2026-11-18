@@ -81,7 +81,7 @@ func run() -> void:
 	check(result.ok and last_event.get("bench_position")==Vector3(1,0,1),"host did not publish bench anchor")
 	if result.ok:
 		now+=int(host.active[1].half_ms)
-		result=host.act(1,{"op":"beat","sequence":2})
+		result=host.act(1,{"op":"lower","sequence":2})
 		check(result.ok and last_event.get("bench_position")==Vector3(1,0,1),"movement event lost bench anchor")
 		now+=100;result=host.act(1,{"op":"cancel","sequence":3})
 		check(result.ok,"could not stop dumbbell set")
@@ -93,9 +93,10 @@ func run() -> void:
 	now+=100;result=host.act(1,{"op":"start","station":"gym/benchpress","exercise":"benchpress","equipment":"barbell","sequence":4})
 	check(result.ok and is_equal_approx(float(host.active.get(1,{}).get("weight",0)),80.0) and last_event.get("equipment","")=="barbell","bench did not use carried bar mass")
 	if result.ok:
-		for seq in [5,6]:
+		for seq in [5,6,7,8]:
 			now+=int(host.active[1].half_ms)
-			result=host.act(1,{"op":"beat","sequence":seq})
+			result=host.act(1,{"op":"lower" if seq % 2 == 1 else "beat","sequence":seq})
+			if result.get("muscular_failure",false):break
 		check(result.get("muscular_failure",false) and host.active.get(1,{}).get("type","")=="trapped" and last_event.get("equipment","")=="barbell","failed carried bench press lost its bar or trapped state")
 	parent.free();bench.free()
 	for failure in failures:push_error(failure)

@@ -86,16 +86,16 @@ func run() -> void:
 		if not await until(func():return panel.state.has("profile"),"profile ready"):return
 		var start: Button
 		for button in panel.find_children("*","Button",true,false):
-			if button.text.begins_with("Carried bar"):start=button;break
+			if button.text=="Start set":start=button;break
 		if start==null or start.disabled:push_error("Carried bar bench action missing");quit(1);return
 		start.pressed.emit()
 		if not await until(func():return panel.state.get("active",{}).get("equipment","")=="barbell" and not panel.pending,"exercise acknowledged"):return
 		await create_timer(.8).timeout
-		var cancel: Button
-		for button in panel.find_children("*","Button",true,false):
-			if button.text=="Cancel":cancel=button;break
-		if cancel==null:push_error("Cancel action missing");quit(1);return
-		cancel.pressed.emit()
+		var cancel := InputEventKey.new()
+		cancel.keycode = KEY_X
+		cancel.pressed = true
+		if not panel.handle_workout_input(cancel):
+			push_error("Workout HUD did not handle ending the set");quit(1);return
 		if not await until(func():return not panel.pending and panel.state.get("active",{}).is_empty(),"exercise stopped"):return
 		await create_timer(.5).timeout
 		print("CARRIED_BENCH_CLIENT PASS")

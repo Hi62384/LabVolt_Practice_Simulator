@@ -13,9 +13,9 @@ static func down(parent: Node3D, point: Vector3, energy: float, reach: float, ai
 	light.light_color = Color("fff2dc")
 	light.light_energy = energy
 	light.light_specular = .18
-	light.spot_range = minf(reach, 5.8)
+	light.spot_range = reach
 	light.spot_angle = angle
-	light.spot_attenuation = .85
+	light.spot_attenuation = 1.15
 	light.spot_angle_attenuation = .65
 	light.distance_fade_enabled=false
 	light.set_meta("room_fixture", true)

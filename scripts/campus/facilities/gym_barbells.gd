@@ -1,14 +1,15 @@
 extends Node3D
+const GymLayout = preload("res://scripts/campus/facilities/gym_layout.gd")
 ## Session-owned plates. A plate is either in the rack or on exactly one sleeve.
 const LB_TO_KG := .45359237
 const BAR_KG := 20.0
 const SIZES := [2.5, 5.0, 10.0, 25.0, 35.0, 45.0]
 const COUNTS := [8, 8, 8, 8, 8, 8]
-const PLATE_RACK := Vector3(-8.35,0,33.0)
-const BELT_RACK := Vector3(-6.4,1.35,34.2)
+const PLATE_RACK := GymLayout.ORIGIN + GymLayout.PLATES
+const BELT_RACK := GymLayout.ORIGIN + GymLayout.BELTS
 const BELT_SPACING := .55
 const BELT_KG := .8
-const POSITIONS := {"gym/benchpress":Vector3(4,1.25,30.2), "gym/squat":Vector3(-5,1.35,35.8), "gym/barbell_rack_2":Vector3(-1.5,1.35,35.8)}
+const POSITIONS := GymLayout.BAR_RESTS
 var game: Node
 var plates: Array = []
 var bars := {}
@@ -586,20 +587,17 @@ func _plate_model(lb: float) -> MeshInstance3D:
 	if plate_engraving_material==null:
 		plate_engraving_material=StandardMaterial3D.new();plate_engraving_material.albedo_color=Color("9aa7aa");plate_engraving_material.metallic=.12;plate_engraving_material.roughness=.78
 	var visual:=MeshInstance3D.new();visual.mesh=plate_meshes[lb];visual.material_override=plate_material
-	var radius:=lerpf(.10,.30,sqrt(clampf(lb,0.0,45.0)/45.0))
-	# Raised steel edging and a recessed steel hub make this read as a machined
-	# rubber plate instead of a featureless black puck.
-	var rim:=TorusMesh.new();rim.inner_radius=radius*.88;rim.outer_radius=radius*.96;rim.rings=32;rim.ring_segments=10
+	# A steel sleeve surrounds the open bore.
 	for face in [-1.0,1.0]:
 		# The plate's bevel is built into its mesh. Avoid a large raised metal
 		# hoop here; it made the stack look like a set of oversized wire loops.
 		var hub:=MeshInstance3D.new();var hub_mesh:=TorusMesh.new();hub_mesh.inner_radius=.047;hub_mesh.outer_radius=.061;hub_mesh.rings=24;hub_mesh.ring_segments=8
-		hub.mesh=hub_mesh;hub.material_override=plate_accent_material;hub.rotation.x=face*PI/2;hub.position.y=face*.040;visual.add_child(hub)
+		hub.mesh=hub_mesh;hub.material_override=plate_accent_material;hub.position.y=face*.040;visual.add_child(hub)
 		# TextMesh is deliberately recessed below the face and uses a dark groove
 		# material. It is part of the plate model, never a billboard or floating UI.
 		var text_mesh:=TextMesh.new();text_mesh.text=_plate_weight_text(lb);text_mesh.font_size=28;text_mesh.pixel_size=.00085;text_mesh.depth=.00012;text_mesh.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;text_mesh.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
-		var mark:=MeshInstance3D.new();mark.name="EngravedWeightFront" if face>0 else "EngravedWeightBack";mark.mesh=text_mesh;mark.material_override=plate_engraving_material;mark.rotation.x=face*PI/2
-		mark.position=Vector3(0,face*.0391,0);visual.add_child(mark)
+		var mark:=MeshInstance3D.new();mark.name="EngravedWeightFront" if face>0 else "EngravedWeightBack";mark.mesh=text_mesh;mark.material_override=plate_engraving_material;mark.rotation.x=-face*PI/2
+		mark.position=Vector3(0,face*.040,-.089);visual.add_child(mark)
 	return visual
 
 func _plate_weight_text(lb: float) -> String:
@@ -622,19 +620,8 @@ func _plate_mesh(lb: float) -> ArrayMesh:
 			var ra:=float(rings[section][0]);var ya:=float(rings[section][1]);var rb:=float(rings[next][0]);var yb:=float(rings[next][1])
 			var va:=Vector3(ao.x*ra,ya,ao.y*ra);var vb:=Vector3(bo.x*ra,ya,bo.y*ra)
 			var vc:=Vector3(ao.x*rb,yb,ao.y*rb);var vd:=Vector3(bo.x*rb,yb,bo.y*rb)
-			tool.add_vertex(va);tool.add_vertex(vb);tool.add_vertex(vc)
-			tool.add_vertex(vb);tool.add_vertex(vd);tool.add_vertex(vc)
-		# Flat recessed front and back faces, stopping at the center bore.
-		var face_y:=half-.004
-		var outer_a:=Vector3(ao.x*(radius-bevel),face_y,ao.y*(radius-bevel))
-		var outer_b:=Vector3(bo.x*(radius-bevel),face_y,bo.y*(radius-bevel))
-		var inner_a:=Vector3(ao.x*(inner+bevel),face_y,ao.y*(inner+bevel))
-		var inner_b:=Vector3(bo.x*(inner+bevel),face_y,bo.y*(inner+bevel))
-		tool.add_vertex(outer_a);tool.add_vertex(inner_a);tool.add_vertex(outer_b)
-		tool.add_vertex(outer_b);tool.add_vertex(inner_a);tool.add_vertex(inner_b)
-		outer_a.y=-face_y;outer_b.y=-face_y;inner_a.y=-face_y;inner_b.y=-face_y
-		tool.add_vertex(outer_a);tool.add_vertex(outer_b);tool.add_vertex(inner_a)
-		tool.add_vertex(outer_b);tool.add_vertex(inner_b);tool.add_vertex(inner_a)
+			tool.add_vertex(va);tool.add_vertex(vc);tool.add_vertex(vb)
+			tool.add_vertex(vb);tool.add_vertex(vc);tool.add_vertex(vd)
 	tool.generate_normals()
 	return tool.commit()
 

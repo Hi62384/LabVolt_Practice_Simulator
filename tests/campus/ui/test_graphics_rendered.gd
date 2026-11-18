@@ -45,4 +45,99 @@ func run() -> void:
 	if changed<100: failures+=1; push_error("No measurable 3D image change outside controls")
 	print("UI_GRAPHICS_RENDERED_RESULT failures=",failures," changed_3d_samples=",changed," renderer=",RenderingServer.get_current_rendering_method())
 	graphics.preset("Medium")
+	for distance in [30.0, 60.0, 100.0, 120.0, 180.0, 240.0]:
+		graphics.set_option("view_distance", distance)
+		if not is_equal_approx(camera.far, distance):
+			failures += 1
+			push_error("Camera view distance did not change to %d m" % distance)
+	var streamed := Camera3D.new()
+	world.add_child(streamed)
+	await process_frame
+	if streamed.far != 240.0:
+		failures += 1
+		push_error("A newly loaded camera missed the active view distance")
+	panel.queue_free()
+	world.queue_free()
+	graphics.queue_free()
+	await process_frame
+	await verify_display()
 	quit(1 if failures else 0)
+
+
+func verify_display() -> void:
+	var game: Node = load("res://scenes/Main.tscn").instantiate()
+	root.add_child(game)
+	await process_frame
+	root.mode = Window.MODE_MAXIMIZED
+	await process_frame
+	await process_frame
+	var size := root.size
+	var screen := root.current_screen
+	var settings: Control = load("res://scripts/campus/ui/settings_page.gd").new()
+	game.add_child(settings)
+	settings.build(game)
+	game.ui.graphics_controller.set_option("render_scale", .75)
+	await settings._apply_display()
+	if root.mode != Window.MODE_MAXIMIZED or root.size != size or settings.previewing:
+		failures += 1
+		push_error("Quality-only apply disturbed a maximized window")
+	settings.display_edited = true
+	settings.pending_mode = 0
+	settings.pending_resolution = Vector2i(1280,720)
+	await settings._apply_display()
+	if not settings.previewing or root.mode != Window.MODE_WINDOWED:
+		failures += 1
+		push_error("Windowed preview was not applied")
+	else:
+		settings.confirmation.close_requested.emit()
+		await process_frame
+		await process_frame
+		if root.mode != Window.MODE_MAXIMIZED or root.current_screen != screen or root.size != size:
+			failures += 1
+			push_error("Closing the preview did not restore maximized state")
+	settings.display_edited = true
+	settings.pending_mode = 0
+	settings.pending_resolution = Vector2i(1280,720)
+	await settings._apply_display()
+	if is_instance_valid(settings.confirmation):
+		settings.confirmation.confirmed.emit()
+		var config := ConfigFile.new()
+		if config.load("user://college_preferences.cfg") != OK or config.get_value("preferences", "width", 0) != 1280:
+			failures += 1
+			push_error("Keep Changes did not save the new resolution")
+	else:
+		failures += 1
+	var previous_size := root.size
+	var previous_position := root.position
+	for mode in [1, 2]:
+		settings.display_edited = true
+		settings.pending_mode = mode
+		await settings._apply_display()
+		await process_frame
+		var expected: Window.Mode = Window.MODE_FULLSCREEN if mode == 1 else Window.MODE_EXCLUSIVE_FULLSCREEN
+		if not settings.previewing or root.mode != expected:
+			failures += 1
+			push_error("Could not preview fullscreen mode %d" % mode)
+			continue
+		if mode == 1:
+			settings.confirmation.canceled.emit()
+		else:
+			settings.countdown = 1
+			for child in settings.confirmation.get_children():
+				if child is Timer:
+					child.timeout.emit()
+					break
+		await process_frame
+		await process_frame
+		if root.mode != Window.MODE_WINDOWED or root.size != previous_size or root.position != previous_position or root.current_screen != screen:
+			failures += 1
+			push_error("Revert did not restore the normal window after fullscreen mode %d" % mode)
+	var reloaded: Node = load("res://scripts/campus/ui/graphics_settings.gd").new()
+	reloaded.load_settings()
+	if reloaded.options.render_scale != .75:
+		failures += 1
+		push_error("Render scale was not persisted")
+	reloaded.free()
+	print("DISPLAY_RENDERED_RESULT failures=", failures)
+	game.queue_free()
+	await process_frame

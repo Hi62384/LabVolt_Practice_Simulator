@@ -1,7 +1,8 @@
 extends Node3D
+const GymLayout = preload("res://scripts/campus/facilities/gym_layout.gd")
 ## Host-owned session equipment: rack, hand, hotbar and floor are exclusive states.
 const SIZES := [2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0,25.0,30.0,35.0,40.0,45.0,50.0,60.0,70.0,80.0,90.0,100.0,120.0,140.0,160.0,180.0,200.0]
-const RACK := Vector3(-7.45,0,30.9)
+const RACK := GymLayout.ORIGIN + GymLayout.DUMBBELLS
 const RACK_SLOTS := 30
 const RACK_COLUMNS := 6
 const RACK_SPACING := .42

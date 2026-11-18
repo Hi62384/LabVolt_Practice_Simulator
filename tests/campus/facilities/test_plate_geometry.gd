@@ -9,6 +9,23 @@ func _initialize() -> void:
 	var normals: PackedVector3Array=large.mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
 	var valid:=not vertices.is_empty() and large.mesh.get_aabb().size.x>small.mesh.get_aabb().size.x
 	valid=valid and normals.size()==vertices.size()
+	var triangles := {}
+	for i in range(0, vertices.size(), 3):
+		var points := [vertices[i], vertices[i+1], vertices[i+2]]
+		points.sort()
+		var key := str(points)
+		var normal := (vertices[i+2]-vertices[i]).cross(vertices[i+1]-vertices[i])
+		var center: Vector3 = (vertices[i] + vertices[i+1] + vertices[i+2]) / 3.0
+		var radial := Vector3(center.x, 0, center.z)
+		var outside := radial if radial.length() > .18 else -radial
+		if absf(normal.y) > .99 * normal.length():
+			outside = Vector3.UP * signf(center.y)
+		if triangles.has(key) or normal.length_squared() < 1e-14 or normal.dot(outside) <= 0:
+			valid = false
+		if not [normals[i], normals[i+1], normals[i+2]].all(func(vertex_normal):
+			return vertex_normal.is_finite() and absf(vertex_normal.length_squared() - 1.0) < .001 and normal.normalized().dot(vertex_normal) > .99):
+			valid = false
+		triangles[key] = true
 	var has_top:=false;var has_bottom:=false;var has_outer:=false;var has_inner:=false
 	for normal in normals:
 		if not normal.is_finite() or normal.length_squared()<.9:valid=false
@@ -30,7 +47,7 @@ func _initialize() -> void:
 	var weights=preload("res://scripts/campus/facilities/gym_weights.gd").new()
 	var pair: Node3D=weights._pair_model(25.0)
 	var labels:=pair.find_children("*","Label3D",true,false)
-	valid=valid and labels.size()==4 and labels.all(func(label):return label.text=="25.0")
+	valid=valid and labels.size()==4 and labels.all(func(label):return label.text=="25")
 	if not valid:push_error("Plate mesh profile, recessed weight marks, or cached geometry is invalid")
 	small.free();large.free();another.free();gear.free();pair.free();weights.free()
 	print("PLATE_GEOMETRY ","PASS" if valid else "FAIL")

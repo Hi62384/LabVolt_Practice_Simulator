@@ -21,14 +21,15 @@ func mount(campus: Node3D, registry: Object) -> bool:
 	if low.size()!=3 or high.size()!=3: return false
 	if absf(float(low[0])+10.0)>.01 or absf(float(high[0])-10.0)>.01 or absf(float(low[2])-13.0)>.01 or absf(float(high[2])-25.0)>.01: return false
 	root=Node3D.new();root.name="M103RoomFinish";campus.add_child(root)
-	# 1 mm overlay avoids replacing the solid floor or changing navigation and collision.
+	# The finish supplies the visible tile tops above the solid room shell.
+	var groups: Array = []
 	for variant in range(2):
 		var points: Array[Vector3]=[]
 		for x in range(20):
 			for z in range(12):
 				if int((x*7+z*3)%9<2)==variant: points.append(Vector3(-9.5+x,.003,13.5+z))
-		var floor_mat:=StandardMaterial3D.new();floor_mat.albedo_color=FLOOR_ALT if variant==1 else FLOOR;floor_mat.roughness=.92
-		preload("res://scripts/campus/performance/lit_tile_batches.gd").build(root,points,Vector3(.994,.006,.994),floor_mat)
+		groups.append({"points":points, "color":FLOOR_ALT if variant==1 else FLOOR})
+	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.994,.994), .018, .92)
 	# All wall details sit within the room shell; the east entrance stays open.
 	for z in [13.105,24.895]:
 		_box(Vector3(0,2.62,z),Vector3(19.68,2.57,.025),WALL_WHITE)

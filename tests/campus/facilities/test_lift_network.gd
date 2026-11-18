@@ -26,7 +26,8 @@ func run() -> void:
 		if game.session.host_game("Host",port)!=OK:push_error("Host failed");quit(1);return
 		var rules=controller.host
 		rules.context=func(peer):
-			return {"identity":str(peer),"position":Vector3(-.5,0,31.5) if peer==1 else Vector3(-5,0,32.5),"room_id":"gym","allowed":true,"grounded":true}
+			var station := "gym/pullup" if peer == 1 else "gym/pushup"
+			return {"identity":str(peer),"position":rules.anchors[station].position,"room_id":"gym","allowed":true,"grounded":true}
 		rules.load_profile=func(id):
 			if not profiles.has(id):profiles[id]=Rules.empty_profile()
 			return profiles[id].duplicate(true)
@@ -54,33 +55,33 @@ func run() -> void:
 		if not await until(func():return panel.state.has("profile"),"profile refresh"):return
 		var start_button: Button
 		for button in panel.find_children("*","Button",true,false):
-			if button.text=="Bodyweight":start_button=button;break
-		if start_button==null:push_error("Bodyweight action missing");quit(1);return
+			if button.text=="Start set":start_button=button;break
+		if start_button==null:push_error("Start set action missing");quit(1);return
 		start_button.pressed.emit()
 		if not await until(func():return panel.state.get("active",{}).get("type","")=="exercise" and not panel.pending,"start acknowledged"):return
-		controller.preview_motion(.5,0,0,int(panel.state.active.started))
+		var lower := InputEventMouseButton.new()
+		lower.button_index = MOUSE_BUTTON_LEFT
+		lower.pressed = true
+		if not panel.handle_workout_input(lower):
+			push_error("Workout HUD did not handle lowering");quit(1);return
+		if not await until(func():return int(panel.state.get("active",{}).get("phase",-1))==1 and not panel.pending,"lower acknowledged"):return
+		for packet in 3:
+			controller.preview_motion(.5,1,0,int(panel.state.active.started))
+			await create_timer(.15).timeout
+		var raise := InputEventKey.new()
+		raise.keycode = KEY_E
+		raise.pressed = true
+		for stroke in 64:
+			panel.handle_workout_input(raise)
+			if panel.direct_in_flight:
+				break
+		if not await until(func():return int(panel.state.get("active",{}).get("reps",0))==1 and int(panel.state.active.phase)==0,"repetition acknowledged"):return
 		await create_timer(.2).timeout
-		for half in 2:
-			var controls=panel.body.find_children("*","HSlider",true,false)
-			if controls.size()!=1:push_error("Effort control missing");quit(1);return
-			var lift=controls[0].get_parent()
-			lift.held=true
-			for step in 120:
-				lift.effort.value=minf(1.0,lift._target_effort()+.10)
-				lift._process(.1)
-				if panel.workout_reached:break
-			lift.held=false
-			if not panel.workout_reached:push_error("Controlled lift could not advance");quit(1);return
-			if not await until(func():return is_instance_valid(panel.workout_step) and not panel.workout_step.disabled,"movement ready"):return
-			panel.workout_step.pressed.emit()
-			if not await until(func():return not panel.pending and int(panel.state.get("active",{}).get("phase",-1))==(1 if half==0 else 0),"movement acknowledged"):return
-		if int(panel.state.active.reps)!=1:push_error("Client did not receive completed repetition");quit(1);return
-		await create_timer(.2).timeout
-		var finish: Button
-		for button in panel.body.find_children("*","Button",true,false):
-			if button.text=="Finish set":finish=button;break
-		if finish==null or finish.disabled:push_error("Finish action unavailable");quit(1);return
-		finish.pressed.emit()
+		var finish := InputEventKey.new()
+		finish.keycode = KEY_X
+		finish.pressed = true
+		if not panel.handle_workout_input(finish):
+			push_error("Workout HUD did not handle finishing");quit(1);return
 		if not await until(func():return not panel.pending and panel.state.get("active",{}).is_empty(),"finish acknowledged"):return
 		await create_timer(.5).timeout
 		print("LIFT_CLIENT PASS")

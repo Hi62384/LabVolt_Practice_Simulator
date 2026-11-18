@@ -1,10 +1,11 @@
 extends Node3D
+const GymLayout = preload("res://scripts/campus/facilities/gym_layout.gd")
 ## M105 cosmetic equipment adapter. Bind to FacilityController.room_event.
 ## Events are reliable phase changes; motion is interpolated locally on each peer.
 const BAR_STATIONS := {
-	"gym/benchpress": {"origin": Vector3(4, 1.25, 30.2), "travel": .32},
-	"gym/squat": {"origin": Vector3(-5, 1.35, 35.8), "travel": .34},
-	"gym/barbell_rack_2": {"origin": Vector3(-1.5, 1.35, 35.8), "travel": .34}
+	"gym/benchpress": {"origin": GymLayout.BAR_RESTS["gym/benchpress"], "travel": .32},
+	"gym/squat": {"origin": GymLayout.BAR_RESTS["gym/squat"], "travel": .34},
+	"gym/barbell_rack_2": {"origin": GymLayout.BAR_RESTS["gym/barbell_rack_2"], "travel": .34}
 }
 # Approximate hand positions relative to the bench bar's rest position, used
 # when the exercising avatar is not present locally (such as first person).

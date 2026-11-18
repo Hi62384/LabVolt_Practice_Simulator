@@ -20,7 +20,7 @@ var solid_count := 0
 var elevator_geometry: Node3D
 var viewer_actor: Node3D
 var viewer_clock := 0.0
-const WINDOW_ROOMS := ["elm253_lecture", "ety155_lecture", "clothing_store", "ac_lab", "dc_lab", "campus_store", "shop", "computer", "study"]
+const WINDOW_ROOMS := ["elm253_lecture", "ety155_lecture", "clothing_store", "ac_lab", "dc_lab", "circuit_studio", "campus_store", "shop", "computer", "study"]
 const OPEN_FOOD_ROOMS := ["tim_hortons", "subway"]
 @export var enable_occlusion := true
 
@@ -37,6 +37,11 @@ func build() -> void:
 	streamer.zone_activation_changed.connect(func(id: String, enabled: bool): zone_activation_changed.emit(id,enabled))
 	_circulation()
 	for room in registry.rooms.values():
+		if room.id == "campus_store" and room_roots.has("circuit_studio"):
+			# M208 uses two gameplay IDs for the same physical room.
+			room_roots[room.id] = room_roots.circuit_studio
+			anchors[room.id] = anchors.circuit_studio
+			continue
 		_room(room)
 		_room_lighting(room)
 	_close_hallway_voids()
@@ -66,10 +71,22 @@ func _room_lighting(room: Dictionary) -> void:
 	add_child(light_rig)
 	var fixture_x: Array = [-2.0,2.0] if id=="study" else [-6.0,0.0,6.0]
 	var fixture_z: Array = [0.0] if id=="study" else ([-1.5,1.5] if id=="computer_commons" else [-3.0,3.0])
+	if id == "cafeteria":
+		fixture_x = [-5.0, 0.0, 5.0]
+	if id == "gym":
+		fixture_z = [-4.0, 0.0, 4.0]
 	for x in fixture_x:
 		for z in fixture_z:
-			box(light_rig, Vector3(x,3.88,z), Vector3(2.3,.06,.32), "f4edda", false)
-			preload("res://scripts/campus/presentation/fixture_light.gd").down(light_rig, Vector3(x,3.83,z),.88,6.6)
+			if id == "gym":
+				box(light_rig, Vector3(x,3.955,z), Vector3(1.8,.025,.42), "253a44", false)
+				box(light_rig, Vector3(x,3.934,z), Vector3(1.68,.018,.32), "f4edda", false)
+			elif id != "cafeteria":
+				box(light_rig, Vector3(x,3.88,z), Vector3(2.3,.06,.32), "f4edda", false)
+			var light := preload("res://scripts/campus/presentation/fixture_light.gd").down(light_rig, Vector3(x,3.83,z),1.05,6.6)
+			if id == "gym" and x == 0 and z == 0:
+				light.shadow_enabled = true
+				light.shadow_bias = .06
+				light.shadow_normal_bias = 1.1
 	register_content(id, light_rig)
 
 func box(parent: Node3D, pos: Vector3, size: Vector3, color: String, solid: bool=true) -> Node3D:
@@ -231,7 +248,7 @@ func _circulation() -> void:
 	# One continuous tile grid bridges the corridor and both food counters.
 	var food_tiles: Array=[]
 	for x in range(16,36):
-		for z in range(13,53): food_tiles.append(Vector3(x+.5,.052,z+.5))
+		for z in range(25,53): food_tiles.append(Vector3(x+.5,.012,z+.5))
 	preload("res://scripts/campus/performance/lit_tile_batches.gd").build(self,food_tiles,Vector3(.982,.012,.982),material("8492a0"))
 	# Continuous ground corridor, lobby and outdoor entrance.
 	box(self,Vector3(13,-.12,28.5),Vector3(6,.24,79),"626d7a")
@@ -273,7 +290,7 @@ func _circulation() -> void:
 		# Retain its collision while avoiding overlapping visible wall faces.
 		var seam := box(self,Vector3(x,2.04,-10.53),Vector3(.16,4.08,.94),"b6bdc6")
 		seam.hide()
-		box(self,Vector3(x,2.04,-7.03),Vector3(.16,4.08,6.06),"b6bdc6")
+		box(self,Vector3(x,2.04,-7.07),Vector3(.16,4.08,5.98),"b6bdc6")
 
 func _close_hallway_voids() -> void:
 	# Room shells intentionally own their doors. These sections cover only the

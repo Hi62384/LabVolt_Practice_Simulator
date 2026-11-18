@@ -2,6 +2,7 @@ extends RefCounted
 
 const PATH := "user://college_preferences.cfg"
 const BUS_NAMES := {"master": "Master", "effects": "Effects", "ambience": "Ambience", "interface": "Interface"}
+const WINDOW_MODES := [Window.MODE_WINDOWED, Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN, Window.MODE_MAXIMIZED]
 const DEFAULTS := {
 	"display_mode": 0, "width": 0, "height": 0, "vsync": true, "fps": 60, "fov": 72.0,
 	"master": 1.0, "effects": 1.0, "ambience": 1.0, "interface": 1.0,
@@ -25,10 +26,13 @@ func load_settings(owner: Node) -> void:
 				values[key] = value
 	else:
 		var legacy := [Vector2i.ZERO, Vector2i(1280,720), Vector2i(1600,900), Vector2i(1920,1080)]
-		var resolution: Vector2i = legacy[game.ui.graphics_controller.options.resolution]
+		var graphics_config := ConfigFile.new()
+		graphics_config.load("user://campus_graphics.cfg")
+		var legacy_index := clampi(int(graphics_config.get_value("graphics", "resolution", 0)), 0, legacy.size()-1)
+		var resolution: Vector2i = legacy[legacy_index]
 		values.width = resolution.x
 		values.height = resolution.y
-	values.display_mode = clampi(values.display_mode, 0, 2)
+	values.display_mode = clampi(values.display_mode, 0, 3)
 	values.width = clampi(values.width, 0, 3840)
 	values.height = clampi(values.height, 0, 2160)
 	values.relay_pose_rate = clampi(values.relay_pose_rate, 5, 20)
@@ -96,7 +100,9 @@ func apply_display(mode: int, resolution: Vector2i) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	var window := game.get_window()
-	window.mode = [Window.MODE_WINDOWED, Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN][mode]
+	var target: Window.Mode = WINDOW_MODES[mode]
+	if window.mode != target:
+		window.mode = target
 	if mode == 0 and resolution.x > 0 and resolution.y > 0:
 		# Wait for the display server to finish leaving fullscreen before sizing
 		# the window; an immediate size assignment can be discarded on Windows.

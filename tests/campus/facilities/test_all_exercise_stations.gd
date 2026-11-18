@@ -1,5 +1,10 @@
 extends SceneTree
 const Host=preload("res://scripts/campus/facilities/facility_host.gd")
+class RequestReceiver extends Node:
+	var last := {}
+	func request(value: Dictionary) -> void:
+		last = value
+
 var saved=Host.empty_profile()
 var now:=1000
 var failures: Array[String]=[]
@@ -28,6 +33,7 @@ func run() -> void:
 			_test_set(host,station,str(exercise),"",kind=="cable")
 	for exercise in Host.BENCH_DUMBBELL_EXERCISES:
 		_test_set(host,"gym/benchpress",str(exercise),"dumbbell",false)
+	_test_shared_selector()
 	for failure in failures:push_error(failure)
 	print("ALL_EXERCISE_STATIONS ","PASS" if failures.is_empty() else "FAIL")
 	quit(0 if failures.is_empty() else 1)
@@ -56,3 +62,47 @@ func _test_set(host: RefCounted,station: String,exercise: String,equipment: Stri
 	now+=100
 	result=host.act(1,{"op":"cancel","sequence":int(saved.last_sequence)+1})
 	if not result.get("ok",false) or host.active.has(1):failures.append("Could not stop "+exercise)
+
+func _test_shared_selector() -> void:
+	var panel: PanelContainer = preload("res://scripts/campus/facilities/facility_panel.gd").new()
+	var receiver := RequestReceiver.new()
+	root.add_child(panel)
+	root.add_child(receiver)
+	panel.controller = receiver
+	panel.state = {"profile":saved,"active":{}}
+	panel.cable_resistance = func(_station):return 35
+	panel.dumbbell_mass = func():return 10.0
+	panel.barbell_mass = func(_station):return 20.0
+	var kinds := Host.STATION_EXERCISES.duplicate()
+	kinds["bench_dumbbell"] = Host.BENCH_DUMBBELL_EXERCISES
+	kinds["bench_barbell"] = Host.BENCH_BARBELL_EXERCISES
+	for kind in kinds:
+		panel.station_kind = kind
+		panel.station_id = "gym/benchpress" if kind.begins_with("bench_") else "gym/" + kind
+		panel.pending = false
+		panel.redraw()
+		var selectors := panel.find_children("*","OptionButton",true,false)
+		var selector: OptionButton = selectors[0]
+		var found := []
+		for i in selector.item_count:
+			var exercise: Variant = selector.get_item_metadata(i)
+			if exercise == null:
+				continue
+			found.append(exercise)
+			panel.pending = false
+			selector.select(i)
+			selector.item_selected.emit(i)
+			for action in panel.service_actions:
+				if action.text != "Start set":
+					continue
+				if action.disabled:
+					failures.append("Equipped exercise incorrectly disabled: " + str(exercise))
+				action.pressed.emit()
+				if receiver.last.get("exercise") != exercise or receiver.last.get("station") != panel.station_id:
+					failures.append("Selector dispatched the wrong request for " + str(exercise))
+				if kind == "cable" and receiver.last.get("weight") != 35:
+					failures.append("Selector did not use cable pin resistance")
+		if found.size() != kinds[kind].size() or not kinds[kind].all(func(id):return id in found):
+			failures.append("Selector omitted exercises at " + kind)
+	panel.free()
+	receiver.free()

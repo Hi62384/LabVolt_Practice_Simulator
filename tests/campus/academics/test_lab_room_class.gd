@@ -4,12 +4,22 @@ func run():
  var game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
  for i in 4:await process_frame
  game.front.entered()
+ await physics_frame
+ await physics_frame
  var classes=game.lecture_classes
  var school=game.school
  var identity="0123456789abcdef0123456789abcdef0123456789abcdef"
  school.identities[1]=identity
  game.session.roster[1]={"name":"Student"}
  for room in ["ac_lab","dc_lab"]:
+  var desk: Vector3=classes.signs[room].desk
+  var space: PhysicsDirectSpaceState3D=game.get_world_3d().direct_space_state
+  var leg_ray:=PhysicsRayQueryParameters3D.create(desk+Vector3(-.65,.30,-.72), desk+Vector3(-.65,.30,-.24), 1)
+  var leg_hit:=space.intersect_ray(leg_ray)
+  assert(not leg_hit.is_empty() and leg_hit.collider.get_meta("room","")==room, "Class table leg is not solid")
+  var desk_ray:=PhysicsRayQueryParameters3D.create(desk+Vector3(-.35,1.50,0), desk+Vector3(-.35,.60,0), 4)
+  var desk_hit:=space.intersect_ray(desk_ray)
+  assert(not desk_hit.is_empty() and desk_hit.collider.get_meta("role","")=="lecture_desk", "Class table interaction is blocked")
   var course="ELM253" if room=="ac_lab" else "ETY155"
   assert(classes._start(room,{"kind":"lecture","course_id":course,"week":1,"difficulty":2})!="")
   game.faculty.current[room]="mr_phillips"

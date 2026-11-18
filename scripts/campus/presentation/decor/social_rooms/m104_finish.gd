@@ -49,8 +49,10 @@ func build() -> void:
 	for x in range(20):
 		for z in range(12):
 			(floor_a if (x+z)%4==0 else floor_b).append(Vector3(-9.5+x,.008,-5.5+z))
-	tiles(floor_a,Vector3(.984,.012,.984),"67787b")
-	tiles(floor_b,Vector3(.984,.012,.984),"718185")
+	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(self, [
+		{"points":floor_a, "color":Color("67787b")},
+		{"points":floor_b, "color":Color("718185")},
+	], Vector2(.984,.984), .018, .86)
 	# Blue-gray wainscot, cream upper wall, and a continuous baseboard.
 	for z in [-5.88]:
 		panel(Vector3(0,1.0,z),Vector3(19.82,1.9,.035),"536d76")

@@ -1,4 +1,5 @@
 extends Node3D
+const GymLayout = preload("res://scripts/campus/facilities/gym_layout.gd")
 ## Furniture only. Pass the central registry room dictionary; owns no room shells.
 var stations := {}
 var materials := {}
@@ -162,8 +163,8 @@ func _gym() -> void:
 		{"key":"pushup","kind":"pushup","at":Vector3(-6.4,0,-4.38)},
 		{"key":"pushup_2","kind":"pushup","at":Vector3(-3.7,0,-4.38)},
 		{"key":"pushup_3","kind":"pushup","at":Vector3(-1.0,0,-4.38)},
-		{"key":"pullup","kind":"pullup","at":Vector3(-5,0,-2)},
-		{"key":"benchpress","kind":"benchpress","at":Vector3(4,0,-2)}
+		{"key":"pullup","kind":"pullup","at":GymLayout.PULLUP},
+		{"key":"benchpress","kind":"benchpress","at":GymLayout.BENCH}
 	]
 	for spec in station_specs:
 		var key:=str(spec.key);var kind:=str(spec.kind);var at: Vector3=spec.at
@@ -228,7 +229,7 @@ func _gym() -> void:
 		hit.shape = shape
 		target.add_child(hit)
 	for index in 2:
-		var at:=Vector3(7,0,-3.6+index*6.0)
+		var at:=GymLayout.cable(index)
 		var id:="gym/cable_%d" % index
 		var machine=preload("res://scripts/campus/facilities/gym_cable_machine.gd").new()
 		machine.position=at;add_child(machine);machine.build(id);gym_cables.append(machine)

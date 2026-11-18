@@ -51,8 +51,10 @@ func _build_floor(root: Node3D) -> void:
 	for ix in range(20):
 		for iz in range(14):
 			positions["tile_alt" if (ix+iz)%7==0 else "tile"].append(Vector3(-9.5+ix,.012,-3.5+iz))
+	var groups: Array = []
 	for key in positions:
-		preload("res://scripts/campus/performance/lit_tile_batches.gd").build(root,positions[key],Vector3(.984,.012,.984),_material(key))
+		groups.append({"points":positions[key], "color":_material(key).albedo_color})
+	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.984,.984), .018, .92)
 	# Thin, noncolliding work-zone boundary. Existing tables and walking routes stay fixed.
 	for x in [-6.0,0.0,6.0]:
 		_box(root,"WorkBoundary",Vector3(x,.028,-1.63),Vector3(4.8,.004,.031),"notice")
@@ -80,9 +82,11 @@ func _build_ceiling(root: Node3D) -> void:
 			_box(root,"LightFrame",Vector3(x,3.94,z),Vector3(4.4,.11,.31),"navy")
 			_box(root,"LightDiffuser",Vector3(x,3.876,z),Vector3(4.31,.025,.24),"diffuser")
 			var light:=Fixtures.down(root, Vector3(x,3.82,z), 1.25, 7.2)
-			# Even ceiling fill avoids hard-edged fixture shadows cutting across the
-			# tiled floor and work surfaces.
-			light.shadow_enabled=false
+			# One shadow fixture per bay anchors the benches and chairs.
+			light.shadow_enabled = (x == 0.0 and z == 0.0) or (x != 0.0 and z == 6.0)
+			light.shadow_bias = .06
+			light.shadow_normal_bias = 1.1
+			light.shadow_blur = 1.5
 
 func _build_furniture_finish(root: Node3D) -> void:
 	# Top skins follow the exact legacy desk positions; no existing table collision changes.

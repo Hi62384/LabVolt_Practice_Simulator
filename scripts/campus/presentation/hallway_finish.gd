@@ -16,6 +16,8 @@ const FRAME := "253f50"
 static func apply(world: Node3D) -> void:
 	# Structural walls, collisions, and shared materials retain their exact state.
 	for room in world.registry.rooms.values():
+		if room.id == "campus_store" and world.room_roots.get(room.id) == world.room_roots.get("circuit_studio"):
+			continue
 		var center: Vector3 = world.registry.vector(room.center)
 		var size: Vector3 = world.registry.vector(room.size)
 		var x: float = 10.0 if center.x < 13.0 else 16.0
@@ -57,10 +59,10 @@ static func _add_wall_run(world: Node3D, x: float, y: float, z0: float, z1: floa
 	var length: float = z1 - z0
 	var z: float = (z0 + z1) * 0.5
 	# Mesh only: structural wall supplies collision. Hall-facing offset prevents z fight.
-	world.box(world, Vector3(x, y + 0.77, z), Vector3(0.018, 1.54, length), LOWER, false)
-	world.box(world, Vector3(x, y + 2.79, z), Vector3(0.018, 2.42, length), UPPER, false)
+	world.box(world, Vector3(x, y + 0.52, z), Vector3(0.018, 1.04, length), LOWER, false)
+	world.box(world, Vector3(x, y + 2.52, z), Vector3(0.018, 2.96, length), UPPER, false)
 	# The old continuous mid-wall strip crossed mounted corridor artwork.
-	# The material break at 1.54 m already defines this edge cleanly.
+	# The material break at 1.04 m already defines this edge cleanly.
 	world.box(world, Vector3(x + (0.02 if x < 13.0 else -0.02), y + 0.10, z), Vector3(0.045, 0.20, length), TRIM, false)
 
 static func _add_frame(world: Node3D, x: float, y: float, z: float, half: float) -> void:

@@ -50,6 +50,7 @@ func run() -> void:
 	await physics_frame
 	await physics_frame
 	check(campus.room_roots.size()==14,"all shells built")
+	check(campus.room_roots.circuit_studio == campus.room_roots.campus_store, "M208 gameplay IDs share one physical shell")
 	check(campus.materials.size()<12,"shared materials bounded")
 	check(campus.solid_count<180,"modest static collision count")
 	# Horizontal body-sized sweeps prove each open door is clear in the built physics world.

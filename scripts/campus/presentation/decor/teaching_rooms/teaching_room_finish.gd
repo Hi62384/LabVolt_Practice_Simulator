@@ -97,10 +97,10 @@ func _lecture(root: Node3D, campus: Node, room: Dictionary, profile: Dictionary)
 				light.shadow_blur=1.5
 	var desk_x := -4.45 if profile.door_east else 4.45
 	var desk_z := -half_depth+2.15
-	campus.box(root,Vector3(desk_x,.79,desk_z),Vector3(1.8,.08,.75),"aa8263")
+	campus.box(root,Vector3(desk_x,.79,desk_z),Vector3(1.8,.08,.75),"aa8263",false)
 	var desk := StaticBody3D.new()
-	desk.position=Vector3(desk_x,.77,desk_z)
-	desk.collision_layer=4
+	desk.position=Vector3(desk_x,.79,desk_z)
+	desk.collision_layer=5
 	desk.collision_mask=0
 	desk.set_meta("role","lecture_desk")
 	desk.set_meta("room",room.id)
@@ -108,12 +108,18 @@ func _lecture(root: Node3D, campus: Node, room: Dictionary, profile: Dictionary)
 	root.add_child(desk)
 	var desk_hit := CollisionShape3D.new()
 	var desk_shape := BoxShape3D.new()
-	desk_shape.size=Vector3(1.82,.15,.77)
+	desk_shape.size=Vector3(1.8,.08,.75)
 	desk_hit.shape=desk_shape
 	desk.add_child(desk_hit)
 	for x in [-.77,.77]:
 		for z in [-.28,.28]:
 			_bar(root,Vector3(desk_x+x,.37,desk_z+z),Vector3(.055,.74,.055),DARK)
+			var leg := CollisionShape3D.new()
+			var leg_shape := BoxShape3D.new()
+			leg_shape.size = Vector3(.055,.74,.055)
+			leg.shape = leg_shape
+			leg.position = Vector3(x,-.42,z)
+			desk.add_child(leg)
 	_bar(root,Vector3(desk_x,.99,desk_z-.18),Vector3(.39,.31,.065),DARK)
 	_bar(root,Vector3(desk_x,.86,desk_z-.18),Vector3(.10,.12,.17),DARK)
 	_bar(root,Vector3(0,3.73,-.5),Vector3(.45,.18,.31),DARK)

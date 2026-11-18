@@ -15,9 +15,10 @@ var second_routed_cable: MeshInstance3D
 var route_sections: Array[MeshInstance3D]=[]
 var second_route_sections: Array[MeshInstance3D]=[]
 var stack_cable: MeshInstance3D
-var raised_stack: Node3D
 var weights: Array[MeshInstance3D]=[]
 var selection_pin: MeshInstance3D
+var weight_display: Label3D
+const SIDE_GUIDE := Vector3(.86, 1.42, .48)
 var pin_targets: Array[StaticBody3D]=[]
 var dark: StandardMaterial3D
 var steel: StandardMaterial3D
@@ -29,23 +30,51 @@ func build(id: String) -> void:
 	for x in [-.54,.54]:
 		_box(self,Vector3(x,1.22,0),Vector3(.11,2.44,.12),steel)
 		_box(self,Vector3(x,.08,.12),Vector3(.20,.16,1.10),dark)
-	_box(self,Vector3(0,2.40,0),Vector3(1.20,.12,.15),steel)
+	_box(self,Vector3(0,2.40,.09),Vector3(1.85,.12,.25),steel)
 	_box(self,Vector3(0,1.1,-.15),Vector3(.64,2.05,.25),dark)
 	for x in [-.26,.26]:_box(self,Vector3(x,1.0,.08),Vector3(.025,1.9,.025),steel)
 	for i in 20:
 		var plate:=_box(self,Vector3(0,.16+i*.075,.10),Vector3(.48,.065,.22),steel)
 		weights.append(plate)
-		var pin_target:=StaticBody3D.new();pin_target.name="CableWeightPin_%d" % ((i+1)*5)
+		var kg := (20 - i) * 5
+		var pin_target:=StaticBody3D.new();pin_target.name="CableWeightPin_%d" % kg
 		pin_target.position=Vector3(.31,.16+i*.075,.30);pin_target.collision_layer=4;pin_target.collision_mask=0
-		pin_target.set_meta("role","gym_cable_pin");pin_target.set_meta("station",id);pin_target.set_meta("weight",(i+1)*5)
-		pin_target.set_meta("label","Set cable resistance to %d kg" % ((i+1)*5))
+		pin_target.set_meta("role","gym_cable_pin");pin_target.set_meta("station",id);pin_target.set_meta("weight",kg)
+		pin_target.set_meta("label","Set cable resistance to %d kg" % kg)
 		var pin_hit:=CollisionShape3D.new();var pin_shape:=BoxShape3D.new();pin_shape.size=Vector3(.28,.085,.30);pin_hit.shape=pin_shape;pin_target.add_child(pin_hit);add_child(pin_target);pin_targets.append(pin_target)
 	selection_pin=_box(self,Vector3(.25,.16,.25),Vector3(.30,.07,.12),_material(Color("cfad63"),.5,.35))
-	raised_stack=Node3D.new();raised_stack.name="SelectedStack";add_child(raised_stack)
 	var pulley:=MeshInstance3D.new();var wheel:=CylinderMesh.new();wheel.top_radius=.12;wheel.bottom_radius=.12;wheel.height=.07;wheel.radial_segments=16
 	pulley.mesh=wheel;pulley.material_override=dark;pulley.rotation.z=PI/2;pulley.position=Vector3(0,2.3,.13);add_child(pulley)
 	var lower_pulley:=MeshInstance3D.new();lower_pulley.mesh=wheel;lower_pulley.material_override=dark
 	lower_pulley.rotation.z=PI/2;lower_pulley.position=Vector3(0,.20,.13);add_child(lower_pulley)
+	var bezel := _box(self, Vector3(0, 2.40, .23), Vector3(.62, .15, .07), dark)
+	weight_display = Label3D.new()
+	weight_display.name = "SelectedWeight"
+	weight_display.position.z = .036
+	weight_display.font_size = 42
+	weight_display.pixel_size = .0014
+	weight_display.outline_size = 0
+	weight_display.modulate = Color("dee9e8")
+	bezel.add_child(weight_display)
+	for side in [-1.0, 1.0]:
+		var guide := SIDE_GUIDE * Vector3(side, 1, 1)
+		_box(self, Vector3(guide.x, .71, .26), Vector3(.12, 1.42, .14), steel)
+		_box(self, Vector3(guide.x, .06, .26), Vector3(.26, .12, .64), dark)
+		_box(self, guide - Vector3(0, 0, .09), Vector3(.18, .21, .26), dark)
+		var roller := MeshInstance3D.new()
+		roller.mesh = wheel
+		roller.material_override = steel
+		roller.scale = Vector3.ONE * .58
+		roller.rotation.z = PI * .5
+		roller.position = guide
+		add_child(roller)
+		var overhead := MeshInstance3D.new()
+		overhead.mesh = wheel
+		overhead.material_override = dark
+		overhead.scale = Vector3.ONE * .57
+		overhead.rotation.x = PI * .5
+		overhead.position = Vector3(guide.x, 2.30, .13)
+		add_child(overhead)
 	handle=Node3D.new();handle.position=Vector3(0,1.45,.72);add_child(handle)
 	_box(handle,Vector3.ZERO,Vector3(.52,.05,.05),steel)
 	for x in [-.26,.26]:_box(handle,Vector3(x,-.08,0),Vector3(.05,.20,.05),dark)
@@ -54,7 +83,7 @@ func build(id: String) -> void:
 	second_cable=MeshInstance3D.new();second_cable.mesh=wire;second_cable.material_override=dark;add_child(second_cable);second_cable.hide()
 	routed_cable=MeshInstance3D.new();routed_cable.mesh=wire;routed_cable.material_override=dark;add_child(routed_cable);routed_cable.hide()
 	second_routed_cable=MeshInstance3D.new();second_routed_cable.mesh=wire;second_routed_cable.material_override=dark;add_child(second_routed_cable);second_routed_cable.hide()
-	for i in 4:
+	for i in 1:
 		var section:=MeshInstance3D.new();section.mesh=wire;section.material_override=dark;add_child(section);section.hide();route_sections.append(section)
 		var second:=MeshInstance3D.new();second.mesh=wire;second.material_override=dark;add_child(second);second.hide();second_route_sections.append(second)
 	stack_cable=MeshInstance3D.new();stack_cable.name="StackCable";stack_cable.mesh=wire;stack_cable.material_override=dark;add_child(stack_cable)
@@ -67,7 +96,10 @@ func build(id: String) -> void:
 	for x in [-.54,.54]:
 		_add_solid_box(solid,Vector3(x,1.22,0),Vector3(.11,2.44,.12))
 		_add_solid_box(solid,Vector3(x,.08,.12),Vector3(.20,.16,1.10))
-	_add_solid_box(solid,Vector3(0,2.40,0),Vector3(1.20,.12,.15))
+	_add_solid_box(solid,Vector3(0,2.40,.09),Vector3(1.85,.12,.25))
+	for side in [-1.0, 1.0]:
+		_add_solid_box(solid, Vector3(SIDE_GUIDE.x * side, .71, .26), Vector3(.12, 1.42, .14))
+		_add_solid_box(solid, Vector3(SIDE_GUIDE.x * side, .06, .26), Vector3(.26, .12, .64))
 	_update_pin();_update_wire();set_process(false)
 
 func selected_resistance() -> int:
@@ -78,8 +110,11 @@ func set_resistance(weight_kg: int) -> void:
 	_update_pin()
 
 func _update_pin() -> void:
-	var index:=clampi(selected,1,20)-1
-	if is_instance_valid(selection_pin):selection_pin.position.y=.16+float(index)*.075
+	if is_instance_valid(weight_display):
+		weight_display.text = "SELECTED %d kg" % selected_resistance()
+	var index := weights.size() - selected
+	if is_instance_valid(selection_pin):
+		selection_pin.position.y = weights[index].position.y
 	for i in pin_targets.size():pin_targets[i].set_meta("selected",i==index)
 
 func on_room_event(peer: int,event: Dictionary, avatar: Node3D=null) -> void:
@@ -120,6 +155,7 @@ func _process(delta: float) -> void:
 			second_handle.global_position=right_hand.global_position
 		else:handle.global_position=(left_hand.global_position+right_hand.global_position)*.5
 	for i in weights.size():weights[i].position.y=.16+i*.075+(.24*phase if i>=weights.size()-selected else 0.0)
+	selection_pin.position.y = weights[weights.size() - selected].position.y
 	_update_wire()
 	if occupant==0 and is_zero_approx(phase):set_process(false)
 
@@ -141,19 +177,11 @@ func _update_wire() -> void:
 	_position_cable(stack_cable,Vector3(0,2.3,.13),Vector3(0,.16+(weights.size()-1)*.075+.035+.24*phase,.10))
 
 func _route_cable(first: MeshInstance3D,last: MeshInstance3D,sections: Array[MeshInstance3D],pulley: Vector3,grip: Vector3,fallback_side: float) -> void:
-	# Chest movements face away from the pulley. Keep the lead outside the
-	# avatar's shoulders, using a smooth curve back to the grip.
-	var side:=signf(grip.x) if absf(grip.x)>.01 else fallback_side
-	var offset:=side*maxf(.90,absf(grip.x)+.40)
-	var control_a:=Vector3(offset,2.0,.65)
-	var control_b:=Vector3(offset,maxf(1.0,grip.y),maxf(1.42,grip.z-.1))
-	var segments: Array[MeshInstance3D]=[first]
-	segments.append_array(sections);segments.append(last)
-	var previous:=pulley
-	for i in segments.size():
-		var t:=float(i+1)/float(segments.size());var u:=1.0-t
-		var point:=u*u*u*pulley+3.0*u*u*t*control_a+3.0*u*t*t*control_b+t*t*t*grip
-		_position_cable(segments[i],previous,point);previous=point
+	var guide := SIDE_GUIDE * Vector3(fallback_side, 1, 1)
+	var overhead_guide := Vector3(guide.x, pulley.y, pulley.z)
+	_position_cable(first, pulley, overhead_guide)
+	_position_cable(sections[0], overhead_guide, guide)
+	_position_cable(last, guide, grip)
 
 func _position_cable(segment: MeshInstance3D,a: Vector3,b: Vector3) -> void:
 	var axis:=b-a
