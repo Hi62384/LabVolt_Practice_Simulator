@@ -1,4 +1,12 @@
 extends SceneTree
+func accept_dialog(desktop: Control, text := "") -> void:
+	for child in desktop.get_children():
+		if child is ConfirmationDialog and not child.is_queued_for_deletion():
+			var controls:=child.find_children("*","LineEdit",true,false)
+			if not controls.is_empty():controls[0].text=text
+			child.confirmed.emit()
+			return
+
 func _initialize() -> void:call_deferred("run")
 func find_button(node: Node, title: String) -> Button:
 	for item in node.find_children("*","Button",true,false):
@@ -81,22 +89,31 @@ func run() -> void:
 	desktop._switch_app("Files")
 	if not desktop.folder_button.visible or not desktop.delete_button.visible:
 		push_error("Public file controls missing");quit(1);return
-	desktop.path_field.text="Labs";desktop.folder_button.pressed.emit()
+	desktop.folder_button.pressed.emit()
+	accept_dialog(desktop,"Labs")
 	if "Labs" not in computers.local_snapshot.get("folders",[]):push_error("Folder creation failed");quit(1);return
 	computers.last_request.erase(1)
-	find_button(desktop,"New").pressed.emit()
-	desktop.path_field.text="Labs/note.txt";desktop.editor.text="temporary"
+	for index in desktop.file_list.item_count:
+		if desktop.file_list.get_item_metadata(index).get("path","")=="Labs":desktop.file_list.select(index)
+	desktop._open_selected()
+	find_button(desktop,"New file").pressed.emit()
+	accept_dialog(desktop,"note.txt")
+	await process_frame
+	await process_frame
+	desktop.editor.text="temporary"
 	desktop.editor.text_changed.emit()
-	await create_timer(.7).timeout
+	await create_timer(.75).timeout
 	if not computers.local_snapshot.files.has("Labs/note.txt"):push_error("Autosave failed");quit(1);return
 	desktop._switch_app("Files")
 	computers.last_request.erase(1)
+	desktop._folder_up()
 	var folder_index:=-1
 	for index in desktop.file_list.item_count:
 		if desktop.file_list.get_item_metadata(index).get("path","")=="Labs":folder_index=index
 	if folder_index<0:push_error("Folder missing from desktop");quit(1);return
-	desktop.file_list.select(folder_index);desktop.path_field.text="Work"
+	desktop.file_list.select(folder_index)
 	find_button(desktop,"Rename").pressed.emit()
+	accept_dialog(desktop,"Work")
 	if not computers.local_snapshot.files.has("Work/note.txt") or "Work" not in computers.local_snapshot.folders:
 		push_error("Folder rename lost its contents");quit(1);return
 	desktop._switch_app("Calculator")
@@ -121,8 +138,27 @@ func run() -> void:
 		if desktop.file_list.get_item_metadata(index).get("path","")=="Work":folder_index=index
 	if folder_index<0:push_error("Renamed folder missing from desktop");quit(1);return
 	desktop.file_list.select(folder_index);desktop.delete_button.pressed.emit()
+	accept_dialog(desktop)
 	if not computers.local_snapshot.files.is_empty() or not computers.local_snapshot.folders.is_empty():
 		push_error("Folder deletion left contents behind");quit(1);return
+	var recycled: Array=computers.local_snapshot.get("recycle",[])
+	assert(recycled.size()==1)
+	computers.last_request.erase(1)
+	desktop._send({"op":"untrash","item":recycled[0].id})
+	assert(computers.local_snapshot.files["Work/note.txt"].text=="temporary")
+	desktop._switch_app("Terminal")
+	var terminal: Control=desktop.content.get_child(0)
+	terminal._run("cat Work/note.txt")
+	assert(terminal.transcript.text.contains("temporary"))
+	desktop._switch_app("Circuit Lab")
+	var lab: Control=desktop.content.get_child(0)
+	assert(lab.results.text.contains("0.1200"))
+	desktop._switch_app("Code editor")
+	assert(desktop.windows.has("Text editor") and desktop.windows.has("Code editor"))
+	var language=load("res://scripts/campus/computers/campus_script.gd").new()
+	assert(is_equal_approx(float(language.run("let z = 2\nrepeat 2\nlet z = z + 3\nend\nprint z")),8.0))
+	assert(is_equal_approx(float(language.run("print 12 / 100")),0.12))
+	assert(language.run("print load(1)")=="Unsupported expression.")
 	computers.last_request.erase(1)
 	computers.request({"op":"save","lease":computers.local_snapshot.lease,"revision":computers.local_snapshot.revision,"path":"discard.txt","text":"temporary","version":0})
 	if not computers.local_snapshot.files.has("discard.txt"):push_error("Pre-shutdown save failed");quit(1);return
@@ -130,10 +166,14 @@ func run() -> void:
 	if computers.stations[id].power.powered or computers.sessions.has(1) or computers.public_workspaces.has(id):
 		push_error("Power off failed to clear session");quit(1);return
 	computers.request({"op":"power","station":id})
-	await create_timer(1.7).timeout
+	var ready_at: int=computers.stations[id].ready_at
+	while Time.get_ticks_msec()<ready_at:await process_frame
+	game.player.global_position=point
+	game.session.poses[1]={"position":point}
 	computers.request({"op":"enter","station":id})
-	if not computers.sessions.has(1) or not computers.local_snapshot.files.is_empty():
-		push_error("Restart retained temporary files");quit(1);return
+	if not computers.sessions.has(1):push_error("Restart did not reopen the workstation");quit(1);return
+	if not computers.local_snapshot.files.is_empty() or not computers.local_snapshot.recycle.is_empty():
+		push_error("Restart retained temporary workspace or Recycle Bin files");quit(1);return
 	computers.stations[id].power.last_activity_ms=Time.get_ticks_msec()-computers.stations[id].power.IDLE_TIMEOUT_MS
 	computers._prune()
 	if computers.stations[id].power.powered or computers.sessions.has(1):

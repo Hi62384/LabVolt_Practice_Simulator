@@ -8,9 +8,9 @@ static func path(raw: String) -> String:
 	var parts := raw.split("/",true)
 	if parts.size()>4:return ""
 	for part in parts:
-		if part.is_empty() or part in [".",".."] or part.length()>32:return ""
+		if part.is_empty() or part!=part.strip_edges() or part in [".",".."] or part.length()>32:return ""
 		for c in part:
-			if not c in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.-":return ""
+			if not c in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.- ":return ""
 	return "/".join(parts)
 static func validate(data: Dictionary) -> bool:
 	if data.size()>MAX_FILES:return false

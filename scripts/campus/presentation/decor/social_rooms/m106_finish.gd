@@ -28,8 +28,10 @@ func build(_menu: Dictionary) -> bool:
 	var floor_a: Array=[];var floor_b: Array=[]
 	for x in range(20):
 		for z in range(12):(floor_a if (x+z)%4==0 else floor_b).append(Vector3(-9.5+x,.008,-5.5+z))
-	batch(floor_a,Vector3(.984,.012,.984),"6c7b7e")
-	batch(floor_b,Vector3(.984,.012,.984),"738287")
+	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(self,[
+		{"points":floor_a,"color":Color("a0aab4")},
+		{"points":floor_b,"color":Color("a9b2bb")},
+	],Vector2(.984,.984),.018,.74,true,3)
 	# West entry x=-10,z=0 remains fully open. Existing right wall window
 	# insets at x~9.78,z +/-3.4 remain in front of this backing finish.
 	panel(Vector3(9.88,1,0),Vector3(.035,1.9,11.8),"506b75")

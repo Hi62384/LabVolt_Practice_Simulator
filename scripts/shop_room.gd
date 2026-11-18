@@ -150,7 +150,7 @@ func _build_workshop() -> void:
 	diffuser.albedo_color = Color("fff6e6")
 	diffuser.emission_enabled = true
 	diffuser.emission = Color("fff1d9")
-	diffuser.emission_energy_multiplier = .45
+	diffuser.emission_energy_multiplier = 1.14
 	for x in [21.0, 26.0, 31.0]:
 		for z in [0.0, 6.0]:
 			var fixture := Node3D.new()
@@ -159,12 +159,21 @@ func _build_workshop() -> void:
 			game._box(fixture, Vector3.ZERO, Vector3(2.2,.09,.66), Color("415469"))
 			var panel: MeshInstance3D = game._box(fixture, Vector3(0,-.057,0), Vector3(2.06,.033,.53), Color.WHITE)
 			panel.material_override = diffuser
-			preload("res://scripts/campus/presentation/fixture_light.gd").ceiling_omni(fixture, panel.position, 1.65, 5.4, false)
+			var lights = preload("res://scripts/campus/presentation/fixture_light.gd")
+			var downlight: SpotLight3D=lights.ceiling_omni(fixture,panel.position,1.55,6.5,x!=26.0 and z==6.0)
+			downlight.set_meta("ultra_shadow_fixture", x==26.0 and z==0.0)
+			downlight.basis=Basis.looking_at(Vector3(0,-1,signf(z-3.0)*.30),Vector3.BACK)
+			lights.ceiling_spill(fixture,panel.position-Vector3.UP*.12)
 	for z in [-3.87, 9.87]:
 		game._box(self, Vector3(26,.58,z), Vector3(19.70,1.15,.034), Color("55728a"))
 		game._box(self, Vector3(26,.085,z), Vector3(19.70,.15,.062), Color("344c62"))
 	game._box(self, Vector3(35.87,.58,3), Vector3(.034,1.15,13.72), Color("55728a"))
 	workshop_decor.build_room()
+	var contacts: Array[Transform3D]=[]
+	for x in [18.6,22.2,25.8,29.4,33.0]:
+		contacts.append(Transform3D(Basis.from_scale(Vector3(2.95,1,1.4)),Vector3(x,.022,8.65)))
+	contacts.append(Transform3D(Basis.from_scale(Vector3(6.1,1,1.5)),Vector3(30.1,.022,-3.19)))
+	preload("res://scripts/campus/presentation/lighting/interior_shadows.gd").add_contacts(self,contacts)
 	for station in [
 		[Vector3(18.6, 0, 8.65), "electronics_store", "ELECTRONICS STORE"],
 		[Vector3(22.2, 0, 8.65), "prototype_bench", "CUSTOM CIRCUIT MAKER"],

@@ -22,7 +22,15 @@ static func build(parent: Node3D,points: Array,size: Vector3,material: Material,
 # Forward Mobile assigns positional lights per render instance. All tiles
 # in an enclosed room share an instance so the light list does not switch
 # at arbitrary batch boundaries or between differently colored tiles.
-static func room_floor(parent: Node3D, groups: Array, size: Vector2, top: float, roughness: float) -> void:
+static func satin_material(tint: Color, vertex_colors := false, lighting_profile := 0) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader=preload("res://scripts/campus/presentation/lighting/satin_tiles.gdshader")
+	material.set_shader_parameter("tile_color",tint)
+	material.set_shader_parameter("use_tile_vertex_color",vertex_colors)
+	material.set_shader_parameter("lighting_profile",lighting_profile)
+	return material
+
+static func room_floor(parent: Node3D, groups: Array, size: Vector2, top: float, roughness: float, satin := false, lighting_profile := 0) -> void:
 	var mesh := PlaneMesh.new()
 	mesh.size = size
 	var material := StandardMaterial3D.new()
@@ -45,6 +53,7 @@ static func room_floor(parent: Node3D, groups: Array, size: Vector2, top: float,
 	var floor_mesh := MultiMeshInstance3D.new()
 	floor_mesh.name = "RoomFloorTiles"
 	floor_mesh.multimesh = batch
-	floor_mesh.material_override = material
+	floor_mesh.material_override = satin_material(Color.WHITE,true,lighting_profile) if satin else material
+	if satin:floor_mesh.set_meta("satin_floor",true)
 	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(floor_mesh)

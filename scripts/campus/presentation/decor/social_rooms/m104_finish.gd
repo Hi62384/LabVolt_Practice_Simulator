@@ -10,7 +10,7 @@ func mat(hex: String) -> StandardMaterial3D:
 	if hex == "fff1db":
 		m.emission_enabled = true
 		m.emission = m.albedo_color
-		m.emission_energy_multiplier = 2.0
+		m.emission_energy_multiplier = 1.25
 	mats[hex] = m
 	return m
 func panel(at: Vector3, size: Vector3, hex: String) -> void:
@@ -45,14 +45,18 @@ func label(text: String, at: Vector3, yaw: float, color: String, scale: float=.0
 func build() -> void:
 	# Shell walls are at local +/-10 X and +/-6 Z. West door is x=-10,z=0.
 	# Flooring remains visual and 8mm above the original collision plane.
-	var floor_a: Array = []; var floor_b: Array = []
-	for x in range(20):
-		for z in range(12):
-			(floor_a if (x+z)%4==0 else floor_b).append(Vector3(-9.5+x,.008,-5.5+z))
-	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(self, [
-		{"points":floor_a, "color":Color("67787b")},
-		{"points":floor_b, "color":Color("718185")},
-	], Vector2(.984,.984), .018, .86)
+	var tile_batches = preload("res://scripts/campus/performance/lit_tile_batches.gd")
+	for first in range(0,20,4):
+		for start_z in [0,6]:
+			var floor_a: Array=[]
+			var floor_b: Array=[]
+			for x in range(first,first+4):
+				for z in range(start_z,start_z+6):
+					(floor_a if (x+z)%4==0 else floor_b).append(Vector3(-9.5+x,.008,-5.5+z))
+			tile_batches.room_floor(self,[
+				{"points":floor_a,"color":Color("a4adb4")},
+				{"points":floor_b,"color":Color("aeb7bc")},
+			],Vector2(.984,.984),.018,.73,true,2)
 	# Blue-gray wainscot, cream upper wall, and a continuous baseboard.
 	for z in [-5.88]:
 		panel(Vector3(0,1.0,z),Vector3(19.82,1.9,.035),"536d76")
@@ -85,3 +89,6 @@ func build() -> void:
 			var wall := Vector3(x,2.69,z)
 			panel(wall,Vector3(.23,.21,.17),"344f59")
 			panel(wall-Vector3(0,.115,0),Vector3(.18,.022,.12),"fff1db")
+			var inward := -signf(z)
+			var fixtures = preload("res://scripts/campus/presentation/fixture_light.gd")
+			fixtures.down(self,wall+Vector3(0,-.16,inward*.10),.44,2.65,Vector3(0,-1,-inward*.23).normalized(),46.0,Color("ffe3c1"))

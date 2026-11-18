@@ -1,7 +1,7 @@
 class_name CampusLightingRig
 extends Node3D
 ## Campus sky, exterior key light and interior fill.
-## One directional light supplies shadows; interiors remain readable through sky ambient fill.
+## Ambient stays readable throughout the day; practical fixtures light enclosed rooms.
 
 @export_range(0.0, 24.0, 0.05) var time_of_day := 13.5:
 	set(value):
@@ -73,8 +73,8 @@ func _build_once() -> void:
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.glow_enabled = true
 	environment.glow_bloom = 0.0
-	environment.glow_hdr_threshold = 0.8
-	environment.glow_hdr_scale = 2.5
+	environment.glow_hdr_threshold = 1.0
+	environment.glow_hdr_scale = 1.65
 	environment.glow_intensity = 0.75
 	environment.glow_hdr_luminance_cap = 64.0
 	world_environment.environment = environment
@@ -90,7 +90,7 @@ func _build_once() -> void:
 	sun.directional_shadow_max_distance = 45.0
 	sun.shadow_bias = 0.07
 	sun.shadow_normal_bias = 1.4
-	sun.light_angular_distance = 1.1
+	sun.light_angular_distance = 0.0
 	# The campus has solid ceilings. Compatibility sky ambient alone does not
 	# illuminate the enclosed desks and walls consistently across room views.
 	# A single weak, shadowless fill keeps those surfaces legible at low cost.
@@ -113,8 +113,8 @@ func _apply_time_of_day() -> void:
 	var azimuth_degrees := (time_of_day / 24.0) * 360.0 - 70.0
 	sun.rotation_degrees = Vector3(-elevation_degrees, azimuth_degrees, 0.0)
 	sun.light_color = Color("ffb178").lerp(Color("fff7ea"), clampf(daylight * 1.8, 0.0, 1.0))
-	sun.light_energy = lerpf(0.035, 0.41, day_mix) * brightness_scale
-	interior_fill.light_energy = lerpf(0.025, 0.055, day_mix) * brightness_scale
+	sun.light_energy = lerpf(0.025, 0.55, day_mix) * brightness_scale
+	interior_fill.light_energy = lerpf(0.009, 0.020, day_mix) * brightness_scale
 
 	sky_material.sky_top_color = NIGHT_SKY_TOP.lerp(DAY_SKY_TOP, day_mix)
 	sky_material.sky_horizon_color = NIGHT_SKY_HORIZON.lerp(DAY_SKY_HORIZON, day_mix).lerp(Color("f1a06f"), twilight * 0.38)
@@ -122,5 +122,5 @@ func _apply_time_of_day() -> void:
 	sky_material.ground_horizon_color = NIGHT_GROUND_HORIZON.lerp(DAY_GROUND_HORIZON, day_mix).lerp(Color("b9785f"), twilight * 0.25)
 	sky_material.sun_curve = lerpf(0.04, 0.12, day_mix)
 	world_environment.environment.background_energy_multiplier = lerpf(0.18, 0.92, day_mix) * brightness_scale
-	world_environment.environment.ambient_light_energy = lerpf(0.19, 0.27, day_mix) * brightness_scale
-	world_environment.environment.ambient_light_color = Color("8ea5c8").lerp(Color("e6e8eb"), day_mix)
+	world_environment.environment.ambient_light_energy = lerpf(0.22, 0.285, day_mix) * brightness_scale
+	world_environment.environment.ambient_light_color = Color("c0ccdf").lerp(Color("dce3eb"), day_mix)

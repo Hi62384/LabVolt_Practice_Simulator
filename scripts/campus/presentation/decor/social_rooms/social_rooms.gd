@@ -43,9 +43,35 @@ func build_room(id: String, registry: Object, campus: Node3D) -> bool:
 		node.name = str(group.mesh).to_pascal_case()
 		node.multimesh = mm
 		node.material_override = _material(str(group.material))
-		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		var mesh_name := str(group.mesh)
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if mesh_name.begins_with("pendant__") or str(group.material) in ["glow","glass"] else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		if id=="cafeteria" and mesh_name=="pendant__glow":
+			# The modeled diffuser was hidden inside the brass housing.
+			node.position.y=-.023
+			var material: StandardMaterial3D=node.material_override.duplicate()
+			material.emission_enabled=true
+			material.emission=Color("ffe8c5")
+			material.emission_energy_multiplier=1.16
+			node.material_override=material
+			var fixtures = preload("res://scripts/campus/presentation/fixture_light.gd")
+			for item in group.items:
+				var light: SpotLight3D=fixtures.down(stage,Vector3(item[0],float(item[1])-.10,item[2]),.90,4.0,Vector3.DOWN,61.0,Color("ffe3c2"))
+				if float(item[0])==-1.2 and float(item[2])>0.0:
+					light.shadow_enabled=true
+					light.shadow_bias=.06
+					light.shadow_normal_bias=.9
+					light.shadow_blur=1.45
 		node.visibility_range_end = 37
 		stage.add_child(node)
+	if id=="cafeteria":
+		var contacts: Array[Transform3D]=[]
+		for group in profile.groups:
+			if group.mesh not in ["dining_table__oak","chair__sage"]:continue
+			var width := 1.2 if group.mesh=="dining_table__oak" else .8
+			for item in group.items:
+				var basis := Basis(Vector3.UP,deg_to_rad(float(item[3]))).scaled(Vector3(width,1,width*.82))
+				contacts.append(Transform3D(basis,Vector3(item[0],.022,item[2])))
+		preload("res://scripts/campus/presentation/lighting/interior_shadows.gd").add_contacts(stage,contacts)
 	var c: Array = profile.center
 	stage.position = Vector3(float(c[0]), float(c[1]), float(c[2]))
 	_add_furniture_collisions(stage, profile, id)

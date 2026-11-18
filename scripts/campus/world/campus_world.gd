@@ -77,7 +77,7 @@ func _room_lighting(room: Dictionary) -> void:
 				box(light_rig, Vector3(x,3.934,z), Vector3(1.68,.018,.32), "f4edda", false)
 			elif id != "cafeteria":
 				box(light_rig, Vector3(x,3.88,z), Vector3(2.3,.06,.32), "f4edda", false)
-			var light := preload("res://scripts/campus/presentation/fixture_light.gd").down(light_rig, Vector3(x,3.83,z),1.05,6.6)
+			var light := preload("res://scripts/campus/presentation/fixture_light.gd").down(light_rig, Vector3(x,3.83,z),1.20 if id=="cafeteria" else 1.38,5.2 if id=="cafeteria" else 6.6,Vector3.DOWN,68.0,Color("fff0dc") if id=="cafeteria" else Color("fff3e5"))
 			if id == "gym" and x == 0 and z == 0:
 				light.shadow_enabled = true
 				light.shadow_bias = .06
@@ -119,6 +119,20 @@ func _room(room: Dictionary) -> void:
 	room_roots[room.id]=root
 	var center: Vector3=registry.vector(room.center)
 	var size: Vector3=registry.vector(room.size)
+	var probe := ReflectionProbe.new()
+	probe.name = "RoomReflections"
+	probe.size = Vector3(size.x, 4.1, size.z)
+	probe.position = center + Vector3.UP * 2.05
+	probe.max_distance = probe.size.length()
+	probe.mesh_lod_threshold = 4.0
+	probe.box_projection = true
+	probe.interior = true
+	probe.ambient_mode = ReflectionProbe.AMBIENT_DISABLED
+	probe.set_meta("room_probe", true)
+	var reflections := Node3D.new()
+	root.add_child(reflections)
+	reflections.add_child(probe)
+	register_content(str(room.id), reflections)
 	var west := center.x<13
 	var door: Vector3=registry.vector(room.door)
 	var xmin := center.x-size.x/2
@@ -128,7 +142,7 @@ func _room(room: Dictionary) -> void:
 	var wall_x := xmax if west else xmin
 	var wall_color := "eeece4" if room.kind in ["lecture", "computer"] else "c6cbd6"
 	box(root,center+Vector3(0,-.12,0),Vector3(size.x,.24,size.z),"71829b")
-	box(root,center+Vector3(0,4.15,0),Vector3(size.x,.2,size.z),"d5d9e2")
+	_room_wall(root,center+Vector3(0,4.15,0),Vector3(size.x,.2,size.z),"d5d9e2")
 	for z in [zmin,zmax]:
 		if room.id=="computer_commons" and z==zmin:
 			# The elevator already supplies the adjoining wall from x=16 to 24.
@@ -241,10 +255,10 @@ func _circulation() -> void:
 	box(self,Vector3(26,-.12,40),Vector3(20,.24,2),"71829b")
 	box(self,Vector3(26,4.15,40),Vector3(20,.2,2),"d5d9e2")
 	box(self,Vector3(36,2.04,40),Vector3(.16,4.08,2),"c6cbd6")
-	# The Subway finish supplies its own room flooring beyond the connector.
+	# Tile only the two connector slabs. M106 and M108 own their room finishes.
 	var food_tiles: Array=[]
 	for x in range(16,36):
-		for z in range(25,41): food_tiles.append(Vector3(x+.5,.012,z+.5))
+		for z in [25,26,39,40]: food_tiles.append(Vector3(x+.5,.012,z+.5))
 	preload("res://scripts/campus/performance/lit_tile_batches.gd").build(self,food_tiles,Vector3(.982,.012,.982),material("8492a0"))
 	# Continuous ground corridor, lobby and outdoor entrance.
 	box(self,Vector3(13,-.12,28.5),Vector3(6,.24,79),"626d7a")

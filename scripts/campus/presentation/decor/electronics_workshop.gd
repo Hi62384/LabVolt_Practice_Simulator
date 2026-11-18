@@ -151,13 +151,11 @@ func _floor() -> void:
 		for z in 14:
 			var index := x * 14 + z
 			batch.set_instance_transform(index, Transform3D(Basis.IDENTITY, Vector3(16.5+x,.011,-3.5+z)))
-			batch.set_instance_color(index, Color("a8b3c2") if (x * 7 + z * 13)%9 == 0 else Color("99a8ba"))
+			batch.set_instance_color(index, Color("b4bfcb") if (x * 7 + z * 13)%9 == 0 else Color("a9b5c4"))
 	var mesh := MultiMeshInstance3D.new()
 	mesh.name = "WorkshopFloor"
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = .74
-	mesh.material_override = material
+	mesh.material_override = preload("res://scripts/campus/performance/lit_tile_batches.gd").satin_material(Color.WHITE,true)
+	mesh.set_meta("satin_floor",true)
 	mesh.multimesh = batch
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mesh)

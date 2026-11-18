@@ -188,6 +188,8 @@ func _accept(peer: int, action: Dictionary) -> void:
 	var workspace: Dictionary=workspaces[peer]
 	var usb_before: Dictionary=entry.power.usb.drive.entries.duplicate(true) if entry.has("power") and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"] else {}
 	var workspace_before: Dictionary=workspace.duplicate(true) if not usb_before.is_empty() or (entry.has("power") and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"]) else {}
+	if str(action.get("path","")).to_lower().begins_with(".recycle") or str(action.get("new_path","")).to_lower().begins_with(".recycle"):
+		_error(peer,"That path is reserved.");return
 	match op:
 		"restore":
 			if restored.has(peer):_error(peer,"This connection has already restored its files.");return
@@ -249,6 +251,11 @@ func _accept(peer: int, action: Dictionary) -> void:
 			var path := Files.path(str(action.get("path","")))
 			if not workspace.files.has(path):return
 			workspace.editor={"path":path,"cursor":clampi(int(action.get("cursor",0)),0,str(workspace.files[path].text).length())}
+		"trash","untrash","purge":
+			if not entry.has("power") or not entry.power.usb.is_empty():
+				_error(peer,"Recycle Bin is available on the workstation drive.");return
+			var recycle_error := _recycle_operation(workspace,entry.power.drive,action)
+			if not recycle_error.is_empty():_error(peer,recycle_error);return
 		"refresh":
 			pass
 		"answer", "submit":
@@ -265,6 +272,50 @@ func _accept(peer: int, action: Dictionary) -> void:
 		return
 	session.revision+=1
 	_reply(peer)
+
+func _recycle_operation(workspace: Dictionary, drive: RefCounted, action: Dictionary) -> String:
+	var records: Dictionary=workspace.get_or_add("recycle",{})
+	var id:=str(action.get("item",""))
+	if action.op=="purge":
+		var keys: Array=records.keys() if id.is_empty() else [id]
+		for key in keys:
+			if not records.has(key):continue
+			var stored: String=records[key].stored
+			if not drive.remove(stored):return "Could not erase the recycled item."
+			for path in workspace.files.keys():
+				if path==stored or str(path).begins_with(stored+"/"):workspace.files.erase(path)
+			records.erase(key)
+		return ""
+	var origin := Files.path(str(action.get("path","")))
+	var target := ""
+	if action.op=="trash":
+		if records.size()>=24:return "Recycle Bin is full. Empty it before deleting more items."
+		if origin.is_empty() or not drive.entries.has(origin):return "Select an existing workspace item."
+		id=Crypto.new().generate_random_bytes(8).hex_encode()
+		target=".Recycle/"+id
+		if not drive.entries.has(".Recycle") and not drive.make_folder(".Recycle"):
+			return "The virtual drive could not create its Recycle Bin."
+	else:
+		if not records.has(id):return "That recycled item no longer exists."
+		target=records[id].original
+		origin=records[id].stored
+	for path in workspace.files:
+		if path!=origin and not str(path).begins_with(origin+"/"):continue
+		var moved:=target+str(path).substr(origin.length())
+		if Files.path(moved)!=moved or int(workspace.files[path].version)>=2147483646:
+			return "The move would exceed the virtual file limits."
+	if not drive.move(origin,target):return "Choose an unused destination in an existing folder."
+	for path in workspace.files.keys():
+		if path!=origin and not str(path).begins_with(origin+"/"):continue
+		var moved:=target+str(path).substr(origin.length())
+		workspace.files[moved]=workspace.files[path]
+		workspace.files[moved].version+=1
+		workspace.files.erase(path)
+	var editor_path:=str(workspace.editor.get("path",""))
+	if editor_path==origin or editor_path.begins_with(origin+"/"):workspace.editor={}
+	if action.op=="trash":records[id]={"original":origin,"stored":target,"deleted":int(Time.get_unix_time_from_system())}
+	else:records.erase(id)
+	return ""
 
 func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries: Dictionary,old_workspace: Dictionary) -> void:
 	var usb: Dictionary=stations[station].power.usb
@@ -540,8 +591,19 @@ func _reply(peer: int) -> void:
 	packet.merge(workspaces[peer].duplicate(true))
 	if packet.get("public_device",false):
 		packet.folders=[]
-		var drive=stations[packet.station].power.drive
+		var device=stations[packet.station].power
+		var drive=device.drive
+		packet.recycle_available=device.usb.is_empty()
+		packet.erase("recycle")
+		if packet.recycle_available:
+			packet.recycle=[]
+			for id in workspaces[peer].get("recycle",{}):
+				var record: Dictionary=workspaces[peer].recycle[id]
+				packet.recycle.append({"id":id,"path":record.original,"deleted":record.deleted})
+		for path in packet.files.keys():
+			if str(path).begins_with(".Recycle/"):packet.files.erase(path)
 		for name in drive.entries:
+			if str(name)==".Recycle" or str(name).begins_with(".Recycle/"):continue
 			if drive.entries[name].type=="folder":packet.folders.append(name)
 	packet.restored=restored.has(peer)
 	packet.assignments=[]

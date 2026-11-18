@@ -52,6 +52,25 @@ func _process(_delta: float) -> void:
  back.disabled=browser==null or not browser.has_previous_page()
  forward.disabled=browser==null or not browser.has_next_page()
 
+func _unhandled_key_input(event: InputEvent) -> void:
+ if not is_visible_in_tree() or device_kind.is_empty() or not event is InputEventKey or not event.pressed or event.echo:return
+ if device_kind=="computer":
+  var window: Node=self
+  while window!=null and not window.has_meta("desktop_app"):window=window.get_parent()
+  if window==null or window!=window.get_parent().get_child(-1):return
+ if event.ctrl_pressed:
+  match event.keycode:
+   KEY_L:address.grab_focus();address.select_all()
+   KEY_T:_add_tab()
+   KEY_W:_close_tab()
+   KEY_R:
+    if _browser()!=null:_browser().reload()
+   _:return
+ elif event.alt_pressed and event.keycode in [KEY_LEFT,KEY_RIGHT]:
+  _history(-1 if event.keycode==KEY_LEFT else 1)
+ else:return
+ get_viewport().set_input_as_handled()
+
 func configure(kind: String,id: String,session_lease: String,items: Array) -> void:
  close_session()
  device_kind=kind;device_id=id;lease=session_lease

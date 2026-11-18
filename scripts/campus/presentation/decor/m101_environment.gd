@@ -54,7 +54,7 @@ func _build_floor(root: Node3D) -> void:
 	var groups: Array = []
 	for key in positions:
 		groups.append({"points":positions[key], "color":_material(key).albedo_color})
-	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.984,.984), .018, .92)
+	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.984,.984), .018, .28)
 	# Thin, noncolliding work-zone boundary. Existing tables and walking routes stay fixed.
 	for x in [-6.0,0.0,6.0]:
 		_box(root,"WorkBoundary",Vector3(x,.028,-1.63),Vector3(4.8,.004,.031),"notice")
@@ -84,6 +84,9 @@ func _build_ceiling(root: Node3D) -> void:
 			var light:=Fixtures.down(root, Vector3(x,3.82,z), 1.25, 7.2)
 			# One shadow fixture per bay anchors the benches and chairs.
 			light.shadow_enabled = (x == 0.0 and z == 0.0) or (x != 0.0 and z == 6.0)
+			if light.shadow_enabled and x!=0.0:
+				light.set_meta("shadow_fixture",true)
+				light.set_meta("shadow_tier",2)
 			light.shadow_bias = .06
 			light.shadow_normal_bias = 1.1
 			light.shadow_blur = 1.5

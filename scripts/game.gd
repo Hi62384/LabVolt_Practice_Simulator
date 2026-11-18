@@ -310,8 +310,6 @@ func _ready() -> void:
 	session.carry_speed_guard=func(peer):return carry_load.multiplier(peer)
 	campus_services.facilities.controller.host.dumbbell_mass=func(peer):return gym_weights.held_mass(peer)
 	campus_services.facility_panel.dumbbell_mass=func():return gym_weights.held_mass(multiplayer.get_unique_id())
-	var interior_shadows=preload("res://scripts/campus/presentation/lighting/interior_shadows.gd").new()
-	interior_shadows.name="InteriorShadowBudget";add_child(interior_shadows);interior_shadows.build(self)
 	lost_found_room=preload("res://scripts/campus/lost_found/room.gd").new()
 	lost_found_room.name="LostAndFound";add_child(lost_found_room);lost_found_room.build(self)
 	text_chat=preload("res://scripts/campus/chat/chat.gd").new()

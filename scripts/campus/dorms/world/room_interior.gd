@@ -31,12 +31,7 @@ func build(contract: Dictionary, public_style: Dictionary = {}) -> void:
 		_box("CeilingJoint",c+Vector3(0,3.923,z),Vector3(6.54,.009,.014),"c9c8c4")
 	_box("CeilingHousing",c+Vector3(0,3.88,0),Vector3(.95,.10,1.78),"354957")
 	_box("CeilingPanel",c+Vector3(0,3.821,0),Vector3(.85,.027,1.65),"fff1d8")
-	var ceiling_light := OmniLight3D.new()
-	ceiling_light.position = c + Vector3(0,3.55,0)
-	ceiling_light.light_energy = .34
-	ceiling_light.light_color = Color("fff1dd")
-	ceiling_light.omni_range = 6.0
-	add_child(ceiling_light)
+	preload("res://scripts/campus/presentation/fixture_light.gd").down(self, c + Vector3(0,3.77,0), .95, 6.0)
 	# Exterior-facing window only.
 	var wx := c.x+outward*3.39
 	_box("WindowGlass",Vector3(wx,2.25,c.z-.25),Vector3(.035,1.35,1.85),"9fb7bb")

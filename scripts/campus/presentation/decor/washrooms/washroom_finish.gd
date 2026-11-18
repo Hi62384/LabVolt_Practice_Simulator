@@ -159,7 +159,7 @@ func _build(id: String) -> Node3D:
 	root.position = ORIGINS[id]
 	var wall := _mat("wall", Color("e8e9e4"))
 	var blue := _mat("blue", Color("567689"))
-	var tile := _mat("tile", Color("b0b8c6"), 0.90)
+	var tile := _mat("tile", Color("b0b8c6"), 0.24)
 	var grout := _mat("grout", Color("929a9e"))
 	var teal := _mat("teal", Color("356477"))
 	var ceramic := _mat("ceramic", Color("e9ebe6"), 0.45)
@@ -183,12 +183,13 @@ func _build(id: String) -> Node3D:
 	var diffuser := _mat("diffuser", Color("fff4de"))
 	diffuser.emission_enabled = true
 	diffuser.emission = Color("fff4de")
-	diffuser.emission_energy_multiplier = .42
+	diffuser.emission_energy_multiplier = 2.1
 	for x in [-6, -2, 2, 6]:
 		_box(root, "Fixture housing", Vector3(x,3.858,0), Vector3(1.76,.072,.64), ink)
 		_box(root, "Ceiling light", Vector3(x,3.815,0), Vector3(1.62,.024,.51), diffuser)
 		preload("res://scripts/campus/presentation/fixture_light.gd").down(root,Vector3(x,3.78,0),.85,6.6)
 		_box(root, "Mirror light", Vector3(x,2.84,-5.60), Vector3(1.3,.067,.14), diffuser)
+		preload("res://scripts/campus/presentation/fixture_light.gd").down(root, Vector3(x,2.77,-5.56), .65, 3.4, Vector3(0,-.9,.43).normalized(), 54.0)
 	for i in CENTERS.size(): _stall(root, id, i, CENTERS[i], teal, steel, ceramic, ink)
 	for i in 4: _sink(root, id, i, -6.0 + 4.0 * i, oak, ceramic, steel, ink, mirror)
 	_box(root, "Privacy return", Vector3(8.2 if id == "washroom_1" else -8.2, 1.2, 3.65), Vector3(0.09, 2.1, 2), teal, true)

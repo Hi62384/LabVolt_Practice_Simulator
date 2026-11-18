@@ -27,5 +27,17 @@ func run() -> void:
    if light.shadow_enabled:count+=1
   var expected=3 if lab.name=="M101Environment" else 1
   if count!=expected:push_error("Shadow setting did not restore the stable fixtures");quit(1);return
- print("PASS: lab shadow fixtures remain fixed and graphics setting toggles them")
+ var representative: SpotLight3D=lab_roots[0].find_children("*","SpotLight3D",true,false)[0]
+ var base_energy:=representative.light_energy
+ var base_tint:=representative.light_color
+ settings.set_option("indoor_intensity",1.4)
+ if not is_equal_approx(representative.light_energy,base_energy*1.4):push_error("Fixture intensity did not update");quit(1);return
+ settings.set_option("lighting_tone","Warm")
+ if representative.light_color==base_tint:push_error("Fixture tone did not update");quit(1);return
+ settings.set_option("brightness",1.2)
+ var environment: WorldEnvironment=game.find_child("WorldEnvironment",true,false)
+ if not is_equal_approx(environment.environment.tonemap_exposure,1.2):push_error("Brightness did not change exposure");quit(1);return
+ settings.set_option("bloom_quality",0)
+ if environment.environment.glow_enabled:push_error("Bloom Off did not disable glow");quit(1);return
+ print("PASS: stable shadow fixtures, indoor intensity, tone, exposure and bloom")
  quit()

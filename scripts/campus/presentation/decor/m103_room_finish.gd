@@ -29,7 +29,7 @@ func mount(campus: Node3D, registry: Object) -> bool:
 			for z in range(12):
 				if int((x*7+z*3)%9<2)==variant: points.append(Vector3(-9.5+x,.003,13.5+z))
 		groups.append({"points":points, "color":FLOOR_ALT if variant==1 else FLOOR})
-	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.994,.994), .018, .92)
+	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.994,.994), .018, .28)
 	# All wall details sit within the room shell; the east entrance stays open.
 	for z in [13.105,24.895]:
 		_box(Vector3(0,2.62,z),Vector3(19.68,2.57,.025),WALL_WHITE)

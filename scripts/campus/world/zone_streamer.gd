@@ -63,7 +63,8 @@ func _update_desired_rooms() -> void:
 		var room: Dictionary=registry.rooms[id]
 		var center: Vector3=registry.vector(room.center)
 		var same_floor := absf(point.y-center.y)<2.6
-		var wanted := _menu_rooms.has(id) if _menu_mode else (same_floor and Vector2(point.x-center.x,point.z-center.z).length()<view_distance)
+		var margin := 6.0 if bool(active.get(id,false)) else 0.0
+		var wanted := _menu_rooms.has(id) if _menu_mode else (same_floor and Vector2(point.x-center.x,point.z-center.z).length()<view_distance+margin)
 		# No request churn: replace pending desire for the same zone.
 		for index in range(queue.size()-1,-1,-1):
 			if queue[index].id==id: queue.remove_at(index)

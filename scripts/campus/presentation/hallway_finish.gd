@@ -8,8 +8,8 @@ const Fixtures = preload("res://scripts/campus/presentation/fixture_light.gd")
 const UPPER := "bdc4cd"
 const LOWER := "4e697e"
 const TRIM := "314757"
-const FLOOR_A := "8492a0"
-const FLOOR_B := "7e8b9b"
+const FLOOR_A := "a9b3c0"
+const FLOOR_B := "929eae"
 const CEILING := "c6c8cc"
 const FRAME := "253f50"
 
@@ -104,7 +104,7 @@ static func _add_fixtures(world: Node3D) -> void:
 	var material: StandardMaterial3D = world.material("fff0d8")
 	material.emission_enabled = true
 	material.emission = Color("fff1d8")
-	material.emission_energy_multiplier = 2.0
+	material.emission_energy_multiplier = 1.32
 	for floor in [0, 1]:
 		var first := -10 if floor == 0 else -2
 		for z in range(first, 68, 5):
@@ -112,9 +112,22 @@ static func _add_fixtures(world: Node3D) -> void:
 			var fixture := Node3D.new()
 			fixture.position = Vector3(13.0, floor * 5.0 + 3.947, z)
 			world.add_child(fixture)
-			world.box(fixture, Vector3.ZERO, Vector3(1.79, .085, .76), FRAME, false)
+			world.box(fixture, Vector3.ZERO, Vector3(1.79, .085, .76), FRAME, false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			world.box(fixture, Vector3(0, -.047, 0), Vector3(1.68, .027, .64), "fff0d8", false)
-			Fixtures.ceiling_omni(fixture, Vector3(0, -.047, 0), 1.25, 6.0, false)
+			var light:=Fixtures.ceiling_omni(fixture, Vector3(0, -.047, 0), 1.65, 6.5)
+			light.set_meta("ultra_shadow_fixture", ((z-first)/5) % 2 == 0)
+			light.distance_fade_enabled=true
+			light.distance_fade_begin=30.0
+			light.distance_fade_length=10.0
+			light.distance_fade_shadow=12.0
+			Fixtures.ceiling_spill(fixture,Vector3(0,-.18,0),Color("ffddbc"))
+			if floor==0 and z in [15,20,30,40]:
+				for side in [-1.0,1.0]:
+					var wash := Fixtures.down(fixture,Vector3(side*1.90,-.22,0),.37,3.4,Vector3(side*.54,-.84,0),53.0,Color("ffe1c1"))
+					wash.set_meta("fixture_quality_min",3)
+			if (floor==0 and z==20) or (floor==1 and z==38):
+				light.set_meta("shadow_fixture",true)
+				light.set_meta("shadow_tier",3)
 
 static func _sconce(world: Node3D, wall_x: float, base_y: float, z: float) -> void:
 	var inward := 1.0 if wall_x < 13.0 else -1.0
@@ -166,7 +179,10 @@ static func _add_instance_section(world: Node3D, transforms: Array, color: Strin
 	var node := MultiMeshInstance3D.new()
 	node.position=center
 	node.multimesh = multimesh
-	node.material_override = world.material(color)
+	if color in [FLOOR_A,FLOOR_B]:
+		node.material_override=preload("res://scripts/campus/performance/lit_tile_batches.gd").satin_material(Color(color),false,1)
+		node.set_meta("satin_floor",true)
+	else:node.material_override=world.material(color)
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.visibility_range_end = range_end
 	node.visibility_range_end_margin = 8.0
