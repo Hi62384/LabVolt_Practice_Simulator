@@ -22,6 +22,9 @@ const EDGE_GAPS := [
 	[1, 39.0, 40.0, 10.0],
 	[1, 39.0, 41.0, 16.0],
 	[1, 53.0, 54.0, 16.0],
+	[1, 68.0, 69.0],
+	[1, 81.0, 83.0],
+	[1, 95.0, 96.0],
 ]
 
 const CORRIDOR_X_MIN := 10.0
@@ -47,7 +50,7 @@ static func edge_closures() -> Array[Dictionary]:
 static func protected_walkable_bounds() -> Dictionary:
 	return {
 		"ground_corridor": AABB(Vector3(10.0, -0.25, -14.0), Vector3(6.0, 1.0, 82.0)),
-		"upper_corridor": AABB(Vector3(10.0, 4.75, -4.0), Vector3(6.0, 1.0, 72.0)),
+		"upper_corridor": AABB(Vector3(10.0, 4.75, -4.0), Vector3(6.0, 1.0, 100.0)),
 		"stairs": AABB(Vector3(10.0, -0.25, 50.0), Vector3(3.0, 5.5, 12.0)),
 		"elevator_entrance": AABB(Vector3(15.75, -0.25, 56.0), Vector3(8.25, 5.5, 4.0)),
 	}

@@ -310,15 +310,17 @@ func buy_study_tool(id: String, hotbar_limit := 6) -> String:
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var counts := Dorm.supply_counts(data.dorm)
 	if int(counts.get(id,0))>=100000:return "Supply quantity limit reached"
+	if id=="notebook" and counts.keys().filter(func(key):return not Dorm.notebook_uid(key).is_empty()).size()>=Dorm.MAX_NOTEBOOK_COPIES:return "Notebook limit reached"
 	if not bag.is_empty() and data.dorm.get("backpacks",{}).size()>=Dorm.Backpacks.MAX_BAGS:return "Backpack limit reached"
 	var debit := Economy.purchase_debit(int(data.dollars),int(Dorm.TOOL_PRICES.get(id,bag.get("price",0))),true)
 	if not debit.ok:return debit.error
 	var before := data.duplicate(true)
 	var item_id := id if bag.is_empty() else Crypto.new().generate_random_bytes(12).hex_encode()
+	if id=="notebook":item_id=Dorm.NOTEBOOK_PREFIX+Crypto.new().generate_random_bytes(16).hex_encode()
 	var destination := Dorm.receive_purchase(data.dorm,"supply" if bag.is_empty() else "bag",item_id,hotbar_limit)
 	if destination.is_empty():return "No room in your hotbar, backpack, or dorm cabinet"
 	if bag.is_empty():
-		counts[id]=int(counts.get(id,0))+1
+		counts[item_id]=int(counts.get(item_id,0))+1
 	else:
 		if not data.dorm.has("backpacks"):data.dorm.backpacks={}
 		var location := "nested" if destination=="backpack" else "cabinet" if destination=="dorm cabinet" else "hotbar"

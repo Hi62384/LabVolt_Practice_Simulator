@@ -48,6 +48,9 @@ func build_station(at: Vector3, action: String, label: String) -> Node3D:
 	if action=="prototype_bench":
 		plaque.pixel_size=.0043
 		plaque.outline_size=0
+	if action=="components_counter":
+		plaque.pixel_size=.0043
+		plaque.outline_size=0
 	match action:
 		"electronics_store":
 			_register(bench, Vector3(-.83,1.03,.16))

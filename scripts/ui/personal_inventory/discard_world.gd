@@ -420,7 +420,7 @@ func _title(parcel: Dictionary,profile: Dictionary) -> String:
 	match item.kind:
 		"kit":return str(parcel.kits[item.id].name)
 		"bag":return str(Transfer.Dorm.Backpacks.SIZES[parcel.bags[item.id].size].name)
-		"supply":return str(Transfer.Dorm.TOOLS[item.id])
+		"supply":return Transfer.Dorm.supply_title(str(item.id))
 	var catalog := Transfer.Board.catalog({"definitions":profile.get("blueprints",{}),"parts":[item]})
 	return str(catalog.get(item.get("type",""),{}).get("name","Component"))
 

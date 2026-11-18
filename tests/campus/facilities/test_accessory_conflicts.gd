@@ -21,6 +21,15 @@ func _initialize() -> void:
 	base.avatar_cosmetics.equipped.clear()
 	result=Dorm.apply_intent(base,identity,{"op":"bag_move","bag":bag,"destination":"back","revision":0})
 	check(result.ok,"backpack was rejected after back accessory removal")
+	var equipped_profile: Dictionary=result.profile
+	for cycle in 4:
+		var removed := Dorm.apply_intent(equipped_profile,identity,{"op":"bag_move","bag":bag,"destination":"hotbar","revision":equipped_profile.dorm.revision})
+		check(removed.ok and removed.profile.dorm.carry_items.count("bag:"+bag)==1 and Dorm.Backpacks.equipped(removed.profile.dorm).is_empty(),"unequip left a stale Back slot or duplicated the bag")
+		if not removed.ok:break
+		var equipped := Dorm.apply_intent(removed.profile,identity,{"op":"bag_move","bag":bag,"destination":"back","revision":removed.profile.dorm.revision})
+		check(equipped.ok and "bag:"+bag not in equipped.profile.dorm.carry_items and Dorm.Backpacks.equipped(equipped.profile.dorm)==bag,"rewear failed to move the same bag from hotbar")
+		if not equipped.ok:break
+		equipped_profile=equipped.profile
 	base.dorm.carry_items=["lab_goggles"]
 	base.dorm.backpacks={}
 	base.avatar_cosmetics.equipped={"head":{"id":"hat"},"neck":{"id":"necklace"},"ears":{"id":"earrings"},"back":{"id":"pack"}}

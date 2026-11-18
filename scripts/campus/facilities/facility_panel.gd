@@ -2,6 +2,7 @@ extends PanelContainer
 const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const HudTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
+const Sandwich = preload("res://scripts/campus/facilities/sandwich_recipe.gd")
 const Rules = preload("res://scripts/campus/facilities/facility_host.gd")
 signal direct_error(message: String)
 ## The world interaction supplies the selected cashier or exercise station.
@@ -15,6 +16,10 @@ var status: Label
 var pending:=false
 var service_actions: Array[Button]=[]
 var last_error:=""
+var cafe_category := ""
+var cafe_selection := ""
+var sandwich_step := -1
+var sandwich := Sandwich.DEFAULT.duplicate(true)
 var direct := {}
 var direct_in_flight := false
 var has_order_space := Callable()
@@ -90,6 +95,8 @@ func _end_workout(active: Dictionary) -> void:
 	request_direct({"op":op})
 
 func open_for(id: String,kind: String) -> void:
+	cafe_category="";cafe_selection=""
+	sandwich_step=-1;sandwich=Sandwich.DEFAULT.duplicate(true)
 	station_id=id;station_kind=kind;visible=true
 	position=regular_position;custom_minimum_size=regular_minimum
 	showing_gym_progress=false
@@ -236,7 +243,13 @@ func redraw() -> void:
 		else:_workout(a, accent)
 	elif not a.is_empty():button("Stand / stop",{"op":"stop"})
 	elif restaurant:
-		_food_menu(station_kind.trim_prefix("counter:"), accent, surface)
+		if tim:_cafe_menu(accent)
+		elif sandwich_step>=0:_sandwich_builder()
+		else:
+			body.add_child(UI.action("Build a sandwich","plus",func():
+				sandwich_step=0
+				redraw(),true))
+			_food_menu("subway",accent,surface)
 	if restaurant and has_order_space.is_valid() and not has_order_space.call():
 		body.add_child(UI.text("Free a hotbar slot before ordering.","MutedLabel"))
 	elif restaurant and Rules.carried_order_count(state.profile.get("orders",{}))>0:
@@ -247,6 +260,10 @@ func _position_panel() -> void:
 	var viewport := get_viewport_rect().size
 	if is_instance_valid(rep_control) or is_instance_valid(trap_content):
 		position = Vector2((viewport.x-size.x)*.5, viewport.y-size.y-144)
+	elif station_kind.begins_with("counter:"):
+		var compact := station_kind=="counter:tim_hortons" or sandwich_step>=0
+		size=(Vector2(470,515) if compact else Vector2(600,620)).min(viewport-Vector2(24,24))
+		position=(viewport-size)*.5
 	elif Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell", "bench_barbell", "gym_progress"]:
 		var compact := station_kind != "gym_progress" and not showing_gym_progress
 		size = (Vector2(460,330) if compact else Vector2(600,620)).min(viewport-Vector2(24,24))
@@ -307,6 +324,103 @@ func handle_workout_input(event: InputEvent) -> bool:
 			return (event is InputEventKey and event.keycode in [KEY_E, KEY_X]) or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT)
 		return bool(rep_control.handle_input(event))
 	return false
+
+func _cafe_menu(accent: Color) -> void:
+	var categories := OptionButton.new()
+	categories.accessibility_name="Menu category"
+	var category_names: Array[String]=[]
+	for entry in state.menu.values():
+		if entry.venue=="tim_hortons" and entry.category not in category_names:
+			category_names.append(entry.category)
+			categories.add_item(entry.category)
+	if category_names.is_empty():return
+	if cafe_category not in category_names:cafe_category=category_names[0]
+	categories.select(category_names.find(cafe_category))
+	categories.item_selected.connect(func(index: int):
+		cafe_category=category_names[index]
+		redraw())
+	body.add_child(categories)
+	for id in state.menu:
+		var entry: Dictionary=state.menu[id]
+		if entry.venue!="tim_hortons" or entry.category!=cafe_category:continue
+		var choice := Button.new()
+		choice.text="%s    $%d" % [entry.name,entry.price]
+		choice.icon=load("res://assets/ui/food_menu/%s.svg" % entry.art)
+		choice.expand_icon=true
+		choice.custom_minimum_size.y=45
+		choice.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		choice.disabled=pending
+		choice.toggle_mode=true
+		choice.button_pressed=id==cafe_selection
+		choice.add_theme_stylebox_override("pressed",Tokens.surface(accent.darkened(.26),accent,8))
+		choice.pressed.connect(func():
+			cafe_selection=id
+			redraw())
+		body.add_child(choice)
+	var order: Dictionary=state.menu.get(cafe_selection,{})
+	if order.is_empty():return
+	body.add_child(UI.text("Your order · %s" % order.name,"SubtitleLabel"))
+	var confirm := button("Confirm order · $%d" % order.price,{"op":"buy","station":station_id,"item":cafe_selection})
+	confirm.disabled=pending or (has_order_space.is_valid() and not has_order_space.call())
+
+func _sandwich_builder() -> void:
+	var steps := ["Bread","Size","Protein and cheese","Toasting","Vegetables","Sauces","Review order"]
+	body.add_child(UI.text("%s · %d / %d" % [steps[sandwich_step],sandwich_step+1,steps.size()],"SubtitleLabel"))
+	match sandwich_step:
+		0:_sandwich_options("Bread","bread",Sandwich.BREAD)
+		1:_sandwich_options("Size","size",Sandwich.SIZE)
+		2:
+			_sandwich_options("Protein","protein",Sandwich.PROTEIN)
+			_sandwich_options("Cheese","cheese",Sandwich.CHEESE)
+		3:
+			var heated := CheckButton.new()
+			heated.text="Toast sandwich"
+			heated.button_pressed=sandwich.heated
+			heated.toggled.connect(func(selected: bool):sandwich.heated=selected)
+			body.add_child(heated)
+		4:_sandwich_checks("vegetables",Sandwich.VEGETABLES,5)
+		5:_sandwich_checks("sauces",Sandwich.SAUCES,3)
+		6:
+			body.add_child(UI.text(Sandwich.title(sandwich),"TitleLabel"))
+			body.add_child(UI.text("%s · %s · %s" % [Sandwich.BREAD[sandwich.bread],Sandwich.CHEESE[sandwich.cheese],"Toasted" if sandwich.heated else "Untoasted"]))
+			var vegetables := Sandwich.names(sandwich.vegetables,Sandwich.VEGETABLES)
+			var sauces := Sandwich.names(sandwich.sauces,Sandwich.SAUCES)
+			body.add_child(UI.text(vegetables if not vegetables.is_empty() else "No added vegetables"))
+			body.add_child(UI.text(sauces if not sauces.is_empty() else "No sauces"))
+	var nav := HBoxContainer.new()
+	body.add_child(nav)
+	nav.add_child(UI.action("Menu" if sandwich_step==0 else "Back","back",func():
+		sandwich_step-=1
+		redraw()))
+	if sandwich_step<steps.size()-1:
+		nav.add_child(UI.action("Next","play",func():
+			sandwich_step+=1
+			redraw(),true))
+	else:
+		var confirm := button("Confirm order · $%d" % Sandwich.price(sandwich),{"op":"buy","station":station_id,"item":"sandwich","recipe":sandwich.duplicate(true)},nav)
+		confirm.disabled=pending or (has_order_space.is_valid() and not has_order_space.call())
+
+func _sandwich_options(label: String, field: String, options: Dictionary) -> void:
+	body.add_child(UI.text(label))
+	var select := OptionButton.new()
+	select.accessibility_name=label
+	var choices := options.keys()
+	for id in choices:select.add_item(options[id])
+	select.select(choices.find(sandwich[field]))
+	select.item_selected.connect(func(index: int):sandwich[field]=choices[index])
+	body.add_child(select)
+
+func _sandwich_checks(field: String, options: Dictionary, limit: int) -> void:
+	body.add_child(UI.text("Choose up to %d" % limit))
+	for id in options:
+		var control := CheckBox.new()
+		control.text=options[id]
+		control.button_pressed=id in sandwich[field]
+		control.toggled.connect(func(selected: bool):
+			if not selected:sandwich[field].erase(id)
+			elif sandwich[field].size()<limit:sandwich[field].append(id)
+			else:control.set_pressed_no_signal(false))
+		body.add_child(control)
 
 func _food_menu(venue: String, accent: Color, surface: Color) -> void:
 	var categories: Array[String]=[]

@@ -1,21 +1,25 @@
 extends RefCounted
 
+const Sandwich = preload("res://scripts/campus/facilities/sandwich_recipe.gd")
 const BITE_MATERIAL := preload("res://scripts/campus/facilities/food_bite.gdshader")
 
-static func placed(item: String, servings: int, peer: int, title: String) -> StaticBody3D:
+static func placed(item: String, servings: int, peer: int, title: String, recipe := {}) -> StaticBody3D:
 	var target := StaticBody3D.new()
 	target.collision_layer=4;target.collision_mask=0
 	target.set_meta("role","facility_food");target.set_meta("owner",peer);target.set_meta("label",title)
 	var hit := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size=Vector3(.25,.18,.17)
+	shape.size=Vector3(.40 if recipe.get("size","")=="foot" else .25,.18,.17)
 	hit.shape=shape;hit.position.y=.09
 	target.add_child(hit)
-	target.add_child(build(item,servings))
+	target.add_child(build(item,servings,recipe))
 	return target
 
-static func build(item: String, servings: int = 4) -> Node3D:
+static func build(item: String, servings: int = 4, recipe := {}) -> Node3D:
 	var food := Node3D.new()
+	if Sandwich.valid(recipe):
+		_custom_sub(food,recipe,servings)
+		return food
 	var appearance := str(preload("res://scripts/campus/facilities/facility_host.gd").MENU.get(item,{}).get("art",item))
 	if item=="bagel":
 		var bagel := TorusMesh.new()
@@ -73,6 +77,25 @@ static func build(item: String, servings: int = 4) -> Node3D:
 				_oval(food,Vector3((i-1.5)*length*.16,.088,.006*(i%2)),Vector3(.014,.005,.004),"f3d59d")
 			if servings<4:_bite(food,(-.50+.25*clampi(servings,1,3))*length,.095)
 	return food
+
+static func _custom_sub(food: Node3D, recipe: Dictionary, servings: int) -> void:
+	var length := .37 if recipe.size=="foot" else .19
+	var bread: String = {"white":"d8a365","wheat":"a46d3e","herb":"c38a4c"}[recipe.bread]
+	if recipe.heated:bread=Color(bread).darkened(.12).to_html(false)
+	_oval(food,Vector3(0,.018,0),Vector3(length,.034,.096),bread)
+	var protein: String = {"veg":"789844","chicken":"bc8264","turkey":"b88479"}[recipe.protein]
+	_oval(food,Vector3(0,.036,0),Vector3(length*.96,.021,.100),protein)
+	if recipe.cheese!="none":
+		_oval(food,Vector3(0,.045,0),Vector3(length*.98,.009,.10),"f0c66b" if recipe.cheese=="cheddar" else "f3dfa8")
+	for index in recipe.vegetables.size():
+		var tint: String={"lettuce":"84ac4a","tomato":"cc5238","cucumber":"7da354","onion":"ac7191","pepper":"d0a540"}[recipe.vegetables[index]]
+		_oval(food,Vector3((float(index)/5-.4)*length,.050,.027),Vector3(length*.22,.013,.053),tint)
+	for index in recipe.sauces.size():
+		var sauce: String={"mayo":"e9dcc2","mustard":"e2bb52","ranch":"f4e8d0","hot":"bb452d"}[recipe.sauces[index]]
+		_oval(food,Vector3(0,.053,.035+index*.002),Vector3(length*.86,.005,.015),sauce)
+	_oval(food,Vector3(0,.066,0),Vector3(length,.049,.093),bread)
+	var total := Sandwich.servings(recipe)
+	if servings<total:_bite(food,(float(servings)/total-.5)*length,.097)
 
 static func _bite(food: Node3D, edge: float, half_depth: float) -> void:
 	for part: MeshInstance3D in food.get_children():

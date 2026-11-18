@@ -16,7 +16,7 @@ func build(owner_game: Node) -> bool:
 	if not adapter.configure(owner_game):return false
 	name="CircuitStudioContent"
 	set_meta("room_id",Contract.ROOM_ID)
-	position=Vector3(0,5,0) # M208 is an upper-floor room; props remain simple room-local coordinates.
+	position=Contract.vector(room.center)-Vector3(26,0,47)
 	_workbench(Vector3(25.8,.0,47.0))
 	_assembly_table(Vector3(31.8,0,43.2))
 	_pcb_drafting_desk(Vector3(22.8,0,43.0))

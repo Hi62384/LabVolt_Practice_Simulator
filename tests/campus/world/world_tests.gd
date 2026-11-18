@@ -12,7 +12,7 @@ func _initialize() -> void:
 
 func run() -> void:
 	var registry=preload("res://scripts/campus/world/room_registry.gd").new()
-	check(registry.rooms.size()==14,"14 uniquely registered purpose-built rooms")
+	check(registry.rooms.size()==22,"22 uniquely registered purpose-built rooms")
 	var numbers: Array=[]
 	for room in registry.rooms.values():
 		check(not numbers.has(room.number),"unique number "+str(room.number))
@@ -49,14 +49,19 @@ func run() -> void:
 	root.add_child(campus)
 	await physics_frame
 	await physics_frame
-	check(campus.room_roots.size()==14,"all shells built")
-	check(campus.room_roots.circuit_studio == campus.room_roots.campus_store, "M208 gameplay IDs share one physical shell")
-	check(campus.materials.size()<12,"shared materials bounded")
-	check(campus.solid_count<180,"modest static collision count")
+	check(campus.room_roots.size()==registry.rooms.size(),"all shells built")
+	check(campus.room_roots.circuit_studio != campus.room_roots.campus_store and registry.search("M208").size()==1, "M208 has one separate retail shell")
+	check(campus.materials.size()<70,"shared materials bounded")
+	check(campus.solid_count<370,"modest static collision count")
 	# Horizontal body-sized sweeps prove each open door is clear in the built physics world.
 	var capsule := CapsuleShape3D.new()
 	capsule.radius=.27
 	capsule.height=1.7
+	for room in registry.rooms.values():
+		var entrance: Node=campus.room_roots[room.id].get_node_or_null("Door_"+str(room.id))
+		if entrance!=null:entrance._set_open(true)
+	await create_timer(.8).timeout
+	await physics_frame
 	var physics: PhysicsDirectSpaceState3D = campus.get_world_3d().direct_space_state
 	for room in registry.rooms.values():
 		var door: Vector3=registry.vector(room.door)
@@ -69,7 +74,7 @@ func run() -> void:
 		var fraction: PackedFloat32Array=physics.cast_motion(query)
 		check(fraction[0]>.99,"walkable door "+str(room.id))
 	# Continuous ground hall and upper bypass are clear of solid walls.
-	for segment in [[Vector3(14.5,.9,-18),Vector3(0,0,83)],[Vector3(14.5,5.9,-3),Vector3(0,0,68)]]:
+	for segment in [[Vector3(14.5,.9,-18),Vector3(0,0,83)],[Vector3(14.5,5.9,-3),Vector3(0,0,97)]]:
 		var query := PhysicsShapeQueryParameters3D.new()
 		query.shape=capsule
 		query.transform=Transform3D(Basis.IDENTITY,segment[0])

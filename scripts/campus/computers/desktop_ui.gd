@@ -18,7 +18,6 @@ var editor: TextEdit
 var path_field: LineEdit
 var status_label: Label
 var title_label: Label
-var app_list: ItemList
 var content: VBoxContainer
 var discard_dialog: ConfirmationDialog
 var power_button: Button
@@ -34,6 +33,10 @@ var app_window_title: Label
 var start_panel: PanelContainer
 var start_button: Button
 var app_window: PanelContainer
+var workspace: Control
+var windows := {}
+var clock_label: Label
+var desktop_status: Label
 var app_names := ["Files", "Text editor", "Code editor", "Course work", "Calculator", "Browser", "Run code"]
 var app_icons := {"Files":"▤", "Text editor":"✎", "Code editor":"‹›", "Course work":"▣", "Calculator":"＋", "Browser":"◎", "Run code":"▶"}
 
@@ -41,6 +44,14 @@ func build(source: Node, owner_game: Node = null) -> void:
 	session = source
 	game = owner_game
 	theme = preload("res://scripts/ui/design_system/theme.gd").create()
+	for type in ["Button","OptionButton","LineEdit","TextEdit","Label","PopupMenu","ItemList"]:
+		theme.set_font_size("font_size",type,14)
+		for state in theme.get_stylebox_list(type):
+			var style := theme.get_stylebox(state,type)
+			style.content_margin_top=4.0
+			style.content_margin_bottom=4.0
+			style.content_margin_left=8.0
+			style.content_margin_right=8.0
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	visible = false
@@ -51,8 +62,17 @@ func build(source: Node, owner_game: Node = null) -> void:
 	_build_shell()
 
 func _build_shell() -> void:
-	var backdrop := ColorRect.new()
-	backdrop.color = Color("0b202d")
+	var backdrop := TextureRect.new()
+	var wallpaper := GradientTexture2D.new()
+	var gradient := Gradient.new()
+	gradient.colors=PackedColorArray([Color("0e2334"),Color("225869"),Color("385680")])
+	gradient.offsets=PackedFloat32Array([0,.62,1])
+	wallpaper.gradient=gradient
+	wallpaper.fill_from=Vector2(0,1)
+	wallpaper.fill_to=Vector2(1,0)
+	backdrop.texture=wallpaper
+	backdrop.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+	backdrop.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(backdrop)
 	var margin := MarginContainer.new()
@@ -71,6 +91,8 @@ func _build_shell() -> void:
 	title_label.add_theme_font_size_override("font_size", 21)
 	title_label.add_theme_color_override("font_color",Color("b0eadc"))
 	header.add_child(title_label)
+	desktop_status=Label.new()
+	header.add_child(desktop_status)
 	retry_documents_button = _button("Retry documents", func():session.retry_local_documents())
 	retry_documents_button.visible = false
 	header.add_child(retry_documents_button)
@@ -78,45 +100,18 @@ func _build_shell() -> void:
 	power_button.visible = false
 	header.add_child(power_button)
 	header.add_child(_button("Leave computer  Esc", _request_exit))
-	var window := PanelContainer.new()
-	app_window = window
-	window.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	window.add_theme_stylebox_override("panel", preload("res://scripts/ui/design_system/tokens.gd").surface(Color("132735"), Color("4b7180"), 12))
-	root.add_child(window)
-	var window_column := VBoxContainer.new()
-	window_column.add_theme_constant_override("separation", 0)
-	window.add_child(window_column)
-	var window_bar := HBoxContainer.new()
-	window_bar.add_theme_constant_override("separation", 10)
-	window_bar.add_theme_stylebox_override("panel", preload("res://scripts/ui/design_system/tokens.gd").surface(Color("1d3948"), Color("4b7180"), 9))
-	window_column.add_child(window_bar)
-	app_window_title = Label.new()
-	app_window_title.text = "Files"
-	app_window_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	app_window_title.add_theme_font_size_override("font_size", 17)
-	window_bar.add_child(app_window_title)
-	window_bar.add_child(_button("—", func(): window.hide()))
-	window_bar.add_child(_button("□", func(): window.show()))
-	window_bar.add_child(_button("×", func(): window.hide()))
-	var inner := MarginContainer.new()
-	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	for side in ["left", "top", "right", "bottom"]: inner.add_theme_constant_override("margin_" + side, 12)
-	window_column.add_child(inner)
-	var body := VBoxContainer.new()
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	inner.add_child(body)
-	app_list = ItemList.new()
-	app_list.hide()
-	for name in app_names:
-		app_list.add_item(name)
-	app_list.item_selected.connect(func(index: int): _switch_app(app_list.get_item_text(index)))
-	content = VBoxContainer.new()
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_child(content)
-	status_label = Label.new()
-	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(status_label)
+	workspace=Control.new()
+	workspace.clip_contents=true
+	workspace.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	root.add_child(workspace)
+	workspace.resized.connect(_fit_windows)
+	var shortcuts := VBoxContainer.new()
+	shortcuts.position=Vector2(4,8)
+	workspace.add_child(shortcuts)
+	for name in ["Files","Text editor","Course work","Calculator","Browser"]:
+		var shortcut := _button(str(app_icons[name])+"  "+name,func():_switch_app(name))
+		shortcut.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		shortcuts.add_child(shortcut)
 	var taskbar := HBoxContainer.new()
 	taskbar.add_theme_constant_override("separation", 8)
 	taskbar.add_theme_stylebox_override("panel", preload("res://scripts/ui/design_system/tokens.gd").surface(Color("102936"), Color("385a68"), 10))
@@ -128,11 +123,16 @@ func _build_shell() -> void:
 		var app_button := _button(str(app_icons.get(name, "•")) + "  " + name, func(): _switch_app(app_name))
 		app_button.custom_minimum_size.x = 54
 		taskbar.add_child(app_button)
-	var clock := Label.new()
-	clock.text = "CAMPUS"
-	clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	clock.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	taskbar.add_child(clock)
+	clock_label = Label.new()
+	clock_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	clock_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	taskbar.add_child(clock_label)
+	var clock_tick := Timer.new()
+	clock_tick.wait_time=1.0
+	clock_tick.autostart=true
+	clock_tick.timeout.connect(_update_clock)
+	add_child(clock_tick)
+	_update_clock()
 	start_panel = PanelContainer.new()
 	start_panel.hide()
 	start_panel.position = Vector2(22, maxf(80, get_viewport_rect().size.y - 430))
@@ -168,37 +168,164 @@ func _build_shell() -> void:
 	laptop_display_filter.material = filter_material
 	laptop_display_filter.visible = false
 	add_child(laptop_display_filter)
-	app_list.select(0)
 	_switch_app("Files")
 
 func _button(label: String, action: Callable) -> Button:
 	var button := Button.new()
 	button.text = label
-	button.custom_minimum_size = Vector2(100, 38)
+	button.custom_minimum_size = Vector2(54, 28)
 	button.pressed.connect(action)
 	return button
 
+func _update_clock() -> void:
+	if is_instance_valid(clock_label):clock_label.text=Time.get_time_string_from_system().left(5)
+
+func _window_key(name: String) -> String:
+	return "Editor" if name in ["Files","Text editor","Code editor"] else name
+
+func _create_window(key: String,name: String) -> Dictionary:
+	var window := PanelContainer.new()
+	window.set_meta("desktop_app",key)
+	window.clip_contents=true
+	window.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("132735"),Color("4b7180"),8))
+	workspace.add_child(window)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation",4)
+	window.add_child(column)
+	var bar := HBoxContainer.new()
+	column.add_child(bar)
+	var title := Label.new()
+	title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	title.mouse_filter=Control.MOUSE_FILTER_STOP
+	title.mouse_default_cursor_shape=Control.CURSOR_MOVE
+	title.gui_input.connect(func(event: InputEvent):_window_drag(key,event))
+	bar.add_child(title)
+	for spec in [["—","Minimize",func():_minimize_window(key)],["□","Maximize or restore",func():_toggle_maximize(key)],["×","Close",func():_close_window(key)]]:
+		var control := Button.new()
+		control.text=spec[0]
+		control.tooltip_text=spec[1]
+		control.accessibility_name=spec[1]
+		control.custom_minimum_size=Vector2(34,26)
+		control.pressed.connect(spec[2])
+		bar.add_child(control)
+	var area := VBoxContainer.new()
+	area.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	column.add_child(area)
+	var message := Label.new()
+	message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	message.add_theme_font_size_override("font_size",12)
+	column.add_child(message)
+	var base := Vector2(830,575) if name in ["Files","Text editor","Code editor","Browser","Course work"] else Vector2(455,460)
+	var offset := float(windows.size()%5)*24.0
+	window.position=Vector2(maxf(155.0,workspace.size.x-base.x-12) if name=="Calculator" else 150+offset,12+offset)
+	var state := {"shell":window,"title":title,"content":area,"status":message,"app":name,"built":false,"maximized":false,"base_size":base,"restore":Rect2(window.position,base)}
+	windows[key]=state
+	_fit_windows()
+	return state
+
+func _fit_windows() -> void:
+	if workspace.size.x<32 or workspace.size.y<32:return
+	for state in windows.values():
+		var window: PanelContainer=state.shell
+		if state.maximized:
+			window.position=Vector2.ZERO
+			window.size=workspace.size
+		else:
+			var preferred: Vector2=state.base_size
+			window.size=preferred.min(workspace.size)
+			window.position=window.position.clamp(Vector2.ZERO,(workspace.size-window.size).max(Vector2.ZERO))
+
+func _window_drag(key: String,event: InputEvent) -> void:
+	var state: Dictionary=windows.get(key,{})
+	if state.is_empty():return
+	if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
+		_focus_window(key)
+		if event.double_click:_toggle_maximize(key)
+	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT and not state.maximized:
+		var window: PanelContainer=state.shell
+		window.position=(window.position+event.relative).clamp(Vector2.ZERO,(workspace.size-window.size).max(Vector2.ZERO))
+
+func _toggle_maximize(key: String) -> void:
+	var state: Dictionary=windows[key]
+	var window: PanelContainer=state.shell
+	if state.maximized:
+		window.position=state.restore.position
+	else:
+		state.restore=Rect2(window.position,window.size)
+	state.maximized=not state.maximized
+	_fit_windows()
+
+func _minimize_window(key: String) -> void:
+	windows[key].shell.hide()
+	if app_window==windows[key].shell:_focus_last_window()
+
+func _close_window(key: String) -> void:
+	if not windows.has(key):return
+	var state: Dictionary=windows[key]
+	if key=="Editor":_capture_draft()
+	if key=="Browser" and is_instance_valid(browser_surface):
+		browser_surface.close_session()
+		browser_surface=null
+	var focused: bool=app_window==state.shell
+	state.shell.hide()
+	state.shell.queue_free()
+	windows.erase(key)
+	if focused:_focus_last_window()
+
+func _focus_last_window() -> void:
+	for i in range(workspace.get_child_count()-1,-1,-1):
+		var candidate: Control=workspace.get_child(i)
+		if candidate.has_meta("desktop_app") and candidate.visible:
+			_focus_window(candidate.get_meta("desktop_app"))
+			return
+	app_window=null
+	status_label=desktop_status
+	_bind_editor({})
+
+func _bind_editor(state: Dictionary) -> void:
+	file_list=state.get("file_list")
+	editor=state.get("editor")
+	path_field=state.get("path_field")
+	folder_button=state.get("folder_button")
+	delete_button=state.get("delete_button")
+
+func _focus_window(key: String) -> void:
+	if not windows.has(key):return
+	var state: Dictionary=windows[key]
+	app_window=state.shell
+	app_window.show()
+	app_window.move_to_front()
+	active_app=state.app
+	app_window_title=state.title
+	content=state.content
+	status_label=state.status
+	_bind_editor(state)
+
 func _clear_content() -> void:
-	if is_instance_valid(browser_surface):browser_surface.close_session();browser_surface=null
 	for child in content.get_children():
 		content.remove_child(child)
 		child.queue_free()
-	file_list = null
-	editor = null
-	path_field = null
-	folder_button = null
-	delete_button = null
+	_bind_editor({})
 
 func _switch_app(name: String) -> void:
 	_capture_draft()
-	active_app = name
-	if is_instance_valid(app_window): app_window.show()
-	if is_instance_valid(app_window_title): app_window_title.text = str(app_icons.get(name, "•")) + "  " + name
-	for child in get_children():
-		if child is PanelContainer and child == start_panel: start_panel.hide()
+	var key := _window_key(name)
+	var state: Dictionary=windows[key] if windows.has(key) else _create_window(key,name)
+	var rebuild: bool=not state.built or state.app!=name or name=="Course work"
+	state.app=name
+	_focus_window(key)
+	app_window_title.text=str(app_icons.get(name,"•"))+"  "+name
+	if is_instance_valid(start_panel):start_panel.hide()
+	if not rebuild:
+		if key=="Editor":
+			_refresh_file_list()
+			_load_editor()
+		return
 	_clear_content()
+	state.built=true
 	if name == "Files" or name == "Text editor" or name == "Code editor":
 		_build_files(name)
+		state.merge({"file_list":file_list,"editor":editor,"path_field":path_field,"folder_button":folder_button,"delete_button":delete_button},true)
 	elif name == "Course work":
 		_build_course_work()
 	elif name == "Calculator":
@@ -543,7 +670,7 @@ func _browser_save_answer(answer: String) -> void:
 
 func _on_desktop_changed(value: Dictionary) -> void:
 	if value.is_empty():
-		if is_instance_valid(browser_surface):browser_surface.close_session()
+		for key in windows.keys():_close_window(key)
 		var was_visible := visible
 		visible = false
 		snapshot.clear()
@@ -565,7 +692,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 			game.paper_ui.open_sheet(id)
 		return
 	var prior_lease: Variant = snapshot.get("lease")
-	if prior_lease!=value.get("lease") and is_instance_valid(browser_surface):browser_surface.close_session()
+	if prior_lease!=value.get("lease") and is_instance_valid(browser_surface):_close_window("Browser")
 	_capture_draft()
 	snapshot = value.duplicate(true)
 	var tiers: Dictionary = preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS
@@ -603,8 +730,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		game.release_mouse()
 	elif game == null and not was_visible:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if active_app == "Browser" and prior_lease != snapshot.get("lease"):
-		_switch_app("Browser")
+	if windows.is_empty():_switch_app("Files")
 	_refresh_file_list()
 	_load_editor()
 	if snapshot.has("local_error"):status_label.text=str(snapshot.local_error)
@@ -617,6 +743,15 @@ func _input(event: InputEvent) -> void:
 		if now-last_activity_signal>=4000:
 			last_activity_signal=now
 			_send({"op":"activity"})
+	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
+		var hovered:=get_viewport().gui_get_hovered_control()
+		while is_instance_valid(hovered) and hovered!=workspace:
+			if hovered.has_meta("desktop_app"):
+				if app_window!=hovered:
+					_capture_draft()
+					_focus_window(hovered.get_meta("desktop_app"))
+				break
+			hovered=hovered.get_parent_control()
 	if not event is InputEventKey or not event.pressed or event.echo:return
 	if discard_dialog != null and discard_dialog.visible:
 		return

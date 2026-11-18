@@ -21,7 +21,8 @@ static func bounded_offset(view_size: Vector2, page_size: Vector2, scale_value: 
 		var extent: float = scaled[axis]
 		var room: float = view_size[axis]
 		if extent <= room:
-			result[axis] = (room - extent) * 0.5
+			var center := (room - extent) * .5
+			result[axis] = clampf(result[axis], center - EDGE_GUARD, center + EDGE_GUARD)
 		else:
 			result[axis] = clampf(result[axis], room - extent - EDGE_GUARD, EDGE_GUARD)
 	return result
@@ -39,7 +40,7 @@ func fit() -> void:
 	fitted = true
 	zoom = clampf(minf((size.x - 72.0) / paper.size.x, (size.y - 28.0) / paper.size.y), MIN_ZOOM, 1.0)
 	target_zoom = zoom
-	offset = bounded_offset(size, paper.size, zoom, Vector2.ZERO)
+	offset = bounded_offset(size, paper.size, zoom, (size - paper.size * zoom) * .5)
 	_apply()
 
 func restore(value_zoom: float, value_offset: Vector2) -> void:

@@ -27,7 +27,7 @@ func _initialize() -> void:call_deferred("run")
 
 func run() -> void:
 	var game:=Game.new();root.add_child(game);game.add_child(game.player)
-	var school:=School.new();game.add_child(school);school.game=game;game.school=school
+	var school:=School.new();game.add_child(school);school.game=game;game.school=school;school.set_process(false)
 	school.project={"title":"Lesson","questions":[]}
 	school.identities={1:"alice",2:"bob"}
 	school.papers[1]={"id":1,"owner":1,"held":true,"supply_id":"marker"}
@@ -79,6 +79,21 @@ func run() -> void:
 	service.tick(Time.get_ticks_msec()/1000.0)
 	assert(service.rooms.is_empty())
 	school._mark_whiteboard(1,stroke)
-	assert(school.papers[2].board_lines.size()==2)
+	assert(school.papers[2].board_lines.is_empty())
+	# The 2D editor writes to the same physical board and obeys the marker check.
+	var path := PackedVector2Array([Vector2(.2,.2),Vector2(.4,.4),Vector2(.6,.2)])
+	var edit := {"op":"board_path","id":3,"points":path,"color":"227755","width":8.0}
+	school._mark_whiteboard(1,edit)
+	assert(school.papers[3].board_lines.is_empty())
+	school.papers[1].held=true
+	school._mark_whiteboard(1,edit)
+	assert(school.papers[3].board_lines.size()==1 and school.papers[3].board_lines[0].color=="227755")
+	school._mark_whiteboard(1,{"op":"board_edit","id":3,"edit":"undo"})
+	assert(school.papers[3].board_lines.is_empty())
+	for i in 700:
+		school._mark_whiteboard(1,{"id":3,"from":Vector2(.22,.25),"point":Vector2(.45,.44)})
+	assert(school.papers[3].board_lines.size()==700)
+	school._mark_whiteboard(1,{"op":"board_edit","id":3,"edit":"clear"})
+	assert(school.papers[3].board_lines.is_empty())
 	print("PHYSICAL_BOARD_MARK PASS")
 	game.queue_free();quit(0)

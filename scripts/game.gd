@@ -540,6 +540,7 @@ func _input(event: InputEvent) -> void:
 			gym_barbells._close();return
 		if is_instance_valid(faculty) and faculty.close_conversation():return
 		if is_instance_valid(lecture_classes) and lecture_classes.close_picker():return
+		if is_instance_valid(school_world) and school_world.close_board_workspace():return
 		if player.inspecting:end_inspection();return
 		if is_instance_valid(dorm_interactions) and dorm_interactions.close_storage():
 			return
@@ -763,7 +764,9 @@ func activate(from_interact_key := true) -> void:
 	if is_instance_valid(campus) and campus.interact(current_target,player):return
 	if is_instance_valid(shop_room) and shop_room.interact(current_target):return
 	if is_instance_valid(dc_lab) and dc_lab.interact(current_target,from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","")=="dc_board"):return
-	if is_instance_valid(school_world) and school_world.interact(current_target,false):return
+	if is_instance_valid(school_world):
+		if from_interact_key and school_world.open_board_workspace(current_target):return
+		if school_world.interact(current_target,false):return
 	if not is_instance_valid(current_target):
 		return
 	var role := str(current_target.get_meta("role",""))
@@ -953,6 +956,7 @@ func _physics_process(delta: float) -> void:
 		elif role=="gym_plate_rack_item":hint="Click: pick up %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_pair":hint="Click: pick up %.1f lb dumbbell pair" % float(gym_weights.items[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_rack_slot":hint="Click: return held dumbbells here" if gym_weights.held_id(multiplayer.get_unique_id())>=0 else "Empty dumbbell rack slot"
+		elif role=="gym_belt_return":hint="%s - Return held weight belt" % key_name
 		elif role=="gym_belt_plate":hint="Click: remove plate from weight belt"
 		elif role=="gym_weight_belt":hint="Click: add held plate" if gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Click: take weight belt to inventory"
 		elif role in ["gym_dumbbell_rack","gym_dumbbell_floor","gym_barbell_sleeve","gym_barbell_floor","gym_plate_rack","gym_plate_floor","gym_weight_belt"]:

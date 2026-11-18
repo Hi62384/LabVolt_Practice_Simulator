@@ -29,7 +29,7 @@ func task(identity: String) -> String:
 func begin(kind: String,identities: Array) -> bool:
  if kind not in ["board","group"] or identities.is_empty() or identities.size()>32 or not mode.is_empty():return false
  var ordered:=identities.duplicate();ordered.sort()
- group_labels=["A"] if kind=="board" or ordered.size()==1 else (["A","B","C","D"] if ordered.size()>=7 else ["A","B"])
+ group_labels.assign(["A"] if kind=="board" or ordered.size()==1 else (["A","B","C","D"] if ordered.size()>=7 else ["A","B"]))
  for i in ordered.size():
   var identity: Variant=ordered[i]
   if not identity is String or identity.is_empty() or members.has(identity):members.clear();return false

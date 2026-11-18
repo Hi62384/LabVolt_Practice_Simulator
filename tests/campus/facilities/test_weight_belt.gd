@@ -31,12 +31,20 @@ func run() -> void:
 	var storage: Node3D=gear.get_node_or_null("BeltStorage")
 	check(storage!=null and storage.find_children("*","CollisionShape3D",true,false).size()>=3,"belt rack lacks solid supports")
 	for i in range(1,gear.belts.size()):check(gear.belts[i].position.distance_to(gear.belts[i-1].position)>=.5,"stored belts overlap")
+	var target := storage.get_node_or_null("BeltReturn") as StaticBody3D
+	check(target!=null and target.collision_layer==4,"belt rack has a dedicated raycast target")
 	var id:=0;var lb: float=gear.plates[id].lb
 	gear._accept_plate(1,"pickup",id,"",0)
 	gear.game.player.global_position=Bar.BELT_RACK
 	gear._accept_plate(1,"belt_attach",id,"belt/0",0)
 	var expected: float=Bar.BELT_KG+lb*Bar.LB_TO_KG
 	check(gear.plates[id].where=="attached" and is_equal_approx(gear.belt_mass(0),expected),"plate attachment or mass incorrect")
+	gear._accept_belt(1,"pickup",1)
+	gear.interact(target,true)
+	check(gear.belts[1].where=="rack" and gear.held_belt(1)==-1,"rack interaction returns empty belt")
+	gear._accept_belt(1,"pickup",0)
+	gear.interact(target,true)
+	check(gear.belts[0].where=="rack" and gear.plates[id].station=="belt/0","rack return retains attached plate")
 	gear._accept_belt(1,"pickup",0)
 	gear._accept_belt(1,"wear",0)
 	check(gear.worn_belt(1)==0 and is_equal_approx(gear.worn_belt_mass(1),expected),"worn belt lost load")

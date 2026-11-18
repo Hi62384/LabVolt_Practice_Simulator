@@ -1,4 +1,5 @@
 extends RefCounted
+const Sandwich = preload("res://scripts/campus/facilities/sandwich_recipe.gd")
 ## Server-only deterministic facility rules. Transport authenticates peer; adapters own saves.
 signal public_event(room_id: String, peer: int, state: Dictionary)
 const EXERCISES := {"pushup":1400,"pullup":1800,"benchpress":1800,"squat":1600,"curl":1400,"crunch":1600,"leg_raise":1800,"pike_pushup":1800,"hanging_leg_raise":2000,"dip":1800,"deadlift":2100,"romanian_deadlift":2000,"front_raise":1700,"upright_row":1700,"wrist_curl":1400,"overhead_extension":1800,"bent_over_row":1800,"shrug":1400,"lateral_raise":1700,"reverse_fly":1800,"calf_raise":1500,"overhead_press":1800,"good_morning":1800,"incline_press":1800,"chest_supported_row":1800,"chest_fly":1800,"cable_fly":1800,"cable_reverse_fly":1800,"cable_press":1800,"lat_pulldown":1800,"cable_row":1800,"tricep_pushdown":1600,"cable_crunch":1800}
@@ -20,6 +21,10 @@ const MENU := {
  "donut":{"venue":"tim_hortons","name":"Donut","price":2,"servings":2,"kind":"food","category":"Bakery","art":"donut"},
  "chocolate_donut":{"venue":"tim_hortons","name":"Chocolate donut","price":3,"servings":2,"kind":"food","category":"Bakery","art":"donut"},
  "bagel":{"venue":"tim_hortons","name":"Toasted bagel","price":3,"servings":2,"kind":"food","category":"Bakery","art":"donut"},
+ "lemon_iced_tea":{"venue":"tim_hortons","name":"Lemon iced tea","price":4,"servings":3,"kind":"drink","category":"Cold drinks","art":"tea"},
+ "maple_donut":{"venue":"tim_hortons","name":"Maple donut","price":3,"servings":2,"kind":"food","category":"Bakery","art":"donut"},
+ "egg_bagel":{"venue":"tim_hortons","name":"Egg & cheese bagel","price":6,"servings":4,"kind":"food","category":"Breakfast","art":"sandwich"},
+ "chicken_wrap":{"venue":"tim_hortons","name":"Chicken wrap","price":7,"servings":4,"kind":"food","category":"Lunch","art":"chicken_sub"},
  "sandwich":{"venue":"subway","name":"Vegetable sub","price":7,"servings":4,"kind":"food","category":"Subs","art":"sandwich"},
  "chicken_sub":{"venue":"subway","name":"Chicken sub","price":9,"servings":4,"kind":"food","category":"Subs","art":"chicken_sub"},
  "turkey_sub":{"venue":"subway","name":"Turkey sub","price":9,"servings":4,"kind":"food","category":"Subs","art":"chicken_sub"},
@@ -82,16 +87,21 @@ static func valid_profile(p: Variant) -> bool:
 
 static func valid_order(order: Variant) -> bool:
 	if not order is Dictionary or not order.get("station") is String:return false
+	var custom: bool=order.has("recipe")
 	if order.station=="table":
-		if order.size()!=5 or not order.get("room") is String:return false
+		if order.size()!=5+int(custom) or not order.get("room") is String:return false
 		var coords: Variant=order.get("position")
 		if not coords is Array or coords.size()!=3:return false
 		for coord in coords:
 			if not (coord is float or coord is int) or not is_finite(float(coord)):return false
-	elif order.size()!=3:return false
+	elif order.size()!=3+int(custom):return false
 	if not MENU.has(order.get("item","")):return false
+	var maximum := 4
+	if custom:
+		if order.item!="sandwich" or not Sandwich.valid(order.recipe):return false
+		maximum = Sandwich.servings(order.recipe)
 	var n: Variant=order.get("servings",0)
-	return (n is int or n is float) and is_finite(float(n)) and n>=1 and n<=4 and n==floor(float(n))
+	return (n is int or n is float) and is_finite(float(n)) and n>=1 and n<=maximum and n==floor(float(n))
 
 static func carried_order_count(orders: Dictionary) -> int:
 	var count := 0
@@ -236,6 +246,12 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if not entry.price is int or int(entry.price)<0 or int(entry.price)>10000:return fail("Invalid host price")
 		dollars=-int(entry.price)
 		var order := {"item":item,"servings":int(entry.servings),"station":""}
+		if request.has("recipe"):
+			var recipe: Variant=request.recipe
+			if item!="sandwich" or not Sandwich.valid(recipe):return fail("Select valid sandwich ingredients")
+			dollars=-Sandwich.price(recipe)
+			order.recipe=recipe.duplicate(true)
+			order.servings=Sandwich.servings(recipe)
 		next.orders[str(seq)]=order
 		event={"activity":"holding","order_id":str(seq),"held":order.duplicate(true)}
 	elif op in ["consume","place","pickup"]:

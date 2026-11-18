@@ -11,6 +11,23 @@ const TOOL_PRICES = {"notebook":5,"calculator":24,"pencil_case":9,"calculator_ba
 const STARTER_TOOLS := ["notebook","calculator","pencil_case"]
 const CALCULATORS := ["calculator","calculator_basic","calculator_financial"]
 const CAPACITY := 64
+const NOTEBOOK_PREFIX := "notebook:"
+const MAX_NOTEBOOK_COPIES := 64
+
+static func notebook_uid(item: String) -> String:
+	if not item.begins_with(NOTEBOOK_PREFIX):return ""
+	var uid := item.trim_prefix(NOTEBOOK_PREFIX)
+	return uid if uid.length()==32 and uid==uid.to_lower() and not uid.begins_with("-") and uid.is_valid_hex_number(false) else ""
+
+static func is_notebook(item: String) -> bool:
+	return item=="notebook" or not notebook_uid(item).is_empty()
+
+static func is_supply(item: String) -> bool:
+	return TOOLS.has(item) or is_notebook(item)
+
+static func supply_title(item: String) -> String:
+	var uid := notebook_uid(item)
+	return str(TOOLS.get(item,"Supply")) if uid.is_empty() else "Notebook · "+uid.right(5)
 
 static func supply_counts(d: Dictionary) -> Dictionary:
 	if d.has("supply_counts"):return d.supply_counts.duplicate()
@@ -81,7 +98,7 @@ static func receive_purchase(d: Dictionary, kind: String, id: String, hotbar_lim
 	return destination
 
 static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bool) -> Dictionary:
-	if not TOOLS.has(item) or not profile.has("dorm") or not profile.get("pending_trade",{}).is_empty():
+	if not is_supply(item) or not profile.has("dorm") or not profile.get("pending_trade",{}).is_empty():
 		return fail("Study supply unavailable")
 	var next := profile.duplicate(true)
 	var d: Dictionary=next.dorm
@@ -91,6 +108,7 @@ static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bo
 		if item in CALCULATORS and not carried_calculator(d).is_empty():return fail("Store your current calculator first")
 		if item in carried:return fail("Store the copy in your hotbar first")
 		if carried.size()+d.get("carried_components",[]).size()>=6:return fail("No free hotbar slot")
+		if not notebook_uid(item).is_empty() and counts.has(item):return fail("This notebook is already inventoried")
 		counts[item]=int(counts.get(item,0))+1
 		carried.append(item)
 	else:
@@ -164,9 +182,13 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 		if held_id.length()!=32 or not held_id.is_valid_hex_number() or held_id!=held_id.to_lower() or str(custody.room).length()>64 or str(custody.teacher).length()>64:return false
 		if d.get("smartphones",{}).get(held_id,{}).get("location","")!="hotbar" or ("phone:"+held_id) not in carry:return false
 	if d.has("supply_counts"):
-		if not d.supply_counts is Dictionary or d.supply_counts.size()>TOOLS.size():return false
+		if not d.supply_counts is Dictionary or d.supply_counts.size()>TOOLS.size()+MAX_NOTEBOOK_COPIES:return false
+		var notebook_copies := 0
 		for item in d.supply_counts:
-			if item not in TOOLS or not whole(d.supply_counts[item]) or int(d.supply_counts[item])<1:return false
+			if not item is String or not is_supply(item) or not whole(d.supply_counts[item]) or int(d.supply_counts[item])<1:return false
+			if not notebook_uid(item).is_empty():
+				notebook_copies+=1
+				if int(d.supply_counts[item])!=1 or notebook_copies>MAX_NOTEBOOK_COPIES:return false
 	else:
 		var tools: Variant = d.get("owned_tools",STARTER_TOOLS)
 		if not tools is Array or tools.size()>STARTER_TOOLS.size():return false
@@ -252,6 +274,28 @@ static func migrate(profile: Dictionary,identity: String) -> Dictionary:
 		if changed:
 			next.dorm.supply_counts=supply_counts(next.dorm)
 			next.dorm.erase("owned_tools")
+		if int(next.dorm.supply_counts.get("notebook",0))>1:
+			var counts: Dictionary=next.dorm.supply_counts
+			var existing: int=counts.keys().filter(func(key):return not notebook_uid(key).is_empty()).size()
+			var total := mini(int(counts.notebook)-1,MAX_NOTEBOOK_COPIES-existing)
+			var replacements: Array[String]=[]
+			var ordinal := 1
+			while replacements.size()<total:
+				var key := NOTEBOOK_PREFIX+("%s:legacy-notebook:%d"%[identity,ordinal]).sha256_text().left(32)
+				ordinal+=1
+				if counts.has(key):continue
+				counts[key]=1
+				replacements.append(key)
+			var kept_legacy: bool="notebook" in next.dorm.get("carry_items",[])
+			for bag in next.dorm.get("backpacks",{}).values():
+				for entry in bag.items:
+					if entry.kind!="supply" or entry.id!="notebook":continue
+					if not kept_legacy:
+						kept_legacy=true
+						continue
+					if not replacements.is_empty():entry.id=replacements.pop_back()
+			counts.notebook=int(counts.notebook)-total
+			changed=changed or total>0
 		return {"ok":true,"profile":next,"changed":changed}
 	next.dorm={"schema":1,"owner":identity,"room_id":"dorm_"+identity,"number":"D-"+identity,"policy":"Private","invited":[],"customization":starter_layout(),"storage":{},"instances":[],"revision":0}
 	next.dorm.supply_counts={"pencil_case":1} if bool(next.get("purchase_study_tools",false)) else {"pencil_case":1,"calculator":1,"notebook":1}

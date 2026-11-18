@@ -25,7 +25,5 @@ func _build_course_work() -> void:
 			row.add_child(_button("Save answer",func():_send({"op":"answer","paper":paper_id,"question":key,"value":answer.text})))
 func _on_desktop_changed(value: Dictionary) -> void:
 	super._on_desktop_changed(value)
-	if value.is_empty():
-		_switch_app("Files")
-	elif active_app=="Course work":
+	if not value.is_empty() and active_app=="Course work":
 		_switch_app("Course work")

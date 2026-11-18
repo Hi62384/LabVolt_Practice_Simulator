@@ -71,6 +71,9 @@ func build(owner_game: Node) -> void:
 	game.session.restarted.connect(func():slots=[{},{},{},{},{},{}];active=-1)
 func title(item: Dictionary) -> String:
 	match item.get("kind",""):
+		"food":
+			if item.has("recipe"):return preload("res://scripts/campus/facilities/sandwich_recipe.gd").title(item.recipe)
+			return str(preload("res://scripts/campus/facilities/facility_host.gd").MENU.get(item.get("type",""),{}).get("name","Food"))
 		"cosmetic_accessory":return str(item.get("name","Accessory"))
 		"gym_belt":return "Weight belt · %.1f kg" % float(game.gym_barbells.belt_mass(int(item.get("id",-1))))
 		"gym_plate":return "%.1f lb weight plate" % float(item.get("lb",0))
@@ -87,8 +90,8 @@ func title(item: Dictionary) -> String:
 		"usb":
 			var drive: Dictionary=game.electronics.profile.data.get("dorm",{}).get("usb_drives",{}).get(item.get("id",""),{})
 			return "%s · %d MB" % [drive.get("name","USB drive"),int(drive.get("capacity_mb",0))]
-		"food":return str(game.campus_services.facilities.controller.host.menu.get(item.type,{}).get("name","Food"))
-		"notebook":return "Notebook"
+
+		"notebook":return Dorm.supply_title(str(item.get("dorm_item","notebook")))
 		"calculator":return str(Dorm.TOOLS.get(item.get("type","calculator"),"Calculator"))
 		"pencil_case":return "Pencil case"
 		"lab_goggles":return "Lab goggles"
@@ -177,6 +180,8 @@ func _sync_dorm_items() -> void:
 		if key.begins_with("kit:"):
 			if game.electronics.profile.data.get("kits",{}).has(key.trim_prefix("kit:")):
 				add_item({"kind":"kit","id":key.trim_prefix("kit:"),"dorm_item":key})
+		elif Dorm.is_notebook(key):
+			add_item({"kind":"notebook","dorm_item":key})
 		elif key in Dorm.CALCULATORS:
 			add_item({"kind":"calculator","type":key,"dorm_item":key})
 		elif key.begins_with("bag:"):
@@ -363,16 +368,19 @@ func _sync_food() -> void:
 			if active==i:active=-1
 	for id in orders:
 		var order: Dictionary=orders[id]
-		if order.station=="":add_item({"kind":"food","id":id,"type":order.item})
+		if order.station=="":
+			var slot := {"kind":"food","id":id,"type":order.item}
+			if order.has("recipe"):slot.recipe=order.recipe
+			add_item(slot)
 	var held: Dictionary=orders.get(selected_food().get("id",""),{})
 	var item := str(held.get("item",""))
-	var key := "%s:%d" % [item,int(held.get("servings",0))] if not held.is_empty() else ""
+	var key := "%s:%s:%d" % [selected_food().get("id",""),item,int(held.get("servings",0))] if not held.is_empty() else ""
 	if key!=food_visual_key:
 		food_visual_key=key
 		if is_instance_valid(food_model):food_model.queue_free()
 		food_model=null
 		if key!="":
-			food_model=preload("res://scripts/campus/facilities/food_visual.gd").build(item,int(held.servings))
+			food_model=preload("res://scripts/campus/facilities/food_visual.gd").build(item,int(held.servings),held.get("recipe",{}))
 			game.camera.add_child(food_model)
 	if is_instance_valid(food_model):
 		food_model.visible=game.player.enabled
@@ -556,6 +564,12 @@ func manager(parent: Node) -> void:
 	if goggles_on:worn["goggles"]={"item":head_item,"remove":_toggle_goggles.bind(false)}
 	if not back_id.is_empty():worn["backpack"]={"item":back_item,"remove":_bag_intent.bind({"op":"bag_move","bag":back_id,"destination":"hotbar"})}
 	if belt_id>=0:worn["belt"]={"item":{"kind":"gym_belt","id":belt_id},"remove":_remove_belt.bind(belt_id)}
+	var cosmetic_entries := AccessoryLayout.cosmetic_entries(game.electronics.profile.data)
+	for key in cosmetic_entries:
+		var slot: String=key.trim_prefix("cosmetic/")
+		var id := str(cosmetic_entries[key])
+		var label := id.get_slice(".",id.get_slice_count(".")-1).replace("_"," ").capitalize()
+		worn[key]={"item":{"kind":"cosmetic_accessory","name":label},"remove":_remove_cosmetic_accessory.bind(slot)}
 	accessory_positions=AccessoryLayout.resolve(accessory_positions,worn.keys())
 	for index in AccessoryLayout.COUNT:
 		var key:=""
@@ -764,17 +778,21 @@ func _pack_entry(item: Dictionary) -> Dictionary:
 		"component":return {"kind":"component","type":item.type,"instance":item.instance}
 		"smartphone":return {"kind":"phone","id":item.id}
 		_:
-			if Dorm.TOOLS.has(key):return {"kind":"supply","id":key}
+			if Dorm.is_supply(key):return {"kind":"supply","id":key}
 	return {}
 
 func _unpack_item(entry: Dictionary) -> Dictionary:
-	if entry.kind=="supply":return {"kind":"calculator" if entry.id in Dorm.CALCULATORS else entry.id,"type":entry.id}
+	if entry.kind=="supply":
+		if Dorm.is_notebook(entry.id):return {"kind":"notebook","dorm_item":entry.id}
+		return {"kind":"calculator" if entry.id in Dorm.CALCULATORS else entry.id,"type":entry.id}
 	if entry.kind=="bag":return {"kind":"backpack","id":entry.id}
 	if entry.kind=="phone":return {"kind":"smartphone","id":entry.id}
 	return entry
 
 func _bag_intent(intent: Dictionary, show_inventory := true) -> void:
-	if not stow():return
+	var held: Dictionary=game.school.papers.get(game.school.held(multiplayer.get_unique_id()),{})
+	var wearing_held_bag: bool=intent.get("op")=="bag_move" and intent.get("destination")=="back" and held.get("supply_id")==("bag:"+str(intent.get("bag","")))
+	if not wearing_held_bag and not stow():return
 	var dorm: Dictionary=game.electronics.profile.data.get("dorm",{})
 	intent=intent.duplicate(true)
 	intent.revision=int(dorm.get("revision",-1))
@@ -791,7 +809,8 @@ func _toggle_goggles(wear: bool, show_inventory := true) -> void:
 	if not wear and {} not in slots:
 		game.electronics.status.text="Free a hotbar slot first."
 		return
-	if wear and not stow():return
+	var held: Dictionary=game.school.papers.get(game.school.held(multiplayer.get_unique_id()),{})
+	if wear and held.get("supply_id")!="lab_goggles" and not stow():return
 	var dorm: Dictionary=game.electronics.profile.data.get("dorm",{})
 	var result: Dictionary=game.dorm_interactions.submit_intent(Crypto.new().generate_random_bytes(16).hex_encode(),{"op":"wear_goggles","wear":wear,"revision":int(dorm.get("revision",-1))})
 	if not show_inventory:

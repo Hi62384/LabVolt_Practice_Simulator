@@ -23,12 +23,16 @@ func run() -> void:
 	game.session.poses[1]={"position":point}
 	await physics_frame
 	var station: Node3D=game.campus_services.get_node("ComputerCommons").stations[id] if id.begins_with("commons_") else game.computer_room_adapter.room.stations[id]
-	var power_point: Vector3=station.to_global(Vector3(.69,.56,.025))
+	var power_point: Vector3=station.to_global(Vector3(.58,.98,.025))
 	var ray:=PhysicsRayQueryParameters3D.create(power_point+Vector3(0,0,.65),power_point,5)
 	var hit: Dictionary=game.get_world_3d().direct_space_state.intersect_ray(ray)
 	if not is_instance_valid(hit.get("collider")) or hit.collider.get_meta("role","")!="public_computer_power":
 		push_error("Physical power button cannot be targeted");quit(1);return
+	if station.screen_material.albedo_texture!=null or station.led_material.albedo_color.r>.25:
+		push_error("Powered-off monitor or LED lit");quit(1);return
 	computers.request({"op":"power","station":id})
+	if station.screen.material_override.albedo_texture!=game.computer_room_adapter.idle_render.get_texture() or station.power_led.material_override.albedo_color.g<.6:
+		push_error("Powered monitor or LED did not update");quit(1);return
 	if not computers.stations[id].power.powered:push_error("Workstation did not power on");quit(1);return
 	computers.request({"op":"enter","station":id})
 	if not computers.sessions.has(1) or not computers.local_snapshot.get("public_device",false):
@@ -43,6 +47,24 @@ func run() -> void:
 		if root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://.godot/public-desktop.png"))!=OK:
 			push_error("Desktop capture failed");quit(1);return
 	var desktop: Control=game.computer_room_adapter.desktop
+	if station.screen.material_override.albedo_texture!=game.computer_room_adapter.desktop_render.get_texture():
+		push_error("Local monitor did not bind the active desktop");quit(1);return
+	desktop._switch_app("Calculator")
+	var calculator: Control=desktop.content.get_child(0)
+	calculator.display.text="2+3"
+	var calculator_window: Control=desktop.app_window
+	desktop._switch_app("Files")
+	if not calculator_window.visible:
+		push_error("Opening Files hid the calculator");quit(1);return
+	desktop._minimize_window("Calculator")
+	desktop._switch_app("Calculator")
+	if desktop.content.get_child(0)!=calculator or calculator.display.text!="2+3":
+		push_error("Taskbar restore lost calculator state");quit(1);return
+	desktop._toggle_maximize("Calculator")
+	if not desktop.windows.Calculator.maximized:
+		push_error("Maximize failed");quit(1);return
+	desktop._toggle_maximize("Calculator")
+	desktop._switch_app("Files")
 	if not desktop.folder_button.visible or not desktop.delete_button.visible:
 		push_error("Public file controls missing");quit(1);return
 	desktop.path_field.text="Labs";desktop.folder_button.pressed.emit()

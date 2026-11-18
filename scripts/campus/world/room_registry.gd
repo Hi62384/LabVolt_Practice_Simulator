@@ -68,6 +68,12 @@ func route(from_id: String, to_id: String) -> PackedVector3Array:
 ## The academic world owns actual desk/chair creation at these suggested slots.
 const LECTURE_ROOMS := ["elm253_lecture", "ety155_lecture"]
 
+func open_lecture_rooms() -> Array[String]:
+	var result: Array[String]=[]
+	for id in rooms:
+		if rooms[id].kind=="lecture" and id not in LECTURE_ROOMS:result.append(id)
+	return result
+
 func activity_room(course_id: String, kind: String, lecture_room := "") -> Dictionary:
 	if kind=="lecture" and not lecture_room.is_empty() and lecture_room not in LECTURE_ROOMS:return {}
 	var room := get_room(lecture_room) if kind=="lecture" and not lecture_room.is_empty() else course_room(course_id,kind)

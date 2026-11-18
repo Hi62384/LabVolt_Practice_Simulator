@@ -190,6 +190,19 @@ func _build_belt_rack() -> void:
 	for i in 4:
 		_belt_rack_part(rack,Vector3(0,1.59,(float(i)-1.5)*BELT_SPACING),Vector3(.12,.10,.07),metal)
 
+	var return_target := StaticBody3D.new()
+	return_target.name = "BeltReturn"
+	return_target.position = Vector3(0,1.7,0)
+	return_target.collision_layer = 4
+	return_target.collision_mask = 0
+	return_target.set_meta("role","gym_belt_return")
+	var return_collision := CollisionShape3D.new()
+	var return_shape := BoxShape3D.new()
+	return_shape.size = Vector3(.25,.13,2.13)
+	return_collision.shape = return_shape
+	rack.add_child(return_target)
+	return_target.add_child(return_collision)
+
 func _belt_rack_part(parent: Node3D,position_value: Vector3,size: Vector3,material: Material) -> void:
 	var part:=MeshInstance3D.new();var box:=BoxMesh.new();box.size=size;part.mesh=box;part.material_override=material;part.position=position_value;parent.add_child(part)
 	var body:=StaticBody3D.new();body.collision_layer=1;body.collision_mask=0;part.add_child(body)
@@ -242,7 +255,13 @@ func worn_belt_mass(peer: int) -> float:
 	return belt_mass(worn_belt(peer))
 
 func interact(target: Node, allow_assist := true) -> bool:
-	if not is_instance_valid(target) or target.get_meta("role","") not in ["gym_barbell_sleeve","gym_barbell_rack","gym_bar_rescue","gym_barbell_floor","gym_plate_rack","gym_plate_rod","gym_plate_rack_item","gym_plate_floor","gym_weight_belt","gym_belt_plate"]:return false
+	if not is_instance_valid(target) or target.get_meta("role","") not in ["gym_barbell_sleeve","gym_barbell_rack","gym_bar_rescue","gym_barbell_floor","gym_plate_rack","gym_plate_rod","gym_plate_rack_item","gym_plate_floor","gym_weight_belt","gym_belt_plate","gym_belt_return"]:return false
+	if target.get_meta("role","")=="gym_belt_return":
+		if allow_assist:
+			var belt := held_belt(multiplayer.get_unique_id())
+			if belt>=0:request_belt("return",belt)
+			else:game.ui.log_message("Hold a weight belt to return it here.")
+		return true
 	selected_station=str(target.get_meta("station",""))
 	if trapped.has(selected_station) and int(trapped[selected_station])!=multiplayer.get_unique_id():
 		if not allow_assist: return true
@@ -521,11 +540,21 @@ func request_belt(op: String,id: int,point: Variant=null) -> void:
 func _belt_command(op: String,id: int,point: Variant) -> void:
 	if multiplayer.is_server():_accept_belt(multiplayer.get_remote_sender_id(),op,id,point)
 
+func _report_return_error(peer: int, message: String) -> void:
+	if peer==multiplayer.get_unique_id():_belt_return_error(message)
+	elif game.session.online and game.session.peer_connected_now(peer):_belt_return_error.rpc_id(peer,message)
+
+@rpc("authority","call_remote","reliable")
+func _belt_return_error(message: String) -> void:
+	game.ui.log_message(message)
+
 func _accept_belt(peer: int,op: String,id: int,point: Variant=null) -> void:
 	if not game.session.roster.has(peer) or id not in range(belts.size()):return
 	if point!=null and (not point is Vector3 or not point.is_finite()):return
 	var position: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
-	if not position.is_finite() or game.campus_services.facilities.controller.host.movement_locked(peer):return
+	if not position.is_finite() or game.campus_services.facilities.controller.host.movement_locked(peer):
+		if op=="return":_report_return_error(peer,"You cannot return a belt while movement is restricted.")
+		return
 	var belt: Dictionary=belts[id]
 	if op=="pickup":
 		if held_belt(peer)>=0 or belt.where not in ["rack","floor"] or position.distance_to(belt.position)>3.0:return
@@ -551,7 +580,12 @@ func _accept_belt(peer: int,op: String,id: int,point: Variant=null) -> void:
 		if not ground is Vector3:return
 		belt.where="floor";belt.owner=0;belt.position=ground
 	elif op=="return":
-		if int(belt.owner)!=peer or belt.where!="held" or position.distance_to(BELT_RACK)>3.0:return
+		if int(belt.owner)!=peer or belt.where!="held":
+			_report_return_error(peer,"Hold your weight belt before returning it.")
+			return
+		if position.distance_to(BELT_RACK+Vector3(0,0,BELT_SPACING*1.5))>3.0:
+			_report_return_error(peer,"Move closer to the weight belt rack.")
+			return
 		belt.where="rack";belt.owner=0;belt.position=BELT_RACK+Vector3(0,0,id*BELT_SPACING)
 	else:return
 	_publish()

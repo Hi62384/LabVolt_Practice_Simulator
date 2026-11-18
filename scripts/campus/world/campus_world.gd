@@ -37,11 +37,6 @@ func build() -> void:
 	streamer.zone_activation_changed.connect(func(id: String, enabled: bool): zone_activation_changed.emit(id,enabled))
 	_circulation()
 	for room in registry.rooms.values():
-		if room.id == "campus_store" and room_roots.has("circuit_studio"):
-			# M208 uses two gameplay IDs for the same physical room.
-			room_roots[room.id] = room_roots.circuit_studio
-			anchors[room.id] = anchors.circuit_studio
-			continue
 		_room(room)
 		_room_lighting(room)
 	_close_hallway_voids()
@@ -205,6 +200,7 @@ func _add_door(root: Node3D, point: Vector3, width: float, west: bool, id: Strin
 	door.position=point
 	root.add_child(door)
 	door.build(width,west,material("385568"),material("b9d3d2"))
+	if id=="computer_commons":door.swing=1.0
 
 func _room_wall(root: Node3D, point: Vector3, size: Vector3, color: String) -> void:
 	box(root,point,size,color)
@@ -245,10 +241,10 @@ func _circulation() -> void:
 	box(self,Vector3(26,-.12,40),Vector3(20,.24,2),"71829b")
 	box(self,Vector3(26,4.15,40),Vector3(20,.2,2),"d5d9e2")
 	box(self,Vector3(36,2.04,40),Vector3(.16,4.08,2),"c6cbd6")
-	# One continuous tile grid bridges the corridor and both food counters.
+	# The Subway finish supplies its own room flooring beyond the connector.
 	var food_tiles: Array=[]
 	for x in range(16,36):
-		for z in range(25,53): food_tiles.append(Vector3(x+.5,.012,z+.5))
+		for z in range(25,41): food_tiles.append(Vector3(x+.5,.012,z+.5))
 	preload("res://scripts/campus/performance/lit_tile_batches.gd").build(self,food_tiles,Vector3(.982,.012,.982),material("8492a0"))
 	# Continuous ground corridor, lobby and outdoor entrance.
 	box(self,Vector3(13,-.12,28.5),Vector3(6,.24,79),"626d7a")
@@ -265,7 +261,7 @@ func _circulation() -> void:
 		if floor==0:
 			for x in [10.5,15.5]:box(self,Vector3(x,y+2,68),Vector3(1,4,.16),"a6b9b4")
 			box(self,Vector3(13,y+3.6,68),Vector3(4,.8,.16),"34606a")
-		else:box(self,Vector3(13,y+2,68),Vector3(6,4,.16),"a6b9b4")
+		else:_upper_hall_extension()
 		for x in [10.0,16.0]:
 			if x==16.0:
 				# The upper-floor computer commons owns this wall, including its
@@ -291,6 +287,18 @@ func _circulation() -> void:
 		var seam := box(self,Vector3(x,2.04,-10.53),Vector3(.16,4.08,.94),"b6bdc6")
 		seam.hide()
 		box(self,Vector3(x,2.04,-7.07),Vector3(.16,4.08,5.98),"b6bdc6")
+
+func _upper_hall_extension() -> void:
+	var end := float(registry.data.corridor.upper_z_max)
+	var length := end-68.0
+	var mid := 68.0+length*.5
+	box(self,Vector3(13,4.88,mid),Vector3(6,.24,length),"879996")
+	box(self,Vector3(13,9.15,mid),Vector3(6,.2,length),"d5d9e2")
+	box(self,Vector3(13,7.04,end),Vector3(6,4.08,.16),"a6b9b4")
+	var fixtures := preload("res://scripts/campus/presentation/fixture_light.gd")
+	for z in [73.0,82.0,91.0]:
+		box(self,Vector3(13,8.94,z),Vector3(1.68,.04,.45),"fff0d8",false)
+		fixtures.ceiling_omni(self,Vector3(13,8.91,z),1.25,6.0,false)
 
 func _close_hallway_voids() -> void:
 	# Room shells intentionally own their doors. These sections cover only the

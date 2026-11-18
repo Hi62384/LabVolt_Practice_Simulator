@@ -18,7 +18,7 @@ const TRAY_SCALE_Y := .83
 const TRAY_HEIGHT := 332.0 * TRAY_SCALE_Y
 const TOOLS := ["pencil", "eraser", "text"]
 var tool := "answer"
-var properties := {"color": "263743", "width": 3.0, "hardness": 0.8, "opacity": 1.0, "font": "Sans", "font_size": 24, "angle": 0.0, "equation": false, "bold": false, "italic": false, "align": "left", "box_width": 280.0}
+var properties := {"color": "263743", "pencil_width": 3.0, "eraser_radius": 12.0, "hardness": 0.8, "opacity": 1.0, "font": "Sans", "font_size": 24, "angle": 0.0, "equation": false, "bold": false, "italic": false, "align": "left", "box_width": 280.0}
 var selection: Dictionary = {}
 var revealed := false
 var _leave_elapsed := 0.0
@@ -29,6 +29,8 @@ var _property_host: VBoxContainer
 var _selected_host: VBoxContainer
 var _panel: Control
 var _property_panel: PanelContainer
+var _brush_feedback: Label
+var _brush_feedback_timer: Timer
 var _properties_hidden := false
 var supported_text_actions := ["edit", "bake"]
 
@@ -155,6 +157,14 @@ func _build() -> void:
 	close.tooltip_text="Hide tool properties"
 	close.accessibility_name="Hide tool properties"
 	header.add_child(close)
+	_brush_feedback=_label("")
+	_brush_feedback.hide()
+	property_stack.add_child(_brush_feedback)
+	_brush_feedback_timer=Timer.new()
+	_brush_feedback_timer.one_shot=true
+	_brush_feedback_timer.wait_time=1.4
+	_brush_feedback_timer.timeout.connect(_brush_feedback.hide)
+	add_child(_brush_feedback_timer)
 	close.pressed.connect(func():
 		_properties_hidden=true
 		_property_panel.hide())
@@ -190,13 +200,13 @@ func _refresh() -> void:
 		pass
 	elif tool == "pencil":
 		_property_host.add_child(_label("PENCIL BRUSH"))
-		_slider("Size", "width", 1, 32, 1)
+		_slider("Size", "pencil_width", 1, 32, 1)
 		_slider("Hardness", "hardness", 0, 1, 0.05)
 		_slider("Opacity", "opacity", 0.05, 1, 0.05)
 		_color()
 	elif tool == "eraser":
 		_property_host.add_child(_label("ERASER"))
-		_slider("Size", "width", 4, 64, 1)
+		_slider("Size", "eraser_radius", 4, 64, 1)
 	else:
 		_property_host.add_child(_label("TEXT DEFAULTS"))
 		_text_fields(false)
@@ -213,6 +223,16 @@ func _label(value: String) -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return label
 
+func adjust_brush(direction: int) -> void:
+	var key := "eraser_radius" if tool == "eraser" else "pencil_width"
+	var limits := Vector2(4,64) if tool == "eraser" else Vector2(1,32)
+	var value := clampf(float(properties[key])+direction,limits.x,limits.y)
+	_change(key,value,false)
+	_refresh()
+	_brush_feedback.text="%s size %.0f" % [tool.capitalize(),value]
+	_brush_feedback.show()
+	_brush_feedback_timer.start()
+
 func _slider(title: String, key: String, low: float, high: float, step_value: float, selected := false) -> void:
 	var host := _selected_host if selected else _property_host
 	var row := HBoxContainer.new()
@@ -227,10 +247,23 @@ func _slider(title: String, key: String, low: float, high: float, step_value: fl
 	var current := float(selection.get(key, properties.get(key, low))) if selected else float(properties.get(key, low))
 	if selected and key == "angle": current = rad_to_deg(current)
 	spin.value = clampf(current, low, high)
-	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spin.custom_minimum_size.x = 77
 	spin.tooltip_text = title + (" for selected text" if selected else " for the next mark")
+	var slider := HSlider.new()
+	slider.min_value = low
+	slider.max_value = high
+	slider.step = step_value
+	slider.value = spin.value
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.accessibility_name = title
+	row.add_child(slider)
 	row.add_child(spin)
-	spin.value_changed.connect(func(value: float): _change(key, value, selected))
+	slider.value_changed.connect(func(value: float):
+		spin.set_value_no_signal(value)
+		_change(key,value,selected))
+	spin.value_changed.connect(func(value: float):
+		slider.set_value_no_signal(value)
+		_change(key,value,selected))
 
 func _color(selected := false) -> void:
 	var host := _selected_host if selected else _property_host

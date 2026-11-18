@@ -1,4 +1,5 @@
 extends Node
+const Whiteboard = preload("res://scripts/ui/paper_workspace/whiteboard_workspace.gd")
 signal updated
 signal academic_records_changed
 signal activity_started(entrance: Vector3)
@@ -257,7 +258,7 @@ func _give(peer: int,assignment: Dictionary,lesson: bool,class_copy: bool,supply
 	var id := next_id
 	next_id+=1
 	var destination := _practice_desk(peer, assignment) if assignment.get("practice_scope") == "ungraded" else _desk(peer)
-	papers[id]={"id":id,"owner":peer,"identity":identities.get(peer,""),"owner_name":game.session.roster.get(peer,{}).get("name","Student"),"project":assignment.duplicate(true),"lesson":lesson,"class_round":round_id if class_copy else 0,"held":can_hold,"position":destination,"course_id":assignment.get("course_id","ELM253"),"kind":assignment.get("kind","lab"),"assessment_id":assessment_id if class_copy else "","procedure":{},"page":0,"answers":{},"strokes":{},"mark":{},"revision":0}
+	papers[id]={"id":id,"document_uid":Crypto.new().generate_random_bytes(16).hex_encode(),"owner":peer,"identity":identities.get(peer,""),"owner_name":game.session.roster.get(peer,{}).get("name","Student"),"project":assignment.duplicate(true),"lesson":lesson,"class_round":round_id if class_copy else 0,"held":can_hold,"position":destination,"course_id":assignment.get("course_id","ELM253"),"kind":assignment.get("kind","lab"),"assessment_id":assessment_id if class_copy else "","procedure":{},"page":0,"answers":{},"strokes":{},"mark":{},"revision":0}
 	papers[id].replay = replay
 	_queue_practice_save(papers[id])
 	if str(assignment.get("course_id","")).begins_with("MTH"):
@@ -279,7 +280,9 @@ func _holding_cable(peer: int) -> bool:
 		if not lab.holding(peer).is_empty():return true
 	return false
 func request(action: Dictionary) -> void:
-	if action.get("op")=="notebook":action.content=preload("res://scripts/notebook_store.gd").read(game.characters.selected)
+	var item := str(action.get("op",""))
+	if DormSupplies.is_notebook(item):
+		action.content=preload("res://scripts/notebook_store.gd").read(game.characters.selected,DormSupplies.notebook_uid(item))
 	if str(action.get("op","")) in ["new","pickup","place","page","trash","submit"]:game.sfx.play("trash" if action.op=="trash" else "paper")
 	if multiplayer.is_server():apply(multiplayer.get_unique_id(),action)
 	elif game.session.online:_request.rpc_id(1,action)
@@ -359,39 +362,114 @@ func _move_floor_lead(peer: int, action: Dictionary) -> void:
 		next_floor_lead+=1
 	broadcast()
 
-func _mark_whiteboard(peer: int, action: Dictionary) -> void:
+func _can_mark_whiteboard(peer: int, paper: Dictionary) -> bool:
 	var held_id:=held(peer)
 	var has_marker:=DormSupplies.paper_supply(papers.get(held_id,{}))=="marker"
-	var id := int(action.get("id",0))
-	var paper: Dictionary=papers.get(id,{})
-	if not paper.has("wall_normal") or not _near(peer,paper.position):return
+	if not paper.has("wall_normal") or not _near(peer,paper.position):return false
 	var classroom_room:=str(paper.get("classroom_board",""))
 	if not has_marker:
-		if held_id!=0 or classroom_room.is_empty():return
+		if held_id!=0 or classroom_room.is_empty():return false
 		var class_events=game.lecture_classes.classroom_events
-		if not is_instance_valid(class_events) or not class_events.enabled or not is_instance_valid(class_events.service) or not class_events.service.can_mark_board(peer,classroom_room,Time.get_ticks_msec()/1000.0):return
+		if not is_instance_valid(class_events) or not class_events.enabled or not is_instance_valid(class_events.service) or not class_events.service.can_mark_board(peer,classroom_room,Time.get_ticks_msec()/1000.0):return false
 	if not classroom_room.is_empty():
 		var events=game.lecture_classes.classroom_events
 		if is_instance_valid(events) and events.enabled and game.lecture_classes.classes.has(classroom_room):
-			if not is_instance_valid(events.service) or not events.service.can_mark_board(peer,classroom_room,Time.get_ticks_msec()/1000.0):return
-	var from: Variant=action.get("from")
-	var to: Variant=action.get("point")
-	for point in [from,to]:
-		if not point is Vector2 or not point.is_finite() or point.x<0 or point.y<0 or point.x>1 or point.y>1:return
-	var lines: Array=paper.get("board_lines",[])
-	if action.get("erase",false):
-		lines=lines.filter(func(line):
-			var nearest := Geometry2D.get_closest_point_to_segment(to,line[0],line[1])
-			return nearest.distance_to(to)>.045)
+			if not is_instance_valid(events.service) or not events.service.can_mark_board(peer,classroom_room,Time.get_ticks_msec()/1000.0):return false
+	return true
+
+func _mark_whiteboard(peer: int, action: Dictionary) -> void:
+	var id := int(action.get("id",0))
+	var paper: Dictionary=papers.get(id,{})
+	if not _can_mark_whiteboard(peer,paper):return
+	var classroom_room:=str(paper.get("classroom_board",""))
+	var lines: Variant=paper.get("board_lines",[])
+	var op := str(action.get("op","board_mark"))
+	if op=="board_edit":
+		match action.get("edit",""):
+			"undo":
+				if lines.is_empty() or int(paper.get("board_last_writer",0))!=peer:return
+				lines.pop_back()
+			"clear":
+				if not paper.has("classroom_board") and int(paper.owner)!=peer:return
+				lines=[]
+			_:return
+		paper.board_last_writer=0
+	elif op=="board_path":
+		var path: Variant=action.get("points")
+		if not path is PackedVector2Array or path.size()<2 or path.size()>240:return
+		for point in path:
+			if not _valid_board_point(point):return
+		var color: Variant=action.get("color")
+		var width: Variant=action.get("width")
+		if not color is String or color.length()!=6 or not Color.html_is_valid(color):return
+		if not (width is float or width is int) or not is_finite(float(width)) or float(width)<2 or float(width)>24:return
+		if not _board_room_left(peer,paper,lines,path.size()):return
+		lines.append({"points":path,"color":color,"width":width})
+		paper.board_last_writer=peer
 	else:
-		if lines.size()>=600:return
-		lines.append([from,to])
+		lines=_mark_board_segment(peer,action,paper,lines)
+		if lines==null:return
 	paper.board_lines=lines
 	paper.revision=int(paper.revision)+1
-	if not classroom_room.is_empty() and not action.get("erase",false):
+	if not classroom_room.is_empty() and op!="board_edit" and not action.get("erase",false):
 		var events=game.lecture_classes.classroom_events
 		if is_instance_valid(events) and events.enabled and events.service.rooms.has(classroom_room):events.service.board_stroke(peer,classroom_room,Time.get_ticks_msec()/1000.0)
 	broadcast()
+
+func _valid_board_point(point: Variant) -> bool:
+	return point is Vector2 and point.is_finite() and point.x>=0 and point.y>=0 and point.x<=1 and point.y<=1
+
+func _board_room_left(peer: int, paper: Dictionary, lines: Array, added: int) -> bool:
+	var budget := added
+	for line in lines:budget+=line.get("points",[]).size() if line is Dictionary else line.size()
+	if budget<=16000 and lines.size()<4000:
+		paper.erase("board_limit_reported")
+		return true
+	if not paper.get("board_limit_reported",false):
+		paper.board_limit_reported=true
+		_notice(peer,"The whiteboard is full. Erase a section to continue.")
+	return false
+
+func _mark_board_segment(peer: int, action: Dictionary, paper: Dictionary, lines: Array) -> Variant:
+	var from: Variant=action.get("from")
+	var to: Variant=action.get("point")
+	if not _valid_board_point(from) or not _valid_board_point(to):return null
+	if action.get("erase",false):
+		var remaining := []
+		var erased := false
+		var raw_radius: Variant=action.get("radius",.045)
+		if not (raw_radius is float or raw_radius is int) or not is_finite(float(raw_radius)):return null
+		var radius := clampf(float(raw_radius),.01,.12)
+		for line in lines:
+			var points := Whiteboard.points(line)
+			var run := PackedVector2Array()
+			for index in range(1,points.size()):
+				var nearest := Geometry2D.get_closest_point_to_segment(to,points[index-1],points[index])
+				if nearest.distance_to(to)<=radius:
+					erased=true
+					if run.size()>1:remaining.append(_board_fragment(line,run))
+					run=PackedVector2Array()
+				else:
+					if run.is_empty():run.append(points[index-1])
+					run.append(points[index])
+			if run.size()>1:remaining.append(_board_fragment(line,run))
+		if not erased:return null
+		paper.erase("board_last_writer")
+		return remaining
+	if not _board_room_left(peer,paper,lines,2):return null
+	var continues: bool = bool(action.get("continue",false)) and not lines.is_empty() and from!=to and paper.get("board_last_writer",0)==peer
+	if continues and not lines.back() is Dictionary and lines.back().size()<256 and lines.back()[-1]==from:
+		var run := PackedVector2Array(lines.back())
+		run.append(to)
+		lines[-1]=run
+	else:
+		lines.append(PackedVector2Array([from,to]))
+	paper.board_last_writer=peer
+	return lines
+
+func _board_fragment(line: Variant, run: PackedVector2Array) -> Variant:
+	if line is Dictionary:return {"points":run,"color":line.color,"width":line.width}
+	return run
 
 func _sync_supply_world() -> bool:
 	var dorm = game.get("dorm_interactions")
@@ -430,9 +508,9 @@ func _sync_supply_world() -> bool:
 func _ensure_classroom_whiteboards() -> bool:
 	if room_bridge.registry==null:return false
 	var changed := false
-	for room_id in ["elm253_lecture","ety155_lecture","study"]:
+	for room_id in ["elm253_lecture","ety155_lecture","study"]+room_bridge.registry.open_lecture_rooms():
 		if papers.values().any(func(item):return item.get("classroom_board","")==room_id):continue
-		var room: Dictionary=room_bridge.registry.get_room(room_id) if room_id=="study" else room_bridge.room("","lecture",room_id)
+		var room: Dictionary=room_bridge.registry.get_room(room_id)
 		if room.is_empty():continue
 		var position: Vector3=room_bridge.point(room.center)+Vector3(0,2.28,-float(room.size[2])*.5+.30)
 		papers[next_id]={
@@ -465,7 +543,7 @@ func _table_position(pos: Vector3, peer := 0) -> bool:
 		if absf(pos.x-x)<2.25 and pos.z> -2.65 and pos.z< -2.38 and absf(pos.y-.785)<.05:return true
 	return false
 func apply(peer: int,a: Dictionary) -> void:
-	var byte_limit := 2004096 if a.get("op")=="notebook" else 64000
+	var byte_limit := 2004096 if DormSupplies.is_notebook(str(a.get("op",""))) else 64000
 	if not identities.has(peer) or a.size()>8 or var_to_bytes(a).size()>byte_limit:return
 	var now := Time.get_ticks_msec()
 	var recent: Dictionary=last_requests.get(peer,{"time":now,"count":0})
@@ -489,10 +567,10 @@ func apply(peer: int,a: Dictionary) -> void:
 	if op=="replacement":
 		if _near(peer,teacher_position):replacement(peer)
 		return
-	if op=="board_mark":
+	if op in ["board_mark","board_path","board_edit"]:
 		_mark_whiteboard(peer,a)
 		return
-	if DormSupplies.TOOLS.has(op) or op.begins_with("bag:"):
+	if DormSupplies.is_supply(op) or op.begins_with("bag:"):
 		var dorm = game.get("dorm_interactions")
 		var bag: Dictionary={}
 		if is_instance_valid(dorm):
@@ -504,7 +582,7 @@ func apply(peer: int,a: Dictionary) -> void:
 				_notice(peer,"Your item is already in your hotbar.")
 				return
 		if held(peer)!=0 or _holding_cable(peer) or _holding_kit(peer):return
-		if op!="notebook":
+		if not DormSupplies.is_notebook(op):
 			var product: Dictionary=DormSupplies.Backpacks.SIZES.get(bag.get("size",""),{})
 			var item_id := _give(peer,{"title":DormSupplies.TOOLS.get(op,product.get("name","Backpack")),"questions":[],"guide_pages":[]},true,false,true)
 			if item_id!=0:
@@ -522,6 +600,8 @@ func apply(peer: int,a: Dictionary) -> void:
 		var id := _give(peer,note,true,false,true)
 		if id!=0:
 			papers[id].guide=true;papers[id].notebook=true
+			var copy_uid := DormSupplies.notebook_uid(op)
+			papers[id].document_uid = str(content.get("document_uid",papers[id].document_uid)) if copy_uid.is_empty() else copy_uid
 			papers[id].supply_id=op
 			papers[id].strokes=content.get("strokes",{}).duplicate(true);papers[id].annotations=content.get("annotations",{}).duplicate(true);papers[id].page=clampi(int(content.get("page",0)),0,pages-1)
 	elif op=="guide":
@@ -632,12 +712,12 @@ func apply(peer: int,a: Dictionary) -> void:
 					if supply.is_empty() and not _class_assessment(paper):
 						var saved_paper: Dictionary=paper.duplicate(true);saved_paper.erase("lost_token")
 						lost_parcel={"item":{"kind":"paper","id":id},"paper":saved_paper}
-					elif supply in DormSupplies.TOOLS:
+					elif DormSupplies.is_supply(supply):
 						var dorm=game.dorm_interactions
 						var identity: String=dorm.authenticated_identity(peer)
 						var deployment: Dictionary=dorm._ledger().account(peer).get("deployment",{}) if game.session.online else {}
 						var result: Dictionary=preload("res://scripts/ui/personal_inventory/discard_transfer.gd").take(dorm._profile(identity),{"location":"hotbar","item":{"kind":"supply","id":supply}},deployment)
-						if result.get("ok",false):lost_parcel=result.parcel;lost_label=str(DormSupplies.TOOLS[supply])
+						if result.get("ok",false):lost_parcel=result.parcel;lost_label=DormSupplies.supply_title(supply)
 				elif supply=="whiteboard":
 					var normal: Variant=a.get("normal")
 					if not normal is Vector3 or not normal.is_finite() or absf(normal.y)>.15 or not is_equal_approx(normal.length(),1.0):return
@@ -698,7 +778,7 @@ func apply(peer: int,a: Dictionary) -> void:
 				if not (raw_hardness is int or raw_hardness is float) or not (raw_opacity is int or raw_opacity is float):return
 				var hardness := float(raw_hardness);var opacity := float(raw_opacity)
 				if not is_finite(hardness) or not is_finite(opacity):return
-				if paper.strokes[key].size()<100:
+				if var_to_bytes(paper.strokes[key]).size() < 480000:
 					var stroke := {"points":points,"color":color,"width":clampf(width,1.,32.),"hardness":clampf(hardness,0.,1.),"opacity":clampf(opacity,.05,1.)}
 					_remember_paper_edit(paper, "stroke", {"page":key, "index":paper.strokes[key].size(), "stroke":stroke, "added":true})
 					paper.strokes[key].append(stroke)
@@ -761,8 +841,14 @@ func apply(peer: int,a: Dictionary) -> void:
 				if not radius is Vector2 or not radius.is_finite() or minf(radius.x,radius.y)<=0 or maxf(radius.x,radius.y)>.25:return
 				var key := str(clampi(int(a.get("page",0)),0,page_count(paper)-1))
 				var previous: Array=paper.strokes.get(key,[])
-				var next := preload("res://scripts/paper_ink.gd").erase_area(previous,center,radius)
-				if next==previous or next.size()>100:return
+				var from: Variant=a.get("from",center)
+				if not _valid_board_point(from):return
+				var next := preload("res://scripts/paper_ink.gd").erase_area(previous,center,radius,from)
+				if next==previous:return
+				if var_to_bytes(next).size()>640000:
+					_notice(peer,"This edit would exceed the page ink limit. Erase a larger section.")
+					broadcast()
+					return
 				_remember_paper_edit(paper,"stroke",{"page":key,"before":previous.duplicate(true),"after":next.duplicate(true)})
 				paper.strokes[key]=next
 			"erase_stroke":
@@ -1186,6 +1272,7 @@ func _public_state(recipient: int) -> Dictionary:
 			paper.project = paper.project.duplicate()
 			paper.project.merge(RecordMetadata.from_project(source.project), true)
 		paper.erase("edit_history")
+		paper.erase("board_last_writer");paper.erase("board_limit_reported")
 		visible_papers[id]=paper
 	return {"papers":visible_papers,"floor_leads":floor_leads,"worn_gear":worn_gear,"mode":mode,"phase":phase,"remaining":remaining,"round":round_id,"teacher_position":teacher_position,"teacher_yaw":teacher_yaw,"project":_public_project(project),"activity":activity,"presentation":_public_presentation(),"assessment_id":assessment_id,"deadline":assessment_deadline,"suspended":suspended,"allocation":{}}
 func broadcast() -> void:

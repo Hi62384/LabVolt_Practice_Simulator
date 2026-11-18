@@ -1,27 +1,35 @@
 extends RefCounted
-static func path(identity: String) -> String:return "user://notebook_"+identity.sha256_text().left(24)+".cfg"
-static func read(identity: String) -> Dictionary:
-	for file in [path(identity),path(identity)+".bak"]:
+static func path(identity: String, document_uid := "") -> String:
+	var identity_key := identity.sha256_text().left(24)
+	return "user://notebook_"+identity_key+("_"+document_uid.sha256_text().left(32) if not document_uid.is_empty() else "")+".cfg"
+
+static func read(identity: String, document_uid := "") -> Dictionary:
+	var file_path := path(identity,document_uid)
+	for file in [file_path,file_path+".bak"]:
 		var cfg := ConfigFile.new()
 		if cfg.load(file)==OK:
 			var data=cfg.get_value("notebook","content",{})
-			if valid(data):return data
+			if valid(data):
+				if not data.has("document_uid"):
+					data.document_uid = (identity + ":legacy notebook").sha256_text().left(32) if document_uid.is_empty() else document_uid
+				if document_uid.is_empty() or data.document_uid==document_uid:return data
 	return {}
-static func write(identity: String,data: Dictionary) -> void:
-	if not valid(data):return
-	var file := path(identity);var cfg := ConfigFile.new();cfg.set_value("notebook","content",data)
-	if cfg.save(file+".tmp")!=OK:return
+static func write(identity: String,data: Dictionary,document_uid := "") -> bool:
+	if not valid(data) or (not document_uid.is_empty() and data.get("document_uid","")!=document_uid):return false
+	var file := path(identity,document_uid);var cfg := ConfigFile.new();cfg.set_value("notebook","content",data)
+	if cfg.save(file+".tmp")!=OK:return false
 	if FileAccess.file_exists(file):
-		if DirAccess.copy_absolute(file,file+".bak")!=OK:return
-	DirAccess.rename_absolute(file+".tmp",file)
+		if DirAccess.copy_absolute(file,file+".bak")!=OK:return false
+	return DirAccess.rename_absolute(file+".tmp",file)==OK
 static func valid(data: Variant) -> bool:
 	if not data is Dictionary or var_to_bytes(data).size()>2000000:return false
+	if data.has("document_uid") and (not data.document_uid is String or data.document_uid.length() != 32 or not data.document_uid.is_valid_hex_number(false)):return false
 	for key in ["strokes","annotations"]:
 		if not data.get(key,{}) is Dictionary:return false
 		for page in data.get(key,{}):
 			if not str(page).is_valid_int() or int(page) not in range(100):return false
 			var entries=data[key][page]
-			if not entries is Array or entries.size()>(100 if key=="strokes" else 40):return false
+			if not entries is Array or (key=="annotations" and entries.size()>40):return false
 			for entry in entries:
 				if not entry is Dictionary or not Color.html_is_valid(str(entry.get("color",""))):return false
 				if key=="strokes":

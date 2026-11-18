@@ -56,7 +56,7 @@ func set_food(held: Dictionary) -> void:
 	if is_instance_valid(food):food.queue_free()
 	food=null
 	if not is_instance_valid(visual) or held.is_empty() or str(held.get("station",""))!="":return
-	food=preload("res://scripts/campus/facilities/food_visual.gd").build(str(held.item),int(held.get("servings",4)))
+	food=preload("res://scripts/campus/facilities/food_visual.gd").build(str(held.item),int(held.get("servings",4)),held.get("recipe",{}))
 	food.name="FacilityFood";visual.add_child(food)
 	food.position=Vector3(0.35,.98,-0.3)
 

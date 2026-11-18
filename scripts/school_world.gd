@@ -1,4 +1,5 @@
 extends Node3D
+const Whiteboard = preload("res://scripts/ui/paper_workspace/whiteboard_workspace.gd")
 const Toon = preload("res://scripts/toon_character.gd")
 var game: Node
 var school: Node
@@ -7,6 +8,7 @@ var dc_instructor: Node3D
 var dc_instructor_target: StaticBody3D
 var whiteboard: Label3D
 var whiteboard_panel: MeshInstance3D
+var board_workspace: CanvasLayer
 var marker_board := -1
 var marker_point := Vector2.ZERO
 var marker_time := 0
@@ -20,6 +22,8 @@ func build(owner_game: Node) -> void:
 	process_priority=95
 	game=owner_game
 	school=game.school
+	school.updated.connect(_refresh_board_workspace)
+	game.session.leaving.connect(func():close_board_workspace(false))
 	teacher=Node3D.new()
 	add_child(teacher)
 	var config: Dictionary=preload("res://scripts/toon_character.gd").defaults()
@@ -238,7 +242,7 @@ func _create(paper: Dictionary) -> void:
 		tray_marker.position=Vector3(-board_size.x*.5+.20,-board_size.y*.5+.07,.035)
 		root.add_child(tray_marker)
 		_build_supply_prop(tray_marker,"marker")
-	var backing: MeshInstance3D = game._box(root,Vector3(0,.022,0),shape.size,Color("253947") if paper.get("calculator",false) else Color("315464") if supply=="notebook" else Color("eee8d7"))
+	var backing: MeshInstance3D = game._box(root,Vector3(0,.022,0),shape.size,Color("253947") if paper.get("calculator",false) else Color("315464") if paper.get("notebook",false) else Color("eee8d7"))
 	if supply=="pencil_case" or is_instance_valid(prop):backing.hide()
 	backing.ignore_occlusion_culling=true
 	visuals[paper.id]={"root":root,"hit":hit,"mesh":mesh,"backing":backing,"viewport":viewport,"page_view":null,"revision":-1,"prop":prop}
@@ -351,17 +355,12 @@ func _page(visual: Dictionary,paper: Dictionary) -> void:
 			frame.position=rect.position
 			frame.size=rect.size
 			face.add_child(frame)
-		for segment in paper.get("board_lines",[]):
-			var stroke := Line2D.new()
-			stroke.width=5.0
-			stroke.default_color=Color("294658")
-			stroke.begin_cap_mode=Line2D.LINE_CAP_ROUND
-			stroke.end_cap_mode=Line2D.LINE_CAP_ROUND
-			var a: Vector2=segment[0]*canvas_size
-			var b: Vector2=segment[1]*canvas_size
-			if a.distance_squared_to(b)<1:b=a+Vector2(1,0)
-			stroke.points=PackedVector2Array([a,b])
-			face.add_child(stroke)
+		var strokes := Control.new()
+		strokes.mouse_filter=Control.MOUSE_FILTER_IGNORE
+		strokes.size=canvas_size
+		face.add_child(strokes)
+		var paths: Array=paper.get("board_lines",[])
+		strokes.draw.connect(func():Whiteboard.paint(strokes,paths))
 		var notes: Variant=paper.get("board_notes",[])
 		if notes is Array and not notes.is_empty():
 			var note_panel:=ColorRect.new()
@@ -383,7 +382,7 @@ func _page(visual: Dictionary,paper: Dictionary) -> void:
 		visual.revision=paper.revision
 		visual.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 		return
-	if supply=="notebook":
+	if paper.get("notebook",false):
 		var cover := ColorRect.new()
 		cover.color=Color("416b78")
 		cover.size=Vector2(512,720)
@@ -529,7 +528,7 @@ func use_supply(button: int, continuation := false) -> bool:
 		var board_size: Vector2=school.papers[id].get("board_size",Vector2(1.35,.78))
 		var point := Vector2(clampf(local.x/board_size.x+.5,0,1),clampf(.5-local.y/board_size.y,0,1))
 		var from := marker_point if continuation and marker_board==id and marker_point.distance_to(point)<.23 else point
-		school.request({"op":"board_mark","id":id,"from":from,"point":point,"erase":button==MOUSE_BUTTON_RIGHT})
+		school.request({"op":"board_mark","id":id,"from":from,"point":point,"continue":continuation and from!=point,"erase":button==MOUSE_BUTTON_RIGHT})
 		marker_board=id
 		marker_point=point
 		marker_time=now
@@ -549,6 +548,47 @@ func interact_held() -> bool:
 		game.hotbar._bag_intent({"op":"bag_move","bag":supply.trim_prefix("bag:"),"destination":"back"},false)
 	else:
 		return false
+	return true
+
+func open_board_workspace(target: StaticBody3D) -> bool:
+	if not is_instance_valid(target):return false
+	var id := int(target.get_meta("paper_id",0))
+	var paper: Dictionary=school.papers.get(id,{})
+	if not paper.has("wall_normal"):return false
+	var peer := multiplayer.get_unique_id()
+	var supply := str(school.papers.get(school.held(peer),{}).get("supply_id",""))
+	if multiplayer.is_server() and not school._can_mark_whiteboard(peer,paper):
+		game.ui.log_message("Hold a marker or wait for permission to write on this board.")
+		return true
+	if supply!="marker" and (not supply.is_empty() or not paper.has("classroom_board")):
+		game.ui.log_message("Hold a marker to edit this whiteboard.")
+		return true
+	if is_instance_valid(board_workspace):return true
+	var workspace := Whiteboard.new()
+	workspace.board_id=id
+	var board_size: Vector2=paper.get("board_size",Vector2(1.35,.78))
+	workspace.board_aspect=board_size.x/maxf(board_size.y,.1)
+	board_workspace=workspace
+	add_child(workspace)
+	workspace.command_requested.connect(func(action: Dictionary):school.request(action))
+	workspace.dismissed.connect(close_board_workspace)
+	workspace.refresh(paper)
+	game.release_mouse()
+	return true
+
+func _refresh_board_workspace() -> void:
+	if not is_instance_valid(board_workspace):return
+	var paper: Dictionary=school.papers.get(board_workspace.board_id,{})
+	if not paper.has("wall_normal") or game.player.global_position.distance_to(paper.position)>=3.6:
+		close_board_workspace()
+	else:
+		board_workspace.refresh(paper)
+
+func close_board_workspace(restore_control := true) -> bool:
+	if not is_instance_valid(board_workspace):return false
+	board_workspace.queue_free()
+	board_workspace=null
+	if restore_control and game.front.in_game:game.capture()
 	return true
 
 func interact(target: StaticBody3D,right_click: bool) -> bool:
@@ -585,9 +625,11 @@ func placed_item_hint(id: int) -> String:
 	if item.is_empty():return ""
 	var owned := int(item.get("owner",0))==multiplayer.get_unique_id()
 	var supply := str(item.get("supply_id",""))
-	var name := str(preload("res://scripts/campus/dorms/authority/persistent_dorm.gd").TOOLS.get(supply,"Backpack" if supply.begins_with("bag:") else "Sheet"))
+	var supplies = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+	var name: String=supplies.supply_title(supply) if supplies.is_supply(supply) else "Backpack" if supply.begins_with("bag:") else "Sheet"
 	var pickup := "Click: pick up "+name.to_lower() if owned else ""
-	if item.has("classroom_board"):return "Classroom whiteboard · Use a marker to draw"
+	if item.has("wall_normal"):
+		return "%s: open whiteboard" % OS.get_keycode_string(game.player.keys.interact)
 	if item.get("calculator",false):
 		if not owned:return name
 		return "Right click: use "+name.to_lower()+" • "+pickup
@@ -610,6 +652,33 @@ func confirm_trash(id: int) -> void:
 func build_campus_furniture() -> void:
 	if not classroom_roots.is_empty() or school.room_bridge.registry==null:return
 	var layout=preload("res://scripts/campus/academics/classroom_layout.gd")
+	for id in school.room_bridge.registry.open_lecture_rooms():
+		var room: Dictionary=school.room_bridge.registry.get_room(id)
+		var center: Vector3=school.room_bridge.point(room.center)
+		var furniture := Node3D.new()
+		furniture.name=id.to_pascal_case()+"Furniture"
+		add_child(furniture)
+		classroom_roots.append(furniture)
+		game.campus.register_content(id,furniture)
+		for z in [-1.0,2.0]:
+			for x in [-4.0,0.0,4.0]:
+				var desk := StaticBody3D.new()
+				desk.position=center+Vector3(x,.765,z)
+				desk.set_meta("role","table")
+				desk.set_meta("label","Student desk")
+				furniture.add_child(desk)
+				var hit := CollisionShape3D.new()
+				var shape := BoxShape3D.new()
+				shape.size=Vector3(1.7,.07,.8)
+				hit.shape=shape
+				desk.add_child(hit)
+				preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_furniture_skin.gd").dress_desk(desk)
+				game._add_chair(center+Vector3(x,0,z+1.0))
+				var chair: Node3D=game.chairs.back()
+				chair.reparent(furniture)
+				preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_chair_skin.gd").dress(chair)
+		game.campus.box(furniture,center+Vector3(-3.8,.38,-3.6),Vector3(1.5,.76,.72),"4e697e")
+		game.campus.box(furniture,center+Vector3(-3.8,.80,-3.6),Vector3(1.65,.08,.82),"ac8864")
 	for course in ["ELM253","ETY155"]:
 		var room: Dictionary=school.room_bridge.room(course,"lecture")
 		if room.is_empty():continue

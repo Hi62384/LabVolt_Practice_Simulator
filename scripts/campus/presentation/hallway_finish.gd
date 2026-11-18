@@ -16,8 +16,6 @@ const FRAME := "253f50"
 static func apply(world: Node3D) -> void:
 	# Structural walls, collisions, and shared materials retain their exact state.
 	for room in world.registry.rooms.values():
-		if room.id == "campus_store" and world.room_roots.get(room.id) == world.room_roots.get("circuit_studio"):
-			continue
 		var center: Vector3 = world.registry.vector(room.center)
 		var size: Vector3 = world.registry.vector(room.size)
 		var x: float = 10.0 if center.x < 13.0 else 16.0
@@ -40,10 +38,10 @@ static func apply(world: Node3D) -> void:
 		_add_wall_run(world, x, 0.0, -11.0, -4.0)
 	_add_floor_tiles(world, 0, -11.0, 68.0)
 	_add_floor_tiles(world, 1, -4.0, 50.0)
-	_add_floor_tiles(world, 1, 50.0, 68.0)
+	_add_floor_tiles(world, 1, 50.0, float(world.registry.data.corridor.upper_z_max))
 	_add_ceiling_panels(world, 0, -4.0, 50.0)
 	_add_ceiling_panels(world, 1, -4.0, 50.0)
-	_add_ceiling_panels(world, 1, 50.0, 68.0)
+	_add_ceiling_panels(world, 1, 50.0, float(world.registry.data.corridor.upper_z_max))
 	_add_stair_finish(world)
 	_add_fixtures(world)
 	for floor in [0, 1]:

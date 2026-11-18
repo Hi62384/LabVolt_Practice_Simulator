@@ -103,7 +103,9 @@ func _event(peer: int, event: Dictionary) -> void:
 		table_food.erase(key)
 		var held: Dictionary=event.held
 		if held.get("station","")=="table":
-			var target := preload("res://scripts/campus/facilities/food_visual.gd").placed(str(held.item),int(held.servings),peer,str(controller.host.menu[held.item].name))
+			var recipe: Dictionary=held.get("recipe",{})
+			var title: String=controller.host.menu[held.item].name if recipe.is_empty() else preload("res://scripts/campus/facilities/sandwich_recipe.gd").title(recipe)
+			var target := preload("res://scripts/campus/facilities/food_visual.gd").placed(str(held.item), int(held.servings), peer, title, recipe)
 			add_child(target)
 			target.global_position=Furniture.vector(held.position)
 			target.set_meta("order_id", order_id)

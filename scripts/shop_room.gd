@@ -44,8 +44,31 @@ func _build_campus_store() -> void:
 	supplies.rotation.y=PI
 	retail.add_child(supplies)
 	_build_supply_counter(supplies,Vector3.ZERO)
+	_build_study_display(retail)
 	_finish_campus_store(retail)
 	campus_world.register_content(STORE_ROOM_ID,retail)
+
+func _build_study_display(retail: Node3D) -> void:
+	var shelf := Node3D.new()
+	shelf.name="StudySuppliesDisplay"
+	shelf.position=Vector3(34.7,0,-.38)
+	retail.add_child(shelf)
+	for x in [-1.25,1.25]:
+		game._box(shelf,Vector3(x,.79,0),Vector3(.1,1.58,.45),Color("465f62"))
+	for y in [.23,.69,1.16]:
+		game._box(shelf,Vector3(0,y,0),Vector3(2.4,.07,.49),Color("ac8864"))
+	for i in 7:
+		game._box(shelf,Vector3(-.99+i*.30,.29,0),Vector3(.22,.055,.32),Color("f4e9d0" if i%2==0 else "527887"))
+	for i in 5:
+		game._box(shelf,Vector3(-.8+i*.41,.77,-.04),Vector3(.27,.08,.27),Color("849c72"))
+		game._box(shelf,Vector3(-.8+i*.41,.82,.09),Vector3(.14,.024,.04),Color("cf8c77"))
+	for i in 4:
+		var x := -.81+i*.54
+		game._box(shelf,Vector3(x,1.22,0),Vector3(.20,.045,.31),Color("233642"))
+		game._box(shelf,Vector3(x,1.245,-.09),Vector3(.14,.008,.08),Color("8fb0a2"))
+	var sign := Signage.mount(shelf,"NOTEBOOKS · PENCILS · CALCULATORS",Vector3(0,1.61,0),0,Vector2(2.48,.20),20)
+	sign.pixel_size=.0032
+	sign.outline_size=0
 
 func _finish_campus_store(retail: Node3D) -> void:
 	for sign in [["ELECTRONICS STORE",21.0],["STUDY SUPPLIES",26.0],["PLAYER TRADING",31.75]]:

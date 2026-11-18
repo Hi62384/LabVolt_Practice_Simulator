@@ -57,7 +57,7 @@ static func _collect(profile: Dictionary,item: Dictionary,parcel: Dictionary,dep
 	var id := str(item.get("id",""))
 	match str(item.get("kind","")):
 		"supply":
-			if not Dorm.TOOLS.has(id):return false
+			if not Dorm.is_supply(id):return false
 			parcel.supplies[id]=int(parcel.supplies.get(id,0))+1
 		"component":
 			var type := str(item.get("type",""))

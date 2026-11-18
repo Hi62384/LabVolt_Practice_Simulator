@@ -1,4 +1,5 @@
 extends CanvasLayer
+const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Catalog=preload("res://scripts/electronics_catalog.gd")
 const Board=preload("res://scripts/breadboard_model.gd")
 const Profile = preload("res://scripts/electronics_profile.gd")
@@ -35,8 +36,8 @@ var shop_search := ""
 var shop_section := 0
 var bundle_overlay: ColorRect
 var bundle_receipts: Array[Dictionary] = []
-var notebook_revision := -1
-var notebook_id := -1
+var notebook_saved := {}
+var notebook_failed_save := {}
 var designing := false
 var workspace: Control
 var design_preview=preload("res://scripts/dc_station.gd").new()
@@ -58,11 +59,11 @@ func build(owner_game: Node) -> void:
 	game=owner_game;layer=45
 	profile.open(game.characters.selected)
 	load_view()
-	game.session.restarted.connect(func():notebook_id=-1;notebook_revision=-1;panel_generation+=1;notebook_pending=false;_reset_kit_name_requests())
+	game.session.restarted.connect(func():notebook_saved.clear();notebook_failed_save.clear();panel_generation+=1;notebook_pending=false;_reset_kit_name_requests())
 	game.school.updated.connect(save_notebook)
 	game.characters.changed.connect(func():
 		if not game.front.in_game:
-			profile.open(game.characters.selected);notebook_id=-1;notebook_revision=-1;load_view()
+			profile.open(game.characters.selected);notebook_saved.clear();notebook_failed_save.clear();load_view()
 	)
 	screen=PanelContainer.new();screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);screen.offset_left=24;screen.offset_right=-24;screen.offset_top=24;screen.offset_bottom=-24;add_child(screen);screen.hide()
 	screen.theme = preload("res://scripts/ui/design_system/theme.gd").create()
@@ -782,32 +783,50 @@ func deploy() -> void:
 	status.text="Deployment requested · B1–B4 connect this board to the instruments"
 func notes() -> void:
 	label(body,"Your notebook is the same paper you carry in the laboratory. Writing, drawings and the last page are saved with your character.")
-	button(body,"Open my notebook",open_notebook)
+	var notebook_keys: Array=profile.data.get("dorm",{}).get("carry_items",[]).filter(func(key):return Dorm.is_notebook(key))
+	if notebook_keys.size()>1:
+		for key in notebook_keys:button(body,"Open "+Dorm.supply_title(key),open_notebook.bind(key))
+	else:button(body,"Open my notebook",open_notebook)
 	if profile.data.notebook!="":
 		label(body,"Earlier typed notes · preserved from the previous notebook")
 		var text := TextEdit.new();text.text=profile.data.notebook;text.custom_minimum_size=Vector2(500,250);body.add_child(text)
 		text.text_changed.connect(func():profile.data.notebook=text.text.left(100000);profile.save())
 func _notebook_current(generation: int,character: String,peer: int) -> bool:
 	return active and current_page=="notes" and generation==panel_generation and character==str(game.characters.selected) and game.front.in_game and peer==multiplayer.get_unique_id()
-func open_notebook() -> void:
+func open_notebook(selected_copy := "") -> void:
 	if notebook_pending or not active or current_page!="notes":return
 	if not game.front.in_game:status.text="Start a laboratory to open your notebook.";return
 	var peer := multiplayer.get_unique_id()
 	var generation := panel_generation
 	var character := str(game.characters.selected)
+	if selected_copy.is_empty():
+		var held: Dictionary=game.school.papers.get(game.school.held(peer),{})
+		if held.get("notebook",false):selected_copy=Dorm.paper_supply(held)
+		else:
+			for key in profile.data.get("dorm",{}).get("carry_items",[]):
+				if Dorm.is_notebook(key):
+					selected_copy=key
+					break
+	if selected_copy.is_empty():selected_copy="notebook"
 	notebook_pending=true
 	for paper in game.school.papers.values():
-		if paper.owner==peer and paper.get("notebook",false):close();game.paper_ui.open_sheet(int(paper.id));return
-	game.school.request({"op":"notebook"})
+		if paper.owner==peer and paper.get("notebook",false) and Dorm.paper_supply(paper)==selected_copy:
+			close()
+			game.paper_ui.open_sheet(int(paper.id))
+			return
+	game.school.request({"op":selected_copy})
 	for attempt in 20:
 		await get_tree().create_timer(.1).timeout
 		if not _notebook_current(generation,character,peer):
 			if generation==panel_generation:notebook_pending=false
 			return
 		for paper in game.school.papers.values():
-			if paper.owner==peer and paper.get("notebook",false):close();game.paper_ui.open_sheet(int(paper.id));return
+			if paper.owner==peer and paper.get("notebook",false) and Dorm.paper_supply(paper)==selected_copy:
+				close()
+				game.paper_ui.open_sheet(int(paper.id))
+				return
 	notebook_pending=false
-	status.text="Notebook could not be opened. Put down your held item and leave a hotbar slot free."
+	status.text="Carry the notebook and leave your hands free to open it."
 
 func remember_view() -> void:
 	if not active:return
@@ -823,11 +842,20 @@ func restore_view(page: String,generation: int) -> void:
 	page_scroll.scroll_horizontal=int(offset.x);page_scroll.scroll_vertical=int(offset.y)
 
 func save_notebook() -> void:
+	const Store = preload("res://scripts/notebook_store.gd")
 	for paper in game.school.papers.values():
 		if paper.owner!=multiplayer.get_unique_id() or not paper.get("notebook",false):continue
-		if notebook_id==int(paper.id) and notebook_revision==int(paper.revision):return
-		notebook_id=int(paper.id);notebook_revision=int(paper.revision)
-		preload("res://scripts/notebook_store.gd").write(game.characters.selected,{"page":paper.page,"pages":paper.project.guide_pages.size(),"strokes":paper.strokes,"annotations":paper.get("annotations",{})})
+		var key := Dorm.paper_supply(paper)
+		var version := Vector2i(int(paper.id),int(paper.revision))
+		if notebook_saved.get(key)==version:continue
+		var uid := str(paper.get("document_uid",(game.characters.selected+":legacy notebook").sha256_text().left(32)))
+		var data := {"document_uid":uid,"page":paper.page,"pages":paper.project.guide_pages.size(),"strokes":paper.strokes,"annotations":paper.get("annotations",{})}
+		if Store.write(game.characters.selected,data,Dorm.notebook_uid(key)):
+			notebook_saved[key]=version
+			notebook_failed_save.erase(key)
+		elif notebook_failed_save.get(key)!=version:
+			notebook_failed_save[key]=version
+			game.ui.log_message("Notebook changes could not be saved. The previous copy is still on disk.")
 
 func custom_ics() -> void:
 	var draft: Dictionary=profile.data.kits[profile.data.equipped].get("package_draft",{}).duplicate(true)

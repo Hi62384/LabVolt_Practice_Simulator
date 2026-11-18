@@ -68,7 +68,11 @@ func run() -> void:
 		await create_timer(1.0).timeout
 		gear.request_belt("unwear",0)
 		if not await until(func():return gear.held_belt(peer)==0,"belt removed"):return
-		gear.request_belt("return",0)
+		var return_target: Node=gear.get_node_or_null("BeltStorage/BeltReturn")
+		if not is_instance_valid(return_target) or not gear.interact(return_target,true):
+			push_error("Belt rack interaction did not send return")
+			quit(1)
+			return
 		if not await until(func():return gear.belts[0].where=="rack" and gear.plates[0].station=="belt/0","belt returned"):return
 		print("GEAR_CLIENT PASS")
 	quit()

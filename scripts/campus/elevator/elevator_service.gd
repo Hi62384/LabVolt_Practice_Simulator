@@ -61,11 +61,13 @@ func _eligible(peer: int) -> bool:
 	return not game.school.formal_active() and not game.session.poses.get(peer, {}).get("seated", false) and not integration.facilities.controller.host.movement_locked(peer) and not game.school._holding_cable(peer)
 
 static func _inside(point: Vector3, floor_id: int) -> bool:
-	return point.x >= 16.35 and point.x <= 23.95 and point.z >= 56.1 and point.z <= 61.9 and point.y >= floor_id * 5.0 - 0.2 and point.y <= floor_id * 5.0 + 2.4
+	var height := point.y - floor_id * Geometry.HEIGHT
+	return point.x >= Geometry.CABIN_FRONT and point.x <= Geometry.CABIN_BACK - .06 and absf(point.z-Geometry.DOOR_Z) <= Geometry.CABIN_HALF_WIDTH-.06 and height >= -.2 and height <= 2.1
 
 static func _doorway(point: Vector3, floor_id: int) -> bool:
 	# Expanded by capsule radius, network sampling allowance, and door movement.
-	return point.x >= 15.25 and point.x <= 16.85 and point.z >= 57.55 and point.z <= 60.45 and point.y >= floor_id * 5.0 - 0.2 and point.y <= floor_id * 5.0 + 3.4
+	var height := point.y - floor_id * Geometry.HEIGHT
+	return point.x >= Geometry.DOOR_X-.93 and point.x <= Geometry.DOOR_X+.67 and absf(point.z-Geometry.DOOR_Z) <= Geometry.WIDTH*.5+.45 and height >= -.2 and height <= Geometry.DOOR_HEIGHT+.4
 
 func _tick() -> void:
 	if not multiplayer.is_server():
@@ -102,8 +104,8 @@ func _guard(peer: int, proposed: Vector3, previous: Vector3) -> Vector3:
 		if not _inside(proposed,origin_floor):return previous
 	for floor_id in [0, 1]:
 		if floor_id == state.floor_id and state.phase == "open": continue
-		if previous.y >= floor_id * 5.0 - 0.2 and previous.y <= floor_id * 5.0 + 3.8 and minf(previous.z, proposed.z) <= 60.45 and maxf(previous.z, proposed.z) >= 57.55:
-			if (previous.x < 16.18 and proposed.x >= 16.18) or (previous.x > 16.18 and proposed.x <= 16.18): return previous
+		if previous.y >= floor_id * 5.0 - 0.2 and previous.y <= floor_id * Geometry.HEIGHT + Geometry.DOOR_HEIGHT+.4 and minf(previous.z, proposed.z) <= 60.45 and maxf(previous.z, proposed.z) >= 57.55:
+			if (previous.x < Geometry.DOOR_X and proposed.x >= Geometry.DOOR_X) or (previous.x > Geometry.DOOR_X and proposed.x <= Geometry.DOOR_X): return previous
 	return previous_guard.call(peer, proposed, previous) if previous_guard.is_valid() else proposed
 
 func _local_locked() -> bool:

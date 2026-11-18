@@ -92,7 +92,7 @@ func _restaurant(menu: Dictionary) -> void:
 		var x:=-1.55 if index==0 else 1.55
 		# Mount on the shared rear wall, clear of the counter and overhead canopy.
 		box(Vector3(x,2.15,-5.72),Vector3(2.9,1.15,.08),Color("142b33"),false)
-		label(Vector3(x,2.23,-5.66),columns[index],0.0033)
+		label(Vector3(x,2.19,-5.66),columns[index],0.0033 if venue=="subway" else 0.0025)
 	station("counter","counter:"+venue,Vector3(0,0,-1.2))
 	var toon := preload("res://scripts/toon_character.gd")
 	var uniform: Dictionary=toon.preset(2 if venue=="subway" else 1)

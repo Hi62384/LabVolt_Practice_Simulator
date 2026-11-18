@@ -2,32 +2,32 @@
   "schema": 1,
   "room": {
     "id": "circuit_studio",
-    "number": "M208",
-    "title": "Custom Circuit Studio",
+    "number": "M210",
+    "title": "Invention Room",
     "kind": "circuit_studio",
     "building": "MAIN",
     "floor": 1,
     "zone": "circuit_studio",
-    "center": [26, 5, 47],
+    "center": [26, 5, 75],
     "size": [20, 4, 12],
-    "door": [16, 5, 47],
+    "door": [16, 5, 75],
     "door_width": 2.4,
-    "approach": [13, 5, 47],
-    "anchor": [26, 5, 47],
-    "neighbors": ["hall_f0"],
-    "bounds_min": [16, 5, 41],
-    "bounds_max": [36, 9, 53]
+    "approach": [13, 5, 75],
+    "anchor": [26, 5, 75],
+    "neighbors": ["hall_f1"],
+    "bounds_min": [16, 5, 69],
+    "bounds_max": [36, 9, 81]
   },
   "workstations": {
-    "assembly_table": [31.8, 5.94, 43.3],
-    "ic_builder": [26.7, 6.47, 47.28],
-    "pcb_builder": [22.8, 6.06, 42.88],
-    "prototype_bench": [29.8, 5.93, 47],
-    "firmware_console": [25.32, 6.38, 51.38]
+    "assembly_table": [31.8, 5.94, 71.3],
+    "ic_builder": [26.7, 6.47, 75.28],
+    "pcb_builder": [22.8, 6.06, 70.88],
+    "prototype_bench": [29.8, 5.93, 75],
+    "firmware_console": [25.32, 6.38, 79.38]
   },
   "clearances": {
-    "door_keep_clear_min": [16, 5, 45.8],
-    "door_keep_clear_max": [20, 7.4, 48.2],
+    "door_keep_clear_min": [16, 5, 73.8],
+    "door_keep_clear_max": [20, 7.4, 76.2],
     "main_aisle_width": 1.4
   }
 }

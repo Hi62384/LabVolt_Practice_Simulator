@@ -1,9 +1,14 @@
 extends Node3D
-## Geometry contract: existing two 8x6 bays; hallway aperture X16/Z58..60.
+## Each floor has an identical cabin and a shared hallway aperture at X16.
 const HEIGHT := 5.0
 const DOOR_X := 16.18
 const DOOR_Z := 59.0
 const WIDTH := 2.0
+const DOOR_HEIGHT := 2.28
+const CABIN_BACK := 19.5
+const CABIN_HALF_WIDTH := 1.6
+const CABIN_HEIGHT := 2.65
+const CABIN_FRONT := 16.35
 var world: Node3D
 var leaves: Dictionary = {}
 var barriers: Dictionary = {}
@@ -64,43 +69,55 @@ func _button(floor_id: int, button: int) -> void:
 
 func _landing(floor_id: int) -> void:
 	var y := floor_id * HEIGHT
-	# Retain the original landing extent, floor altitude and east corridor connection.
-	_box(Vector3(20, y - 0.12, 59), Vector3(8, 0.24, 6), "7c898e")
-	for z in [56.0, 62.0]:
-		_box(Vector3(20, y + 1.0, z), Vector3(8, 2, 0.16), "859aa5")
-		_box(Vector3(20, y + 3.0, z), Vector3(8, 2, 0.16), "e3e9e6")
-	_box(Vector3(24, y + 2, 59), Vector3(0.16, 4, 6), "859aa5")
-	_box(Vector3(20, y + 4.06, 59), Vector3(8, 0.18, 6), "edf0ed")
-	# Enclosed front wall with door pockets, no solid spans across the aperture.
-	for z in [57.0, 61.0]:
-		_box(Vector3(16.0, y + 2, z), Vector3(0.08, 4, 2), "859aa5")
-		_box(Vector3(16.35, y + 2, z), Vector3(0.08, 4, 2), "859aa5")
-	_box(Vector3(16.12, y + 3.5, 59), Vector3(0.22, 1, 2), "e3e9e6")
-	for z in [57.955, 60.045]: _box(Vector3(16.03, y + 1.48, z), Vector3(0.46, 2.96, 0.12), "294e68")
-	_box(Vector3(16.03, y + 3.04, 59), Vector3(0.46, 0.16, 2.22), "294e68")
-	_box(Vector3(16.0, y + 0.015, 59), Vector3(0.45, 0.03, 2), "b4bec0", false)
+	# Retain the structural divider backing the second-floor Commons wall.
+	for z in [56.0,62.0]:
+		_box(Vector3(20,y+2.04,z),Vector3(8,4.08,.16),"c6cbd6")
+	_box(Vector3(24,y+2.04,59),Vector3(.16,4.08,6),"c6cbd6")
+	var depth := CABIN_BACK - 16.0
+	var center := 16.0 + depth * .5
+	_box(Vector3(center,y-.12,DOOR_Z),Vector3(depth,.24,CABIN_HALF_WIDTH*2.0),"7c898e")
+	for z in [DOOR_Z-CABIN_HALF_WIDTH,DOOR_Z+CABIN_HALF_WIDTH]:
+		_box(Vector3(center,y+1.0,z),Vector3(depth,2,.12),"859aa5")
+		_box(Vector3(center,y+(2.0+CABIN_HEIGHT)*.5,z),Vector3(depth,CABIN_HEIGHT-2.0,.12),"e3e9e6")
+	_box(Vector3(CABIN_BACK,y+CABIN_HEIGHT*.5,DOOR_Z),Vector3(.12,CABIN_HEIGHT,CABIN_HALF_WIDTH*2.0),"859aa5")
+	_box(Vector3(center,y+CABIN_HEIGHT+.07,DOOR_Z),Vector3(depth,.14,CABIN_HALF_WIDTH*2.0),"edf0ed")
+	# The corridor front also closes the space on either side of the cabin.
+	for side in [-1.0,1.0]:
+		var z: float = DOOR_Z+side*2.0
+		_box(Vector3(16.0,y+2.04,z),Vector3(.10,4.08,2),"859aa5")
+		_box(Vector3(CABIN_FRONT,y+CABIN_HEIGHT*.5,z),Vector3(.08,CABIN_HEIGHT,2),"859aa5")
+	_box(Vector3(16.12,y+(4.08+DOOR_HEIGHT)*.5,DOOR_Z),Vector3(.22,4.08-DOOR_HEIGHT,WIDTH),"e3e9e6")
+	for z in [57.955,60.045]:
+		_box(Vector3(16.03,y+DOOR_HEIGHT*.5,z),Vector3(.46,DOOR_HEIGHT,.12),"294e68")
+	_box(Vector3(16.03,y+DOOR_HEIGHT+.08,DOOR_Z),Vector3(.46,.16,2.22),"294e68")
+	_box(Vector3(16.0,y+.015,DOOR_Z),Vector3(.45,.03,WIDTH),"b4bec0",false)
 	var pair: Array[MeshInstance3D] = []
 	for side in [-1, 1]:
-		pair.append(_box(Vector3(DOOR_X, y + 1.48, 59 + side * 0.5), Vector3(0.09, 2.96, 0.995), "9daeb6", false))
+		pair.append(_box(Vector3(DOOR_X, y + DOOR_HEIGHT * .5, DOOR_Z + side * .5), Vector3(.09, DOOR_HEIGHT, .995), "9daeb6", false))
 	leaves[floor_id] = pair
-	var body := StaticBody3D.new(); body.position = Vector3(DOOR_X, y + 1.5, 59)
-	var collision := CollisionShape3D.new(); var box := BoxShape3D.new(); box.size = Vector3(0.22, 3, 2)
+	var body := StaticBody3D.new(); body.position = Vector3(DOOR_X, y + DOOR_HEIGHT * .5, DOOR_Z)
+	var collision := CollisionShape3D.new(); var box := BoxShape3D.new(); box.size = Vector3(.22, DOOR_HEIGHT, WIDTH)
 	collision.shape = box; body.add_child(collision); add_child(body); barriers[floor_id] = collision
 	for x in [15.75, 16.46]:
-		_box(Vector3(x, y + 3.43, 59), Vector3(0.08, 0.4, 1.15), "294e68", false)
-		indicators.append(_text("1", Vector3(x + (-0.06 if x < 16 else 0.06), y + 3.43, 59), -PI / 2 if x < 16 else PI / 2, 32))
+		_box(Vector3(x, y + DOOR_HEIGHT + .34, DOOR_Z), Vector3(.08,.24,.78), "294e68", false)
+		indicators.append(_text("1", Vector3(x + (-0.06 if x < 16 else 0.06), y + DOOR_HEIGHT + .34, DOOR_Z), -PI / 2 if x < 16 else PI / 2, 32))
 	_box(Vector3(15.87, y + 1.3, 60.35), Vector3(0.12, 0.65, 0.4), "294e68", false)
 	_box(Vector3(16.35, y + 1.35, 60.45), Vector3(0.12, 0.9, 0.42), "294e68", false)
 	_button(floor_id, -1)
 	for stop in [0, 1]: _button(floor_id, stop)
-	# Handrails never cross the doorway; no cabin furniture.
-	_box(Vector3(23.72, y + 1, 59), Vector3(0.07, 0.07, 4.8), "486879")
-	for z in [56.28, 61.72]: _box(Vector3(20, y + 1, z), Vector3(6.5, 0.07, 0.07), "486879")
-	for z in range(57, 62): _box(Vector3(20, y + 0.005, z), Vector3(7.7, 0.008, 0.018), "66777f", false)
-	var light_mesh := _box(Vector3(20, y + 3.93, 59), Vector3(3, 0.04, 1), "edf0ed", false)
+	_box(Vector3(CABIN_BACK-.16,y+1,DOOR_Z),Vector3(.07,.07,2.62),"486879")
+	for z in [DOOR_Z-CABIN_HALF_WIDTH+.15,DOOR_Z+CABIN_HALF_WIDTH-.15]:
+		_box(Vector3(center+.16,y+1,z),Vector3(depth-.58,.07,.07),"486879")
+	for z in [58.0,59.0,60.0]:
+		_box(Vector3(center,y+.005,z),Vector3(depth-.28,.008,.018),"66777f",false)
+	var light_mesh := _box(Vector3(center,y+CABIN_HEIGHT-.035,DOOR_Z),Vector3(1.62,.045,.82),"edf0ed",false)
 	light_mesh.material_override = _material("edf0ed", true)
-	var light := OmniLight3D.new(); light.position = Vector3(20, y + 3.4, 59)
-	light.omni_range = 5.0; light.light_energy = 0.65; light.shadow_enabled = false; add_child(light)
+	var light := OmniLight3D.new()
+	light.position = Vector3(center,y+CABIN_HEIGHT-.35,DOOR_Z)
+	light.omni_range = 4.0
+	light.light_energy = .74
+	light.shadow_enabled = false
+	add_child(light)
 	# Waiting furniture against the west wall, beyond the stair landing.
 	# Cabin and Z58..60 aperture stay clear. The X13..16 upper route stays entirely clear.
 	var bench_x := 15.45 if floor_id==0 else 10.55

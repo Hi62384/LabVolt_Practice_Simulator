@@ -52,7 +52,7 @@ func _sign(at: Vector3, value: String, size: float = .004, color: String = "ffff
 func build(_menu: Dictionary) -> void:
 	# All coordinates are room local. Keep the west door at x=-10 and the
 	# four service seats at the existing facility positions.
-	_box(Vector3(0,.018,0), Vector3(19.7,.025,11.7), "777d7d", "Matte tile floor")
+	_box(Vector3(0,.0055,0), Vector3(20,.025,12), "777d7d", "Matte tile floor")
 	for x in range(-9,10,2):
 		_box(Vector3(float(x),.034,0), Vector3(.012,.004,11.65), "626c6d", "Tile joint")
 	for z in range(-5,6,2):

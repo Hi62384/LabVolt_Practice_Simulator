@@ -555,12 +555,12 @@ func _build_storage() -> void:
 	panels.add_child(VSeparator.new())
 	var stored := _cabinet_column(panels,"Dorm storage",true)
 	for tool in Dorm.supply_counts(dorm_data):
-		var item := {"kind":"calculator" if tool in Dorm.CALCULATORS else str(tool),"type":tool}
+		var item := {"kind":"calculator" if tool in Dorm.CALCULATORS else "notebook" if Dorm.is_notebook(tool) else str(tool),"type":tool}
 		var count := Dorm.cabinet_supply_count(dorm_data,tool)
 		if tool in dorm_data.get("carry_items",[]):
-			_cabinet_tile(carried,str(Dorm.TOOLS[tool]),item,"Store",_cabinet_transfer.bind({"op":"carry_item","item":tool,"carry":false},false))
+			_cabinet_tile(carried,Dorm.supply_title(tool),item,"Store",_cabinet_transfer.bind({"op":"carry_item","item":tool,"carry":false},false))
 		for _copy in count:
-			_cabinet_tile(stored,str(Dorm.TOOLS[tool]),item,"Move to hotbar",_cabinet_transfer.bind({"op":"carry_item","item":tool,"carry":true},true))
+			_cabinet_tile(stored,Dorm.supply_title(tool),item,"Move to hotbar",_cabinet_transfer.bind({"op":"carry_item","item":tool,"carry":true},true))
 	for id in p.get("kits",{}):
 		if p.kits[id].get("workspace_only",false):continue
 		if game.kit_world.is_placed(multiplayer.get_unique_id(),str(id)):continue

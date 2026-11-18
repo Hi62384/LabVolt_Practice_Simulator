@@ -15,6 +15,8 @@ static func read(identity: String) -> Array:
 	for sheet in value:
 		if not sheet is Dictionary or not sheet.get("project") is Dictionary:continue
 		if sheet.project.get("practice_scope") != "ungraded" or not sheet.get("answers") is Dictionary or not sheet.get("strokes") is Dictionary:continue
+		if not sheet.has("document_uid"):
+			sheet.document_uid=("%s:practice-sheet:%d:%d"%[identity,int(sheet.get("id",0)),sheets.size()]).sha256_text().left(32)
 		sheets.append(sheet)
 	return sheets
 

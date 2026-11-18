@@ -86,23 +86,26 @@ func renderer_available() -> bool:
  return is_instance_valid(runtime) and runtime.is_alive() and not tabs.is_empty()
 
 func _build() -> void:
- var chrome:=VBoxContainer.new();chrome.add_theme_constant_override("separation",8);add_child(chrome)
- var brand:=HBoxContainer.new();chrome.add_child(brand)
- var heading:=Label.new();heading.text="◎";heading.add_theme_font_size_override("font_size",23);brand.add_child(heading)
- var brand_name:=Label.new();brand_name.text="Campus Browser";brand_name.size_flags_horizontal=Control.SIZE_EXPAND_FILL;brand_name.add_theme_font_size_override("font_size",18);brand.add_child(brand_name)
- tab_row=HFlowContainer.new();chrome.add_child(tab_row)
- var nav:=HBoxContainer.new();chrome.add_child(nav)
- back=Button.new();back.text="Back";back.pressed.connect(func():_history(-1));nav.add_child(back)
- forward=Button.new();forward.text="Forward";forward.pressed.connect(func():_history(1));nav.add_child(forward)
- address=LineEdit.new();address.placeholder_text="https://example.com";address.max_length=2048;address.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ var chrome:=VBoxContainer.new();chrome.add_theme_constant_override("separation",4);add_child(chrome)
+ tab_row=HFlowContainer.new();tab_row.add_theme_constant_override("h_separation",3);chrome.add_child(tab_row)
+ var nav:=HBoxContainer.new();nav.add_theme_constant_override("separation",4);chrome.add_child(nav)
+ back=Button.new();back.text="‹";back.tooltip_text="Back";back.accessibility_name="Back";back.pressed.connect(func():_history(-1));nav.add_child(back)
+ forward=Button.new();forward.text="›";forward.tooltip_text="Forward";forward.accessibility_name="Forward";forward.pressed.connect(func():_history(1));nav.add_child(forward)
+ var reload:=Button.new();reload.text="↻";reload.tooltip_text="Reload";reload.accessibility_name="Reload";reload.pressed.connect(func():if _browser()!=null:_browser().reload());nav.add_child(reload)
+ var home:=Button.new();home.text="⌂";home.tooltip_text="Home";home.accessibility_name="Home";home.pressed.connect(_home);nav.add_child(home)
+ address=LineEdit.new();address.placeholder_text="Search or enter address";address.max_length=2048;address.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  if device_kind=="phone":chrome.add_child(address)
  else:nav.add_child(address)
  address.text_submitted.connect(func(_text):_navigate())
- var go:=Button.new();go.text="Go";go.pressed.connect(_navigate);nav.add_child(go)
- var reload:=Button.new();reload.text="Reload";reload.pressed.connect(func():if _browser()!=null:_browser().reload());nav.add_child(reload)
- var choose:=Button.new();choose.text="Attach photo" if device_kind=="phone" else "Attach virtual file";choose.pressed.connect(func():_choose_attachment());chrome.add_child(choose)
- attachment=Label.new();attachment.add_theme_font_size_override("font_size",13);chrome.add_child(attachment)
- holder=Control.new();holder.custom_minimum_size.y=260 if device_kind=="phone" else 400;holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_EXPAND_FILL;add_child(holder)
+ var menu:=MenuButton.new();menu.text="⋯";menu.tooltip_text="Browser tools";menu.accessibility_name="Browser tools";nav.add_child(menu)
+ var popup:=menu.get_popup()
+ popup.add_item("Attach photo" if device_kind=="phone" else "Attach virtual file",0)
+ popup.add_item("Assistant",1)
+ popup.id_pressed.connect(func(id: int):
+  if id==0:_choose_attachment()
+  elif is_instance_valid(assistant_panel):assistant_panel.visible=not assistant_panel.visible)
+ attachment=Label.new();attachment.add_theme_font_size_override("font_size",12);chrome.add_child(attachment)
+ holder=Control.new();holder.clip_contents=true;holder.custom_minimum_size.y=220 if device_kind=="phone" else 180;holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_EXPAND_FILL;add_child(holder)
  home_screen=VBoxContainer.new();home_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);home_screen.alignment=BoxContainer.ALIGNMENT_CENTER;home_screen.add_theme_constant_override("separation",12);holder.add_child(home_screen)
  var home_title:=Label.new();home_title.text="Campus Browser";home_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;home_title.add_theme_font_size_override("font_size",30);home_screen.add_child(home_title)
  var home_subtitle:=Label.new();home_subtitle.text="Enter a website or search in the address bar above.";home_subtitle.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;home_subtitle.add_theme_color_override("font_color",Color("b6cad4"));home_screen.add_child(home_subtitle)
@@ -110,7 +113,6 @@ func _build() -> void:
  for site in [{"label":"Google","url":"https://www.google.com"},{"label":"Wikipedia","url":"https://www.wikipedia.org"}]:
   var shortcut:=Button.new();shortcut.text=str(site.label);shortcut.pressed.connect(func():address.text=str(site.url);_navigate());quick.add_child(shortcut)
  status=Label.new();status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(status)
- var toggle:=Button.new();toggle.text="Assistant";toggle.pressed.connect(func():assistant_panel.visible=not assistant_panel.visible);add_child(toggle)
  assistant_panel=VBoxContainer.new();assistant_panel.hide();add_child(assistant_panel)
  var privacy:=Label.new();privacy.text="Ask about this page. Visible page text, your question and chosen attachment go through the host to OpenAI.";privacy.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;assistant_panel.add_child(privacy)
  assistant_input=LineEdit.new();assistant_input.placeholder_text="Ask about the current page";assistant_input.max_length=Policy.MAX_QUESTION;assistant_input.text_submitted.connect(func(_value: String):_assistant_ask());assistant_panel.add_child(assistant_input)
@@ -160,23 +162,55 @@ func _refresh() -> void:
  for child in tab_row.get_children():tab_row.remove_child(child);child.queue_free()
  for i in tabs.size():
   var index:=i
-  var button:=Button.new();button.text=str(tabs[i].title).left(12 if device_kind=="phone" else 24);button.pressed.connect(func():active=index;_refresh());tab_row.add_child(button)
+  var button:=Button.new();button.text=str(tabs[i].title).left(12 if device_kind=="phone" else 24);button.toggle_mode=true;button.button_pressed=i==active;button.pressed.connect(func():active=index;_refresh());tab_row.add_child(button)
+  var stop:=Button.new();stop.text="×";stop.tooltip_text="Close tab";stop.disabled=tabs.size()<=1;stop.pressed.connect(func():_close_tab_at(index));tab_row.add_child(stop)
  var plus:=Button.new();plus.text="+";plus.disabled=tabs.size()>=MAX_TABS or not is_instance_valid(runtime);plus.pressed.connect(_add_tab);tab_row.add_child(plus)
- var close:=Button.new();close.text="×";close.disabled=tabs.size()<=1;close.pressed.connect(_close_tab);tab_row.add_child(close)
  for i in tabs.size():tabs[i].surface.visible=i==active
  var browser: Variant=_browser()
  if is_instance_valid(home_screen):home_screen.visible=browser==null or str(browser.get_url())=="about:blank"
  address.text=str(browser.get_url()) if browser!=null and str(browser.get_url())!="about:blank" else ""
  back.disabled=browser==null or not browser.has_previous_page()
  forward.disabled=browser==null or not browser.has_next_page()
- attachment.text="Selected: "+str(selected_attachment.get("name","None"))
+ attachment.visible=not selected_attachment.is_empty()
+ attachment.text="Attachment · "+str(selected_attachment.get("name",""))
 
 func _close_tab() -> void:
- if tabs.size()<=1:return
- var tab: Dictionary=tabs[active]
+ _close_tab_at(active)
+
+func _close_tab_at(index: int) -> void:
+ if tabs.size()<=1 or index<0 or index>=tabs.size():return
+ var tab: Dictionary=tabs[index]
  if is_instance_valid(tab.browser):tab.browser.close()
  if is_instance_valid(tab.surface):tab.surface.queue_free()
- tabs.remove_at(active);active=mini(active,tabs.size()-1);_refresh()
+ tabs.remove_at(index)
+ if index<active:active-=1
+ active=mini(active,tabs.size()-1)
+ _refresh()
+
+func _home() -> void:
+ var browser: Variant=_browser()
+ if browser==null:return
+ browser.load_url("about:blank")
+ if is_instance_valid(home_screen):home_screen.show()
+ address.clear()
+ status.text=""
+
+func _input(event: InputEvent) -> void:
+ if not is_visible_in_tree() or not event is InputEventKey or not event.pressed or event.echo:return
+ if not is_instance_valid(address):return
+ var focused:=get_viewport().gui_get_focus_owner()
+ var hovered:=get_viewport().gui_get_hovered_control()
+ if focused!=address and not is_ancestor_of(focused) and not is_ancestor_of(hovered):return
+ if event.ctrl_pressed:
+  match event.keycode:
+   KEY_L:address.grab_focus();address.select_all()
+   KEY_T:_add_tab()
+   KEY_W:_close_tab()
+   KEY_R:
+    var browser: Variant=_browser()
+    if browser!=null:browser.reload()
+   _:return
+  get_viewport().set_input_as_handled()
 
 func _navigate() -> void:
  var url:=address.text.strip_edges()
