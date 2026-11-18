@@ -87,6 +87,7 @@ func _run() -> void:
 				_check(game.session.room_code().length() == 10, "Relay host did not receive a room code")
 				_check(front.notice_time > 0, "Host room code notice missing")
 				front.pause_menu()
+				_check(not paused, "Host menu paused the multiplayer session")
 				front.settings_page()
 				await process_frame
 				var host_server := _button(front.screen, "Host Server")
@@ -104,7 +105,9 @@ func _run() -> void:
 			_check(front.in_game and not front.screen.visible and game.player.enabled,
 				"%s Play failed to enter gameplay (%s)" % [label, front.status.text])
 			_check(game.session.online == not offline, label + " started the wrong session type")
-			if offline and front.in_game:await _check_invention_world(game)
+			if offline and front.in_game:
+				await _check_singleplayer_pause(game)
+				await _check_invention_world(game)
 		if front.in_game or game.session.online:
 			front.leave_game()
 		else:
@@ -126,6 +129,33 @@ func _run() -> void:
 	_check(RelayAccount.parse_invite("ABCDEFGHJK@example.com/path", "").is_empty(), "Invalid room relay address accepted")
 	_check_food_icons()
 	_finish()
+
+func _check_singleplayer_pause(game: Node) -> void:
+	var front: Node = game.front
+	var escape := InputEventKey.new()
+	escape.keycode = KEY_ESCAPE
+	escape.physical_keycode = KEY_ESCAPE
+	escape.pressed = true
+	root.push_input(escape)
+	await process_frame
+	_check(paused and front.page == "pause" and front.screen.visible, "Esc did not pause singleplayer")
+	_check(front.can_process() and not game.player.can_process(), "Pause did not freeze gameplay with the menu responsive")
+	var settings := _button(front.body, "Settings")
+	if is_instance_valid(settings):
+		settings.pressed.emit()
+		await process_frame
+		_check(paused and front.page == "settings", "Opening Settings resumed singleplayer")
+		root.push_input(escape)
+		await process_frame
+		_check(paused and front.page == "pause", "Esc from Settings did not return to the paused menu")
+	root.push_input(escape)
+	await process_frame
+	_check(not paused and game.player.enabled and not front.screen.visible, "Esc did not resume singleplayer")
+	front.pause_menu()
+	var resume := _button(front.body, "Resume")
+	if is_instance_valid(resume): resume.pressed.emit()
+	_check(not paused and game.player.enabled, "Resume button did not resume singleplayer")
+	if paused: game.capture()
 
 func _check_invention_world(game: Node) -> void:
 	var model=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd")

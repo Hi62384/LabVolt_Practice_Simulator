@@ -17,6 +17,7 @@ var body: VBoxContainer
 var title: Label
 var status: Label
 var in_game := false
+var owns_game_pause := false
 var leaving_game := false
 var joining := false
 var page := "home"
@@ -41,6 +42,7 @@ var join_spinner: ProgressBar
 var join_timeout: Timer
 func build(owner_game: Node) -> void:
 	game=owner_game
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(relay_account)
 	layer=60 # Menus must remain usable above the death overlay.
 	screen=Control.new()
@@ -562,6 +564,9 @@ func settings_page() -> void:
 	_mount_page(preload("res://scripts/campus/ui/settings_page.gd").new(), game)
 func pause_menu() -> void:
 	game.release_mouse()
+	if in_game and not game.session.online and not get_tree().paused:
+		owns_game_pause = true
+		get_tree().paused = true
 	screen.show()
 	clear("pause","MENU")
 	var code: String = game.session.room_code()
@@ -586,6 +591,7 @@ func pause_menu() -> void:
 func leave_game() -> void:
 	if leaving_game:return
 	leaving_game=true
+	_release_game_pause()
 	joining=false
 	notice_time = 0.0
 	_campus_navigate("")
@@ -599,10 +605,26 @@ func leave_game() -> void:
 	home()
 	leaving_game=false
 func entered() -> void:
+	_release_game_pause()
 	in_game=true
 	screen.hide()
 	if is_instance_valid(game.menu_campus):game.menu_campus.enter_game()
 	game.camera.current=true
+
+func _release_game_pause() -> void:
+	if owns_game_pause:
+		owns_game_pause = false
+		get_tree().paused = false
+
+func _input(event: InputEvent) -> void:
+	if not owns_game_pause or not screen.visible: return
+	if page == "settings" and is_instance_valid(menu_page) and menu_page.handle_binding(event):
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_ESCAPE or event.physical_keycode == KEY_ESCAPE):
+		get_viewport().set_input_as_handled()
+		escape()
+
 func escape() -> void:
 	if screen.visible:
 		if page not in ["home","pause"]:
