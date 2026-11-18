@@ -93,8 +93,7 @@ func run() -> void:
 	accept_dialog(desktop,"Labs")
 	if "Labs" not in computers.local_snapshot.get("folders",[]):push_error("Folder creation failed");quit(1);return
 	computers.last_request.erase(1)
-	for index in desktop.file_list.item_count:
-		if desktop.file_list.get_item_metadata(index).get("path","")=="Labs":desktop.file_list.select(index)
+	assert(select_file(desktop.file_list, "Labs"))
 	desktop._open_selected()
 	find_button(desktop,"New file").pressed.emit()
 	accept_dialog(desktop,"note.txt")
@@ -107,11 +106,7 @@ func run() -> void:
 	desktop._switch_app("Files")
 	computers.last_request.erase(1)
 	desktop._folder_up()
-	var folder_index:=-1
-	for index in desktop.file_list.item_count:
-		if desktop.file_list.get_item_metadata(index).get("path","")=="Labs":folder_index=index
-	if folder_index<0:push_error("Folder missing from desktop");quit(1);return
-	desktop.file_list.select(folder_index)
+	assert(select_file(desktop.file_list, "Labs"))
 	find_button(desktop,"Rename").pressed.emit()
 	accept_dialog(desktop,"Work")
 	if not computers.local_snapshot.files.has("Work/note.txt") or "Work" not in computers.local_snapshot.folders:
@@ -133,11 +128,8 @@ func run() -> void:
 	if not computers.local_snapshot.get("files",{}).has("Work/note.txt"):
 		push_error("Powered computer lost files after leaving");quit(1);return
 	computers.last_request.erase(1)
-	folder_index=-1
-	for index in desktop.file_list.item_count:
-		if desktop.file_list.get_item_metadata(index).get("path","")=="Work":folder_index=index
-	if folder_index<0:push_error("Renamed folder missing from desktop");quit(1);return
-	desktop.file_list.select(folder_index);desktop.delete_button.pressed.emit()
+	assert(select_file(desktop.file_list, "Work"))
+	desktop.delete_button.pressed.emit()
 	accept_dialog(desktop)
 	if not computers.local_snapshot.files.is_empty() or not computers.local_snapshot.folders.is_empty():
 		push_error("Folder deletion left contents behind");quit(1);return
@@ -150,9 +142,9 @@ func run() -> void:
 	var terminal: Control=desktop.content.get_child(0)
 	terminal._run("cat Work/note.txt")
 	assert(terminal.transcript.text.contains("temporary"))
+	assert("Circuit Lab" not in desktop.app_names)
 	desktop._switch_app("Circuit Lab")
-	var lab: Control=desktop.content.get_child(0)
-	assert(lab.results.text.contains("0.1200"))
+	assert(not desktop.windows.has("Circuit Lab"))
 	desktop._switch_app("Code editor")
 	assert(desktop.windows.has("Text editor") and desktop.windows.has("Code editor"))
 	var language=load("res://scripts/campus/computers/campus_script.gd").new()
@@ -180,3 +172,12 @@ func run() -> void:
 		push_error("Idle shutdown did not close the workstation");quit(1);return
 	print("PUBLIC_WORKSTATION PASS")
 	game.front.leave_game();game.queue_free();await process_frame;quit()
+
+
+func select_file(list: Tree, path: String) -> bool:
+	for row in list.get_root().get_children():
+		var data: Variant = row.get_metadata(0)
+		if data is Dictionary and data.path == path:
+			row.select(0)
+			return true
+	return false

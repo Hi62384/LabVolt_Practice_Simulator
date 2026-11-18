@@ -13,7 +13,8 @@ var pending_folder_source := ""
 var pending_folder_target := ""
 var pending_paper_id := 0
 var active_app := "Files"
-var file_list: ItemList
+var file_list: Tree
+var project_tree: Tree
 var editor: TextEdit
 var path_field: LineEdit
 var status_label: Label
@@ -52,7 +53,7 @@ var workspace: Control
 var windows := {}
 var clock_label: Label
 var desktop_status: Label
-var app_names := ["Files","Text editor","Course work","Calculator","Browser","Code editor","Terminal","Settings","Recycle Bin","Circuit Lab"]
+var app_names := ["Files","Text editor","Course work","Calculator","Browser","Code editor","Terminal","Settings","Recycle Bin"]
 var pinned_apps := ["Files","Browser"]
 var selected_shortcut := ""
 var shortcuts_by_name := {}
@@ -64,7 +65,7 @@ var wallpaper_panel: TextureRect
 var style_choice := 0
 var pending_open_path := ""
 const Icon = preload("res://scripts/ui/design_system/widgets.gd")
-const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Course work":"course","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Circuit Lab":"circuit","Recycle Bin":"trash"}
+const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Course work":"course","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Recycle Bin":"trash"}
 
 func build(source: Node, owner_game: Node = null) -> void:
 	session = source
@@ -307,7 +308,7 @@ void fragment() {
 func _desktop_app_icon(name: String) -> Texture2D:
 	var tile_colors := {"Files":"1c6197", "Text editor":"1379b9", "Course work":"6550bf",
 		"Calculator":"247794", "Browser":"0986cf", "Code editor":"3c459e",
-		"Terminal":"365367", "Settings":"5279a0", "Recycle Bin":"079482", "Circuit Lab":"6741b4"}
+		"Terminal":"365367", "Settings":"5279a0", "Recycle Bin":"079482"}
 	var tile := Image.new()
 	var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><defs><linearGradient id="g" x2="0" y2="1"><stop stop-color="#%s"/><stop offset="1" stop-color="#10223b"/></linearGradient></defs><rect x="1" y="1" width="54" height="54" rx="13" fill="url(#g)" stroke="#95ddff" stroke-opacity=".55"/><path d="M13 7H43" stroke="white" stroke-opacity=".2" stroke-linecap="round"/></svg>'
 	tile.load_svg_from_string(svg % tile_colors[name])
@@ -340,29 +341,33 @@ func _create_window(key: String,name: String) -> Dictionary:
 	window.set_meta("desktop_app",key)
 	window.clip_contents=true
 	var frame := StyleBoxFlat.new()
-	frame.bg_color=Color("152b3d")
-	frame.border_color=Color("38596c")
+	frame.bg_color=Color("082b3def")
+	frame.border_color=Color("2cbbce")
+	frame.anti_aliasing = true
 	frame.set_border_width_all(1)
-	frame.set_corner_radius_all(10)
-	frame.set_content_margin_all(8)
+	frame.set_corner_radius_all(16)
+	frame.set_content_margin_all(10)
 	frame.shadow_color=Color("00000066")
-	frame.shadow_size=5
+	frame.shadow_size=12
 	window.add_theme_stylebox_override("panel",frame)
+	window.theme = _application_theme()
 	workspace.add_child(window)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation",4)
+	column.add_theme_constant_override("separation",7)
 	window.add_child(column)
 	var bar := HBoxContainer.new()
+	bar.gui_input.connect(func(event: InputEvent): _window_drag(key, event))
 	column.add_child(bar)
 	var badge := TextureRect.new()
-	badge.texture=Icon.icon(APP_ICONS[name])
-	badge.custom_minimum_size=Vector2(16,16)
+	badge.texture=shortcuts_by_name[name].icon
+	badge.custom_minimum_size=Vector2(23,23)
 	badge.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
 	badge.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	badge.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	bar.add_child(badge)
 	var title := Label.new()
 	title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	title.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
 	title.mouse_filter=Control.MOUSE_FILTER_STOP
 	title.mouse_default_cursor_shape=Control.CURSOR_MOVE
 	title.gui_input.connect(func(event: InputEvent):_window_drag(key,event))
@@ -382,13 +387,33 @@ func _create_window(key: String,name: String) -> Dictionary:
 	message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	message.add_theme_font_size_override("font_size",12)
 	column.add_child(message)
-	var base := Vector2(830,575) if name in ["Files","Text editor","Code editor","Browser","Course work","Terminal","Circuit Lab","Recycle Bin"] else Vector2(338,460)
+	var base := Vector2(830,575) if name in ["Files","Text editor","Code editor","Browser","Course work","Terminal","Recycle Bin"] else Vector2(338,460)
 	var offset := float(windows.size()%5)*24.0
 	window.position=Vector2(maxf(155.0,workspace.size.x-base.x-12) if name=="Calculator" else 210+offset,12+offset)
 	var state := {"shell":window,"title":title,"content":area,"status":message,"app":name,"built":false,"maximized":false,"rect":Rect2(window.position,base),"restore":Rect2(window.position,base)}
 	windows[key]=state
 	_fit_windows()
 	return state
+
+var application_theme: Theme
+
+func _application_theme() -> Theme:
+	if application_theme != null: return application_theme
+	application_theme = theme.duplicate()
+	var tokens = preload("res://scripts/ui/design_system/tokens.gd")
+	for style in [["normal","104054","28677b"],["hover","1a5365","46bdd0"],["pressed","116578","55d8df"],["disabled","102d40","244251"]]:
+		application_theme.set_stylebox(style[0], "Button", tokens.surface(Color(style[1]), Color(style[2]), 9))
+	for control in ["ItemList", "Tree"]:
+		application_theme.set_stylebox("panel", control, tokens.surface(Color("041e2f"), Color("255e73"), 10))
+		application_theme.set_stylebox("selected", control, tokens.surface(Color("135366"), Color("36a6be"), 6))
+	for control in ["TextEdit", "CodeEdit", "LineEdit"]:
+		application_theme.set_stylebox("normal", control, tokens.surface(Color("031e2e"), Color("2e7f91"), 8))
+		application_theme.set_color("caret_color", control, Color("71f8ff"))
+	return application_theme
+
+func _recoverable_window_position(point: Vector2, extent: Vector2) -> Vector2:
+	var reachable := minf(140.0, minf(extent.x, workspace.size.x))
+	return point.clamp(Vector2(reachable - extent.x, -12.0), Vector2(workspace.size.x - reachable, maxf(0.0, workspace.size.y - 29.0)))
 
 func _fit_windows() -> void:
 	if workspace.size.x<32 or workspace.size.y<32:return
@@ -400,7 +425,7 @@ func _fit_windows() -> void:
 		else:
 			var rect: Rect2=state.rect
 			window.size=rect.size.max(window.get_combined_minimum_size()).min(workspace.size)
-			window.position=rect.position.clamp(Vector2.ZERO,(workspace.size-window.size).max(Vector2.ZERO))
+			window.position=_recoverable_window_position(rect.position,window.size)
 
 func _window_drag(key: String,event: InputEvent) -> void:
 	var state: Dictionary=windows.get(key,{})
@@ -410,16 +435,8 @@ func _window_drag(key: String,event: InputEvent) -> void:
 		if event.double_click:_toggle_maximize(key)
 	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT and not state.maximized:
 		var window: PanelContainer=state.shell
-		window.position=(window.position+event.relative).clamp(Vector2.ZERO,(workspace.size-window.size).max(Vector2.ZERO))
+		window.position=_recoverable_window_position(window.position+event.relative,window.size)
 		state.rect=Rect2(window.position,window.size)
-	elif event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and not event.pressed and not state.maximized:
-		var pointer:=workspace.get_local_mouse_position()
-		if pointer.y<10:
-			_toggle_maximize(key)
-		elif pointer.x<12 or pointer.x>workspace.size.x-12:
-			var width:=workspace.size.x*.5
-			state.rect=Rect2(Vector2(0 if pointer.x<12 else width,0),Vector2(width,workspace.size.y))
-			_fit_windows()
 
 func _toggle_maximize(key: String) -> void:
 	var state: Dictionary=windows[key]
@@ -461,6 +478,7 @@ func _focus_last_window() -> void:
 
 func _bind_editor(state: Dictionary) -> void:
 	file_list=state.get("file_list")
+	project_tree=state.get("project_tree")
 	breadcrumbs=state.get("breadcrumbs")
 	editor=state.get("editor")
 	path_field=state.get("path_field")
@@ -497,6 +515,7 @@ func _clear_content() -> void:
 	_bind_editor({})
 
 func _switch_app(name: String) -> void:
+	if name not in app_names: return
 	_capture_draft()
 	var key := _window_key(name)
 	var state: Dictionary=windows[key] if windows.has(key) else _create_window(key,name)
@@ -516,11 +535,12 @@ func _switch_app(name: String) -> void:
 	state.built=true
 	if name == "Files" or name == "Text editor" or name == "Code editor":
 		_build_files(name)
-		state.merge({"file_list":file_list,"breadcrumbs":breadcrumbs,"editor":editor,"path_field":path_field,"folder_button":folder_button,"delete_button":delete_button},true)
+		state.merge({"file_list":file_list,"project_tree":project_tree,"breadcrumbs":breadcrumbs,"editor":editor,"path_field":path_field,"folder_button":folder_button,"delete_button":delete_button},true)
 	elif name == "Course work":
 		_build_course_work()
 	elif name == "Calculator":
 		var calculator := preload("res://scripts/scientific_calculator.gd").new()
+		calculator.campus_style = true
 		calculator.size_flags_horizontal=Control.SIZE_SHRINK_CENTER
 		content.add_child(calculator)
 		for node in calculator.find_children("*","Button",true,false):
@@ -538,7 +558,8 @@ func _switch_app(name: String) -> void:
 		browser_surface.configure("computer",str(snapshot.get("station","")),str(snapshot.get("lease","")),files)
 		browser_surface.attachment_loader=_browser_attachment
 		browser_surface.assistant_virtual_save=_browser_save_answer
-		status_label.text="Campus browser · embedded Chromium." if browser_surface.call("renderer_available") else "Embedded browser unavailable on this device."
+		status_label.visible=not browser_surface.call("renderer_available")
+		status_label.text="Embedded browser unavailable on this device." if status_label.visible else ""
 	elif name=="Terminal":
 		var terminal:=preload("res://scripts/campus/computers/virtual_terminal.gd").new()
 		terminal.size_flags_vertical=Control.SIZE_EXPAND_FILL
@@ -546,12 +567,6 @@ func _switch_app(name: String) -> void:
 		terminal.build(self)
 	elif name=="Settings":_build_os_settings()
 	elif name=="Recycle Bin":_build_recycle_bin()
-	elif name=="Circuit Lab":
-		var lab:=preload("res://scripts/campus/computers/circuit_lab_app.gd").new()
-		lab.size_flags_vertical=Control.SIZE_EXPAND_FILL
-		content.add_child(lab)
-		lab.build(self)
-		state.circuit=lab
 
 func _select_shortcut(name: String) -> void:
 	selected_shortcut=name
@@ -634,23 +649,79 @@ func _build_recycle_bin() -> void:
 		notice.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 		content.add_child(notice)
 		return
-	var entries:=ItemList.new()
-	entries.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	content.add_child(entries)
-	for item in snapshot.get("recycle",[]):
-		var index:=entries.add_item(str(item.path),Icon.icon("trash"))
-		entries.set_item_metadata(index,item.id)
-	var tools:=HBoxContainer.new()
+	var toolbar := HBoxContainer.new()
+	content.add_child(toolbar)
+	var search := LineEdit.new()
+	search.placeholder_text = "Search deleted items"
+	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toolbar.add_child(search)
+	var sort := OptionButton.new()
+	sort.add_item("Newest first")
+	sort.add_item("Name")
+	toolbar.add_child(sort)
+	var split := HSplitContainer.new()
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(split)
+	var entries := Tree.new()
+	entries.columns = 3
+	entries.hide_root = true
+	entries.column_titles_visible = true
+	entries.set_column_title(0, "Name")
+	entries.set_column_title(1, "Original location")
+	entries.set_column_title(2, "Date deleted")
+	entries.custom_minimum_size = Vector2(310, 140)
+	entries.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split.add_child(entries)
+	var details := Label.new()
+	details.custom_minimum_size.x = 142
+	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	details.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	split.add_child(details)
+	var tools := HBoxContainer.new()
 	content.add_child(tools)
-	tools.add_child(_button("Restore",func():
-		if not entries.get_selected_items().is_empty():
-			_send({"op":"untrash","item":entries.get_item_metadata(entries.get_selected_items()[0])})))
-	tools.add_child(_button("Delete permanently",func():
-		if not entries.get_selected_items().is_empty():
-			var item: String=entries.get_item_metadata(entries.get_selected_items()[0])
-			_confirm_action("Delete this recycled item permanently?",func():_send({"op":"purge","item":item}))))
-	tools.add_child(_button("Empty Recycle Bin",func():
-		_confirm_action("Delete all recycled items permanently?",func():_send({"op":"purge"}))))
+	var restore := _button("Restore",func():
+		var selected := entries.get_selected()
+		if selected != null: _send({"op":"untrash","item":selected.get_metadata(0).id}))
+	tools.add_child(restore)
+	var purge := _button("Delete permanently",func():
+		var selected := entries.get_selected()
+		if selected != null:
+			var item: String = selected.get_metadata(0).id
+			_confirm_action("Delete this recycled item permanently?",func():_send({"op":"purge","item":item})))
+	tools.add_child(purge)
+	var empty := _button("Empty Recycle Bin",func():
+		_confirm_action("Delete all recycled items permanently?",func():_send({"op":"purge"})))
+	tools.add_child(empty)
+	var items: Array = snapshot.get("recycle", []).duplicate()
+	var update := func(_query: String = ""):
+		entries.clear()
+		var root_item := entries.create_item()
+		if sort.selected == 1:
+			items.sort_custom(func(left, right): return str(left.path).get_file().nocasecmp_to(str(right.path).get_file()) < 0)
+		else:
+			items.sort_custom(func(left, right): return int(left.deleted) > int(right.deleted))
+		for item in items:
+			var path := str(item.path)
+			if not path.to_lower().contains(search.text.strip_edges().to_lower()): continue
+			var row := entries.create_item(root_item)
+			row.set_text(0, path.get_file())
+			row.set_icon(0, Icon.icon("course"))
+			row.set_text(1, "/" + _parent_folder(path))
+			row.set_text(2, Time.get_datetime_string_from_unix_time(int(item.deleted), true).left(16))
+			row.set_metadata(0, item)
+		details.text = "Recycle Bin is empty" if items.is_empty() else "Select an item"
+		restore.disabled = true
+		purge.disabled = true
+		empty.disabled = items.is_empty()
+	search.text_changed.connect(update)
+	sort.item_selected.connect(func(_index: int): update.call())
+	entries.item_selected.connect(func():
+		var selected := entries.get_selected()
+		if selected == null: return
+		details.text = "%s\n\n%s\n%s" % [selected.get_text(0),selected.get_text(1),selected.get_text(2)]
+		restore.disabled = false
+		purge.disabled = false)
+	update.call()
 
 func _confirm_action(message: String, action: Callable) -> void:
 	var dialog:=ConfirmationDialog.new()
@@ -713,21 +784,47 @@ func _apply_wallpaper() -> void:
 	wallpaper_panel.modulate=[Color.WHITE,Color("9dbad9"),Color("83c8bb")][style_choice]
 
 func _build_os_settings() -> void:
-	var style:=OptionButton.new()
-	for name in ["Campus navy","Evening blue","Muted teal"]:style.add_item(name)
+	var sections := TabContainer.new()
+	sections.tab_alignment = TabBar.ALIGNMENT_LEFT
+	sections.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(sections)
+	var appearance := VBoxContainer.new()
+	appearance.name = "Appearance"
+	sections.add_child(appearance)
+	var heading := Label.new()
+	heading.text = "System theme"
+	heading.add_theme_font_size_override("font_size", 20)
+	appearance.add_child(heading)
+	var style := OptionButton.new()
+	for name in ["Campus navy", "Evening blue", "Muted teal"]: style.add_item(name)
 	style.select(style_choice)
 	style.item_selected.connect(func(index):
-		style_choice=index
+		style_choice = index
 		_apply_wallpaper()
 		_save_os_preferences())
-	content.add_child(style)
-	var pinned:=Label.new()
-	pinned.text="Right-click a desktop shortcut to change its taskbar pin."
-	pinned.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(pinned)
-	var about:=Label.new()
-	about.text="Campus OS • LabVolt Practice Simulator"
-	content.add_child(about)
+	appearance.add_child(style)
+	var apps := VBoxContainer.new()
+	apps.name = "Taskbar pins"
+	sections.add_child(apps)
+	var pins := ScrollContainer.new()
+	pins.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	apps.add_child(pins)
+	var pin_list := VBoxContainer.new()
+	pin_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pins.add_child(pin_list)
+	for name in app_names:
+		var pin := CheckButton.new()
+		pin.text = name
+		pin.icon = shortcuts_by_name[name].icon
+		pin.button_pressed = name in pinned_apps
+		pin.toggled.connect(func(value: bool):
+			if value != (name in pinned_apps): _toggle_pin(name))
+		pin_list.add_child(pin)
+	var about := Label.new()
+	about.name = "About"
+	about.text = "Campus OS\nLabVolt Practice Simulator"
+	about.add_theme_font_size_override("font_size", 22)
+	sections.add_child(about)
 
 func _build_files(name: String) -> void:
 	var toolbar := HFlowContainer.new()
@@ -827,16 +924,35 @@ func _build_files(name: String) -> void:
 		var bin:=_button("Recycle Bin",func():_switch_app("Recycle Bin"))
 		bin.icon=Icon.icon("trash")
 		shortcuts.add_child(bin)
-	file_list = ItemList.new()
-	file_list.custom_minimum_size.x = 210 if name=="Files" else 132
-	file_list.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	file_list.add_theme_constant_override("v_separation",7)
-	file_list.item_activated.connect(func(_index: int): _open_selected(true))
+	file_list = Tree.new()
+	file_list.hide_root = true
+	file_list.columns = 3
+	file_list.column_titles_visible = true
+	file_list.set_column_title(0, "Name")
+	file_list.set_column_title(1, "Type")
+	file_list.set_column_title(2, "Size")
+	file_list.custom_minimum_size.x = 260
+	file_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	file_list.add_theme_constant_override("v_separation", 7)
+	file_list.item_activated.connect(func(): _open_selected(true))
 	split.add_child(file_list)
-	file_list.visible=name in ["Files","Code editor"]
-	if name=="Code editor":
+	file_list.visible = name == "Files"
+	project_tree = null
+	if name == "Code editor":
+		project_tree = Tree.new()
+		project_tree.custom_minimum_size.x = 150
+		project_tree.item_activated.connect(func():
+			var item := project_tree.get_selected()
+			if item != null and not item.get_metadata(0).get("folder", false):
+				_open_path(str(item.get_metadata(0).path)))
+		split.add_child(project_tree)
+	if name in ["Code editor", "Text editor"]:
 		var code := CodeEdit.new()
 		code.gutters_draw_line_numbers=true
+		code.highlight_current_line=true
+		code.caret_blink=true
+		code.indent_use_spaces=true
+		code.indent_size=4
 		var highlighter := CodeHighlighter.new()
 		highlighter.number_color=Color("e2b181")
 		highlighter.symbol_color=Color("8ac1d4")
@@ -844,7 +960,7 @@ func _build_files(name: String) -> void:
 		highlighter.add_color_region("#","",Color("91a4b1"),true)
 		for keyword in ["let","print","repeat","end","def","func","var","const","if","elif","else","for","while","return","import","class","true","false"]:
 			highlighter.add_keyword_color(keyword,Color("9eafff"))
-		code.syntax_highlighter=highlighter
+		if name=="Code editor": code.syntax_highlighter=highlighter
 		var mono := SystemFont.new()
 		mono.font_names=PackedStringArray(["Consolas","Cascadia Mono","DejaVu Sans Mono"])
 		code.add_theme_font_override("font",mono)
@@ -863,12 +979,31 @@ func _build_files(name: String) -> void:
 			var hit:=editor.search(term,0,editor.get_caret_line(),editor.get_caret_column()+1)
 			if hit.x>=0:editor.select(hit.y,hit.x,hit.y,hit.x+term.length());editor.grab_focus())
 		editor.add_theme_font_size_override("font_size",14)
-	split.add_child(editor)
+	var document := VBoxContainer.new()
+	document.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	split.add_child(document)
+	document.visible = name != "Files"
+	editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	document.add_child(editor)
 	editor.visible=name!="Files"
+	if name != "Files":
+		var caret := Label.new()
+		caret.add_theme_color_override("font_color", Color("a0c2d4"))
+		document.add_child(caret)
+		var local_editor: TextEdit = editor
+		var update_caret := func():
+			caret.text = "%s     Ln %d, Col %d     UTF-8" % ["Source" if name == "Code editor" else "Plain text", local_editor.get_caret_line() + 1, local_editor.get_caret_column() + 1]
+		local_editor.caret_changed.connect(update_caret)
+		update_caret.call()
 	_refresh_file_list()
 	_load_editor()
 	if name == "Code editor":
 		var output:=TextEdit.new()
+		var output_header := CheckButton.new()
+		output_header.text = "Program output"
+		output_header.button_pressed = true
+		output_header.toggled.connect(func(value: bool): output.visible = value)
+		content.add_child(output_header)
 		output.editable=false
 		output.custom_minimum_size.y=88
 		output.placeholder_text="Program output"
@@ -913,20 +1048,71 @@ func _refresh_file_list() -> void:
 	if not folder_path.is_empty() and not folder_path in snapshot.get("folders",[]):folder_path=""
 	breadcrumbs.text="Workspace" if folder_path.is_empty() else "Workspace  ›  "+folder_path.replace("/","  ›  ")
 	file_list.clear()
-	for folder in snapshot.get("folders",[]):
-		var path:=str(folder)
-		if _parent_folder(path)!=folder_path:continue
-		file_list.add_item(path.get_file(),Icon.icon("folder"))
-		file_list.set_item_metadata(file_list.item_count-1,{"path":path,"folder":true})
+	var root_item := file_list.create_item()
+	for folder in snapshot.get("folders", []):
+		var path := str(folder)
+		if _parent_folder(path) != folder_path: continue
+		var row := file_list.create_item(root_item)
+		row.set_text(0, path.get_file())
+		row.set_icon(0, Icon.icon("folder"))
+		row.set_text(1, "Folder")
+		row.set_text(2, "—")
+		row.set_metadata(0, {"path":path,"folder":true})
 	for value in _file_rows():
-		var path:=str(value.get("path",""))
-		if _parent_folder(path)!=folder_path:continue
-		file_list.add_item(path.get_file(),Icon.icon("course"))
-		file_list.set_item_metadata(file_list.item_count-1,{"path":path,"folder":false})
+		var path := str(value.get("path", ""))
+		if _parent_folder(path) != folder_path: continue
+		var row := file_list.create_item(root_item)
+		row.set_text(0, path.get_file())
+		row.set_icon(0, Icon.icon("course"))
+		row.set_text(1, path.get_extension().to_upper() if not path.get_extension().is_empty() else "File")
+		row.set_text(2, String.humanize_size(str(value.get("text", "")).to_utf8_buffer().size()))
+		row.set_metadata(0, {"path":path,"folder":false})
+	if root_item.get_child_count() == 0:
+		var empty := file_list.create_item(root_item)
+		empty.set_text(0, "This folder is empty")
+		empty.set_selectable(0, false)
+		empty.set_selectable(1, false)
+		empty.set_selectable(2, false)
+	if is_instance_valid(project_tree): _refresh_project_tree()
+
+func _refresh_project_tree() -> void:
+	var expanded := {}
+	var item := project_tree.get_root()
+	while item != null:
+		var metadata: Variant = item.get_metadata(0)
+		if metadata is Dictionary and metadata.folder: expanded[metadata.path] = not item.collapsed
+		item = item.get_next_in_tree()
+	project_tree.clear()
+	var root_item := project_tree.create_item()
+	root_item.set_text(0, "Workspace")
+	root_item.set_metadata(0, {"path":"","folder":true})
+	var folders := {"":root_item}
+	var paths: Array = snapshot.get("folders", []).duplicate()
+	paths.sort_custom(func(left, right): return str(left).length() < str(right).length())
+	for path in paths:
+		var parent: TreeItem = folders.get(_parent_folder(path), root_item)
+		var row := project_tree.create_item(parent)
+		row.set_text(0, str(path).get_file())
+		row.set_icon(0, Icon.icon("folder"))
+		row.set_metadata(0, {"path":path,"folder":true})
+		row.collapsed = not bool(expanded.get(path, current_path.begins_with(str(path)+"/")))
+		folders[path] = row
+	for file in _file_rows():
+		var path := str(file.path)
+		var parent: TreeItem = folders.get(_parent_folder(path), root_item)
+		var row := project_tree.create_item(parent)
+		row.set_text(0, path.get_file())
+		row.set_icon(0, Icon.icon("course"))
+		row.set_metadata(0, {"path":path,"folder":false})
+		if path == current_path: row.select(0)
+
 
 func _selected_entry() -> Dictionary:
-	if file_list==null or file_list.get_selected_items().is_empty():return {}
-	var metadata: Variant=file_list.get_item_metadata(file_list.get_selected_items()[0])
+	if is_instance_valid(project_tree):
+		var row := project_tree.get_selected()
+		return row.get_metadata(0) if row != null else {}
+	if file_list == null or file_list.get_selected() == null: return {}
+	var metadata: Variant = file_list.get_selected().get_metadata(0)
 	return metadata if metadata is Dictionary else {}
 
 func _new_folder() -> void:
@@ -1018,13 +1204,6 @@ func _open_selected(open_in_editor := false) -> void:
 
 func _open_path(path: String, remember := true) -> void:
 	if _file(path).is_empty():return
-	if path.ends_with(".circuit"):
-		_switch_app("Circuit Lab")
-		var lab: Control=windows["Circuit Lab"].circuit
-		for index in lab.project_picker.item_count:
-			if lab.project_picker.get_item_text(index)==path:lab.project_picker.select(index)
-		lab._open()
-		return
 	var code_file:=path.get_extension().to_lower() in ["campus","gd","lua","py","js","ts","cs","c","cpp","json"]
 	_switch_app("Code editor" if code_file else "Text editor")
 	current_path=path
@@ -1034,6 +1213,7 @@ func _open_path(path: String, remember := true) -> void:
 	recent_files.push_front(path)
 	if recent_files.size()>16:recent_files.pop_back()
 	_load_editor()
+	if is_instance_valid(project_tree): _refresh_project_tree()
 	if remember:_send({"op":"editor","path":path,"cursor":0})
 
 func _valid_path(value: String) -> bool:
@@ -1109,7 +1289,24 @@ func _build_course_work() -> void:
 	tabs.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	content.add_child(tabs)
 	var overview:=_course_page(tabs,"Overview")
-	_course_text(overview,"%d assignments in this session" % assignments.size())
+	var header := Label.new()
+	header.text = "Course overview"
+	header.add_theme_font_size_override("font_size", 23)
+	overview.add_child(header)
+	var metrics := HFlowContainer.new()
+	overview.add_child(metrics)
+	var graded := assignments.filter(func(item): return not item.get("mark", {}).is_empty())
+	for stat in [["Assignments",str(assignments.size())],["Marked",str(graded.size())],["Materials",str(snapshot.get("materials",[]).size())]]:
+		var card := PanelContainer.new()
+		card.custom_minimum_size = Vector2(123, 64)
+		card.add_theme_stylebox_override("panel", preload("res://scripts/ui/design_system/tokens.gd").surface(Color("104354"),Color("327d92"),10))
+		metrics.add_child(card)
+		var value := Label.new()
+		value.text = stat[1] + "   " + stat[0]
+		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		card.add_child(value)
+	if assignments.is_empty(): _course_text(overview, "No assignments yet.")
 	overview.add_child(_button("Refresh course work",func():_send({"op":"refresh"})))
 	var work:=_course_page(tabs,"Assignments")
 	if assignments.is_empty():_course_text(work,"No assignments are available in this session.")
@@ -1232,6 +1429,7 @@ func _restore_parked(record: Dictionary) -> void:
 	current_path=str(record.path)
 	folder_path=str(record.folder)
 	for entry in record.layout:
+		if entry.app not in app_names: continue
 		_switch_app(entry.app)
 		var window: Dictionary=windows[_window_key(entry.app)]
 		window.rect=entry.rect
@@ -1354,7 +1552,6 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	if windows.is_empty() and not can_restore:_switch_app("Files")
 	_refresh_file_list()
 	_load_editor()
-	if windows.has("Circuit Lab"):windows["Circuit Lab"].circuit.refresh_projects()
 	if active_app in ["Recycle Bin","Course work"] and windows.has(active_app):_switch_app(active_app)
 	if save_acked:
 		saving_path=""
@@ -1377,8 +1574,8 @@ func _resize_input(event: InputEvent) -> bool:
 		var high := resize_start.end
 		var minimum: Vector2=state.shell.get_combined_minimum_size().max(Vector2(270,190))
 		for axis in 2:
-			if resize_edges[axis]<0:low[axis]=clampf(low[axis]+delta[axis],0,maxf(0,high[axis]-minimum[axis]))
-			if resize_edges[axis]>0:high[axis]=clampf(high[axis]+delta[axis],minf(workspace.size[axis],low[axis]+minimum[axis]),workspace.size[axis])
+			if resize_edges[axis]<0:low[axis]=minf(low[axis]+delta[axis],high[axis]-minimum[axis])
+			if resize_edges[axis]>0:high[axis]=maxf(high[axis]+delta[axis],low[axis]+minimum[axis])
 		state.rect=Rect2(low,high-low)
 		_fit_windows()
 		return true

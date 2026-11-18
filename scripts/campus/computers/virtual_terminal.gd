@@ -9,7 +9,10 @@ var history_index:=0
 
 func build(parent: Control) -> void:
 	desktop=parent
+	var mono := SystemFont.new()
+	mono.font_names = PackedStringArray(["Consolas", "DejaVu Sans Mono"])
 	transcript=TextEdit.new()
+	transcript.add_theme_font_override("font", mono)
 	transcript.editable=false
 	transcript.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY
 	transcript.size_flags_vertical=Control.SIZE_EXPAND_FILL
@@ -18,12 +21,18 @@ func build(parent: Control) -> void:
 	transcript.text="Campus Terminal\nType help for virtual workspace commands."
 	entry=LineEdit.new()
 	entry.placeholder_text="Workspace command"
+	entry.add_theme_font_override("font", mono)
+	entry.caret_blink = true
 	entry.max_length=160
 	add_child(entry)
 	entry.text_submitted.connect(_run)
 	entry.gui_input.connect(_history_input)
 
 func _history_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.ctrl_pressed and event.keycode == KEY_C and not entry.has_selection():
+		entry.clear()
+		entry.accept_event()
+		return
 	if not event is InputEventKey or not event.pressed or event.keycode not in [KEY_UP,KEY_DOWN]:return
 	history_index=clampi(history_index+(-1 if event.keycode==KEY_UP else 1),0,history.size())
 	entry.text=history[history_index] if history_index<history.size() else ""
@@ -42,7 +51,7 @@ func _run(raw: String) -> void:
 	if verb=="clear":
 		transcript.clear()
 		return
-	_print("> "+command)
+	_print("campus:/" + folder + "$ " + command)
 	match verb:
 		"help":_print("help  clear  pwd  ls  cd  mkdir  touch  cat  echo  open  date")
 		"pwd":_print("/"+folder)

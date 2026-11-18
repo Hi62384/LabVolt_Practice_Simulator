@@ -18,4 +18,4 @@ Use the Code Editor to run a file ending in .campus. Programs accept arithmetic,
         end
     end
 
-The interpreter has limits for source size, executed statements, loop iterations, nesting, variables, and output. Other source formats are editable. Circuit Lab calculates ideal DC steady-state and single-frequency AC series or parallel circuits and stores projects as validated virtual .circuit documents.
+The interpreter has limits for source size, executed statements, loop iterations, nesting, variables, and output. Other source formats are editable. Previously saved .circuit documents remain available as virtual files.

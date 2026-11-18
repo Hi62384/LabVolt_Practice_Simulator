@@ -5,6 +5,7 @@ const Finance = preload("res://scripts/financial_calculator.gd")
 var finance_help: Label
 var model := "calculator"
 var show_close := false
+var campus_style := false
 var display: LineEdit
 var result: Label
 var mode: Button
@@ -17,7 +18,9 @@ func _ready() -> void:
 	var basic := model=="calculator_basic"
 	var financial := model=="calculator_financial"
 	custom_minimum_size.x=260 if basic else 280
-	var shell := StyleBoxFlat.new();shell.bg_color=Color("15171a") if basic else Color("39473c") if financial else Color("29333e");shell.set_corner_radius_all(18);shell.set_content_margin_all(12);add_theme_stylebox_override("panel",shell)
+	var shell := StyleBoxFlat.new();shell.bg_color=Color("15171a") if basic else Color("39473c") if financial else Color("29333e")
+	if campus_style: shell.bg_color=Color("082738")
+	shell.set_corner_radius_all(18);shell.set_content_margin_all(12);add_theme_stylebox_override("panel",shell)
 	var body := VBoxContainer.new();body.add_theme_constant_override("separation",6);add_child(body)
 	var header := HBoxContainer.new();body.add_child(header)
 	var brand := Label.new();brand.text=Supplies.TOOLS.get(model,"Scientific calculator");brand.add_theme_font_size_override("font_size",16);header.add_child(brand)
@@ -25,11 +28,11 @@ func _ready() -> void:
 	if show_close:
 		var close := preload("res://scripts/ui/design_system/widgets.gd").action("Close","close",func():close_requested.emit())
 		header.add_child(close)
-	var lcd := PanelContainer.new();var lcd_style := StyleBoxFlat.new();lcd_style.bg_color=Color("d5dfcf");lcd_style.set_content_margin_all(10);lcd_style.set_corner_radius_all(5);lcd.add_theme_stylebox_override("panel",lcd_style);body.add_child(lcd)
+	var lcd := PanelContainer.new();var lcd_style := StyleBoxFlat.new();lcd_style.bg_color=Color("0d4553") if campus_style else Color("d5dfcf");lcd_style.set_content_margin_all(10);lcd_style.set_corner_radius_all(5);lcd.add_theme_stylebox_override("panel",lcd_style);body.add_child(lcd)
 	var lines := VBoxContainer.new();lcd.add_child(lines)
-	memory_label=Label.new();memory_label.text="DEG";memory_label.visible=not basic and not financial;memory_label.add_theme_color_override("font_color",Color("385044"));memory_label.add_theme_font_size_override("font_size",12);lines.add_child(memory_label)
-	display=LineEdit.new();display.placeholder_text="0";display.max_length=180;display.add_theme_font_size_override("font_size",18);display.add_theme_color_override("font_color",Color("162c24"));display.add_theme_color_override("font_placeholder_color",Color("617367"));display.add_theme_stylebox_override("normal",StyleBoxEmpty.new());display.add_theme_stylebox_override("focus",StyleBoxEmpty.new());display.text_submitted.connect(func(_text):evaluate());lines.add_child(display)
-	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("162c24"));result.clip_text=true;lines.add_child(result)
+	memory_label=Label.new();memory_label.text="DEG";memory_label.visible=not basic and not financial;memory_label.add_theme_color_override("font_color",Color("91d9de") if campus_style else Color("385044"));memory_label.add_theme_font_size_override("font_size",12);lines.add_child(memory_label)
+	display=LineEdit.new();display.placeholder_text="0";display.max_length=180;display.add_theme_font_size_override("font_size",18);display.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));display.add_theme_color_override("font_placeholder_color",Color("8cbcc8") if campus_style else Color("617367"));display.add_theme_stylebox_override("normal",StyleBoxEmpty.new());display.add_theme_stylebox_override("focus",StyleBoxEmpty.new());display.text_submitted.connect(func(_text):evaluate());lines.add_child(display)
+	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));result.clip_text=true;lines.add_child(result)
 	var grid := GridContainer.new();grid.columns=4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
 	if basic or financial:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	var keys := keypad_keys(model)
@@ -44,8 +47,8 @@ func _ready() -> void:
 		var button := Button.new();button.text=key;button.custom_minimum_size=Vector2(44,32 if show_close else 40);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",15);button.tooltip_text={"DEG":"Toggle degrees / radians","AC":"Clear expression","DEL":"Delete previous character","=":"Evaluate expression","MR":"Recall memory","MC":"Clear memory"}.get(key,key)
 		if basic or financial:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		if financial and Finance.ARGUMENTS.has(key):button.tooltip_text=Finance.ARGUMENTS[key]
-		var style := StyleBoxFlat.new();style.bg_color=Color("647781") if key.is_valid_int() or key=="." else Color("3e4b59")
-		if key=="=":style.bg_color=Color("408873")
+		var style := StyleBoxFlat.new();style.bg_color=(Color("2e5267") if campus_style else Color("647781")) if key.is_valid_int() or key=="." else (Color("103c55") if campus_style else Color("3e4b59"))
+		if key=="=":style.bg_color=Color("068f84") if campus_style else Color("408873")
 		if key in ["DEL","AC"]:style.bg_color=Color("925d52")
 		style.set_corner_radius_all(6);button.add_theme_stylebox_override("normal",style);var hover: StyleBoxFlat=style.duplicate();hover.bg_color=hover.bg_color.lightened(.15);button.add_theme_stylebox_override("hover",hover);button.add_theme_stylebox_override("pressed",hover)
 		button.pressed.connect(func():press(key));grid.add_child(button)
