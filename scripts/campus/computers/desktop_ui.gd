@@ -22,6 +22,8 @@ var content: VBoxContainer
 var autosave_timer: Timer
 var saving_path := ""
 var exit_requested := false
+var share_monitor := false
+var monitor_share: CheckButton
 var parked_device := ""
 var parked_cycle := -1
 var parked_profile := ""
@@ -227,28 +229,41 @@ void fragment() {
 	start_panel = PanelContainer.new()
 	start_panel.hide()
 	start_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	start_panel.offset_left=22
+	start_panel.offset_left=13
+	start_panel.offset_right=525
 	start_panel.offset_bottom=-72
 	start_panel.grow_vertical=Control.GROW_DIRECTION_BEGIN
-	start_panel.offset_top=-444
-	start_panel.custom_minimum_size=Vector2(388,350)
-	start_panel.add_theme_stylebox_override("panel", preload("res://scripts/ui/design_system/tokens.gd").surface(Color("152b3d"), Color("38596c"), 14))
+	start_panel.offset_top=-482
+	start_panel.custom_minimum_size=Vector2(390,345)
+	start_panel.add_theme_stylebox_override("panel", preload("res://scripts/ui/design_system/tokens.gd").surface(Color("092b40f5"), Color("2eb9ce"), 18))
 	add_child(start_panel)
 	var start_list := VBoxContainer.new()
 	start_panel.add_child(start_list)
+	start_list.add_theme_constant_override("separation", 10)
+	var heading_row := HBoxContainer.new()
+	start_list.add_child(heading_row)
+	var emblem := TextureRect.new()
+	emblem.texture = Icon.icon("course")
+	emblem.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	emblem.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	emblem.custom_minimum_size = Vector2(29, 29)
+	emblem.modulate = Color("62edf6")
+	heading_row.add_child(emblem)
 	var start_heading := Label.new()
 	start_heading.text = "Campus OS"
-	start_heading.add_theme_font_size_override("font_size", 18)
-	start_list.add_child(start_heading)
+	start_heading.add_theme_font_size_override("font_size", 23)
+	heading_row.add_child(start_heading)
 	start_search=LineEdit.new()
 	start_search.placeholder_text="Search apps and files"
+	start_search.right_icon=Icon.icon("search")
+	start_search.custom_minimum_size.y=36
 	start_search.text_changed.connect(_update_start_results)
 	start_list.add_child(start_search)
 	start_account=Label.new()
 	start_account.add_theme_color_override("font_color",Color("aac1ce"))
-	start_list.add_child(start_account)
 	var start_scroll:=ScrollContainer.new()
-	start_scroll.custom_minimum_size.y=235
+	start_scroll.custom_minimum_size.y=153
+	start_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
 	start_scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	start_list.add_child(start_scroll)
 	start_results=VBoxContainer.new()
@@ -258,10 +273,23 @@ void fragment() {
 	retry_documents_button=_button("Retry local save",func():session.retry_local_documents())
 	retry_documents_button.hide()
 	start_list.add_child(retry_documents_button)
+	start_list.add_child(HSeparator.new())
+	var footer := HBoxContainer.new()
+	start_list.add_child(footer)
+	start_account.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(start_account)
 	power_button=_button("Power off",_power_off)
+	power_button.icon=Icon.icon("power")
 	power_button.hide()
-	start_list.add_child(power_button)
-	start_list.add_child(_button("Leave computer",_request_exit))
+	footer.add_child(power_button)
+	footer.add_child(_button("Leave computer",_request_exit))
+	monitor_share = CheckButton.new()
+	monitor_share.text = "Share screen nearby"
+	monitor_share.tooltip_text = "Nearby players can see the desktop, including open documents."
+	monitor_share.hide()
+	monitor_share.toggled.connect(func(value: bool): share_monitor = value)
+	start_list.add_child(monitor_share)
+
 	# The filter is confined to this desktop canvas and never changes the
 	# player's global rendering settings. It does not intercept UI input.
 	laptop_display_filter = ColorRect.new()
@@ -575,13 +603,21 @@ func _update_start_results(query: String) -> void:
 		child.queue_free()
 	var needle:=query.strip_edges().to_lower()
 	var launchers:=GridContainer.new()
-	launchers.columns=2
+	launchers.columns=5
+	launchers.add_theme_constant_override("h_separation", 5)
+	launchers.add_theme_constant_override("v_separation", 7)
 	start_results.add_child(launchers)
 	for name in app_names:
 		if not needle.is_empty() and not name.to_lower().contains(needle):continue
 		var launch:=_button(name,func():_switch_app(name);start_panel.hide())
-		launch.icon=Icon.icon(APP_ICONS[name])
-		launch.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		launch.icon=shortcuts_by_name[name].icon
+		launch.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
+		launch.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
+		launch.add_theme_constant_override("icon_max_width", 38)
+		launch.add_theme_font_size_override("font_size", 12)
+		launch.custom_minimum_size=Vector2(87,66)
+		launch.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		launch.flat=true
 		launchers.add_child(launch)
 	var paths: Array=recent_files if needle.is_empty() else _file_rows().map(func(row):return str(row.path))
 	var matches:=0
@@ -1243,6 +1279,8 @@ func _browser_save_answer(answer: String) -> void:
 
 func _on_desktop_changed(value: Dictionary) -> void:
 	if value.is_empty():
+		share_monitor = false
+		monitor_share.set_pressed_no_signal(false)
 		if not exit_requested or parked_device.is_empty():_reset_windows()
 		var was_visible := visible
 		visible = false
@@ -1280,6 +1318,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	laptop_display_filter.visible = scale < 1.0
 	(laptop_display_filter.material as ShaderMaterial).set_shader_parameter("display_scale", scale)
 	if power_button != null:power_button.visible=snapshot.has("power_cycle")
+	monitor_share.visible = is_instance_valid(game) and game.session.online and snapshot.has("power_cycle") and str(snapshot.get("tier", "")).is_empty()
 	if retry_documents_button != null:retry_documents_button.visible=not str(snapshot.get("local_error","")).is_empty()
 	if folder_button != null:folder_button.visible=bool(snapshot.get("public_device",false))
 	if delete_button != null:delete_button.visible=bool(snapshot.get("public_device",false))

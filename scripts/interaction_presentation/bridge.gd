@@ -300,10 +300,12 @@ func _workout_camera(camera: Camera3D, exercise: String, bar: Node3D, machine: N
 				target=bar.global_position if is_instance_valid(bar) and workout_state.get("equipment","")!="dumbbell" else bench+Vector3(0,1.42,-.30)
 			"supported":
 				eye=bench+Vector3(0,1.03,-.23)
-				target=eye+Vector3(0,-.40,.75)
+				target=eye+Vector3(0,-.40,-.75)
 			_:
 				eye=bench+Vector3(0,1.18,.46)
-				target=eye+Vector3(0,-.06,-1)
+				var seated_hinge := raised * .65 if exercise == "good_morning" else 0.0
+				eye += Vector3(0, -.39 * (1.0 - cos(seated_hinge)), .46 * sin(seated_hinge))
+				target=eye+Vector3(0,-.06 - sin(seated_hinge),cos(seated_hinge))
 	elif mat is Vector3 and exercise in ["pushup","pike_pushup"]:
 		eye=mat+Vector3(0,lerpf(.36,.53,raised),.42)
 		target=mat+Vector3(0,.03,.72)
@@ -314,6 +316,17 @@ func _workout_camera(camera: Camera3D, exercise: String, bar: Node3D, machine: N
 		else:
 			eye=fixed_grip+Vector3(0,lerpf(-.54,-.12,raised),.26)
 			target=fixed_grip
+	elif workout_state.get("equipment") in ["barbell", "dumbbell"]:
+		var yaw := float(workout_state.get("workout_facing", game.player.yaw_target))
+		var forward := Basis(Vector3.UP, yaw) * Vector3.FORWARD
+		var hinge := 0.0
+		if exercise in ["good_morning", "deadlift", "romanian_deadlift"]:
+			hinge = raised * .87
+		elif exercise in ["bent_over_row", "reverse_fly"]:
+			hinge = .72
+		var hip: Vector3 = game.player.global_position + Vector3.UP * (.92 - (.40 * raised if exercise == "squat" else 0.0))
+		eye = hip + (forward * sin(hinge) + Vector3.UP * cos(hinge)) * .70
+		target = eye + forward * cos(hinge * .83) + Vector3.DOWN * sin(hinge * .83 + .12)
 	else:
 		_restore_workout_camera()
 		return
@@ -440,13 +453,13 @@ func _update_workout(delta: float) -> void:
 			if weight:
 				match exercise:
 					"curl":
-						var elbow:=Vector3(side*.31,-.62,-.26)
+						var elbow:=Vector3(side*.28,-.51,-.34)
 						var arc:=lerpf(.20,2.15,raised)
 						grip=elbow+Vector3(0,-cos(arc),-sin(arc))*.30
 						weight.rotation=Vector3(arc-PI*.5,PI*.5,0)
 					"lateral_raise":
 						var arc:=lerpf(.15,PI*.48,raised)
-						grip=shoulder+Vector3(side*sin(arc),-cos(arc),-.16)*.55
+						grip=Vector3(side*(.30+.41*sin(arc)),-.25-.56*cos(arc),lerpf(-.34,-.66,raised))
 						weight.rotation=Vector3(0,0,side*arc)
 					"front_raise":
 						var arc:=lerpf(.12,PI*.53,raised)
@@ -456,12 +469,57 @@ func _update_workout(delta: float) -> void:
 						grip=Vector3(side*.29,lerpf(-.24,.25,raised),lerpf(-.39,-.50,raised))
 						weight.rotation=Vector3(0,PI*.5,0)
 					"bent_over_row","chest_supported_row","cable_row":
-						grip=Vector3(side*.24,lerpf(-.66,-.39,raised),lerpf(-.64,-.34,raised))
+						grip=Vector3(side*.24,lerpf(-.67,-.29,raised),lerpf(-.73,-.56,raised))
 						weight.rotation=Vector3.ZERO
+					"romanian_deadlift", "deadlift":
+						grip = Vector3(side*.23, lerpf(-.88,-.99,raised), lerpf(-.26,-.56,raised))
+						weight.rotation = Vector3(raised*.38, PI*.5, 0)
+					"wrist_curl":
+						grip = Vector3(side*.26, -.59 + .05 * raised, -.58)
+						weight.rotation = Vector3(-.55 + raised, PI*.5, 0)
+					"overhead_extension":
+						grip = Vector3(side*.18,lerpf(.04,.33,raised),lerpf(.08,-.19,raised))
+						weight.rotation = Vector3(lerpf(1.1,0.0,raised),0,0)
+					"upright_row":
+						grip = Vector3(side*.19,lerpf(-.85,-.31,raised),-.32)
+						weight.rotation = Vector3(0,PI*.5,0)
+					"reverse_fly", "chest_fly":
+						var spread := lerpf(.21,.65,raised)
+						grip = Vector3(side*spread,lerpf(-.61,-.33,raised),lerpf(-.57,-.36,raised))
+						weight.rotation = Vector3(0,0,side*raised*.55)
+					"squat", "shrug", "calf_raise":
+						var shoulder_lift := .075 * raised if exercise == "shrug" else 0.0
+						shoulder.y += shoulder_lift
+						grip = Vector3(side*.31,-.90 + shoulder_lift,-.22)
+						weight.rotation = Vector3.ZERO
 				weight.position=grip
 		elif is_instance_valid(handheld_bar) and workout_state.get("equipment") == "barbell":
-			handheld_bar.position=Vector3(0,grip.y,grip.z)
-			grip=camera.to_local(handheld_bar.to_global(Vector3(side*.26,0,0)))
+			var shaft := Vector3(0, grip.y, grip.z)
+			match exercise:
+				"curl":
+					var angle := lerpf(.15,2.25,raised)
+					shaft = Vector3(0,-.61-.31*cos(angle),-.24-.31*sin(angle))
+				"bent_over_row":
+					shaft = Vector3(0,lerpf(-.85,-.49,raised),lerpf(-.58,-.32,raised))
+				"overhead_press":
+					shaft = Vector3(0,lerpf(-.35,.31,raised),lerpf(-.40,-.28,raised))
+				"deadlift", "romanian_deadlift":
+					shaft = Vector3(0,lerpf(-.87,-1.02,raised),lerpf(-.27,-.58,raised))
+				"good_morning", "squat":
+					shaft = Vector3(0,-.29,.13)
+				"overhead_extension":
+					shaft = Vector3(0,lerpf(.04,.33,raised),lerpf(.06,-.19,raised))
+				"front_raise":
+					var arc := lerpf(.22,1.52,raised)
+					shaft = Vector3(0,-.40-.49*cos(arc),-.13-.49*sin(arc))
+				"upright_row":
+					shaft = Vector3(0,lerpf(-.85,-.30,raised),-.34)
+				"shrug":
+					shaft = Vector3(0,-.84 + .075 * raised,-.27)
+				"wrist_curl":
+					shaft = Vector3(0,-.61 + .06 * raised,-.52)
+			handheld_bar.position = shaft
+			grip=camera.to_local(handheld_bar.to_global(Vector3(side*.35,0,0)))
 		_pose_gym_arm(arm,shoulder,grip)
 
 func render_idle_gym_hold(bar: Node3D, dumbbells: Node3D) -> void:

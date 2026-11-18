@@ -84,14 +84,15 @@ func _landing(floor_id: int) -> void:
 	# The corridor front also closes the space on either side of the cabin.
 	for side in [-1.0,1.0]:
 		var z: float = DOOR_Z+side*2.0
-		_box(Vector3(16.0,y+2.04,z),Vector3(.10,4.08,2),"859aa5")
+		if side > 0:
+			_box(Vector3(16.0,y+2.04,z),Vector3(.10,4.08,2),"859aa5")
 		_box(Vector3(CABIN_FRONT,y+CABIN_HEIGHT*.5,z),Vector3(.08,CABIN_HEIGHT,2),"859aa5")
 	_box(Vector3(16.12,y+(4.08+DOOR_HEIGHT)*.5,DOOR_Z),Vector3(.22,4.08-DOOR_HEIGHT,WIDTH),"e3e9e6")
-	# Keep the facing trims ahead of the shell and separate from the sliding leaf plane.
+	# Seat the frame into the shell while leaving clearance for the sliding leaves.
 	for z in [57.953,60.047]:
-		_box(Vector3(15.91,y+DOOR_HEIGHT*.5,z),Vector3(.16,DOOR_HEIGHT,.094),"29404f",false)
-	_box(Vector3(15.91,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.16,.124,2.188),"29404f",false)
-	_box(Vector3(16.08,y+.011,DOOR_Z),Vector3(.38,.022,WIDTH),"b4bec0",false)
+		_box(Vector3(15.96,y+DOOR_HEIGHT*.5,z),Vector3(.24,DOOR_HEIGHT,.094),"29404f",false)
+	_box(Vector3(15.96,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.24,.124,2.188),"29404f",false)
+	_box(Vector3(16.078,y+.026,DOOR_Z),Vector3(.38,.012,WIDTH),"b4bec0",false)
 	var pair: Array[MeshInstance3D] = []
 	for side in [-1, 1]:
 		pair.append(_box(Vector3(DOOR_X, y + DOOR_HEIGHT * .5, DOOR_Z + side * .5), Vector3(.09, DOOR_HEIGHT, .995), "9daeb6", false))

@@ -22,6 +22,9 @@ var local_screen_station := ""
 var idle_clock: Label
 var public_id := "m203_r3_c4"
 var station_frames := {}
+var remote_frames := {}
+var screen_occupants := {}
+var sharing_last_tick := false
 var power_states := {}
 var active := false
 var ui_was_open := false
@@ -55,6 +58,12 @@ func build(owner_game: Node, mounted_room: Node3D) -> bool:
 	game.computers.desktop_changed.connect(_desktop_changed)
 	game.computers.power_changed.connect(_power)
 	game.computers.occupancy_changed.connect(_screen_occupancy)
+	game.computers.monitor_frame.connect(_receive_monitor_frame)
+	var mirror_timer := Timer.new()
+	mirror_timer.wait_time = .34
+	mirror_timer.timeout.connect(_tick_monitor_mirror)
+	add_child(mirror_timer)
+	mirror_timer.start()
 	board=Board.new()
 	room.root.get_node("TeachingDisplayMount").add_child(board)
 	game.school.updated.connect(_teaching)
@@ -280,13 +289,59 @@ func _tick_boot() -> void:
 	boot_render.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func _screen_occupancy(occupants: Dictionary) -> void:
+	screen_occupants = occupants
+	for id in remote_frames.keys():
+		if int(occupants.get(id, 0)) != int(remote_frames[id].sender): remote_frames.erase(id)
 	for id in station_frames.keys():
 		if int(occupants.get(id, 0)) not in [0, multiplayer.get_unique_id()]:
 			station_frames.erase(id)
 	_update_indicators()
 
+func _tick_monitor_mirror() -> void:
+	var now := Time.get_ticks_msec()
+	var changed := false
+	for id in remote_frames.keys():
+		if now - int(remote_frames[id].received) > 1400:
+			remote_frames.erase(id)
+			changed = true
+	if changed: _update_indicators()
+	if local_screen_station.is_empty() or not game.session.online:
+		sharing_last_tick = false
+		return
+	var lease := int(desktop.snapshot.get("lease", -1))
+	if not desktop.share_monitor:
+		if sharing_last_tick: game.computers.submit_monitor_frame(lease, PackedByteArray())
+		sharing_last_tick = false
+		return
+	if DisplayServer.get_name() == "headless": return
+	var image := desktop_render.get_texture().get_image()
+	if image == null or image.is_empty(): return
+	image.resize(game.computers.SCREEN_SIZE.x, game.computers.SCREEN_SIZE.y, Image.INTERPOLATE_BILINEAR)
+	image.convert(Image.FORMAT_RGB8)
+	game.computers.submit_monitor_frame(lease, image.get_data().compress(FileAccess.COMPRESSION_FASTLZ))
+	sharing_last_tick = true
+
+func _receive_monitor_frame(id: String, sender: int, pixels: PackedByteArray) -> void:
+	if not indicators.has(id) or id == local_screen_station or int(screen_occupants.get(id, 0)) != sender:
+		return
+	if not bool(power_states.get(id, false)) or game.player.global_position.distance_squared_to(indicators[id].global_position) > 81.0: return
+	if pixels.is_empty():
+		remote_frames.erase(id)
+	else:
+		if pixels.size() > game.computers.SCREEN_BYTES: return
+		var raw := pixels.decompress(game.computers.SCREEN_BYTES, FileAccess.COMPRESSION_FASTLZ)
+		if raw.size() != game.computers.SCREEN_BYTES: return
+		var image := Image.create_from_data(game.computers.SCREEN_SIZE.x, game.computers.SCREEN_SIZE.y, false, Image.FORMAT_RGB8, raw)
+		var texture: ImageTexture = remote_frames.get(id, {}).get("texture")
+		if texture == null: texture = ImageTexture.create_from_image(image)
+		else: texture.update(image)
+		remote_frames[id] = {"sender":sender, "received":Time.get_ticks_msec(), "texture":texture}
+	_update_indicators()
+
 func _power(power: Dictionary) -> void:
 	power_states=power
+	for id in remote_frames.keys():
+		if not bool(power.get(id, false)): remote_frames.erase(id)
 	for id in station_frames.keys():
 		if not bool(power.get(id, false)): station_frames.erase(id)
 	_update_indicators()
@@ -300,7 +355,7 @@ func _update_indicators() -> void:
 		if multiplayer.is_server():
 			var device: Variant=game.computers.stations.get(id,{}).get("power")
 			powered=is_instance_valid(device) and device.powered
-		var texture: Texture2D=private_screen if id==local_screen_station else station_frames.get(id, ambient)
+		var texture: Texture2D=private_screen if id==local_screen_station else remote_frames.get(id, {}).get("texture", station_frames.get(id, ambient))
 		var power_target: Node = indicators[id].get_meta("power_target")
 		power_target.set_meta("label", "Turn off computer" if powered else "Turn on computer")
 		if powered and boot_until.has(id):texture=boot_render.get_texture()

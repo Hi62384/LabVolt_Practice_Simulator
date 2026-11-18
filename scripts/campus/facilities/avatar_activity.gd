@@ -213,8 +213,8 @@ func _process(delta: float) -> void:
 				var bend:=Basis(Vector3.RIGHT,.3*phase)
 				var hip:=Vector3(0,.86,0)
 				torso.transform=torso_original*Transform3D(bend,hip-bend*hip)
-			elif kind=="good_morning" and on_bench:
-				var bend:=Basis(Vector3.RIGHT,.45*phase)
+			elif kind=="good_morning":
+				var bend:=Basis(Vector3.RIGHT,raised*(.48 if on_bench else .85))
 				var hip:=Vector3(0,.86,0)
 				torso.transform=torso_original*Transform3D(bend,hip-bend*hip)
 			elif not on_bench and kind=="cable_crunch":
@@ -223,7 +223,7 @@ func _process(delta: float) -> void:
 				torso.transform=torso_original*Transform3D(bend,hip-bend*hip)
 			elif not on_bench and kind in ["deadlift","romanian_deadlift","bent_over_row","reverse_fly"]:
 				# Hinge at the hips while the legs and feet remain planted.
-				var bend:=Basis(Vector3.RIGHT,.15+phase*.55)
+				var bend:=Basis(Vector3.RIGHT,.65 if kind in ["bent_over_row", "reverse_fly"] else .08+raised*.65)
 				var hip:=Vector3(0,.86,0)
 				torso.transform=torso_original*Transform3D(bend,hip-bend*hip)
 		for arm in arms.values():
@@ -252,7 +252,7 @@ func _process(delta: float) -> void:
 				else:
 					arm.node.rotation.x=-.10
 					arm.node.rotation.z+=(1 if arm.node.name=="ArmR" else -1)*1.5
-			elif kind=="good_morning" and on_bench:
+			elif kind=="good_morning":
 				arm.node.rotation.x=-.10
 				arm.node.rotation.z+=(1 if arm.node.name=="ArmR" else -1)*1.5
 			elif kind=="front_raise":arm.node.rotation.x=-raised*1.25

@@ -668,6 +668,50 @@ func _error(peer: int, message: String) -> void:
 @rpc("authority","call_remote","reliable",6)
 func _failed(message: String) -> void:
 	if multiplayer.get_remote_sender_id()==1:operation_failed.emit(message)
+# Screen previews are presentation data. The host derives the station from the
+# sender's current lease and forwards only to nearby players.
+const SCREEN_SIZE := Vector2i(160, 90)
+const SCREEN_BYTES := 160 * 90 * 3
+const SCREEN_INTERVAL_MS := 250
+var last_screen_frame := {}
+signal monitor_frame(station: String, sender: int, pixels: PackedByteArray)
+
+func submit_monitor_frame(lease: int, pixels: PackedByteArray) -> void:
+	if not game.session.online: return
+	if multiplayer.is_server():
+		_forward_monitor_frame(multiplayer.get_unique_id(), lease, pixels)
+	else:
+		_submit_monitor_frame.rpc_id(1, lease, pixels)
+
+@rpc("any_peer", "call_remote", "unreliable", 6)
+func _submit_monitor_frame(lease: int, pixels: PackedByteArray) -> void:
+	if multiplayer.is_server():
+		_forward_monitor_frame(multiplayer.get_remote_sender_id(), lease, pixels)
+
+func _forward_monitor_frame(peer: int, lease: int, pixels: PackedByteArray) -> void:
+	var current: Dictionary = sessions.get(peer, {})
+	if current.is_empty() or current.lease != lease or pixels.size() > SCREEN_BYTES: return
+	var station: String = current.station
+	var device: Dictionary = stations[station]
+	if device.get("portable", false) or not device.get("private_owner", "").is_empty(): return
+	if not device.has("power") or not device.power.powered or not _has_access(peer, device): return
+	var now := Time.get_ticks_msec()
+	if not pixels.is_empty() and now - int(last_screen_frame.get(peer, -SCREEN_INTERVAL_MS)) < SCREEN_INTERVAL_MS: return
+	last_screen_frame[peer] = now
+	for receiver in game.session.roster:
+		if receiver == peer: continue
+		var pose: Vector3 = game.session.poses.get(receiver, {}).get("position", Vector3.INF)
+		if pose.distance_squared_to(device.anchor) > 64.0: continue
+		if receiver == multiplayer.get_unique_id():
+			monitor_frame.emit(station, peer, pixels)
+		elif game.session.peer_connected_now(int(receiver)):
+			_receive_monitor_frame.rpc_id(receiver, station, peer, pixels)
+
+@rpc("authority", "call_remote", "unreliable", 6)
+func _receive_monitor_frame(station: String, sender: int, pixels: PackedByteArray) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		monitor_frame.emit(station, sender, pixels)
+
 func _publish() -> void:
 	var public := {}
 	for peer in sessions:public[sessions[peer].station]=peer
@@ -699,6 +743,7 @@ func _close(peer: int, release: bool) -> void:
 	var was_public: bool=bool(sessions[peer].get("public_device",false))
 	var portable: bool=stations[sessions[peer].station].get("portable",false)
 	sessions.erase(peer)
+	last_screen_frame.erase(peer)
 	if was_public:workspaces.erase(peer);restored.erase(peer)
 	if release and not portable:
 		game._release_chair(peer)

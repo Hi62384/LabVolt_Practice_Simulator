@@ -247,7 +247,8 @@ func _exercise_alignment(peer: int,station: String,exercise: String,current: Vec
 	elif anchor.get("kind")=="benchpress":
 		var bench: Vector3=anchor.bench_position
 		point=Vector3(bench.x,current.y,bench.z+1.0)
-		yaw=0.0
+		var posture := preload("res://scripts/campus/facilities/gym_bench.gd").position_for(exercise)
+		yaw=PI if posture in ["seated", "seated_free"] else 0.0
 	elif anchor.get("kind")=="squat":
 		point=anchor.position
 		yaw=0.0
