@@ -88,9 +88,10 @@ func apply(socket: StaticBody3D) -> bool:
 	batch.ignore_occlusion_culling = first.ignore_occlusion_culling
 	socket.add_child(batch)
 	_batches.append(batch)
+	# Changing a live source mesh render layer can leave stale light pairs in Godot.
 	for node in nodes:
-		_records.append({"node":weakref(node),"layers":node.layers})
-		node.layers = 0
+		_records.append({"node":weakref(node),"visible":node.visible})
+		node.hide()
 		node.set_meta("campus_static_batch_source",true)
 	sockets_batched += 1
 	saved_instances += 3
@@ -115,7 +116,7 @@ func clear() -> void:
 	for record in _records:
 		var node: MeshInstance3D = record.node.get_ref()
 		if is_instance_valid(node):
-			node.layers = record.layers
+			node.visible = record.visible
 			node.remove_meta("campus_static_batch_source")
 	for batch in _batches:
 		if is_instance_valid(batch):

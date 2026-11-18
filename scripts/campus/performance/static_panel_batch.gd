@@ -1,6 +1,6 @@
 extends RefCounted
 ## Batches only direct, opaque, plain-material primitive siblings approved by caller.
-## Original nodes remain alive. clear() restores render layers exactly.
+## Original nodes remain alive. clear() restores source visibility.
 var _records: Array[Dictionary] = []
 var _batches: Array[MeshInstance3D] = []
 var _protected: Array = []
@@ -92,10 +92,11 @@ func _commit(parent: Node3D, nodes: Array) -> void:
 	batch.ignore_occlusion_culling = first.ignore_occlusion_culling
 	parent.add_child(batch)
 	_batches.append(batch)
+	# Changing a live source mesh render layer can leave stale light pairs in Godot.
 	for node in nodes:
-		_records.append({"node":weakref(node),"layers":node.layers})
+		_records.append({"node":weakref(node),"visible":node.visible})
 		node.set_meta("campus_static_batch_source",true)
-		node.layers = 0
+		node.hide()
 	stats.source_instances += nodes.size()
 	stats.batch_instances += 1
 	stats.saved_instances += nodes.size() - 1
@@ -104,7 +105,7 @@ func clear() -> void:
 	for record in _records:
 		var node: MeshInstance3D = record.node.get_ref()
 		if is_instance_valid(node):
-			node.layers = record.layers
+			node.visible = record.visible
 			node.remove_meta("campus_static_batch_source")
 	for batch in _batches:
 		if is_instance_valid(batch):
