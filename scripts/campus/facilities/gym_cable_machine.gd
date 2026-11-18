@@ -51,9 +51,9 @@ func build(id: String) -> void:
 	for i in 20:
 		var plate:=_box(self,Vector3(0,.16+i*.075,.10),Vector3(.48,.065,.22),steel)
 		weights.append(plate)
-		var kg := (20 - i) * 5
+		var pounds := (20 - i) * 10
 		var plate_label := TextMesh.new()
-		plate_label.text = "%d lb" % roundi(kg*2.20462262)
+		plate_label.text = "%d lb" % pounds
 		plate_label.pixel_size = .001
 		plate_label.font_size = 38
 		plate_label.depth = .001
@@ -63,10 +63,10 @@ func build(id: String) -> void:
 		marking.position = Vector3(-.056, 0, .112)
 		plate.add_child(marking)
 		_cylinder(plate, Vector3(PIN_X, 0, .111), .018, .003, dark)
-		var pin_target:=StaticBody3D.new();pin_target.name="CableWeightPin_%d" % kg
+		var pin_target:=StaticBody3D.new();pin_target.name="CableWeightPin_%d" % pounds
 		pin_target.position=Vector3(PIN_X,.16+i*.075,PIN_FRONT+.02);pin_target.collision_layer=4;pin_target.collision_mask=0
-		pin_target.set_meta("role","gym_cable_pin");pin_target.set_meta("station",id);pin_target.set_meta("weight",kg)
-		pin_target.set_meta("label","Set to %d lb" % roundi(kg*2.20462262))
+		pin_target.set_meta("role","gym_cable_pin");pin_target.set_meta("station",id);pin_target.set_meta("weight",pounds)
+		pin_target.set_meta("label","Set to %d lb" % pounds)
 		var pin_hit:=CollisionShape3D.new();var pin_shape:=BoxShape3D.new();pin_shape.size=Vector3(.06,.065,.06);pin_hit.shape=pin_shape;pin_target.add_child(pin_hit);add_child(pin_target);pin_targets.append(pin_target)
 	selection_pin = _cylinder(self, Vector3(PIN_X,.16,.254), .010, .09, steel)
 	_cylinder(self, TETHER_ANCHOR, .025, .016, dark)
@@ -169,12 +169,12 @@ func highlight_pin(target: Node3D) -> void:
 	if active:highlighted_pin.position=target.position-Vector3(0,0,.032)
 
 func selected_resistance() -> int:
-	return clampi(selected,1,20)*5
+	return clampi(selected,1,20)*10
 
-func set_resistance(weight_kg: int) -> void:
-	if weight_kg < 5 or weight_kg > 100 or weight_kg % 5 != 0:
+func set_resistance(weight_lb: int) -> void:
+	if weight_lb < 10 or weight_lb > 200 or weight_lb % 10 != 0:
 		return
-	selected=weight_kg/5
+	selected=weight_lb/10
 	_update_pin()
 
 func _update_pin() -> void:
@@ -191,7 +191,7 @@ func on_room_event(peer: int,event: Dictionary, avatar: Node3D=null) -> void:
 		if is_instance_valid(avatar):
 			left_hand=_avatar_hand(avatar,"ArmL")
 			right_hand=_avatar_hand(avatar,"ArmR")
-		set_resistance(int(event.get("selector_weight", event.get("weight",5))))
+		set_resistance(int(event.get("selector_weight", event.get("weight",10))))
 		set_process(true)
 	elif peer==occupant and event.get("activity","")!="exercise":
 		return_from=handle.transform

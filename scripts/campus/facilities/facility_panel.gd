@@ -207,7 +207,7 @@ func redraw() -> void:
 	add_theme_stylebox_override("panel", Tokens.surface(surface, accent if restaurant or gym else Tokens.BORDER, 16))
 	var title := station_kind.trim_prefix("counter:").replace("_"," ").capitalize()
 	if gym:
-		title=str({"pushup":"Exercise mat","pullup":"Pull-up & dip station","benchpress":"Bench press","squat":"Squat","curl":"Biceps curl","bench_dumbbell":"Bench · Dumbbells","bench_barbell":"Bench · Barbell"}.get(station_kind,title))
+		title=str({"pushup":"Exercise mat","pullup":"Pull-up & dip station","benchpress":"Bench","squat":"Squat","curl":"Biceps curl","bench_dumbbell":"Bench · Dumbbells","bench_barbell":"Bench · Barbell"}.get(station_kind,title))
 	var subtitle := "DRINKS & BAKERY" if tim else "SUBS & DRINKS" if restaurant else "CAMPUS GYM  /  TRAINING STATION" if gym else ""
 	close.visible = gym
 	if gym:
@@ -624,9 +624,9 @@ func _exercise_choices() -> void:
 		load_choice.hide()
 		start.disabled = pending
 		if station_kind == "cable":
-			request.weight = int(cable_resistance.call(station_id)) if cable_resistance.is_valid() else 5
+			request.weight = int(cable_resistance.call(station_id)) if cable_resistance.is_valid() else 10
 			var extra:=float(cable_extra_mass.call(station_id)) if cable_extra_mass.is_valid() else 0.0
-			summary.text = "%s · %d lb total" % [exercise_name(exercise),roundi((float(request.weight)+extra)*2.20462262)]
+			summary.text = "%s · %d lb total" % [exercise_name(exercise),roundi(float(request.weight)+extra*2.20462262)]
 		elif station_kind in ["barbell", "bench_barbell", "benchpress", "squat", "curl", "bench_dumbbell"]:
 			var dumbbells := station_kind in ["curl", "bench_dumbbell"]
 			var mass := 0.0

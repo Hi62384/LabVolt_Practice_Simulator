@@ -14,7 +14,8 @@ static func known_muscles() -> Dictionary:
   for definition in exercise_data().values():
    for name in definition.muscles:allowed_muscles[name]=true
  return allowed_muscles
-const RECOVERY_SECONDS := 21600.0
+const RECOVERY_SECONDS := 600.0
+const RECOVERY_DELAY_SECONDS := 15.0
 const HISTORY_LIMIT := 24
 const SET_OUTCOMES := ["voluntary","failure","cancelled","input_failure","interrupted"]
 static func empty() -> Dictionary:return {"muscles":{}}
@@ -88,9 +89,9 @@ static func advance(state: Dictionary,seconds: float) -> void:
  for muscle in state.muscles.values():
   # Legacy saves contain strength but no separate size; preserve their progress.
   if not muscle.has("size"):muscle.size=float(muscle.strength)
-  var wait_seconds: float=float(muscle.delay)*1800.0
+  var wait_seconds: float=float(muscle.delay)*RECOVERY_DELAY_SECONDS
   var recovery_seconds:=maxf(0.0,seconds-wait_seconds)
-  muscle.delay=maxf(0.0,float(muscle.delay)-seconds/1800.0)
+  muscle.delay=maxf(0.0,float(muscle.delay)-seconds/RECOVERY_DELAY_SECONDS)
   var portion:=clampf(recovery_seconds/RECOVERY_SECONDS,0.0,1.0)
   var before: float=muscle.fatigue
   muscle.fatigue=maxf(0.0,before-portion)

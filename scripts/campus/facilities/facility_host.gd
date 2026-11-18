@@ -2,6 +2,7 @@ extends RefCounted
 const Sandwich = preload("res://scripts/campus/facilities/sandwich_recipe.gd")
 ## Server-only deterministic facility rules. Transport authenticates peer; adapters own saves.
 signal public_event(room_id: String, peer: int, state: Dictionary)
+const LB_TO_KG := 0.45359237
 const EXERCISES := {"pushup":1400,"pullup":1800,"benchpress":1800,"squat":1600,"curl":1400,"crunch":1600,"leg_raise":1800,"pike_pushup":1800,"hanging_leg_raise":2000,"dip":1800,"deadlift":2100,"romanian_deadlift":2000,"front_raise":1700,"upright_row":1700,"wrist_curl":1400,"overhead_extension":1800,"bent_over_row":1800,"shrug":1400,"lateral_raise":1700,"reverse_fly":1800,"calf_raise":1500,"overhead_press":1800,"good_morning":1800,"incline_press":1800,"chest_supported_row":1800,"chest_fly":1800,"cable_fly":1800,"cable_reverse_fly":1800,"cable_press":1800,"lat_pulldown":1800,"cable_row":1800,"tricep_pushdown":1600,"cable_crunch":1800}
 const DUMBBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","wrist_curl","overhead_extension","bent_over_row","shrug","lateral_raise","reverse_fly","calf_raise"]
 const BENCH_DUMBBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_curl","overhead_extension","good_morning","incline_press","benchpress","lateral_raise","chest_supported_row","reverse_fly","chest_fly"]
@@ -186,8 +187,8 @@ func set_cable_weight(peer: int, station: String, weight: int) -> Dictionary:
 		return fail("Move within reach of the cable stack.")
 	if seats.has(station):
 		return fail("Wait until this cable machine is free.")
-	if weight < 5 or weight > 100 or weight % 5 != 0:
-		return fail("Select a marked weight from 11 to 220 lb.")
+	if weight < 10 or weight > 200 or weight % 10 != 0:
+		return fail("Select a marked weight from 10 to 200 lb.")
 	cable_weights[station] = weight
 	return {"ok":true}
 
@@ -378,8 +379,8 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			if weight<=0:return fail("Pick up a barbell first")
 			if bench_bar and (not barbell_mass.is_valid() or float(barbell_mass.call(station))>0.0):return fail("Clear the bench rack before using your carried bar")
 		elif station_type=="cable":
-			if not weight is int or weight<5 or weight>100 or weight%5!=0:return fail("Choose a cable resistance from 11 to 220 lb")
-			if live_lifts and weight != cable_weights.get(station, 5):
+			if not weight is int or weight<10 or weight>200 or weight%10!=0:return fail("Choose a cable resistance from 10 to 200 lb")
+			if live_lifts and weight != cable_weights.get(station, 10):
 				return fail("The selector pin changed. Check the stack before starting.")
 		elif station_type in ["benchpress","squat"]:
 			weight=float(barbell_mass.call(station)) if barbell_mass.is_valid() else 0.0
@@ -389,7 +390,8 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		next_active={"type":"exercise","exercise":exercise,"station":station,"position":c.position,"room_id":c.room_id,"started":t,"last_beat":t,"phase":0,"reps":0,"weight":weight}
 		if station_type=="cable":
 			next_active.selector_weight=weight
-			if cable_extra_mass.is_valid():next_active.weight=float(weight)+maxf(0.0,float(cable_extra_mass.call(station)))
+			next_active.weight=float(weight)*LB_TO_KG
+			if cable_extra_mass.is_valid():next_active.weight+=maxf(0.0,float(cable_extra_mass.call(station)))
 			weight=next_active.weight
 		next_active.identity=str(c.identity)
 		next_active.initial_muscles=GymProgress.set_snapshot(next.gym,exercise)

@@ -76,14 +76,14 @@ func run() -> void:
 	host.clear_activity(1)
 	host.anchors["gym/cable_0"] = {"kind":"cable","position":Vector3.ZERO,"room_id":"gym"}
 	assert(not host.set_cable_weight(1,"gym/cable_0",22).ok)
-	assert(host.set_cable_weight(1,"gym/cable_0",25).ok)
+	assert(host.set_cable_weight(1,"gym/cable_0",70).ok)
 	now += 100
 	var request := {"op":"start","station":"gym/cable_0","exercise":"cable_row","weight":20,"sequence":int(saved.last_sequence)+1}
 	assert(not host.act(1,request).ok)
 	now += 100
-	request.weight = 25
+	request.weight = 70
 	host.cable_extra_mass=func(_station):return 6.25
-	assert(host.act(1,request).ok and is_equal_approx(host.active[1].weight,31.25) and host.active[1].selector_weight==25)
+	assert(host.act(1,request).ok and is_equal_approx(host.active[1].weight,70 * 0.45359237 + 6.25) and host.active[1].selector_weight==70)
 	assert(not host.set_cable_weight(1,"gym/cable_0",40).ok)
 	print("LIVE_LIFT PASS")
 	quit()

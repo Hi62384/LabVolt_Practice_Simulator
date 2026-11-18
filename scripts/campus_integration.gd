@@ -78,7 +78,7 @@ func build(owner_game: Node) -> void:
 		facilities.table_food.clear()
 		if facilities.rooms.has("gym"):
 			for machine in facilities.rooms.gym.gym_cables:
-				machine.set_resistance(5)
+				machine.set_resistance(10)
 		for room in facilities.rooms.values():
 			for peer in room.placed_food.keys():room.sync_food(peer,{})
 		for visual in facilities.visuals.values():
@@ -373,7 +373,7 @@ func route_event(event: InputEvent) -> bool:
 	if is_instance_valid(sandwich_counter) and sandwich_counter.route_event(event):return true
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.interact and is_instance_valid(game.current_target) and game.current_target.get_meta("role","")=="gym_cable_pin":
 		var station:=str(game.current_target.get_meta("station",""))
-		var weight:=int(game.current_target.get_meta("weight",5))
+		var weight:=int(game.current_target.get_meta("weight",10))
 		var machine:=_cable_machine(station)
 		if is_instance_valid(machine) and game.player.enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 			if machine.occupant != 0 or game.player.global_position.distance_to(game.current_target.global_position) > 3.5:
@@ -383,6 +383,11 @@ func route_event(event: InputEvent) -> bool:
 			return true
 	if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED and not game.school.formal_active():
 		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.interact and _route_cable_plate():return true
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT and is_instance_valid(game.gym_barbells):
+			var belt: int = game.gym_barbells.held_belt(multiplayer.get_unique_id())
+			if belt >= 0:
+				game.gym_barbells.request_belt("wear", belt)
+				return true
 		if _route_bench_equipment(event):return true
 		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.interact and _aimed_order():
 			if facility_panel.has_order_space.call():facility_panel.request_direct({"op":"pickup","order_id":str(game.current_target.get_meta("order_id","0"))})
@@ -431,7 +436,7 @@ func route_event(event: InputEvent) -> bool:
 
 func cable_resistance(station: String) -> int:
 	var machine:=_cable_machine(station)
-	return machine.selected_resistance() if is_instance_valid(machine) else 5
+	return machine.selected_resistance() if is_instance_valid(machine) else 10
 
 func _cable_machine(station: String) -> Node:
 	if not is_instance_valid(facilities) or not facilities.rooms.has("gym"):return null

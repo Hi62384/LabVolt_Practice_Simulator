@@ -19,7 +19,6 @@ var nav: BoxContainer
 var layout: BoxContainer
 var body: VBoxContainer
 var active := "Graphics & Display"
-var apply_button: Button
 var message: Label
 var choices := {}
 var binding := ""
@@ -88,8 +87,8 @@ func build(owner: Node) -> void:
 	spacer.size_flags_horizontal = SIZE_EXPAND_FILL
 	footer.add_child(spacer)
 	_button(footer, "Reset Defaults", "refresh", _reset)
-	apply_button = _button(footer, "Apply Display", "check", _apply_display)
-	apply_button.theme_type_variation = "PrimaryButton"
+	graphics.changed.connect(func(_options: Dictionary):
+		_notice("Settings saved" if graphics.save_error == OK else "Could not save graphics settings."))
 	save_timer = Timer.new()
 	save_timer.one_shot = true
 	save_timer.wait_time = .35
@@ -172,7 +171,6 @@ func _select(category: String) -> void:
 			_toggle("High-contrast HUD text", prefs.values.high_contrast, _preference.bind("high_contrast"))
 			_toggle("Analyzer polarity symbols", prefs.values.analyzer_shapes, _preference.bind("analyzer_shapes"))
 			_toggle("Reduced motion", prefs.values.reduced_motion, _preference.bind("reduced_motion"))
-	_update_display_action()
 
 func _openai_controls() -> void:
 	var service: Node=game.host_openai
@@ -261,14 +259,14 @@ func _display_controls() -> void:
 		display_edited = true
 		pending_mode = index
 		choices.resolution.disabled = index != 0
-		_update_display_action())
+		_apply_display.call_deferred())
 	var titles := ["Current window size"]
 	for resolution in RESOLUTIONS.slice(1):
 		titles.append("%d × %d" % [resolution.x, resolution.y])
 	choices.resolution = _choice("Window resolution", titles, maxi(0, RESOLUTIONS.find(pending_resolution)), func(index):
 		display_edited = true
 		pending_resolution = RESOLUTIONS[index]
-		_update_display_action())
+		_apply_display.call_deferred())
 	choices.resolution.disabled = pending_mode != 0
 	_toggle("V-Sync", prefs.values.vsync, _preference.bind("vsync"))
 	var limits := [0,30,60,90,120,144,165,240]
@@ -381,9 +379,6 @@ func _reset() -> void:
 		"Graphics & Display":
 			keys = ["vsync","fps","fov"]
 			graphics.preset("Medium")
-			display_edited = true
-			pending_mode = 0
-			pending_resolution = Vector2i.ZERO
 		"Audio":
 			keys = Prefs.BUS_NAMES.keys()
 			keys.append("teacher_mic_sensitivity")
@@ -402,10 +397,6 @@ func _reset() -> void:
 		prefs.set_option(key, Prefs.DEFAULTS[key])
 	_save()
 	_select(active)
-
-func _update_display_action() -> void:
-	apply_button.visible = active == "Graphics & Display"
-	apply_button.disabled = previewing or not display_edited
 
 func _active_window_mode() -> int:
 	var index := Prefs.WINDOW_MODES.find(game.get_window().mode)
@@ -430,12 +421,11 @@ func _apply_display() -> void:
 	if previous_mode == Window.MODE_WINDOWED:
 		prefs.values.normal_bounds = Rect2i(previous_position, previous_size)
 	previewing = true
-	_update_display_action()
 	await prefs.apply_display(pending_mode, pending_resolution)
 	if not previewing or not is_inside_tree():
 		return
 	confirmation = ConfirmationDialog.new()
-	confirmation.title = "Keep display settings?"
+	confirmation.title = "Keep these display settings?"
 	confirmation.ok_button_text = "Keep Changes"
 	confirmation.cancel_button_text = "Revert"
 	confirmation.confirmed.connect(_confirm_display)
@@ -470,7 +460,6 @@ func _commit_display() -> void:
 	prefs.values.height = pending_resolution.y
 	if prefs.remember_window() != OK:
 		_notice("Display settings could not be saved.")
-	_update_display_action()
 
 func _dismiss_confirmation() -> void:
 	if is_instance_valid(confirmation):

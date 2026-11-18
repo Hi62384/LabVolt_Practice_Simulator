@@ -259,8 +259,9 @@ func interact(target: Node, allow_assist := true) -> bool:
 	if target.get_meta("role","")=="gym_belt_return":
 		if allow_assist:
 			var belt := held_belt(multiplayer.get_unique_id())
+			if belt < 0: belt = worn_belt(multiplayer.get_unique_id())
 			if belt>=0:request_belt("return",belt)
-			else:game.ui.log_message("Hold a weight belt to return it here.")
+			else:game.ui.log_message("Hold or wear a weight belt to return it here.")
 		return true
 	selected_station=str(target.get_meta("station",""))
 	if trapped.has(selected_station) and int(trapped[selected_station])!=multiplayer.get_unique_id():
@@ -393,7 +394,8 @@ func _refresh_rack() -> void:
 	var put:=Button.new();put.text="Return held plate";put.disabled=id<0;list.add_child(put)
 	put.pressed.connect(func():request_plate("return",id);_close())
 	var held_belt_id:=held_belt(multiplayer.get_unique_id())
-	var belt_return:=Button.new();belt_return.text="Return held belt";belt_return.disabled=held_belt_id<0;list.add_child(belt_return)
+	if held_belt_id < 0: held_belt_id = worn_belt(multiplayer.get_unique_id())
+	var belt_return:=Button.new();belt_return.text="Return weight belt";belt_return.disabled=held_belt_id<0;list.add_child(belt_return)
 	belt_return.pressed.connect(func():request_belt("return",held_belt_id);_close())
 	var close:=Button.new();close.text="Close";close.pressed.connect(_close);list.add_child(close)
 
@@ -592,8 +594,8 @@ func _accept_belt(peer: int,op: String,id: int,point: Variant=null) -> void:
 		if not ground is Vector3:return
 		belt.where="floor";belt.owner=0;belt.position=ground
 	elif op=="return":
-		if int(belt.owner)!=peer or belt.where!="held":
-			_report_return_error(peer,"Hold your weight belt before returning it.")
+		if int(belt.owner)!=peer or belt.where not in ["held","worn"]:
+			_report_return_error(peer,"Hold or wear your weight belt before returning it.")
 			return
 		if position.distance_to(BELT_RACK+Vector3(0,0,BELT_SPACING*1.5))>3.0:
 			_report_return_error(peer,"Move closer to the weight belt rack.")
@@ -659,9 +661,8 @@ func _render() -> void:
 		var belt:=StaticBody3D.new();belt.position=belts[id].position;belt.collision_layer=4;belt.collision_mask=0
 		belt.set_meta("role","gym_weight_belt");belt.set_meta("id",id);belt.set_meta("label","Weight belt");add_child(belt)
 		var on_rack: bool=belts[id].where=="rack"
-		var visual:=_belt_model(id,not on_rack)
-		if on_rack:visual.get_child(0).rotation.x=PI/2
-		else:visual.position.y=.08
+		var visual:=_belt_model(id, not on_rack, on_rack)
+		if not on_rack: visual.position.y=.08
 		belt.add_child(visual)
 		var hit:=CollisionShape3D.new()
 		if on_rack:
@@ -788,9 +789,10 @@ func _plate_mesh(lb: float) -> ArrayMesh:
 	tool.generate_normals()
 	return tool.commit()
 
-func _belt_model(id: int,flat: bool=false) -> Node3D:
+func _belt_model(id: int, flat := false, hanging := false) -> Node3D:
 	var root:=Node3D.new();var ring:=MeshInstance3D.new();var mesh:=TorusMesh.new();mesh.inner_radius=.20;mesh.outer_radius=.24;mesh.rings=20;mesh.ring_segments=12;ring.mesh=mesh
 	var leather:=StandardMaterial3D.new();leather.albedo_color=Color("6b5140");leather.roughness=.9;ring.material_override=leather;root.add_child(ring)
+	if hanging: ring.rotation.x = PI / 2.0
 	var attached := plates.filter(func(plate): return plate.station == "belt/%d" % id)
 	attached.sort_custom(func(a,b):return int(a.order)<int(b.order))
 	if attached.is_empty():
@@ -798,13 +800,15 @@ func _belt_model(id: int,flat: bool=false) -> Node3D:
 	var steel := StandardMaterial3D.new()
 	steel.albedo_color=Color("7f8b91");steel.metallic=.65;steel.roughness=.49
 	var span := maxf(.11, attached.size()*PLATE_GAP)
-	var axle := Vector3(.39,.055,0) if flat else Vector3(0,-.40,-.29)
+	var axle := Vector3(0,-.49,-.04) if hanging else Vector3(0,-.40,-.29)
+	if flat: axle = Vector3(.39,.055,0)
 	if flat:
 		_connector(root, Vector3(.19,.035,0), axle, steel)
 		_connector(root, axle, axle+Vector3.UP*span, steel)
 	else:
 		for side in [-1.0,1.0]:
-			_connector(root, Vector3(side*.13,-.025,-.173), axle+Vector3(side*span*.5,0,0), steel)
+			var attachment := Vector3(side*.13,-.177,0) if hanging else Vector3(side*.13,-.025,-.173)
+			_connector(root, attachment, axle+Vector3(side*span*.5,0,0), steel)
 		_connector(root, axle-Vector3(span*.54,0,0), axle+Vector3(span*.54,0,0), steel)
 	for index in attached.size():
 		var plate: Dictionary = attached[index]

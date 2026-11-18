@@ -199,7 +199,7 @@ func reset_presentation() -> void:
 	for peer in visual_states.keys():room_event.emit(int(peer),{"activity":"idle"})
 	visual_states.clear();room_states.clear();preview_times.clear();sandwich_request_times.clear()
 	for station in host.cable_weights:
-		room_event.emit(multiplayer.get_unique_id(), {"activity":"cable_pin","station":station,"weight":5})
+		room_event.emit(multiplayer.get_unique_id(), {"activity":"cable_pin","station":station,"weight":10})
 	host.cable_weights.clear()
 
 func finish_session() -> void:
