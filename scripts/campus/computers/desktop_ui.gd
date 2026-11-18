@@ -94,19 +94,40 @@ func build(source: Node, owner_game: Node = null) -> void:
 func _build_shell() -> void:
 	var backdrop := TextureRect.new()
 	wallpaper_panel=backdrop
-	var wallpaper := GradientTexture2D.new()
-	var gradient := Gradient.new()
-	gradient.colors=PackedColorArray([Color("0b2535"),Color("103849"),Color("14566b")])
-	gradient.offsets=PackedFloat32Array([0,.62,1])
-	wallpaper.gradient=gradient
-	wallpaper.fill_from=Vector2(.9,1)
-	wallpaper.fill_to=Vector2(0,0)
-	backdrop.texture=wallpaper
-	backdrop.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
-	backdrop.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	var pixel := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
+	pixel.fill(Color.WHITE)
+	backdrop.texture = ImageTexture.create_from_image(pixel)
+	backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	backdrop.stretch_mode = TextureRect.STRETCH_SCALE
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var waves := Shader.new()
-	waves.code="shader_type canvas_item; void fragment(){ vec4 base=texture(TEXTURE,UV); float w=sin(UV.x*5.0+UV.y*2.0)*0.07; float ridge=exp(-180.0*abs(UV.y-.8+w)) + .6*exp(-125.0*abs(UV.y-.9+w)); COLOR=vec4(base.rgb+vec3(.035,.074,.09)*ridge,1.0); }"
+	waves.code = """
+shader_type canvas_item;
+
+vec3 ribbon(vec2 uv, float center, float width, float shine) {
+	float distance_to_edge = uv.y - center;
+	float band = 1.0 - smoothstep(0.0, width, abs(distance_to_edge));
+	float halo = exp(-abs(distance_to_edge) * 33.0);
+	float seam = exp(-abs(distance_to_edge) * 850.0);
+	return vec3(0.0, .23, .34) * band * .56
+		+ vec3(0.0, .48, .51) * halo * shine
+		+ vec3(.17, .92, .88) * seam * shine;
+}
+
+void fragment() {
+	vec2 uv = UV;
+	vec3 base = mix(vec3(.016, .059, .125), vec3(.013, .145, .212), 1.0 - uv.y);
+	base *= .70 + .42 * exp(-length(uv - vec2(.62,.24)) * 1.8);
+	float crest = .79 + .115 * sin(uv.x * 6.0 - 1.0) - .14 * uv.x;
+	float sweep = .52 + .11 * sin(uv.x * 5.5 + .4) - .37 * uv.x;
+	float glow = .14 + .74 * exp(-pow((uv.x - .49) * 5.9, 2.0));
+	vec3 light = ribbon(uv, crest, .071, glow);
+	light += ribbon(uv, sweep, .093, .12 + .64 * smoothstep(.38, .89, uv.x));
+	light += ribbon(uv, crest + .13 - .035 * uv.x, .045, .09);
+	COLOR = vec4((base + light) * COLOR.rgb, 1.0);
+}
+"""
 	var wallpaper_shader:=ShaderMaterial.new()
 	wallpaper_shader.shader=waves
 	backdrop.material=wallpaper_shader
@@ -114,7 +135,7 @@ func _build_shell() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "top", "right", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 8 if side=="bottom" else 22)
+		margin.add_theme_constant_override("margin_" + side, 8 if side=="bottom" else (12 if side in ["left","right"] else 20))
 	add_child(margin)
 	var root := VBoxContainer.new()
 	root.add_theme_constant_override("separation", 12)
@@ -130,15 +151,18 @@ func _build_shell() -> void:
 		if event is InputEventMouseButton and event.pressed:_select_shortcut(""))
 	var brand:=Label.new()
 	brand.text="Campus OS"
-	brand.add_theme_color_override("font_color",Color("aac1ce83"))
+	brand.add_theme_color_override("font_color",Color("e4f4ff"))
+	brand.add_theme_font_size_override("font_size",22)
 	brand.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
 	brand.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	workspace.add_child(brand)
 	brand.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	brand.offset_left=-150;brand.offset_top=-38
+	brand.offset_left=-188;brand.offset_top=-49;brand.offset_right=-22
 	var shortcuts := GridContainer.new()
 	shortcuts.columns=2
-	shortcuts.position=Vector2(4,8)
+	shortcuts.position=Vector2(18,8)
+	shortcuts.add_theme_constant_override("h_separation", 12)
+	shortcuts.add_theme_constant_override("v_separation", 6)
 	workspace.add_child(shortcuts)
 	for name in app_names:
 		var shortcut := Button.new()
@@ -148,12 +172,14 @@ func _build_shell() -> void:
 		shortcut.pressed.connect(func():_select_shortcut(name))
 		shortcut.gui_input.connect(func(event):_desktop_shortcut_input(name,shortcut,event))
 		shortcuts_by_name[name]=shortcut
-		shortcut.icon=Icon.icon(APP_ICONS[name])
+		shortcut.icon=_desktop_app_icon(name)
 		shortcut.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
 		shortcut.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
-		shortcut.add_theme_constant_override("icon_max_width",32)
+		shortcut.add_theme_constant_override("icon_max_width",48)
 		shortcut.flat=true
-		shortcut.custom_minimum_size=Vector2(105,68)
+		shortcut.custom_minimum_size=Vector2(104,70)
+		shortcut.add_theme_color_override("font_shadow_color", Color("000000b8"))
+		shortcut.add_theme_constant_override("shadow_offset_y", 1)
 		shortcuts.add_child(shortcut)
 	var taskbar := HBoxContainer.new()
 	taskbar.add_theme_constant_override("separation", 8)
@@ -161,9 +187,10 @@ func _build_shell() -> void:
 	var tray_shell := PanelContainer.new()
 	tray_shell.custom_minimum_size.y=53
 	var tray_style := StyleBoxFlat.new()
-	tray_style.bg_color=Color("142538ed")
+	tray_style.bg_color=Color("061b2eee")
+	tray_style.set_corner_radius_all(16)
 	tray_style.border_color=Color("38596c")
-	tray_style.border_width_top=1
+	tray_style.set_border_width_all(1)
 	tray_style.content_margin_left=6
 	tray_style.content_margin_right=10
 	tray_style.content_margin_top=3
@@ -172,20 +199,14 @@ func _build_shell() -> void:
 	root.add_child(tray_shell)
 	tray_shell.add_child(taskbar)
 	start_button = _button("Start", _toggle_start)
-	start_button.icon=Icon.icon("home")
+	start_button.icon=Icon.icon("course")
+	start_button.custom_minimum_size.x = 85
 	taskbar.add_child(start_button)
-	var search_button:=_button("Search apps and files",func():_toggle_start(true))
-	search_button.icon=Icon.icon("search")
-	search_button.custom_minimum_size.x=205
-	taskbar.add_child(search_button)
-	resized.connect(func():
-		search_button.text="Search apps and files" if size.x>=1000 else ""
-		search_button.custom_minimum_size.x=205 if size.x>=1000 else 40)
 	for name in app_names:
 		var app_name: String = str(name)
 		var app_button := _button("",func():_switch_app(app_name))
-		app_button.icon=Icon.icon(APP_ICONS[name])
-		app_button.add_theme_constant_override("icon_max_width",16)
+		app_button.icon=shortcuts_by_name[name].icon
+		app_button.add_theme_constant_override("icon_max_width",25)
 		app_button.custom_minimum_size.x=34
 		app_button.tooltip_text=name
 		app_button.accessibility_name=name
@@ -254,6 +275,24 @@ func _build_shell() -> void:
 	laptop_display_filter.visible = false
 	add_child(laptop_display_filter)
 	_switch_app("Files")
+
+func _desktop_app_icon(name: String) -> Texture2D:
+	var tile_colors := {"Files":"1c6197", "Text editor":"1379b9", "Course work":"6550bf",
+		"Calculator":"247794", "Browser":"0986cf", "Code editor":"3c459e",
+		"Terminal":"365367", "Settings":"5279a0", "Recycle Bin":"079482", "Circuit Lab":"6741b4"}
+	var tile := Image.new()
+	var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56"><defs><linearGradient id="g" x2="0" y2="1"><stop stop-color="#%s"/><stop offset="1" stop-color="#10223b"/></linearGradient></defs><rect x="1" y="1" width="54" height="54" rx="13" fill="url(#g)" stroke="#95ddff" stroke-opacity=".55"/><path d="M13 7H43" stroke="white" stroke-opacity=".2" stroke-linecap="round"/></svg>'
+	tile.load_svg_from_string(svg % tile_colors[name])
+	var glyph := Icon.icon(APP_ICONS[name]).get_image()
+	glyph.convert(Image.FORMAT_RGBA8)
+	glyph.resize(32, 32, Image.INTERPOLATE_LANCZOS)
+	if name == "Files":
+		for y in glyph.get_height():
+			for x in glyph.get_width():
+				var pixel := glyph.get_pixel(x, y)
+				glyph.set_pixel(x, y, Color(1.0, .76, .30, pixel.a))
+	tile.blend_rect(glyph, Rect2i(0, 0, 32, 32), Vector2i(12, 12))
+	return ImageTexture.create_from_image(tile)
 
 func _button(label: String, action: Callable) -> Button:
 	var button := Button.new()
