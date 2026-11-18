@@ -10,6 +10,13 @@ class Session:
 class Player:
 	var global_position := Vector3(4,1.25,30.2)
 class Controller:
+	var held: int = bar.held_plate(1)
+	var correct_rod := Bar.SIZES.find(float(bar.plates[held].lb))
+	bar.game.player.global_position = Bar.PLATE_RACK
+	bar._accept_plate(1,"return",held,"rod",(correct_rod+1)%Bar.SIZES.size())
+	check(bar.held_plate(1)==held, "mismatched rod accepted a plate")
+	bar._accept_plate(1,"return",held,"rod",correct_rod)
+	check(bar.held_plate(1)<0 and bar._rack_count(correct_rod)==Bar.COUNTS[correct_rod], "matching rod did not return the plate")
 	var host=Rules.new()
 class Services:
 	var facilities=Facilities.new()

@@ -21,7 +21,7 @@ func run() -> void:
 	if result.ok:
 		for i in 2:
 			now+=int(host.active[1].half_ms)
-			result=host.act(1,{"op":"beat","sequence":int(profiles["1"].last_sequence)+1})
+			result=host.act(1,{"op":"lower" if i==0 else "beat","sequence":int(profiles["1"].last_sequence)+1})
 			check(result.ok,"beat failed")
 	check(host.active.get(1,{}).get("type","")=="trapped","heavy bench did not trap")
 	if host.active.get(1,{}).get("type","")=="trapped":
@@ -38,40 +38,41 @@ func run() -> void:
 		now+=1000
 		result=host.act(2,{"op":"assist","target":1,"sequence":1})
 		check(result.ok and float(host.active[1].progress)>before,"nearby help did not advance")
-		now+=Host.TRAP_TIMEOUT_MS
+		now+=46000
 		host.tick()
-		check(not host.active.has(1) and not host.seats.has("gym/benchpress"),"safety timeout did not release station")
+		check(host.active.has(1) and host.trapped_damage_rate(1)>0, "trap released without escape or health depletion")
+		host.clear_activity(1,"interrupted")
+		check(not host.active.has(1) and not host.seats.has("gym/benchpress") and host.trapped_damage_rate(1)==0.0,"death cleanup left trap state")
 		now+=100
 		result=host.act(1,{"op":"start","station":"gym/benchpress","exercise":"benchpress","sequence":int(profiles["1"].last_sequence)+1})
 		if result.ok:
 			for i in 2:
 				now+=int(host.active[1].half_ms)
-				result=host.act(1,{"op":"beat","sequence":int(profiles["1"].last_sequence)+1})
+				result=host.act(1,{"op":"lower" if i==0 else "beat","sequence":int(profiles["1"].last_sequence)+1})
 			for i in 40:
 				if not host.active.has(1):break
 				now+=700
 				result=host.act(1,{"op":"wiggle","direction":int(host.active[1].direction),"sequence":int(profiles["1"].last_sequence)+1})
 				if not result.ok:break
 			check(not host.active.has(1),"repeated alternating movement did not free bar")
-		else:check(false,"could not start another set after safety reset")
+		else:check(false,"could not start another set after cleanup")
 		host.dumbbell_mass=func(_peer):return 200.0
 		now+=100
 		result=host.act(1,{"op":"start","station":"gym/dumbbell","exercise":"deadlift","sequence":int(profiles["1"].last_sequence)+1})
 		if result.ok:
 			for i in 2:
 				now+=int(host.active[1].half_ms)
-				result=host.act(1,{"op":"beat","sequence":int(profiles["1"].last_sequence)+1})
+				result=host.act(1,{"op":"lower" if i==0 else "beat","sequence":int(profiles["1"].last_sequence)+1})
 			check(not host.active.has(1),"deadlift failure should not trap the player")
 		else:check(false,"could not start deadlift")
 	var panel=preload("res://scripts/campus/facilities/facility_panel.gd").new();root.add_child(panel)
 	panel.station_kind="benchpress";panel.station_id="gym/benchpress"
 	panel.state={"level":1,"profile":profiles["1"],"active":{"type":"trapped","progress":.2,"direction":-1}}
 	panel.redraw()
-	var sliders=panel.find_children("*","HSlider",true,false)
-	check(sliders.size()==1 and not panel.workout_reached,"escape control missing or already complete")
-	if sliders.size()==1:
-		sliders[0].value=0.0
-		check(panel.workout_reached,"escape control did not register movement")
+	var meters = panel.find_children("*","ProgressBar",true,false)
+	check(meters.size()==1 and is_equal_approx(meters[0].value,20.0),"escape meter did not reflect host progress")
+	panel.close_or_end_workout()
+	check(panel.visible,"Escape hid the controls while trapped")
 	panel.free()
 	for failure in failures:push_error(failure)
 	print("TRAPPED_BAR ","PASS" if failures.is_empty() else "FAIL")

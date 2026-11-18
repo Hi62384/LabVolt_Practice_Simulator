@@ -1,47 +1,58 @@
 extends Node3D
 const GymLayout = preload("res://scripts/campus/facilities/gym_layout.gd")
 ## Host-owned session equipment: rack, hand, hotbar and floor are exclusive states.
-const SIZES := [2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0,25.0,30.0,35.0,40.0,45.0,50.0,60.0,70.0,80.0,90.0,100.0,120.0,140.0,160.0,180.0,200.0]
+# Keep existing inventory IDs stable; the new pairs occupy the last twelve slots.
+const SIZES := [2.5,5.0,7.5,10.0,12.5,15.0,17.5,20.0,25.0,30.0,35.0,40.0,45.0,50.0,60.0,70.0,80.0,90.0,100.0,120.0,140.0,160.0,180.0,200.0,22.5,27.5,55.0,65.0,75.0,85.0,95.0,110.0,130.0,150.0,170.0,190.0]
 const RACK := GymLayout.ORIGIN + GymLayout.DUMBBELLS
-const RACK_SLOTS := 30
-const RACK_COLUMNS := 6
-const RACK_SPACING := .42
-const RACK_TIER_SPACING := .45
+const RACK_SLOTS := 36
+const RACK_COLUMNS := 9
+const RACK_SPACING := .62
+const RACK_TIER_SPACING := .47
 const LB_TO_KG := .45359237
 var game: Node
 var items: Array=[]
 var models:={}
 var rack_models:={}
+var rack_slot_ids := {}
+var rack_order: Array[int] = []
 var rack_frame: Node3D
 var remote_models:={}
 var last_sent:=0.0
 var panel: PanelContainer
 var choices: ItemList
 var held_visual: Node3D
+func _init() -> void:
+ for id in SIZES.size():rack_order.append(id)
+ rack_order.sort_custom(func(a: int,b: int):return float(SIZES[a]) > float(SIZES[b]))
+
 func build(owner: Node) -> void:
  game=owner
- for i in SIZES.size():items.append({"lb":SIZES[i],"owner":0,"where":"rack","position":Vector3.ZERO,"rack_slot":i})
+ for i in SIZES.size():items.append({"lb":SIZES[i],"owner":0,"where":"rack","position":Vector3.ZERO,"rack_slot":rack_order.find(i)})
  _build_rack()
  game.session.roster_changed.connect(_roster_changed)
  game.session.restarted.connect(_reset)
  _render()
 
+func _radius(lb: float) -> float:
+ return lerpf(.035, .13, sqrt(lb / 200.0))
+
 func _slot_position(slot: int) -> Vector3:
- var tier:=int(slot/RACK_COLUMNS);var column:=slot%RACK_COLUMNS
- return RACK+Vector3((float(column)-2.5)*RACK_SPACING,.39+float(tier)*RACK_TIER_SPACING,0)
+ var tier := int(slot / RACK_COLUMNS)
+ var column := slot % RACK_COLUMNS
+ return RACK + Vector3((float(column) - 4.0) * RACK_SPACING, .26 + float(tier) * RACK_TIER_SPACING + _radius(SIZES[rack_order[slot]]), 0)
 
 func _build_rack() -> void:
  rack_frame=StaticBody3D.new();rack_frame.name="DumbbellRackFrame";rack_frame.collision_layer=1;rack_frame.collision_mask=0;add_child(rack_frame)
  var steel:=StandardMaterial3D.new();steel.albedo_color=Color("53616a");steel.metallic=.62;steel.roughness=.42
- _rack_bar(Vector3(0,.10,0),Vector3(2.85,.12,.72),steel)
- for tier in 5:
-  var y:=.25+float(tier)*RACK_TIER_SPACING
-  # Angled trays cradle the handles and keep the dumbbells separated.
-  _rack_bar(Vector3(0,y,-.20),Vector3(2.75,.07,.08),steel)
-  _rack_bar(Vector3(0,y,.20),Vector3(2.75,.07,.08),steel)
- for x in [-1.36,1.36]:
-  _rack_bar(Vector3(x,.99,0),Vector3(.10,1.98,.12),steel)
- _rack_bar(Vector3(0,1.98,0),Vector3(2.85,.10,.72),steel)
+ var rubber:=StandardMaterial3D.new();rubber.albedo_color=Color("313a41");rubber.roughness=.92
+ for x in [-2.78, 0.0, 2.78]:
+  _rack_bar(Vector3(x,.055,0),Vector3(.16,.11,.78),steel)
+  _rack_bar(Vector3(x,.865,-.25),Vector3(.09,1.73,.1),steel)
+ for tier in 4:
+  _rack_bar(Vector3(0,.204+float(tier)*RACK_TIER_SPACING,0),Vector3(5.64,.064,.62),steel)
+ for slot in RACK_SLOTS:
+  var rest := _slot_position(slot) - RACK - Vector3.UP * (_radius(SIZES[rack_order[slot]]) + .012)
+  _rack_bar(rest,Vector3(.57,.024,.56),rubber)
 
 func _rack_bar(at: Vector3,size: Vector3,steel: Material) -> void:
  var visual:=MeshInstance3D.new();var mesh:=BoxMesh.new();mesh.size=size;visual.mesh=mesh;visual.material_override=steel;visual.position=RACK+at;rack_frame.add_child(visual)
@@ -50,9 +61,9 @@ func _pair_model(lb: float) -> Node3D:
  var root:=Node3D.new()
  var metal:=StandardMaterial3D.new();metal.albedo_color=Color("aabcc0");metal.metallic=.7;metal.roughness=.35
  var rubber:=StandardMaterial3D.new();rubber.albedo_color=Color("252e35");rubber.roughness=.84
- var radius:=lerpf(.035,.13,sqrt(lb/200.0));var width:=lerpf(.05,.15,sqrt(lb/200.0))
+ var radius:=_radius(lb);var width:=lerpf(.05,.15,sqrt(lb/200.0))
  for side in [-1.0,1.0]:
-  var dumbbell:=Node3D.new();dumbbell.name="LeftDumbbell" if side<0 else "RightDumbbell";dumbbell.position.x=side*.105;root.add_child(dumbbell)
+  var dumbbell:=Node3D.new();dumbbell.name="LeftDumbbell" if side<0 else "RightDumbbell";dumbbell.position.x=side*(radius+.018);root.add_child(dumbbell)
   # Each dumbbell runs front-to-back on the tray; the pair sits shoulder to
   # shoulder across the rack instead of extending down the shelf in a line.
   var bar:=MeshInstance3D.new();var shaft:=CylinderMesh.new();shaft.height=.19;shaft.top_radius=.015;shaft.bottom_radius=.015;shaft.radial_segments=10;bar.mesh=shaft;bar.material_override=metal;bar.rotation.x=PI/2;dumbbell.add_child(bar)
@@ -60,8 +71,11 @@ func _pair_model(lb: float) -> Node3D:
    var collar:=MeshInstance3D.new();var collar_mesh:=CylinderMesh.new();collar_mesh.height=.025;collar_mesh.top_radius=.025;collar_mesh.bottom_radius=.025;collar_mesh.radial_segments=12
    collar.mesh=collar_mesh;collar.material_override=metal;collar.rotation.x=PI/2;collar.position=Vector3(0,0,end*.092);dumbbell.add_child(collar)
    var disk:=MeshInstance3D.new();var mesh:=CylinderMesh.new();mesh.height=width;mesh.top_radius=radius;mesh.bottom_radius=radius;mesh.radial_segments=12;disk.mesh=mesh;disk.material_override=rubber;disk.rotation.x=PI/2;disk.position=Vector3(0,0,end*(.10+width*.5));dumbbell.add_child(disk)
-   var marking:=Label3D.new();marking.text=_weight_mark(lb);marking.font_size=16;marking.pixel_size=.00075;marking.modulate=Color("9aa7aa");marking.outline_size=0
-   marking.position=Vector3(0,0,end*(.10+width+.001));marking.rotation.y=PI if end<0 else 0.0;dumbbell.add_child(marking)
+   var cap:=MeshInstance3D.new();var cap_mesh:=CylinderMesh.new()
+   cap_mesh.height=.008;cap_mesh.top_radius=radius*.77;cap_mesh.bottom_radius=radius*.82;cap_mesh.radial_segments=12
+   cap.mesh=cap_mesh;cap.material_override=metal;cap.rotation.x=end*PI/2;cap.position.z=end*(.10+width+.002);dumbbell.add_child(cap)
+   var marking:=Label3D.new();marking.text=_weight_mark(lb);marking.font_size=36;marking.pixel_size=radius*.022;marking.modulate=Color("263239");marking.outline_size=0
+   marking.position=Vector3(0,0,end*(.10+width+.007));marking.rotation.y=PI if end<0 else 0.0;dumbbell.add_child(marking)
  return root
 
 func _weight_mark(lb: float) -> String:
@@ -143,8 +157,8 @@ func _accept(peer: int,op: String,id: int,point: Variant=null,rack_slot: int=-1)
     var occupied:=false
     for other in items:
      if other.where=="rack" and int(other.get("rack_slot",-1))==candidate:occupied=true;break
-    if not occupied and pos.distance_to(_slot_position(candidate))<=3.0:chosen=candidate;break
-  if chosen not in range(RACK_SLOTS) or pos.distance_to(_slot_position(chosen))>3.0:return
+    if not occupied and rack_order[candidate] == id and pos.distance_to(_slot_position(candidate))<=3.0:chosen=candidate;break
+  if chosen not in range(RACK_SLOTS) or rack_order[chosen] != id or pos.distance_to(_slot_position(chosen))>3.0:return
   for other in items:
    if other.where=="rack" and int(other.get("rack_slot",-1))==chosen:return
   item.owner=0;item.where="rack";item.rack_slot=chosen
@@ -167,21 +181,25 @@ func _receive(snapshot: Array) -> void:
  if snapshot.size()!=SIZES.size() or snapshot==items:return
  items=snapshot.duplicate(true);_render()
 func _render() -> void:
- for node in rack_models.values():
-  if is_instance_valid(node):node.queue_free()
- rack_models.clear()
  var occupied_slots:={}
  for id in items.size():
   var entry: Dictionary=items[id]
   if entry.where=="rack":occupied_slots[int(entry.get("rack_slot",id))]=id
  for slot in RACK_SLOTS:
+  var item_id := int(occupied_slots.get(slot, -1))
+  if rack_slot_ids.get(slot, -2) == item_id:
+   continue
+  if rack_models.has(slot) and is_instance_valid(rack_models[slot]):
+   remove_child(rack_models[slot])
+   rack_models[slot].queue_free()
+  rack_slot_ids[slot] = item_id
   var target:=StaticBody3D.new();target.position=_slot_position(slot);target.collision_layer=4;target.collision_mask=0
   if occupied_slots.has(slot):
    var id:=int(occupied_slots[slot]);target.set_meta("role","gym_dumbbell_pair");target.set_meta("id",id);target.set_meta("label","Pick up %.1f lb dumbbell pair" % float(items[id].lb))
    var visual:=_pair_model(float(items[id].lb));target.add_child(visual)
   else:
    target.set_meta("role","gym_dumbbell_rack_slot");target.set_meta("slot",slot);target.set_meta("label","Empty dumbbell rack slot")
-  var hit:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=Vector3(.40,.30,.46);hit.shape=box;target.add_child(hit)
+  var hit:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=Vector3(.60,.30,.54);hit.shape=box;target.add_child(hit)
   add_child(target);rack_models[slot]=target
  for node in models.values():
   if is_instance_valid(node):node.queue_free()
@@ -190,7 +208,7 @@ func _render() -> void:
   var entry: Dictionary=items[i]
   if entry.where!="floor":continue
   var target:=StaticBody3D.new();target.position=entry.position;target.collision_layer=4;target.collision_mask=0;target.set_meta("role","gym_dumbbell_floor");target.set_meta("id",i);target.set_meta("label","%.1f lb dumbbell pair"%entry.lb);add_child(target)
-  var visual:=_pair_model(float(entry.lb));visual.position.y=.14;target.add_child(visual)
+  var visual:=_pair_model(float(entry.lb));visual.position.y=_radius(float(entry.lb));target.add_child(visual)
   var hit:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=Vector3(.6,.3,.35);hit.shape=box;hit.position.y=.15;target.add_child(hit);models[i]=target
 func _roster_changed() -> void:
  if not multiplayer.is_server():return

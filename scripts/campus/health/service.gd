@@ -13,6 +13,7 @@ var death_screen: Control
 var death_count: Label
 var overlay: CanvasLayer
 var shock_flash: ColorRect
+var pin_feedback: ColorRect
 var shock_audio: AudioStreamPlayer
 var shock_clock := 0.0
 var spark_views := {}
@@ -41,6 +42,11 @@ func build(owner_game: Node) -> void:
  overlay.add_child(health_value)
  shock_flash=ColorRect.new();shock_flash.mouse_filter=Control.MOUSE_FILTER_IGNORE
  shock_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);shock_flash.color=Color(0.7,0.86,1.0,0);overlay.add_child(shock_flash)
+ pin_feedback=ColorRect.new()
+ pin_feedback.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ pin_feedback.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ pin_feedback.color=Color(.32,.025,.015,0)
+ overlay.add_child(pin_feedback)
  shock_audio=AudioStreamPlayer.new();shock_audio.stream=_shock_sound();shock_audio.volume_db=-16;add_child(shock_audio)
  death_screen=ColorRect.new();death_screen.color=Color(.08,.015,.025,.91);death_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);overlay.add_child(death_screen)
  var center:=CenterContainer.new();center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);death_screen.add_child(center)
@@ -55,7 +61,7 @@ func build(owner_game: Node) -> void:
  game.session.restarted.connect(_reset)
  multiplayer.peer_disconnected.connect(_remove)
  _roster_changed()
-func _new() -> Dictionary:return {"health":100.0,"arrested":false,"dead":false,"remaining":0.0,"position":Vector3.ZERO,"shocked":false}
+func _new() -> Dictionary:return {"health":100.0,"arrested":false,"dead":false,"remaining":0.0,"position":Vector3.ZERO,"shocked":false,"pinned":false}
 func _reset() -> void:
  people.clear();last_sent.clear();game.player.shock_locked=false
  for peer in shock_pose.keys():
@@ -133,7 +139,16 @@ func _process(delta: float) -> void:
     p.shocked=float(result.health)<float(p.health)
     p.health=result.health;p.arrested=result.arrested
     if p.arrested and not was_locked:p.position=_position(int(peer))
+    p.pinned = false
+    if is_instance_valid(game.campus_services):
+     var workouts: RefCounted = game.campus_services.facilities.controller.host
+     var damage: float = workouts.trapped_damage_rate(int(peer))
+     p.pinned = damage > 0.0
+     p.health = maxf(0.0, float(p.health) - damage * dt)
     if p.health<=0:
+     p.pinned = false
+     if is_instance_valid(game.campus_services):
+      game.campus_services.facilities.controller.host.clear_activity(int(peer), "interrupted")
      p.dead=true;p.arrested=false;p.shocked=false;p.remaining=Shock.RESPAWN_SECONDS;p.position=_position(int(peer))
      _release_wire(int(peer))
      _spawn_burst(p.position)
@@ -184,6 +199,7 @@ func _apply_local() -> void:
  game.player.shock_locked=bool(p.dead) or bool(p.arrested)
  bar.value=float(p.health)
  health_value.text="%d / 100" % roundi(clampf(float(p.health),0.0,100.0))
+ pin_feedback.color.a = .095 if p.get("pinned",false) else 0.0
  death_screen.visible=bool(p.dead)
  if p.dead:death_count.text="Respawning in %d seconds" % ceili(float(p.remaining))
 @rpc("authority","call_remote","reliable")

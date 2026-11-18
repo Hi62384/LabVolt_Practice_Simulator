@@ -5,6 +5,9 @@ const Layout = preload("res://scripts/ui/hud_settings/layout.gd")
 signal changed(options: Dictionary)
 const SAVE := "user://campus_graphics.cfg"
 const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"interaction_hands":true}
+const PRESETS := ["Low", "Medium", "High", "Ultra", "Custom"]
+var quality_preset := "Medium"
+var save_error := OK
 var options := DEFAULTS.duplicate()
 var viewport: Viewport
 var world: Node
@@ -22,9 +25,18 @@ func load_settings(path := SAVE) -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path)!=OK: return
 	for key in DEFAULTS: _validate(key,cfg.get_value("graphics",key,DEFAULTS[key]))
+	var saved := str(cfg.get_value("graphics", "preset", ""))
+	quality_preset = "Custom"
+	if saved == "Custom":
+		return
+	for level in PRESETS.slice(0, 4):
+		if options == _preset_options(level) and (saved.is_empty() or saved == level):
+			quality_preset = level
+			break
 func save_settings(path := SAVE) -> Error:
 	var cfg := ConfigFile.new()
 	for key in options: cfg.set_value("graphics",key,options[key])
+	cfg.set_value("graphics", "preset", quality_preset)
 	return cfg.save(path)
 func _validate(key: String, value: Variant) -> bool:
 	if not DEFAULTS.has(key): return false
@@ -40,16 +52,30 @@ func _validate(key: String, value: Variant) -> bool:
 	return true
 func set_option(key: String, value: Variant) -> bool:
 	if not _validate(key,value): return false
-	apply(); save_settings(); changed.emit(options.duplicate())
+	quality_preset = "Custom"
+	_apply_and_save()
 	return true
 func preset(level: String) -> void:
+	if level not in PRESETS:
+		return
+	quality_preset = level
+	if level != "Custom":
+		options = _preset_options(level)
+	_apply_and_save()
+
+func _apply_and_save() -> void:
+	apply()
+	save_error = save_settings()
+	changed.emit(options.duplicate())
+
+func _preset_options(level: String) -> Dictionary:
+	var values := DEFAULTS.duplicate()
 	var low := level=="Low"
-	options=DEFAULTS.duplicate()
-	options.merge({"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low,"bloom":not low,"lights":not low},true)
-	if level=="Medium": options=DEFAULTS.duplicate()
+	values.merge({"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low,"bloom":not low,"lights":not low},true)
+	if level=="Medium": return DEFAULTS.duplicate()
 	if level=="Ultra":
-		options.merge({"detail_shadows":true, "aa":3, "view_distance":240.0}, true)
-	apply(); save_settings(); changed.emit(options.duplicate())
+		values.merge({"detail_shadows":true, "aa":3, "view_distance":240.0}, true)
+	return values
 func set_crowd_adapter(adapter: Object) -> void:
 	crowd=adapter; apply()
 func apply() -> void:

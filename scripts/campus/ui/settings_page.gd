@@ -35,7 +35,6 @@ var previous_position: Vector2i
 var previous_screen: int
 var confirmation: ConfirmationDialog
 var countdown := 0
-var preset := "Custom"
 
 func build(owner: Node) -> void:
 	game = owner
@@ -281,12 +280,11 @@ func _display_controls() -> void:
 	_choice("Frame rate limit", limit_labels, limits.find(saved_limit), func(index): _preference(limits[index], "fps"))
 	_slider("First-person field of view", 55, 95, 1, prefs.values.fov, _preference.bind("fov"), "%.0f°")
 	_label(body, "Image quality", 18)
-	var levels := ["Low","Medium","High","Ultra","Custom"]
-	choices.preset = _choice("Quality preset", levels, levels.find(preset), func(index):
-		preset = levels[index]
-		if preset != "Custom":
-			graphics.preset(preset)
-			_select(active))
+	var levels: Array = graphics.PRESETS
+	choices.preset = _choice("Quality preset", levels, levels.find(graphics.quality_preset), func(index):
+		graphics.preset(levels[index])
+		_select(active)
+		_graphics_saved())
 	_quality_choice("Render scale", "render_scale", [.5,.65,.75,.85,1.0], ["50%","65%","75%","85%","100%"])
 	_quality_choice("Anti-aliasing", "aa", [0,1,2,3], ["Off","MSAA 2×","MSAA 4×","MSAA 8×"])
 	_quality_choice("Texture filtering", "texture", [0,1,2], ["Nearest mipmaps","Filtered 4×","Filtered 16×"])
@@ -295,13 +293,19 @@ func _display_controls() -> void:
 	for spec in [["Cast shadows","shadows"],["Fine-detail shadows","detail_shadows"],["Accent lights","lights"],["Reflections","reflections"],["Bloom","bloom"],["Particle effects","effects"],["First-person interaction hands","interaction_hands"]]:
 		_toggle(spec[0], graphics.options[spec[1]], _quality.bind(spec[1]))
 
+func _graphics_saved() -> void:
+	var saved: bool = graphics.save_error == OK
+	if saved and not previewing:
+		saved = prefs.remember_window() == OK
+	_notice("Graphics settings saved" if saved else "Graphics settings could not be saved")
+
 func _quality_choice(label: String, key: String, values: Array, names: Array) -> void:
 	_choice(label, names, maxi(0, values.find(graphics.options[key])), func(index): _quality(values[index], key))
 
 func _quality(value: Variant, key: String) -> void:
 	graphics.set_option(key, value)
-	preset = "Custom"
 	choices.preset.select(4)
+	_graphics_saved()
 
 func _input_controls() -> void:
 	_slider("Mouse sensitivity", .0003, .008, .00005, game.player.sensitivity, _control.bind("sensitivity"), "%.2f", 1.0/.00225)
@@ -368,7 +372,6 @@ func _reset() -> void:
 		"Graphics & Display":
 			keys = ["vsync","fps","fov"]
 			graphics.preset("Medium")
-			preset = "Medium"
 			display_edited = true
 			pending_mode = 0
 			pending_resolution = Vector2i.ZERO
@@ -393,7 +396,7 @@ func _reset() -> void:
 
 func _update_display_action() -> void:
 	apply_button.visible = active == "Graphics & Display"
-	apply_button.disabled = previewing
+	apply_button.disabled = previewing or not display_edited
 
 func _active_window_mode() -> int:
 	var index := Prefs.WINDOW_MODES.find(game.get_window().mode)
@@ -403,7 +406,6 @@ func _apply_display() -> void:
 	if previewing:
 		return
 	if not display_edited:
-		_save()
 		return
 	var window := get_window()
 	var target: Window.Mode = Prefs.WINDOW_MODES[pending_mode]
@@ -416,6 +418,8 @@ func _apply_display() -> void:
 	previous_size = window.size
 	previous_position = window.position
 	previous_screen = window.current_screen
+	if previous_mode == Window.MODE_WINDOWED:
+		prefs.values.normal_bounds = Rect2i(previous_position, previous_size)
 	previewing = true
 	_update_display_action()
 	await prefs.apply_display(pending_mode, pending_resolution)
@@ -455,7 +459,8 @@ func _commit_display() -> void:
 	prefs.values.display_mode = pending_mode
 	prefs.values.width = pending_resolution.x
 	prefs.values.height = pending_resolution.y
-	_save()
+	if prefs.remember_window() != OK:
+		_notice("Display settings could not be saved.")
 	_update_display_action()
 
 func _dismiss_confirmation() -> void:

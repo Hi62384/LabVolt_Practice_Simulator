@@ -2,6 +2,7 @@ extends Node
 ## Same node path on all peers. No full-save or currency broadcast.
 signal owner_result(result: Dictionary)
 signal room_event(peer: int, state: Dictionary)
+signal cable_selection_rejected(message: String)
 const Rules=preload("res://scripts/campus/facilities/facility_host.gd")
 var host=Rules.new()
 var interested_peers := Callable() # (room_id)->Array[int], from authoritative zone service
@@ -13,6 +14,8 @@ var preview_times:={}
 
 func _ready() -> void:
 	host.authority=is_host
+	host.live_lifts = true
+	host.live_lift_result.connect(_deliver)
 	host.public_event.connect(_public)
 	multiplayer.peer_disconnected.connect(_left)
 
@@ -28,6 +31,37 @@ func request(value: Dictionary) -> void:
 	if is_host():_deliver(1,host.act(1,value))
 	else:_request.rpc_id(1,value)
 
+func select_cable_weight(station: String, weight: int) -> void:
+	if not connected():
+		return
+	if is_host():
+		_select_cable_for(multiplayer.get_unique_id(),station,weight)
+	else:
+		_select_cable_weight.rpc_id(1,station,weight)
+
+@rpc("any_peer","call_remote","reliable")
+func _select_cable_weight(station: String, weight: int) -> void:
+	if is_host() and station.length() <= 32:
+		_select_cable_for(multiplayer.get_remote_sender_id(),station,weight)
+
+func _select_cable_for(peer: int, station: String, weight: int) -> void:
+	var result := host.set_cable_weight(peer,station,weight)
+	if not result.ok:
+		if peer == multiplayer.get_unique_id():
+			cable_selection_rejected.emit(result.error)
+		else:
+			_cable_rejection.rpc_id(peer,result.error)
+		return
+	var event := {"activity":"cable_pin","station":station,"weight":weight}
+	room_event.emit(peer,event)
+	if multiplayer.has_multiplayer_peer():
+		for other in multiplayer.get_peers():
+			_event.rpc_id(other,peer,event)
+
+@rpc("authority","call_remote","reliable")
+func _cable_rejection(message: String) -> void:
+	cable_selection_rejected.emit(message)
+
 func preview_motion(progress: float,expected_phase: int,expected_reps: int,expected_start: int) -> void:
 	if not connected():return
 	if is_host():_accept_preview(multiplayer.get_unique_id(),progress,expected_phase,expected_reps,expected_start)
@@ -38,6 +72,7 @@ func _preview(progress: float,expected_phase: int,expected_reps: int,expected_st
 	if is_host():_accept_preview(multiplayer.get_remote_sender_id(),progress,expected_phase,expected_reps,expected_start)
 
 func _accept_preview(peer: int,progress: float,expected_phase: int,expected_reps: int,expected_start: int) -> void:
+	if host.live_lifts:return
 	if not is_finite(progress) or progress<0.0 or progress>1.0 or expected_phase not in [0,1] or expected_reps<0:return
 	var now:=Time.get_ticks_msec()
 	if now-int(preview_times.get(peer,-1000))<120:return
@@ -74,6 +109,9 @@ func _refresh() -> void:
 	_restore_placed_order(peer,state)
 	_deliver(peer,{"ok":true,"state":state})
 	var c: Dictionary=host.trusted(peer)
+	if c.get("room_id") == "gym":
+		for station in host.cable_weights:
+			_event.rpc_id(peer,1,{"activity":"cable_pin","station":station,"weight":host.cable_weights[station]})
 	if c.is_empty() or not interested_peers.is_valid() or not peer in interested_peers.call(str(c.get("room_id",""))):return
 	for key in room_states:
 		var entry: Dictionary=room_states[key]
@@ -117,13 +155,16 @@ func _public(room: String, peer: int, state: Dictionary) -> void:
 func _event(peer: int, state: Dictionary) -> void:_emit_local(peer,state)
 
 func _emit_local(peer: int,state: Dictionary) -> void:
-	if not state.has("held") and state.get("activity","") not in ["holding","consume","place","pickup"]:
+	if not state.has("held") and state.get("activity","") not in ["holding","consume","place","pickup","cable_pin"]:
 		visual_states[peer]={"activity":"idle"} if state.get("activity","") in ["emote","assist","spot_assist"] else state.duplicate(true)
 	room_event.emit(peer,state)
 
 func reset_presentation() -> void:
 	for peer in visual_states.keys():room_event.emit(int(peer),{"activity":"idle"})
 	visual_states.clear();room_states.clear();preview_times.clear()
+	for station in host.cable_weights:
+		room_event.emit(multiplayer.get_unique_id(), {"activity":"cable_pin","station":station,"weight":5})
+	host.cable_weights.clear()
 
 func finish_session() -> void:
 	if not is_host():return
@@ -132,7 +173,7 @@ func finish_session() -> void:
 	if not host.pending_sets.is_empty():push_warning("Gym workout records are still waiting for the profile save. Keep the host open and reconnect the affected student to retry.")
 
 func _left(peer: int) -> void:
-	host.clear_activity(peer,"interrupted");host.clear_spot(peer);host.last_request.erase(peer);host.last_assist.erase(peer);refresh_times.erase(peer)
+	host.clear_activity(peer,"interrupted");host.last_request.erase(peer);host.last_assist.erase(peer);refresh_times.erase(peer)
 	visual_states.erase(peer);preview_times.erase(peer)
 	for key in room_states.keys():
 		if int(room_states[key].peer)==peer:

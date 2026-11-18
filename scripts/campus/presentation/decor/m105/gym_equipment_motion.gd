@@ -36,13 +36,12 @@ func _ready() -> void:
 		assembly.position = spec.origin
 		add_child(assembly)
 		var shaft := CylinderMesh.new()
-		shaft.height = 2.5
+		shaft.height = GymLayout.BAR_LENGTH
 		shaft.top_radius = .035
 		shaft.bottom_radius = .035
 		shaft.radial_segments = 10
 		var metal := _material(Color("aab8ba"), .35, .7)
 		_part(assembly, shaft, Vector3.ZERO, Vector3(0, 0, PI/2), metal)
-		var reach: float = 1.04
 		plates[key] = []
 		bars[key] = assembly
 		target_height[key] = 0.0

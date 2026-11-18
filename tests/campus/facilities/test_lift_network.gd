@@ -12,7 +12,11 @@ func until(condition: Callable,label: String) -> bool:
 	while Time.get_ticks_msec()<deadline:
 		if condition.call():return true
 		await create_timer(.05).timeout
-	push_error("LIFT NETWORK TIMEOUT " + label);quit(1);return false
+	var controller: Node = game.campus_services.facilities.controller
+	var panel: Control = game.campus_services.facility_panel
+	push_error("LIFT NETWORK TIMEOUT %s. Host activity %s, client activity %s, last error %s" % [
+		label, controller.host.active, panel.state.get("active",{}), panel.last_error])
+	quit(1);return false
 
 func run() -> void:
 	var args:=OS.get_cmdline_user_args();var role:=str(args[0]);var port:=int(args[1])
@@ -24,6 +28,10 @@ func run() -> void:
 	controller.room_event.connect(func(peer,event):events.append({"peer":peer,"event":event.duplicate(true)}))
 	if role=="host":
 		if game.session.host_game("Host",port)!=OK:push_error("Host failed");quit(1);return
+		game.front.entered()
+		await process_frame
+		# Use deterministic fixture profiles while the real host controller ticks.
+		game.campus_services.set_process(false)
 		var rules=controller.host
 		rules.context=func(peer):
 			var station := "gym/pullup" if peer == 1 else "gym/pushup"
@@ -49,6 +57,7 @@ func run() -> void:
 		print("LIFT_HOST PASS")
 	else:
 		if game.session.join_game("127.0.0.1","Student",port)!=OK:push_error("Join failed");quit(1);return
+		game.front.entered()
 		if not await until(func():return game.session.roster.size()==2,"connected"):return
 		var panel: Node=game.campus_services.facility_panel
 		panel.open_for("gym/pushup","pushup")
@@ -59,24 +68,21 @@ func run() -> void:
 		if start_button==null:push_error("Start set action missing");quit(1);return
 		start_button.pressed.emit()
 		if not await until(func():return panel.state.get("active",{}).get("type","")=="exercise" and not panel.pending,"start acknowledged"):return
+		var raise := InputEventKey.new()
+		raise.keycode = KEY_E
+		raise.pressed = true
+		for stroke in 28:
+			if int(panel.state.get("active",{}).get("phase",-1)) == 0:break
+			panel.handle_workout_input(raise)
+			await _wait_real(.105)
+		if not await until(func():return int(panel.state.get("active",{}).get("phase",-1))==0,"top acknowledged"):return
 		var lower := InputEventMouseButton.new()
 		lower.button_index = MOUSE_BUTTON_LEFT
 		lower.pressed = true
 		if not panel.handle_workout_input(lower):
 			push_error("Workout HUD did not handle lowering");quit(1);return
-		if not await until(func():return int(panel.state.get("active",{}).get("phase",-1))==1 and not panel.pending,"lower acknowledged"):return
-		for packet in 3:
-			controller.preview_motion(.5,1,0,int(panel.state.active.started))
-			await create_timer(.15).timeout
-		var raise := InputEventKey.new()
-		raise.keycode = KEY_E
-		raise.pressed = true
-		for stroke in 64:
-			panel.handle_workout_input(raise)
-			if panel.direct_in_flight:
-				break
-		if not await until(func():return int(panel.state.get("active",{}).get("reps",0))==1 and int(panel.state.active.phase)==0,"repetition acknowledged"):return
-		await create_timer(.2).timeout
+		if not await until(func():return int(panel.state.get("active",{}).get("reps",0))==1 and int(panel.state.active.phase)==1,"full rep acknowledged"):return
+		await _wait_real(.12)
 		var finish := InputEventKey.new()
 		finish.keycode = KEY_X
 		finish.pressed = true
@@ -86,3 +92,9 @@ func run() -> void:
 		await create_timer(.5).timeout
 		print("LIFT_CLIENT PASS")
 	quit(0)
+
+
+func _wait_real(seconds: float) -> void:
+	var end := Time.get_ticks_msec()+ceili(seconds*1000.0)
+	while Time.get_ticks_msec()<end:
+		await process_frame

@@ -76,6 +76,16 @@ func verify_display() -> void:
 	var settings: Control = load("res://scripts/campus/ui/settings_page.gd").new()
 	game.add_child(settings)
 	settings.build(game)
+	var graphics_settings: Node = game.ui.graphics_controller
+	for preset in ["Low","Medium","High","Ultra"]:
+		graphics_settings.preset(preset)
+		settings._select("Graphics & Display")
+		var prefs_copy: Node = graphics_settings.get_script().new()
+		prefs_copy.load_settings()
+		if prefs_copy.quality_preset != preset or prefs_copy.options != graphics_settings.options or settings.choices.preset.get_item_text(settings.choices.preset.selected) != preset:
+			failures += 1
+			push_error("Quality preset did not survive reopening or reloading: " + preset)
+		prefs_copy.free()
 	game.ui.graphics_controller.set_option("render_scale", .75)
 	await settings._apply_display()
 	if root.mode != Window.MODE_MAXIMIZED or root.size != size or settings.previewing:
@@ -134,7 +144,7 @@ func verify_display() -> void:
 			push_error("Revert did not restore the normal window after fullscreen mode %d" % mode)
 	var reloaded: Node = load("res://scripts/campus/ui/graphics_settings.gd").new()
 	reloaded.load_settings()
-	if reloaded.options.render_scale != .75:
+	if reloaded.options.render_scale != .75 or reloaded.quality_preset != "Custom":
 		failures += 1
 		push_error("Render scale was not persisted")
 	reloaded.free()

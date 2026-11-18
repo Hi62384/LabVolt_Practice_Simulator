@@ -4,7 +4,7 @@ const PATH := "user://college_preferences.cfg"
 const BUS_NAMES := {"master": "Master", "effects": "Effects", "ambience": "Ambience", "interface": "Interface"}
 const WINDOW_MODES := [Window.MODE_WINDOWED, Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN, Window.MODE_MAXIMIZED]
 const DEFAULTS := {
-	"display_mode": 0, "width": 0, "height": 0, "vsync": true, "fps": 60, "fov": 72.0,
+	"display_mode": 0, "width": 0, "height": 0, "window_screen": -1, "normal_bounds": Rect2i(), "vsync": true, "fps": 60, "fov": 72.0,
 	"master": 1.0, "effects": 1.0, "ambience": 1.0, "interface": 1.0,
 	"teacher_mic_sensitivity": 1.0,
 	"teacher_mic_detection": true,
@@ -91,8 +91,32 @@ func apply(key: String) -> void:
 			if is_instance_valid(game.menu_campus):
 				game.menu_campus.refresh_motion()
 
+func remember_window() -> Error:
+	if DisplayServer.get_name() == "headless":
+		return OK
+	var window := game.get_window()
+	var mode := WINDOW_MODES.find(window.mode)
+	if mode >= 0:
+		values.display_mode = mode
+	values.window_screen = window.current_screen
+	if window.mode == Window.MODE_WINDOWED:
+		values.normal_bounds = Rect2i(window.position, window.size)
+	return save()
+
 func apply_all() -> void:
-	await apply_display(values.display_mode, Vector2i(values.width, values.height))
+	var window := game.get_window()
+	var bounds: Rect2i = values.normal_bounds
+	if DisplayServer.get_name() != "headless":
+		if int(values.window_screen) in range(DisplayServer.get_screen_count()):
+			window.current_screen = int(values.window_screen)
+		if bounds.has_area() and window.mode == Window.MODE_WINDOWED:
+			var area := DisplayServer.screen_get_usable_rect(window.current_screen)
+			window.size = bounds.size.min(area.size)
+			window.position = bounds.position.clamp(area.position, area.end - window.size)
+	var resolution := Vector2i(values.width, values.height)
+	if bounds.has_area() and window.size == resolution:
+		resolution = Vector2i.ZERO
+	await apply_display(values.display_mode, resolution)
 	for key in DEFAULTS:
 		apply(key)
 

@@ -13,6 +13,7 @@ func _initialize() -> void:call_deferred("run")
 
 func run() -> void:
 	var host=Host.new()
+	host.live_lifts = true
 	host.authority=func():return true
 	host.clock=func():return now
 	host.context=func(_peer):return {"identity":"student","position":Vector3.ZERO,"room_id":"gym","allowed":true,"grounded":true}

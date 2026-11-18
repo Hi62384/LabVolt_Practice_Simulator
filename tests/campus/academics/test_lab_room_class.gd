@@ -14,7 +14,8 @@ func run():
  for room in ["ac_lab","dc_lab"]:
   var desk: Vector3=classes.signs[room].desk
   var space: PhysicsDirectSpaceState3D=game.get_world_3d().direct_space_state
-  var leg_ray:=PhysicsRayQueryParameters3D.create(desk+Vector3(-.65,.30,-.72), desk+Vector3(-.65,.30,-.24), 1)
+  var inward := -1.0 if room == "ac_lab" else 1.0
+  var leg_ray:=PhysicsRayQueryParameters3D.create(desk+Vector3(-.65,.30,inward*.72), desk+Vector3(-.65,.30,inward*.24), 1)
   var leg_hit:=space.intersect_ray(leg_ray)
   assert(not leg_hit.is_empty() and leg_hit.collider.get_meta("room","")==room, "Class table leg is not solid")
   var desk_ray:=PhysicsRayQueryParameters3D.create(desk+Vector3(-.35,1.50,0), desk+Vector3(-.35,.60,0), 4)

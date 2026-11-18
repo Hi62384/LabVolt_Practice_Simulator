@@ -10,7 +10,6 @@ const CABLE_EXERCISES := ["cable_fly","cable_reverse_fly","cable_press","lat_pul
 const STATION_EXERCISES := {"pushup":["pushup","crunch","leg_raise","pike_pushup"],"pullup":["pullup","hanging_leg_raise","dip"],"benchpress":BENCH_BARBELL_EXERCISES,"squat":["squat"],"curl":DUMBBELL_EXERCISES,"barbell":BARBELL_EXERCISES,"cable":CABLE_EXERCISES}
 const WEIGHTS := {"pushup":[0],"pullup":[0],"benchpress":[10,20,40],"squat":[10,20,40],"curl":[5,10,20],"crunch":[0],"leg_raise":[0],"pike_pushup":[0],"hanging_leg_raise":[0],"dip":[0]}
 const GymProgress = preload("res://scripts/campus/facilities/gym_progress.gd")
-const TRAP_TIMEOUT_MS := 45000
 const EMOTES := {"wave":1800,"cheer":2200,"flex":2200,"victory":2600}
 const MENU := {
  "coffee":{"venue":"tim_hortons","name":"Coffee","price":3,"servings":3,"kind":"drink","category":"Hot drinks","art":"coffee"},
@@ -43,13 +42,15 @@ var held_barbell_mass := Callable()
 var worn_belt_mass := Callable()
 var player_body_mass := Callable()
 var anchors := {}
+signal live_lift_result(peer: int, result: Dictionary)
+var live_lifts := false
+var cable_weights := {}
 var active := {}
 var seats := {}
 var last_request := {}
 var last_bite := {}
 var gym_recovery_clock := {}
 var last_assist := {}
-var spotters := {}
 var pending_sets := {}
 
 static func empty_profile() -> Dictionary:
@@ -133,7 +134,7 @@ func private_state(peer: int) -> Dictionary:
 	# the next committed action advances the saved state from the same timestamp.
 	if p.has("gym") and gym_recovery_clock.has(c.identity):
 		GymProgress.advance(p.gym,maxf(0.0,float(now()-int(gym_recovery_clock[c.identity]))/1000.0))
-	return {"profile":p,"level":1+int(p.xp)/100,"active":active.get(peer,{}).duplicate(true),"menu":menu.duplicate(true),"spotting":spotting_station(peer),"pending_workouts":pending_sets.get(str(c.identity),[]).size()}
+	return {"profile":p,"level":1+int(p.xp)/100,"active":active.get(peer,{}).duplicate(true),"menu":menu.duplicate(true),"pending_workouts":pending_sets.get(str(c.identity),[]).size()}
 
 func commit_recovery(peer: int) -> bool:
 	var c:=trusted(peer)
@@ -161,16 +162,16 @@ func commit_recovery(peer: int) -> bool:
 	gym_recovery_clock[c.identity]=t
 	return true
 
-func spotting_station(peer: int) -> String:
-	for station in spotters:
-		if int(spotters[station])==peer:return str(station)
-	return ""
-
-func clear_spot(peer: int,notify: bool=true) -> void:
-	var station:=spotting_station(peer)
-	if station.is_empty():return
-	spotters.erase(station)
-	if notify and not active.has(peer):public_event.emit(str(anchors.get(station,{}).get("room_id","gym")),peer,{"activity":"idle"})
+func set_cable_weight(peer: int, station: String, weight: int) -> Dictionary:
+	var c := trusted(peer)
+	if c.is_empty() or not bool(c.get("allowed",false)) or active.has(peer) or not reachable(c,station) or anchors[station].get("kind") != "cable":
+		return fail("Move within reach of the cable stack.")
+	if seats.has(station):
+		return fail("Wait until this cable machine is free.")
+	if weight < 5 or weight > 100 or weight % 5 != 0:
+		return fail("Select a marked weight from 5 to 100 kg.")
+	cable_weights[station] = weight
+	return {"ok":true}
 
 func fail(message: String) -> Dictionary:return {"ok":false,"error":message}
 
@@ -182,16 +183,17 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	var seq: Variant=request.get("sequence",null)
 	if not seq is int or seq<1 or seq>1000000000:return fail("Invalid sequence")
 	var t:=now()
-	if t-int(last_request.get(peer,-1000))<80:return fail("Please wait")
+	var op:=str(request.get("op",""))
+	var urgent: bool = op in ["cancel","finish","lower"] and active.get(peer,{}).get("type") == "exercise"
+	if not urgent and t-int(last_request.get(peer,-1000))<80:return fail("Please wait")
 	last_request[peer]=t
 	var p:=profile(c)
 	if p.is_empty():return fail("Profile unavailable")
 	if seq!=int(p.last_sequence)+1:return fail("Refresh facility state before retrying")
-	var op:=str(request.get("op",""))
 	var current: Dictionary=active.get(peer,{})
 	# Cancellation remains available when class restrictions change.
 	if op in ["cancel","stand","stop"]:
-		if current.get("type","")=="trapped":return fail("Work the bar free, get help, or wait for the safety reset")
+		if current.get("type","")=="trapped":return fail("Work the bar free, or ask for help")
 		var saved:=true
 		if current.get("type","")=="exercise":
 			var stopped:=p.duplicate(true)
@@ -209,6 +211,11 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	if current.get("type","")=="exercise" and (not activity_valid(c,current) or t-int(current.last_beat)>15000):
 		clear_activity(peer,"input_failure" if t-int(current.last_beat)>15000 else "interrupted")
 		return fail("Exercise interrupted; start a new set")
+	if live_lifts and op == "effort":
+		var result := _lift_effort(peer, current)
+		if not result.get("failed", false):
+			return result
+		op = "rep_fail"
 	var next:=p.duplicate(true)
 	if not next.has("gym"):next.gym=GymProgress.empty()
 	var recovery_since: int=int(gym_recovery_clock.get(c.identity,t))
@@ -219,8 +226,6 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	var event: Dictionary={}
 	var rescue_target := 0
 	var rescue_gain := 0.0
-	var spot_change := ""
-	var assisted_by := 0
 	if op=="buy":
 		if not current.is_empty():return fail("Finish the current activity first")
 		if p.orders.size()>=24 or carried_order_count(p.orders)>=6:return fail("No room for another order")
@@ -275,12 +280,6 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if anchors[station].has("seat_position"):
 			event.seat_position=anchors[station].seat_position
 			event.seat_yaw=anchors[station].seat_yaw
-	elif op=="spot":
-		if not current.is_empty() or station not in ["gym/benchpress","gym/squat"] or not reachable(c,station) or seats.has(station) or (spotters.has(station) and int(spotters[station])!=peer):return fail("Move to an available bench or squat station")
-		spot_change=station;event={"activity":"spotting","station":station}
-	elif op=="unspot":
-		if not current.is_empty() or spotting_station(peer).is_empty():return fail("You are not spotting")
-		spot_change="remove";event={"activity":"idle"}
 	elif op=="start":
 		var portable_bar: bool=station=="gym/barbell"
 		var portable: bool=station=="gym/dumbbell" or portable_bar
@@ -302,6 +301,8 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			if bench_bar and (not barbell_mass.is_valid() or float(barbell_mass.call(station))>0.0):return fail("Clear the bench rack before using your carried bar")
 		elif station_type=="cable":
 			if not weight is int or weight<5 or weight>100 or weight%5!=0:return fail("Choose a cable resistance from 5 to 100 kg")
+			if live_lifts and weight != cable_weights.get(station, 5):
+				return fail("The selector pin changed. Check the stack before starting.")
 		elif station_type in ["benchpress","squat"]:
 			weight=float(barbell_mass.call(station)) if barbell_mass.is_valid() else 0.0
 			if weight<=0:return fail("Barbell unavailable")
@@ -322,53 +323,52 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if station_type=="pushup" and anchors[station].get("mat_position") is Vector3:
 			next_active.mat_position=anchors[station].mat_position
 		next_active.half_ms=GymProgress.movement_ms(next.gym,exercise,float(weight),int(EXERCISES[exercise])/2,next_active.body_mass)
-		event={"activity":"exercise","exercise":exercise,"phase":0,"reps":0,"weight":weight,"station":station,"half_ms":next_active.half_ms}
+		if live_lifts:
+			_prepare_raise(next_active, next.gym, t)
+		event=_exercise_event(next_active)
 		if next_active.has("equipment"):event.equipment=next_active.equipment
 		if next_active.has("bench_position"):event.bench_position=next_active.bench_position
 		if next_active.has("grip_anchor"):event.grip_anchor=next_active.grip_anchor
 		if next_active.has("mat_position"):event.mat_position=next_active.mat_position
 	elif op=="lower":
 		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.phase)!=0:return fail("Wait for the next repetition")
-		next_active.phase=1;next_active.last_beat=t
+		next_active.phase=2 if live_lifts else 1
+		next_active.last_beat=t
+		if live_lifts:
+			next_active.lift_progress = 1.0
 		event=_exercise_event(next_active)
 	elif op=="beat":
 		if current.get("type","")!="exercise" or not activity_valid(c,current):return fail("Start an exercise first")
-		if int(current.phase)!=1:return fail("Lower the weight first")
+		if live_lifts:
+			if int(current.phase) != 2 or t-int(current.last_beat) < int(current.half_ms):return fail("Wait until the weight is down")
+		elif int(current.phase)!=1:return fail("Lower the weight first")
 		var gap:=t-int(current.last_beat)
 		if gap>15000:
 			clear_activity(peer,"input_failure")
 			return fail("Rhythm missed; start a new set")
 		if int(current.reps)>=500:return fail("Set complete; finish to save")
 		next_active.last_beat=t
-		next_active.phase=1-int(current.phase)
+		next_active.phase=0
 		if int(next_active.phase)==0:
 			var effort: Dictionary=GymProgress.rep(next.gym,str(current.exercise),float(current.weight),float(current.get("body_mass",70.0)))
 			if effort.failure:
 				GymProgress.record_set(next.gym,current,"failure",t)
-				if current.get("equipment","")!="dumbbell" and current.exercise in ["benchpress","incline_press","squat"] and str(current.station) in ["gym/benchpress","gym/squat"]:
-					var helper:=int(spotters.get(current.station,0))
-					var helper_context:=trusted(helper) if helper>0 and helper!=peer and not active.has(helper) else {}
-					var helper_profile:=profile(helper_context) if not helper_context.is_empty() else {}
-					var capacity:=0.0
-					if not helper_profile.is_empty() and reachable(helper_context,str(current.station)) and helper_context.position.distance_to(c.position)<=2.5 and bool(helper_context.get("allowed",false)) and bool(helper_context.get("grounded",false)):
-						capacity=GymProgress.capacity(helper_profile.get("gym",GymProgress.empty()),str(current.exercise))
-					if capacity>=float(current.weight)*.60 and helper>0:
-						assisted_by=helper
-						next_active={};event={"activity":"idle","failure":true,"spot_saved":true}
-					else:
-						next_active.type="trapped";next_active.progress=clampf(.18*capacity/maxf(float(current.weight),1.0),0.0,.18);next_active.trapped_at=t;next_active.last_wiggle=t;next_active.direction=-1
-						event=trap_event(next_active);event.failure=true
-				else:
-					next_active={}
-					event={"activity":"idle","failure":true}
+				next_active = _failed_lift(next_active, next.gym, t)
+				event = trap_event(next_active) if not next_active.is_empty() else {"activity":"idle"}
+				event.failure = true
 			else:next_active.reps+=1
 		if not next_active.is_empty() and next_active.type=="exercise":
 			next_active.half_ms=GymProgress.movement_ms(next.gym,str(current.exercise),float(current.weight),int(EXERCISES[current.exercise])/2,float(current.get("body_mass",70.0)))
+			if live_lifts:
+				_prepare_raise(next_active, next.gym, t)
 			event=_exercise_event(next_active)
 	elif op=="rep_fail":
 		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.phase)!=1:return fail("No repetition to fail")
+		if live_lifts and not _effort_failed(current, t):return fail("The lift is still in progress")
 		GymProgress.record_set(next.gym,current,"failure",t)
-		next_active={};event={"activity":"idle","failure":true}
+		next_active = _failed_lift(next_active, next.gym, t)
+		event = trap_event(next_active) if not next_active.is_empty() else {"activity":"idle"}
+		event.failure = true
 	elif op=="wiggle":
 		if current.get("type","")!="trapped" or not activity_valid(c,current):return fail("No trapped bar to move")
 		var direction: Variant=request.get("direction",0)
@@ -388,10 +388,11 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if trapped.get("type","")!="trapped" or str(trapped.room_id)!=str(c.room_id) or c.position.distance_to(trapped.position)>2.5 or not reachable(c,str(trapped.station)) or not bool(c.get("allowed",false)) or not bool(c.get("grounded",false)) or not activity_valid(trusted(target),trapped):return fail("Move closer to the trapped player")
 		if t-int(last_assist.get(peer,-1000))<1000:return fail("Take a moment before helping again")
 		var helper_capacity: float=GymProgress.capacity(next.gym,str(trapped.exercise))
-		rescue_target=target;rescue_gain=clampf(.18*helper_capacity/maxf(float(trapped.weight),1.0),.025,.18)
+		if helper_capacity <= 0:return fail("You lack the strength to help")
+		rescue_target=target;rescue_gain=clampf(.42*helper_capacity/maxf(float(trapped.weight),1.0),.01,.55)
 		event={"activity":"assist","target":target}
 	elif op=="finish":
-		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.reps)<1 or int(current.phase)!=0:return fail("Complete a repetition first")
+		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.reps)<1 or (int(current.phase)!=0 if not live_lifts else int(current.phase)!=1 or float(current.lift_progress)>0.0):return fail("Complete a repetition first")
 		var reps:=int(current.reps)
 		if t-int(current.started)<reps*120:return fail("Invalid exercise timing")
 		next.xp=mini(1000000000,int(p.xp)+reps*(5+int(current.get("weight",0))/20))
@@ -418,14 +419,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	else:
 		active[peer]=next_active
 		if next_active.has("station"):seats[next_active.station]=peer
-	if op=="start":clear_spot(peer,false)
-	if spot_change=="remove":clear_spot(peer,false)
-	elif not spot_change.is_empty():
-		clear_spot(peer,false);spotters[spot_change]=peer
 	public_event.emit(str(c.room_id),peer,event)
-	if assisted_by>0:
-		clear_spot(assisted_by,false)
-		public_event.emit(str(c.room_id),assisted_by,{"activity":"spot_assist","station":current.station,"duration_ms":1800})
 	if rescue_target!=0 and active.has(rescue_target):
 		last_assist[peer]=t
 		var trapped: Dictionary=active[rescue_target]
@@ -433,6 +427,62 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if trapped.progress>=1.0:clear_activity(rescue_target)
 		else:public_event.emit(str(trapped.room_id),rescue_target,trap_event(trapped))
 	return {"ok":true,"state":private_state(peer),"muscular_failure":bool(event.get("failure",false)),"spot_saved":bool(event.get("spot_saved",false))}
+
+func _prepare_raise(value: Dictionary, gym: Dictionary, t: int) -> void:
+	var exercise := str(value.exercise)
+	value.lift_settings = GymProgress.lift_parameters(GymProgress.capacity(gym, exercise), GymProgress.effective_load(exercise, float(value.weight), float(value.body_mass)))
+	value.phase = 1
+	value.lift_progress = 0.0
+	value.lift_at = t
+
+func _progress_at(value: Dictionary, t: int) -> float:
+	match int(value.phase):
+		0:
+			return 1.0
+		2:
+			return 1.0 - smoothstep(0.0, float(value.half_ms), float(t-int(value.last_beat)))
+		_:
+			var settings: Vector3 = value.lift_settings
+			var elapsed := maxf(0.0, float(t-int(value.lift_at)-220)/1000.0)
+			return maxf(0.0, float(value.lift_progress)-settings.y*elapsed)
+
+func _effort_failed(value: Dictionary, t: int) -> bool:
+	var settings: Vector3 = value.lift_settings
+	return (settings.z < 1.0 and float(value.lift_progress) >= settings.z) or (float(value.lift_progress) > 0.0 and _progress_at(value, t) <= 0.0)
+
+func _lift_effort(peer: int, value: Dictionary) -> Dictionary:
+	if value.get("type") != "exercise" or int(value.phase) != 1:
+		return fail("Wait until the weight is ready to raise")
+	var t := now()
+	if _effort_failed(value,t):
+		return {"failed":true}
+	var settings: Vector3 = value.lift_settings
+	value.lift_progress = minf(settings.z, _progress_at(value, t)+settings.x)
+	value.lift_at = t
+	value.last_beat = t
+	if value.lift_progress >= 1.0:
+		value.phase = 0
+	public_event.emit(str(value.room_id), peer, _exercise_event(value))
+	if _effort_failed(value,t):
+		return {"failed":true}
+	return {"ok":true, "lift":{"phase":value.phase,"lift_progress":value.lift_progress}}
+
+func _failed_lift(value: Dictionary, gym: Dictionary, t: int) -> Dictionary:
+	if value.get("equipment","") == "dumbbell" or value.exercise not in ["benchpress","incline_press","squat"] or value.station not in ["gym/benchpress","gym/squat"]:
+		return {}
+	var capacity := GymProgress.capacity(gym, str(value.exercise))
+	value.type = "trapped"
+	value.progress = 0.0
+	value.last_wiggle = t
+	value.direction = -1
+	value.trap_load_ratio = clampf(float(value.weight) / maxf(capacity, 1.0), .5, 4.0)
+	return value
+
+func trapped_damage_rate(peer: int) -> float:
+	var value: Dictionary = active.get(peer, {})
+	if value.get("type") != "trapped":
+		return 0.0
+	return 1.5 + 1.6 * float(value.get("trap_load_ratio", 1.0))
 
 func trap_event(value: Dictionary) -> Dictionary:
 	var event:={"activity":"trapped","station":value.station,"exercise":value.exercise,"weight":value.weight,"progress":value.progress}
@@ -442,6 +492,10 @@ func trap_event(value: Dictionary) -> Dictionary:
 
 func _exercise_event(value: Dictionary) -> Dictionary:
 	var event:={"activity":"exercise","exercise":value.exercise,"phase":value.phase,"reps":value.reps,"weight":value.weight,"station":value.station,"half_ms":value.get("half_ms",0)}
+	if value.has("lift_settings"):
+		var progress := _progress_at(value, now())
+		event.lift_progress = progress
+		event.phase = progress if str(value.station).begins_with("gym/cable_") else 1.0-progress
 	for key in ["equipment","bench_position","grip_anchor","mat_position"]:
 		if value.has(key):event[key]=value[key]
 	return event
@@ -485,13 +539,26 @@ func _flush_pending(identity: String) -> bool:
 	return true
 
 func tick() -> void:
-	for station in spotters.keys():
-		var peer:=int(spotters[station]);var c:=trusted(peer)
-		if c.is_empty() or active.has(peer) or not reachable(c,str(station)) or not bool(c.get("allowed",false)) or not bool(c.get("grounded",false)):clear_spot(peer)
 	for peer in active.keys():
 		var c:=trusted(int(peer))
 		var a: Dictionary=active[peer]
-		if c.is_empty() or not activity_valid(c,a) or (a.get("type","")=="emote" and now()>=int(a.until)) or (a.get("type","")=="exercise" and now()-int(a.last_beat)>15000) or (a.get("type","")=="trapped" and now()-int(a.trapped_at)>=TRAP_TIMEOUT_MS):
+		if live_lifts and a.get("type") == "exercise" and not c.is_empty() and activity_valid(c,a):
+			var t := now()
+			var op := ""
+			if int(a.phase) == 2 and t-int(a.last_beat) >= int(a.half_ms):
+				op = "beat"
+			elif int(a.phase) == 1 and _effort_failed(a, t):
+				op = "rep_fail"
+			if not op.is_empty() and t-int(last_request.get(peer,-1000)) >= 80:
+				var current_profile := profile(c)
+				if not current_profile.is_empty():
+					var result := act(int(peer), {"op":op,"sequence":int(current_profile.last_sequence)+1})
+					if result.get("ok",false):
+						live_lift_result.emit(int(peer), result)
+						continue
+			if int(a.phase) == 2 or (int(a.phase) == 1 and float(a.lift_progress) > 0.0):
+				public_event.emit(str(a.room_id), int(peer), _exercise_event(a))
+		if c.is_empty() or not activity_valid(c,a) or (a.get("type","")=="emote" and now()>=int(a.until)) or (a.get("type","")=="exercise" and now()-int(a.last_beat)>15000):
 			var outcome:="input_failure" if a.get("type","")=="exercise" and now()-int(a.last_beat)>15000 else "interrupted"
 			clear_activity(int(peer),outcome)
 

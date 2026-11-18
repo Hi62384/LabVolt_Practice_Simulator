@@ -152,6 +152,17 @@ static func rep(state: Dictionary,exercise: String,kg: float,body_kg: float=70.0
   muscle.stimulus=clampf(float(muscle.stimulus)+(.001+.012*relative*relative)*impact*(1.0-float(muscle.stimulus)),0.0,1.0)
  return {"failure":false,"capacity":available,"load":required}
 
+static func lift_parameters(available: float, required: float) -> Vector3:
+ var ratio := required / maxf(available, .001)
+ var strain := clampf(ratio, 0.0, 1.0)
+ var gain := lerpf(.18, .072, strain)
+ var decay := lerpf(.055, .21, strain)
+ var limit := 1.0
+ if ratio > 1.0:
+  gain *= .78
+  limit = clampf(1.0 / ratio, .08, .98)
+ return Vector3(gain, decay, limit)
+
 static func movement_ms(state: Dictionary,exercise: String,kg: float,base_ms: int,body_kg: float=70.0) -> int:
  var ratio:=effective_load(exercise,kg,body_kg)/maxf(capacity(state,exercise),.001)
  return int(round(base_ms*clampf(1.0+maxf(0.0,ratio-.65)*1.3,1.0,1.7)))

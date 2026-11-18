@@ -5,6 +5,7 @@ const DEFAULT_KEYS := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": 
 	"inventory": KEY_TAB, "kits": KEY_K, "read_sheet": KEY_N, "place_item": KEY_F, "inspect": KEY_I, "emotes": KEY_H, "call_teacher": KEY_T, "throw_paper": KEY_G,
 	"voice": KEY_V, "slot_1": KEY_1, "slot_2": KEY_2, "slot_3": KEY_3, "slot_4": KEY_4, "slot_5": KEY_5, "slot_6": KEY_6}
 var safe_recovery = SafeRecovery.new(Vector3(13,0.05,-18))
+var workout_camera_override := false
 var facility_movement_locked: Callable
 var cable_motion_guard: Callable
 var load_speed := 1.0
@@ -84,7 +85,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if facility_movement_locked.is_valid() and facility_movement_locked.call():
 		rotation.y=lerp_angle(rotation.y,yaw_target,1-exp(-25*delta))
-		eyes.rotation.x=lerpf(eyes.rotation.x,pitch_target,1-exp(-25*delta))
+		if not workout_camera_override:
+			eyes.rotation.x=lerpf(eyes.rotation.x,pitch_target,1-exp(-25*delta))
 		if facility_seat.has("seat_position"):
 			var seat_position: Vector3 = facility_seat.seat_position
 			eyes.position = to_local(seat_position + Vector3.UP * 1.16)

@@ -30,21 +30,27 @@ func mount(campus: Node3D) -> bool:
 	furniture.name = "PerimeterFurniture"
 	furniture.collision_mask = 0
 	stage.add_child(furniture)
-	# These bounds follow the authored meshes along the walls, outside training stations.
-	for z in [-4.0,-3.0,-2.0,2.0,3.0,4.0]:
-		_add_hit(furniture,Vector3(-9.35,1.0,z),Vector3(.78,2.0,.88))
+	for item in profile.get("objects", []):
+		if not str(item.get("name", "")).begins_with("ventilated_locker_"):
+			continue
+		var low := _point(item.min)
+		var high := _point(item.max)
+		var center := (low + high) * .5
+		_add_hit(furniture, center, high - low)
+		var locker := StaticBody3D.new()
+		locker.name = "GymProgress_" + str(item.name)
+		locker.position = Vector3(high.x + .035, center.y, center.z)
+		locker.collision_layer = 4
+		locker.collision_mask = 0
+		locker.set_meta("role", "gym_progress")
+		locker.set_meta("label", "Open Gym Progress")
+		_add_hit(locker, Vector3.ZERO, Vector3(.1, high.y - low.y, high.z - low.z))
+		stage.add_child(locker)
 	for x in [-5.6,4.8]:
 		_add_hit(furniture,Vector3(x,.44,5.1),Vector3(2.2,.88,.56))
 	_add_hit(furniture,Vector3(7.3,.83,4.78),Vector3(2.07,1.66,.72))
 	for x in [.55,1.68,2.81]:
 		_add_hit(furniture,Vector3(x,.35,5.15),Vector3(.74,.7,.74))
-	# Use an existing green changing locker for gym progress. The hit target sits
-	# just in front of its door, where the player can see and interact with it.
-	var progress_locker:=StaticBody3D.new();progress_locker.name="GymProgressLockerTarget"
-	progress_locker.position=Vector3(-8.66,1.0,-3.0);progress_locker.collision_layer=4;progress_locker.collision_mask=0
-	progress_locker.set_meta("role","gym_progress");progress_locker.set_meta("label","Gym Progress locker")
-	var locker_hit:=CollisionShape3D.new();var locker_shape:=BoxShape3D.new();locker_shape.size=Vector3(.42,1.9,.78);locker_hit.shape=locker_shape;progress_locker.add_child(locker_hit)
-	stage.add_child(progress_locker)
 	# Each medicine ball gets a real low cradle between the rack rails. The
 	# shallow base and raised side lips visibly support the balls instead of
 	# letting them appear to hover between horizontal bars.
@@ -68,3 +74,6 @@ func _add_hit(body: StaticBody3D, at: Vector3, size: Vector3) -> void:
 func _add_box(parent: Node3D, at: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
 	var visual:=MeshInstance3D.new();var mesh:=BoxMesh.new();mesh.size=size;visual.mesh=mesh;visual.material_override=material;visual.position=at
 	visual.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;parent.add_child(visual);return visual
+
+func _point(values: Array) -> Vector3:
+	return Vector3(float(values[0]), float(values[1]), float(values[2]))

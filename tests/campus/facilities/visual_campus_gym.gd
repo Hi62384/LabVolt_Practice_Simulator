@@ -47,9 +47,12 @@ func run() -> void:
 		await capture("campus-gym-%d" % index)
 	var details := {
 		"medicine-ball-storage": [Vector3(7.3, 1.27, 35.9), Vector3(7.3, .81, 37.78)],
-		"cable-weight": [Vector3(6.8, 1.65, 31.1), Vector3(7, 1.89, 29.6)],
-		"ac-lab": [Vector3(8.8, 1.67, 5.8), Vector3(8.65, .68, 8.35)],
-		"dc-lab": [Vector3(8.1, 1.67, 20), Vector3(1, .65, 16)],
+		"cable-weight": [Vector3(6.9, 1.65, 31.05), Vector3(7, 1.22, 29.6)],
+		"dumbbell-rack": [Vector3(2.65, 1.67, 31.6), Vector3(2.65, .96, 27.58)],
+		"belt-rack": [Vector3(-6.15, 1.57, 33), Vector3(-9.2, 1.1, 33)],
+		"plate-rack": [Vector3(-7.3, 1.6, 35.7), Vector3(-7.65, .94, 38.72)],
+		"ac-lab": [Vector3(2.5, 1.67, 6.9), Vector3(0, .78, 9.36)],
+		"dc-lab": [Vector3(2.3, 1.67, 16), Vector3(0, .78, 13.64)],
 		"cafeteria": [Vector3(17.3, 1.7, 19), Vector3(28, .68, 21)],
 		"hallway-junction": [Vector3(13.4, 1.65, -6.1), Vector3(9.9, 1.6, -3.8)],
 	}

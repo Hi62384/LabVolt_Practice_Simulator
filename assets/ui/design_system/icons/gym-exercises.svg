@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
+<g fill="none" stroke="#cce0e7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(0,0)"><path d="M3 19h19 M5 16l10-5 3 6v2 M15 11l2-3 M5 16l-2 2"/></g>
+  <g transform="translate(24,0)"><path d="M3 4h18 M7 4v6l5 3 5-3V4 M12 13v6l-3 3m3-3 4 3"/></g>
+  <g transform="translate(48,0)"><path d="M2 16h14m-12 0v5m10-5v5 M5 13h10l4 5v3 M10 13V6 M5 6h10"/></g>
+  <g transform="translate(72,0)"><path d="M5 6h14 M12 6l-2 7 6 2-4 6h4 M7 6v3m10-3v3"/></g>
+  <g transform="translate(96,0)"><path d="M7 6v9h7l2-7m-3 0h6m-7 7-1 6"/></g>
+  <g transform="translate(120,0)"><path d="M5 18h15 M7 15v6m11-6v6 M10 6l4 5-4 2v5 M14 11l2 5-2 5"/></g>
+  <g transform="translate(0,24)"><path d="M5 15h15 M7 13v4m11-4v4 M8 7l7 4-5 4m5-4 1 10"/></g>
+  <g transform="translate(24,24)"><path d="M9 5v15m0-12 8 1m-2-3v6m4-6v6m-4-3h4"/></g>
+  <g transform="translate(48,24)"><path d="M12 4v15 M7 8l2 3h6l2-3 M5 11h14m-12-2v4m10-4v4"/></g>
+  <g transform="translate(72,24)"><path d="M10 4l-4 6 3 2m5-8 4 6-3 2 M12 12v9 M9 4h6"/></g>
+  <g transform="translate(96,24)"><path d="M6 7l9 4 3 9m-3-9-4 9 M8 13l4-1-2-3m-5 4h6"/></g>
+  <g transform="translate(120,24)"><path d="M12 5v14m-6-9 1 7m11-7-1 7M4 17h5m6 0h5 M4 9l2-3 2 3m8 0 2-3 2 3"/></g>
+  <g transform="translate(0,48)"><path d="M3 13h11l5-4m-3-1 4 4 M5 16h9 M18 18l3-4m-1 7 1-7-5 2"/></g>
+  <g transform="translate(24,48)"><path d="M10 5l2 7-1 7h5 M7 20h12 M19 14v-6m-2 2 2-2 2 2"/></g>
+  <g transform="translate(48,48)"><path d="M12 5v16 M12 9L4 7m8 2 8-2 M4 5v4m16-4v4"/></g>
+  <g transform="translate(72,48)"><path d="M8 6l5 7 2 8 M10 10l-7 5m8-4 9-5 M2 13l3 4m15-13v4"/></g>
+  <g transform="translate(96,48)"><path d="M3 17h18m-16 0v4m14-4v4 M6 7c2 4 4 5 6 6 2-1 4-2 6-6 M4 8l4-2m8 0 4 2"/></g>
+  <g transform="translate(120,48)"><path d="M12 5v16 M10 10H7V4m7 6h3V4 M3 4h18m-16-2v4m14-4v4"/></g>
+  <g transform="translate(0,72)"><path d="M6 9l10 3v9 M5 5l8 3m-8-4-1 3m10 0-1 3"/></g>
+  <g transform="translate(24,72)"><path d="M3 19h19 M5 18l8-10 5 10 M10 12l-1-8 M5 4h9"/></g>
+  <g transform="translate(48,72)"><path d="M4 18h17 M6 17l7-9 5 9 M13 9l-2 5-4-1 M4 13h5"/></g>
+  <g transform="translate(72,72)"><path d="M4 4h16 M9 4v8m6-8v8m-6 0 3 3 6 1v4"/></g>
+  <g transform="translate(96,72)"><path d="M4 8h16m-14 0v12m12-12v12 M8 8l4 5 4-5m-4 5v6"/></g>
+  <g transform="translate(120,72)"><path d="M3 4v15m18-15v15 M3 8l8 5m10-5-8 5 M12 8v3m0 4v6"/></g>
+  <g transform="translate(0,96)"><path d="M3 4v16m18-16v16 M3 9l13 4m5-4-13 4 M12 6v4m0 6v5"/></g>
+  <g transform="translate(24,96)"><path d="M4 5v15 M4 8l12 2m-6-6v15m-2-9h8m0-2v4m2-2h4"/></g>
+  <g transform="translate(48,96)"><path d="M5 3h14v17 M12 3v7 M7 10h10m-9 0 3 5m5-5-3 5m-1 0v6"/></g>
+  <g transform="translate(72,96)"><path d="M3 5v15m0-5h19 M17 6l-2 6 3 3 M15 12l-4-2-2 4 M3 14h6"/></g>
+  <g transform="translate(96,96)"><path d="M4 3h14v18 M11 3v10m-4 0h8 M5 9l2 4m7-4 1 4 M11 14v7"/></g>
+  <g transform="translate(120,96)"><path d="M4 3h16v18 M14 3v7l-4 1-4 5 5 3h5 M10 11l1 5"/></g>
+  <g transform="translate(0,120)"><path d="M3 20h18 M4 16l4 3h4l4-6 5 7 M4 16l2-5"/></g>
+  <g transform="translate(24,120)"><path d="M2 20h20 M5 17h8l4-8m-4 8 6-4 M6 16l-2-2"/></g>
+  <g transform="translate(48,120)"><path d="M2 20h20 M3 19l9-11 4 7 3 4 M16 15l3-3"/></g>
+</g>
+</svg>

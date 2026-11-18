@@ -296,7 +296,11 @@ func _ready() -> void:
 	campus_services.facilities.controller.host.held_barbell_mass=func(peer):return gym_barbells.held_mass(peer)
 	campus_services.facilities.controller.host.worn_belt_mass=func(peer):return gym_barbells.worn_belt_mass(peer)
 	campus_services.facility_panel.barbell_mass=func(station):return gym_barbells.held_mass(multiplayer.get_unique_id()) if station=="held" else gym_barbells.mass(station)
-	campus_services.facility_panel.capture_game=func():release_mouse()
+	campus_services.facility_panel.preview_workout=interaction_presentation.preview_workout
+	campus_services.facility_panel.capture_game=func():
+		if front.in_game and not front.leaving_game:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			player.enabled = true
 	campus_services.facility_panel.cable_resistance=func(station):return campus_services.cable_resistance(str(station))
 	campus_services.facility_panel.placement_key_name=func():return OS.get_keycode_string(player.keys.place_item)
 	carry_load=preload("res://scripts/campus/facilities/carry_load_service.gd").new();carry_load.name="CarryLoad";add_child(carry_load);carry_load.game=self
@@ -739,7 +743,7 @@ func activate(from_interact_key := true) -> void:
 	if is_instance_valid(invention_world) and invention_world.interact(current_target,false):return
 	if is_instance_valid(portable_laptops) and portable_laptops.interact(current_target,false):return
 	if is_instance_valid(faculty) and faculty.interact(current_target):return
-	if is_instance_valid(gym_barbells) and gym_barbells.interact(current_target):return
+	if is_instance_valid(gym_barbells) and gym_barbells.interact(current_target, from_interact_key):return
 	if is_instance_valid(gym_weights) and gym_weights.interact(current_target):return
 	if is_instance_valid(ac_laptops) and ac_laptops.interact(current_target,false):return
 	if from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","")=="table":return
@@ -938,10 +942,14 @@ func _physics_process(delta: float) -> void:
 			hint="Click: sign attendance"
 		elif role=="gym_barbell_sleeve" and is_instance_valid(gym_barbells) and gym_barbells.trapped.has(str(current_target.get_meta("station",""))):
 			hint="%s - Help lift barbell" % key_name
+		elif role in ["gym_barbell_sleeve", "gym_barbell_plate", "gym_barbell_rack", "gym_bar_rescue"] and gym_barbells.trapped.has(str(current_target.get_meta("station",""))):
+			hint="%s - Help lift the trapped bar" % key_name
 		elif role=="gym_barbell_sleeve":
 			hint="Click: attach held plate to this sleeve" if gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Barbell sleeve · click to load plates"
 		elif role=="gym_barbell_plate":hint="Click: remove %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_barbell_rack":hint="Click: pick up barbell · right-click held bar for exercises"
+		elif role=="gym_plate_rod":hint="%s - %s" % [key_name, current_target.get_meta("label", "Return plate")]
+		elif role=="gym_cable_pin":hint="Click - " + str(current_target.get_meta("label", "Select resistance"))
 		elif role=="gym_plate_rack_item":hint="Click: pick up %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_pair":hint="Click: pick up %.1f lb dumbbell pair" % float(gym_weights.items[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_rack_slot":hint="Click: return held dumbbells here" if gym_weights.held_id(multiplayer.get_unique_id())>=0 else "Empty dumbbell rack slot"

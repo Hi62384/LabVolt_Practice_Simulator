@@ -57,6 +57,7 @@ func build(owner_game: Node) -> void:
 	elevator_service.configure(self)
 	game.campus.elevator_control_requested.connect(elevator_service.request)
 	facilities.controller.room_event.connect(game.interaction_presentation.facility_event)
+	facilities.controller.cable_selection_rejected.connect(game.ui.log_message)
 	facilities.controller.room_event.connect(func(peer: int, event: Dictionary):
 		if peer==multiplayer.get_unique_id() and event.get("activity","") in ["seat","idle"]:
 			game.player.set_facility_seat(event))
@@ -67,13 +68,16 @@ func build(owner_game: Node) -> void:
 		facility_panel.direct.clear()
 		facility_panel.direct_in_flight=false
 		facility_panel.pending=false
-		facilities.controller.host.active.clear();facilities.controller.host.seats.clear();facilities.controller.host.spotters.clear()
+		facilities.controller.host.active.clear();facilities.controller.host.seats.clear()
 		facilities.controller.host.gym_recovery_clock.clear()
 		facilities.controller.host.last_request.clear();facilities.controller.room_states.clear()
 		facility_panel.state.clear()
 		for order in facilities.table_food.values():
 			if is_instance_valid(order):order.queue_free()
 		facilities.table_food.clear()
+		if facilities.rooms.has("gym"):
+			for machine in facilities.rooms.gym.gym_cables:
+				machine.set_resistance(5)
 		for room in facilities.rooms.values():
 			for peer in room.placed_food.keys():room.sync_food(peer,{})
 		for visual in facilities.visuals.values():
@@ -84,7 +88,7 @@ func build(owner_game: Node) -> void:
 	gym_motion=preload("res://scripts/campus/presentation/decor/m105/gym_equipment_motion.gd").new()
 	gym_motion.name="GymEquipmentMotion";game.campus.add_child(gym_motion)
 	gym_motion.grip_position=func(peer: int):
-		var activity: Node=facilities.visuals.get(peer)
+		var activity: Variant=facilities.visuals.get(peer)
 		if not is_instance_valid(activity) or not activity.arms.has("ArmL") or not activity.arms.has("ArmR"):return null
 		var joints=preload("res://scripts/campus/facilities/arm_bend.gd")
 		var left: Node3D=joints.hand_for(activity.arms.ArmL.node)
@@ -253,7 +257,7 @@ func aimed_prompt() -> String:
 	if _aimed_order():return "%s - Pick up %s" % [interact_key,game.current_target.get_meta("label","order")]
 	var aimed := _aimed_facility()
 	if aimed.is_empty(): return ""
-	var action := "Sit" if aimed.kind=="seat" else "Cashier" if str(aimed.kind).begins_with("counter:") else str(aimed.kind).capitalize()
+	var action := "Open cable exercises" if aimed.kind=="cable" else ("Sit" if aimed.kind=="seat" else ("Cashier" if str(aimed.kind).begins_with("counter:") else str(aimed.kind).capitalize()))
 	return "%s - %s" % [interact_key, action]
 
 func _aimed_facility() -> Dictionary:
@@ -289,9 +293,11 @@ func route_event(event: InputEvent) -> bool:
 		var station:=str(game.current_target.get_meta("station",""))
 		var weight:=int(game.current_target.get_meta("weight",5))
 		var machine:=_cable_machine(station)
-		if is_instance_valid(machine):
-			machine.set_resistance(weight)
-			game.ui.log_message("Cable resistance set to %d kg. Choose an exercise at the machine." % weight)
+		if is_instance_valid(machine) and game.player.enabled and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			if machine.occupant != 0 or game.player.global_position.distance_to(game.current_target.global_position) > 3.5:
+				game.ui.log_message("Move closer to the stack and wait until the machine is free.")
+				return true
+			facilities.controller.select_cable_weight(station,weight)
 			return true
 	if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED and not game.school.formal_active():
 		if _route_bench_equipment(event):return true
@@ -322,7 +328,7 @@ func route_event(event: InputEvent) -> bool:
 	if is_instance_valid(social) and social.route_event(event):return true
 	if event is InputEventKey and event.pressed and not event.echo:
 		if facility_panel.visible and event.keycode==KEY_ESCAPE:
-			facility_panel.hide();return true
+			facility_panel.close_or_end_workout();return true
 		if game.player.enabled and event.physical_keycode==game.player.keys.emotes:
 			game.release_mouse();facility_panel.open_for("", "emotes");return true
 		if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED:

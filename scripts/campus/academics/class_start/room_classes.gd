@@ -392,8 +392,9 @@ func _build_sign(room: String) -> void:
 	# Lab class tables sit near the entry aisle so they are visible and reachable
 	# without colliding with the instructor, lab benches, or equipment.
 	if room in ["ac_lab", "dc_lab"]:
-		var end := room_size.z * .5 - 1.65
-		desk = Vector3(center.x + room_size.x * .5 - 1.35, floor_y, center.z + (end if room == "ac_lab" else -end))
+		# M101 racks line the south wall. M103 benches occupy the north end.
+		var wall_side := 1.0 if room == "ac_lab" else -1.0
+		desk = Vector3(center.x, floor_y, center.z + wall_side * (room_size.z * .5 - .64))
 	if room in ["ac_lab", "dc_lab"]:
 		var class_table:=StaticBody3D.new()
 		class_table.position=desk

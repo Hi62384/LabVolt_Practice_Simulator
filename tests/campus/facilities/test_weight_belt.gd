@@ -8,7 +8,7 @@ class Session:
 	var poses:={2:{"position":Vector3(-7.4,0,32)}}
 	var online:=false
 class Player:
-	var global_position:=Vector3(-8.35,0,33)
+	var global_position:=Bar.PLATE_RACK
 class School:
 	func ground_drop_position(position: Vector3,_peer: int) -> Vector3:return position
 class Controller:

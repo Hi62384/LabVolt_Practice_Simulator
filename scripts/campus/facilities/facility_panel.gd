@@ -17,20 +17,26 @@ var service_actions: Array[Button]=[]
 var last_error:=""
 var direct := {}
 var direct_in_flight := false
-var workout_step: Button
-var workout_ready_at := 0
-var workout_reached := false
 var has_order_space := Callable()
 var orders_changed := Callable()
 var dumbbell_mass := Callable()
 var barbell_mass := Callable()
 var cable_resistance := Callable()
 var capture_game := Callable()
+var preview_workout := Callable()
 var rep_control: Control
 var regular_position := Vector2(60,60)
 var regular_minimum := Vector2(300,240)
 var showing_gym_progress := false
 var close: Button
+var menu_layout := VBoxContainer.new()
+var trap_content: VBoxContainer
+var trap_meter: ProgressBar
+var trap_instruction: Label
+var workout_exit_pending := false
+var workout_identity := ""
+var workout_phase := -1
+var last_motion_ms := -1000
 
 static func exercise_name(id: String) -> String:
 	return str({"pushup":"Push-up","pike_pushup":"Pike push-up","pullup":"Pull-up","benchpress":"Bench press","curl":"Biceps curl","dip":"Dip"}.get(id,id.replace("_"," ").capitalize()))
@@ -40,15 +46,15 @@ func _ready() -> void:
 	custom_minimum_size=Vector2(300,240)
 	size=Vector2(minf(600,get_viewport_rect().size.x-32),minf(620,get_viewport_rect().size.y-32))
 	add_theme_stylebox_override("panel",HudTheme.card_style())
-	var layout := VBoxContainer.new()
-	add_child(layout)
-	close = UI.action("Close", "close", hide)
-	layout.add_child(close)
+	add_child(menu_layout)
+	get_viewport().size_changed.connect(_position_panel)
+	close = UI.action("Close", "close", close_or_end_workout)
+	menu_layout.add_child(close)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.follow_focus=true
-	layout.add_child(scroll)
+	menu_layout.add_child(scroll)
 	body.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	scroll.add_child(body)
 	body.add_theme_constant_override("separation",12)
@@ -56,6 +62,32 @@ func _ready() -> void:
 func bind(value: Node) -> void:
 	controller=value
 	controller.owner_result.connect(receive)
+	if controller.has_signal("room_event"):
+		controller.room_event.connect(func(peer: int, event: Dictionary):
+			if peer == multiplayer.get_unique_id() and event.has("lift_progress") and is_instance_valid(rep_control):
+				rep_control.show_progress(float(event.lift_progress)))
+
+func close_or_end_workout() -> void:
+	var active: Dictionary = state.get("active", {})
+	match active.get("type", ""):
+		"trapped":
+			show()
+		"exercise":
+			workout_exit_pending = true
+			if not pending and not direct_in_flight and direct.is_empty():
+				_end_workout(active)
+		_:
+			if pending:
+				workout_exit_pending = true
+			else:
+				hide()
+
+func _end_workout(active: Dictionary) -> void:
+	var resting := int(active.get("phase", 0)) == 0
+	if active.has("lift_settings"):
+		resting = int(active.phase) == 1 and float(active.lift_progress) == 0.0
+	var op := "finish" if int(active.get("reps", 0)) > 0 and resting else "cancel"
+	request_direct({"op":op})
 
 func open_for(id: String,kind: String) -> void:
 	station_id=id;station_kind=kind;visible=true
@@ -66,7 +98,10 @@ func open_for(id: String,kind: String) -> void:
 	controller.refresh()
 
 func receive(result: Dictionary) -> void:
+	var was_active: bool = state.get("active", {}).get("type") in ["exercise", "trapped"]
 	pending=false
+	if result.has("lift") and state.get("active", {}).get("type") == "exercise":
+		state.active.merge(result.lift, true)
 	if result.has("state"):
 		state=result.state
 		if orders_changed.is_valid():orders_changed.call()
@@ -84,7 +119,19 @@ func receive(result: Dictionary) -> void:
 	if not result.get("ok",false):last_error=str(result.get("error","Unavailable"))
 	elif result.get("spot_saved",false):last_error="Your spotter helped return the bar safely. Rest before another set."
 	elif result.get("muscular_failure",false):last_error="Muscular failure: your muscles could not complete that repetition. Rest before your next set."
-	if visible:redraw()
+	if was_active and state.get("active", {}).is_empty():
+		hide()
+	if workout_exit_pending:
+		var active: Dictionary = state.get("active", {})
+		workout_exit_pending = false
+		if active.get("type", "") == "exercise" and result.get("ok", false):
+			workout_exit_pending = true
+			_end_workout(active)
+			return
+		if active.is_empty():
+			hide()
+	if visible or is_instance_valid(rep_control) or is_instance_valid(trap_content):
+		redraw()
 	if not result.get("ok",false):
 		# Failed requests do not advance the sequence. Refresh to recover from reconnect/replay.
 		controller.refresh()
@@ -123,9 +170,25 @@ func button(text: String,request: Dictionary,parent: Control = null) -> Button:
 	return node
 
 func redraw() -> void:
+	var active_workout: Dictionary = state.get("active", {})
+	if active_workout.get("type") != "trapped" and is_instance_valid(trap_content):
+		remove_child(trap_content)
+		trap_content.queue_free()
+		trap_content = null
+	if active_workout.get("type", "") == "exercise":
+		_show_exercise_hud(active_workout)
+		return
+	if is_instance_valid(rep_control):
+		remove_child(rep_control)
+		rep_control.queue_free()
+		rep_control = null
+		workout_identity = ""
+	if active_workout.get("type") == "trapped":
+		_show_trap_hud(active_workout)
+		return
+	menu_layout.show()
 	service_actions.clear()
 	for child in body.get_children():body.remove_child(child);child.queue_free()
-	workout_step=null
 	var restaurant := station_kind.begins_with("counter:")
 	var gym := Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell","bench_barbell","gym_progress"]
 	var tim := station_kind=="counter:tim_hortons"
@@ -161,14 +224,12 @@ func redraw() -> void:
 		body.add_child(UI.action("Close", "close", hide))
 		return
 	var a: Dictionary=state.get("active",{})
-	if gym and a.get("type","")=="exercise":
-		_show_exercise_hud(a)
-		return
 	position=regular_position;custom_minimum_size=regular_minimum
 	var target_size := Vector2(600, 620)
 	if gym and station_kind != "gym_progress" and not showing_gym_progress:
 		target_size = Vector2(460, 330)
-	size = target_size.min(get_viewport_rect().size - position - Vector2(12,12))
+	size = target_size.min(get_viewport_rect().size - Vector2(24,24))
+	_position_panel()
 	if gym:
 		if station_kind=="gym_progress":_gym_progress(accent)
 		elif showing_gym_progress and a.is_empty():_gym_progress(accent)
@@ -182,26 +243,70 @@ func redraw() -> void:
 		var key_name := str(placement_key_name.call()) if placement_key_name.is_valid() else "F"
 		body.add_child(UI.text("Select your order in the hotbar. Right click to eat or drink, or press %s to place it on a flat surface." % key_name,"MutedLabel"))
 
+func _position_panel() -> void:
+	var viewport := get_viewport_rect().size
+	if is_instance_valid(rep_control) or is_instance_valid(trap_content):
+		position = Vector2((viewport.x-size.x)*.5, viewport.y-size.y-144)
+	elif Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell", "bench_barbell", "gym_progress"]:
+		var compact := station_kind != "gym_progress" and not showing_gym_progress
+		size = (Vector2(460,330) if compact else Vector2(600,620)).min(viewport-Vector2(24,24))
+		position = (viewport-size)*.5
+
+func _fit_workout_hud() -> void:
+	if is_instance_valid(rep_control) or is_instance_valid(trap_content):
+		size = Vector2(410,112).max(get_combined_minimum_size())
+		_position_panel()
+
 func _show_exercise_hud(active: Dictionary) -> void:
-	close.hide()
-	for child in body.get_children():body.remove_child(child);child.queue_free()
-	custom_minimum_size=Vector2(410,112);size=custom_minimum_size
-	var viewport:=get_viewport_rect().size
-	position=Vector2((viewport.x-410.0)*.5,viewport.y-142.0)
-	var control=preload("res://scripts/campus/facilities/gym_lift_control.gd").new()
-	body.add_child(control);rep_control=control
-	var gym: Dictionary=state.profile.get("gym",{"muscles":{}})
-	var capacity: float=Rules.GymProgress.capacity(gym,str(active.exercise))
-	var load: float=Rules.GymProgress.effective_load(str(active.exercise),float(active.weight),float(active.get("body_mass",70.0)))
-	control.configure(capacity,load,int(active.phase),int(active.reps))
-	control.lower_requested.connect(func():request_direct({"op":"lower"}))
-	control.rep_requested.connect(func():request_direct({"op":"beat"}))
-	control.failed.connect(func():request_direct({"op":"rep_fail"}))
-	control.finish_requested.connect(func():request_direct({"op":"finish" if int(active.reps)>0 else "cancel"}))
+	menu_layout.hide()
+	custom_minimum_size=Vector2(410,112)
+	size=custom_minimum_size
+	var identity := "%s/%s" % [active.station, active.get("started", 0)]
+	var phase := int(active.phase)
+	if is_instance_valid(rep_control) and workout_identity != identity:
+		remove_child(rep_control)
+		rep_control.queue_free()
+		rep_control = null
+	if not is_instance_valid(rep_control):
+		rep_control = preload("res://scripts/campus/facilities/gym_lift_control.gd").new()
+		add_child(rep_control)
+		rep_control.lower_requested.connect(func():request_direct({"op":"lower"}))
+		rep_control.effort_requested.connect(func():request_direct({"op":"effort"}))
+		rep_control.rep_requested.connect(func():request_direct({"op":"beat"}))
+		rep_control.failed.connect(func():request_direct({"op":"rep_fail"}))
+		rep_control.finish_requested.connect(close_or_end_workout)
+		rep_control.motion_changed.connect(func(progress: float):
+			if preview_workout.is_valid():preview_workout.call(progress)
+			var current: Dictionary = state.get("active", {})
+			if current.get("type") == "exercise" and Time.get_ticks_msec()-last_motion_ms >= 120:
+				last_motion_ms = Time.get_ticks_msec()
+				controller.preview_motion(progress, int(current.phase), int(current.reps), int(current.started)))
+	if workout_identity != identity or workout_phase != phase or rep_control.reps != int(active.reps):
+		var gym: Dictionary=state.profile.get("gym",{"muscles":{}})
+		var capacity: float=Rules.GymProgress.capacity(gym,str(active.exercise))
+		var load: float=Rules.GymProgress.effective_load(str(active.exercise),float(active.weight),float(active.get("body_mass",70.0)))
+		rep_control.configure(capacity,load,phase,int(active.reps),float(active.get("lift_progress",-1.0)))
+		workout_identity = identity
+		workout_phase = phase
+	_fit_workout_hud.call_deferred()
 	if capture_game.is_valid():capture_game.call()
 
 func handle_workout_input(event: InputEvent) -> bool:
-	return is_instance_valid(rep_control) and visible and rep_control.has_method("handle_input") and bool(rep_control.call("handle_input",event))
+	if not visible:
+		return false
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and state.get("active", {}).get("type") in ["exercise", "trapped"]:
+		close_or_end_workout()
+		return true
+	var active: Dictionary = state.get("active", {})
+	if active.get("type") == "trapped" and event is InputEventKey and event.pressed and event.keycode in [KEY_A, KEY_D]:
+		if not event.echo:
+			request_direct({"op":"wiggle", "direction": -1 if event.keycode == KEY_A else 1})
+		return true
+	if is_instance_valid(rep_control):
+		if direct_in_flight or workout_exit_pending:
+			return (event is InputEventKey and event.keycode in [KEY_E, KEY_X]) or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT)
+		return bool(rep_control.handle_input(event))
+	return false
 
 func _food_menu(venue: String, accent: Color, surface: Color) -> void:
 	var categories: Array[String]=[]
@@ -240,67 +345,27 @@ func _food_menu(venue: String, accent: Color, surface: Color) -> void:
 			order.add_theme_stylebox_override("normal",Tokens.surface(accent.darkened(.28),accent,8))
 			order.add_theme_stylebox_override("hover",Tokens.surface(accent.darkened(.10),accent,8))
 
-func _workout(active: Dictionary, accent: Color) -> void:
-	var metrics := VBoxContainer.new()
+func _show_trap_hud(active: Dictionary) -> void:
+	menu_layout.hide()
+	custom_minimum_size = Vector2(410,112)
+	size = custom_minimum_size
+	if not is_instance_valid(trap_content):
+		trap_content = VBoxContainer.new()
+		add_child(trap_content)
+		trap_content.add_child(UI.text("Pinned under the bar", "TitleLabel"))
+		trap_meter = ProgressBar.new()
+		trap_meter.accessibility_name = "Escape progress"
+		trap_content.add_child(trap_meter)
+		trap_instruction = UI.text("", "MutedLabel")
+		trap_content.add_child(trap_instruction)
+		trap_content.add_child(UI.text("A nearby player can lift the bar with E.", "MutedLabel"))
+	trap_meter.value = float(active.progress)*100.0
+	trap_instruction.text = "Press A to shift left" if int(active.direction)<0 else "Press D to shift right"
+	_fit_workout_hud.call_deferred()
+	if capture_game.is_valid():capture_game.call()
+
+func _workout(active: Dictionary, _accent: Color) -> void:
 	if active.is_empty():
-		body.add_child(metrics)
-	else:
-		var summary := PanelContainer.new()
-		summary.add_theme_stylebox_override("panel", Tokens.surface(Color("26373a"), accent, 12))
-		body.add_child(summary)
-		summary.add_child(metrics)
-	var gym_state: Dictionary=state.profile.get("gym",{"muscles":{}})
-	if active.get("type","")=="trapped":
-		metrics.add_child(UI.text("BAR TRAPPED  ·  %.0f%% FREE" % (100.0*float(active.progress)),"TitleLabel"))
-		var direction:=int(active.direction)
-		metrics.add_child(UI.text("Move left to shift the bar." if direction<0 else "Move right to shift the bar.","MutedLabel"))
-		metrics.add_child(UI.text("A nearby player can help. The safety reset releases the bar after 45 seconds.","MutedLabel"))
-		var movement:=HSlider.new();movement.min_value=0.0;movement.max_value=1.0;movement.step=.01
-		movement.value=1.0 if direction<0 else 0.0;movement.custom_minimum_size.y=38
-		movement.accessibility_name="Shift the trapped bar left or right";body.add_child(movement)
-		workout_reached=false
-		movement.value_changed.connect(func(value: float):workout_reached=value<=.02 if direction<0 else value>=.98)
-		workout_step=button("Shift left" if direction<0 else "Shift right",{"op":"wiggle","direction":direction})
-		workout_ready_at=Time.get_ticks_msec()+650;workout_step.disabled=true
-	elif active.get("type","")=="exercise":
-		metrics.add_child(UI.text(exercise_name(str(active.exercise)),"TitleLabel"))
-		metrics.add_child(UI.text("%02d REPS   /   %s" % [active.reps, "%.1f kg" % float(active.weight) if int(active.weight)>0 else "Bodyweight"],"TitleLabel"))
-		var progress: Dictionary=state.profile.get("gym",{"muscles":{}})
-		var capacity: float=Rules.GymProgress.capacity(progress,str(active.exercise))
-		var required: float=Rules.GymProgress.effective_load(str(active.exercise),float(active.weight),float(active.get("body_mass",70.0)))
-		metrics.add_child(UI.text("Effort %.0f%% · estimated capacity %.1f kg" % [100.0*required/maxf(capacity,.01),capacity],"MutedLabel"))
-		var trained: Dictionary=Rules.GymProgress.exercise_data()[str(active.exercise)].muscles
-		var fatigue_labels:=PackedStringArray()
-		for muscle_name in trained:
-			var muscle: Dictionary=progress.get("muscles",{}).get(muscle_name,{})
-			fatigue_labels.append("%s %.0f%%" % [str(muscle_name).replace("_"," ").capitalize(),100.0*float(muscle.get("fatigue",0.0))])
-		metrics.add_child(UI.text("FATIGUE  ·  "+"  /  ".join(fatigue_labels),"MutedLabel"))
-		var lowering: bool=int(active.phase)==0
-		metrics.add_child(UI.text("Adjust effort and hold to move. The target changes through the lift.", "MutedLabel"))
-		var movement=preload("res://scripts/campus/facilities/gym_lift_control.gd").new()
-		body.add_child(movement)
-		movement.configure(capacity,required,int(active.phase),int(active.reps))
-		workout_reached=false
-		movement.completed.connect(func():workout_reached=true)
-		movement.failure_ready.connect(func():workout_reached=true)
-		movement.motion_changed.connect(func(value: float):
-			if is_instance_valid(controller) and controller.has_method("preview_motion"):controller.preview_motion(value,int(active.phase),int(active.reps),int(active.get("started",0))))
-		var actions:=HBoxContainer.new();body.add_child(actions)
-		workout_step=button("Complete lower" if lowering else "Attempt lift" if required>capacity else "Complete raise",{"op":"beat"},actions)
-		workout_step.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		workout_ready_at=Time.get_ticks_msec()+int(active.get("half_ms",int(Rules.EXERCISES[active.exercise])/2))-100
-		workout_step.disabled=true
-		button("Finish set",{"op":"finish"},actions).disabled=pending or int(active.reps)<1
-		button("Cancel",{"op":"cancel"},actions)
-	elif active.is_empty():
-		var spotting:=str(state.get("spotting",""))
-		if not spotting.is_empty():
-			metrics.add_child(UI.text("SPOTTING · %s" % spotting.get_file().capitalize(),"TitleLabel"))
-			body.add_child(UI.text("Stay close and ready to assist the lifter.","MutedLabel"))
-			button("Stop spotting",{"op":"unspot"})
-			return
-		if station_kind in ["benchpress","squat"]:
-			button("Spot the next lift",{"op":"spot","station":station_id})
 		_exercise_choices()
 	else:
 		button("Stand / stop",{"op":"stop"})
@@ -385,13 +450,25 @@ func _progress_meter(parent: Container, title: String, amount: float, color: Col
 	meter.add_theme_stylebox_override("fill", Tokens.surface(color, color, 3))
 	column.add_child(meter)
 
-func _exercise_icon(category: String) -> Texture2D:
-	match category:
-		"CHEST": return preload("res://assets/ui/design_system/icons/gym-press.svg")
-		"BACK": return preload("res://assets/ui/design_system/icons/gym-pull.svg")
-		"SHOULDERS": return preload("res://assets/ui/design_system/icons/gym-raise.svg")
-		"ARMS": return preload("res://assets/ui/design_system/icons/gym-curl.svg")
-		_: return UI.icon("play")
+const EXERCISE_ICON_ATLAS = preload("res://assets/ui/design_system/icons/gym-exercises.svg")
+const EXERCISE_ICON_ORDER := [
+	"pushup", "pullup", "benchpress", "squat", "curl", "deadlift",
+	"romanian_deadlift", "front_raise", "upright_row", "overhead_extension", "bent_over_row", "shrug",
+	"wrist_curl", "calf_raise", "lateral_raise", "reverse_fly", "chest_fly", "overhead_press",
+	"good_morning", "incline_press", "chest_supported_row", "hanging_leg_raise", "dip", "cable_fly",
+	"cable_reverse_fly", "cable_press", "lat_pulldown", "cable_row", "tricep_pushdown", "cable_crunch",
+	"crunch", "leg_raise", "pike_pushup",
+]
+
+func _exercise_icon(exercise: String) -> Texture2D:
+	var index := EXERCISE_ICON_ORDER.find(exercise)
+	if index < 0:
+		return null
+	var icon := AtlasTexture.new()
+	icon.atlas = EXERCISE_ICON_ATLAS
+	icon.region = Rect2((index%6)*24, (index/6)*24, 24, 24)
+	icon.filter_clip = true
+	return icon
 
 func _exercise_choices() -> void:
 	var exercises: Array = Rules.STATION_EXERCISES.get(station_kind, [])
@@ -421,7 +498,7 @@ func _exercise_choices() -> void:
 				select.add_separator(category)
 				heading_added = true
 			var index := select.item_count
-			select.add_icon_item(_exercise_icon(category), exercise_name(exercise))
+			select.add_icon_item(_exercise_icon(exercise), exercise_name(exercise))
 			select.set_item_metadata(index, exercise)
 			if first < 0:
 				first = index
@@ -463,7 +540,3 @@ func _exercise_choices() -> void:
 		update.call(first)
 	else:
 		start.disabled = true
-
-func _process(_delta: float) -> void:
-	if visible and is_instance_valid(workout_step) and not pending:
-		workout_step.disabled=not workout_reached or Time.get_ticks_msec()<workout_ready_at

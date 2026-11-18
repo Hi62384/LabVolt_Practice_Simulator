@@ -41,7 +41,7 @@ func run() -> void:
 	machine.on_room_event(1,{"activity":"exercise","station":"gym/cable_0","exercise":"lat_pulldown","phase":1,"weight":25})
 	for i in 50:machine._process(.02)
 	check(machine.selected==5 and machine.phase>.9,"stack failed to select and rise")
-	check(machine.weight_display.text.ends_with("25 kg"), "machine display disagrees with selected resistance")
+	check(machine.selected_resistance() == 25, "selected resistance disagrees with the pin")
 	check(is_equal_approx(machine.selection_pin.position.y, machine.weights[-5].position.y), "pin is detached from the bottom plate of the selected stack")
 	check(machine.pin_targets[-5].get_meta("weight") == 25, "pin target disagrees with the selected stack plate")
 	var top: Vector3=machine.cable.position-machine.cable.basis.y*.5

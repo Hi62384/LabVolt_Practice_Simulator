@@ -19,43 +19,37 @@ func run() -> void:
 	host.barbell_mass=func(_station):return load_kg
 	host.anchors["gym/benchpress"]={"kind":"benchpress","position":Vector3.ZERO,"room_id":"gym"}
 	host.public_event.connect(func(_room,peer,event):events.append({"peer":peer,"event":event.duplicate(true)}))
-	var result=host.act(2,{"op":"spot","station":"gym/benchpress","sequence":1})
-	check(result.ok and host.spotting_station(2)=="gym/benchpress","spotter could not prepare")
-	now+=100
-	result=host.act(3,{"op":"spot","station":"gym/benchpress","sequence":1})
-	check(not result.ok,"second spotter claimed occupied station")
-	positions[2]=Vector3(4,0,0);host.tick()
-	check(host.spotting_station(2).is_empty(),"spotter stayed active after moving away")
-	positions[2]=Vector3.ZERO;now+=100
-	result=host.act(2,{"op":"spot","station":"gym/benchpress","sequence":2})
-	check(result.ok,"spotter could not return")
-	now+=100
-	result=host.act(1,{"op":"start","station":"gym/benchpress","exercise":"benchpress","sequence":1})
+	var result = host.act(2,{"op":"spot","station":"gym/benchpress","sequence":1})
+	check(not result.ok,"obsolete proactive spotting was accepted")
+	now += 100
+	result = host.act(2,{"op":"assist","target":1,"sequence":1})
+	check(not result.ok,"an idle player could be rescued")
+	now += 100
+	result = host.act(1,{"op":"start","station":"gym/benchpress","exercise":"benchpress","sequence":1})
 	check(result.ok,"bench set did not start")
 	if result.ok:
-		for i in 2:
-			now+=int(host.active[1].half_ms)
-			result=host.act(1,{"op":"beat","sequence":int(profiles["1"].last_sequence)+1})
-		check(result.ok and result.get("spot_saved",false) and not host.active.has(1),"prepared spotter failed to control manageable load")
-		check(host.spotting_station(2).is_empty(),"spotter reservation not released")
-		check(events.any(func(e):return e.peer==2 and e.event.get("activity","")=="spot_assist"),"spotter assistance was not broadcast")
-	load_kg=200.0;now+=100
-	result=host.act(2,{"op":"spot","station":"gym/benchpress","sequence":int(profiles["2"].last_sequence)+1})
-	check(result.ok,"spotter could not prepare again")
-	now+=100
-	result=host.act(1,{"op":"start","station":"gym/benchpress","exercise":"incline_press","sequence":int(profiles["1"].last_sequence)+1})
-	if result.ok:
-		for i in 2:
-			now+=int(host.active[1].half_ms)
-			result=host.act(1,{"op":"beat","sequence":int(profiles["1"].last_sequence)+1})
-		check(host.active.get(1,{}).get("type","")=="trapped" and float(host.active[1].progress)>0.0,"weak spotter did not partially assist heavy load")
-	else:check(false,"heavy bench set did not start")
-	var panel=preload("res://scripts/campus/facilities/facility_panel.gd").new();root.add_child(panel)
-	panel.station_kind="benchpress";panel.station_id="gym/benchpress";panel.state={"level":1,"profile":profiles["2"],"active":{},"spotting":"gym/benchpress"};panel.redraw()
-	check(panel.find_children("*","Button",true,false).any(func(node):return node.text=="Stop spotting"),"stop spotting control missing")
-	panel.free()
+		now += 200
+		result = host.act(1,{"op":"lower","sequence":2})
+		check(result.ok,"lowering failed")
+		now += 200
+		result = host.act(1,{"op":"rep_fail","sequence":3})
+		check(result.ok and host.active.get(1,{}).get("type")=="trapped","failed bench lift did not trap")
+		positions[2]=Vector3(8,0,0)
+		now += 200
+		result = host.act(2,{"op":"assist","target":1,"sequence":1})
+		check(not result.ok,"an out-of-range rescuer was accepted")
+		positions[2]=Vector3.ZERO
+		for attempt in 10:
+			if not host.active.has(1):
+				break
+			now += 1050
+			result = host.act(2,{"op":"assist","target":1,"sequence":int(profiles["2"].last_sequence)+1})
+			check(result.ok, "nearby rescue rejected")
+		check(not host.movement_locked(1) and not host.seats.has("gym/benchpress"),"rescue left the lifter locked")
+		check(events.any(func(e):return e.peer==2 and e.event.get("activity")=="assist"),"rescue event was not broadcast")
+
 	for failure in failures:push_error(failure)
-	print("PROACTIVE_SPOTTING ","PASS" if failures.is_empty() else "FAIL")
+	print("REACTIVE_RESCUE ","PASS" if failures.is_empty() else "FAIL")
 	host.public_event.disconnect(host.public_event.get_connections()[0].callable)
 	host.authority=Callable();host.clock=Callable();host.context=Callable();host.load_profile=Callable();host.commit_profile=Callable();host.barbell_mass=Callable()
 	quit(0 if failures.is_empty() else 1)

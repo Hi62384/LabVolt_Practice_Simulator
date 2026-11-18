@@ -14,6 +14,7 @@ var game: Node
 var plates: Array = []
 var bars := {}
 var bar_colliders := {}
+var rescue_targets := {}
 var belts: Array = []
 var selected_station := ""
 var panel: PanelContainer
@@ -54,7 +55,16 @@ func build(owner: Node) -> void:
 		bar_target.set_meta("role","gym_barbell_rack");bar_target.set_meta("station",station);bar_target.set_meta("label","Pick up barbell")
 		var bar_hit:=CollisionShape3D.new();var bar_shape:=BoxShape3D.new();bar_shape.size=Vector3(1.4,.22,.32);bar_hit.shape=bar_shape;add_child(bar_target);bar_target.add_child(bar_hit)
 		var solid_bar:=StaticBody3D.new();solid_bar.name="%sBarCollision" % station.get_file();solid_bar.position=POSITIONS[station];solid_bar.collision_layer=0;solid_bar.collision_mask=0;add_child(solid_bar)
-		var solid_shape:=BoxShape3D.new();solid_shape.size=Vector3(2.7,.12,.10);var solid_hit:=CollisionShape3D.new();solid_hit.shape=solid_shape;solid_bar.add_child(solid_hit);bar_colliders[station]=solid_bar
+		var solid_shape:=BoxShape3D.new();solid_shape.size=Vector3(GymLayout.BAR_LENGTH,.12,.10);var solid_hit:=CollisionShape3D.new();solid_hit.shape=solid_shape;solid_bar.add_child(solid_hit);bar_colliders[station]=solid_bar
+		var rescue := StaticBody3D.new()
+		rescue.name = "Rescue_" + station.get_file()
+		rescue.collision_layer = 0
+		rescue.collision_mask = 0
+		rescue.set_meta("role","gym_bar_rescue")
+		rescue.set_meta("station",station)
+		add_child(rescue)
+		_add_rack_collision(rescue,Vector3.ZERO,Vector3(1.5,.16,.16))
+		rescue_targets[station] = rescue
 		# Give both sleeves their own world-space click target. The bar runs along
 		# local X, so the opposite ends are equally usable.
 		for side in [-1,1]:
@@ -90,15 +100,69 @@ func _reset_plates() -> void:
 		for _n in COUNTS[index]:plates.append({"lb":SIZES[index],"station":"","side":0,"order":0,"where":"rack","owner":0,"position":Vector3.ZERO})
 	serial=0
 
+const PLATE_GAP := .104
+const SLEEVE_STEP := .092
+const PEG_START := .12
+
+func _peg_base(slot: int) -> Vector3:
+	return Vector3(0,.36+float(int(slot/2))*.59,-.42 if slot%2==0 else .42)
+
+func _rack_position(local: Vector3) -> Vector3:
+	return PLATE_RACK + local.rotated(Vector3.UP, PI/2)
+
 func _build_rack() -> void:
-	var rack:=StaticBody3D.new();rack.position=PLATE_RACK;rack.collision_layer=5;rack.set_meta("role","gym_plate_rack");rack.set_meta("label","Weight plate rack");add_child(rack)
-	var frame:=MeshInstance3D.new();var frame_mesh:=BoxMesh.new();frame_mesh.size=Vector3(.16,1.65,.22);frame.mesh=frame_mesh;frame.position.y=.83;rack.add_child(frame)
-	var collision:=CollisionShape3D.new();var shape:=BoxShape3D.new();shape.size=Vector3(.38,1.65,1.55);collision.shape=shape;collision.position.y=.83;rack.add_child(collision)
-	var metal:=StandardMaterial3D.new();metal.albedo_color=Color("465963");metal.metallic=.6;metal.roughness=.4;frame.material_override=metal
-	for i in SIZES.size():
-		var level:=int(i/2);var side:=-1.0 if i%2==0 else 1.0
-		var length:=maxf(.48,float(COUNTS[i])*.055+.12)
-		var peg:=MeshInstance3D.new();var shaft:=CylinderMesh.new();shaft.height=length;shaft.top_radius=.035;shaft.bottom_radius=.035;peg.mesh=shaft;peg.rotation.z=PI/2;peg.position=Vector3(length*.5,.36+level*.53,side*.45);peg.material_override=metal;rack.add_child(peg)
+	var rack := StaticBody3D.new()
+	rack.name = "PlateRack"
+	rack.position = PLATE_RACK
+	rack.rotation.y = PI/2
+	rack.collision_layer = 1
+	add_child(rack)
+	var metal := StandardMaterial3D.new()
+	metal.albedo_color = Color("465963")
+	metal.metallic = .6
+	metal.roughness = .4
+	for z in [-.42,.42]:
+		_belt_rack_part(rack, Vector3(.40,.045,z), Vector3(.98,.09,.19), metal)
+		_belt_rack_part(rack, Vector3(-.02,.84,z), Vector3(.14,1.68,.14), metal)
+		_add_rack_collision(rack, Vector3(.40,.045,z), Vector3(.98,.09,.19))
+		_add_rack_collision(rack, Vector3(-.02,.84,z), Vector3(.14,1.68,.14))
+	for y in [.18,.87,1.55]:
+		_belt_rack_part(rack, Vector3(-.025,y,0), Vector3(.12,.075,.86), metal)
+	for slot in SIZES.size():
+		var origin := _peg_base(slot)
+		var length := PEG_START + float(COUNTS[slot])*PLATE_GAP + .06
+		_peg_mesh(rack, origin+Vector3(length*.5,0,0), length, .035, metal)
+		_peg_mesh(rack, origin+Vector3(.055,0,0), .09, .065, metal)
+		_peg_mesh(rack, origin+Vector3(length,0,0), .025, .048, metal)
+		var target := StaticBody3D.new()
+		target.position = origin + Vector3(length+.035,0,0)
+		target.collision_layer = 4
+		target.collision_mask = 0
+		target.set_meta("role", "gym_plate_rod")
+		target.set_meta("slot", slot)
+		target.set_meta("label", "Return %.1f lb plate" % SIZES[slot])
+		rack.add_child(target)
+		_add_rack_collision(target,Vector3.ZERO,Vector3(.10,.14,.14))
+
+func _peg_mesh(parent: Node3D, at: Vector3, length: float, radius: float, material: Material) -> void:
+	var peg := MeshInstance3D.new()
+	var shaft := CylinderMesh.new()
+	shaft.height = length
+	shaft.top_radius = radius
+	shaft.bottom_radius = radius
+	shaft.radial_segments = 12
+	peg.mesh = shaft
+	peg.rotation.z = PI/2
+	peg.position = at
+	peg.material_override = material
+	parent.add_child(peg)
+
+func _rack_count(slot: int) -> int:
+	var count := 0
+	for plate in plates:
+		if plate.where == "rack" and float(plate.lb) == SIZES[slot]:
+			count += 1
+	return count
 
 func _build_barbell_racks() -> void:
 	var steel:=StandardMaterial3D.new();steel.albedo_color=Color("33404a");steel.metallic=.55;steel.roughness=.48
@@ -177,9 +241,13 @@ func belt_mass(id: int) -> float:
 func worn_belt_mass(peer: int) -> float:
 	return belt_mass(worn_belt(peer))
 
-func interact(target: Node) -> bool:
-	if not is_instance_valid(target) or target.get_meta("role","") not in ["gym_barbell_sleeve","gym_barbell_rack","gym_barbell_floor","gym_plate_rack","gym_plate_rack_item","gym_plate_floor","gym_weight_belt","gym_belt_plate"]:return false
+func interact(target: Node, allow_assist := true) -> bool:
+	if not is_instance_valid(target) or target.get_meta("role","") not in ["gym_barbell_sleeve","gym_barbell_rack","gym_bar_rescue","gym_barbell_floor","gym_plate_rack","gym_plate_rod","gym_plate_rack_item","gym_plate_floor","gym_weight_belt","gym_belt_plate"]:return false
 	selected_station=str(target.get_meta("station",""))
+	if trapped.has(selected_station) and int(trapped[selected_station])!=multiplayer.get_unique_id():
+		if not allow_assist: return true
+		game.campus_services.facility_panel.request_direct({"op":"assist","target":int(trapped[selected_station])})
+		return true
 	if target.get_meta("role","")=="gym_barbell_rack":
 		var current_bar:=held_bar(multiplayer.get_unique_id())
 		if current_bar==selected_station:
@@ -204,9 +272,16 @@ func interact(target: Node) -> bool:
 		if not game.hotbar.slots.any(func(slot):return slot.is_empty()):game.ui.log_message("Free a hotbar slot before removing a belt plate.")
 		elif game.hotbar.stow():request_plate("belt_detach",-1,station)
 		return true
-	if target.get_meta("role","")=="gym_plate_rack":
-		var held:=held_plate(multiplayer.get_unique_id())
-		if held>=0:request_plate("return",held)
+	if target.get_meta("role","")=="gym_plate_rod":
+		var held := held_plate(multiplayer.get_unique_id())
+		var slot := int(target.get_meta("slot",-1))
+		if held >= 0:
+			if float(plates[held].lb) != SIZES[slot]:
+				game.ui.log_message("Use the rod marked %.1f lb for this plate." % float(plates[held].lb))
+			elif _rack_count(slot) >= COUNTS[slot]:
+				game.ui.log_message("This plate rod is full.")
+			else:
+				request_plate("return",held,"rod",slot)
 		return true
 	if target.get_meta("role","")=="gym_plate_rack_item":
 		if not game.hotbar.slots.any(func(slot):return slot.is_empty()):game.ui.log_message("Free a hotbar slot first.");return true
@@ -219,9 +294,6 @@ func interact(target: Node) -> bool:
 	if target.get_meta("role","")=="gym_barbell_floor":
 		if not game.hotbar.slots.any(func(slot):return slot.is_empty()):game.ui.log_message("Free a hotbar slot first.");return true
 		if game.hotbar.stow():request("pickup_bar",selected_station,0.0,0)
-		return true
-	if trapped.has(selected_station) and int(trapped[selected_station])!=multiplayer.get_unique_id():
-		game.campus_services.facility_panel.request_direct({"op":"assist","target":int(trapped[selected_station])})
 		return true
 	return false
 
@@ -421,7 +493,10 @@ func _accept_plate(peer: int,op: String,id: int,station: String,side: int,point:
 		if int(plate.owner)!=peer or plate.where!="stowed" or held_plate(peer)>=0:return
 		plate.where="held"
 	elif op=="return":
-		if int(plate.owner)!=peer or plate.where!="held" or position.distance_to(PLATE_RACK)>3.0:return
+		var slot := SIZES.find(float(plate.lb))
+		if slot < 0 or (station == "rod" and side != slot) or _rack_count(slot) >= COUNTS[slot]:return
+		var end := _rack_position(_peg_base(slot) + Vector3(PEG_START + COUNTS[slot]*PLATE_GAP,0,0))
+		if int(plate.owner)!=peer or plate.where!="held" or position.distance_to(end)>3.0:return
 		plate.where="rack";plate.owner=0
 	elif op=="drop":
 		if int(plate.owner)!=peer or plate.where!="held":return
@@ -523,11 +598,13 @@ func _render() -> void:
 		if plates[id].where!="rack":continue
 		var lb:=float(plates[id].lb);var slot:=SIZES.find(lb)
 		var ordinal:=int(rack_order.get(lb,0));rack_order[lb]=ordinal+1
-		var level:=int(slot/2);var depth:=-1.0 if slot%2==0 else 1.0
-		var target:=StaticBody3D.new();target.position=PLATE_RACK+Vector3(.12+float(ordinal)*.055,.36+float(level)*.53,depth*.45)
+		var target:=StaticBody3D.new();target.position=_rack_position(_peg_base(slot)+Vector3(PEG_START+.05+float(ordinal)*PLATE_GAP,0,0))
+		target.rotation.y = PI/2
 		target.collision_layer=4;target.collision_mask=0;target.set_meta("role","gym_plate_rack_item");target.set_meta("id",id);target.set_meta("label","Pick up %.1f lb plate" % lb);add_child(target)
-		var disk:=_plate_model(lb);disk.rotation.z=PI/2;target.add_child(disk)
-		var hit:=CollisionShape3D.new();var shape:=CylinderShape3D.new();shape.radius=lerpf(.10,.30,sqrt(clampf(lb,0.0,45.0)/45.0));shape.height=.14;hit.shape=shape;hit.rotation.z=PI/2;target.add_child(hit)
+		var disk:=_plate_model(lb)
+		disk.basis=Basis(Vector3.BACK, PI/2)*Basis(Vector3.UP, PI/2)
+		target.add_child(disk)
+		var hit:=CollisionShape3D.new();var shape:=CylinderShape3D.new();shape.radius=lerpf(.10,.30,sqrt(clampf(lb,0.0,45.0)/45.0));shape.height=.086;hit.shape=shape;hit.rotation.z=PI/2;target.add_child(hit)
 		rack_models[id]=target
 	for node in models.values():
 		if is_instance_valid(node):node.queue_free()
@@ -552,7 +629,7 @@ func _render() -> void:
 		if bars[station].where=="floor":
 			var target:=StaticBody3D.new();target.position=bars[station].position;target.collision_layer=4;target.collision_mask=0
 			target.set_meta("role","gym_barbell_floor");target.set_meta("station",station);target.set_meta("label","Barbell")
-			add_child(target);var hit:=CollisionShape3D.new();var shape:=BoxShape3D.new();shape.size=Vector3(2.7,.4,.5);hit.shape=shape;hit.position.y=.2;target.add_child(hit)
+			add_child(target);var hit:=CollisionShape3D.new();var shape:=BoxShape3D.new();shape.size=Vector3(GymLayout.BAR_LENGTH,.4,.5);hit.shape=shape;hit.position.y=.2;target.add_child(hit)
 			var bar_model:=_bar_model(station);bar_model.position.y=.25;target.add_child(bar_model);floor_models[station]=target
 	var counts:={}
 	var attached: Array=[]
@@ -565,7 +642,7 @@ func _render() -> void:
 		var key: String=plate.station+str(plate.side)
 		var ordinal:=int(counts.get(key,0));counts[key]=ordinal+1
 		var target:=StaticBody3D.new();target.name="LoadedPlate_%d" % id
-		target.position.x=float(plate.side)*(1.0+ordinal*.08)
+		target.position.x=float(plate.side)*(1.0+ordinal*SLEEVE_STEP)
 		target.collision_layer=4;target.collision_mask=0
 		target.set_meta("role","gym_barbell_plate");target.set_meta("id",id)
 		target.set_meta("station",plate.station);target.set_meta("side",plate.side)
@@ -580,7 +657,7 @@ func _render() -> void:
 func _plate_model(lb: float) -> MeshInstance3D:
 	if not plate_meshes.has(lb):plate_meshes[lb]=_plate_mesh(lb)
 	if plate_material==null:
-		plate_material=StandardMaterial3D.new();plate_material.albedo_color=Color("252d32");plate_material.roughness=.86
+		plate_material=StandardMaterial3D.new();plate_material.albedo_color=Color("424b50");plate_material.roughness=.86
 		plate_material.metallic=.04
 	if plate_accent_material==null:
 		plate_accent_material=StandardMaterial3D.new();plate_accent_material.albedo_color=Color("75848a");plate_accent_material.metallic=.42;plate_accent_material.roughness=.48
@@ -595,7 +672,7 @@ func _plate_model(lb: float) -> MeshInstance3D:
 		hub.mesh=hub_mesh;hub.material_override=plate_accent_material;hub.position.y=face*.040;visual.add_child(hub)
 		# TextMesh is deliberately recessed below the face and uses a dark groove
 		# material. It is part of the plate model, never a billboard or floating UI.
-		var text_mesh:=TextMesh.new();text_mesh.text=_plate_weight_text(lb);text_mesh.font_size=28;text_mesh.pixel_size=.00085;text_mesh.depth=.00012;text_mesh.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;text_mesh.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+		var text_mesh:=TextMesh.new();text_mesh.text=_plate_weight_text(lb);text_mesh.font_size=36;text_mesh.pixel_size=.00085;text_mesh.depth=.00012;text_mesh.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;text_mesh.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
 		var mark:=MeshInstance3D.new();mark.name="EngravedWeightFront" if face>0 else "EngravedWeightBack";mark.mesh=text_mesh;mark.material_override=plate_engraving_material;mark.rotation.x=-face*PI/2
 		mark.position=Vector3(0,face*.040,-.089);visual.add_child(mark)
 	return visual
@@ -628,20 +705,60 @@ func _plate_mesh(lb: float) -> ArrayMesh:
 func _belt_model(id: int,flat: bool=false) -> Node3D:
 	var root:=Node3D.new();var ring:=MeshInstance3D.new();var mesh:=TorusMesh.new();mesh.inner_radius=.20;mesh.outer_radius=.24;mesh.rings=20;mesh.ring_segments=12;ring.mesh=mesh
 	var leather:=StandardMaterial3D.new();leather.albedo_color=Color("6b5140");leather.roughness=.9;ring.material_override=leather;root.add_child(ring)
-	var offset:=0
-	for plate in plates:
-		if plate.station!="belt/%d" % id:continue
-		var target:=StaticBody3D.new();target.set_meta("role","gym_belt_plate");target.set_meta("belt_id",id);target.set_meta("label","Remove belt plate");target.collision_layer=4;target.collision_mask=0
-		if flat:target.position=Vector3(.32+offset*.05,-.02,0)
-		else:target.position=Vector3(0,-.38,-.17-offset*.05);target.rotation.x=PI/2
-		var disk:=_plate_model(float(plate.lb));disk.scale=Vector3.ONE*.72;target.add_child(disk)
-		var hit:=CollisionShape3D.new();var shape:=SphereShape3D.new();shape.radius=.17;hit.shape=shape;target.add_child(hit)
-		root.add_child(target);offset+=1
+	var attached := plates.filter(func(plate): return plate.station == "belt/%d" % id)
+	attached.sort_custom(func(a,b):return int(a.order)<int(b.order))
+	if attached.is_empty():
+		return root
+	var steel := StandardMaterial3D.new()
+	steel.albedo_color=Color("7f8b91");steel.metallic=.65;steel.roughness=.49
+	var span := maxf(.11, attached.size()*PLATE_GAP)
+	var axle := Vector3(.39,.055,0) if flat else Vector3(0,-.40,-.29)
+	if flat:
+		_connector(root, Vector3(.19,.035,0), axle, steel)
+		_connector(root, axle, axle+Vector3.UP*span, steel)
+	else:
+		for side in [-1.0,1.0]:
+			_connector(root, Vector3(side*.13,-.025,-.173), axle+Vector3(side*span*.5,0,0), steel)
+		_connector(root, axle-Vector3(span*.54,0,0), axle+Vector3(span*.54,0,0), steel)
+	for index in attached.size():
+		var plate: Dictionary = attached[index]
+		var target := StaticBody3D.new()
+		target.set_meta("role","gym_belt_plate")
+		target.set_meta("belt_id",id)
+		target.set_meta("label","Remove belt plate")
+		target.collision_layer=4;target.collision_mask=0
+		if flat:
+			target.position = axle + Vector3.UP*(.052+index*PLATE_GAP)
+		else:
+			target.position = axle + Vector3((index-(attached.size()-1)*.5)*PLATE_GAP,0,0)
+			target.rotation.z = PI/2
+		var disk := _plate_model(float(plate.lb))
+		target.add_child(disk)
+		var hit := CollisionShape3D.new()
+		var shape := CylinderShape3D.new()
+		shape.radius = disk.mesh.get_aabb().size.x*.5
+		shape.height = .086
+		hit.shape=shape
+		target.add_child(hit)
+		root.add_child(target)
 	return root
+
+func _connector(parent: Node3D, start: Vector3, end: Vector3, material: Material) -> void:
+	var visual := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = .014
+	mesh.bottom_radius = .014
+	mesh.height = start.distance_to(end)
+	mesh.radial_segments = 8
+	visual.mesh = mesh
+	visual.material_override = material
+	visual.position = (start+end)*.5
+	visual.basis = Basis(Quaternion(Vector3.UP,(end-start).normalized()))
+	parent.add_child(visual)
 
 func _bar_model(station: String) -> Node3D:
 	var root:=Node3D.new()
-	var shaft:=MeshInstance3D.new();var mesh:=CylinderMesh.new();mesh.height=2.7;mesh.top_radius=.035;mesh.bottom_radius=.035;mesh.radial_segments=10;shaft.mesh=mesh;shaft.rotation.z=PI/2
+	var shaft:=MeshInstance3D.new();var mesh:=CylinderMesh.new();mesh.height=GymLayout.BAR_LENGTH;mesh.top_radius=.035;mesh.bottom_radius=.035;mesh.radial_segments=10;shaft.mesh=mesh;shaft.rotation.z=PI/2
 	var metal:=StandardMaterial3D.new();metal.albedo_color=Color("aab8ba");metal.metallic=.7;metal.roughness=.4;shaft.material_override=metal;root.add_child(shaft)
 	var count:={-1:0,1:0};var attached:=[]
 	for plate in plates:
@@ -649,7 +766,7 @@ func _bar_model(station: String) -> Node3D:
 	attached.sort_custom(func(a,b):return int(a.order)<int(b.order))
 	for plate in attached:
 		var side:=int(plate.side);var disk:=_plate_model(float(plate.lb))
-		disk.rotation.z=PI/2;disk.position.x=float(side)*(1.0+int(count[side])*.08);count[side]+=1
+		disk.rotation.z=PI/2;disk.position.x=float(side)*(1.0+int(count[side])*SLEEVE_STEP);count[side]+=1
 		root.add_child(disk)
 	return root
 
@@ -770,10 +887,23 @@ func _reset() -> void:
 	for peer in bench_models.keys():_clear_bench_model(int(peer))
 	_reset_plates();_render()
 
+func _sync_rescue_targets() -> void:
+	var motion: Node = game.campus_services.gym_motion
+	if not is_instance_valid(motion):
+		return
+	for station in rescue_targets:
+		var target: StaticBody3D = rescue_targets[station]
+		if trapped.has(station) and motion.bars.has(station):
+			target.global_transform = motion.bars[station].global_transform
+			target.collision_layer = 4
+		else:
+			target.collision_layer = 0
+
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
 	_sync_carried_models(delta)
 	_sync_bench_models()
+	_sync_rescue_targets()
 	_sync_remote_plates()
 	_sync_remote_belts()
 	var id:=held_plate(multiplayer.get_unique_id())
