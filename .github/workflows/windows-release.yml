@@ -21,6 +21,27 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Verify CEF LFS objects
+        shell: pwsh
+        run: |
+          git lfs pull
+          if ($LASTEXITCODE) { throw 'Git LFS download failed' }
+          git lfs fsck
+          if ($LASTEXITCODE) { throw 'Git LFS object verification failed' }
+          foreach ($file in @('cef_artifacts/windows/libgdcef.dll', 'cef_artifacts/windows/libcef.dll')) {
+            $stream = [IO.File]::OpenRead((Join-Path $PWD $file))
+            try {
+              $reader = [IO.BinaryReader]::new($stream)
+              if ($stream.Length -lt 1024 -or $reader.ReadUInt16() -ne 0x5a4d) { throw "$file is not a Windows PE binary (possibly an LFS pointer)" }
+              $stream.Position = 0x3c
+              $offset = $reader.ReadInt32()
+              if ($offset -lt 0 -or $offset + 6 -gt $stream.Length) { throw "$file has an invalid PE header" }
+              $stream.Position = $offset
+              if ($reader.ReadUInt32() -ne 0x4550 -or $reader.ReadUInt16() -ne 0x8664) { throw "$file is not an x86-64 PE binary" }
+            } finally { $stream.Dispose() }
+          }
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -90,8 +111,9 @@ jobs:
           $log = "$env:RUNNER_TEMP/exported-play.log"
           $env:APPDATA = "$env:RUNNER_TEMP/menu-smoke-export"
           New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
-          & $env:GODOT --headless --path $game --main-pack "$game/LabVolt.pck" --script $smoke --log-file $log
-          if ($LASTEXITCODE -or !(Select-String -Path $log -SimpleMatch 'MENU_ROUTES PASS') -or (Select-String -Path $log -Pattern 'ERROR:' | Where-Object { $_.Line -notlike '*Failed to read the root certificate store*' })) { throw 'Exported game failed Play verification' }
+          $menuArgs = @('--headless','--path',('"' + $game + '"'),'--script',('"' + $smoke + '"'),'--log-file',('"' + $log + '"'))
+          $menuRun = Start-Process -FilePath "$game/LabVolt.exe" -ArgumentList $menuArgs -WindowStyle Hidden -Wait -PassThru
+          if ($menuRun.ExitCode -or !(Test-Path $log) -or !(Select-String -Path $log -SimpleMatch 'MENU_ROUTES PASS') -or (Select-String -Path $log -Pattern 'ERROR:' | Where-Object { $_.Line -notlike '*Failed to read the root certificate store*' })) { throw 'Exported game failed Play verification' }
           $kernelLog = "$env:RUNNER_TEMP/exported-solver.log"
           $kernelTest = (Resolve-Path 'tests/electronics/test_mna_csharp_kernel.gd').Path
           $kernelArgs = @('--headless','--path',('"' + $game + '"'),'--script',('"' + $kernelTest + '"'),'--log-file',('"' + $kernelLog + '"'))
