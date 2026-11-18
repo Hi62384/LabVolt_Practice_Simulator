@@ -143,7 +143,13 @@ func _refresh() -> void:
 	for key in room_states:
 		var entry: Dictionary=room_states[key]
 		if str(entry.room_id)==str(c.get("room_id","")):
-			for event in entry.events.values():_event.rpc_id(peer,int(entry.peer),event)
+			for event in entry.events.values():
+				if event.get("activity") == "sandwich_counter":
+					var prep: Dictionary = host.sandwich_counter.snapshot(host.now())
+					if not prep.is_empty() and prep.owner == int(entry.peer):
+						_event.rpc_id(peer,int(entry.peer),{"activity":"sandwich_counter","prep":prep})
+				else:
+					_event.rpc_id(peer,int(entry.peer),event)
 
 @rpc("any_peer","call_remote","reliable")
 func _request(value: Dictionary) -> void:

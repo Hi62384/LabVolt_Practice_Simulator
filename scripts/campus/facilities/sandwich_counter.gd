@@ -1,6 +1,7 @@
 extends Node3D
 
 const Recipe = preload("res://scripts/campus/facilities/sandwich_recipe.gd")
+const CounterRules = preload("res://scripts/campus/facilities/sandwich_counter_rules.gd")
 const Food = preload("res://scripts/campus/facilities/food_visual.gd")
 const PREP := Vector3(.90,1.21,-2.42)
 const OVEN := Vector3(2.45,1.37,-2.57)
@@ -118,7 +119,7 @@ func _process(_delta: float) -> void:
 	if not _local_order(): return
 	if oven_eta>0:
 		var remaining := oven_eta-Time.get_ticks_msec()
-		detail.text = "Loading the toaster" if remaining>10000 else "In the oven · %d s" % maxi(1,ceili(remaining/1000.0))
+		detail.text = "Loading the toaster" if remaining>CounterRules.OVEN_MS else "In the oven · %d s" % maxi(1,ceili(remaining/1000.0))
 		instructions.text = "Esc Cancel"
 		focused = null
 		return
@@ -259,6 +260,10 @@ func _rebuild_preview(old: Dictionary) -> void:
 	if prep.is_empty() or int(prep.step)==0:return
 	preview = Food.build("sandwich",Recipe.servings(prep.recipe),prep.recipe)
 	add_child(preview)
+	if old.is_empty() and oven_eta>0 and int(prep.oven_ms)<=CounterRules.OVEN_MS:
+		preview.position = OVEN
+		hood.rotation.x = 0.0
+		return
 	var previous_oven := int(old.get("oven_ms",0))>0
 	var destination := OVEN if oven_eta>0 else PREP
 	preview.position = OVEN if previous_oven else start

@@ -74,7 +74,9 @@ func _pair_model(lb: float) -> Node3D:
    var cap:=MeshInstance3D.new();var cap_mesh:=CylinderMesh.new()
    cap_mesh.height=.008;cap_mesh.top_radius=radius*.77;cap_mesh.bottom_radius=radius*.82;cap_mesh.radial_segments=12
    cap.mesh=cap_mesh;cap.material_override=metal;cap.rotation.x=end*PI/2;cap.position.z=end*(.10+width+.002);dumbbell.add_child(cap)
-   var marking:=Label3D.new();marking.text=_weight_mark(lb);marking.font_size=36;marking.pixel_size=radius*.022;marking.modulate=Color("263239");marking.outline_size=0
+   var marking:=Label3D.new();marking.text=_weight_mark(lb);marking.font_size=36;marking.modulate=Color("263239");marking.outline_size=0
+   var text_width:=ThemeDB.fallback_font.get_string_size(marking.text,HORIZONTAL_ALIGNMENT_CENTER,-1,marking.font_size).x
+   marking.pixel_size=minf(radius*.022,radius*1.16/maxf(1.0,text_width))
    marking.position=Vector3(0,0,end*(.10+width+.007));marking.rotation.y=PI if end<0 else 0.0;dumbbell.add_child(marking)
  return root
 

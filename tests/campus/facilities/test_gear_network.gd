@@ -1,4 +1,5 @@
 extends SceneTree
+const CABLE_STATION := "gym/cable_1"
 var game
 var deadline:=0
 func _initialize() -> void:call_deferred("run")
@@ -21,6 +22,12 @@ func run() -> void:
 		if not await until(func():return gear.belts[0].where=="worn" and gear.plates[0].station=="belt/0","remote wore loaded belt"):return
 		if not is_equal_approx(gear.belt_mass(0),gear.BELT_KG+gear.plates[0].lb*gear.LB_TO_KG):push_error("host load incorrect");quit(1);return
 		if not await until(func():return gear.belts[0].where=="rack" and gear.plates[0].station=="belt/0","belt return"):return
+		if not await until(func():return gear.cable_plates(CABLE_STATION)==[1],"remote loaded cable plate"):return
+		if not is_equal_approx(gear.cable_extra_mass(CABLE_STATION),gear.plates[1].lb*gear.LB_TO_KG):
+			push_error("Cable supplemental resistance did not match loaded plate")
+			quit(1)
+			return
+		if not await until(func():return gear.cable_plates(CABLE_STATION).is_empty() and gear.plates[1].where=="held","remote detached cable plate"):return
 		await create_timer(1.0).timeout
 		print("GEAR_HOST PASS")
 	else:
@@ -74,5 +81,29 @@ func run() -> void:
 			quit(1)
 			return
 		if not await until(func():return gear.belts[0].where=="rack" and gear.plates[0].station=="belt/0","belt returned"):return
+		next_attempt.at=0
+		if not await until(func():
+			var p: Vector3=gear.PLATE_RACK
+			game.player.global_position=p
+			game.session.send_pose({"position":p})
+			if Time.get_ticks_msec()>=int(next_attempt.at):
+				next_attempt.at=Time.get_ticks_msec()+350
+				gear.request_plate("pickup",1)
+			return gear.held_plate(peer)==1
+		,"pickup supplemental plate"):return
+		var machine: Node3D=game.campus_services._cable_machine(CABLE_STATION)
+		var cable_position: Vector3=machine.loading_mount.global_position-Vector3.UP
+		next_attempt.at=0
+		if not await until(func():
+			game.player.global_position=cable_position
+			game.session.send_pose({"position":cable_position})
+			if Time.get_ticks_msec()>=int(next_attempt.at):
+				next_attempt.at=Time.get_ticks_msec()+350
+				gear.request_plate("cable_attach",1,CABLE_STATION)
+			return gear.cable_plates(CABLE_STATION)==[1]
+		,"replicated cable attachment"):return
+		await create_timer(.5).timeout
+		gear.request_plate("cable_detach",1,CABLE_STATION)
+		if not await until(func():return gear.held_plate(peer)==1 and gear.cable_plates(CABLE_STATION).is_empty(),"replicated cable detachment"):return
 		print("GEAR_CLIENT PASS")
 	quit()

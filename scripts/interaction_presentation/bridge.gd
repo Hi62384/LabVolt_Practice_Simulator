@@ -440,16 +440,33 @@ func _update_workout(delta: float) -> void:
 		elif is_instance_valid(handheld_bar) and workout_state.get("equipment") == "barbell":
 			handheld_bar.position=Vector3(0,grip.y,grip.z)
 			grip=camera.to_local(handheld_bar.to_global(Vector3(side*.26,0,0)))
-		var hand := arm.find_child("Hand*",true,false) as Node3D
-		if not is_instance_valid(hand):continue
-		var reach := grip-shoulder
-		if reach.length_squared() < .001:continue
-		var rotation := Basis(Quaternion(hand.position.normalized(), reach.normalized()))
-		var length_scale := clampf(reach.length()/maxf(hand.position.length(),.01), .72, 1.24)
-		rotation.x *= .82
-		rotation.y *= length_scale
-		rotation.z *= .82
-		arm.transform = Transform3D(rotation,grip-rotation*hand.position)
+		_pose_gym_arm(arm,shoulder,grip)
+
+func render_idle_gym_hold(bar: Node3D, dumbbells: Node3D) -> void:
+	if not workout_state.is_empty():return
+	for arm in workout_arms:
+		var left: bool=arm.get_meta("workout_left",false)
+		var side: float=-1.0 if left else 1.0
+		var grip:=Vector3.INF
+		if is_instance_valid(bar) and bar.visible:
+			grip=game.camera.to_local(bar.to_global(Vector3(side*.48,0,0)))
+		elif is_instance_valid(dumbbells) and dumbbells.visible:
+			var weight:=dumbbells.get_node_or_null("LeftDumbbell" if left else "RightDumbbell") as Node3D
+			if is_instance_valid(weight):grip=game.camera.to_local(weight.global_position)
+		arm.visible=enabled and grip.is_finite()
+		if arm.visible:_pose_gym_arm(arm,Vector3(side*.34,-.46,-.15),grip)
+
+func _pose_gym_arm(arm: Node3D, shoulder: Vector3, grip: Vector3) -> void:
+	var hand := arm.find_child("Hand*",true,false) as Node3D
+	if not is_instance_valid(hand):return
+	var reach := grip-shoulder
+	if reach.length_squared() < .001:return
+	var rotation := Basis(Quaternion(hand.position.normalized(), reach.normalized()))
+	var length_scale := clampf(reach.length()/maxf(hand.position.length(),.01), .72, 1.24)
+	rotation.x *= .82
+	rotation.y *= length_scale
+	rotation.z *= .82
+	arm.transform = Transform3D(rotation,grip-rotation*hand.position)
 
 func _live_bindings() -> Dictionary:
 	var live = {}
