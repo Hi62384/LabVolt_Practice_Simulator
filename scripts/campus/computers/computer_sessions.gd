@@ -40,13 +40,14 @@ func build(owner_game: Node) -> void:
 	timer.timeout.connect(_prune)
 	add_child(timer)
 	timer.start()
-func register_station(id: String, chair_index: int, anchor: Vector3, public_device: bool = false) -> bool:
+func register_station(id: String, chair_index: int, anchor: Vector3, public_device: bool = false, physical_power := false) -> bool:
 	if id.length()>48 or Files.path(id)!=id or id.contains("/") or stations.has(id) or not anchor.is_finite():return false
 	if chair_index<0 or chair_index>=game.chairs.size():return false
 	for entry in stations.values():
 		if entry.chair==chair_index:return false
-	stations[id]={"chair":chair_index,"anchor":anchor}
-	if public_device:stations[id].power=preload("res://scripts/campus/computers/device_power.gd").new()
+	stations[id]={"chair":chair_index,"anchor":anchor,"public_device":public_device}
+	if public_device or physical_power:
+		stations[id].power=preload("res://scripts/campus/computers/device_power.gd").new()
 	return true
 func register_portable(id: String,anchor: Vector3,owner: String,tier: String) -> bool:
 	var tiers=preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS
@@ -145,6 +146,8 @@ func _accept(peer: int, action: Dictionary) -> void:
 		if entry.get("portable",false):sessions[peer].tier=entry.tier
 		if entry.has("power"):
 			entry.power.touch(Time.get_ticks_msec())
+			sessions[peer].power_cycle=int(entry.get("cycle",0))
+		if entry.get("public_device",false) or entry.get("portable",false):
 			var profiles: Dictionary=station_users.get_or_add(id,{})
 			var owner_key := identity if not identity.is_empty() else "connection:%d"%peer
 			if not profiles.has(owner_key):
@@ -160,7 +163,6 @@ func _accept(peer: int, action: Dictionary) -> void:
 							if text.to_utf8_buffer()==bytes:profiles[owner_key].workspace.files[path]={"text":text,"version":1}
 			public_workspaces[id]=profiles[owner_key].workspace
 			entry.power.drive=profiles[owner_key].drive if entry.power.usb.is_empty() else entry.power.usb.drive
-			sessions[peer].power_cycle=int(entry.get("cycle",0))
 			workspaces[peer]=public_workspaces[id]
 			restored[peer]=true
 			sessions[peer].public_device=true
@@ -186,8 +188,9 @@ func _accept(peer: int, action: Dictionary) -> void:
 	if now-int(last_request.get(peer,-1000))<60:_error(peer,"Please retry after the current operation.");return
 	last_request[peer]=now
 	var workspace: Dictionary=workspaces[peer]
-	var usb_before: Dictionary=entry.power.usb.drive.entries.duplicate(true) if entry.has("power") and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"] else {}
-	var workspace_before: Dictionary=workspace.duplicate(true) if not usb_before.is_empty() or (entry.has("power") and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"]) else {}
+	var file_device := bool(session.get("public_device", false))
+	var usb_before: Dictionary=entry.power.usb.drive.entries.duplicate(true) if file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"] else {}
+	var workspace_before: Dictionary=workspace.duplicate(true) if not usb_before.is_empty() or (file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"]) else {}
 	if str(action.get("path","")).to_lower().begins_with(".recycle") or str(action.get("new_path","")).to_lower().begins_with(".recycle"):
 		_error(peer,"That path is reserved.");return
 	match op:
@@ -205,16 +208,16 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if not action.get("text") is String or not action.get("version") is int:return
 			var result := Files.save(workspace.files,str(action.get("path","")),action.text,action.version)
 			if result.has("error"):_error(peer,result.error);return
-			if entry.has("power") and not entry.power.drive.write_file(str(action.path),action.text.to_utf8_buffer()):
+			if file_device and not entry.power.drive.write_file(str(action.path),action.text.to_utf8_buffer()):
 				_error(peer,"Choose an existing folder and check available space.");return
 			workspace.files=result.files
 		"mkdir":
 			var path:=Files.path(str(action.get("path","")))
-			if not entry.has("power") or path.is_empty() or not entry.power.drive.make_folder(path):
+			if not file_device or path.is_empty() or not entry.power.drive.make_folder(path):
 				_error(peer,"Choose a valid new folder inside an existing folder.");return
 		"delete":
 			var path:=Files.path(str(action.get("path","")))
-			if not entry.has("power") or path.is_empty() or not entry.power.drive.remove(path):
+			if not file_device or path.is_empty() or not entry.power.drive.remove(path):
 				_error(peer,"Choose an existing file or folder.");return
 			for name in workspace.files.keys():
 				if name==path or str(name).begins_with(path+"/"):workspace.files.erase(name)
@@ -222,7 +225,7 @@ func _accept(peer: int, action: Dictionary) -> void:
 		"rename":
 			var source := Files.path(str(action.get("path","")))
 			var target := Files.path(str(action.get("new_path","")))
-			if entry.has("power") and entry.power.drive.entries.has(source):
+			if file_device and entry.power.drive.entries.has(source):
 				for name in workspace.files:
 					if name==source or str(name).begins_with(source+"/"):
 						var next_path: String=target+str(name).substr(source.length())
@@ -252,7 +255,7 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if not workspace.files.has(path):return
 			workspace.editor={"path":path,"cursor":clampi(int(action.get("cursor",0)),0,str(workspace.files[path].text).length())}
 		"trash","untrash","purge":
-			if not entry.has("power") or not entry.power.usb.is_empty():
+			if not file_device or not entry.power.usb.is_empty():
 				_error(peer,"Recycle Bin is available on the workstation drive.");return
 			var recycle_error := _recycle_operation(workspace,entry.power.drive,action)
 			if not recycle_error.is_empty():_error(peer,recycle_error);return
@@ -444,7 +447,7 @@ func _finish_usb_commit(peer: int,station: String,token: String,ok: bool) -> voi
 		_reply(actor)
 
 func _network_usb_port(peer: int,id: String,usb_id: String) -> void:
-	if not stations.has(id) or not stations[id].has("power") or not _private_allowed(peer,stations[id]):return
+	if not stations.has(id) or not (stations[id].get("public_device",false) or stations[id].get("portable",false)) or not _private_allowed(peer,stations[id]):return
 	if game.session.poses.get(peer,{}).get("position",Vector3.INF).distance_to(stations[id].anchor)>3:return
 	var device=stations[id].power
 	var identity:=_identity(peer)
@@ -541,7 +544,7 @@ func _usb_cancel(peer: int,token: String) -> void:
 	if usb_uploads.has(peer) and usb_uploads[peer].token==token:usb_uploads.erase(peer)
 
 func _local_usb_port(peer: int,id: String) -> void:
-	if peer!=multiplayer.get_unique_id() or not stations.has(id) or not stations[id].has("power"):return
+	if peer!=multiplayer.get_unique_id() or not stations.has(id) or not (stations[id].get("public_device",false) or stations[id].get("portable",false)):return
 	if game.session.poses.get(peer,{}).get("position",Vector3.INF).distance_to(stations[id].anchor)>3:return
 	var device=stations[id].power
 	var profile=game.electronics.profile
@@ -711,7 +714,8 @@ func _power_off(id: String) -> void:
 	station_users.erase(id)
 	for peer in sessions.keys():
 		if sessions[peer].station==id:
-			workspaces.erase(peer);restored.erase(peer)
+			if bool(sessions[peer].get("public_device",false)):
+				workspaces.erase(peer);restored.erase(peer)
 			_close(peer,true)
 	_publish()
 func _prune() -> void:

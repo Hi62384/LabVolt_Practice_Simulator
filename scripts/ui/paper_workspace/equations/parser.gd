@@ -30,6 +30,8 @@ func parse(source: String) -> Dictionary:
 			_tokens.append({"kind":"atom", "text":source.substr(start, i - start), "pos":start})
 		elif c in "+-*/^_()=,;[]×÷−":
 			_tokens.append({"kind":{"×":"*","÷":"/","−":"-"}.get(c,c), "text":c, "pos":i}); i += 1
+		elif c in "□±≠≈≤≥√∑∏∫∂∆δελρσωΓΘΛΠΦ¬∧∨⊕→↔∈∉⊂⊆∪∩∀∃∅∠°⊥∥≅∼△←↑↓⇒⇔↦µ⏚℃℉©®™€£¥§¶•…":
+			_tokens.append({"kind":"atom","text":c,"pos":i}); i += 1
 		else: return _result(source, {}, "Unsupported character '%s' at character %d." % [c, i + 1])
 		if _tokens.size() > MAX_TOKENS: return _result(source, {}, "Equation has too many symbols (limit 256).")
 	if _tokens.is_empty(): return _result(source, {}, "Enter an equation.")

@@ -17,7 +17,10 @@ var text_defaults := {"font":"Sans","font_size":24,"angle":0.0,"equation":false}
 var fonts := {}
 var transform_drag := ""
 var drag_start := {}
-var inline_editor: TextEdit
+var symbols_open := Callable()
+var close_symbols := Callable()
+const MathEditor = preload("res://scripts/ui/paper_workspace/equations/editor.gd")
+var inline_editor: Control
 var inline_item_id := ""
 func _ready() -> void:
 	for family in ["Sans","Serif","Mono"]:
@@ -104,6 +107,21 @@ func edit_inline(item: Dictionary) -> void:
 	if not writable or item.get("baked",false):return
 	finish_inline_edit()
 	inline_item_id=str(item.id)
+	if item.get("kind") == "equation":
+		var math := MathEditor.new()
+		inline_editor = math
+		math.text = str(item.text)
+		add_child(math)
+		_layout_inline_editor()
+		math.text_changed.connect(_layout_inline_editor)
+		math.focus_exited.connect(func():
+			if not symbols_open.is_valid() or not symbols_open.call(): finish_inline_edit())
+		math.finish_requested.connect(func(save: bool):
+			if not save and close_symbols.is_valid() and close_symbols.call(): return
+			finish_inline_edit(save))
+		math.grab_focus()
+		queue_redraw()
+		return
 	var editor := TextEdit.new()
 	inline_editor=editor
 	editor.text=str(item.text)
@@ -120,10 +138,12 @@ func edit_inline(item: Dictionary) -> void:
 	editor.text_changed.connect(func():
 		_layout_inline_editor()
 		queue_redraw())
-	editor.focus_exited.connect(func():finish_inline_edit())
+	editor.focus_exited.connect(func():
+		if not symbols_open.is_valid() or not symbols_open.call(): finish_inline_edit())
 	editor.gui_input.connect(func(event: InputEvent):
 		if event is InputEventKey and event.pressed and (event.keycode==KEY_ESCAPE or (event.ctrl_pressed and event.keycode in [KEY_ENTER,KEY_KP_ENTER])):
 			editor.accept_event()
+			if event.keycode == KEY_ESCAPE and close_symbols.is_valid() and close_symbols.call(): return
 			finish_inline_edit(event.keycode!=KEY_ESCAPE))
 	editor.grab_focus()
 	var pointer := editor.get_local_mouse_position()
@@ -144,6 +164,18 @@ func _layout_inline_editor() -> void:
 	var font_size := int(item.font_size)
 	var color := Color(str(item.color))
 	color.a*=float(item.get("opacity",1.0))
+	if inline_editor is MathEditor:
+		var math := inline_editor as MathEditor
+		math.font = font
+		math.font_size = font_size
+		math.ink = color
+		math.refresh()
+		var measured: Vector2 = math.plan.size
+		var bounds := maxf(measured.x, float(item.get("box_width", measured.x)))
+		math.rotation = float(item.angle)
+		math.position = Vector2(item.position)*size + Vector2(_alignment_offset(item,bounds,measured.x),0).rotated(math.rotation)
+		math.size = Vector2(maxf(48.0, measured.x + 12.0), measured.y + 8.0)
+		return
 	inline_editor.add_theme_font_override("font",font)
 	inline_editor.add_theme_font_size_override("font_size",font_size)
 	inline_editor.add_theme_color_override("font_color",color)
@@ -164,7 +196,7 @@ func finish_inline_edit(save := true) -> void:
 	var item := find_item(inline_item_id)
 	inline_editor=null
 	inline_item_id=""
-	var value := editor.text.left(256)
+	var value: String = editor.text.left(256)
 	editor.hide()
 	editor.queue_free()
 	if save and not item.is_empty() and not item.get("baked",false) and value!=str(item.text):

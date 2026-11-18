@@ -31,7 +31,7 @@ static func _fallback(source: String, font: Font, size: int, error: String) -> D
 static func draw(canvas: CanvasItem, plan: Dictionary, origin: Vector2, font: Font, color: Color) -> void:
 	for command in plan.get("commands", []):
 		if command.kind == "line": canvas.draw_line(origin + command.a, origin + command.b, color, command.width, true)
-		else: canvas.draw_string(font, origin + command.pos, command.text, HORIZONTAL_ALIGNMENT_LEFT, -1, command.font_size, color)
+		elif command.kind == "text": canvas.draw_string(font, origin + command.pos, command.text, HORIZONTAL_ALIGNMENT_LEFT, -1, command.font_size, color)
 
 static func _text(value: String, font: Font, size: int) -> Dictionary:
 	var ascent := font.get_ascent(size)
@@ -64,6 +64,14 @@ static func _row(parts: Array, gap: float = 0.0) -> Dictionary:
 static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dictionary:
 	if depth > Parser.MAX_DEPTH: return _text("?", font, size)
 	var op: String = node.op
+	if op == "sequence":
+		var parts := []
+		for part in node.parts: parts.append(_layout(part, font, size, depth + 1))
+		return _row(parts)
+	if op == "caret":
+		var height := font.get_height(size)
+		return {"size":Vector2(size * .56 if node.empty else 0.0,height), "baseline":font.get_ascent(size),
+			"commands":[{"kind":"caret","pos":Vector2.ZERO,"trail":node.trail,"index":node.index,"empty":node.empty,"height":height}]}
 	if op == "atom":
 		var names := {"alpha":"α", "beta":"β", "gamma":"γ", "delta":"δ", "theta":"θ", "lambda":"λ", "mu":"μ", "pi":"π", "rho":"ρ", "sigma":"σ", "phi":"φ", "omega":"ω", "infty":"∞"}
 		return _text(str(names.get(node.text, node.text)), font, size)
@@ -84,18 +92,22 @@ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dict
 	if op == "matrix": return _matrix(node.rows, font, size, depth+1)
 	if op == "group": return _row([_text("(",font,size), _layout(node.child,font,size,depth+1), _text(")",font,size)])
 	if op == "prefix": return _row([_text(node.sign,font,size), _layout(node.child,font,size,depth+1)])
-	var left := _layout(node.left,font,size,depth+1)
+	var left_node: Dictionary = node.left
+	if op in ["/", "^", "_"] and left_node.op == "group": left_node = left_node.child
+	var left := _layout(left_node,font,size,depth+1)
+	var right_node: Dictionary = node.right
+	if op in ["/", "^", "_"] and right_node.op == "group": right_node = right_node.child
 	var script_size := maxi(MIN_SCRIPT_SIZE, int(round(float(size)*0.70)))
 	if op in ["^", "_"]:
-		var right := _layout(node.right,font,script_size,depth+1)
-		var rise := maxf(0.0, right.size.y * 0.65) if op == "^" else 0.0
+		var right := _layout(right_node,font,script_size,depth+1)
+		var rise := maxf(0.0, right.size.y * 0.40) if op == "^" else 0.0
 		var left_y := rise
 		var right_y: float = 0.0 if op == "^" else float(left.baseline) + float(size)*0.20
 		var height := maxf(left_y + left.size.y, right_y + right.size.y)
 		var commands := _shift(left.commands,Vector2(0,left_y))
 		commands.append_array(_shift(right.commands,Vector2(left.size.x + 1.0,right_y)))
 		return {"size":Vector2(left.size.x + right.size.x + 1.0,height), "baseline":left_y + left.baseline, "commands":commands}
-	var right := _layout(node.right,font,size,depth+1)
+	var right := _layout(right_node,font,size,depth+1)
 	if op == "/":
 		var pad := maxf(4.0,float(size)*0.18)
 		var space := maxf(4.0,float(size)*0.20)

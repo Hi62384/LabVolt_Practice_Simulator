@@ -17,6 +17,7 @@ const PEEK := 42.0
 const TRAY_SCALE_Y := .83
 const TRAY_HEIGHT := 332.0 * TRAY_SCALE_Y
 const TOOLS := ["pencil", "eraser", "text"]
+var symbol_picker: Control
 var tool := "answer"
 var properties := {"color": "263743", "pencil_width": 3.0, "eraser_radius": 12.0, "hardness": 0.8, "opacity": 1.0, "font": "Sans", "font_size": 24, "angle": 0.0, "equation": false, "bold": false, "italic": false, "align": "left", "box_width": 280.0}
 var selection: Dictionary = {}
@@ -316,6 +317,56 @@ func _text_fields(selected: bool) -> void:
 	equation.button_pressed = bool(selection.get("kind", "text") == "equation") if selected else bool(properties.equation)
 	host.add_child(equation)
 	equation.toggled.connect(func(value: bool): _change("equation", value, selected))
+	var symbols := Button.new()
+	symbols.text = "Symbols"
+	symbols.focus_mode = Control.FOCUS_NONE
+	host.add_child(symbols)
+	var picker := VBoxContainer.new()
+	symbol_picker = picker
+	picker.hide()
+	host.add_child(picker)
+	symbols.pressed.connect(func(): picker.visible = not picker.visible)
+	var actions := HBoxContainer.new()
+	picker.add_child(actions)
+	var categories := OptionButton.new()
+	categories.focus_mode = Control.FOCUS_NONE
+	categories.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	actions.add_child(categories)
+	var close := Button.new()
+	close.text = "Close"
+	close.focus_mode = Control.FOCUS_NONE
+	actions.add_child(close)
+	close.pressed.connect(func():
+		picker.hide()
+		text_action.emit("symbols_closed"))
+	var sets := {
+		"Math operators": "± × ÷ ≠ ≈ ≤ ≥ ∞ √ ∑ ∏ ∫ ∂ ∆",
+		"Greek letters": "α β γ δ ε θ λ μ π ρ σ φ ω Γ Δ Θ Λ Π Σ Φ Ω",
+		"Logic and sets": "¬ ∧ ∨ ⊕ → ↔ ∈ ∉ ⊂ ⊆ ∪ ∩ ∀ ∃ ∅",
+		"Geometry": "∠ ° ⊥ ∥ ≅ ∼ △",
+		"Arrows": "← → ↑ ↓ ↔ ⇒ ⇔ ↦",
+		"Electrical and scientific": "Ω µ ° Δ ∠ ⏚ ℃ ℉",
+		"Miscellaneous": "© ® ™ € £ ¥ § ¶ • …",
+	}
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size.y = 108
+	picker.add_child(scroll)
+	var grid := GridContainer.new()
+	grid.columns = 6
+	scroll.add_child(grid)
+	for category in sets:
+		categories.add_item(category)
+	var show_category := func(index: int):
+		_clear_children(grid)
+		for symbol in sets[categories.get_item_text(index)].split(" "):
+			var key := Button.new()
+			key.text = symbol
+			key.custom_minimum_size = Vector2(28, 26)
+			key.focus_mode = Control.FOCUS_NONE
+			grid.add_child(key)
+			key.pressed.connect(func(): text_action.emit("symbol:" + key.text))
+	categories.item_selected.connect(show_category)
+	show_category.call(0)
 
 func _refresh_selected() -> void:
 	_clear_children(_selected_host)
@@ -354,3 +405,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			else: return
 		_: return
 	get_viewport().set_input_as_handled()
+
+
+func dismiss_symbols() -> bool:
+	if not is_instance_valid(symbol_picker) or not symbol_picker.is_visible_in_tree():
+		return false
+	symbol_picker.hide()
+	text_action.emit("symbols_closed")
+	return true

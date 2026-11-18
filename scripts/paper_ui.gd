@@ -407,6 +407,8 @@ func _build_reader() -> void:
 		tool_case.tool_selected.connect(_case_tool_selected)
 		tool_case.properties_changed.connect(_case_properties_changed)
 		tool_case.text_action.connect(_case_text_action)
+		annotation_layer.symbols_open = func(): return is_instance_valid(tool_case.symbol_picker) and tool_case.symbol_picker.is_visible_in_tree()
+		annotation_layer.close_symbols = tool_case.dismiss_symbols
 		tool_case.set_supported_text_actions(["delete"])
 		_case_properties_changed(tool_case.properties)
 		if tool_case.tool!="answer":page_view.mouse_default_cursor_shape=Control.CURSOR_CROSS
@@ -513,7 +515,7 @@ func _input(event: InputEvent) -> void:
 	if not reading or not screen.visible or not is_instance_valid(workspace_view):return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var focused := get_viewport().gui_get_focus_owner()
-		if focused is LineEdit or focused is TextEdit:return
+		if focused is LineEdit or focused is TextEdit or (is_instance_valid(annotation_layer) and focused == annotation_layer.inline_editor):return
 		if event.keycode == KEY_HOME:
 			workspace_view.fit()
 			remember_view()
@@ -527,6 +529,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if not (event is InputEventMouseButton or event is InputEventMouseMotion):return
 	var hovered := get_viewport().gui_get_hovered_control()
+	if is_instance_valid(tool_case) and is_instance_valid(hovered) and tool_case.is_ancestor_of(hovered):return
 	if is_instance_valid(annotation_layer) and is_instance_valid(annotation_layer.inline_editor):
 		if hovered==annotation_layer.inline_editor:return
 		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
@@ -600,6 +603,13 @@ func _case_properties_changed(properties: Dictionary) -> void:
 		annotation_layer.set_tool(paper_tool)
 func _case_text_action(action: String) -> void:
 	if not is_instance_valid(annotation_layer) or annotation_layer.selection.is_empty():return
+	if action.begins_with("symbol:") or action == "symbols_closed":
+		var editor: Control = annotation_layer.inline_editor
+		if is_instance_valid(editor):
+			if action.begins_with("symbol:"):
+				editor.insert_text_at_caret(action.trim_prefix("symbol:"))
+			editor.grab_focus()
+		return
 	if action=="bake":
 		annotation_layer.update_selected("baked",true)
 		annotation_layer.selection=""
@@ -628,6 +638,7 @@ func _case_text_action(action: String) -> void:
 		if item.is_empty():return
 		annotation_layer.edit_inline(item)
 func cancel_inline_text() -> bool:
+	if is_instance_valid(tool_case) and tool_case.dismiss_symbols():return true
 	if not is_instance_valid(annotation_layer) or not is_instance_valid(annotation_layer.inline_editor):return false
 	annotation_layer.finish_inline_edit(false)
 	return true
@@ -726,8 +737,15 @@ static func calculate_expression(value: String) -> String:
 func edit_annotation(item: Dictionary) -> void:
 	if is_instance_valid(tool_case):tool_case.set_selection(item);return
 	for child in annotation_inspector.get_children():annotation_inspector.remove_child(child);child.queue_free()
-	var input := LineEdit.new();input.text=item.text;input.max_length=256;annotation_inspector.add_child(input)
-	input.text_changed.connect(func(value):annotation_layer.update_selected("text",value))
+	var input: LineEdit
+	if item.kind == "equation":
+		_button(annotation_inspector, "Edit equation", func(): annotation_layer.edit_inline(item))
+	else:
+		input = LineEdit.new()
+		input.text = item.text
+		input.max_length = 256
+		annotation_inspector.add_child(input)
+		input.text_changed.connect(func(value): annotation_layer.update_selected("text",value))
 	var options := HBoxContainer.new();annotation_inspector.add_child(options)
 	var font := OptionButton.new()
 	for name in ["Sans","Serif","Mono"]:font.add_item(name)
@@ -735,15 +753,12 @@ func edit_annotation(item: Dictionary) -> void:
 	var color := ColorPickerButton.new();color.color=Color(item.color);color.edit_alpha=false;options.add_child(color);color.color_changed.connect(func(value):annotation_layer.update_selected("color",value.to_html(false)))
 	for spec in [["Size","font_size",10,72,item.font_size],["Rotation","angle",-180,180,rad_to_deg(float(item.angle))]]:
 		_label(annotation_inspector,spec[0],13);var spin := SpinBox.new();spin.min_value=spec[2];spin.max_value=spec[3];spin.value=spec[4];annotation_inspector.add_child(spin);spin.value_changed.connect(func(value):annotation_layer.update_selected(spec[1],deg_to_rad(value) if spec[1]=="angle" else value))
-	if item.kind=="equation":
-		_label(annotation_inspector,"a/b → fraction · x^2 → exponent. Use ( ) to group terms.",13)
-		var symbols := GridContainer.new();symbols.columns=6;annotation_inspector.add_child(symbols)
-		for symbol in ["/","^","π","θ","°","∠","Ω","√","±","×","÷","≈","α","β","φ","ω","Δ","Σ","∞","≤","≥","≠","μ","λ"]:
-			var b := _button(symbols,symbol,func():input.insert_text_at_caret(symbol);annotation_layer.update_selected("text",input.text));b.custom_minimum_size=Vector2(32,28)
 	var actions := HBoxContainer.new();annotation_inspector.add_child(actions)
 	_button(actions,"Bake into drawing",func():annotation_layer.update_selected("baked",true);annotation_layer.selection="";annotation_layer.queue_redraw();for child in annotation_inspector.get_children():child.queue_free())
 	_button(actions,"Delete",func():annotation_layer.items=annotation_layer.items.filter(func(a):return a.id!=item.id);school.request({"op":"remove_annotation","id":document_id,"page":page_index,"object":item.id});annotation_layer.queue_redraw())
-	input.grab_focus();input.select_all()
+	if is_instance_valid(input):
+		input.grab_focus()
+		input.select_all()
 
 func confirm_abandon() -> void:
 	var dialog := ConfirmationDialog.new()

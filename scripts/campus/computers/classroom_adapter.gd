@@ -21,7 +21,7 @@ var boot_timer: Timer
 var local_screen_station := ""
 var idle_clock: Label
 var public_id := "m203_r3_c4"
-var public_ids := {}
+var station_frames := {}
 var power_states := {}
 var active := false
 var ui_was_open := false
@@ -54,6 +54,7 @@ func build(owner_game: Node, mounted_room: Node3D) -> bool:
 	_update_indicators()
 	game.computers.desktop_changed.connect(_desktop_changed)
 	game.computers.power_changed.connect(_power)
+	game.computers.occupancy_changed.connect(_screen_occupancy)
 	board=Board.new()
 	room.root.get_node("TeachingDisplayMount").add_child(board)
 	game.school.updated.connect(_teaching)
@@ -79,7 +80,7 @@ func register_station(id: String,station: Node3D,is_public: bool) -> bool:
 				if part is VisualInstance3D:part.hide()
 	chair.set_physics_process(false)
 	chair_stations[index]=str(id)
-	if not game.computers.register_station(str(id),index,station.interaction_anchor.global_position,is_public):return false
+	if not game.computers.register_station(str(id),index,station.interaction_anchor.global_position,is_public,true):return false
 	var target := StaticBody3D.new()
 	target.set_meta("role","computer")
 	target.set_meta("station",str(id))
@@ -102,18 +103,18 @@ func register_station(id: String,station: Node3D,is_public: bool) -> bool:
 		var usb_hit:=CollisionShape3D.new();var usb_shape:=BoxShape3D.new()
 		usb_shape.size=Vector3(.085,.055,.06);usb_hit.shape=usb_shape
 		usb_hit.position=Vector3(.47,.88,.025);usb_target.add_child(usb_hit)
-		var power_target:=StaticBody3D.new()
-		power_target.collision_layer=4;power_target.collision_mask=0
-		power_target.set_meta("role","public_computer_power")
-		power_target.set_meta("station",str(id))
-		power_target.set_meta("label","Toggle computer power")
-		station.add_child(power_target)
-		var power_hit:=CollisionShape3D.new();var power_shape:=BoxShape3D.new()
-		power_shape.size=Vector3(.12,.08,.08);power_hit.shape=power_shape
-		power_hit.position=Vector3(.58,.98,.025);power_target.add_child(power_hit)
-		var power_mark:=Label3D.new();power_mark.text="⏻";power_mark.font_size=24;power_mark.pixel_size=.001
-		power_mark.position=Vector3(.58,.98,.018);station.add_child(power_mark)
-	if is_public:public_ids[id]=true
+	var power_target:=StaticBody3D.new()
+	power_target.collision_layer=4;power_target.collision_mask=0
+	power_target.set_meta("role","public_computer_power")
+	power_target.set_meta("station",str(id))
+	power_target.set_meta("label","Turn on computer")
+	station.set_meta("power_target", power_target)
+	station.add_child(power_target)
+	var power_hit:=CollisionShape3D.new();var power_shape:=BoxShape3D.new()
+	power_shape.size=Vector3(.12,.08,.08);power_hit.shape=power_shape
+	power_hit.position=Vector3(.58,.98,.025);power_target.add_child(power_hit)
+	var power_mark:=Label3D.new();power_mark.text="⏻";power_mark.font_size=24;power_mark.pixel_size=.001
+	power_mark.position=Vector3(.58,.98,.018);station.add_child(power_mark)
 	return true
 func interact(target: Object) -> bool:
 	if not is_instance_valid(target):return false
@@ -135,7 +136,17 @@ func route_event(event: InputEvent) -> bool:
 	# GUI controls must still receive them. Desktop owns Esc/Ctrl+S in its _input.
 	return event is InputEventKey or event is InputEventMouse
 func _desktop_changed(snapshot: Dictionary) -> void:
-	local_screen_station=str(snapshot.get("station",""))
+	var next_station := str(snapshot.get("station",""))
+	if next_station != local_screen_station and indicators.has(local_screen_station) and bool(power_states.get(local_screen_station, false)) and DisplayServer.get_name() != "headless":
+		var frame := desktop_render.get_texture().get_image()
+		if frame != null and not frame.is_empty():
+			var scaled_width := mini(frame.get_width(), 640)
+			var scaled_height := maxi(1, roundi(float(frame.get_height()) * scaled_width / frame.get_width()))
+			frame.resize(scaled_width, scaled_height, Image.INTERPOLATE_BILINEAR)
+			if station_frames.size() >= 12 and not station_frames.has(local_screen_station):
+				station_frames.erase(station_frames.keys()[0])
+			station_frames[local_screen_station] = ImageTexture.create_from_image(frame)
+	local_screen_station = next_station
 	desktop_overlay.visible=not snapshot.is_empty()
 	desktop_render.render_target_update_mode=SubViewport.UPDATE_DISABLED if snapshot.is_empty() else SubViewport.UPDATE_WHEN_VISIBLE
 	_update_indicators()
@@ -268,8 +279,16 @@ func _tick_boot() -> void:
 	boot_spinner.text=["◐","◓","◑","◒"][posmod(now/120,4)]
 	boot_render.render_target_update_mode=SubViewport.UPDATE_ONCE
 
+func _screen_occupancy(occupants: Dictionary) -> void:
+	for id in station_frames.keys():
+		if int(occupants.get(id, 0)) not in [0, multiplayer.get_unique_id()]:
+			station_frames.erase(id)
+	_update_indicators()
+
 func _power(power: Dictionary) -> void:
 	power_states=power
+	for id in station_frames.keys():
+		if not bool(power.get(id, false)): station_frames.erase(id)
 	_update_indicators()
 
 func _update_indicators() -> void:
@@ -277,11 +296,13 @@ func _update_indicators() -> void:
 	var ambient: Texture2D=idle_render.get_texture()
 	var private_screen: Texture2D=desktop_render.get_texture()
 	for id in indicators:
-		var powered := not public_ids.has(id) or bool(power_states.get(id,false))
-		if public_ids.has(id) and multiplayer.is_server():
+		var powered := bool(power_states.get(id,false))
+		if multiplayer.is_server():
 			var device: Variant=game.computers.stations.get(id,{}).get("power")
 			powered=is_instance_valid(device) and device.powered
-		var texture: Texture2D=private_screen if id==local_screen_station else ambient
+		var texture: Texture2D=private_screen if id==local_screen_station else station_frames.get(id, ambient)
+		var power_target: Node = indicators[id].get_meta("power_target")
+		power_target.set_meta("label", "Turn off computer" if powered else "Turn on computer")
 		if powered and boot_until.has(id):texture=boot_render.get_texture()
 		indicators[id].set_display(powered,texture)
 

@@ -1173,7 +1173,7 @@ func request_close() -> void:
 	_request_exit()
 
 func _exit_now() -> void:
-	if bool(snapshot.get("public_device",false)) and str(snapshot.get("tier","")).is_empty():
+	if snapshot.has("power_cycle") and str(snapshot.get("tier","")).is_empty():
 		parked_device=str(snapshot.get("station",""))
 		parked_cycle=int(snapshot.get("power_cycle",-1))
 		parked_profile=str(session.get("local_profile"))
@@ -1266,7 +1266,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	var prior_lease: Variant = snapshot.get("lease")
 	var station := str(value.get("station",""))
 	var stored: Dictionary=parked_workspaces.get(station,{})
-	var can_restore: bool = bool(value.get("public_device",false)) and not stored.is_empty() and stored.cycle==int(value.get("power_cycle",-1)) and stored.profile==str(session.get("local_profile"))
+	var can_restore: bool = value.has("power_cycle") and not stored.is_empty() and stored.cycle==int(value.get("power_cycle",-1)) and stored.profile==str(session.get("local_profile"))
 	if not can_restore:parked_workspaces.erase(station)
 	var resumed := not parked_device.is_empty() and parked_device==str(value.get("station","")) and parked_cycle==int(value.get("power_cycle",-1)) and parked_profile==str(session.get("local_profile"))
 	if prior_lease!=value.get("lease") and not resumed:_reset_windows()
@@ -1279,7 +1279,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	var scale: float = float(tiers.get(str(snapshot.get("tier", "")), {}).get("display_scale", 1.0))
 	laptop_display_filter.visible = scale < 1.0
 	(laptop_display_filter.material as ShaderMaterial).set_shader_parameter("display_scale", scale)
-	if power_button != null:power_button.visible=bool(snapshot.get("public_device",false))
+	if power_button != null:power_button.visible=snapshot.has("power_cycle")
 	if retry_documents_button != null:retry_documents_button.visible=not str(snapshot.get("local_error","")).is_empty()
 	if folder_button != null:folder_button.visible=bool(snapshot.get("public_device",false))
 	if delete_button != null:delete_button.visible=bool(snapshot.get("public_device",false))
