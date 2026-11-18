@@ -33,7 +33,7 @@ static func valid(data: Variant) -> bool:
 			for entry in entries:
 				if not entry is Dictionary or not Color.html_is_valid(str(entry.get("color",""))):return false
 				if key=="strokes":
-					if not entry.get("points") is Array or entry.points.size()>256:return false
+					if not entry.get("points") is Array or entry.points.size()>1024:return false
 					if not is_finite(float(entry.get("width",0))) or float(entry.get("width",0))<1 or float(entry.get("width",0))>32:return false
 					for point in entry.points:
 						if not valid_point(point):return false

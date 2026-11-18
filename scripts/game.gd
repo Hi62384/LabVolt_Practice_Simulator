@@ -767,7 +767,7 @@ func activate(from_interact_key := true) -> void:
 	if is_instance_valid(shop_room) and shop_room.interact(current_target):return
 	if is_instance_valid(dc_lab) and dc_lab.interact(current_target,from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","")=="dc_board"):return
 	if is_instance_valid(school_world):
-		if from_interact_key and school_world.open_board_workspace(current_target):return
+		if from_interact_key and (school_world.open_board_workspace(current_target) or school_world.open_placed_document(current_target)):return
 		if school_world.interact(current_target,false):return
 	if not is_instance_valid(current_target):
 		return
@@ -964,7 +964,7 @@ func _physics_process(delta: float) -> void:
 		elif role in ["gym_dumbbell_rack","gym_dumbbell_floor","gym_barbell_sleeve","gym_barbell_floor","gym_plate_rack","gym_plate_floor","gym_weight_belt"]:
 			hint="%s - %s" % [key_name,str(current_target.get_meta("label","Dumbbells"))]
 		elif role=="discarded_item":
-			hint="Click: "+str(current_target.get_meta("label","Pick up item"))
+			hint=discarded_items.pickup_hint(int(current_target.get_meta("discard_id",0)),key_name)
 		elif role=="table" and kit_world.held():
 			hint="%s: place kit" % OS.get_keycode_string(player.keys.place_item)
 		elif role=="shop_station":

@@ -2,6 +2,7 @@ extends Node3D
 
 const Transfer = preload("res://scripts/ui/personal_inventory/discard_transfer.gd")
 const Lifetime := 120000
+const WARNING_MS := 15000
 const Store = preload("res://scripts/inventory_authority/store.gd")
 const PcbPreview = preload("res://scripts/campus/lost_found/pcb_preview.gd")
 const ClaimAuthority = preload("res://scripts/campus/lost_found/claim_authority.gd")
@@ -113,7 +114,7 @@ func _discard(peer: int,source: Dictionary,point: Vector3,allow_held_kit := fals
 				if paper.owner==peer and Transfer.Dorm.paper_supply(paper)==supply and not paper.get("supply_released",false):game.school.papers.erase(id)
 			game.school.broadcast()
 	var token := track_ground(peer,parcel,label)
-	drops[next_id]={"position":floor_point,"expires":0,"label":label,"parcel":parcel,"owner":peer,"token":token}
+	drops[next_id]={"position":floor_point,"expires":Time.get_ticks_msec()+Lifetime,"label":label,"parcel":parcel,"owner":peer,"token":token}
 	next_id+=1
 	_publish()
 	_notice(peer,"Discarded "+label+".",true)
@@ -457,6 +458,22 @@ func sync_drops(public: Dictionary,server_ticks: int) -> void:
 	drops=public
 	clock_offset=server_ticks-Time.get_ticks_msec()
 
+func pickup_hint(id: int, key: String) -> String:
+	var drop: Dictionary=drops.get(id,{})
+	if drop.is_empty():return ""
+	var hint := "%s\n%s — Pick up" % [drop.label,key]
+	if int(drop.expires)>0:
+		var seconds := maxi(0,ceili((int(drop.expires)-Time.get_ticks_msec()-clock_offset)/1000.0))
+		hint+="\nGround pickup expires in %d:%02d" % [floori(seconds/60.0),seconds%60]
+	return hint
+
+func _pickup_pending(id: int, drop: Dictionary) -> bool:
+	var token := str(drop.get("token",""))
+	if claim_pending.has(token) or pending_commits.has(token):return true
+	for transfer in usb_handoffs.pending.values():
+		if int(transfer.get("drop",-1))==id:return true
+	return false
+
 func _process(_delta: float) -> void:
 	if not is_instance_valid(game):return
 	if multiplayer.is_server() and not pending_commits.is_empty():
@@ -483,9 +500,14 @@ func _process(_delta: float) -> void:
 	var changed := false
 	if multiplayer.is_server():
 		for id in drops.keys():
-			if int(drops[id].expires)>0 and now>=int(drops[id].expires):
-				drops.erase(id)
-				changed=true
+			var drop: Dictionary=drops[id]
+			if int(drop.expires)<=0 or now<int(drop.expires) or _pickup_pending(id,drop):continue
+			var owner := int(drop.owner)
+			var token := str(drop.token)
+			if game.session.roster.has(owner):
+				queued_entries["%d:%s" % [owner,token]]={"owner":owner,"token":token,"entry":{"label":drop.label,"parcel":drop.parcel}}
+			drops.erase(id)
+			changed=true
 	if changed:
 		_fill_tables()
 		_publish()
@@ -501,6 +523,10 @@ func _process(_delta: float) -> void:
 		var permanent := int(drop.expires)==0
 		root.visible=permanent or seconds>0
 		root.collision_layer=4 if root.visible else 0
+		var ring := root.get_node_or_null("DiscardRing") as MeshInstance3D
+		if ring!=null:
+			var material := ring.material_override as StandardMaterial3D
+			material.albedo_color=Color("bc8556") if int(drop.expires)-now<=WARNING_MS else Color("6c9a8b")
 
 func _visual_kind(drop: Dictionary) -> String:
 	if drop.has("visual"):return str(drop.visual)
@@ -530,6 +556,22 @@ func _make_view(id: int,drop: Dictionary) -> StaticBody3D:
 	root.set_meta("label","Pick up "+str(drop.label))
 	add_child(root)
 	root.global_position=drop.position
+	if int(drop.expires)>0:
+		var ring := MeshInstance3D.new()
+		ring.name="DiscardRing"
+		var mesh := TorusMesh.new()
+		mesh.inner_radius=.215
+		mesh.outer_radius=.23
+		mesh.rings=32
+		mesh.ring_segments=8
+		ring.mesh=mesh
+		ring.position.y=.011
+		ring.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var material := StandardMaterial3D.new()
+		material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.albedo_color=Color("6c9a8b")
+		ring.material_override=material
+		root.add_child(ring)
 	var kind := _visual_kind(drop)
 	var prop := Node3D.new();root.add_child(prop)
 	if kind=="usb":

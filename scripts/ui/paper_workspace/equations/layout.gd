@@ -8,16 +8,25 @@ static func build(source: String, font: Font, font_size: int) -> Dictionary:
 	var parsed: Dictionary = Parser.new().parse(source)
 	var size := clampi(font_size, 8, 96)
 	if not parsed.ok:
-		var preview := source.substr(0, 32)
-		var fallback := _text(preview, font, size)
-		while preview.length() > 1 and fallback.size.x > MAX_EXTENT:
-			preview = preview.substr(0, preview.length() - 1)
-			fallback = _text(preview, font, size)
-		return {"ok":false, "source":source, "error":parsed.error, "size":fallback.size, "commands":fallback.commands}
+		return _fallback(source, font, size, parsed.error)
 	var box := _layout(parsed.tree, font, size, 0)
 	if box.size.x > MAX_EXTENT or box.size.y > MAX_EXTENT:
-		return {"ok":false, "source":source, "error":"Equation layout exceeds the page limit.", "size":Vector2.ZERO, "commands":[]}
+		return _fallback(source, font, size, "Equation layout exceeds the page limit.")
 	return {"ok":true, "source":source, "error":"", "size":box.size, "commands":box.commands}
+
+static func _fallback(source: String, font: Font, size: int, error: String) -> Dictionary:
+	var extent := Vector2.ZERO
+	var commands := []
+	for line in source.split("\n"):
+		var row := _text(line, font, size)
+		while line.length() > 1 and row.size.x > MAX_EXTENT:
+			line = line.left(line.length() - 1)
+			row = _text(line, font, size)
+		if extent.y + row.size.y > MAX_EXTENT:break
+		commands.append_array(_shift(row.commands, Vector2(0, extent.y)))
+		extent.x = maxf(extent.x, row.size.x)
+		extent.y += row.size.y
+	return {"ok":false, "source":source, "error":error, "size":extent, "commands":commands}
 
 static func draw(canvas: CanvasItem, plan: Dictionary, origin: Vector2, font: Font, color: Color) -> void:
 	for command in plan.get("commands", []):

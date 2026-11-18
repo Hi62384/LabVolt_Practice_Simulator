@@ -73,7 +73,7 @@ func _gui_input(event: InputEvent) -> void:
 		if tool=="eraser":erase_ink.emit(event.position,event.position);accept_event();return
 		if tool in ["text","equation"]:
 			var equation := tool=="equation" or bool(text_defaults.get("equation",false))
-			var item := {"id":str(Time.get_ticks_usec()),"kind":"equation" if equation else "text","text":"a/b" if equation else "Text","position":event.position/size,"angle":float(text_defaults.get("angle",0.0)),"font_size":int(text_defaults.get("font_size",24)),"font":str(text_defaults.get("font","Sans")),"color":ink_color.to_html(false),"bold":bool(text_defaults.get("bold",false)),"italic":bool(text_defaults.get("italic",false)),"align":str(text_defaults.get("align","left")),"opacity":float(text_defaults.get("opacity",1.0)),"box_width":float(text_defaults.get("box_width",280.0)),"baked":false}
+			var item := {"id":Crypto.new().generate_random_bytes(16).hex_encode(),"kind":"equation" if equation else "text","text":"a/b" if equation else "Text","position":event.position/size,"angle":float(text_defaults.get("angle",0.0)),"font_size":int(text_defaults.get("font_size",24)),"font":str(text_defaults.get("font","Sans")),"color":ink_color.to_html(false),"bold":bool(text_defaults.get("bold",false)),"italic":bool(text_defaults.get("italic",false)),"align":str(text_defaults.get("align","left")),"opacity":float(text_defaults.get("opacity",1.0)),"box_width":float(text_defaults.get("box_width",280.0)),"baked":false}
 			items.append(item);selection=item.id;changed.emit(item.duplicate(true));selected.emit(item);queue_redraw();accept_event()
 	elif event is InputEventMouseMotion and tool=="eraser" and event.button_mask & MOUSE_BUTTON_MASK_LEFT:erase_ink.emit(event.position,event.position-event.relative);accept_event()
 	elif event is InputEventMouseMotion and not transform_drag.is_empty():
@@ -151,7 +151,6 @@ func _layout_inline_editor() -> void:
 	if item.get("kind")=="equation":
 		var issue := equation_error(inline_editor.text)
 		inline_editor.tooltip_text = issue
-		if not issue.is_empty():inline_editor.add_theme_color_override("font_color",Color("9e3131"))
 	var extent := measure(inline_editor.text,font_size,font,false)
 	var width := maxf(extent.x,float(item.get("box_width",extent.x)))
 	var offset := Vector2(_alignment_offset(item,width,extent.x),0)
@@ -257,15 +256,7 @@ func paint(text: String,pos: Vector2,fs: int,font: Font,color: Color,equation: b
 		draw_string(font,pos+Vector2(0,font.get_ascent(fs)+index*font.get_height(fs)),line,HORIZONTAL_ALIGNMENT_LEFT,-1,fs,color)
 func _draw() -> void:
 	for item in items:
-		if item.id==inline_item_id:
-			if item.kind=="equation" and is_instance_valid(inline_editor):
-				var preview_font := _item_font(item)
-				var preview := EquationLayout.build(inline_editor.text.left(256),preview_font,int(item.font_size))
-				if preview.ok:
-					var offset := Vector2(0,inline_editor.size.y).rotated(inline_editor.rotation)
-					draw_set_transform(inline_editor.position+offset,inline_editor.rotation)
-					EquationLayout.draw(self,preview,Vector2.ZERO,preview_font,Color(str(item.color)))
-			continue
+		if item.id==inline_item_id:continue
 		var font := _item_font(item)
 		draw_set_transform(item.position*size,float(item.angle))
 		var color := Color(str(item.color));color.a*=clampf(float(item.get("opacity",1.0)),0.05,1.0)

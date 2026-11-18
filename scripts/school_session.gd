@@ -29,6 +29,10 @@ var local_identity := ""
 var sent_identity := false
 var gradebook := {}
 var archive := {}
+const SHARED_EDITS := ["answer","notebook_page","erase","stroke","annotation","remove_annotation","undo_annotation","redo_annotation","erase_area","undo_stroke","redo_stroke"]
+var document_readers := {}
+var document_sequences := {}
+var document_sequence := 0
 var last_requests := {}
 const GradePolicy = preload("res://scripts/campus/academics/grade_policy.gd")
 const PendingAssessment = preload("res://scripts/campus/academics/pending_assessment.gd")
@@ -76,6 +80,9 @@ func build(owner_game: Node) -> void:
 		push_warning("Could not reconcile interrupted class records. The archive will be retried on the next launch.")
 	_identity_changed()
 func _reset_session() -> void:
+	document_readers.clear()
+	document_sequences.clear()
+	document_sequence=0
 	_flush_practice()
 	host_departure_in_progress=false
 	class_start.cancel()
@@ -135,6 +142,10 @@ func start(new_mode: String,level: int) -> void:
 	if mode=="Class":_clear_earthing_demo();_new_round()
 	broadcast()
 func roster_changed() -> void:
+	for peer in document_readers.keys():
+		if not game.session.roster.has(peer):document_readers.erase(peer)
+	for peer in document_sequences.keys():
+		if not game.session.roster.has(peer):document_sequences.erase(peer)
 	if not multiplayer.is_server():
 		if game.session.roster.has(multiplayer.get_unique_id()) and not sent_identity:
 			sent_identity=true
@@ -281,6 +292,9 @@ func _holding_cable(peer: int) -> bool:
 	return false
 func request(action: Dictionary) -> void:
 	var item := str(action.get("op",""))
+	if item in SHARED_EDITS:
+		document_sequence+=1
+		action.sequence=document_sequence
 	if DormSupplies.is_notebook(item):
 		action.content=preload("res://scripts/notebook_store.gd").read(game.characters.selected,DormSupplies.notebook_uid(item))
 	if str(action.get("op","")) in ["new","pickup","place","page","trash","submit"]:game.sfx.play("trash" if action.op=="trash" else "paper")
@@ -292,6 +306,16 @@ func _request(action: Dictionary) -> void:
 func _near(peer: int,point: Vector3) -> bool:
 	var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
 	return pos.distance_to(point)<3.6
+
+func shareable_document(paper: Dictionary) -> bool:
+	if paper.is_empty() or paper.get("held",false) or paper.get("stowed",false):return false
+	if not multiplayer.is_server():return bool(paper.get("shared_capable",false))
+	if not paper.mark.is_empty() or _official(paper) or _class_assessment(paper) or not str(paper.get("room_class","")).is_empty():return false
+	return bool(paper.get("notebook",false)) or (not paper.get("guide",false) and DormSupplies.paper_supply(paper).is_empty())
+
+func shared_document_access(peer: int, paper: Dictionary) -> bool:
+	if not multiplayer.is_server():return bool(paper.get("shared_access",false))
+	return document_readers.get(peer,0)==int(paper.get("id",0)) and game.session.roster.has(peer) and shareable_document(paper) and _near(peer,paper.position)
 
 func ground_drop_position(point: Variant, peer: int) -> Variant:
 	if not point is Vector3 or not point.is_finite():return null
@@ -435,27 +459,26 @@ func _mark_board_segment(peer: int, action: Dictionary, paper: Dictionary, lines
 	var to: Variant=action.get("point")
 	if not _valid_board_point(from) or not _valid_board_point(to):return null
 	if action.get("erase",false):
-		var remaining := []
-		var erased := false
 		var raw_radius: Variant=action.get("radius",.045)
 		if not (raw_radius is float or raw_radius is int) or not is_finite(float(raw_radius)):return null
-		var radius := clampf(float(raw_radius),.01,.12)
+		var radius := clampf(float(raw_radius),.0025,.12)
+		var aspect := float(paper.get("board_aspect",3.2))
+		var normalized: Array=[]
 		for line in lines:
-			var points := Whiteboard.points(line)
-			var run := PackedVector2Array()
-			for index in range(1,points.size()):
-				var nearest := Geometry2D.get_closest_point_to_segment(to,points[index-1],points[index])
-				if nearest.distance_to(to)<=radius:
-					erased=true
-					if run.size()>1:remaining.append(_board_fragment(line,run))
-					run=PackedVector2Array()
-				else:
-					if run.is_empty():run.append(points[index-1])
-					run.append(points[index])
-			if run.size()>1:remaining.append(_board_fragment(line,run))
-		if not erased:return null
+			var path := {"points":Array(Whiteboard.points(line))}
+			if line is Dictionary:
+				path.color=line.color
+				path.width=line.width
+			normalized.append(path)
+		var remaining := preload("res://scripts/paper_ink.gd").erase_area(normalized,to,Vector2(radius,radius*aspect),from)
+		if remaining==normalized:return null
+		var fragments: Array=[]
+		for line in remaining:
+			var points := PackedVector2Array(line.points)
+			if points.size()==1:points.append(points[0])
+			fragments.append(_board_fragment(line,points) if line.has("color") else points)
 		paper.erase("board_last_writer")
-		return remaining
+		return fragments
 	if not _board_room_left(peer,paper,lines,2):return null
 	var continues: bool = bool(action.get("continue",false)) and not lines.is_empty() and from!=to and paper.get("board_last_writer",0)==peer
 	if continues and not lines.back() is Dictionary and lines.back().size()<256 and lines.back()[-1]==from:
@@ -544,7 +567,7 @@ func _table_position(pos: Vector3, peer := 0) -> bool:
 	return false
 func apply(peer: int,a: Dictionary) -> void:
 	var byte_limit := 2004096 if DormSupplies.is_notebook(str(a.get("op",""))) else 64000
-	if not identities.has(peer) or a.size()>8 or var_to_bytes(a).size()>byte_limit:return
+	if not identities.has(peer) or a.size()>(9 if str(a.get("op","")) in SHARED_EDITS else 8) or var_to_bytes(a).size()>byte_limit:return
 	var now := Time.get_ticks_msec()
 	var recent: Dictionary=last_requests.get(peer,{"time":now,"count":0})
 	if now-int(recent.time)>1000:recent={"time":now,"count":0}
@@ -662,7 +685,21 @@ func apply(peer: int,a: Dictionary) -> void:
 		var id := int(a.get("id",0))
 		if not papers.has(id):return
 		var paper: Dictionary=papers[id]
-		if paper.owner!=peer:return
+		if op=="open_document":
+			if paper.owner!=peer and game.session.roster.has(peer) and shareable_document(paper) and _near(peer,paper.position):
+				document_readers[peer]=id
+				broadcast()
+			return
+		if op=="close_document":
+			if document_readers.get(peer,0)==id:
+				document_readers.erase(peer)
+				broadcast()
+			return
+		if paper.owner!=peer and (op not in SHARED_EDITS or not shared_document_access(peer,paper)):return
+		if op in SHARED_EDITS and a.has("sequence"):
+			var sequence: Variant=a.sequence
+			if not sequence is int or sequence<=int(document_sequences.get(peer,0)):return
+			document_sequences[peer]=sequence
 		var room_class: bool=not str(paper.get("room_class","")).is_empty()
 		if room_class and not game.lecture_classes.paper_action_allowed(peer,paper,op):return
 		var supply := DormSupplies.paper_supply(paper)
@@ -765,7 +802,7 @@ func apply(peer: int,a: Dictionary) -> void:
 			"stroke":
 				if not can_mark_paper(paper):return
 				var points=a.get("points",[])
-				if not points is Array or points.size()>256:return
+				if not points is Array or points.is_empty() or points.size()>1024:return
 				for point in points:
 					if not point is Vector2 or not point.is_finite() or point.x<0 or point.y<0 or point.x>1 or point.y>1:return
 				var key := str(clampi(int(a.get("page",0)),0,page_count(paper)-1))
@@ -820,6 +857,7 @@ func apply(peer: int,a: Dictionary) -> void:
 				if paper.get("annotations",{}).has(key):
 					for existing in paper.annotations[key]:
 						if existing.id==str(a.get("object","")):
+							if existing.get("baked",false):return
 							_remember_paper_edit(paper, "annotation", {"page":key,"id":existing.id,"before":existing.duplicate(true),"after":{}})
 							break
 					paper.annotations[key]=paper.annotations[key].filter(func(item):return item.id!=str(a.get("object","")))
@@ -1191,6 +1229,14 @@ func advance(delta: float) -> void:
 	broadcast()
 	checkpoint()
 func _process(delta: float) -> void:
+	if not document_readers.is_empty() and multiplayer.is_server():
+		var revoked := false
+		for peer in document_readers.keys():
+			var paper: Dictionary=papers.get(document_readers[peer],{})
+			if not shared_document_access(peer,paper):
+				document_readers.erase(peer)
+				revoked=true
+		if revoked:broadcast()
 	if game==null or not multiplayer.has_multiplayer_peer():return
 	if multiplayer.multiplayer_peer.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED or not multiplayer.is_server():return
 	practice_save_clock += delta
@@ -1263,7 +1309,11 @@ func _public_state(recipient: int) -> Dictionary:
 		var paper: Dictionary=source.duplicate(false)
 		paper.erase("identity");paper.erase("project")
 		if paper.owner!=recipient:
-			paper.answers={};paper.strokes={};paper.annotations={};paper.mark={};paper.erase("procedure");paper.erase("math_ui");paper.erase("annotation_history")
+			paper.shared_capable=shareable_document(source)
+			paper.shared_access=shared_document_access(recipient,source)
+			if not paper.shared_access:
+				paper.answers={};paper.strokes={};paper.annotations={}
+			paper.mark={};paper.erase("procedure");paper.erase("math_ui");paper.erase("annotation_history")
 		paper=paper.duplicate(true)
 		paper.project=_public_project(source.project,(not source.mark.is_empty() or source.lesson) and source.owner==recipient)
 		if source.owner != recipient:

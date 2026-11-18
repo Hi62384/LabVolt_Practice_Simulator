@@ -620,6 +620,13 @@ func can_recycle_held_sheet() -> bool:
 	var item: Dictionary=school.papers.get(school.held(multiplayer.get_unique_id()),{})
 	return not item.is_empty() and str(item.get("supply_id","")).is_empty() and not item.get("notebook",false) and not item.get("calculator",false)
 
+func open_placed_document(target: StaticBody3D) -> bool:
+	if target==null or target.get_meta("role","")!="paper":return false
+	var id := int(target.get_meta("paper_id",0))
+	if not school.shareable_document(school.papers.get(id,{})):return false
+	game.paper_ui.open_sheet(id)
+	return true
+
 func placed_item_hint(id: int) -> String:
 	var item: Dictionary=school.papers.get(id,{})
 	if item.is_empty():return ""
@@ -633,6 +640,9 @@ func placed_item_hint(id: int) -> String:
 	if item.get("calculator",false):
 		if not owned:return name
 		return "Right click: use "+name.to_lower()+" • "+pickup
+	if school.shareable_document(item):
+		var key := OS.get_keycode_string(game.player.keys.interact)
+		return "%s — Owned by %s\n%s — Open%s" % [name,item.get("owner_name","Student"),key," • "+pickup if owned else ""]
 	if item.get("notebook",false) or supply.is_empty():
 		return "Right click: read "+name.to_lower()+(" • "+pickup if owned else "")
 	return pickup if owned else name

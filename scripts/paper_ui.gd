@@ -14,6 +14,7 @@ var zoom_control: MenuButton
 var page_body: VBoxContainer
 var ink: Control
 var rendered_revision := -1
+var rendered_shared := false
 var rendered_mark := {}
 var pending := {}
 var reader_generation := 0
@@ -55,7 +56,7 @@ func build(owner_game: Node) -> void:
 	game=owner_game
 	school=game.school
 	_load_reader_views()
-	layer=30
+	layer=34
 	screen=PanelContainer.new()
 	screen.theme=preload("res://scripts/ui/design_system/theme.gd").create()
 	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -123,11 +124,13 @@ func close() -> void:
 	screen.offset_left=40;screen.offset_top=20;screen.offset_right=-40;screen.offset_bottom=-20
 	remember_view()
 	flush()
+	var closed_id := document_id if reading else 0
 	Input.set_custom_mouse_cursor(null,Input.CURSOR_ARROW)
 	active_cursor_tool="answer"
 	if is_instance_valid(calculator_drawer):calculator_drawer.close()
 	screen.hide()
 	reading=false
+	if closed_id!=0:school.request({"op":"close_document","id":closed_id})
 	reader_generation+=1
 	restoring_view=false
 	if game.front.in_game:game.capture()
@@ -267,6 +270,9 @@ func open_sheet(id: int) -> void:
 	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	screen.offset_left=40;screen.offset_top=20;screen.offset_right=-40;screen.offset_bottom=-20
 	flush()
+	if reading and document_id!=id:
+		reading=false
+		school.request({"op":"close_document","id":document_id})
 	document_id=id
 	page_index=clampi(int(view_states.get(_reader_key(school.papers[id]),{}).get("page",school.papers[id].page)),0,_page_count(school.papers[id])-1)
 	reading=true
@@ -274,10 +280,12 @@ func open_sheet(id: int) -> void:
 	game.release_mouse()
 	screen.show()
 	_build_reader()
+	if item.owner!=multiplayer.get_unique_id() and school.shareable_document(item):
+		school.request({"op":"open_document","id":id})
 func _editable(paper: Dictionary) -> bool:
-	return paper.owner==multiplayer.get_unique_id() and paper.mark.is_empty()
+	return paper.mark.is_empty() and (paper.owner==multiplayer.get_unique_id() or school.shared_document_access(multiplayer.get_unique_id(),paper))
 func _can_mark(paper: Dictionary) -> bool:
-	return paper.owner==multiplayer.get_unique_id() and school.can_mark_paper(paper)
+	return (paper.owner==multiplayer.get_unique_id() or school.shared_document_access(multiplayer.get_unique_id(),paper)) and school.can_mark_paper(paper)
 func _page_count(paper: Dictionary) -> int:
 	if bool(paper.get("guide",false)):
 		return maxi(1,paper.get("project",{}).get("guide_pages",[]).size())
@@ -286,7 +294,9 @@ func _reader_copy(source: Dictionary) -> Dictionary:
 	var copy: Dictionary=source.duplicate(true)
 	copy.erase("identity")
 	if int(copy.owner)!=multiplayer.get_unique_id():
-		copy.answers={};copy.strokes={};copy.annotations={};copy.mark={}
+		if not school.shared_document_access(multiplayer.get_unique_id(),source):
+			copy.answers={};copy.strokes={};copy.annotations={}
+		copy.mark={}
 		copy.erase("procedure");copy.erase("math_ui");copy.erase("annotation_history")
 	copy.project=school._public_project(source.project,(source.lesson or not source.mark.is_empty()) and int(source.owner)==multiplayer.get_unique_id())
 	return copy
@@ -321,6 +331,7 @@ func _build_reader() -> void:
 	var source_id := document_id
 	var source_page := page_index
 	rendered_revision=paper.revision
+	rendered_shared=school.shared_document_access(multiplayer.get_unique_id(),school.papers[document_id])
 	rendered_mark=paper.mark.duplicate(true)
 	var toolbar := HFlowContainer.new();toolbar.add_theme_constant_override("h_separation",8);column.add_child(toolbar)
 	var document := _label(toolbar, str(paper.project.get("title", "Worksheet")), 18)
@@ -425,7 +436,7 @@ func _build_reader() -> void:
 	custom.color_changed.connect(func(value):pencil_color=value;ink.pencil_color=value)
 	var width := HSlider.new();width.min_value=1;width.max_value=32;width.step=1;width.value=pencil_width;width.tooltip_text="Pencil thickness";width.value_changed.connect(func(value):pencil_width=value;ink.pencil_width=value);side.add_child(width);width.visible=pencil_mode
 	var actions := HBoxContainer.new();side.add_child(actions)
-	var undo := _button(actions,"Undo stroke",func():school.request({"op":"undo_stroke","id":document_id,"page":page_index});if not ink.strokes.is_empty():ink.strokes.pop_back();ink.queue_redraw())
+	var undo := _button(actions,"Undo stroke",func():school.request({"op":"undo_stroke","id":document_id,"page":page_index}))
 	undo.custom_minimum_size.y=28;undo.disabled=not _editable(paper)
 	var erase := _button(actions,"Clear page",func():school.request({"op":"erase","id":document_id,"page":page_index});ink.strokes=[];ink.queue_redraw());erase.custom_minimum_size.y=28;erase.disabled=not _editable(paper)
 	if paper.lesson and not paper.get("guide",false) and paper.owner==multiplayer.get_unique_id():
@@ -452,7 +463,7 @@ func _build_reader() -> void:
 			calculator_widget.memory_label.text=calculator_widget.mode.text+("   M" if calc_saved.memory!=0 else "")
 		calculator_widget.display.caret_column=clampi(int(calc_saved.get("caret",calculator_state.length())),0,calculator_state.length())
 		if int(calc_saved.get("selection_begin",-1))>=0:calculator_widget.display.select(int(calc_saved.selection_begin),int(calc_saved.selection_end))
-	if not paper.lesson and _editable(paper):
+	if not paper.lesson and paper.owner==multiplayer.get_unique_id() and _editable(paper):
 		_button(toolbar,"Submit test",func():flush();school.request({"op":"submit","id":document_id});close())
 		if paper.project.get("kind","")=="lab":
 			var validation := str(paper.project.get("lab_validation",""))
@@ -598,7 +609,7 @@ func _case_text_action(action: String) -> void:
 		var source: Dictionary=annotation_layer.find_item(annotation_layer.selection)
 		if source.is_empty() or bool(source.get("baked",false)):return
 		var copy: Dictionary=source.duplicate(true)
-		copy.id=str(Time.get_ticks_usec())
+		copy.id=Crypto.new().generate_random_bytes(16).hex_encode()
 		copy.position=(Vector2(copy.position)+Vector2(0.025,0.018)).clamp(Vector2.ZERO,Vector2.ONE)
 		annotation_layer.items.append(copy)
 		annotation_layer.selection=copy.id
@@ -643,9 +654,34 @@ func _updated() -> void:
 		page_index=int(paper.page)
 		_build_reader()
 		return
-	if (awaiting_annotation_undo or paper.mark!=rendered_mark or paper.owner!=multiplayer.get_unique_id()) and rendered_revision!=paper.revision:
-		awaiting_annotation_undo=false
+	var shared: bool=school.shared_document_access(multiplayer.get_unique_id(),paper)
+	if rendered_shared and not shared:
+		# Discard local input after access has been revoked by the host.
+		pending.clear()
+		if is_instance_valid(ink):ink.current.clear()
+		if is_instance_valid(annotation_layer):annotation_layer.finish_inline_edit(false)
+		close()
+		return
+	if rendered_shared!=shared or (paper.mark!=rendered_mark and rendered_revision!=paper.revision):
 		_build_reader()
+		return
+	if rendered_revision==paper.revision:return
+	rendered_revision=paper.revision
+	awaiting_annotation_undo=false
+	if not is_instance_valid(ink) or not is_instance_valid(annotation_layer):return
+	var key := str(page_index)
+	ink.strokes=paper.strokes.get(key,[]).duplicate(true)
+	ink.queue_redraw()
+	var active_id: String=annotation_layer.inline_item_id
+	var moving: bool=annotation_layer.dragging or not annotation_layer.transform_drag.is_empty()
+	if moving:active_id=annotation_layer.selection
+	var active: Dictionary=annotation_layer.find_item(active_id)
+	annotation_layer.items=paper.get("annotations",{}).get(key,[]).duplicate(true)
+	if not active.is_empty() and (moving or annotation_layer.find_item(active.id).is_empty()):
+		annotation_layer.items=annotation_layer.items.filter(func(item):return item.id!=active.id)
+		annotation_layer.items.append(active)
+	annotation_layer.queue_redraw()
+	if page_view.has_method("sync_answers"):page_view.sync_answers(paper.answers,pending)
 func _process(delta: float) -> void:
 	if reading and screen.visible and is_instance_valid(workspace_view):view_zoom=workspace_view.zoom
 	if reading and screen.visible and is_instance_valid(save_status) and school.papers.has(document_id):

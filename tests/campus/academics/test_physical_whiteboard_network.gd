@@ -96,8 +96,10 @@ func run() -> void:
 		if not await wait_for(func():return service.request_budget.has(returning),deadline):fail("Rejoined unauthorized request missing");return
 		if school.papers[2].board_lines.size()!=1:fail("Unselected rejoin changed board");return
 		game.lecture_classes.classes.room.phase="assignment";service.tick(Time.get_ticks_msec()/1000.0)
+		var assessment_board: Array=school.papers[2].board_lines.duplicate(true)
+		if service.can_mark_board(returning,"room",Time.get_ticks_msec()/1000.0):fail("Assessment phase retained board access");return
 		if not await wait_for(func():return events.acks>=1,deadline):fail("Assessment-phase request missing");return
-		if school.papers[2].board_lines.size()!=1:fail("Assessment phase accepted board mark");return
+		if school.papers[2].board_lines!=assessment_board:fail("Assessment phase accepted board mark");return
 		print("PHYSICAL_BOARD_HOST PASS")
 	elif args[0]=="observer":
 		if not await wait_for(func():return school.papers.has(2) and school.papers[2].board_lines.size()==1 and school.papers[2].board_notes.size()==1,deadline):fail("Observer did not receive whiteboard state");return

@@ -4,7 +4,6 @@ signal view_changed(zoom: float, offset: Vector2)
 
 const MIN_ZOOM := 0.55
 const MAX_ZOOM := 2.4
-const EDGE_GUARD := 56.0
 var paper: Control
 var zoom := 1.0
 var offset := Vector2.ZERO
@@ -20,11 +19,8 @@ static func bounded_offset(view_size: Vector2, page_size: Vector2, scale_value: 
 	for axis in 2:
 		var extent: float = scaled[axis]
 		var room: float = view_size[axis]
-		if extent <= room:
-			var center := (room - extent) * .5
-			result[axis] = clampf(result[axis], center - EDGE_GUARD, center + EDGE_GUARD)
-		else:
-			result[axis] = clampf(result[axis], room - extent - EDGE_GUARD, EDGE_GUARD)
+		var visible := minf(extent * .38, room * .22)
+		result[axis] = clampf(result[axis], visible - extent, room - visible)
 	return result
 
 func mount(value: Control) -> void:

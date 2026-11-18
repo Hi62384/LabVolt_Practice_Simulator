@@ -634,7 +634,8 @@ func _process(delta: float) -> void:
 	campus_tick+=delta
 	if is_instance_valid(campus_hud):
 		var computer_open: bool=is_instance_valid(game.computer_room_adapter) and is_instance_valid(game.computer_room_adapter.desktop) and game.computer_room_adapter.desktop.visible
-		campus_hud.visible=in_game and not screen.visible and not computer_open and game.client_preferences.values.hud
+		var paper_open: bool=is_instance_valid(game.paper_ui) and game.paper_ui.screen.visible
+		campus_hud.visible=in_game and not screen.visible and not computer_open and not paper_open and game.client_preferences.values.hud
 		if in_game and campus_tick>=0.25 and is_instance_valid(campus_adapter) and is_instance_valid(campus_adapter.registry):
 			campus_tick=0.0
 			var registry: Object=campus_adapter.registry

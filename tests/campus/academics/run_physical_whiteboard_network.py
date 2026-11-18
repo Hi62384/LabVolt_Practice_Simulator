@@ -8,7 +8,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[3]
-GODOT = ROOT / "runtime" / "Godot_v4.5.1-stable_win64_console.exe"
+GODOT = ROOT / "runtime" / "Godot_v4.5.1-stable_mono_win64" / "Godot_v4.5.1-stable_mono_win64_console.exe"
 SCRIPT = "res://tests/campus/academics/test_physical_whiteboard_network.gd"
 MIN_AVAILABLE_MB = 3000
 

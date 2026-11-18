@@ -18,6 +18,9 @@ func run() -> void:
 	var plan: Dictionary=Layout.build(source,font,24)
 	check(plan.ok and plan.source==source,"equation source is exact")
 	check(Annotations.measure(source,24,font,true).is_equal_approx(plan.size),"selection hit bounds match typesetter")
+	var invalid := "invalid syntax ) " + "xy".repeat(30)
+	var fallback := Layout.build(invalid,font,24)
+	check(not fallback.ok and fallback.commands[0].text==invalid,"invalid equation keeps readable source")
 	check(not Annotations.equation_error("(((33)(66)/33+66)^2) + 3)").is_empty(),"malformed grouping reports error")
 	var root := Control.new();root.size=Vector2(800,600);self.root.add_child(root)
 	var annotation: Variant=Annotations.new();annotation.size=Vector2(780,1100);annotation.writable=true;root.add_child(annotation)
@@ -45,6 +48,16 @@ func run() -> void:
 	ink.eraser_radius=20.0;ink.erase_at(Vector2(156,330));check(ink.strokes.size()==2,"eraser preserves both ends of a cut stroke")
 	if ink.strokes.size()==2:
 		check(ink.strokes.front().points.front()==Vector2(.1,.2) and ink.strokes.back().points.back()==Vector2(.3,.4),"erase preserves original endpoints")
+	var samples := PackedVector2Array([Vector2(.2,.5),Vector2(.8,.5),Vector2(.2,.5)])
+	var single := PackedVector2Array([Vector2(.2,.5),Vector2(.8,.5)])
+	for hardness in [0.0,.25,.5,.75,1.0]:
+		for width in [3.0,12.0,24.0,32.0]:
+			var repeated_mask: Dictionary=ink.rasterizer.Rasterize(samples,Vector2(780,1100),width,hardness)
+			var single_mask: Dictionary=ink.rasterizer.Rasterize(single,Vector2(780,1100),width,hardness)
+			var painted: Image=repeated_mask.texture.get_image()
+			check(painted.get_data()==single_mask.texture.get_image().get_data(),"retracing within one stroke leaves coverage unchanged")
+			var center := painted.get_pixel(painted.get_width()/2,painted.get_height()/2)
+			check(center.r==1.0 and center.g==1.0 and center.b==1.0 and center.a>.4,"mask preserves color and brush center")
 	var wide_line := {"points":[Vector2(.1,.5),Vector2(.9,.5)],"color":"b94745","width":28.0}
 	var fragments: Array=Ink.erase_area([wide_line],Vector2(.5,.75),Vector2(.015,.010),Vector2(.5,.25))
 	check(fragments.size()==2,"fast eraser movement sweeps an uninterrupted gap")
@@ -67,6 +80,9 @@ func run() -> void:
 		var prior: Vector2=view.offset
 		view.move_by(Vector2(30,-25))
 		check(view.offset.x>prior.x and view.offset.y<prior.y,"paper pans both ways at %.2f zoom"%factor)
+	view.restore(1.0,Vector2(1e6,-1e6))
+	check(view.offset.x>view.size.x*.65 and view.offset.y<-page.size.y*.55,"viewport permits wide horizontal and vertical sweeps")
+	check(view.offset.x<view.size.x and view.offset.y>-page.size.y,"paper retains a visible grab area")
 	var drawer: Variant=Drawer.new();root.add_child(drawer);drawer.configure(Calculator.new());drawer.set_locked(true)
 	var state: Dictionary=drawer.snapshot_state();drawer.set_locked(false);drawer.restore_state(state)
 	check(drawer.locked and bool(drawer.snapshot_state().locked),"calculator pin state survives rebuild snapshot")

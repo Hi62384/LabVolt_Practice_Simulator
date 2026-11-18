@@ -1,4 +1,10 @@
 extends Control
+const Coverage = preload("res://scripts/ui/paper_workspace/PaperStrokeCoverage.cs")
+const MAX_STROKE_POINTS := 1024
+const CACHE_BUDGET := 16 * 1024 * 1024
+var rasterizer := Coverage.new()
+var masks := {}
+var mask_bytes := 0
 signal area_erased(point: Vector2, radius: Vector2, from: Vector2)
 var eraser := false
 signal stroke_finished(stroke: Dictionary)
@@ -36,8 +42,11 @@ func _gui_input(event: InputEvent) -> void:
 			if event.pressure>0.0:
 				pressure_sum+=clampf(event.pressure,0.05,1.0)
 				pressure_samples+=1
-		if current.size()>=250:
-			finish();current=[point]
+		if current.size()>=MAX_STROKE_POINTS:
+			var sampled: Array=[]
+			for index in range(0,current.size()-1,2):sampled.append(current[index])
+			sampled.append(current.back())
+			current=sampled
 		queue_redraw();accept_event()
 func finish() -> void:
 	if current.is_empty():return
@@ -47,23 +56,41 @@ func finish() -> void:
 	strokes.append(stroke);current.clear();stroke_finished.emit(stroke);queue_redraw()
 func _draw() -> void:
 	if background:draw_rect(Rect2(Vector2.ZERO,size),Color("fcfaf2"))
-	for item in strokes+[{"points":current,"color":pencil_color.to_html(false),"width":pencil_width,"hardness":pencil_hardness,"opacity":pencil_opacity}]:
-		var points: Array=item if item is Array else item.get("points",[])
-		var color := Color("263743") if item is Array else Color(item.get("color","263743"))
-		var width: float=2.0 if item is Array else float(item.get("width",2.))
-		var hardness := clampf(float(item.get("hardness",1.0)),0.0,1.0)
-		color.a*=clampf(float(item.get("opacity",1.0)),0.05,1.0)
-		width*=size.x/780.
-		if hardness<1.0 and not points.is_empty():
-			var halo := color;halo.a*=0.22*(1.0-hardness)
-			_draw_round_stroke(points,halo,width*(1.0+2.0*(1.0-hardness)))
-		_draw_round_stroke(points,color,width)
+	for item in strokes:
+		_paint_stroke(item,true)
+	if not current.is_empty():
+		var width := pencil_width*(pressure_sum/pressure_samples if pressure_samples>0 else 1.0)
+		_paint_stroke({"points":current,"color":pencil_color.to_html(false),"width":width,"hardness":pencil_hardness,"opacity":pencil_opacity},false)
 
-func _draw_round_stroke(points: Array, color: Color, width: float) -> void:
-	for i in range(1,points.size()):
-		draw_line(points[i-1]*size,points[i]*size,color,width,true)
-	for point in points:
-		draw_circle(point*size,width*.5,color,true,-1,true)
+func _paint_stroke(item: Variant, cache: bool) -> void:
+	var points: Array=item if item is Array else item.get("points",[])
+	if points.is_empty():return
+	var color := Color("263743") if item is Array else Color(item.get("color","263743"))
+	var width: float=2.0 if item is Array else float(item.get("width",2.0))
+	var hardness := 1.0 if item is Array else clampf(float(item.get("hardness",1.0)),0.0,1.0)
+	if item is Dictionary:color.a*=clampf(float(item.get("opacity",1.0)),0.05,1.0)
+	width*=size.x/780.0
+	var key := hash([points,size,width,hardness])
+	var mask: Dictionary=masks.get(key,{}) if cache else {}
+	if mask.is_empty() or mask.get("points",[])!=points or mask.get("geometry",[])!=[size,width,hardness]:
+		mask=rasterizer.Rasterize(PackedVector2Array(points),size,width,hardness)
+		if mask.is_empty():return
+		if cache:
+			var bytes: int=int(mask.texture.get_width())*int(mask.texture.get_height())*4
+			if bytes<=CACHE_BUDGET:
+				if masks.has(key):
+					mask_bytes-=masks[key].bytes
+					masks.erase(key)
+				while mask_bytes+bytes>CACHE_BUDGET:
+					var oldest: int=masks.keys()[0]
+					mask_bytes-=masks[oldest].bytes
+					masks.erase(oldest)
+				mask.points=points.duplicate()
+				mask.geometry=[size,width,hardness]
+				mask.bytes=bytes
+				masks[key]=mask
+				mask_bytes+=bytes
+	draw_texture(mask.texture,mask.origin,color)
 
 func erase_at(point: Vector2, previous := Vector2.INF) -> void:
 	if size.x<=0 or size.y<=0:return

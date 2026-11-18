@@ -1,4 +1,5 @@
 extends Control
+var answer_controls := {}
 signal answer_changed(key: String,value: String)
 signal stroke_added(stroke: Dictionary)
 var paper: Dictionary
@@ -79,12 +80,14 @@ func _ready() -> void:
 					text("%d. %s"%[i+1,q.prompt]+("  ["+q.unit+"]" if q.unit!="" else ""),18)
 					if q.options.is_empty():
 						var input := LineEdit.new();input.text=str(paper.answers.get(key,""));input.placeholder_text="Your answer";input.max_length=160;input.editable=writable;input.text_changed.connect(func(value):answer_changed.emit(key,value));body.add_child(input)
+						answer_controls[key]=input
 					else:
 						var options := OptionButton.new();options.add_item("Select one answer")
 						for option in q.options:options.add_item(option)
 						var popup := options.get_popup()
 						popup.add_theme_color_override("font_color",Color("f5f7fa"));popup.add_theme_color_override("font_hover_color",Color("ffffff"))
 						options.select(clampi(int(paper.answers[key])+1,0,q.options.size()) if paper.answers.has(key) else 0);options.disabled=not writable;options.item_selected.connect(func(index):answer_changed.emit(key,str(index-1)));body.add_child(options)
+						answer_controls[key]=options
 				text("Working space — use the pencil to show equations and calculations.",14,Color("66716f"))
 			3:
 				text("04  /  "+("PRACTICE FEEDBACK" if lesson else "MARKED WORK"),20)
@@ -113,3 +116,12 @@ func text(value: String,font_size := 18,color := INK) -> Label:
 func set_drawing(enabled: bool) -> void:
 	if ink==null:return
 	ink.mouse_filter=Control.MOUSE_FILTER_STOP if enabled and ink.editable else Control.MOUSE_FILTER_IGNORE
+
+func sync_answers(answers: Dictionary, pending: Dictionary) -> void:
+	for key in answer_controls:
+		if pending.has(key):continue
+		var control: Control=answer_controls[key]
+		if control is LineEdit and not control.has_focus():
+			control.text=str(answers.get(key,""))
+		elif control is OptionButton:
+			control.select(clampi(int(answers[key])+1,0,control.item_count-1) if answers.has(key) else 0)
