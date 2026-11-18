@@ -175,11 +175,19 @@ func set_enabled(value: bool) -> void:
 
 func facility_event(peer: int, state: Dictionary) -> void:
 	var activity = str(state.get("activity",""))
-	if activity in ["idle","seat","emote","exercise"]:
+	if activity in ["idle","seat","emote","exercise","exercise_exit"]:
 		facility_activities[peer] = activity != "idle"
 	if peer==multiplayer.get_unique_id():
 		if activity in ["exercise", "trapped"]:
 			workout_state = state.duplicate(true)
+			set_process(true)
+		elif activity == "exercise_exit":
+			workout_state=state.duplicate(true)
+			workout_state.return_camera=game.camera.transform
+			workout_state.elapsed=0.0
+			workout_state.exit_arms={}
+			for arm in workout_arms:
+				if arm.visible:workout_state.exit_arms[arm]=arm.transform
 			set_process(true)
 		elif activity == "idle":
 			_clear_workout()
@@ -362,6 +370,20 @@ func _update_workout(delta: float) -> void:
 	if workout_state.is_empty():
 		return
 	var camera: Camera3D = game.camera
+	if workout_state.get("activity")=="exercise_exit":
+		workout_state.elapsed+=delta
+		var progress := smoothstep(0.0,maxf(.1,float(workout_state.duration_ms)/1000.0),float(workout_state.elapsed))
+		if workout_camera_moved:
+			var start: Transform3D=workout_state.return_camera
+			camera.transform=start.interpolate_with(workout_camera_home,progress)
+		for arm in workout_arms:
+			if not workout_state.exit_arms.has(arm) or progress>.75:
+				arm.hide()
+				continue
+			var start: Transform3D=workout_state.exit_arms[arm]
+			var release := smoothstep(0.0,.75,progress)
+			arm.transform=start.translated(Vector3(0,-.6,.08)*release)
+		return
 	var active: bool = enabled and game.front.in_game and game.player.enabled and not game.health.death_screen.visible
 	var exercise := str(workout_state.get("exercise",""))
 	var pinned: bool = workout_state.get("activity") == "trapped"

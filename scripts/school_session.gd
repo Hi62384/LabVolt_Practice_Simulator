@@ -1312,8 +1312,8 @@ func _public_state(recipient: int) -> Dictionary:
 			paper.shared_capable=shareable_document(source)
 			paper.shared_access=shared_document_access(recipient,source)
 			if not paper.shared_access:
-				paper.answers={};paper.strokes={};paper.annotations={}
-			paper.mark={};paper.erase("procedure");paper.erase("math_ui");paper.erase("annotation_history")
+				paper.answers={};paper.strokes={};paper.annotations={};paper.erase("math_ui")
+			paper.mark={};paper.erase("procedure");paper.erase("annotation_history")
 		paper=paper.duplicate(true)
 		paper.project=_public_project(source.project,(not source.mark.is_empty() or source.lesson) and source.owner==recipient)
 		if source.owner != recipient:

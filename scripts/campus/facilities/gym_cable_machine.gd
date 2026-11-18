@@ -5,6 +5,11 @@ var occupant:=0
 var target_phase:=0.0
 var phase:=0.0
 var exercise:=""
+var return_from := Transform3D.IDENTITY
+var return_second := Transform3D.IDENTITY
+var return_elapsed := 0.0
+var return_duration := 0.0
+var return_dual := false
 var selected:=1
 var handle: Node3D
 var second_handle: Node3D
@@ -181,6 +186,7 @@ func _update_pin() -> void:
 
 func on_room_event(peer: int,event: Dictionary, avatar: Node3D=null) -> void:
 	if event.get("activity","")=="exercise" and event.get("station","")==station_id:
+		return_duration=0.0
 		occupant=peer;exercise=str(event.get("exercise",""));target_phase=float(event.get("phase",0))
 		if is_instance_valid(avatar):
 			left_hand=_avatar_hand(avatar,"ArmL")
@@ -188,6 +194,11 @@ func on_room_event(peer: int,event: Dictionary, avatar: Node3D=null) -> void:
 		set_resistance(int(event.get("selector_weight", event.get("weight",5))))
 		set_process(true)
 	elif peer==occupant and event.get("activity","")!="exercise":
+		return_from=handle.transform
+		return_second=second_handle.transform
+		return_elapsed=0.0
+		return_duration=.55
+		return_dual=second_handle.visible
 		occupant=0;target_phase=0.0;left_hand=null;right_hand=null;set_process(true)
 
 func _avatar_hand(avatar: Node3D,arm_name: String) -> Node3D:
@@ -221,6 +232,15 @@ func _process(delta: float) -> void:
 			if grip_delta.length_squared()>.001:
 				if grip_delta.x<0:grip_delta=-grip_delta
 				handle.basis=Basis(Quaternion(Vector3.RIGHT,grip_delta.normalized()))
+	if occupant==0 and return_elapsed<return_duration:
+		return_elapsed=minf(return_elapsed+delta,return_duration)
+		var blend := smoothstep(0.0,return_duration,return_elapsed)
+		handle.transform=return_from.interpolate_with(Transform3D(Basis.IDENTITY,HANDLE_REST),blend)
+		second_handle.transform=return_second.interpolate_with(Transform3D(Basis.IDENTITY,HANDLE_REST),blend)
+		second_handle.visible=return_dual and blend<1.0
+		second_cable.visible=second_handle.visible
+		single_grip.visible=second_handle.visible
+		long_grip.visible=not second_handle.visible
 	for grip in [handle,second_handle]:
 		grip.set_meta("connector",grip.transform*Vector3(0,.113,0))
 	loading_mount.position.y=1.62+.24*phase
@@ -230,7 +250,7 @@ func _process(delta: float) -> void:
 		pin_targets[i].position.y = weights[i].position.y
 	_update_tether()
 	_update_wire()
-	if occupant==0 and is_zero_approx(phase):set_process(false)
+	if occupant==0 and is_zero_approx(phase) and return_elapsed>=return_duration:set_process(false)
 
 func _build_grip(parent: Node3D, width: float) -> Node3D:
 	var assembly:=Node3D.new()

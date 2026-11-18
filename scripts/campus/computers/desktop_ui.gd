@@ -25,6 +25,7 @@ var exit_requested := false
 var parked_device := ""
 var parked_cycle := -1
 var parked_profile := ""
+var parked_workspaces := {}
 var folder_path := ""
 var breadcrumbs: Label
 var resize_key := ""
@@ -770,10 +771,34 @@ func _exit_now() -> void:
 		parked_device=str(snapshot.get("station",""))
 		parked_cycle=int(snapshot.get("power_cycle",-1))
 		parked_profile=str(session.get("local_profile"))
+		var layout: Array=[]
+		for child in workspace.get_children():
+			var key := str(child.get_meta("desktop_app",""))
+			if not windows.has(key) or windows[key].shell!=child:continue
+			var window: Dictionary=windows[key]
+			layout.append({"app":window.app,"rect":window.rect,"restore":window.restore,"maximized":window.maximized,"minimized":not child.visible})
+		var browser: Dictionary=browser_surface.parked_tabs() if is_instance_valid(browser_surface) else {}
+		parked_workspaces[parked_device]={"cycle":parked_cycle,"profile":parked_profile,"layout":layout,"path":current_path,"folder":folder_path,"browser":browser}
 	_send({"op":"exit"})
 
 func _clear_powered_off(power: Dictionary) -> void:
+	for id in parked_workspaces.keys():
+		if not power.get(id,false):parked_workspaces.erase(id)
 	if not parked_device.is_empty() and not power.get(parked_device,false):_reset_windows()
+
+func _restore_parked(record: Dictionary) -> void:
+	current_path=str(record.path)
+	folder_path=str(record.folder)
+	for entry in record.layout:
+		_switch_app(entry.app)
+		var window: Dictionary=windows[_window_key(entry.app)]
+		window.rect=entry.rect
+		window.restore=entry.restore
+		window.maximized=entry.maximized
+		window.shell.visible=not entry.minimized
+	_fit_windows()
+	_focus_last_window()
+	if is_instance_valid(browser_surface):browser_surface.restore_parked_tabs(record.browser)
 
 func _reset_windows() -> void:
 	for key in windows.keys():_close_window(key)
@@ -829,6 +854,10 @@ func _on_desktop_changed(value: Dictionary) -> void:
 			game.paper_ui.open_sheet(id)
 		return
 	var prior_lease: Variant = snapshot.get("lease")
+	var station := str(value.get("station",""))
+	var stored: Dictionary=parked_workspaces.get(station,{})
+	var can_restore: bool = bool(value.get("public_device",false)) and not stored.is_empty() and stored.cycle==int(value.get("power_cycle",-1)) and stored.profile==str(session.get("local_profile"))
+	if not can_restore:parked_workspaces.erase(station)
 	var resumed := not parked_device.is_empty() and parked_device==str(value.get("station","")) and parked_cycle==int(value.get("power_cycle",-1)) and parked_profile==str(session.get("local_profile"))
 	if prior_lease!=value.get("lease") and not resumed:_reset_windows()
 	var save_acked := not saving_path.is_empty() and int(value.get("revision",-1))>int(snapshot.get("revision",-1))
@@ -871,7 +900,8 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		game.release_mouse()
 	elif game == null and not was_visible:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if windows.is_empty():_switch_app("Files")
+	if prior_lease!=snapshot.get("lease") and not resumed and can_restore:_restore_parked(stored)
+	if windows.is_empty() and not can_restore:_switch_app("Files")
 	_refresh_file_list()
 	_load_editor()
 	if save_acked:

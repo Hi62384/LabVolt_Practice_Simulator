@@ -14,6 +14,7 @@ var idle_render: SubViewport
 var boot_render: SubViewport
 var boot_cover: ColorRect
 var boot_spinner: Label
+var boot_desktop: TextureRect
 var boot_seen := {}
 var boot_until := {}
 var boot_timer: Timer
@@ -232,6 +233,12 @@ func _build_boot_display() -> void:
 	boot_cover.color=Color("050b12")
 	boot_cover.size=Vector2(boot_render.size)
 	background.add_child(boot_cover)
+	boot_desktop=TextureRect.new()
+	boot_desktop.texture=idle_render.get_texture()
+	boot_desktop.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+	boot_desktop.size=Vector2(boot_render.size)
+	boot_desktop.modulate.a=0.0
+	background.add_child(boot_desktop)
 
 func _boot_changed(state: Dictionary) -> void:
 	for id in boot_until.keys():
@@ -257,6 +264,7 @@ func _tick_boot() -> void:
 		return
 	var remaining:=int(boot_until.values().max())-now
 	boot_cover.color.a=clampf((remaining-1390)/210.0,0.0,1.0)
+	boot_desktop.modulate.a=1.0-smoothstep(0.0,320.0,float(remaining))
 	boot_spinner.text=["◐","◓","◑","◒"][posmod(now/120,4)]
 	boot_render.render_target_update_mode=SubViewport.UPDATE_ONCE
 

@@ -77,6 +77,8 @@ func close_or_end_workout() -> void:
 	match active.get("type", ""):
 		"trapped":
 			show()
+		"exercise_exit":
+			return
 		"exercise":
 			workout_exit_pending = true
 			if not pending and not direct_in_flight and direct.is_empty():
@@ -105,7 +107,7 @@ func open_for(id: String,kind: String) -> void:
 	controller.refresh()
 
 func receive(result: Dictionary) -> void:
-	var was_active: bool = state.get("active", {}).get("type") in ["exercise", "trapped"]
+	var was_active: bool = state.get("active", {}).get("type") in ["exercise", "exercise_exit", "trapped"]
 	pending=false
 	if result.has("lift") and state.get("active", {}).get("type") == "exercise":
 		state.active.merge(result.lift, true)
@@ -126,7 +128,7 @@ func receive(result: Dictionary) -> void:
 	if not result.get("ok",false):last_error=str(result.get("error","Unavailable"))
 	elif result.get("spot_saved",false):last_error="Your spotter helped return the bar safely. Rest before another set."
 	elif result.get("muscular_failure",false):last_error="Muscular failure: your muscles could not complete that repetition. Rest before your next set."
-	if was_active and state.get("active", {}).is_empty():
+	if was_active and (state.get("active", {}).is_empty() or state.active.get("type")=="exercise_exit"):
 		hide()
 	if workout_exit_pending:
 		var active: Dictionary = state.get("active", {})
@@ -313,6 +315,8 @@ func _show_exercise_hud(active: Dictionary) -> void:
 	if capture_game.is_valid():capture_game.call()
 
 func handle_workout_input(event: InputEvent) -> bool:
+	if state.get("active",{}).get("type")=="exercise_exit":
+		return event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE
 	if not visible:
 		return false
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and state.get("active", {}).get("type") in ["exercise", "trapped"]:

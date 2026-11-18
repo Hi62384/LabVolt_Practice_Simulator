@@ -60,7 +60,10 @@ func run() -> void:
 	assert(rules.active[1].reps == 1 and rules.active[1].lift_progress == 0.0)
 	assert(panel.handle_workout_input(escape))
 	await process_frame
-	assert(not panel.visible and not rules.movement_locked(1))
+	assert(not panel.visible and rules.active[1].type=="exercise_exit")
+	assert(rules.movement_locked(1))
+	await _wait_real(float(rules.active[1].exit_ms)/1000.0+.12)
+	assert(not rules.movement_locked(1))
 	assert(saved.gym.history.back().outcome == "voluntary")
 
 	await _wait_real(.11)

@@ -89,7 +89,7 @@ func _event(peer: int, event: Dictionary) -> void:
 			if event.get("activity","")=="exercise" and event.get("station","")==machine.station_id:
 				event=event.duplicate();event.machine_position=machine.global_position
 				event.cable_stance=machine.to_global(Vector3(0,0,1.25))
-	if peer==multiplayer.get_unique_id() and event.get("activity","") in ["idle","seat","exercise","emote","trapped"]:
+	if peer==multiplayer.get_unique_id() and event.get("activity","") in ["idle","seat","exercise","exercise_exit","emote","trapped"]:
 		local_locked=event.get("activity","")!="idle"
 		if event.get("activity","") in ["idle","trapped"]:controller.call_deferred("refresh")
 	if visuals.has(peer) and is_instance_valid(visuals[peer]):

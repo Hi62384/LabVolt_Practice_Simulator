@@ -102,7 +102,10 @@ func _process(delta: float) -> void:
 				var local_grip:=to_local(grip)
 				target=local_grip.y-float(BAR_STATIONS[key].origin.y)
 				depth_target=local_grip.z
-		var speed:=4.0 if tracked_grips.has(key) and grip_position.is_valid() else .9
+		var speed:=4.0 if tracked_grips.has(key) and grip_position.is_valid() else 1.85
+		# Clear the lifter vertically before sliding the released bar to the rack.
+		if key=="gym/benchpress" and not occupied.has(key) and bar.position.y<float(BAR_STATIONS[key].origin.y)-.015:
+			depth_target=bar.position.z
 		bar.position.y = move_toward(bar.position.y, float(BAR_STATIONS[key].origin.y) + target, delta * speed)
 		bar.position.z=move_toward(bar.position.z,depth_target,delta*speed)
 		moving = moving or absf(bar.position.y - float(BAR_STATIONS[key].origin.y) - target) > .001 or absf(bar.position.z-depth_target)>.001

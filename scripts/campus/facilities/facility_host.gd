@@ -246,7 +246,8 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	if op in ["cancel","stand","stop"]:
 		if current.get("type","")=="trapped":return fail("Work the bar free, or ask for help")
 		var saved:=true
-		if live_lifts and current.get("type","")=="exercise" and _can_pin(current) and _progress_at(current,t)>.001:
+		if current.get("type","")=="exercise_exit":return {"ok":true,"state":private_state(peer)}
+		if live_lifts and current.get("type","")=="exercise" and _progress_at(current,t)>.001:
 			if not current.get("quit_after_lower",false):
 				current.lower_from = _progress_at(current,t)
 				current.quit_after_lower = true
@@ -261,7 +262,10 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			stopped.last_sequence=seq;stopped.revision=int(p.revision)+1
 			saved=valid_profile(stopped) and bool(commit_profile.call(str(c.identity),0,stopped))
 		if not saved:return fail("Set could not be saved; retry or wait for recovery")
-		clear_activity(peer)
+		if live_lifts and current.get("type","")=="exercise":
+			active[peer]=_exit_state(current,t)
+			public_event.emit(str(current.room_id),peer,_exit_event(active[peer]))
+		else:clear_activity(peer)
 		return {"ok":true,"state":private_state(peer)}
 	if not bool(c.get("allowed",false)) or not bool(c.get("grounded",false)):
 		clear_activity(peer,"interrupted")
@@ -484,8 +488,8 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		GymProgress.record_set(next.gym,current,"voluntary",t)
 		for unlock in [[100,"cheer"],[300,"flex"],[600,"victory"]]:
 			if int(next.xp)>=int(unlock[0]) and not unlock[1] in next.unlocks:next.unlocks.append(unlock[1])
-		next_active={}
-		event={"activity":"idle"}
+		next_active=_exit_state(current,t) if live_lifts else {}
+		event=_exit_event(next_active) if live_lifts else {"activity":"idle"}
 	elif op=="emote":
 		var emote:=str(request.get("emote",""))
 		if not current.is_empty() or not emote in p.unlocks or not EMOTES.has(emote):return fail("Emote unavailable")
@@ -598,6 +602,23 @@ func _exercise_event(value: Dictionary) -> Dictionary:
 		if value.has(key):event[key]=value[key]
 	return event
 
+func _exit_state(value: Dictionary, at: int) -> Dictionary:
+	var result := value.duplicate()
+	var duration := 680
+	if value.has("bench_position"):duration=1200
+	elif value.has("mat_position"):duration=1050
+	elif value.has("grip_anchor"):duration=850
+	result.type="exercise_exit"
+	result.exit_ms=duration
+	result.until=at+duration
+	return result
+
+func _exit_event(value: Dictionary) -> Dictionary:
+	var event := _exercise_event(value)
+	event.activity="exercise_exit"
+	event.duration_ms=value.exit_ms
+	return event
+
 func activity_valid(c: Dictionary, a: Dictionary) -> bool:
 	return str(c.get("room_id",""))==str(a.get("room_id","")) and c.position.distance_to(a.position)<0.35 and bool(c.get("allowed",false)) and bool(c.get("grounded",false))
 
@@ -646,6 +667,9 @@ func tick() -> void:
 	for peer in active.keys():
 		var c:=trusted(int(peer))
 		var a: Dictionary=active[peer]
+		if a.get("type")=="exercise_exit":
+			if c.is_empty() or not activity_valid(c,a) or now()>=int(a.until):clear_activity(int(peer))
+			continue
 		if live_lifts and a.get("type") == "exercise" and not c.is_empty() and activity_valid(c,a):
 			var t := now()
 			var op := ""

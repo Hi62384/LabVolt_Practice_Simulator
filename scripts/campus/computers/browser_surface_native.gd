@@ -163,6 +163,24 @@ func _add_tab() -> void:
  surface.resized.connect(func():if browser_ref.get_ref()!=null:browser_ref.get_ref().resize(surface.size))
  browser.resize(holder.size);_refresh()
 
+func parked_tabs() -> Dictionary:
+ var urls: Array[String]=[]
+ for tab in tabs:
+  if is_instance_valid(tab.browser):urls.append(str(tab.browser.get_url()))
+ return {"urls":urls,"active":active}
+
+func restore_parked_tabs(record: Dictionary) -> void:
+ if tabs.is_empty():return
+ var urls: Array=record.get("urls",[])
+ for index in mini(urls.size(),MAX_TABS):
+  if index>=tabs.size():_add_tab()
+  if index>=tabs.size():break
+  var url := str(urls[index])
+  if url.begins_with("https://") or url.begins_with("http://"):
+   tabs[index].browser.load_url(url)
+ active=clampi(int(record.get("active",0)),0,tabs.size()-1)
+ _refresh()
+
 func _browser() -> Variant:
  if active<0 or active>=tabs.size():return null
  return tabs[active].browser if is_instance_valid(tabs[active].browser) else null

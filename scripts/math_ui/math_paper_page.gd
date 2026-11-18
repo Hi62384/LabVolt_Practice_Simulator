@@ -10,6 +10,8 @@ var writable:=false
 var ink: Control
 var body: VBoxContainer
 var workspace: Control
+var answer_key := ""
+var last_shared_input := {}
 const PAPER_SIZE=Vector2(780,1100)
 var parser: Callable
 var parser_owner: RefCounted
@@ -47,6 +49,8 @@ func _ready() -> void:
 		_text("%d questions · answers and graph coordinates are saved with this paper. Use the page arrows to continue."%questions.size())
 	elif page<=questions.size():
 		var index:=page-1
+		answer_key=str(index)
+		last_shared_input=paper.get("math_ui",{}).get(answer_key,{}).duplicate(true)
 		var problem:Dictionary=questions[index]
 		_text("Question %d of %d"%[page,questions.size()],18)
 		workspace=Adapter.mount(body,problem,paper.get("math_ui",{}).get(str(index),{}),writable,paper.get("math_policy",{"formula_allowed":false}),parser,func(_id,_answer,envelope):answer_changed.emit(str(index),envelope))
@@ -94,6 +98,16 @@ func _seed_answer(widget: Control, answer_value: Variant) -> void:
 		for key in answer_value:
 			if widget.fields.has(key):widget.fields[key].set_value(answer_value[key])
 	elif widget.fields.has("answer"):widget.fields.answer.set_value(answer_value)
+
+func sync_math_inputs(states: Dictionary, pending: Dictionary) -> void:
+	if not is_instance_valid(workspace) or pending.has(answer_key):return
+	var input: Dictionary=states.get(answer_key,{})
+	if input.is_empty() or input==last_shared_input:return
+	var focused := get_viewport().gui_get_focus_owner()
+	if is_instance_valid(focused) and workspace.is_ancestor_of(focused):return
+	var update := input.duplicate(true)
+	update.page=workspace.page
+	if workspace.restore(update):last_shared_input=input.duplicate(true)
 
 func _resize() -> void:
 	if not is_instance_valid(body):return

@@ -41,7 +41,8 @@ func run() -> void:
 	now = int(host.active[1].last_beat) + duration + 100
 	host.tick()
 	assert(host.active[1].phase == 1 and host.active[1].reps == 1 and last_event.lift_progress == 0.0)
-	assert(_action(host,"finish").ok and not host.movement_locked(1))
+	assert(_action(host,"finish").ok)
+	_finish_exit(host)
 	load_kg = 200.0
 	assert(_action(host,"start").ok)
 	for press in 20:
@@ -52,14 +53,17 @@ func run() -> void:
 	assert(host.active[1].type=="exercise" and host._progress_at(host.active[1],now)==0.0)
 	assert(_action(host,"effort").ok)
 	assert(_action(host,"cancel").ok)
-	assert(not host.movement_locked(1))
+	if host.active[1].type=="exercise":
+		now+=int(host.active[1].half_ms)+100
+		host.tick()
+	_finish_exit(host)
 	load_kg=Host.GymProgress.capacity(saved.gym,"benchpress")*.91
 	assert(_action(host,"start").ok)
 	for press in 4:assert(_action(host,"effort").ok)
 	assert(_action(host,"cancel").ok and host.active[1].quit_after_lower)
 	now+=1000+int(host.active[1].half_ms)
 	host.tick()
-	assert(not host.movement_locked(1))
+	_finish_exit(host)
 	assert(_action(host,"start").ok)
 	for press in 4:assert(_action(host,"effort").ok)
 	assert(host.active[1].lift_progress>=.2)
@@ -91,3 +95,12 @@ func _action(host: RefCounted, op: String) -> Dictionary:
 		request.station = "gym/benchpress"
 		request.exercise = "benchpress"
 	return host.act(1, request)
+
+func _finish_exit(host) -> void:
+	assert(host.active[1].type=="exercise_exit" and host.movement_locked(1))
+	now=int(host.active[1].until)-1
+	host.tick()
+	assert(host.movement_locked(1))
+	now+=1
+	host.tick()
+	assert(not host.movement_locked(1))

@@ -295,9 +295,9 @@ func _reader_copy(source: Dictionary) -> Dictionary:
 	copy.erase("identity")
 	if int(copy.owner)!=multiplayer.get_unique_id():
 		if not school.shared_document_access(multiplayer.get_unique_id(),source):
-			copy.answers={};copy.strokes={};copy.annotations={}
+			copy.answers={};copy.strokes={};copy.annotations={};copy.erase("math_ui")
 		copy.mark={}
-		copy.erase("procedure");copy.erase("math_ui");copy.erase("annotation_history")
+		copy.erase("procedure");copy.erase("annotation_history")
 	copy.project=school._public_project(source.project,(source.lesson or not source.mark.is_empty()) and int(source.owner)==multiplayer.get_unique_id())
 	return copy
 func _reader_current(generation: int,id: int) -> bool:
@@ -682,6 +682,7 @@ func _updated() -> void:
 		annotation_layer.items.append(active)
 	annotation_layer.queue_redraw()
 	if page_view.has_method("sync_answers"):page_view.sync_answers(paper.answers,pending)
+	if (shared or paper.owner==multiplayer.get_unique_id()) and page_view.has_method("sync_math_inputs"):page_view.sync_math_inputs(paper.get("math_ui",{}),pending)
 func _process(delta: float) -> void:
 	if reading and screen.visible and is_instance_valid(workspace_view):view_zoom=workspace_view.zoom
 	if reading and screen.visible and is_instance_valid(save_status) and school.papers.has(document_id):

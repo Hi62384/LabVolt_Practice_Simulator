@@ -1164,7 +1164,7 @@ func _draw_cable(root: Node3D,c: Dictionary,a: Vector3,b: Vector3) -> void:
 		interaction_presentation.bind_connector(plug,int(c.id)/10000,int(c.id)%10000,end_index)
 
 func workout_hides_carried_items() -> bool:
-	return is_instance_valid(campus_services) and is_instance_valid(campus_services.facility_panel) and campus_services.facility_panel.state.get("active",{}).get("type","") in ["exercise","trapped"]
+	return is_instance_valid(campus_services) and is_instance_valid(campus_services.facility_panel) and campus_services.facility_panel.state.get("active",{}).get("type","") in ["exercise","exercise_exit","trapped"]
 
 func _process(_delta: float) -> void:
 	var exercising:=workout_hides_carried_items()
