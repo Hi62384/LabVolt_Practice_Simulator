@@ -30,6 +30,8 @@ var local_restore_failure := ""
 var timer: Timer
 var usb_uploads := {}
 var usb_writes := {}
+var download_uploads := {}
+var owner_copy_transfers := {}
 func supports_operation(op: String) -> bool:
 	return op=="rename"
 func build(owner_game: Node) -> void:
@@ -93,7 +95,55 @@ func request(action: Dictionary) -> void:
 		if local_profile!=identity:local_restore_failure=""
 		local_profile=identity
 	if multiplayer.is_server():_accept(multiplayer.get_unique_id(),action)
-	elif game.session.online:_request.rpc_id(1,action)
+	elif game.session.online:
+		if action.get("op")=="download" and action.get("bytes") is PackedByteArray and action.bytes.size()>UsbTransfer.CHUNK_SIZE:
+			_send_download(action)
+		else:_request.rpc_id(1,action)
+
+func _send_download(action: Dictionary) -> void:
+	var bytes: PackedByteArray=action.bytes
+	var header: Dictionary=action.duplicate()
+	header.erase("bytes")
+	header.op="download_begin"
+	header.size=bytes.size()
+	header.digest=_download_digest(bytes)
+	if rpc_id(1,"_request",header)!=OK:
+		operation_failed.emit("Could not start saving this download.");return
+	for offset in range(0,bytes.size(),UsbTransfer.CHUNK_SIZE):
+		await get_tree().process_frame
+		if not game.session.online or local_snapshot.get("lease")!=action.lease or local_snapshot.get("revision")!=action.revision:return
+		var chunk := bytes.slice(offset,offset+UsbTransfer.CHUNK_SIZE)
+		if rpc_id(1,"_request",{"op":"download_chunk","lease":action.lease,"revision":action.revision,"offset":offset,"bytes":chunk})!=OK:
+			operation_failed.emit("Could not send this download.");return
+
+func _download_digest(bytes: PackedByteArray) -> String:
+	var hash:=HashingContext.new()
+	hash.start(HashingContext.HASH_SHA256)
+	hash.update(bytes)
+	return hash.finish().hex_encode()
+
+func _receive_download(peer: int,action: Dictionary) -> Dictionary:
+	if action.op=="download_begin":
+		if download_uploads.has(peer) or not action.get("size") is int or not action.get("digest") is String or not action.get("name") is String or action.name.length()>25 or action.size<=UsbTransfer.CHUNK_SIZE or action.size>Downloads.MAX_BYTES:
+			_error(peer,"Invalid download transfer.");return {}
+		var receiver:=UsbTransfer.new()
+		if not receiver.begin(action.size,action.digest,Time.get_ticks_msec()):
+			_error(peer,"Invalid download transfer.");return {}
+		download_uploads[peer]={"lease":action.lease,"revision":action.revision,"name":action.name,"receiver":receiver}
+		return {}
+	var upload: Dictionary=download_uploads.get(peer,{})
+	if upload.is_empty() or upload.lease!=action.lease or upload.revision!=action.revision:return {}
+	var receiver: RefCounted=upload.receiver
+	var now:=Time.get_ticks_msec()
+	if not action.get("offset") is int or not action.get("bytes") is PackedByteArray or not receiver.append(action.offset,action.bytes,now):
+		download_uploads.erase(peer)
+		_error(peer,"Invalid download transfer.");return {}
+	if receiver.received<receiver.expected_size:return {}
+	download_uploads.erase(peer)
+	var completed: Dictionary=receiver.finish(now)
+	if completed.has("error"):
+		_error(peer,"Could not verify the download.");return {}
+	return {"op":"download","name":upload.name,"bytes":completed.bytes}
 @rpc("any_peer","call_remote","reliable",6)
 func _request(action: Dictionary) -> void:
 	if multiplayer.is_server():_accept(multiplayer.get_remote_sender_id(),action)
@@ -187,6 +237,11 @@ func _accept(peer: int, action: Dictionary) -> void:
 	if not _has_access(peer,entry):_close(peer,false);return
 	if entry.has("power"):entry.power.touch(Time.get_ticks_msec())
 	if op in ["browser","run"]:_error(peer,"Unavailable: browser and code execution are not installed.");return
+	if op in ["download_begin","download_chunk"]:
+		if not session.get("public_device",false):return
+		action=_receive_download(peer,action)
+		if action.is_empty():return
+		op="download"
 	var now := Time.get_ticks_msec()
 	if now-int(last_request.get(peer,-1000))<60:_error(peer,"Please retry after the current operation.");return
 	last_request[peer]=now
@@ -388,11 +443,53 @@ func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries:
 	if action.op=="rename":operation.new_path=str(action.get("new_path",""))
 	usb_writes[station]={"token":token,"owner_peer":owner_peer,"actor":actor,"lease":sessions[actor].lease,"entries":old_entries,"workspace":old_workspace,"started":Time.get_ticks_msec()}
 	if owner_peer==multiplayer.get_unique_id():_apply_owner_usb_write(station,token,str(usb.id),int(usb.capacity_mb),operation)
+	elif action.op=="copy_download" and action.bytes.size()>UsbTransfer.CHUNK_SIZE:
+		_send_owner_download(owner_peer,station,token,str(usb.id),int(usb.capacity_mb),operation)
 	else:_usb_write_requested.rpc_id(owner_peer,station,token,str(usb.id),int(usb.capacity_mb),operation)
+
+func _send_owner_download(peer: int,station: String,token: String,id: String,capacity: int,operation: Dictionary) -> void:
+	var bytes: PackedByteArray=operation.bytes
+	operation.erase("bytes")
+	operation.size=bytes.size()
+	operation.digest=_download_digest(bytes)
+	if rpc_id(peer,"_usb_write_requested",station,token,id,capacity,operation)!=OK:
+		_finish_usb_write(peer,station,token,false);return
+	for offset in range(0,bytes.size(),UsbTransfer.CHUNK_SIZE):
+		await get_tree().process_frame
+		if usb_writes.get(station,{}).get("token")!=token:return
+		if rpc_id(peer,"_usb_write_chunk",token,offset,bytes.slice(offset,offset+UsbTransfer.CHUNK_SIZE))!=OK:
+			_finish_usb_write(peer,station,token,false);return
 
 @rpc("authority","call_remote","reliable",6)
 func _usb_write_requested(station: String,token: String,id: String,capacity: int,operation: Dictionary) -> void:
-	if multiplayer.get_remote_sender_id()==1:_apply_owner_usb_write(station,token,id,capacity,operation)
+	if multiplayer.get_remote_sender_id()!=1:return
+	if operation.get("op")!="copy_download" or not operation.has("size"):
+		_apply_owner_usb_write(station,token,id,capacity,operation)
+		return
+	var receiver:=UsbTransfer.new()
+	if not owner_copy_transfers.is_empty() or not operation.size is int or operation.size>Downloads.MAX_BYTES or not operation.get("digest") is String or not receiver.begin(operation.size,operation.digest,Time.get_ticks_msec()):
+		_usb_write_ack.rpc_id(1,station,token,false)
+		return
+	owner_copy_transfers[token]={"station":station,"id":id,"capacity":capacity,"operation":operation,"receiver":receiver}
+
+@rpc("authority","call_remote","reliable",6)
+func _usb_write_chunk(token: String,offset: int,bytes: PackedByteArray) -> void:
+	if multiplayer.get_remote_sender_id()!=1 or not owner_copy_transfers.has(token):return
+	var transfer: Dictionary=owner_copy_transfers[token]
+	var receiver: RefCounted=transfer.receiver
+	var now:=Time.get_ticks_msec()
+	if not receiver.append(offset,bytes,now):
+		owner_copy_transfers.erase(token)
+		_usb_write_ack.rpc_id(1,transfer.station,token,false)
+		return
+	if receiver.received<receiver.expected_size:return
+	owner_copy_transfers.erase(token)
+	var completed: Dictionary=receiver.finish(now)
+	if completed.has("error"):
+		_usb_write_ack.rpc_id(1,transfer.station,token,false)
+		return
+	transfer.operation.bytes=completed.bytes
+	_apply_owner_usb_write(transfer.station,token,transfer.id,transfer.capacity,transfer.operation)
 
 func _apply_owner_usb_write(station: String,token: String,id: String,capacity: int,operation: Dictionary) -> void:
 	var prior: Dictionary=game.electronics.profile.data.get("usb_write_pending",{}).get(token,{})
@@ -814,6 +911,7 @@ func _close(peer: int, release: bool) -> void:
 	var was_public: bool=bool(sessions[peer].get("public_device",false))
 	var portable: bool=stations[sessions[peer].station].get("portable",false)
 	sessions.erase(peer)
+	download_uploads.erase(peer)
 	last_screen_frame.erase(peer)
 	if was_public:workspaces.erase(peer);restored.erase(peer)
 	if release and not portable:
@@ -835,7 +933,17 @@ func _power_off(id: String) -> void:
 			_close(peer,true)
 	_publish()
 func _prune() -> void:
+	var now:=Time.get_ticks_msec()
+	for token in owner_copy_transfers.keys():
+		if now-int(owner_copy_transfers[token].receiver.last_activity_ms)>UsbTransfer.TIMEOUT_MS:owner_copy_transfers.erase(token)
 	if not multiplayer.is_server():return
+	for peer in download_uploads.keys():
+		var upload: Dictionary=download_uploads[peer]
+		if sessions.get(peer,{}).get("revision")!=upload.revision:
+			download_uploads.erase(peer)
+		elif now-int(upload.receiver.last_activity_ms)>UsbTransfer.TIMEOUT_MS:
+			download_uploads.erase(peer)
+			_error(peer,"The download transfer timed out.")
 	for station in usb_writes.keys():
 		var pending: Dictionary=usb_writes[station]
 		if Time.get_ticks_msec()-int(pending.started)<30000 and game.session.roster.has(int(pending.owner_peer)):continue
@@ -885,6 +993,8 @@ func _reset() -> void:
 	set_meta("resetting",true)
 	usb_uploads.clear()
 	usb_writes.clear()
+	download_uploads.clear()
+	owner_copy_transfers.clear()
 	if game.session.online and multiplayer.is_server():
 		var ledger=game.electronics_trade.authority.ledger
 		var next: Dictionary=ledger.state.duplicate(true)

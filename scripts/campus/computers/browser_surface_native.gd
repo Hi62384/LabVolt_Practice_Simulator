@@ -362,7 +362,7 @@ func _check_page_download() -> void:
  if pieces.size()!=3 or pieces[1] not in ["0","1"] or not pieces[0].is_valid_int() or int(pieces[0])!=int(transfer.index):return
  if transfer.index==0:transfer.last=Time.get_ticks_msec()
  var piece: String=pieces[2]
- var max_wire:=Downloads.MAX_BYTES*2
+ var max_wire:=Downloads.LEGACY_PAGE_BYTES*2
  if piece.length()>Downloads.PAGE_CHUNK or int(transfer.length)+piece.length()>max_wire or Time.get_ticks_msec()-int(transfer.last)>20000:
   _finish_page_report(tab,transfer)
   status.text="The page download exceeded its transfer limit."
@@ -460,7 +460,7 @@ func _download_finished(result: int,code: int,headers: PackedStringArray,body: P
  download_request=null
  if session_id!=session_key or not virtual_download_save.is_valid():return
  if result==HTTPRequest.RESULT_BODY_SIZE_LIMIT_EXCEEDED:
-  status.text="The file exceeds this computer's 256 KB download limit."
+  status.text="The file exceeds this computer's %s download limit."%String.humanize_size(Downloads.MAX_BYTES)
   return
  if result!=HTTPRequest.RESULT_SUCCESS or code!=200:
   status.text="Could not download this address. Use a direct file link."

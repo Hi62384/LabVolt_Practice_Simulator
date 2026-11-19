@@ -1,6 +1,7 @@
 extends RefCounted
 
-const MAX_BYTES := 256 * 1024
+const MAX_BYTES := 8 * 1024 * 1024
+const LEGACY_PAGE_BYTES := 256 * 1024
 const TEXT_BYTES := 32 * 1024
 const EXTENSIONS := {
 	"text/plain":"txt", "text/csv":"csv", "application/json":"json", "text/markdown":"md",
@@ -15,8 +16,7 @@ static func filename(original: String, extension: String) -> String:
 		if character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-":stem+=character
 	return "%s.%s"%[stem if not stem.is_empty() else "download",extension]
 
-# CEF keeps downloads off. Transfer only bounded bytes from the page's own
-# origin or blob URL, using its existing browser session.
+# Compatibility bridge for builds without the Chromium download callback.
 static func page_script(token: String) -> String:
 	return """
 (() => {
@@ -51,7 +51,7 @@ static func page_script(token: String) -> String:
     const {done, value} = await reader.read();
     if (done) break;
     length += value.byteLength;
-    if (length > limit) { await reader.cancel(); throw new Error('The file exceeds 256 KB.'); }
+    if (length > limit) { await reader.cancel(); throw new Error('Use Download address for files above 256 KiB on this browser build.'); }
     for (let i = 0; i < value.length; i += 4096)
      bytes += String.fromCharCode(...value.subarray(i, i + 4096));
    }
@@ -67,7 +67,7 @@ static func page_script(token: String) -> String:
   publish(0);
  }, true);
 })();
-""".replace("__TOKEN__",JSON.stringify(token)).replace("__LIMIT__",str(MAX_BYTES)).replace("__CHUNK__",str(PAGE_CHUNK))
+""".replace("__TOKEN__",JSON.stringify(token)).replace("__LIMIT__",str(LEGACY_PAGE_BYTES)).replace("__CHUNK__",str(PAGE_CHUNK))
 
 static func valid(body: PackedByteArray, extension: String) -> bool:
 	if body.size()>MAX_BYTES:return false

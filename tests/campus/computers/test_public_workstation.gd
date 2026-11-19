@@ -213,31 +213,49 @@ func verify_website_download(desktop: Control,computers: Node,id: String,url: St
 		push_error("The website's download form did not load")
 		return false
 	await create_timer(.3).timeout
-	click_web_button(browser_surface,browser,Vector2(65,40))
-	deadline=Time.get_ticks_msec()+12000
-	while not is_instance_valid(browser_surface.download_dialog) and Time.get_ticks_msec()<deadline:
+	var photo_digest:="1c3b8a632083272ce5a3de701dda84f2615243fef8cadc818c6626c0780b7978"
+	for sample in [
+		[40,"website-report.pdf","be9d993e8ebf1a158774e6581d3aea58a270daed0a5aed878993612c79b8a82e"],
+		[95,"website-photo.png",photo_digest],
+	]:
+		click_web_button(browser_surface,browser,Vector2(65,sample[0]))
+		deadline=Time.get_ticks_msec()+12000
+		while not is_instance_valid(browser_surface.download_dialog) and Time.get_ticks_msec()<deadline:
+			await process_frame
+		var path: String="Downloads/"+sample[1]
+		if not is_instance_valid(browser_surface.download_dialog) or computers.local_snapshot.binary_files.has(path):
+			push_error("No save confirmation for %s: %s"%[path,browser_surface.status.text])
+			return false
+		computers.last_request.erase(1)
+		browser_surface.download_dialog.confirmed.emit()
+		if not check_download(computers.stations[id].power.drive,path,sample[2]):return false
 		await process_frame
-	var path:="Downloads/website-report.pdf"
-	if not is_instance_valid(browser_surface.download_dialog) or computers.local_snapshot.binary_files.has(path):
-		push_error("Native Chromium POST download did not request virtual save confirmation: %s (%s)"%[browser_surface.status.text,browser.get_title()])
-		return false
-	computers.last_request.erase(1)
-	browser_surface.download_dialog.confirmed.emit()
-	var expected: PackedByteArray="%PDF-1.7\nActual Chromium POST download".to_ascii_buffer()
-	if computers.stations[id].power.drive.entries.get(path,{}).get("data")!=expected:
-		push_error("The website's POST download did not reach the workstation's virtual drive")
-		return false
-	await process_frame
-	click_web_button(browser_surface,browser,Vector2(65,95))
+	click_web_button(browser_surface,browser,Vector2(65,150))
 	deadline=Time.get_ticks_msec()+12000
 	while not browser_surface.status.text.contains("exceeds") and Time.get_ticks_msec()<deadline:
 		await process_frame
 	if not browser_surface.status.text.contains("exceeds") or is_instance_valid(browser_surface.download_dialog):
 		push_error("Native Chromium accepted a file above its limit")
 		return false
+	computers.last_request.erase(1)
+	browser_surface.address.text=url+"/direct-photo.png"
+	browser_surface._download_address()
+	deadline=Time.get_ticks_msec()+12000
+	while not computers.local_snapshot.binary_files.has("Downloads/direct-photo.png") and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if not check_download(computers.stations[id].power.drive,"Downloads/direct-photo.png",photo_digest):return false
 	desktop._close_window("Browser")
 	print("WORKSTATION_NATIVE_DOWNLOAD PASS")
 	return true
+
+func check_download(drive: RefCounted,path: String,expected_digest: String) -> bool:
+	var data: PackedByteArray=drive.entries.get(path,{}).get("data",PackedByteArray())
+	var hash:=HashingContext.new()
+	hash.start(HashingContext.HASH_SHA256)
+	hash.update(data)
+	if data.size()>1024*1024 and hash.finish().hex_encode()==expected_digest:return true
+	push_error("The virtual drive did not receive the expected large file: "+path)
+	return false
 
 func click_web_button(browser_surface: Control,browser: Variant,position: Vector2) -> void:
 	for pressed in [true,false]:

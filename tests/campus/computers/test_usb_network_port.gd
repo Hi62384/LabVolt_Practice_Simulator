@@ -20,6 +20,7 @@ func run() -> void:
 	var handoff_abort: bool=args.size()==3 and args[2]=="handoff_source_abort"
 	var handoff_case: bool=args.size()==3 and args[2] in ["handoff","handoff_source_abort"]
 	var purchase_case: bool=args.size()==3 and args[2]=="purchase"
+	var download_case: bool=args.size()==3 and args[2]=="download"
 	game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
 	for i in 4:await process_frame
 	var profile=game.electronics.profile
@@ -187,6 +188,7 @@ func run() -> void:
 		if not await until(func():return service.local_snapshot.get("files",{}).get("network.txt",{}).get("text","")=="updated by client","USB write acknowledged"):return
 		var edited: Dictionary=Archive.load(game.school.local_identity,drive_id,8)
 		if edited.has("error") or edited.drive.entries["network.txt"].data.get_string_from_utf8()!="updated by client":push_error("USB write was not saved on owner client");quit(1);return
+		if download_case and not await test_large_download(service,drive_id):return
 		service.request({"op":"power","station":station})
 		await create_timer(.2).timeout
 		service.request({"op":"usb_port","station":station})
@@ -204,3 +206,20 @@ func run() -> void:
 		if not await until(func():return profile.data.dorm.usb_drives.get(drive_id,{}).get("location","")=="hotbar","second removal confirmed"):return
 		print("USB_CLIENT PASS")
 	game.session.leave();game.queue_free();await process_frame;quit()
+
+func test_large_download(service: Node,drive_id: String) -> bool:
+	var payload:="%PDF-1.7\n".to_ascii_buffer()
+	payload.resize(2*1024*1024+1)
+	payload[payload.size()-1]=131
+	var path:="Downloads/network.pdf"
+	await create_timer(.15).timeout
+	service.request({"op":"download","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"name":"network.pdf","bytes":payload})
+	if not await until(func():return path in service.local_snapshot.get("copyable_downloads",[]),"large download saved on host"):return false
+	await create_timer(.15).timeout
+	service.request({"op":"copy_download","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"path":path})
+	if not await until(func():return service.local_snapshot.get("binary_files",{}).get(path,0)==payload.size(),"large download copied to remote USB"):return false
+	var saved: Dictionary=Archive.load(game.school.local_identity,drive_id,8)
+	if saved.has("error") or saved.drive.entries.get(path,{}).get("data")!=payload:
+		push_error("Remote USB did not preserve the large download");quit(1);return false
+	print("USB_LARGE_DOWNLOAD PASS")
+	return true
