@@ -119,8 +119,6 @@ func _ready() -> void:
 			child.directional_shadow_max_distance = 20
 		elif child is OmniLight3D:
 			child.light_energy = .35
-		elif child is WorldEnvironment:
-			child.environment.ambient_light_energy = .38
 	_build_player()
 	_build_station()
 	_build_room()
@@ -296,6 +294,7 @@ func _ready() -> void:
 	campus_services.facilities.controller.host.barbell_mass=func(station):return gym_barbells.mass(station)
 	campus_services.facilities.controller.host.held_barbell_mass=func(peer):return gym_barbells.held_mass(peer)
 	campus_services.facilities.controller.host.worn_belt_mass=func(peer):return gym_barbells.worn_belt_mass(peer)
+	campus_services.facility_panel.worn_belt_mass=func():return gym_barbells.worn_belt_mass(multiplayer.get_unique_id())
 	campus_services.facility_panel.barbell_mass=func(station):return gym_barbells.held_mass(multiplayer.get_unique_id()) if station=="held" else gym_barbells.mass(station)
 	campus_services.facility_panel.preview_workout=interaction_presentation.preview_workout
 	campus_services.facility_panel.capture_game=func():
@@ -956,7 +955,8 @@ func _physics_process(delta: float) -> void:
 		elif role=="gym_plate_rack_item":hint="Click: pick up %.1f lb plate" % float(gym_barbells.plates[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_pair":hint="Click: pick up %.1f lb dumbbell pair" % float(gym_weights.items[int(current_target.get_meta("id",-1))].lb)
 		elif role=="gym_dumbbell_rack_slot":hint="Click: return held dumbbells here" if gym_weights.held_id(multiplayer.get_unique_id())>=0 else "Empty dumbbell rack slot"
-		elif role=="gym_belt_return":hint="%s - Return held weight belt" % key_name
+		elif role in ["gym_belt_return","gym_weight_belt","gym_belt_plate"] and gym_barbells.belt_for_rack_return(current_target,multiplayer.get_unique_id())>=0:
+			hint="%s - Return Weight Belt" % key_name
 		elif role=="gym_belt_plate":hint="Click: remove plate from weight belt"
 		elif role=="gym_weight_belt":hint="Click: add held plate" if gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Click: take weight belt to inventory"
 		elif role in ["gym_dumbbell_rack","gym_dumbbell_floor","gym_barbell_sleeve","gym_barbell_floor","gym_plate_rack","gym_plate_floor","gym_weight_belt"]:

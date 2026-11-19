@@ -164,7 +164,9 @@ func _gym() -> void:
 		{"key":"pushup_2","kind":"pushup","at":Vector3(-3.7,0,-4.38)},
 		{"key":"pushup_3","kind":"pushup","at":Vector3(-1.0,0,-4.38)},
 		{"key":"pullup","kind":"pullup","at":GymLayout.PULLUP},
-		{"key":"benchpress","kind":"benchpress","at":GymLayout.BENCH}
+		{"key":"benchpress","kind":"benchpress","at":GymLayout.BENCH},
+		{"key":"seated_bench_1","kind":"seated_bench","at":GymLayout.SEATED_BENCHES[0]},
+		{"key":"seated_bench_2","kind":"seated_bench","at":GymLayout.SEATED_BENCHES[1]},
 	]
 	for spec in station_specs:
 		var key:=str(spec.key);var kind:=str(spec.kind);var at: Vector3=spec.at
@@ -188,13 +190,23 @@ func _gym() -> void:
 				# Cradles sit below the resting bar, with a raised lip at the front.
 				box(at+Vector3(x,1.19,-0.76),Vector3(.18,.08,.30),metal,false)
 				box(at+Vector3(x,1.25,-0.62),Vector3(.18,.17,.07),metal,false)
+		elif kind=="seated_bench":
+			var seat_bench:=preload("res://scripts/campus/facilities/gym_bench.gd").new()
+			seat_bench.position=at
+			add_child(seat_bench)
+			seat_bench.build(true)
 		# No dedicated curl table: dumbbell choices are opened by right-clicking
 		# while a dumbbell pair is held.
 		# Compact HUD presents station context; no floating station labels.
 		# Interact from the free aisle; minigames never teleport into collision geometry.
 		station(key,kind,at+Vector3(0,0,1.1) if kind!="pushup" else at)
 		if kind=="pushup":stations[room_id+"/"+key]["mat_position"]=position+at+Vector3(0,.09,0)
-		if kind=="benchpress":stations[room_id+"/"+kind]["bench_position"]=position+at+Vector3(0,0,.50)
+		if kind=="benchpress":stations[room_id+"/"+key]["bench_position"]=position+at+gym_bench.mount_offset()
+		elif kind=="seated_bench":
+			var anchor: Dictionary=stations[room_id+"/"+key]
+			anchor.bench_position=position+at
+			anchor.seat_position=position+at+Vector3.UP*.585
+			anchor.seat_yaw=PI
 		if kind=="pullup":
 			stations[room_id+"/"+kind]["pullup_grip"]=position+at+Vector3(0,2.6,0)
 			stations[room_id+"/"+kind]["dip_grip"]=position+at+Vector3(0,1.05,.75)
@@ -226,6 +238,9 @@ func _gym() -> void:
 			"benchpress":
 				shape.size = Vector3(.66,.20,1.96)
 				hit.position.y = .52
+			"seated_bench":
+				shape.size=Vector3(1.28,.58,.67)
+				hit.position.y=.31
 		hit.shape = shape
 		target.add_child(hit)
 	for index in 2:

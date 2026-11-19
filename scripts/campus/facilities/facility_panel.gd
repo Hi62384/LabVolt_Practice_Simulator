@@ -25,6 +25,7 @@ var has_order_space := Callable()
 var orders_changed := Callable()
 var dumbbell_mass := Callable()
 var barbell_mass := Callable()
+var worn_belt_mass := Callable()
 var cable_resistance := Callable()
 var cable_extra_mass := Callable()
 var capture_game := Callable()
@@ -35,6 +36,8 @@ var regular_minimum := Vector2(300,240)
 var showing_gym_progress := false
 var close: Button
 var menu_layout := VBoxContainer.new()
+var service_scroll := ScrollContainer.new()
+var exercise_scroll := ScrollContainer.new()
 var trap_content: VBoxContainer
 var trap_meter: ProgressBar
 var trap_instruction: Label
@@ -55,7 +58,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_position_panel)
 	close = UI.action("Close", "close", close_or_end_workout)
 	menu_layout.add_child(close)
-	var scroll := ScrollContainer.new()
+	var scroll := service_scroll
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.follow_focus=true
@@ -63,6 +66,14 @@ func _ready() -> void:
 	body.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	scroll.add_child(body)
 	body.add_theme_constant_override("separation",12)
+	exercise_scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	exercise_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	exercise_scroll.follow_focus=true
+	exercise_scroll.hide()
+	menu_layout.add_child(exercise_scroll)
+
+func _compact_exercise_menu() -> bool:
+	return (Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell","bench_barbell","seated_dumbbell","seated_barbell"]) and not showing_gym_progress
 
 func bind(value: Node) -> void:
 	controller=value
@@ -83,6 +94,9 @@ func close_or_end_workout() -> void:
 			workout_exit_pending = true
 			if not pending and not direct_in_flight and direct.is_empty():
 				_end_workout(active)
+		"seat":
+			if station_kind in ["seated_dumbbell","seated_barbell"]:request_direct({"op":"stand"})
+			hide()
 		_:
 			if pending:
 				workout_exit_pending = true
@@ -196,10 +210,15 @@ func redraw() -> void:
 		_show_trap_hud(active_workout)
 		return
 	menu_layout.show()
+	var compact_menu := _compact_exercise_menu()
+	var content_parent: Control = exercise_scroll if compact_menu else service_scroll
+	if body.get_parent()!=content_parent:body.reparent(content_parent,false)
+	exercise_scroll.visible=compact_menu
+	service_scroll.visible=not compact_menu
 	service_actions.clear()
 	for child in body.get_children():body.remove_child(child);child.queue_free()
 	var restaurant := station_kind.begins_with("counter:")
-	var gym := Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell","bench_barbell","gym_progress"]
+	var gym := Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell","bench_barbell","seated_dumbbell","seated_barbell","gym_progress"]
 	var tim := station_kind=="counter:tim_hortons"
 	var accent := Color("a72c3c") if tim else Color("147343") if restaurant else Color("d2a95b")
 	var surface := Color("f8eee4") if tim else Color("f3f2dd") if restaurant else Color("182528") if gym else Tokens.SURFACE
@@ -207,10 +226,19 @@ func redraw() -> void:
 	add_theme_stylebox_override("panel", Tokens.surface(surface, accent if restaurant or gym else Tokens.BORDER, 16))
 	var title := station_kind.trim_prefix("counter:").replace("_"," ").capitalize()
 	if gym:
-		title=str({"pushup":"Exercise mat","pullup":"Pull-up & dip station","benchpress":"Bench","squat":"Squat","curl":"Biceps curl","bench_dumbbell":"Bench · Dumbbells","bench_barbell":"Bench · Barbell"}.get(station_kind,title))
+		title=str({"pushup":"Exercise mat","pullup":"Pull-up & dip station","benchpress":"Bench","squat":"Squat","curl":"Biceps curl","bench_dumbbell":"Bench","bench_barbell":"Bench","seated_dumbbell":"Bench","seated_barbell":"Bench"}.get(station_kind,title))
 	var subtitle := "DRINKS & BAKERY" if tim else "SUBS & DRINKS" if restaurant else "CAMPUS GYM  /  TRAINING STATION" if gym else ""
-	close.visible = gym
-	if gym:
+	close.visible = gym and not compact_menu
+	if compact_menu:
+		var header := HBoxContainer.new()
+		var nameplate := UI.text(title,"TitleLabel")
+		nameplate.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		header.add_child(nameplate)
+		var dismiss:= UI.action("Close","close",close_or_end_workout)
+		dismiss.size_flags_horizontal=Control.SIZE_SHRINK_END
+		header.add_child(dismiss)
+		body.add_child(header)
+	elif gym:
 		body.add_child(UI.text(title, "TitleLabel"))
 	elif restaurant:
 		var header := HBoxContainer.new()
@@ -270,9 +298,9 @@ func _position_panel() -> void:
 	elif station_kind.begins_with("counter:"):
 		size=Vector2(724,555).min(viewport-Vector2(24,24))
 		position=(viewport-size)*.5
-	elif Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell", "bench_barbell", "gym_progress"]:
+	elif Rules.STATION_EXERCISES.has(station_kind) or station_kind in ["bench_dumbbell", "bench_barbell", "seated_dumbbell", "seated_barbell", "gym_progress"]:
 		var compact := station_kind != "gym_progress" and not showing_gym_progress
-		size = (Vector2(460,330) if compact else Vector2(600,620)).min(viewport-Vector2(24,24))
+		size = (Vector2(470,344) if compact else Vector2(600,620)).min(viewport-Vector2(24,24))
 		position = (viewport-size)*.5
 
 func _fit_workout_hud() -> void:
@@ -467,7 +495,7 @@ func _show_trap_hud(active: Dictionary) -> void:
 	if capture_game.is_valid():capture_game.call()
 
 func _workout(active: Dictionary, _accent: Color) -> void:
-	if active.is_empty():
+	if active.is_empty() or (active.get("type","")=="seat" and active.get("station","")==station_id and station_kind in ["seated_dumbbell","seated_barbell"]):
 		_exercise_choices()
 	else:
 		button("Stand / stop",{"op":"stop"})
@@ -562,6 +590,15 @@ func _progress_meter(parent: Container, title: String, amount: float, color: Col
 	column.add_child(meter)
 
 const EXERCISE_ICON_ATLAS = preload("res://assets/ui/design_system/icons/gym-exercises.svg")
+const BODYWEIGHT_DETAILS := {
+	"pushup":"Lower your chest from a straight plank.",
+	"pike_pushup":"Keep your hips high and lower your head between your hands.",
+	"crunch":"Keep your feet planted and curl your shoulders off the mat.",
+	"leg_raise":"Keep your arms by your sides and lift both legs together.",
+	"pullup":"Pull up to the overhead bar.",
+	"dip":"Lower and press back up between the parallel handles.",
+	"hanging_leg_raise":"Hang from the bar and lift both legs together.",
+}
 const EXERCISE_ICON_ORDER := [
 	"pushup", "pullup", "benchpress", "squat", "curl", "deadlift",
 	"romanian_deadlift", "front_raise", "upright_row", "overhead_extension", "bent_over_row", "shrug",
@@ -587,6 +624,10 @@ func _exercise_choices() -> void:
 		exercises = Rules.BENCH_DUMBBELL_EXERCISES
 	elif station_kind == "bench_barbell":
 		exercises = Rules.BENCH_BARBELL_EXERCISES
+	elif station_kind == "seated_dumbbell":
+		exercises = Rules.SEATED_DUMBBELL_EXERCISES
+	elif station_kind == "seated_barbell":
+		exercises = Rules.SEATED_BARBELL_EXERCISES
 	var select := OptionButton.new()
 	select.accessibility_name = "Exercise"
 	select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -627,24 +668,28 @@ func _exercise_choices() -> void:
 			request.weight = int(cable_resistance.call(station_id)) if cable_resistance.is_valid() else 10
 			var extra:=float(cable_extra_mass.call(station_id)) if cable_extra_mass.is_valid() else 0.0
 			summary.text = "%s · %d lb total" % [exercise_name(exercise),roundi(float(request.weight)+extra*2.20462262)]
-		elif station_kind in ["barbell", "bench_barbell", "benchpress", "squat", "curl", "bench_dumbbell"]:
-			var dumbbells := station_kind in ["curl", "bench_dumbbell"]
+		elif station_kind in ["barbell", "bench_barbell", "benchpress", "squat", "curl", "bench_dumbbell", "seated_dumbbell", "seated_barbell"]:
+			var dumbbells := station_kind in ["curl", "bench_dumbbell", "seated_dumbbell"]
 			var mass := 0.0
 			if dumbbells and dumbbell_mass.is_valid():
 				mass = float(dumbbell_mass.call())
 			elif not dumbbells and barbell_mass.is_valid():
 				mass = float(barbell_mass.call(station_id if station_kind in ["benchpress", "squat"] else "held"))
-			if station_kind in ["bench_barbell", "bench_dumbbell"]:
+			if station_kind in ["bench_barbell", "bench_dumbbell", "seated_barbell", "seated_dumbbell"]:
 				request.equipment = "dumbbell" if dumbbells else "barbell"
 			summary.text = "%s · %.1f lb %s" % [exercise_name(exercise),mass*2.20462262, "dumbbell pair" if dumbbells else "barbell"] if mass > 0 else ("Equip a pair of dumbbells" if dumbbells else "A barbell is required")
 			start.disabled = pending or mass <= 0
 		else:
-			summary.text = exercise_name(exercise)
-			for kg in Rules.WEIGHTS[exercise]:
+			var loads: Array = Rules.WEIGHTS.get(exercise,[0])
+			summary.text = "Bodyweight" if loads==[0] else exercise_name(exercise)
+			var extra:=float(worn_belt_mass.call()) if loads==[0] and worn_belt_mass.is_valid() else 0.0
+			if extra>0.0:summary.text += " + %.1f lb belt" % (extra*2.20462262)
+			if BODYWEIGHT_DETAILS.has(exercise):summary.text += "\n"+str(BODYWEIGHT_DETAILS[exercise])
+			for kg in loads:
 				load_choice.add_item("Bodyweight" if kg == 0 else "%d lb" % roundi(kg*2.20462262), kg)
 			load_choice.select(0)
 			request.weight = load_choice.get_item_id(0)
-			load_choice.show()
+			load_choice.visible=loads.size()>1
 	load_choice.item_selected.connect(func(index: int): request.weight = load_choice.get_item_id(index))
 	select.item_selected.connect(update)
 	if first >= 0:
@@ -652,3 +697,4 @@ func _exercise_choices() -> void:
 		update.call(first)
 	else:
 		start.disabled = true
+	_position_panel.call_deferred()

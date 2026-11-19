@@ -9,9 +9,13 @@ func _run() -> void:
  client.set_local_test_endpoint("http://127.0.0.1:28768/v1")
  client.set_session_key("sk-test-12345678901234567890")
  client.configure("gpt-5.4-mini",128,10,20,true)
+ if client.verified_for_class():failures.append("Unverified key allowed class startup")
+ var verification: Dictionary=await client.verify_class_connection()
+ if not verification.get("ok",false) or not client.verified_for_class():failures.append("Model response did not verify class access")
  var activity:={"course":"ETY155","week":3,"title":"DC circuits","phase":"lesson"}
  var board:={"title":"Ohm's law","text":"V = I R","formulas":"I=V/R","index":1}
- var prompt:=TeacherAI.question_prompt(activity,"ms_clocks",board,"What does this board mean?")
+ var prompt:=TeacherAI.question_prompt(activity,"ms_clocks",board,"What does this board mean?",[{"student":"Earlier circuit","teacher":"Follow the current path."}])
+ if not prompt.contains("Earlier circuit"):failures.append("Teacher prompt dropped dialogue memory")
  if not prompt.contains("ETY155") or not prompt.contains("week") or not prompt.contains("I=V/R"):failures.append("Lesson context missing")
  var moderation: Dictionary=await client.moderate("What does the board show?")
  if not moderation.get("ok",false) or moderation.get("flagged",true):failures.append("Moderation failed")
@@ -27,6 +31,8 @@ func _run() -> void:
  var invalid: Dictionary=await client.transcribe_wav(PackedByteArray())
  if invalid.get("ok",true):failures.append("Invalid audio was accepted")
  if not Roster.add_generated("generated_fixture",{"name":"Ms Example","course":"ETY155","style":"Patient explanations","appearance":{}}):failures.append("Generated instructor rejected")
+ client.configure("gpt-5.4-mini-other",128,10,20,true)
+ if client.verified_for_class():failures.append("Changing model did not invalidate verification")
  if "generated_fixture" not in Roster.eligible(["ETY155"]):failures.append("Generated instructor was not selectable")
  if Roster.add_generated("generated_bad",{"name":"!","course":"ETY155","style":"Patient explanations","appearance":{}}):failures.append("Invalid instructor was accepted")
  Roster.GENERATED.clear()

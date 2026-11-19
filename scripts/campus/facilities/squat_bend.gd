@@ -26,11 +26,13 @@ func bind(legs: Dictionary) -> void:
 			else:
 				feet.append({"node":child,"original":child.transform})
 
-func apply(phase: float) -> void:
-	var next:=clampi(roundi(clampf(phase,0.0,1.0)*STEPS),0,STEPS)
+func apply(phase: float, reverse := false) -> void:
+	var next:=clampi(roundi(clampf(phase,0.0,1.0)*STEPS),0,STEPS)*(-1 if reverse else 1)
 	if next==step:return
 	step=next
-	var rotation:=Basis(Vector3.RIGHT,MAX_ANGLE*float(next)/float(STEPS))
+	var angle:=MAX_ANGLE*float(next)/float(STEPS)
+	if reverse:angle*=1.45
+	var rotation:=Basis(Vector3.RIGHT,angle)
 	for part in parts:
 		var node: MeshInstance3D=part.node
 		var leg: Node3D=part.leg
@@ -47,7 +49,7 @@ func apply(phase: float) -> void:
 		if not is_instance_valid(node):continue
 		var base: Transform3D=foot.original
 		# Translate the shoes with the shin while keeping their soles level.
-		node.transform=Transform3D(base.basis,KNEE+rotation*(base.origin-KNEE)) if next>0 else base
+		node.transform=Transform3D(base.basis,KNEE+rotation*(base.origin-KNEE)) if next!=0 else base
 
 func restore() -> void:
 	for part in parts:

@@ -77,8 +77,17 @@ func verify_display() -> void:
 	game.add_child(settings)
 	settings.build(game)
 	var graphics_settings: Node = game.ui.graphics_controller
+	var campus_environment := game.get_node("WorldEnvironment") as WorldEnvironment
+	var campus_rig: Node = game.get_node("CampusLightingRig")
+	if campus_rig.world_environment != campus_environment or campus_rig.has_node("WorldEnvironment") or not campus_environment.environment.sky.sky_material is PanoramaSkyMaterial:
+		failures += 1
+		push_error("Campus did not use Main's authored panorama environment")
 	for preset in ["Low","Medium","High","Ultra"]:
 		graphics_settings.preset(preset)
+		var expected_gi: bool = preset=="Ultra" and RenderingServer.get_current_rendering_method()=="forward_plus"
+		if campus_environment.environment.sdfgi_enabled!=expected_gi:
+			failures += 1
+			push_error("SDFGI did not follow the preset and renderer")
 		settings._select("Graphics & Display")
 		var prefs_copy: Node = graphics_settings.get_script().new()
 		prefs_copy.load_settings()
@@ -86,6 +95,10 @@ func verify_display() -> void:
 			failures += 1
 			push_error("Quality preset did not survive reopening or reloading: " + preset)
 		prefs_copy.free()
+	graphics_settings.set_option("sdfgi",false)
+	if campus_environment.environment.sdfgi_enabled:
+		failures += 1
+		push_error("SDFGI remained enabled after using its toggle")
 	game.ui.graphics_controller.set_option("render_scale", .75)
 	await settings._apply_display()
 	if root.mode != Window.MODE_MAXIMIZED or root.size != size or settings.previewing:

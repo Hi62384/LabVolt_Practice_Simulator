@@ -69,6 +69,11 @@ func run() -> void:
 		if root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://.godot/public-desktop.png"))!=OK:
 			push_error("Desktop capture failed");quit(1);return
 	var desktop: Control=game.computer_room_adapter.desktop
+	if DisplayServer.get_name()!="headless":
+		var pixels: Vector2i=game.computer_room_adapter.desktop_render.size
+		var expected:=Vector2i((desktop.size*root.get_stretch_transform().get_scale()).round())
+		if pixels!=expected:push_error("Desktop render target is below display resolution");quit(1);return
+		print("DESKTOP_NATIVE_PIXELS ",pixels)
 	if station.screen.material_override.albedo_texture!=game.computer_room_adapter.desktop_render.get_texture():
 		push_error("Local monitor did not bind the active desktop");quit(1);return
 	desktop._switch_app("Calculator")
@@ -82,10 +87,24 @@ func run() -> void:
 	desktop._switch_app("Calculator")
 	if desktop.content.get_child(0)!=calculator or calculator.display.text!="2+3":
 		push_error("Taskbar restore lost calculator state");quit(1);return
+	var before_maximize: Rect2=calculator_window.get_rect()
 	desktop._toggle_maximize("Calculator")
-	if not desktop.windows.Calculator.maximized:
+	if not desktop.windows.Calculator.maximized or not calculator_window.get_global_rect().is_equal_approx(desktop.workspace.get_global_rect()) or desktop.workspace.size.x!=desktop.size.x:
 		push_error("Maximize failed");quit(1);return
 	desktop._toggle_maximize("Calculator")
+	if not calculator_window.get_rect().is_equal_approx(before_maximize):
+		push_error("Restore did not recover the original window rectangle");quit(1);return
+	for expected in ["Downloads/notes.txt","Downloads/notes_2.txt"]:
+		computers.last_request.erase(1)
+		desktop._browser_save_download("notes.txt","downloaded".to_utf8_buffer())
+		if computers.local_snapshot.get("download_path")!=expected or computers.local_snapshot.files.get(expected,{}).get("text")!="downloaded":
+			push_error("Virtual download did not create "+expected);quit(1);return
+	computers.last_request.erase(1)
+	var pdf: PackedByteArray="%PDF-1.7\nfixture".to_ascii_buffer()
+	desktop._browser_save_download("manual.pdf",pdf)
+	if computers.local_snapshot.binary_files.get("Downloads/manual.pdf")!=pdf.size() or computers.stations[id].power.drive.entries["Downloads/manual.pdf"].data!=pdf:
+		push_error("Binary download did not reach the virtual drive");quit(1);return
+	computers.last_request.erase(1)
 	desktop._switch_app("Files")
 	if not desktop.folder_button.visible or not desktop.delete_button.visible:
 		push_error("Public file controls missing");quit(1);return
@@ -131,7 +150,7 @@ func run() -> void:
 	assert(select_file(desktop.file_list, "Work"))
 	desktop.delete_button.pressed.emit()
 	accept_dialog(desktop)
-	if not computers.local_snapshot.files.is_empty() or not computers.local_snapshot.folders.is_empty():
+	if computers.local_snapshot.files.has("Work/note.txt") or "Work" in computers.local_snapshot.folders:
 		push_error("Folder deletion left contents behind");quit(1);return
 	var recycled: Array=computers.local_snapshot.get("recycle",[])
 	assert(recycled.size()==1)
@@ -164,7 +183,7 @@ func run() -> void:
 	game.session.poses[1]={"position":point}
 	computers.request({"op":"enter","station":id})
 	if not computers.sessions.has(1):push_error("Restart did not reopen the workstation");quit(1);return
-	if not computers.local_snapshot.files.is_empty() or not computers.local_snapshot.recycle.is_empty():
+	if not computers.local_snapshot.files.is_empty() or not computers.local_snapshot.binary_files.is_empty() or not computers.local_snapshot.recycle.is_empty():
 		push_error("Restart retained temporary workspace or Recycle Bin files");quit(1);return
 	computers.stations[id].power.last_activity_ms=Time.get_ticks_msec()-computers.stations[id].power.IDLE_TIMEOUT_MS
 	computers._prune()

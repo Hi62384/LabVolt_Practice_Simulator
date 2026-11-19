@@ -216,7 +216,7 @@ func _openai_controls() -> void:
 		_notice("OpenAI settings saved." if error==OK else "Could not save OpenAI settings. Check the model ID."))
 	var test_button:=_button(body,"Test Connection","network",func():
 		_notice("Checking OpenAI connection…")
-		var result: Dictionary=await service.test_connection()
+		var result: Dictionary=await service.verify_class_connection()
 		if is_inside_tree() and active=="Host Server":_notice(str(result.get("message",result.get("error","Connection failed.")))))
 	var prompt_row:=_row("Try a prompt")
 	var prompt_field:=LineEdit.new()
@@ -295,6 +295,7 @@ func _display_controls() -> void:
 	_quality_choice("Shadow quality", "shadow_quality", [0,1,2,3], ["Off","Low","Medium","High"])
 	_quality_choice("Bloom", "bloom_quality", [0,1,2,3], ["Off","Low","Medium","High"])
 	_toggle("Reflections", graphics.options.reflections, _quality.bind("reflections"))
+	_toggle("Global illumination (SDFGI, Forward+)", graphics.options.sdfgi, _quality.bind("sdfgi"))
 	_label(body, "World detail", 18)
 	_quality_choice("Fixture quality", "lighting_quality", [0,1,2,3], ["Basic","Balanced","Enhanced","Extended"])
 	for spec in [["Fine-detail shadows","detail_shadows"],["Accent lights","lights"],["Particle effects","effects"],["First-person interaction hands","interaction_hands"]]:

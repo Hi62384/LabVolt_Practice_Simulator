@@ -177,19 +177,14 @@ func _show_open_lab_instructor() -> void:
 	screen.size=Vector2(minf(680,viewport_size.x-48),minf(620,viewport_size.y-48))
 	screen.position=(viewport_size-screen.size)*0.5
 	screen.show()
-	preload("res://scripts/campus/academics/open_lab/open_lab_panel.gd").mount(column,_show_open_lab_practice,_open_lab_tutorial,close,_host_lab_class,_talk_to_instructor)
+	preload("res://scripts/campus/academics/open_lab/open_lab_panel.gd").mount(column,_show_open_lab_practice,_open_lab_tutorial,close,_host_lab_class)
 	var first := column.find_children("*","Button",true,false)[0] as Button
 	first.grab_focus()
-
-func _talk_to_instructor() -> void:
-	var room: String=game.campus.registry.locate(game.player.global_position)
-	close()
-	game.faculty.open_conversation(room)
 
 func _host_lab_class() -> void:
 	var room: String=game.campus.registry.locate(game.player.global_position)
 	if room not in ["ac_lab","dc_lab"]:
-		game.ui.log_message("Speak to an instructor inside an electrical lab.")
+		game.ui.log_message("Open the Lab Guide inside an electrical lab.")
 		return
 	close()
 	game.lecture_classes.open_lab_picker(room)
@@ -812,7 +807,7 @@ func activity_menu(expected_epoch: int) -> void:
 		if not school.can_choose_next_activity() or int(school.get("activity_epoch"))!=expected_epoch:
 			result_label.text="This activity menu has expired."
 			return
-		var result: Dictionary=school.start_activity({"mode":mode_select.get_item_text(mode_select.selected),"course_id":course_select.get_item_text(course_select.selected),"kind":kind_select.get_item_text(kind_select.selected),"week":week_select.selected+1,"difficulty":level.selected,"assessment_seconds":deadline.value*60,"lecture_room":["elm253_lecture","ety155_lecture"][lecture_room.selected] if lecture_room.visible else ""})
+		var result: Dictionary=school.request_activity({"mode":mode_select.get_item_text(mode_select.selected),"course_id":course_select.get_item_text(course_select.selected),"kind":kind_select.get_item_text(kind_select.selected),"week":week_select.selected+1,"difficulty":level.selected,"assessment_seconds":deadline.value*60,"lecture_room":["elm253_lecture","ety155_lecture"][lecture_room.selected] if lecture_room.visible else ""})
 		if result.ok:close()
 		else:result_label.text=str(result.error))
 	_button(column,"Recover previous class on this host",func():

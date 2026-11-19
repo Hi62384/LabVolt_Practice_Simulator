@@ -5,7 +5,6 @@ var game: Node
 var school: Node
 var teacher: Node3D
 var dc_instructor: Node3D
-var dc_instructor_target: StaticBody3D
 var whiteboard: Label3D
 var whiteboard_panel: MeshInstance3D
 var board_workspace: CanvasLayer
@@ -26,34 +25,12 @@ func build(owner_game: Node) -> void:
 	game.session.leaving.connect(func():close_board_workspace(false))
 	teacher=Node3D.new()
 	add_child(teacher)
-	var config: Dictionary=preload("res://scripts/toon_character.gd").defaults()
-	config.merge({"name":"Instructor","height":1.1,"build":.82,"head":.9,"face_width":.85,"face_height":1.12,"eye_size":.8,"nose":1.15,"nose_length":1.25,"expression":"Stern","hair":"Sweep","hair_color":"9b9c9b","outfit":"Lab coat","top":"dddcd1","accent":"9f3949","pants":"3c4652","skin":"deb08c","bow_tie":true,"mouth_width":.85},true)
-	var model=preload("res://scripts/toon_character.gd").build(config)
-	model.rotation.y=PI
-	if model!=null:
-		teacher.add_child(model)
-		model.name="InstructorModel"
-	var target := StaticBody3D.new()
-	target.set_meta("role","teacher")
-	target.set_meta("label","Lab instructor")
-	var shape := CollisionShape3D.new()
-	var capsule := CapsuleShape3D.new()
-	capsule.radius=.28
-	capsule.height=1.75
-	shape.shape=capsule
-	shape.position.y=.9
-	target.add_child(shape)
-	teacher.add_child(target)
 	var dc_room: Dictionary = game.campus.registry.get_room("dc_lab")
 	if not dc_room.is_empty():
 		dc_instructor = Node3D.new()
 		dc_instructor.name = "DCPracticeInstructor"
 		dc_instructor.position = game.campus.registry.vector(dc_room.center) + Vector3(4.0, 0.0, -3.8)
 		add_child(dc_instructor)
-		dc_instructor.add_child(preload("res://scripts/toon_character.gd").build(config))
-		dc_instructor_target = target.duplicate() as StaticBody3D
-		dc_instructor_target.collision_mask = 0
-		dc_instructor.add_child(dc_instructor_target)
 		game.campus.register_content("dc_lab", dc_instructor)
 	whiteboard_panel=game._box(self,Vector3(0,2,9.75),Vector3(5.7,2.5,.08),Color("f3f2e6"))
 	whiteboard=game._text3(self,"",Vector3(0,2,9.68),.15,Color("162b3c"))
@@ -86,10 +63,11 @@ func build(owner_game: Node) -> void:
 	build_campus_furniture()
 func refresh() -> void:
 	_refresh_floor_leads()
-	if is_instance_valid(dc_instructor_target):dc_instructor_target.collision_layer=0
 	if old_phase!=school.phase and game.front.in_game and school.mode=="Class":game.sfx.play("bell")
 	old_phase=school.phase
 	timer_label.text="%s  %02d:%02d"%[school.phase.capitalize(),int(school.remaining)/60,int(school.remaining)%60]
+	if not str(school.activity.get("ai_status","")).is_empty():
+		timer_label.text+="\n"+str(school.activity.ai_status)
 	for id in visuals.keys():
 		if not school.papers.has(id):
 			visuals[id].root.queue_free()
@@ -101,7 +79,7 @@ func refresh() -> void:
 		if visual.revision!=paper.revision:
 			_page(visual,paper)
 			visual.revision=paper.revision
-	var value: String = "PLAY\n\nAsk the instructor for a practice sheet or an equipment tutorial."
+	var value: String = "PLAY\n\nOpen the lab guide for practice sheets and equipment tutorials."
 	if school.mode=="Class":
 		value="CLASS • %s • %02d:%02d\n%s\n\n"%[school.phase.to_upper(),int(school.remaining)/60,int(school.remaining)%60,school.project.get("title","")]
 		if school.phase=="lesson":
@@ -596,10 +574,6 @@ func interact(target: StaticBody3D,right_click: bool) -> bool:
 	var role: String=target.get_meta("role","")
 	var held_id: int=school.held(multiplayer.get_unique_id())
 	match role:
-		"teacher":
-			if target == dc_instructor_target and school.mode not in ["Freeplay", "Creative Freeplay"]:return true
-			game.paper_ui.teacher()
-			return true
 		"paper":
 			var id: int=target.get_meta("paper_id")
 			var item: Dictionary = school.papers.get(id,{})

@@ -191,8 +191,9 @@ static func build(raw: Dictionary, modern_body: Dictionary = {}) -> Node3D:
 		var x: float=(i/16.-.5)*.112*c.mouth_width
 		var y: float=-.122+(-.018*pow(x/(.056*c.mouth_width),2) if c.expression in ["Stern","Frown"] else (.022*pow(x/(.056*c.mouth_width),2) if c.expression!="Calm" else 0.))
 		points.append(Vector3(x,y,.144-abs(x)*.03))
-	line(head,points,.006,mouth)
-	if c.expression=="Grin":ellipsoid(head,Vector3(0,-.109,.146),Vector3(.045,.013,.006),white,"Teeth")
+	var lips:=Node3D.new();lips.name="NeutralMouth";head.add_child(lips)
+	line(lips,points,.006,mouth)
+	if c.expression=="Grin":ellipsoid(lips,Vector3(0,-.109,.146),Vector3(.045,.013,.006),white,"Teeth")
 	if c.beard:
 		for i in 15:
 			var a: float=PI+i*PI/14.

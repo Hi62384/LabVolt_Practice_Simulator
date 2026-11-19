@@ -149,6 +149,7 @@ func step(now: float) -> void:
    if not schedule.has("recent_modes"):schedule.recent_modes=[]
    var elapsed:=maxf(0.0,now-float(schedule.get("last_step",now)))
    schedule.last_step=now
+   if activity.get("ai_waiting",false) and not service.rooms.has(room):continue
    if service.rooms.has(room):schedule.event_seconds=float(schedule.event_seconds)+elapsed
    elif now<float(interruption_until.get(class_id,0.0)):schedule.interruption_seconds=float(schedule.interruption_seconds)+elapsed
    elif now<float(offtopic_until.get(class_id,0.0)):schedule.offtopic_seconds=float(schedule.offtopic_seconds)+elapsed

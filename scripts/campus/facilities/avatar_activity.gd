@@ -1,4 +1,6 @@
 extends Node3D
+const MatPose=preload("res://scripts/campus/facilities/gym_mat_pose.gd")
+const Bench=preload("res://scripts/campus/facilities/gym_bench.gd")
 ## Cosmetic only. Parent this beside the avatar; bind_visual(toon_or_imported_visual).
 ## Never changes player root, collision, camera, authoritative pose, or movement speed.
 var visual: Node3D
@@ -73,7 +75,7 @@ func apply_event(value: Dictionary, show_food: bool) -> void:
 	_release_animation()
 	restore()
 	state=value.duplicate(true);elapsed=0
-	if state.get("activity","") in ["exercise","trapped"] and state.get("exercise","")=="squat":squat_bend.bind(legs)
+	if (state.get("activity","") in ["exercise","trapped"] and state.get("exercise","") in ["squat","crunch"]) or state.has("bench_position"):squat_bend.bind(legs)
 	if state.get("activity","")=="exercise" and state.get("exercise","") in ["curl","wrist_curl","overhead_extension","tricep_pushdown","pullup","dip","upright_row","cable_row","pushup","pike_pushup","benchpress","incline_press","overhead_press","bent_over_row","chest_supported_row","crunch"]:arm_bend.bind(arms)
 	if state.get("activity", "") in ["exercise", "trapped", "spotting", "assist", "spot_assist", "emote"]:
 		_hold_animation()
@@ -155,31 +157,19 @@ func _process(delta: float) -> void:
 		elif kind=="benchpress":target.basis=original.basis.rotated(Vector3.RIGHT,-0.8)
 		var on_bench: bool=state.get("bench_position") is Vector3
 		if on_bench:
-			var mode: String=preload("res://scripts/campus/facilities/gym_bench.gd").position_for(kind)
-			var tilt:=0.0
-			var yaw:=0.0
-			# Align the hips with the seat for both short and tall avatars.
-			var avatar_height:=original.basis.get_scale().y
-			var bench_offset:=Vector3(0,.585-.86*avatar_height,0)
-			if mode=="flat":
-				tilt=-1.50;bench_offset=Vector3(0,.70,.60)
-			elif mode=="incline":
-				tilt=-.92;bench_offset=Vector3(0,.55,.18)
-			elif mode=="supported":
-				tilt=.75;yaw=PI;bench_offset=Vector3(0,.35,0)
-			var bench_target: Vector3=state.bench_position+bench_offset
+			var posture:=Bench.body_pose(kind,original.basis.get_scale().y)
+			var bench_target: Vector3=state.bench_position+posture.origin
 			visual.global_position=visual.global_position.lerp(bench_target,minf(delta*5.0,1.0))
 			var current_basis:=visual.global_basis
-			var desired_basis:=Basis.from_euler(Vector3(tilt,yaw,0))
-			visual.global_basis=current_basis.orthonormalized().slerp(desired_basis,minf(delta*5.0,1.0)).scaled(current_basis.get_scale())
+			visual.global_basis=current_basis.orthonormalized().slerp(posture.basis,minf(delta*5.0,1.0)).scaled(current_basis.get_scale())
 		elif state.get("mat_position") is Vector3:
 			# Move only the rendered avatar onto the mat, keeping its collision and
 			# authoritative player position in the aisle.
-			var offset_z:=.85 if kind in ["crunch","leg_raise"] else -.35 if kind=="pike_pushup" else -.85
-			var mat_target: Vector3=state.mat_position+Vector3(0,target.origin.y,offset_z)
+			var pitch:=lerpf(1.40,1.53,phase) if kind=="pushup" else .53 if kind=="pike_pushup" else -PI*.5
+			var desired_basis:=Basis(Vector3.RIGHT,pitch)
+			var mat_target: Vector3=MatPose.hips(state.mat_position,kind,phase)-desired_basis*Vector3.UP*.86*original.basis.get_scale().y
 			visual.global_position=visual.global_position.lerp(mat_target,minf(delta*5.0,1.0))
 			var current_basis:=visual.global_basis
-			var desired_basis:=Basis.from_euler(Vector3(target.basis.orthonormalized().get_euler().x,0,0))
 			visual.global_basis=current_basis.orthonormalized().slerp(desired_basis,minf(delta*8.0,1.0)).scaled(current_basis.get_scale())
 		elif state.get("grip_anchor") is Vector3:
 			visual.basis=original.basis
@@ -206,11 +196,11 @@ func _process(delta: float) -> void:
 			torso.transform=torso_original
 			if kind=="pike_pushup" and not on_bench:
 				# Keep the legs planted while folding the torso at the hips.
-				var bend:=Basis(Vector3.RIGHT,2.10+phase*.20)
+				var bend:=Basis(Vector3.RIGHT,1.84+phase*.28)
 				var hip:=Vector3(0,.86,0)
-				torso.transform=torso_original*Transform3D(bend,hip-bend*hip+Vector3.DOWN*(.10-.06*phase))
+				torso.transform=torso_original*Transform3D(bend,hip-bend*hip)
 			elif kind=="crunch" and not on_bench:
-				var bend:=Basis(Vector3.RIGHT,.3*phase)
+				var bend:=Basis(Vector3.RIGHT,.64*raised)
 				var hip:=Vector3(0,.86,0)
 				torso.transform=torso_original*Transform3D(bend,hip-bend*hip)
 			elif kind=="good_morning":
@@ -241,8 +231,7 @@ func _process(delta: float) -> void:
 				arm.node.rotation.x=-.15
 				arm.node.rotation.z+=(.42 if arm.node.name=="ArmR" else -.42)
 			elif kind=="crunch":
-				arm.node.rotation.x=-.76
-				arm.node.rotation.y=.52 if arm.node.name=="ArmR" else -.52
+				arm.node.rotation.x=-.68
 			elif kind=="leg_raise":arm.node.rotation.x=.14
 			elif kind=="pushup":arm.node.rotation.x=-1.20+phase*.71
 			elif kind=="pike_pushup":arm.node.rotation.x=-2.10-phase*.20
@@ -282,16 +271,18 @@ func _process(delta: float) -> void:
 			leg.node.transform=leg.transform
 			if on_bench:
 				var bench_mode: String=preload("res://scripts/campus/facilities/gym_bench.gd").position_for(kind)
-				leg.node.rotation.x=.7 if bench_mode=="flat" else .92 if bench_mode=="incline" else -.75 if bench_mode=="supported" else -.7
+				leg.node.rotation.x=.7 if bench_mode=="flat" else .92 if bench_mode=="incline" else -.75 if bench_mode=="supported" else -1.38
 				if bench_mode=="supported":
 					var side:=1.0 if leg.node.name=="LegR" else -1.0
 					leg.node.position.x+=side*.14
 					leg.node.rotation.z=side*.5
 			elif kind=="squat":leg.node.rotation.x=0.0
-			elif kind=="leg_raise":leg.node.rotation.x=-.1-raised*.9
+			elif kind=="leg_raise":leg.node.rotation.x= -.08-raised*1.03
 			elif kind=="hanging_leg_raise":leg.node.rotation.x=-raised
-			elif kind=="crunch":leg.node.rotation.x=-.14
+			elif kind=="crunch":leg.node.rotation.x=-.70
 		if kind=="squat":squat_bend.apply(phase if state.get("activity","")=="exercise" else 1.0)
+		elif kind=="crunch":squat_bend.apply(1.0,true)
+		elif on_bench and preload("res://scripts/campus/facilities/gym_bench.gd").position_for(kind) in ["seated","seated_free"]:squat_bend.apply(1.0,true)
 		if state.get("activity","")=="exercise":
 			if kind=="curl":arm_bend.apply(1.45*raised,0.0)
 			elif kind=="wrist_curl":arm_bend.apply(0.0,-.7*raised)
@@ -318,10 +309,10 @@ func _process(delta: float) -> void:
 			for key in arms:
 				var arm: Node3D=arms[key].node
 				var side: float=-1.0 if key=="ArmL" else 1.0
-				_aim_hand(arm,state.mat_position+Vector3(side*.27,.035,.49),true)
+				_aim_hand(arm,MatPose.palm(state.mat_position,side,kind),true)
 				var leg: Dictionary=legs.get("LegL" if key=="ArmL" else "LegR",{})
 				if leg.has("node"):
-					_aim_end(leg.node,Vector3(0,-.83,.07),state.mat_position+Vector3(side*.13,.035,-1.03),true)
+					_aim_end(leg.node,Vector3(0,-.83,.07),MatPose.toes(state.mat_position,side,kind),true)
 		if state.get("grip_anchor") is Vector3 and arms.has("ArmL") and arms.has("ArmR"):
 			var joints=preload("res://scripts/campus/facilities/arm_bend.gd")
 			var left: Node3D=joints.hand_for(arms.ArmL.node)
@@ -333,10 +324,16 @@ func _process(delta: float) -> void:
 				_aim_hand(arms.ArmL.node,state.grip_anchor-Vector3.RIGHT*spacing,true)
 				_aim_hand(arms.ArmR.node,state.grip_anchor+Vector3.RIGHT*spacing,true)
 	elif state.get("activity","")=="seat":
-		visual.position=original.origin+Vector3(0,-0.3,0)
-		if state.has("seat_position"):
+		if state.get("bench_position") is Vector3:
+			var posture:=Bench.body_pose("curl",original.basis.get_scale().y)
+			visual.global_position=state.bench_position+posture.origin
+			visual.global_basis=posture.basis.scaled(original.basis.get_scale())
+			for leg in legs.values():leg.node.rotation.x=-1.38
+			squat_bend.apply(1.0,true)
+		elif state.has("seat_position"):
 			visual.global_position=state.seat_position+Vector3.DOWN*.3
 			visual.global_rotation.y=float(state.seat_yaw)
+		else:visual.position=original.origin+Vector3(0,-.3,0)
 
 func _lowered_phase() -> float:
 	return 1.0-float(state.lift_progress) if state.has("lift_progress") else float(state.get("phase",0.0))

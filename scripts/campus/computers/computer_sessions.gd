@@ -11,6 +11,8 @@ const Documents = preload("res://scripts/campus/computers/local_documents.gd")
 const UsbArchive = preload("res://scripts/campus/computers/usb_archive.gd")
 const UsbTransfer = preload("res://scripts/campus/computers/usb_transfer.gd")
 const UsbDrive = preload("res://scripts/campus/computers/device_filesystem.gd")
+const Downloads = preload("res://scripts/campus/computers/browser_download.gd")
+const MAX_DOWNLOAD_NAMES := Files.MAX_FILES+1
 var game: Node
 var stations := {}
 var sessions := {}
@@ -153,6 +155,7 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if not profiles.has(owner_key):
 				if profiles.size()>=16:profiles.erase(profiles.keys()[0])
 				var local_drive=preload("res://scripts/campus/computers/device_filesystem.gd").new()
+				local_drive.make_folder("Downloads")
 				profiles[owner_key]={"workspace":{"files":{},"editor":{}},"drive":local_drive}
 				if not entry.power.usb.is_empty():
 					for path in entry.power.usb.drive.entries:
@@ -189,8 +192,9 @@ func _accept(peer: int, action: Dictionary) -> void:
 	last_request[peer]=now
 	var workspace: Dictionary=workspaces[peer]
 	var file_device := bool(session.get("public_device", false))
-	var usb_before: Dictionary=entry.power.usb.drive.entries.duplicate(true) if file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"] else {}
-	var workspace_before: Dictionary=workspace.duplicate(true) if not usb_before.is_empty() or (file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename"]) else {}
+	var writes_usb: bool=file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename","copy_download"]
+	var usb_before: Dictionary=entry.power.usb.drive.entries.duplicate(true) if writes_usb else {}
+	var workspace_before: Dictionary=workspace.duplicate(true) if writes_usb else {}
 	if str(action.get("path","")).to_lower().begins_with(".recycle") or str(action.get("new_path","")).to_lower().begins_with(".recycle"):
 		_error(peer,"That path is reserved.");return
 	match op:
@@ -211,6 +215,54 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if file_device and not entry.power.drive.write_file(str(action.path),action.text.to_utf8_buffer()):
 				_error(peer,"Choose an existing folder and check available space.");return
 			workspace.files=result.files
+		"download":
+			if not file_device:
+				_error(peer,"Use the workstation drive to download a temporary file.");return
+			var filename: Variant=action.get("name")
+			var bytes: Variant=action.get("bytes")
+			if not filename is String or not bytes is PackedByteArray or filename.length()>25 or Files.path(filename)!=filename or filename.contains("/") or filename.begins_with(".") or not Downloads.valid(bytes,filename.get_extension()):
+				_error(peer,"Invalid download.");return
+			var drive: Variant=_workstation_drive(session.station,peer)
+			if drive==null:
+				_error(peer,"This workstation drive is unavailable.");return
+			var path: String="Downloads/"+filename
+			for index in range(2,MAX_DOWNLOAD_NAMES+2):
+				if not drive.entries.has(path) and not workspace.files.has(path):break
+				path="Downloads/%s_%d.%s"%[filename.get_basename(),index,filename.get_extension()]
+			if drive.entries.has(path) or workspace.files.has(path):
+				_error(peer,"No free filename in Downloads.");return
+			var files: Dictionary=workspace.files
+			if filename.get_extension() in Downloads.TEXT_EXTENSIONS and entry.power.usb.is_empty():
+				var result := Files.save(files,path,bytes.get_string_from_utf8(),0)
+				if result.has("error"):_error(peer,result.error);return
+				files=result.files
+			if not drive.entries.has("Downloads") and not drive.make_folder("Downloads"):
+				_error(peer,"Could not create Downloads.");return
+			if not drive.write_file(path,bytes):
+				_error(peer,"Could not save to Downloads. Check the available space.");return
+			workspace.files=files
+			session.download_path=path
+		"copy_download":
+			if not writes_usb:
+				_error(peer,"Attach a USB drive to copy a download.");return
+			var path:=Files.path(str(action.get("path","")))
+			var local: Variant=_workstation_drive(session.station,peer)
+			if local==null or not path.begins_with("Downloads/") or path.count("/")!=1 or local.entries.get(path,{}).get("type")!="file":
+				_error(peer,"Choose a file from the workstation Downloads folder.");return
+			var bytes: PackedByteArray=local.entries[path].data
+			var usb: RefCounted=entry.power.usb.drive
+			if not Downloads.valid(bytes,path.get_extension()) or usb.entries.has(path) or workspace.files.has(path):
+				_error(peer,"Cannot copy that file. Use an unused filename.");return
+			var files: Dictionary=workspace.files
+			if path.get_extension() in Downloads.TEXT_EXTENSIONS:
+				var result := Files.save(files,path,bytes.get_string_from_utf8(),0)
+				if result.has("error"):_error(peer,result.error);return
+				files=result.files
+			if (not usb.entries.has("Downloads") and not usb.make_folder("Downloads")) or not usb.write_file(path,bytes):
+				usb.entries=usb_before
+				_error(peer,"Cannot copy that file. Check USB space.");return
+			workspace.files=files
+			action={"op":"copy_download","path":path,"bytes":bytes}
 		"mkdir":
 			var path:=Files.path(str(action.get("path","")))
 			if not file_device or path.is_empty() or not entry.power.drive.make_folder(path):
@@ -332,6 +384,7 @@ func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries:
 	var token:=Crypto.new().generate_random_bytes(16).hex_encode()
 	var operation:={"op":str(action.op),"path":str(action.get("path",""))}
 	if action.op=="save":operation.text=str(action.text)
+	if action.op=="copy_download":operation.bytes=action.bytes
 	if action.op=="rename":operation.new_path=str(action.get("new_path",""))
 	usb_writes[station]={"token":token,"owner_peer":owner_peer,"actor":actor,"lease":sessions[actor].lease,"entries":old_entries,"workspace":old_workspace,"started":Time.get_ticks_msec()}
 	if owner_peer==multiplayer.get_unique_id():_apply_owner_usb_write(station,token,str(usb.id),int(usb.capacity_mb),operation)
@@ -359,6 +412,9 @@ func _apply_owner_usb_write(station: String,token: String,id: String,capacity: i
 		match str(operation.get("op","")):
 			"save":ok=operation.get("text") is String and drive.write_file(path,str(operation.text).to_utf8_buffer())
 			"mkdir":ok=drive.make_folder(path)
+			"copy_download":
+				var bytes: Variant=operation.get("bytes")
+				ok=Files.path(path)==path and path.begins_with("Downloads/") and path.count("/")==1 and bytes is PackedByteArray and Downloads.valid(bytes,path.get_extension()) and not drive.entries.has(path) and (drive.entries.has("Downloads") or drive.make_folder("Downloads")) and drive.write_file(path,bytes)
 			"delete":ok=drive.remove(path)
 			"rename":ok=drive.move(path,str(operation.get("new_path","")))
 			_:ok=false
@@ -590,12 +646,20 @@ func _assignment(peer: int, action: Dictionary) -> bool:
 	return true
 func _reply(peer: int) -> void:
 	var packet: Dictionary=sessions[peer].duplicate(true)
+	sessions[peer].erase("download_path")
 	packet.erase("identity")
 	packet.merge(workspaces[peer].duplicate(true))
 	if packet.get("public_device",false):
 		packet.folders=[]
+		packet.binary_files={}
+		packet.copyable_downloads=[]
 		var device=stations[packet.station].power
 		var drive=device.drive
+		if not device.usb.is_empty():
+			var local: Variant=_workstation_drive(packet.station,peer)
+			if local!=null:
+				for path: String in local.entries:
+					if path.begins_with("Downloads/") and path.count("/")==1 and local.entries[path].type=="file":packet.copyable_downloads.append(path)
 		packet.recycle_available=device.usb.is_empty()
 		packet.erase("recycle")
 		if packet.recycle_available:
@@ -608,6 +672,8 @@ func _reply(peer: int) -> void:
 		for name in drive.entries:
 			if str(name)==".Recycle" or str(name).begins_with(".Recycle/"):continue
 			if drive.entries[name].type=="folder":packet.folders.append(name)
+			elif str(name).begins_with("Downloads/") and not packet.files.has(name) and Files.path(name)==name:
+				packet.binary_files[name]=drive.entries[name].data.size()
 	packet.restored=restored.has(peer)
 	packet.assignments=[]
 	for paper in game.school.papers.values():
@@ -620,6 +686,11 @@ func _reply(peer: int) -> void:
 		packet.materials.append({"title":str(stage.get("title","Lesson")),"text":str(stage.get("text",stage.get("caption","")))})
 	if peer==multiplayer.get_unique_id():_receive(packet)
 	elif game.session.online:_private.rpc_id(peer,packet)
+
+func _workstation_drive(station: String,peer: int) -> Variant:
+	var identity:=_identity(peer)
+	var key:=identity if not identity.is_empty() else "connection:%d"%peer
+	return station_users.get(station,{}).get(key,{}).get("drive")
 @rpc("authority","call_remote","reliable",6)
 func _private(packet: Dictionary) -> void:
 	if multiplayer.get_remote_sender_id()==1:_receive(packet)

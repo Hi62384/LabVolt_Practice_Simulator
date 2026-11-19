@@ -5,7 +5,7 @@ const InteriorShadows = preload("res://scripts/campus/presentation/lighting/inte
 const Layout = preload("res://scripts/ui/hud_settings/layout.gd")
 signal changed(options: Dictionary)
 const SAVE := "user://campus_graphics.cfg"
-const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"lighting_quality":1,"shadow_quality":2,"bloom_quality":1,"brightness":1.0,"indoor_intensity":1.0,"lighting_tone":"Neutral","interaction_hands":true}
+const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"sdfgi":false,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"lighting_quality":1,"shadow_quality":2,"bloom_quality":1,"brightness":1.0,"indoor_intensity":1.0,"lighting_tone":"Neutral","interaction_hands":true}
 const PRESETS := ["Low", "Medium", "High", "Ultra", "Custom"]
 var quality_preset := "Medium"
 var save_error := OK
@@ -25,12 +25,13 @@ func attach(target: Viewport, root: Node, crowd_adapter: Object=null) -> void:
 func load_settings(path := SAVE) -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path)!=OK: return
-	for key in DEFAULTS: _validate(key,cfg.get_value("graphics",key,DEFAULTS[key]))
+	var saved := str(cfg.get_value("graphics", "preset", ""))
+	for key in DEFAULTS:
+		_validate(key,cfg.get_value("graphics",key,true if key=="sdfgi" and saved=="Ultra" else DEFAULTS[key]))
 	if not options.shadows:options.shadow_quality=0
 	if not options.bloom:options.bloom_quality=0
 	options.shadows=options.shadow_quality>0
 	options.bloom=options.bloom_quality>0
-	var saved := str(cfg.get_value("graphics", "preset", ""))
 	quality_preset = "Custom"
 	if saved == "Ultra" and options.aa == 3:
 		var previous_ultra := _preset_options("Ultra")
@@ -95,7 +96,7 @@ func _preset_options(level: String) -> Dictionary:
 	values.merge({"lighting_quality":0 if low else 2,"shadow_quality":0 if low else 2,"bloom_quality":0 if low else 1,"render_scale":0.65 if low else 1.0,"texture":0 if low else 2,"shadows":not low,"detail_shadows":level=="High","reflections":not low,"aa":0 if low else 2,"npc_density":"Off","view_distance":100.0 if low else 180.0,"effects":not low,"bloom":not low,"lights":not low},true)
 	if level=="Medium": return DEFAULTS.duplicate()
 	if level=="Ultra":
-		values.merge({"detail_shadows":true, "aa":1, "view_distance":240.0,"lighting_quality":3, "bloom_quality":2,"shadow_quality":3}, true)
+		values.merge({"detail_shadows":true, "aa":1, "view_distance":240.0,"lighting_quality":3, "bloom_quality":2,"shadow_quality":3,"sdfgi":true}, true)
 	return values
 func set_crowd_adapter(adapter: Object) -> void:
 	crowd=adapter; apply()
@@ -123,7 +124,7 @@ func apply(key := "") -> void:
 				if is_instance_valid(node) and _affects(node,key):register_node(node,false)
 func _affects(node: Node, key: String) -> bool:
 	match key:
-		"brightness","bloom","bloom_quality":return node is WorldEnvironment
+		"brightness","bloom","bloom_quality","sdfgi":return node is WorldEnvironment
 		"lighting_tone","indoor_intensity","lighting_quality":return node is Light3D or node is ReflectionProbe or node is WorldEnvironment or node.has_meta("satin_floor")
 		"lights":return node is Light3D
 		"shadow_quality","shadows":return node is Light3D or node.has_meta("floor_contact_shadows")
@@ -160,7 +161,7 @@ func register_node(node: Node, recursive := true) -> void:
 		if node is Light3D: original={"shadow":node.shadow_enabled,"fade":node.distance_fade_enabled,"visible":node.visible,"range":node.spot_range if node is SpotLight3D else 0.0,"energy":node.light_energy,"color":node.light_color,"specular":node.light_specular,"blur":node.shadow_blur}
 		elif node is ReflectionProbe or node is GPUParticles3D or node is CPUParticles3D: original={"visible":node.visible}
 		elif node is Camera3D: original={"far":node.far}
-		elif node is WorldEnvironment and node.environment!=null: original={"reflected":node.environment.reflected_light_source,"ssr":node.environment.ssr_enabled,"glow":node.environment.glow_enabled,"ssao":node.environment.ssao_enabled,"ssil":node.environment.ssil_enabled}
+		elif node is WorldEnvironment and node.environment!=null: original={"reflected":node.environment.reflected_light_source,"ssr":node.environment.ssr_enabled,"glow":node.environment.glow_enabled,"ssao":node.environment.ssao_enabled,"ssil":node.environment.ssil_enabled,"exposure":node.environment.tonemap_exposure}
 		elif node is GeometryInstance3D: original={"end":node.visibility_range_end,"cast":node.cast_shadow,"fine":_fine_detail(node)}
 		originals[id]=original
 	var saved: Dictionary=originals[id]
@@ -190,7 +191,8 @@ func register_node(node: Node, recursive := true) -> void:
 	elif node is Camera3D: node.far=minf(float(saved.far),float(options.view_distance))
 	elif node is WorldEnvironment and node.environment!=null:
 		var forward := RenderingServer.get_current_rendering_method()=="forward_plus"
-		node.environment.tonemap_exposure=float(options.brightness)
+		node.environment.sdfgi_enabled=forward and bool(options.sdfgi)
+		node.environment.tonemap_exposure=float(saved.exposure)*float(options.brightness)
 		node.environment.ssr_enabled=forward and (bool(saved.ssr) or int(options.lighting_quality)>=3) and options.reflections
 		node.environment.reflected_light_source = int(saved.reflected) if options.reflections else Environment.REFLECTION_SOURCE_DISABLED
 		var bloom_level := int(options.bloom_quality) if options.bloom else 0

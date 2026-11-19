@@ -60,7 +60,7 @@ func build(owner_game: Node) -> void:
 	facilities.controller.room_event.connect(game.interaction_presentation.facility_event)
 	facilities.controller.cable_selection_rejected.connect(game.ui.log_message)
 	facilities.controller.room_event.connect(func(peer: int, event: Dictionary):
-		if peer==multiplayer.get_unique_id() and event.get("activity","") in ["seat","idle"]:
+		if peer==multiplayer.get_unique_id() and event.get("activity","") in ["seat","idle","exercise"]:
 			game.player.set_facility_seat(event))
 	facilities.profile_committed.connect(_profile_committed)
 	game.session.restarted.connect(func():
@@ -244,11 +244,10 @@ func _exercise_alignment(peer: int,station: String,exercise: String,current: Vec
 		var mat: Vector3=anchor.mat_position
 		point=Vector3(mat.x,current.y,mat.z+.39)
 		yaw=0.0
-	elif anchor.get("kind")=="benchpress":
+	elif anchor.get("kind") in ["benchpress","seated_bench"]:
 		var bench: Vector3=anchor.bench_position
 		point=Vector3(bench.x,current.y,bench.z+1.0)
-		var posture := preload("res://scripts/campus/facilities/gym_bench.gd").position_for(exercise)
-		yaw=PI if posture in ["seated", "seated_free"] else 0.0
+		yaw=preload("res://scripts/campus/facilities/gym_bench.gd").approach_yaw(exercise)
 	elif anchor.get("kind")=="squat":
 		point=anchor.position
 		yaw=0.0
@@ -321,6 +320,7 @@ func aimed_prompt() -> String:
 				return "%s - %s weight plate" % [interact_key,"Add" if game.gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Remove"]
 	var aimed := _aimed_facility()
 	if aimed.is_empty(): return ""
+	if aimed.kind in ["benchpress","seated_bench"]:return "%s - %s" % [interact_key,"Bench" if aimed.kind=="benchpress" else "Use seated bench"]
 	var action := "Open cable exercises" if aimed.kind=="cable" else ("Sit" if aimed.kind=="seat" else ("Cashier" if str(aimed.kind).begins_with("counter:") else str(aimed.kind).capitalize()))
 	return "%s - %s" % [interact_key, action]
 
@@ -429,6 +429,14 @@ func route_event(event: InputEvent) -> bool:
 				if not aimed.is_empty():
 					if aimed.kind=="seat":
 						facility_panel.request_direct({"op":"sit","station":aimed.id})
+					elif aimed.kind=="seated_bench":
+						var peer:=multiplayer.get_unique_id()
+						var held:="seated_barbell" if not game.gym_barbells.held_bar(peer).is_empty() else ("seated_dumbbell" if game.gym_weights.held_id(peer)>=0 else "")
+						if held.is_empty():game.ui.log_message("Equip dumbbells or a barbell to use the seated bench.")
+						else:
+							game.release_mouse()
+							facility_panel.open_for(aimed.id,held)
+							facility_panel.request_direct({"op":"sit","station":aimed.id})
 					else:
 						game.release_mouse()
 						facility_panel.open_for(aimed.id,aimed.kind)

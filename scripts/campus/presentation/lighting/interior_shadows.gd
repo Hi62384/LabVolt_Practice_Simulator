@@ -20,7 +20,7 @@ void fragment() {
 	vec2 p = abs(UV * 2.0 - 1.0);
 	float spread = pow(p.x, 3.0) + pow(p.y, 3.0);
 	ALBEDO = vec3(0.11, 0.15, 0.20);
-	ALPHA = 0.24 * (1.0 - smoothstep(0.06, 1.0, spread));
+	ALPHA = 0.38 * (1.0 - smoothstep(0.06, 1.0, spread));
 }
 """
 	var material := ShaderMaterial.new()

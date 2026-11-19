@@ -2,6 +2,7 @@ extends RefCounted
 ## Shared M105 transforms for station geometry, storage and replicated bar motion.
 const ORIGIN := Vector3(0, 0, 33)
 const BENCH := Vector3(4, 0, -2)
+const SEATED_BENCHES := [Vector3(2.35,0,1.35),Vector3(4.75,0,1.35)]
 const PULLUP := Vector3(-5, 0, -2)
 const DUMBBELLS := Vector3(2.65, 0, -5.42)
 const PLATES := Vector3(-7.65, 0, 5.72)

@@ -42,8 +42,16 @@ func run() -> void:
 	service.request({"op":"enter","station":station})
 	if service.local_snapshot.is_empty():push_error("Desktop failed to open");quit(1);return
 	service.request({"op":"save","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"path":"notes.txt","text":"USB test","version":0})
+	var pdf: PackedByteArray="%PDF-1.7\nfixture".to_ascii_buffer()
+	service.last_request.erase(1)
+	service.request({"op":"download","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"name":"manual.pdf","bytes":pdf})
+	assert("Downloads/manual.pdf" in service.local_snapshot.copyable_downloads)
+	assert(not service.stations[station].power.usb.drive.entries.has("Downloads/manual.pdf"))
+	service.last_request.erase(1)
+	service.request({"op":"copy_download","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"path":"Downloads/manual.pdf"})
 	var loaded: Dictionary=Archive.load(game.school.local_identity,id,8)
 	if loaded.has("error") or loaded.name!="Lab work" or loaded.drive.entries.get("notes.txt",{}).get("data",PackedByteArray()).get_string_from_utf8()!="USB test":push_error("Desktop save did not persist");quit(1);return
+	assert(loaded.drive.entries["Downloads/manual.pdf"].data==pdf)
 	service.request({"op":"usb_port","station":station})
 	if service.stations[station].power.usb.is_empty():push_error("Powered USB removed");quit(1);return
 	service.request({"op":"power","station":station})

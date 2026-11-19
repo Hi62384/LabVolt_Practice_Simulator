@@ -5,6 +5,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path in ("/notes.txt", "/manual.pdf", "/invalid.png"):
+            mime, body = {
+                "/notes.txt": ("text/plain; charset=utf-8", b"Campus lab notes"),
+                "/manual.pdf": ("application/pdf", b"%PDF-1.7\nfixture"),
+                "/invalid.png": ("image/png", b"<html>Not an image</html>"),
+            }[self.path]
+            self.send_response(200)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/private":
             title = "SIGNED_IN" if "labvolt_session=fixture" in self.headers.get("Cookie", "") else "SIGNED_OUT"
             body = f"<html><title>{title}</title><body>{title}</body></html>".encode()

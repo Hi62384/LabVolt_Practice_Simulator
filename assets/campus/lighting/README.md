@@ -1,6 +1,8 @@
 # Campus lighting
 
-LabVolt uses Godot 4.5's Forward+ renderer on desktop and Mobile renderer on mobile. The existing CampusLightingRig owns the procedural sky, sun, ambient fill, and filmic environment. Its day/night curve preserves usable indoor ambient light independently of the outdoor sun. The Graphics & Display brightness control changes tonemap exposure.
+LabVolt uses Godot 4.5's Forward+ renderer on desktop and Mobile renderer on mobile. Edit the WorldEnvironment child in Main.tscn to change the campus sky, ambient tint, or exposure. CampusLightingRig supplies the sun and interior fill and builds a procedural environment if Main does not supply one. The Graphics & Display brightness control scales the authored exposure. Ultra enables SDFGI on Forward+. Global illumination can also be toggled individually. Local fixtures and ambient fill provide illumination on every renderer.
+
+`campus_daylight_2k.hdr` is the 2K Radiance version of [Kloppenheim 03 (Pure Sky)](https://polyhaven.com/a/kloppenheim_03_puresky) by Greg Zaal and Jarod Guest, distributed under CC0.
 
 Room builders use real broad spotlights at the existing fixtures. The workshop and corridor also use short-range, shadowless ceiling spill. M104 uses warmer pendant and wall lighting. Shadows come from fixed, authored fixtures and the outdoor sun. M101 keeps its three fixtures at Medium and above, and the specified teaching rooms keep one each. Off disables shadow maps and the workshop and cafeteria's instanced furniture contact shading.
 

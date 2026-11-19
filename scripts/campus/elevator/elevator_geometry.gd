@@ -87,12 +87,17 @@ func _landing(floor_id: int) -> void:
 		if side > 0:
 			_box(Vector3(16.0,y+2.04,z),Vector3(.10,4.08,2),"859aa5")
 		_box(Vector3(CABIN_FRONT,y+CABIN_HEIGHT*.5,z),Vector3(.08,CABIN_HEIGHT,2),"859aa5")
-	_box(Vector3(16.12,y+(4.08+DOOR_HEIGHT)*.5,DOOR_Z),Vector3(.22,4.08-DOOR_HEIGHT,WIDTH),"e3e9e6")
-	# Seat the frame into the shell while leaving clearance for the sliding leaves.
-	for z in [57.953,60.047]:
-		_box(Vector3(15.96,y+DOOR_HEIGHT*.5,z),Vector3(.24,DOOR_HEIGHT,.094),"29404f",false)
-	_box(Vector3(15.96,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.24,.124,2.188),"29404f",false)
-	_box(Vector3(16.078,y+.026,DOOR_Z),Vector3(.38,.012,WIDTH),"b4bec0",false)
+	# Each piece owns its volume: the wall begins above the header and the
+	# sliding leaves run behind the hallway-facing jambs.
+	var header_top := DOOR_HEIGHT+.124
+	_box(Vector3(16.05,y+(4.08+header_top)*.5,DOOR_Z),Vector3(.22,4.08-header_top,WIDTH),"e3e9e6")
+	for side in [-1.0,1.0]:
+		_box(Vector3(15.92,y+DOOR_HEIGHT*.5,DOOR_Z+side*(WIDTH*.5+.047)),Vector3(.13,DOOR_HEIGHT,.094),"29404f",false)
+	_box(Vector3(15.92,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.13,.124,WIDTH+.188),"29404f",false)
+	_box(Vector3(DOOR_X,y+DOOR_HEIGHT+.035,DOOR_Z),Vector3(.12,.045,WIDTH),"486879",false)
+	var cabin_header_bottom := DOOR_HEIGHT+.06
+	_box(Vector3(CABIN_FRONT,y+(cabin_header_bottom+CABIN_HEIGHT)*.5,DOOR_Z),Vector3(.08,CABIN_HEIGHT-cabin_header_bottom,WIDTH),"859aa5",false)
+	_box(Vector3(16.078,y+.015,DOOR_Z),Vector3(.38,.016,WIDTH-.018),"b4bec0",false)
 	var pair: Array[MeshInstance3D] = []
 	for side in [-1, 1]:
 		pair.append(_box(Vector3(DOOR_X, y + DOOR_HEIGHT * .5, DOOR_Z + side * .5), Vector3(.09, DOOR_HEIGHT, .995), "9daeb6", false))

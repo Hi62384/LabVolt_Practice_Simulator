@@ -45,6 +45,7 @@ var _rendering := false
 var _portable_pending := false
 var laptop_display_filter: ColorRect
 var browser_surface: VBoxContainer
+var pending_browser_download := false
 var app_window_title: Label
 var start_panel: PanelContainer
 var start_button: Button
@@ -135,14 +136,10 @@ void fragment() {
 	wallpaper_shader.shader=waves
 	backdrop.material=wallpaper_shader
 	add_child(backdrop)
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "top", "right", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 8 if side=="bottom" else (12 if side in ["left","right"] else 20))
-	add_child(margin)
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 12)
-	margin.add_child(root)
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_theme_constant_override("separation", 0)
+	add_child(root)
 	desktop_status=Label.new()
 	desktop_status.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	workspace=Control.new()
@@ -199,7 +196,12 @@ void fragment() {
 	tray_style.content_margin_top=3
 	tray_style.content_margin_bottom=3
 	tray_shell.add_theme_stylebox_override("panel",tray_style)
-	root.add_child(tray_shell)
+	var tray_margin:=MarginContainer.new()
+	tray_margin.add_theme_constant_override("margin_left",12)
+	tray_margin.add_theme_constant_override("margin_right",12)
+	tray_margin.add_theme_constant_override("margin_bottom",8)
+	root.add_child(tray_margin)
+	tray_margin.add_child(tray_shell)
 	tray_shell.add_child(taskbar)
 	start_button = _button("Start", _toggle_start)
 	start_button.icon=Icon.icon("course")
@@ -420,9 +422,15 @@ func _fit_windows() -> void:
 	for state in windows.values():
 		var window: PanelContainer=state.shell
 		if state.maximized:
+			var frame:=window.get_theme_stylebox("panel") as StyleBoxFlat
+			frame.set_corner_radius_all(0)
+			frame.shadow_size=0
 			window.position=Vector2.ZERO
 			window.size=workspace.size
 		else:
+			var frame:=window.get_theme_stylebox("panel") as StyleBoxFlat
+			frame.set_corner_radius_all(16)
+			frame.shadow_size=12
 			var rect: Rect2=state.rect
 			window.size=rect.size.max(window.get_combined_minimum_size()).min(workspace.size)
 			window.position=_recoverable_window_position(rect.position,window.size)
@@ -558,6 +566,7 @@ func _switch_app(name: String) -> void:
 		browser_surface.configure("computer",str(snapshot.get("station","")),str(snapshot.get("lease","")),files)
 		browser_surface.attachment_loader=_browser_attachment
 		browser_surface.assistant_virtual_save=_browser_save_answer
+		if snapshot.get("public_device",false):browser_surface.virtual_download_save=_browser_save_download
 		status_label.visible=not browser_surface.call("renderer_available")
 		status_label.text="Embedded browser unavailable on this device." if status_label.visible else ""
 	elif name=="Terminal":
@@ -924,6 +933,9 @@ func _build_files(name: String) -> void:
 		var bin:=_button("Recycle Bin",func():_switch_app("Recycle Bin"))
 		bin.icon=Icon.icon("trash")
 		shortcuts.add_child(bin)
+		var copy:=_button("Copy download to USB",_choose_download_to_copy)
+		copy.icon=Icon.icon("save")
+		shortcuts.add_child(copy)
 	file_list = Tree.new()
 	file_list.hide_root = true
 	file_list.columns = 3
@@ -1067,6 +1079,14 @@ func _refresh_file_list() -> void:
 		row.set_text(1, path.get_extension().to_upper() if not path.get_extension().is_empty() else "File")
 		row.set_text(2, String.humanize_size(str(value.get("text", "")).to_utf8_buffer().size()))
 		row.set_metadata(0, {"path":path,"folder":false})
+	for path: String in snapshot.get("binary_files",{}):
+		if _parent_folder(path)!=folder_path:continue
+		var row:=file_list.create_item(root_item)
+		row.set_text(0,path.get_file())
+		row.set_icon(0,Icon.icon("course"))
+		row.set_text(1,path.get_extension().to_upper())
+		row.set_text(2,String.humanize_size(int(snapshot.binary_files[path])))
+		row.set_metadata(0,{"path":path,"folder":false,"binary":true})
 	if root_item.get_child_count() == 0:
 		var empty := file_list.create_item(root_item)
 		empty.set_text(0, "This folder is empty")
@@ -1199,6 +1219,9 @@ func _open_selected(open_in_editor := false) -> void:
 		folder_path=str(selected.path)
 		if is_instance_valid(path_field):path_field.text=folder_path+"/"
 		_refresh_file_list()
+		return
+	if selected.get("binary",false):
+		status_label.text="This file is stored on the virtual drive."
 		return
 	_open_path(str(selected.path))
 
@@ -1389,6 +1412,8 @@ func _send(payload: Dictionary) -> void:
 	session.request(payload)
 
 func _on_operation_failed(message: String) -> void:
+	if pending_browser_download and is_instance_valid(browser_surface):browser_surface.status.text=message
+	pending_browser_download=false
 	pending_rename = ""
 	pending_folder_source="";pending_folder_target=""
 	saving_path=""
@@ -1475,8 +1500,40 @@ func _browser_save_answer(answer: String) -> void:
 	_send({"op":"save","path":path,"text":answer.left(1600),"version":0})
 	status_label.text="Saving assistant answer as "+path+"…"
 
+func _browser_save_download(filename: String,bytes: PackedByteArray) -> void:
+	if not visible or snapshot.is_empty():return
+	pending_browser_download=true
+	_send({"op":"download","name":filename,"bytes":bytes})
+
+func _choose_download_to_copy() -> void:
+	var paths: Array=snapshot.get("copyable_downloads",[])
+	if paths.is_empty():
+		status_label.text="Attach a USB drive and save a file in this workstation's Downloads first."
+		return
+	var dialog:=ConfirmationDialog.new()
+	dialog.title="Copy download to USB"
+	dialog.ok_button_text="Copy"
+	var list:=ItemList.new()
+	list.custom_minimum_size=Vector2(330,170)
+	for path: String in paths:list.add_item(path.get_file())
+	list.select(0)
+	dialog.add_child(list)
+	dialog.confirmed.connect(func():
+		var selected:=list.get_selected_items()
+		if not selected.is_empty():
+			status_label.text="Copying to USB Downloads…"
+			_send({"op":"copy_download","path":paths[selected[0]]})
+		dialog.queue_free())
+	dialog.canceled.connect(dialog.queue_free)
+	add_child(dialog)
+	dialog.popup_centered()
+
 func _on_desktop_changed(value: Dictionary) -> void:
+	if pending_browser_download and value.has("download_path"):
+		if is_instance_valid(browser_surface):browser_surface.status.text="Saved to "+str(value.download_path)
+		pending_browser_download=false
 	if value.is_empty():
+		pending_browser_download=false
 		share_monitor = false
 		monitor_share.set_pressed_no_signal(false)
 		if not exit_requested or parked_device.is_empty():_reset_windows()

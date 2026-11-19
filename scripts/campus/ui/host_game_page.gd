@@ -27,6 +27,7 @@ var difficulty: OptionButton
 var start: Button
 var replay_note: Label
 var notice: Label
+var connection_status: Label
 var outer: MarginContainer
 
 func build(owner_game: Node) -> void:
@@ -84,6 +85,21 @@ func build(owner_game: Node) -> void:
 
 	notice = _label(page, "", 14, T.ERROR)
 	notice.hide()
+	connection_status=_label(page,"",14,T.MUTED)
+	connection_status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	if multiplayer.is_server():
+		var connection_row:=HBoxContainer.new()
+		page.add_child(connection_row)
+		_action(connection_row,"Host settings","network",func():
+			closed.emit()
+			game.front.pause_menu()
+			game.front.settings_page())
+		_action(connection_row,"Test connection","check",func():
+			connection_status.text="Checking the selected OpenAI model…"
+			var result: Dictionary=await game.host_openai.verify_class_connection()
+			if is_inside_tree():
+				_update_start()
+				if not result.get("ok",false):_error(str(result.get("error","Connection failed."))))
 	page.add_child(HSeparator.new())
 	var footer := HBoxContainer.new()
 	page.add_child(footer)
@@ -216,7 +232,9 @@ func _pick_week(config: Dictionary) -> void:
 	_update_start()
 
 func _update_start() -> void:
-	start.disabled = selected_week.is_empty()
+	var host:=multiplayer.is_server()
+	connection_status.text=game.host_openai.class_connection_status() if host else "Only the host can start a class."
+	start.disabled=selected_week.is_empty() or not host or not game.host_openai.verified_for_class()
 
 func _launch() -> void:
 	if start.disabled or not class_requested.is_valid():

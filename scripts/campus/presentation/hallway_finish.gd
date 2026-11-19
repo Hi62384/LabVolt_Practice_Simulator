@@ -128,6 +128,20 @@ static func _add_fixtures(world: Node3D) -> void:
 			if (floor==0 and z==20) or (floor==1 and z==38):
 				light.set_meta("shadow_fixture",true)
 				light.set_meta("shadow_tier",3)
+	# The split landing has a floor slab over the east walkway and an open
+	# stairwell on the west. Keep the two sets of fixtures under their own ceilings.
+	for z in [52.5, 57.0, 61.5, 66.0]:
+		var position := Vector3(14.5,4.69,z)
+		world.box(world,position,Vector3(1.35,.055,.48),FRAME,false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		world.box(world,position-Vector3.UP*.04,Vector3(1.24,.025,.38),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var light := Fixtures.ceiling_omni(world,position-Vector3.UP*.06,1.5,6.7)
+		light.set_meta("shadow_fixture",z==57.0 or z==66.0)
+		Fixtures.ceiling_spill(world,position-Vector3.UP*.18)
+	for z in [53.5,58.5,63.0]:
+		var position := Vector3(11.5,8.92,z)
+		world.box(world,position,Vector3(1.4,.045,.44),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		Fixtures.ceiling_omni(world,position,1.45,9.0)
+		Fixtures.ceiling_spill(world,position-Vector3.UP*.15)
 
 static func _sconce(world: Node3D, wall_x: float, base_y: float, z: float) -> void:
 	var inward := 1.0 if wall_x < 13.0 else -1.0

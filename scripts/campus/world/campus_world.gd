@@ -20,7 +20,7 @@ var solid_count := 0
 var elevator_geometry: Node3D
 var viewer_actor: Node3D
 var viewer_clock := 0.0
-const WINDOW_ROOMS := ["elm253_lecture", "ety155_lecture", "clothing_store", "ac_lab", "dc_lab", "circuit_studio", "campus_store", "shop", "computer", "study"]
+const WINDOW_ROOMS := ["elm253_lecture", "ety155_lecture", "clothing_store", "ac_lab", "dc_lab", "circuit_studio", "campus_store", "shop", "computer", "study", "library"]
 const OPEN_FOOD_ROOMS := ["tim_hortons", "subway"]
 @export var enable_occlusion := true
 
@@ -70,14 +70,22 @@ func _room_lighting(room: Dictionary) -> void:
 		fixture_x = [-5.0, 0.0, 5.0]
 	if id == "gym":
 		fixture_z = [-4.0, 0.0, 4.0]
+	var diffuser_material := material("f4edda").duplicate() as StandardMaterial3D
+	diffuser_material.emission_enabled=true
+	diffuser_material.emission=Color("fff0d6")
+	diffuser_material.emission_energy_multiplier=1.1
+	var fixtures := preload("res://scripts/campus/presentation/fixture_light.gd")
 	for x in fixture_x:
 		for z in fixture_z:
-			if id == "gym":
-				box(light_rig, Vector3(x,3.955,z), Vector3(1.8,.025,.42), "253a44", false)
-				box(light_rig, Vector3(x,3.934,z), Vector3(1.68,.018,.32), "f4edda", false)
-			elif id != "cafeteria":
-				box(light_rig, Vector3(x,3.88,z), Vector3(2.3,.06,.32), "f4edda", false)
-			var light := preload("res://scripts/campus/presentation/fixture_light.gd").down(light_rig, Vector3(x,3.83,z),1.20 if id=="cafeteria" else 1.38,5.2 if id=="cafeteria" else 6.6,Vector3.DOWN,68.0,Color("fff0dc") if id=="cafeteria" else Color("fff3e5"))
+			if id != "cafeteria":
+				var width := 1.8 if id=="gym" else 2.3
+				box(light_rig, Vector3(x,3.86,z), Vector3(width,.04,.42), "253a44", false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				var diffuser := box(light_rig, Vector3(x,3.829,z), Vector3(width-.12,.018,.32), "f4edda", false) as MeshInstance3D
+				diffuser.material_override=diffuser_material
+				diffuser.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				fixtures.ceiling_spill(light_rig, Vector3(x,3.68,z))
+			var energy := .90 if id=="study" else (1.20 if id=="cafeteria" else 1.38)
+			var light := fixtures.down(light_rig, Vector3(x,3.81,z),energy,5.2 if id=="cafeteria" else 6.6,Vector3.DOWN,68.0,Color("fff0dc") if id=="cafeteria" else Color("fff3e5"))
 			if id == "gym" and x == 0 and z == 0:
 				light.shadow_enabled = true
 				light.shadow_bias = .06
@@ -207,6 +215,8 @@ func _window_wall(root: Node3D, x: float, y: float, z: float, length: float, col
 	root.add_child(body)
 	for height in [1.04,2.86]:
 		box(root,Vector3(x,y+height,z),Vector3(.22,.07,width+.12),"314757",false)
+	for direction in [-1.0,1.0]:
+		box(root,Vector3(x,y+1.95,z+direction*(width+.055)*.5),Vector3(.22,1.75,.055),"314757",false)
 
 func _add_door(root: Node3D, point: Vector3, width: float, west: bool, id: String) -> void:
 	var door := preload("res://scripts/campus/world/room_door.gd").new()
@@ -310,9 +320,11 @@ func _upper_hall_extension() -> void:
 	box(self,Vector3(13,9.15,mid),Vector3(6,.2,length),"d5d9e2")
 	box(self,Vector3(13,7.04,end),Vector3(6,4.08,.16),"a6b9b4")
 	var fixtures := preload("res://scripts/campus/presentation/fixture_light.gd")
-	for z in [73.0,82.0,91.0]:
-		box(self,Vector3(13,8.94,z),Vector3(1.68,.04,.45),"fff0d8",false)
-		fixtures.ceiling_omni(self,Vector3(13,8.91,z),1.25,6.0,false)
+	for z in [70.5,75.0,79.5,84.0,88.5,93.0]:
+		if z>=end:break
+		box(self,Vector3(13,8.94,z),Vector3(1.68,.04,.45),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fixtures.ceiling_omni(self,Vector3(13,8.91,z),1.25,6.4,false)
+		fixtures.ceiling_spill(self,Vector3(13,8.76,z))
 
 func _close_hallway_voids() -> void:
 	# Room shells intentionally own their doors. These sections cover only the

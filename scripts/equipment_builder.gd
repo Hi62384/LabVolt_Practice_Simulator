@@ -131,6 +131,7 @@ func _text3(parent: Node3D, text: String, pos: Vector3, height := 0.052, color :
 
 func _build_environment() -> void:
 	var lighting := preload("res://assets/campus/lighting/campus_lighting_rig.tscn").instantiate()
+	lighting.world_environment = get_node_or_null("WorldEnvironment") as WorldEnvironment
 	add_child(lighting)
 	# Broad warm task lighting gives the instrument faces depth without the cost
 	# of a shadow map for every lamp. The campus sun supplies the main shadows.

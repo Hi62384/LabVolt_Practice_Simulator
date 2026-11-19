@@ -70,9 +70,9 @@ func _process(delta: float) -> void:
   if point.is_finite():
    speaker.global_position=point+Vector3.UP*1.6
    var distance:=point.distance_to(game.player.global_position)
-   var mix:=clampf(distance/MAX_RANGE,0.0,1.0)
-   voice.echo.tap1_level_db=lerpf(-55.0,-13.0,mix)
-   voice.echo.tap1_delay_ms=lerpf(55.0,140.0,mix)
+   var level:=minf(1.0,5.0/maxf(5.0,distance))*(1.0-smoothstep(MAX_RANGE*.7,MAX_RANGE,distance))
+   speaker.volume_db=linear_to_db(maxf(.001,level))-3.0
+  else:speaker.volume_db=-63.0
  for peer in remotes.keys()+call_last.keys():
   var avatar: Node3D=game.avatars.get(peer)
   if not is_instance_valid(avatar):continue
@@ -167,13 +167,14 @@ func _play_packet(peer: int,packet: PackedByteArray) -> void:
  playback.push_buffer(frames)
 
 func _create_remote(peer: int) -> void:
- var name:="VoicePeer%d"%peer
- var bus:=AudioServer.get_bus_index(name)
- if bus<0:AudioServer.add_bus();bus=AudioServer.bus_count-1;AudioServer.set_bus_name(bus,name);AudioServer.set_bus_send(bus,"Master")
- var echo:=AudioEffectDelay.new();echo.tap2_active=false;echo.tap1_delay_ms=75;echo.tap1_level_db=-40;AudioServer.add_bus_effect(bus,echo)
  var stream:=AudioStreamGenerator.new();stream.mix_rate=SAMPLE_RATE;stream.buffer_length=.3
- var player:=AudioStreamPlayer3D.new();player.stream=stream;player.bus=name;player.unit_size=3.0;player.max_distance=MAX_RANGE;add_child(player);player.play()
- remotes[peer]={"player":player,"echo":echo,"last":0,"bus":name}
+ var player:=AudioStreamPlayer3D.new()
+ player.stream=stream
+ player.attenuation_model=AudioStreamPlayer3D.ATTENUATION_DISABLED
+ player.volume_db=-63.0
+ player.max_distance=MAX_RANGE
+ add_child(player);player.play()
+ remotes[peer]={"player":player,"last":0}
 
 func _stop() -> void:
  talking=false
@@ -222,8 +223,6 @@ func _prune() -> void:
   if not game.session.roster.has(peer):
    var data: Dictionary=remotes[peer]
    if is_instance_valid(data.player):data.player.queue_free()
-   var bus:=AudioServer.get_bus_index(data.bus)
-   if bus>0:AudioServer.remove_bus(bus)
    remotes.erase(peer)
    last_packet.erase(peer)
 
@@ -247,8 +246,5 @@ func _set_teacher_sensitivity(value: float) -> void:
  teacher_sensitivity[peer]=clampf(value,.5,2.0)
 func _exit_tree() -> void:
  _stop()
- for data in remotes.values():
-  var bus:=AudioServer.get_bus_index(data.bus)
-  if bus>0:AudioServer.remove_bus(bus)
  var capture_bus:=AudioServer.get_bus_index("VoiceCapture")
  if capture_bus>0:AudioServer.remove_bus(capture_bus)

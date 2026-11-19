@@ -22,11 +22,35 @@ func _run() -> void:
   return
  var browser: Variant=surface.tabs[0].browser
  browser.connect("on_page_loaded",func(_view,_http_code):loaded=true)
- browser.load_data_uri("<html><head><title>LabVolt Browser Fixture</title></head><body><h1>Browser paint</h1><input type='file'></body></html>","text/html")
+ browser.load_data_uri("<html><head><title>LabVolt Browser Fixture</title></head><body><input id='key-test' autofocus style='position:absolute;left:10px;top:10px;width:300px;height:30px'><h1 style='margin-top:60px'>Browser paint</h1><input type='file'></body></html>","text/html")
  var deadline:=Time.get_ticks_msec()+12000
  while (not loaded or browser.get_title()!="LabVolt Browser Fixture") and Time.get_ticks_msec()<deadline:await process_frame
  if browser.get_title()!="LabVolt Browser Fixture":failures.append("Local HTML title did not load")
  if browser.get_texture()==null:failures.append("Browser texture was not created")
+ if loaded:
+  await create_timer(.3).timeout
+  var click:=InputEventMouseButton.new()
+  click.position=Vector2(40,22)
+  click.button_index=MOUSE_BUTTON_LEFT
+  click.pressed=true
+  surface._forward(browser,surface.tabs[0].surface,click)
+  click.pressed=false
+  surface._forward(browser,surface.tabs[0].surface,click)
+  browser.execute_javascript("document.querySelector('#key-test').focus();")
+  await create_timer(.2).timeout
+  for glyph in "hello world! É":
+   var key:=InputEventKey.new()
+   key.unicode=glyph.unicode_at(0)
+   key.keycode=glyph.to_upper().unicode_at(0)
+   key.shift_pressed=glyph in ["!","É"]
+   key.pressed=true
+   surface._forward(browser,surface.tabs[0].surface,key)
+   var release:=key.duplicate() as InputEventKey
+   release.pressed=false
+   surface._forward(browser,surface.tabs[0].surface,release)
+  await create_timer(.3).timeout
+  browser.execute_javascript("document.title='typed:'+document.activeElement.id+':'+document.hasFocus()+':'+document.querySelector('#key-test').value;")
+  if not await _wait_title(browser,"typed:key-test:true:hello world! É",5000):failures.append("Chromium typed an incorrect case, character or symbol: "+str(browser.get_title()))
  if loaded:
   for i in 10:await process_frame
   surface.selected_attachment=surface.candidates[0].duplicate(true)
@@ -43,6 +67,15 @@ func _run() -> void:
   if not await _wait_title(browser,"Example Domain",12000):failures.append("Public HTTPS page did not load")
  var base:=OS.get_environment("LABVOLT_BROWSER_FIXTURE_URL")
  if not base.is_empty():
+  var virtual_downloads:={}
+  surface.virtual_download_save=func(filename: String,contents: PackedByteArray):virtual_downloads[filename]=contents
+  for fixture in ["/notes.txt","/manual.pdf","/invalid.png"]:
+   surface.address.text=base+fixture
+   surface._download_address()
+   var download_deadline:=Time.get_ticks_msec()+5000
+   while is_instance_valid(surface.download_request) and Time.get_ticks_msec()<download_deadline:await process_frame
+  if virtual_downloads.size()!=2 or virtual_downloads.get("notes.txt",PackedByteArray()).get_string_from_utf8()!="Campus lab notes" or not virtual_downloads.has("manual.pdf"):
+   failures.append("Browser did not save validated virtual downloads or reject invalid images")
   surface.address.text=base+"/login"
   surface._navigate()
   if not await _wait_title(browser,"LOGIN",8000):failures.append("HTTP login page did not load")

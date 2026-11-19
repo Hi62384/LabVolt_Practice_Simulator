@@ -17,8 +17,10 @@ extends Node3D
 var world_environment: WorldEnvironment
 var sun: DirectionalLight3D
 var interior_fill: DirectionalLight3D
+var ceiling_fill: DirectionalLight3D
 var sky: Sky
 var sky_material: ProceduralSkyMaterial
+var scene_environment := false
 
 const DAY_SKY_TOP := Color("3c83c9")
 const DAY_SKY_HORIZON := Color("b8d9ee")
@@ -44,14 +46,53 @@ func set_lighting_enabled(enabled: bool) -> void:
 	if is_instance_valid(world_environment): world_environment.visible = enabled
 	if is_instance_valid(sun): sun.visible = enabled
 	if is_instance_valid(interior_fill): interior_fill.visible = enabled
+	if is_instance_valid(ceiling_fill): ceiling_fill.visible = enabled
 
 func _build_once() -> void:
-	world_environment = get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if world_environment == null:
+		world_environment = get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_environment == null:
 		world_environment = WorldEnvironment.new()
 		world_environment.name = "WorldEnvironment"
 		add_child(world_environment)
 
+	scene_environment = world_environment.environment != null
+	if not scene_environment:
+		_build_default_environment()
+
+	sun = get_node_or_null("Sun") as DirectionalLight3D
+	if sun == null:
+		sun = DirectionalLight3D.new()
+		sun.name = "Sun"
+		add_child(sun)
+	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_max_distance = 65.0
+	sun.shadow_bias = 0.07
+	sun.shadow_normal_bias = 1.4
+	interior_fill = get_node_or_null("InteriorFill") as DirectionalLight3D
+	if interior_fill == null:
+		interior_fill = DirectionalLight3D.new()
+		interior_fill.name = "InteriorFill"
+		add_child(interior_fill)
+	interior_fill.rotation_degrees = Vector3(-65.0, 145.0, 0.0)
+	interior_fill.light_color = Color("edf0f7")
+	interior_fill.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	interior_fill.shadow_enabled = false
+	# A low upward bounce keeps ceilings readable in rooms lit by downward
+	# fixtures, including when the GI volume is still settling after streaming.
+	ceiling_fill = DirectionalLight3D.new()
+	ceiling_fill.name = "CeilingBounce"
+	ceiling_fill.rotation_degrees = Vector3(76.0,145.0,0.0)
+	ceiling_fill.light_color = Color("e5ebf5")
+	ceiling_fill.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	ceiling_fill.light_specular = 0.0
+	ceiling_fill.light_bake_mode = Light3D.BAKE_DISABLED
+	ceiling_fill.light_energy = .10
+	add_child(ceiling_fill)
+
+func _build_default_environment() -> void:
 	sky_material = ProceduralSkyMaterial.new()
 	sky_material.sky_curve = 0.12
 	sky_material.ground_curve = 0.08
@@ -79,31 +120,6 @@ func _build_once() -> void:
 	environment.glow_hdr_luminance_cap = 64.0
 	world_environment.environment = environment
 
-	sun = get_node_or_null("Sun") as DirectionalLight3D
-	if sun == null:
-		sun = DirectionalLight3D.new()
-		sun.name = "Sun"
-		add_child(sun)
-	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
-	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.directional_shadow_max_distance = 45.0
-	sun.shadow_bias = 0.07
-	sun.shadow_normal_bias = 1.4
-	sun.light_angular_distance = 0.0
-	# The campus has solid ceilings. Compatibility sky ambient alone does not
-	# illuminate the enclosed desks and walls consistently across room views.
-	# A single weak, shadowless fill keeps those surfaces legible at low cost.
-	interior_fill = get_node_or_null("InteriorFill") as DirectionalLight3D
-	if interior_fill == null:
-		interior_fill = DirectionalLight3D.new()
-		interior_fill.name = "InteriorFill"
-		add_child(interior_fill)
-	interior_fill.rotation_degrees = Vector3(-65.0, 145.0, 0.0)
-	interior_fill.light_color = Color("edf0f7")
-	interior_fill.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
-	interior_fill.shadow_enabled = false
-
 func _apply_time_of_day() -> void:
 	if not is_instance_valid(world_environment) or not is_instance_valid(sun) or not is_instance_valid(interior_fill): return
 	var daylight := clampf(sin((time_of_day - 6.0) * TAU / 24.0), -1.0, 1.0)
@@ -116,6 +132,7 @@ func _apply_time_of_day() -> void:
 	sun.light_energy = lerpf(0.025, 0.55, day_mix) * brightness_scale
 	interior_fill.light_energy = lerpf(0.009, 0.020, day_mix) * brightness_scale
 
+	if scene_environment:return
 	sky_material.sky_top_color = NIGHT_SKY_TOP.lerp(DAY_SKY_TOP, day_mix)
 	sky_material.sky_horizon_color = NIGHT_SKY_HORIZON.lerp(DAY_SKY_HORIZON, day_mix).lerp(Color("f1a06f"), twilight * 0.38)
 	sky_material.ground_bottom_color = NIGHT_GROUND_BOTTOM.lerp(DAY_GROUND_BOTTOM, day_mix)

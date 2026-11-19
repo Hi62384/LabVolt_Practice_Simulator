@@ -56,6 +56,8 @@ func interact(target: Node) -> bool:
 	elif public_classes.has(room):
 		var info: Dictionary=public_classes[room]
 		game.ui.log_message("Class in %s · %s" % [info.number,str(info.phase).capitalize()])
+	elif room in ["ac_lab","dc_lab"] and school.mode in ["Freeplay","Creative Freeplay","Open Lab"]:
+		game.paper_ui.teacher()
 	else:
 		if is_instance_valid(picker):return true
 		picker=preload("res://scripts/campus/ui/host_game_page.gd").new()
@@ -102,7 +104,12 @@ func _apply(peer: int,op: String,room: String,config: Dictionary) -> void:
 	if room not in game.campus.registry.lecture_rooms() + ["ac_lab","dc_lab"] or not game.session.roster.has(peer) or var_to_bytes(config).size()>1024:return
 	var error := "Approach the desk in the lecture room."
 	if _inside(peer,room) and signs.has(room) and _position(peer).distance_to(signs[room].desk)<=3.6:
-		if op=="start":error=_start(room,config) if peer==1 else "Only the host can start a class."
+		if op=="start":
+			if peer!=1:error="Only the host can start a class."
+			elif not game.host_openai.verified_for_class():error=game.host_openai.class_connection_status()
+			else:
+				error=_start(room,config)
+				if error.is_empty():classes[room]["ai_teaching"]=true
 		elif op=="sign":error=_sign(peer,room)
 		else:return
 	if peer==multiplayer.get_unique_id():action_result(op,error)
@@ -227,6 +234,8 @@ func _check_students() -> void:
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
 	if multiplayer.is_server() and not classes.is_empty():
+		for activity in classes.values():
+			if activity.phase=="lesson" and activity.get("ai_waiting",false):activity.deadline+=delta
 		check_clock+=delta
 		publish_clock+=delta
 		if check_clock>=.2:
@@ -253,6 +262,7 @@ func _advance() -> void:
 			"arrival":
 				activity.phase="lesson"
 				activity.deadline=_now()+LessonSeconds
+				activity.ai_waiting=activity.get("ai_teaching",false)
 				changed=true
 			"lesson":
 				if _now()<float(activity.get("enrollment_retry_at",0.0)):continue
@@ -407,7 +417,7 @@ func _publish() -> void:
 			var activity: Dictionary=classes[room]
 			var student: Dictionary=activity.students.get(identity,{})
 			var stage := _stage(activity) if activity.phase=="lesson" and _inside(int(peer),room) else {}
-			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage}
+			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage,"ai_status":activity.get("ai_status","")}
 		if int(peer)==multiplayer.get_unique_id():receive(public)
 		elif game.session.online and game.session.peer_connected_now(int(peer)):receive.rpc_id(int(peer),public)
 
@@ -434,7 +444,7 @@ func _build_sign(room: String) -> void:
 		class_table.position=desk
 		class_table.collision_layer=5;class_table.collision_mask=0
 		class_table.set_meta("role","lecture_desk");class_table.set_meta("room",room)
-		class_table.set_meta("label","Choose a lab class" if room in ["ac_lab","dc_lab"] else "Start a lecture class")
+		class_table.set_meta("label","Lab Guide")
 		add_child(class_table)
 		var table_hit:=CollisionShape3D.new();var table_shape:=BoxShape3D.new();table_shape.size=Vector3(1.5,.12,.85);table_hit.shape=table_shape;table_hit.position.y=.78;class_table.add_child(table_hit)
 		game._box(class_table,Vector3(0,.78,0),Vector3(1.5,.12,.85),Color("a98265"))
@@ -515,6 +525,7 @@ func _update_views() -> void:
 		var seconds := maxi(0,ceili(float(info.seconds)-elapsed))
 		var title := "Class starting" if info.phase=="arrival" else "Assessment" if info.phase=="assignment" else "Lesson"
 		var text := "%s · %s\n%s · Week %d   %d:%02d" % [title,info.number,info.course,info.week,seconds/60,seconds%60]
+		if not str(info.get("ai_status","")).is_empty():text+="\n"+str(info.ai_status)
 		var label: Label=cards[room].get_child(0)
 		if label.text!=text:label.text=text
 	for room in cards.keys():

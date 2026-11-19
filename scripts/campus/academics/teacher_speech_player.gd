@@ -73,17 +73,22 @@ func _start(room: String,item: Dictionary) -> void:
 	if subtitles_enabled:_show_subtitle(room,item)
 	var stream: AudioStream=item.stream
 	if stream==null:return
+	for other_room in active.keys():
+		if other_room==room or active[other_room].teacher!=item.teacher:continue
+		if int(active[other_room].priority)>=int(item.priority):return
+		_stop(other_room)
 	var player:=AudioStreamPlayer3D.new()
 	player.name="TeacherSpeech"
 	player.stream=stream
-	player.unit_size=5.0
-	player.max_distance=18.0
+	player.attenuation_model=AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
+	player.unit_size=2.8
+	player.max_distance=26.0
 	anchor.add_child(player)
 	var head := anchor.find_child("Head", true, false) as Node3D
 	if is_instance_valid(head):
 		player.global_position = head.global_position
 	var mouth:=_mouth(anchor)
-	active[room]={"serial":item.serial,"priority":item.priority,"player":player,"mouth":mouth}
+	active[room]={"serial":item.serial,"priority":item.priority,"teacher":item.teacher,"player":player,"mouth":mouth}
 	player.finished.connect(func():_finished(room,int(item.serial)))
 	player.play()
 
@@ -94,6 +99,11 @@ func deliver_stream(room: String,serial: int,stream: AudioStreamWAV) -> bool:
 	if not is_instance_valid(item.anchor):return false
 	awaiting.erase(room)
 	item.stream=stream
+	if active.has(room):
+		if int(active[room].serial)==serial:return false
+		# A synthesized response can arrive while the previous line is still
+		# playing. The queued item shares this dictionary and now owns the stream.
+		return queued.get(room,[]).has(item)
 	_start(room,item)
 	return active.has(room)
 
@@ -103,13 +113,27 @@ func _mouth(anchor: Node3D) -> MeshInstance3D:
 	var mouth:=head.get_node_or_null("SpeechMouth") as MeshInstance3D
 	if mouth==null:
 		mouth=MeshInstance3D.new();mouth.name="SpeechMouth"
-		var mesh:=SphereMesh.new();mesh.radius=.038;mesh.height=.075;mouth.mesh=mesh
-		var material:=StandardMaterial3D.new();material.albedo_color=Color("6c3940");mouth.material_override=material
+		var vertices:=PackedVector3Array()
+		for sector in 12:
+			var a:=TAU*sector/12.0
+			var b:=TAU*(sector+1)/12.0
+			vertices.append(Vector3.ZERO)
+			for angle in [b,a]:
+				var x: float=cos(angle)*.044
+				vertices.append(Vector3(x,sin(angle)*.020,-absf(x)*.14))
+		var arrays:=[];arrays.resize(Mesh.ARRAY_MAX);arrays[Mesh.ARRAY_VERTEX]=vertices
+		var mesh:=ArrayMesh.new();mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays);mouth.mesh=mesh
+		var material:=StandardMaterial3D.new();material.albedo_color=Color("352423")
+		material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+		mouth.material_override=material
 		mouth.position=Vector3(0,-.125,.151);head.add_child(mouth)
+		mouth.scale.y=.12
 	mouth.visible=true
+	var neutral:=head.get_node_or_null("NeutralMouth") as Node3D
+	if neutral:neutral.hide()
 	return mouth
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	for room in active.keys():
 		var state: Dictionary=active[room]
 		var player=state.get("player")
@@ -117,7 +141,7 @@ func _process(_delta: float) -> void:
 		var mouth=state.get("mouth")
 		if is_instance_valid(mouth):
 			var level:=_pcm_level(player.stream,player.get_playback_position()) if player.stream is AudioStreamWAV else 0.0
-			mouth.scale.y=.25+clampf(level*8.0,0.0,1.5)
+			mouth.scale.y=lerpf(mouth.scale.y,.12+clampf(level*5.0,0.0,1.25),1.0-exp(-delta*20.0))
 	for room in subtitles.keys():
 		if Time.get_ticks_msec()>=int(subtitles[room].until):_clear_subtitle(room)
 	for room in awaiting.keys():
@@ -152,7 +176,12 @@ func _stop(room: String) -> void:
 	var player=state.get("player")
 	if is_instance_valid(player):player.stop();player.queue_free()
 	var mouth=state.get("mouth")
-	if is_instance_valid(mouth):mouth.visible=false;mouth.scale=Vector3.ONE
+	if is_instance_valid(mouth):
+		mouth.scale.y=.12
+		var neutral:=mouth.get_parent().get_node_or_null("NeutralMouth") as Node3D
+		if neutral:
+			neutral.show()
+			mouth.hide()
 	active.erase(room)
 
 func _show_subtitle(room: String,item: Dictionary) -> void:

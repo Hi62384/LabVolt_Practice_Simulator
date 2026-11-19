@@ -9,85 +9,61 @@ func run() -> void:
  game.front.entered()
  game.school.start("Freeplay",0)
  var faculty=game.faculty
- var peer: int=game.multiplayer.get_unique_id()
- var identity:=str(game.school.identities.get(peer,""))
- assert(not identity.is_empty())
- game.school_world.teacher.global_position=game.school.teacher_position
- game.player.global_position=Vector3(0,0,8.5)
- game.lecture_classes.classes.ac_lab={"teacher":faculty.current.ac_lab}
- faculty._call_request(peer,"ac_lab")
- assert(not faculty.calls.has("ac_lab"))
- game.lecture_classes.classes.erase("ac_lab")
- faculty.call_cooldowns.erase(peer)
- faculty._call_request(peer,"ac_lab")
- assert(faculty.calls.has("ac_lab"))
- var first: Dictionary=faculty.calls.ac_lab.duplicate()
- var guest:=991
- game.session.roster[guest]={"name":"Other student","ready":false}
- game.school.identities[guest]="other-student"
- game.session.poses[guest]={"position":Vector3(0,0,4)}
- faculty._call_request(guest,"ac_lab")
- assert(faculty.calls.ac_lab.peer==peer)
- game.session.roster.erase(guest)
- game.school.identities.erase(guest)
- game.session.poses.erase(guest)
- faculty._call_request(peer,"ac_lab")
- assert(faculty.calls.ac_lab==first)
- faculty.call_cooldowns.erase(peer)
- faculty._call_request(peer,"ac_lab")
- assert(faculty.calls.ac_lab==first)
- var before: Vector3=game.school.teacher_position
- for i in 45:
-  faculty._advance_call("ac_lab",.1)
+ var classes=game.lecture_classes
+ for room in ["ac_lab","dc_lab"]:
+  var instructor: Node3D=game.school_world.teacher if room=="ac_lab" else game.school_world.dc_instructor
+  faculty._sync_lab_teachers()
+  assert(instructor.get_child_count()==0 and not faculty.speech_player.active.has(room))
+  var guide: Node
+  for candidate in classes.get_children():
+   if candidate.get_meta("role","")=="lecture_desk" and candidate.get_meta("room","")==room:guide=candidate;break
+  assert(is_instance_valid(guide) and guide.get_meta("label","")=="Lab Guide")
+  game.player.global_position=classes.signs[room].desk
+  assert(classes.interact(guide) and game.paper_ui.open_lab_instructor_visible)
+  var host_button: Button
+  for button in game.paper_ui.screen.find_children("*","Button",true,false):
+   if button.text=="Host a lab class":host_button=button;break
+  assert(is_instance_valid(host_button))
+  host_button.pressed.emit()
+  assert(is_instance_valid(classes.picker) and classes.picker.start.disabled)
+  classes.close_picker()
+  game.paper_ui.close()
+  var course: String="ELM253" if room=="ac_lab" else "ETY155"
+  classes._apply(1,"start",room,{"kind":"lab","course_id":course,"week":1,"difficulty":0})
+  assert(not classes.classes.has(room),"An unverified host must not start a class")
+  assert(classes._start(room,{"kind":"lab","course_id":course,"week":1,"difficulty":0})=="")
+  faculty._sync_lab_teachers()
+  var model: Node3D=instructor.get_node_or_null("InstructorModel")
+  assert(is_instance_valid(model) and model.find_child("ClassInstructorTarget",true,false).collision_layer==4)
+  faculty.open_conversation(room)
+  assert(faculty.conversation.visible)
   await process_frame
- assert(game.school.teacher_position.distance_to(before)>.01)
- game.player.global_position=game.school_world.teacher.global_position+Vector3(1.5,0,0)
- faculty._advance_call("ac_lab",.1)
- assert(faculty.calls.ac_lab.arrived)
- game.lecture_classes.classes.ac_lab={"teacher":faculty.current.ac_lab}
- faculty._advance_call("ac_lab",.1)
- assert(not faculty.calls.has("ac_lab"))
- game.lecture_classes.classes.erase("ac_lab")
- faculty.call_cooldowns.erase(peer)
- faculty._call_request(peer,"ac_lab")
- assert(faculty.calls.has("ac_lab"))
- faculty.calls.ac_lab.identity="stale"
- faculty._advance_call("ac_lab",.1)
- assert(not faculty.calls.has("ac_lab"))
- faculty.call_cooldowns.erase(peer)
- faculty._call_request(peer,"ac_lab")
- assert(faculty.calls.has("ac_lab"))
- faculty.calls.ac_lab.peer=guest
- faculty.last_dialogue[guest]=123
- faculty.dialogue_counter["%d:mr_phillips"%guest]=2
- faculty._prune_calls()
- assert(not faculty.calls.has("ac_lab"))
- assert(not faculty.last_dialogue.has(guest))
- assert(not faculty.dialogue_counter.has("%d:mr_phillips"%guest))
- faculty.call_cooldowns.erase(peer)
- faculty._call_request(peer,"ac_lab")
- assert(faculty.calls.has("ac_lab"))
- var teacher_before:=str(faculty.current.ac_lab)
- faculty.current.ac_lab="unavailable"
- faculty._advance_call("ac_lab",.1)
- assert(not faculty.calls.has("ac_lab"))
- faculty.current.ac_lab=teacher_before
- game.player.global_position=Vector3(0,0,3)
- faculty.call_cooldowns.erase(peer)
- faculty._call_request(peer,"ac_lab")
- assert(faculty.calls.has("ac_lab"))
- faculty.calls.ac_lab.until=0
- faculty._advance_call("ac_lab",.1)
- assert(not faculty.calls.has("ac_lab"))
- assert(faculty.freeplay_returns.has("ac_lab"))
- game.player.global_position=faculty.dc_home+Vector3(-3,0,0)
- faculty.call_cooldowns.erase(peer)
- faculty._call_request(peer,"dc_lab")
- assert(faculty.calls.has("dc_lab"))
- faculty.calls.dc_lab.until=0
- faculty._advance_call("dc_lab",.1)
- assert(not faculty.calls.has("dc_lab"))
- print("PASS teacher call validation, repeat requests, movement, stale caller, and cleanup")
- game.queue_free()
- await process_frame
- quit()
+  assert(faculty.conversation.position.y>get_viewport_rect().size.y*.65)
+  assert(faculty.close_conversation())
+  classes.classes.erase(room)
+  faculty._sync_lab_teachers()
+  assert(instructor.get_child_count()==0 and not faculty.speech_player.active.has(room))
+ if OS.get_environment("LABVOLT_TEST_OPENAI")=="1":
+  var client: Node=game.host_openai
+  assert(client.set_local_test_endpoint("http://127.0.0.1:28768/v1"))
+  assert(client.set_session_key("sk-test-12345678901234567890"))
+  assert(client.configure("gpt-5.4-mini",128,10,20,true)==OK)
+  var result: Dictionary=await client.verify_class_connection()
+  assert(result.ok and client.verified_for_class())
+  game.player.global_position=classes.signs.dc_lab.desk
+  classes._apply(1,"start","dc_lab",{"kind":"lab","course_id":"ETY155","week":1,"difficulty":0})
+  assert(classes.classes.dc_lab.ai_teaching)
+  var activity: Dictionary=classes.classes.dc_lab
+  activity.phase="lesson"
+  activity.deadline=classes._now()+classes.LessonSeconds
+  faculty._maybe_ai_lesson("dc_lab")
+  assert(activity.ai_waiting)
+  var limit:=Time.get_ticks_msec()+4000
+  while activity.ai_waiting and Time.get_ticks_msec()<limit:await process_frame
+  assert(not activity.ai_waiting and activity.ai_status=="")
+  print("VERIFIED_TEACHER_CLASS PASS")
+ print("LAB_GUIDE_AND_TEACHER_PRESENCE PASS")
+ game.queue_free();await process_frame;quit(0)
+
+func get_viewport_rect() -> Rect2:
+ return root.get_visible_rect()

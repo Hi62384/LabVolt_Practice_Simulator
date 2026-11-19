@@ -37,6 +37,7 @@ var belt_models := {}
 var remote_belts := {}
 var belt_hand: Node3D
 var belt_visual_id := -2
+var belt_return_target: StaticBody3D
 var bar_hand: Node3D
 var bar_visual_id := ""
 var plate_meshes := {}
@@ -191,14 +192,16 @@ func _build_belt_rack() -> void:
 		_belt_rack_part(rack,Vector3(0,1.59,(float(i)-1.5)*BELT_SPACING),Vector3(.12,.10,.07),metal)
 
 	var return_target := StaticBody3D.new()
+	belt_return_target=return_target
 	return_target.name = "BeltReturn"
-	return_target.position = Vector3(0,1.7,0)
-	return_target.collision_layer = 4
+	return_target.position = Vector3(0,.88,0)
+	return_target.collision_layer = 0
 	return_target.collision_mask = 0
 	return_target.set_meta("role","gym_belt_return")
+	return_target.set_meta("label","Return Weight Belt")
 	var return_collision := CollisionShape3D.new()
 	var return_shape := BoxShape3D.new()
-	return_shape.size = Vector3(.25,.13,2.13)
+	return_shape.size = Vector3(.55,1.72,2.20)
 	return_collision.shape = return_shape
 	rack.add_child(return_target)
 	return_target.add_child(return_collision)
@@ -254,8 +257,22 @@ func belt_mass(id: int) -> float:
 func worn_belt_mass(peer: int) -> float:
 	return belt_mass(worn_belt(peer))
 
+func belt_for_rack_return(target: Node, peer: int) -> int:
+	if not is_instance_valid(target):return -1
+	var role: String=target.get_meta("role","")
+	if role=="gym_weight_belt" or role=="gym_belt_plate":
+		var id:=int(target.get_meta("id" if role=="gym_weight_belt" else "belt_id",-1))
+		if id not in range(belts.size()) or belts[id].where!="rack":return -1
+	elif role!="gym_belt_return":return -1
+	var held:=held_belt(peer)
+	return held if held>=0 else worn_belt(peer)
+
 func interact(target: Node, allow_assist := true) -> bool:
 	if not is_instance_valid(target) or target.get_meta("role","") not in ["gym_barbell_sleeve","gym_barbell_rack","gym_bar_rescue","gym_barbell_floor","gym_plate_rack","gym_plate_rod","gym_plate_rack_item","gym_plate_floor","gym_weight_belt","gym_belt_plate","gym_belt_return"]:return false
+	var returning:=belt_for_rack_return(target,multiplayer.get_unique_id())
+	if returning>=0:
+		if allow_assist:request_belt("return",returning)
+		return true
 	if target.get_meta("role","")=="gym_belt_return":
 		if allow_assist:
 			var belt := held_belt(multiplayer.get_unique_id())
@@ -652,6 +669,9 @@ func _render_cable_plate(plate_id: int, machine: Node, ordinal: int, topmost: bo
 	models[plate_id]=target
 
 func _render() -> void:
+	if is_instance_valid(belt_return_target):
+		var peer:=multiplayer.get_unique_id()
+		belt_return_target.collision_layer=4 if held_belt(peer)>=0 or worn_belt(peer)>=0 else 0
 	for peer in remote_belts.keys():_clear_remote_belt(int(peer))
 	for node in belt_models.values():
 		if is_instance_valid(node):node.queue_free()

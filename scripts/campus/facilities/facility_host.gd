@@ -7,6 +7,8 @@ const EXERCISES := {"pushup":1400,"pullup":1800,"benchpress":1800,"squat":1600,"
 const DUMBBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","wrist_curl","overhead_extension","bent_over_row","shrug","lateral_raise","reverse_fly","calf_raise"]
 const BENCH_DUMBBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_curl","overhead_extension","good_morning","incline_press","benchpress","lateral_raise","chest_supported_row","reverse_fly","chest_fly"]
 const BENCH_BARBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_curl","overhead_extension","good_morning","incline_press","benchpress","chest_supported_row"]
+const SEATED_DUMBBELL_EXERCISES := ["curl","overhead_press","lateral_raise","front_raise","overhead_extension","wrist_curl","good_morning"]
+const SEATED_BARBELL_EXERCISES := ["curl","overhead_press","front_raise","overhead_extension","wrist_curl","good_morning"]
 const BARBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","overhead_extension","bent_over_row","shrug","wrist_curl","calf_raise"]
 const CABLE_EXERCISES := ["cable_fly","cable_reverse_fly","cable_press","lat_pulldown","cable_row","lateral_raise","front_raise","overhead_press","curl","tricep_pushdown","overhead_extension","cable_crunch"]
 const STATION_EXERCISES := {"pushup":["pushup","crunch","leg_raise","pike_pushup"],"pullup":["pullup","hanging_leg_raise","dip"],"benchpress":BENCH_BARBELL_EXERCISES,"squat":["squat"],"curl":DUMBBELL_EXERCISES,"barbell":BARBELL_EXERCISES,"cable":CABLE_EXERCISES}
@@ -353,23 +355,37 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 				order={}
 		event={"activity":op,"order_id":order_id,"held":order.duplicate(true)}
 	elif op=="sit":
-		if not current.is_empty() or not reachable(c,station) or anchors[station].get("kind","")!="seat" or seats.has(station):return fail("Seat unavailable")
+		if not current.is_empty() or not reachable(c,station) or seats.has(station):return fail("Seat unavailable")
+		var seat_kind: String=anchors[station].get("kind","")
+		if seat_kind not in ["seat","seated_bench"]:return fail("Seat unavailable")
+		if seat_kind=="seated_bench":
+			var dumbbells:=dumbbell_mass.is_valid() and float(dumbbell_mass.call(peer))>0.0
+			var free_bar:=held_barbell_mass.is_valid() and float(held_barbell_mass.call(peer))>0.0
+			if not dumbbells and not free_bar:return fail("Equip dumbbells or a barbell to use the seated bench.")
 		next_active={"type":"seat","station":station,"position":c.position,"room_id":c.room_id}
 		event={"activity":"seat","station":station}
 		if anchors[station].has("seat_position"):
 			event.seat_position=anchors[station].seat_position
 			event.seat_yaw=anchors[station].seat_yaw
+		if seat_kind=="seated_bench":
+			event.bench_position=anchors[station].bench_position
 	elif op=="start":
 		var portable_bar: bool=station=="gym/barbell"
 		var portable: bool=station=="gym/dumbbell" or portable_bar
-		if not current.is_empty() or carried_order_count(p.orders)>0 or (not portable and not reachable(c,station)):return fail("Equipment unavailable")
+		var already_seated: bool=current.get("type","")=="seat" and current.get("station","")==station and anchors.get(station,{}).get("kind","")=="seated_bench"
+		if (not current.is_empty() and not already_seated) or carried_order_count(p.orders)>0 or (not portable and not reachable(c,station)):return fail("Equipment unavailable")
 		if portable and str(c.room_id)!="gym":return fail("Use the dumbbells in the gym")
 		var station_type: String=("barbell" if portable_bar else "curl") if portable else str(anchors[station].get("kind",""))
-		var bench_pair: bool=not portable and station_type=="benchpress" and request.get("equipment","")=="dumbbell"
-		var bench_bar: bool=not portable and station_type=="benchpress" and request.get("equipment","")=="barbell"
+		var bench_pair: bool=station_type in ["benchpress","seated_bench"] and request.get("equipment","")=="dumbbell"
+		var bench_bar: bool=station_type in ["benchpress","seated_bench"] and request.get("equipment","")=="barbell"
 		if portable:station=("gym/barbell/%d" if portable_bar else "gym/dumbbell/%d")%peer
 		var exercise:=str(request.get("exercise",station_type))
-		if seats.has(station) or (exercise not in BENCH_DUMBBELL_EXERCISES if bench_pair else (not STATION_EXERCISES.has(station_type) or exercise not in STATION_EXERCISES[station_type])):return fail("Exercise unavailable at this station")
+		var choices: Array=STATION_EXERCISES.get(station_type,[])
+		if station_type=="seated_bench":
+			if bench_pair:choices=SEATED_DUMBBELL_EXERCISES
+			elif bench_bar:choices=SEATED_BARBELL_EXERCISES
+		elif bench_pair:choices=BENCH_DUMBBELL_EXERCISES
+		if (seats.has(station) and not already_seated) or exercise not in choices:return fail("Exercise unavailable at this station")
 		var weight: Variant=request.get("weight",WEIGHTS.get(exercise,[0])[0])
 		if station_type=="curl" or bench_pair:
 			weight=float(dumbbell_mass.call(peer)) if dumbbell_mass.is_valid() else 0.0
@@ -377,7 +393,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		elif portable_bar or bench_bar:
 			weight=float(held_barbell_mass.call(peer)) if held_barbell_mass.is_valid() else 0.0
 			if weight<=0:return fail("Pick up a barbell first")
-			if bench_bar and (not barbell_mass.is_valid() or float(barbell_mass.call(station))>0.0):return fail("Clear the bench rack before using your carried bar")
+			if bench_bar and station_type=="benchpress" and (not barbell_mass.is_valid() or float(barbell_mass.call(station))>0.0):return fail("Clear the bench rack before using your carried bar")
 		elif station_type=="cable":
 			if not weight is int or weight<10 or weight>200 or weight%10!=0:return fail("Choose a cable resistance from 10 to 200 lb")
 			if live_lifts and weight != cable_weights.get(station, 10):
@@ -399,7 +415,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		next_active.body_mass=clampf(float(body_mass),35.0,160.0) if (body_mass is int or body_mass is float) and is_finite(float(body_mass)) else 70.0
 		if bench_pair or station_type=="curl":next_active.equipment="dumbbell"
 		elif portable_bar or bench_bar:next_active.equipment="barbell"
-		if station_type=="benchpress" and anchors[station].get("bench_position") is Vector3:
+		if station_type in ["benchpress","seated_bench"] and anchors[station].get("bench_position") is Vector3:
 			next_active.bench_position=anchors[station].bench_position
 		if station_type=="pullup":
 			var grip_key: String="dip_grip" if exercise=="dip" else "pullup_grip"

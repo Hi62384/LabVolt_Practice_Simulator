@@ -5,11 +5,14 @@ const MAX_ATTACHMENT_BYTES:=8*1024*1024
 const MAX_TABS:=8
 const HOME_URL:="https://www.google.com/"
 const Policy=preload("res://scripts/campus/ai/browser_assistant_policy.gd")
+const Downloads=preload("res://scripts/campus/computers/browser_download.gd")
 const WAV=preload("res://scripts/campus/academics/teacher_ai.gd")
 static var runtime: Node
 static var next_session_serial:=0
 var attachment_loader: Callable
 var assistant_virtual_save: Callable
+var virtual_download_save: Callable
+var download_request: HTTPRequest
 var game: Node
 var device_kind:=""
 var device_id:=""
@@ -43,6 +46,9 @@ var record_samples:=PackedByteArray()
 var record_phase:=0.0
 var record_started:=0
 var recording:=false
+
+func _ready() -> void:
+ get_viewport().size_changed.connect(_resize_tabs)
 
 func _process(_delta: float) -> void:
  _record_step()
@@ -86,6 +92,11 @@ func configure(kind: String,id: String,session_lease: String,items: Array) -> vo
 
 func close_session() -> void:
  _cancel_recording()
+ if is_instance_valid(download_request):
+  download_request.cancel_request()
+  download_request.queue_free()
+ download_request=null
+ virtual_download_save=Callable()
  assistant_pending.clear();assistant_action.clear();assistant_response=""
  if is_instance_valid(game) and is_instance_valid(game.browser_assistant) and game.browser_assistant.reply_received.is_connected(_assistant_reply):game.browser_assistant.reply_received.disconnect(_assistant_reply)
  for tab in tabs:
@@ -121,9 +132,11 @@ func _build() -> void:
  var popup:=menu.get_popup()
  popup.add_item("Attach photo" if device_kind=="phone" else "Attach virtual file",0)
  popup.add_item("Assistant",1)
+ if device_kind=="computer":popup.add_item("Download address to virtual files",2)
  popup.id_pressed.connect(func(id: int):
   if id==0:_choose_attachment()
-  elif is_instance_valid(assistant_panel):assistant_panel.visible=not assistant_panel.visible)
+  elif id==1 and is_instance_valid(assistant_panel):assistant_panel.visible=not assistant_panel.visible
+  elif id==2:_download_address())
  attachment=Label.new();attachment.add_theme_font_size_override("font_size",12);chrome.add_child(attachment)
  holder=Control.new();holder.clip_contents=true;holder.custom_minimum_size.y=220 if device_kind=="phone" else 180;holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_EXPAND_FILL;add_child(holder)
  home_screen=VBoxContainer.new();home_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);home_screen.alignment=BoxContainer.ALIGNMENT_CENTER;home_screen.add_theme_constant_override("separation",12);holder.add_child(home_screen)
@@ -179,8 +192,25 @@ func _add_tab() -> void:
   status.text="Connection failed · "+str(message).left(120)
   if device_kind=="computer":home_screen.hide())
  surface.gui_input.connect(func(event):if browser_ref.get_ref()!=null:_forward(browser_ref.get_ref(),surface,event))
- surface.resized.connect(func():if browser_ref.get_ref()!=null:browser_ref.get_ref().resize(surface.size))
- browser.resize(holder.size);_refresh()
+ surface.resized.connect(func():if browser_ref.get_ref()!=null:_resize_browser(browser_ref.get_ref(),surface))
+ _resize_browser(browser,surface);_refresh()
+
+func _desktop_pixel_scale() -> Vector2:
+ var desktop_viewport:=get_viewport() as SubViewport
+ if desktop_viewport==null or not desktop_viewport.size_2d_override_stretch:return Vector2.ONE
+ var logical:=desktop_viewport.size_2d_override
+ if logical.x<2 or logical.y<2:return Vector2.ONE
+ return Vector2(desktop_viewport.size)/Vector2(logical)
+
+func _resize_tabs() -> void:
+ for tab in tabs:
+  if is_instance_valid(tab.browser) and is_instance_valid(tab.surface):_resize_browser(tab.browser,tab.surface)
+
+func _resize_browser(browser: Variant,surface: TextureRect) -> void:
+ if surface.size.x<2 or surface.size.y<2:return
+ var scale_factor:=_desktop_pixel_scale()
+ browser.resize((surface.size*scale_factor).round())
+ browser.set_zoom_level(log(scale_factor.x)/log(1.2))
 
 func parked_tabs() -> Dictionary:
  var urls: Array[String]=[]
@@ -302,11 +332,60 @@ func _loaded(browser: Variant) -> void:
   if i==active:status.text="";_refresh()
   return
 
+func _download_address() -> void:
+ if not virtual_download_save.is_valid():status.text="This computer has no Downloads folder.";return
+ if is_instance_valid(download_request):status.text="A download is already in progress.";return
+ var url:=address.text.strip_edges()
+ if not (url.begins_with("https://") or url.begins_with("http://")) or url.length()>2048:
+  status.text="Enter a direct HTTP or HTTPS text-file address."
+  return
+ var request:=HTTPRequest.new()
+ request.body_size_limit=Downloads.MAX_BYTES
+ request.max_redirects=0
+ request.accept_gzip=false
+ request.timeout=15.0
+ add_child(request)
+ download_request=request
+ request.request_completed.connect(_download_finished.bind(url,session_key,request),CONNECT_ONE_SHOT)
+ if request.request(url)!=OK:
+  _download_finished(HTTPRequest.RESULT_CANT_CONNECT,0,PackedStringArray(),PackedByteArray(),url,session_key,request)
+ else:status.text="Downloading to this computer…"
+
+func _download_finished(result: int,code: int,headers: PackedStringArray,body: PackedByteArray,url: String,session_id: String,request: HTTPRequest) -> void:
+ request.queue_free()
+ if request!=download_request:return
+ download_request=null
+ if session_id!=session_key or not virtual_download_save.is_valid():return
+ if result==HTTPRequest.RESULT_BODY_SIZE_LIMIT_EXCEEDED:
+  status.text="The file exceeds this computer's 256 KB download limit."
+  return
+ if result!=HTTPRequest.RESULT_SUCCESS or code!=200:
+  status.text="Could not download this address. Use a direct text-file link."
+  return
+ var mime:=""
+ for header in headers:
+  if header.get_slice(":",0).strip_edges().to_lower()=="content-type":
+   mime=header.substr(header.find(":")+1).get_slice(";",0).strip_edges().to_lower()
+ var extension: String=Downloads.EXTENSIONS.get(mime,"")
+ if not Downloads.valid(body,extension):
+  status.text="Unsupported or invalid file. Text files are limited to 32 KB."
+  return
+ var original:=url.get_slice("?",0).get_slice("#",0).get_file().uri_decode().get_basename()
+ var stem:=""
+ for character in original.left(20):
+  if character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-":stem+=character
+ var filename:="%s.%s"%[stem if not stem.is_empty() else "download",extension]
+ status.text="Saving to Downloads…"
+ virtual_download_save.call(filename,body)
+
 func _forward(browser: Variant,surface: TextureRect,event: InputEvent) -> void:
  if browser!=_browser() or not is_instance_valid(browser):return
- if event is InputEventMouseMotion:browser.set_mouse_moved(roundi(event.position.x),roundi(event.position.y))
+ if event is InputEventMouseMotion:
+  var point: Vector2=(event.position*_desktop_pixel_scale()).round()
+  browser.set_mouse_moved(int(point.x),int(point.y))
  elif event is InputEventMouseButton:
-  surface.grab_focus();browser.set_mouse_moved(roundi(event.position.x),roundi(event.position.y))
+  var point: Vector2=(event.position*_desktop_pixel_scale()).round()
+  surface.grab_focus();browser.set_mouse_moved(int(point.x),int(point.y))
   if event.button_index==MOUSE_BUTTON_LEFT:
    if event.pressed:browser.set_mouse_left_down()
    else:browser.set_mouse_left_up()
@@ -315,7 +394,14 @@ func _forward(browser: Variant,surface: TextureRect,event: InputEvent) -> void:
    else:browser.set_mouse_right_up()
   elif event.button_index==MOUSE_BUTTON_WHEEL_UP and event.pressed:browser.set_mouse_wheel_vertical(1,event.shift_pressed,event.ctrl_pressed,event.alt_pressed)
   elif event.button_index==MOUSE_BUTTON_WHEEL_DOWN and event.pressed:browser.set_mouse_wheel_vertical(-1,event.shift_pressed,event.ctrl_pressed,event.alt_pressed)
- elif event is InputEventKey:browser.set_key_pressed(event.keycode,event.pressed,event.shift_pressed,event.alt_pressed,event.ctrl_pressed)
+ elif event is InputEventKey:
+  if event.keycode in [KEY_SHIFT,KEY_ALT,KEY_CTRL,KEY_META,KEY_CAPSLOCK,KEY_NUMLOCK,KEY_SCROLLLOCK]:return
+  # Godot's keycode names letters in uppercase. Unicode is the character
+  # already resolved by the OS keyboard layout, Shift and Caps Lock.
+  var key: int=event.keycode if event.keycode!=KEY_NONE else event.physical_keycode
+  if event.unicode>=32 and event.unicode!=127 and not event.meta_pressed and not (event.ctrl_pressed and not event.alt_pressed):
+   key=event.unicode
+  if key!=KEY_NONE:browser.set_key_pressed(key,event.pressed,event.shift_pressed,event.alt_pressed,event.ctrl_pressed)
 
 func _choose_attachment(browser: Variant=null) -> void:
  if not is_instance_valid(browser):browser=_browser()

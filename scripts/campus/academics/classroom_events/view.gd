@@ -12,10 +12,12 @@ func _ready() -> void:
 
 func _fit_panel() -> void:
  if not is_instance_valid(panel_scroll): return
- var width := minf(470.0, maxf(1.0, size.x - 32.0))
- var top := 120.0 if size.x >= 800 and size.y >= 540 else 24.0
- panel_scroll.position = Vector2(size.x - width - 24.0 if top == 120.0 else (size.x - width) * .5, top)
- panel_scroll.size = Vector2(width, minf(maxf(1.0,size.y - top - 28.0), panel.get_combined_minimum_size().y + 4.0))
+ var width := minf(540.0, maxf(1.0, size.x - 40.0))
+ var top_inset := clampf(size.y * .12, 24.0, 108.0)
+ var bottom_inset := clampf(size.y * .19, 84.0, 160.0)
+ var height := minf(maxf(1.0, size.y - top_inset - bottom_inset), panel.get_combined_minimum_size().y + 4.0)
+ panel_scroll.position = Vector2((size.x - width) * .5, top_inset)
+ panel_scroll.size = Vector2(width, height)
 var active_id: String=""
 var active_class: String=""
 var dismissed_key: String=""

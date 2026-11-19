@@ -47,6 +47,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "The board shows a current path."}]}]})
         if self.path == "/v1/responses" and body.get("store") is False:
             request_input = body.get("input")
+            if request_input == "Reply with the single word Ready.":
+                if body.get("model") != "gpt-5.4-mini":
+                    return self._reply(403, {"error": {"message": "unavailable model"}})
+                return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "Ready"}]}]})
             if isinstance(request_input, str) and request_input.startswith("You are an assistant inside a fictional campus browser"):
                 return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": '{"answer":"Page answer"}'}]}]})
             if isinstance(request_input, list) and request_input and isinstance(request_input[0], dict):

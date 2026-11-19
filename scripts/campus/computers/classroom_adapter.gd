@@ -40,14 +40,20 @@ func build(owner_game: Node, mounted_room: Node3D) -> bool:
 	var layer := CanvasLayer.new()
 	layer.layer=40
 	add_child(layer)
+	var desktop_bounds:=Control.new()
+	layer.add_child(desktop_bounds)
+	desktop_bounds.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	desktop_bounds.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	desktop_overlay=SubViewportContainer.new()
-	desktop_overlay.stretch=true
-	layer.add_child(desktop_overlay)
-	desktop_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	desktop_bounds.add_child(desktop_overlay)
 	desktop_overlay.hide()
 	desktop_render=SubViewport.new()
 	desktop_render.disable_3d=true
+	desktop_render.size_2d_override_stretch=true
 	desktop_overlay.add_child(desktop_render)
+	desktop_bounds.resized.connect(_resize_desktop.bind(desktop_bounds))
+	get_viewport().size_changed.connect(_resize_desktop.bind(desktop_bounds))
+	_resize_desktop(desktop_bounds)
 	desktop=Desktop.new()
 	desktop_render.add_child(desktop)
 	desktop.build(game.computers,game)
@@ -74,6 +80,18 @@ func build(owner_game: Node, mounted_room: Node3D) -> bool:
 	visibility_timer.start()
 	_teaching()
 	return true
+
+func _resize_desktop(bounds: Control) -> void:
+	var logical:=Vector2i(bounds.size.round())
+	if logical.x<2 or logical.y<2:return
+	var display_scale:=get_viewport().get_stretch_transform().get_scale()
+	var pixels:=Vector2i((Vector2(logical)*display_scale).round()).max(Vector2i(2,2))
+	# Keep the desktop layout in logical units and render its text into native
+	# pixels. Inverse container scaling keeps pointer coordinates aligned.
+	desktop_render.size=pixels
+	desktop_render.size_2d_override=logical
+	desktop_overlay.size=Vector2(pixels)
+	desktop_overlay.scale=Vector2(logical)/Vector2(pixels)
 func register_station(id: String,station: Node3D,is_public: bool) -> bool:
 	var index: int=game.chairs.size()
 	game._add_chair(station.seat_anchor.global_position)

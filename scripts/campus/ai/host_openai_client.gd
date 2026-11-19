@@ -18,6 +18,8 @@ var busy := false
 var _session_key := ""
 var _minute_calls: Array[int] = []
 var _test_base := ""
+var _verified_signature := ""
+var verification_error := ""
 
 func _ready() -> void:
 	_load()
@@ -44,7 +46,9 @@ func set_session_key(value: String) -> bool:
 	return true
 
 func clear_session_key() -> void:
-	if host_allowed():_session_key=""
+	if host_allowed():
+		_session_key=""
+		_verified_signature=""
 
 func configure(next_model: String, output_limit: int, minute_limit: int, day_limit: int, next_enabled: bool) -> Error:
 	if not host_allowed() or not _valid_model(next_model):return ERR_INVALID_PARAMETER
@@ -57,6 +61,31 @@ func configure(next_model: String, output_limit: int, minute_limit: int, day_lim
 
 func test_connection() -> Dictionary:
 	return await _call(HTTPClient.METHOD_GET,"/models/"+model,{},false)
+
+func _connection_signature() -> String:
+	return (_credential()+"\n"+model+"\n"+_test_base).sha256_text()
+
+func verified_for_class() -> bool:
+	return enabled and configured() and _verified_signature==_connection_signature()
+
+func class_connection_status() -> String:
+	if verified_for_class():return "Connected — AI teaching available"
+	if not enabled or not configured():return "Not connected — Enable OpenAI and add a key in Host Server settings."
+	if not verification_error.is_empty():return "Connection failed — "+verification_error
+	return "Not verified — Test the host's OpenAI connection to start classes."
+
+func verify_class_connection() -> Dictionary:
+	var signature:=_connection_signature()
+	var result:=await _call(HTTPClient.METHOD_POST,"/responses",{"model":model,"input":"Reply with the single word Ready.","max_output_tokens":64,"store":false},true)
+	if signature!=_connection_signature():return {"ok":false,"error":"The selected connection changed. Test it again."}
+	if result.get("ok",false):
+		_verified_signature=signature
+		verification_error=""
+		return {"ok":true,"message":class_connection_status()}
+	if not busy:
+		_verified_signature=""
+		verification_error=str(result.get("error","OpenAI did not return a response."))
+	return result
 
 func respond(prompt: String) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS:
@@ -145,7 +174,11 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var completed: Array=await request.request_completed
 	request.queue_free()
 	busy=false
-	return _read_response(int(completed[0]),int(completed[1]),completed[3],method)
+	var response:=_read_response(int(completed[0]),int(completed[1]),completed[3],method)
+	if int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
+		_verified_signature=""
+		verification_error=str(response.get("error","Connection verification is required."))
+	return response
 
 func _read_response(result: int,code: int,body: PackedByteArray,method: HTTPClient.Method) -> Dictionary:
 	if result!=HTTPRequest.RESULT_SUCCESS:return {"ok":false,"error":"OpenAI could not be reached or timed out."}

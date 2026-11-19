@@ -587,7 +587,7 @@ func apply(peer: int,a: Dictionary) -> void:
 		return
 	if op=="activity":
 		if peer==1 and can_choose_next_activity() and int(a.get("expected_epoch",-1))==activity_epoch:
-			var response := start_activity(a.get("config",{}))
+			var response := request_activity(a.get("config",{}))
 			if not response.ok:_notice(peer,str(response.error))
 		return
 	if op=="begin_lesson":return
@@ -653,10 +653,6 @@ func apply(peer: int,a: Dictionary) -> void:
 		var service=preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd")
 		var course := service.course_for_room(room_id)
 		if course.is_empty():return
-		var instructor := teacher_position
-		if room_id == "dc_lab" and mode in ["Freeplay", "Creative Freeplay"] and is_instance_valid(game.school_world.dc_instructor):
-			instructor = game.school_world.dc_instructor.global_position
-		if not _near(peer,instructor):return
 		if mode=="Open Lab" and (activity.is_empty() or str(activity.get("course_id",""))!=course or str(activity.get("room",{}).get("id",""))!=room_id):return
 		var week: Variant = a.get("week", 0)
 		var level: Variant = a.get("difficulty", 2)
@@ -1263,7 +1259,7 @@ func _process(delta: float) -> void:
 			broadcast()
 			checkpoint()
 	if not game.front.in_game:return
-	advance(delta)
+	if not is_instance_valid(game.faculty) or game.faculty.formal_lesson_ready():advance(delta)
 	if phase=="lesson" and str(activity.get("course_id","")).begins_with("MTH"):
 		var stage_key: String=assessment_id+":"+str(teaching_stage().get("index",0))
 		if stage_key!=released_teaching_stage:released_teaching_stage=stage_key;broadcast()
@@ -1271,12 +1267,6 @@ func _process(delta: float) -> void:
 	if recovery_clock>=1.0:
 		recovery_clock=0
 		checkpoint()
-	if mode in ["Freeplay","Creative Freeplay"] and activity.is_empty() and not game.faculty.calls.has("ac_lab") and not game.faculty.freeplay_returns.has("ac_lab"):
-		var offset := teacher_goal-teacher_position
-		if offset.length()<.15:teacher_goal=Vector3(random.randf_range(-3,3),0,random.randf_range(2.5,8))
-		elif not game.session.poses.values().any(func(p):return p.get("position",Vector3.ZERO).distance_to(teacher_position)<2.2):
-			teacher_position+=offset.normalized()*minf(delta*.55,offset.length())
-			teacher_yaw=atan2(-offset.x,-offset.z)
 	sync_clock+=delta
 	if sync_clock>=.25:
 		sync_clock=0
@@ -1396,6 +1386,14 @@ func can_choose_next_activity() -> bool:
 func official_extra_assessments(course: String) -> Array[Dictionary]:
 	return RecordMetadata.extra_options(GradeWeights.course(course), course_bridge, course)
 
+func request_activity(config: Dictionary) -> Dictionary:
+	if not multiplayer.is_server():return {"ok":false,"error":"Only the host chooses the activity."}
+	if config.get("mode","Freeplay")=="Course" and not game.host_openai.verified_for_class():
+		return {"ok":false,"error":game.host_openai.class_connection_status()}
+	var request:=config.duplicate()
+	request["ai_teaching"]=request.get("mode")=="Course"
+	return start_activity(request)
+
 func start_activity(config: Dictionary) -> Dictionary:
 	if not multiplayer.is_server():return {"ok":false,"error":"Only the host chooses the activity."}
 	if game.front.in_game and not can_choose_next_activity():return {"ok":false,"error":"The next activity is available to the host in Freeplay or after class ends."}
@@ -1477,6 +1475,9 @@ func start_activity(config: Dictionary) -> Dictionary:
 			project.assessment_policy[permission]=config.get(permission,false) is bool and bool(config.get(permission,false))
 	project.assessment_id=assessment_id
 	activity={"mode":selected,"course_id":course,"kind":kind,"week":week,"difficulty":level,"room":room,"creative":bool(config.get("creative",false)),"teaching_seconds":teaching_seconds,"assessment_seconds":assessment_seconds}
+	if config.get("ai_teaching",false) and selected=="Course" and is_instance_valid(game.faculty):
+		activity.ai_teaching=true
+		activity.teacher=game.faculty.pick_lecture(course)
 	presentation=course_bridge.lesson_for_assignment(assignment,teaching_seconds)
 	teacher_position=room_bridge.point(room.get("teacher_position",Vector3.ZERO))
 	if not identities.has(1):_identify(1,local_identity)

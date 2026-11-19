@@ -2,6 +2,9 @@ extends Node
 ## Binds existing Game visuals. No electrical writes; main integration is proposed separately.
 const Events = preload("res://scripts/interaction_presentation/accepted_event.gd")
 const Actor = preload("res://scripts/interaction_presentation/actor.gd")
+const MatPose = preload("res://scripts/campus/facilities/gym_mat_pose.gd")
+const Bench = preload("res://scripts/campus/facilities/gym_bench.gd")
+var workout_bend = preload("res://scripts/campus/facilities/arm_bend.gd").new()
 var game: Node
 var actors = {}
 var bindings = {}
@@ -96,6 +99,7 @@ func bind_local(model: Node3D) -> void:
 	for arm in workout_arms:
 		if is_instance_valid(arm):arm.queue_free()
 	workout_arms.clear()
+	var arm_bindings: Dictionary={}
 	for side in ["ArmL", "ArmR"]:
 		var original := model.find_child(side,true,false) as Node3D
 		if is_instance_valid(original):
@@ -104,6 +108,8 @@ func bind_local(model: Node3D) -> void:
 			copy.set_meta("workout_left", side=="ArmL")
 			copy.hide()
 			workout_arms.append(copy)
+			arm_bindings[side]={"node":copy}
+	workout_bend.bind(arm_bindings)
 
 func _actor(peer: int) -> Node:
 	if not actors.has(peer):
@@ -293,22 +299,25 @@ func _workout_camera(camera: Camera3D, exercise: String, bar: Node3D, machine: N
 		if exercise in ["cable_row","lat_pulldown"]:eye.y-=.30
 		target=eye+forward+Vector3(0,-.24,0)
 	elif bench is Vector3:
-		var mode: String=preload("res://scripts/campus/facilities/gym_bench.gd").position_for(exercise)
+		var mode:=Bench.position_for(exercise)
+		var posture:=Bench.body_pose(exercise,1.0)
+		eye=bench+posture*Vector3(0,1.62,.10)
 		match mode:
 			"flat","incline":
-				eye=bench+Vector3(0,.83 if mode=="flat" else 1.05,.22)
 				target=bar.global_position if is_instance_valid(bar) and workout_state.get("equipment","")!="dumbbell" else bench+Vector3(0,1.42,-.30)
 			"supported":
-				eye=bench+Vector3(0,1.03,-.23)
-				target=eye+Vector3(0,-.40,-.75)
+				target=eye+posture.basis*Vector3.BACK
 			_:
-				eye=bench+Vector3(0,1.18,.46)
 				var seated_hinge := raised * .65 if exercise == "good_morning" else 0.0
 				eye += Vector3(0, -.39 * (1.0 - cos(seated_hinge)), .46 * sin(seated_hinge))
 				target=eye+Vector3(0,-.06 - sin(seated_hinge),cos(seated_hinge))
 	elif mat is Vector3 and exercise in ["pushup","pike_pushup"]:
-		eye=mat+Vector3(0,lerpf(.36,.53,raised),.42)
-		target=mat+Vector3(0,.03,.72)
+		eye=mat+Vector3(0,lerpf(.24,.65,raised),lerpf(.60,.35,raised)) if exercise=="pike_pushup" else mat+Vector3(0,lerpf(.31,.67,raised),.45)
+		target=mat+Vector3(0,.02,.79)
+	elif mat is Vector3 and exercise in ["crunch","leg_raise"]:
+		var curl:=raised if exercise=="crunch" else 0.0
+		eye=mat+Vector3(0,.27+.31*curl,-.67+.13*curl)
+		target=mat+Vector3(0,.48+.21*raised,.36)
 	elif fixed_grip is Vector3:
 		if exercise=="dip":
 			eye=fixed_grip+Vector3(0,lerpf(.31,.58,raised),-.16)
@@ -416,9 +425,11 @@ func _update_workout(delta: float) -> void:
 		machine.position_local_grips(game.multiplayer.get_unique_id(),eye+base*_cable_grip(exercise,-1,raised),eye+base*_cable_grip(exercise,1,raised))
 	var handheld_bar: Node3D = game.gym_barbells.bar_hand
 	var pair: Node3D = game.gym_weights.held_visual
+	var on_mat := active and exercise in ["pushup","pike_pushup"] and workout_state.get("mat_position") is Vector3
+	workout_bend.apply(.90*(1.0-raised) if on_mat else 0.0,0.0,.26*(1.0-raised) if on_mat else 0.0)
 	for arm in workout_arms:
-		arm.visible = active
-		if not active:
+		arm.visible = active and exercise not in ["crunch","leg_raise"]
+		if not arm.visible:
 			continue
 		var left := bool(arm.get_meta("workout_left",false))
 		var side := -1.0 if left else 1.0
@@ -439,7 +450,8 @@ func _update_workout(delta: float) -> void:
 		if fixed_grip is Vector3:
 			grip=camera.to_local(fixed_grip+Vector3(side*(.48 if exercise=="dip" else .36),0,0))
 		elif mat is Vector3 and exercise in ["pushup","pike_pushup"]:
-			grip=camera.to_local(mat+Vector3(side*.27,.035,.49))
+			# The camera faces +Z here, so screen-right is negative world X.
+			grip=camera.to_local(MatPose.palm(mat,-side,exercise))
 		if is_instance_valid(machine):
 			var grip_node: Node3D = machine.second_handle if not left and machine.second_handle.visible else machine.handle
 			var offset := Vector3.ZERO if machine.second_handle.visible else Vector3(side*.22,0,0)
