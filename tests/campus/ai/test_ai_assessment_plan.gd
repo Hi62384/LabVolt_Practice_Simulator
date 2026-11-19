@@ -82,6 +82,23 @@ func room_assessment() -> void:
 	var started: Dictionary=school.request_activity({"mode":"Course","kind":"lecture","course_id":"MTH147","week":1,"difficulty":0})
 	assert(started.ok,str(started))
 	school.phase="lesson"
+	var lecture_room: String=school.activity.room.id
+	game.campus.request_room(lecture_room)
+	game.player.global_position=game.campus.registry.vector(game.campus.registry.get_room(lecture_room).center)
+	game.campus.set_viewer_position(game.player.global_position)
+	await physics_frame
+	await physics_frame
+	game.faculty._sync_lectures()
+	var lecturer: Node3D=game.faculty.lecture_models.get(lecture_room)
+	assert(is_instance_valid(lecturer),"Course lecture has no instructor")
+	var origin:=lecturer.global_position
+	timeout=Time.get_ticks_msec()+8000
+	while origin.distance_to(lecturer.global_position)<.25 and Time.get_ticks_msec()<timeout:
+		game.faculty.formal_lesson_ready()
+		await process_frame
+	assert(origin.distance_to(lecturer.global_position)>=.25,"Course instructor did not move during the AI lesson")
+	assert(game.campus.registry.room_contains(lecture_room,lecturer.global_position))
+	print("AI_FORMAL_LECTURER_MOVEMENT PASS")
 	school.remaining=0.0
 	var old_project: Dictionary=school._individual_project(identity)
 	school.advance(0.0)

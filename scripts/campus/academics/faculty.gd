@@ -557,7 +557,7 @@ func _generate_ai_lesson(room: String,activity: Dictionary,state: Dictionary,key
 
 func _request_classroom_route(room: String,id: String,key: String,goal: Vector3,stand_off: float,peer: int=0,until: int=0) -> void:
  if not multiplayer.is_server() or room not in LECTURE_ROOMS or classroom_route_seen.get(room,"")==key:return
- var activity: Dictionary=game.lecture_classes.classes.get(room,{})
+ var activity:=_ai_activity(room)
  var model: Node3D=lecture_models.get(room)
  if not is_instance_valid(model) or activity.get("phase","")!="lesson" or str(activity.get("teacher",""))!=id or not goal.is_finite():return
  classroom_route_seen[room]=key
@@ -614,7 +614,7 @@ func _step_classroom_routes(delta: float) -> void:
  for room in lecture_models.keys():
   var model: Node3D=lecture_models[room]
   if not is_instance_valid(model):continue
-  var activity: Dictionary=game.lecture_classes.classes.get(room,{})
+  var activity:=_ai_activity(room)
   var state: Dictionary=events.service.rooms.get(room,{}) if events_enabled and is_instance_valid(events.service) else {}
   var round: Variant=state.get("round")
   var event_key: String=str(activity.get("id",""))+":"+str(round.event_id) if round!=null and is_instance_valid(round) and not round.closed else ""

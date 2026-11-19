@@ -99,7 +99,8 @@ func run() -> void:
 		weight_view.hide()
 		bar_view.hide()
 		var focus: Vector3=event.get("mat_position",event.get("bench_position",position))+Vector3.UP*.7
-		camera.global_position=focus+Vector3(-2.7,1.0,1.8)
+		await physics_frame
+		camera.global_position=_camera_position(game,focus)
 		camera.look_at(focus)
 		camera.make_current()
 		await _capture(folder.path_join(name+"-third.png"))
@@ -115,3 +116,12 @@ func run() -> void:
 
 func _add_cases(cases: Array[Dictionary],station: String,exercises: Array,equipment: String="") -> void:
 	for exercise in exercises:cases.append({"station":station,"exercise":exercise,"equipment":equipment})
+
+func _camera_position(game: Node3D,focus: Vector3) -> Vector3:
+	var space:=game.get_world_3d().direct_space_state
+	for offset in [Vector3(-2.7,1.0,1.8),Vector3(2.7,1.0,1.8),Vector3(-2.7,1.0,-1.8),Vector3(2.7,1.0,-1.8)]:
+		var candidate: Vector3=focus+offset
+		if not game.campus.registry.room_contains("gym",candidate):continue
+		var ray:=PhysicsRayQueryParameters3D.create(focus,candidate,1,[game.player.get_rid()])
+		if space.intersect_ray(ray).is_empty():return candidate
+	return focus+Vector3(0,1.9,0)
