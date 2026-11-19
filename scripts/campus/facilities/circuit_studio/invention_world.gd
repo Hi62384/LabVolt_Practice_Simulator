@@ -183,7 +183,8 @@ func _apply(peer: int,action: Dictionary) -> void:
 		if not joint_index is int or not is_instance_valid(view):return
 		var joints: Array=view.get_meta("joints",[])
 		if joint_index<0 or joint_index>=joints.size() or joints[joint_index].control!="":return
-		if _pose(peer).distance_to(view.to_global(joints[joint_index].pivot))>3.5:return
+		var joint: Dictionary=joints[joint_index]
+		if joint.chain.is_empty() or _pose(peer).distance_to(view.to_global(Model.hinge_pose(joints,joint.chain)*joint.pivot))>3.5:return
 		joints[joint_index].manual=not bool(joints[joint_index].manual)
 		return
 	if op=="pickup":
@@ -374,15 +375,20 @@ func _process(delta: float) -> void:
 		for shaft in root.get_meta("shafts",[]):
 			if shaft.get_meta("kind")=="wheel" and item.effective.get(shaft.get_meta("control",""),false):shaft.rotation.x=float(item.angle)
 		if not multiplayer.is_server():
-			for joint in root.get_meta("joints",[]):
+			var joints: Array=root.get_meta("joints",[])
+			var articulation_changed:=false
+			for joint in joints:
+				if joint.chain.is_empty():continue
 				var angle: float=item.get("hinge_angles",{}).get(joint.index,0.0)
-				_apply_hinge(joint,move_toward(float(joint.angle),angle,Model.HINGE_SPEED*delta))
+				var next:=move_toward(float(joint.angle),angle,Model.HINGE_SPEED*delta)
+				articulation_changed=articulation_changed or not is_equal_approx(next,float(joint.angle))
+				joint.angle=next
+			if articulation_changed:_apply_hinges(joints)
 
-func _apply_hinge(joint: Dictionary,angle: float) -> void:
-	if is_equal_approx(float(joint.angle),angle):return
-	joint.angle=angle
-	for binding in joint.bindings:
-		binding.node.transform=Model.hinge_transform(binding.rest,joint.pivot,angle)
+func _apply_hinges(joints: Array) -> void:
+	for joint in joints:
+		var pose:=Model.hinge_pose(joints,joint.chain)
+		for binding in joint.bindings:binding.node.transform=pose*binding.rest
 
 func _hinge_clear(view: Node3D,joint: Dictionary,angle: float) -> bool:
 	var solid: StaticBody3D=view.get_node("Solid")
@@ -390,12 +396,16 @@ func _hinge_clear(view: Node3D,joint: Dictionary,angle: float) -> bool:
 	query.collision_mask=1
 	query.exclude=[solid.get_rid()]
 	var space:=get_world_3d().direct_space_state
-	for binding in joint.bindings:
-		var collider:=binding.node as CollisionShape3D
-		if collider==null or collider.get_parent()!=solid:continue
-		query.shape=collider.shape
-		query.transform=solid.global_transform*Model.hinge_transform(binding.rest,joint.pivot,angle)
-		if not space.intersect_shape(query,1).is_empty():return false
+	var joints: Array=view.get_meta("joints",[])
+	for affected in joints:
+		if joint.index not in affected.chain:continue
+		var pose:=Model.hinge_pose(joints,affected.chain,joint.index,angle)
+		for binding in affected.bindings:
+			var collider:=binding.node as CollisionShape3D
+			if collider==null or collider.get_parent()!=solid:continue
+			query.shape=collider.shape
+			query.transform=solid.global_transform*pose*binding.rest
+			if not space.intersect_shape(query,1).is_empty():return false
 	return true
 
 func _release_pcb(holder_key: String) -> void:
@@ -435,16 +445,21 @@ func _physics_process(delta: float) -> void:
 			if effective!=bool(item.effective[control]):item.effective[control]=effective;changed=true
 		var hinge_view: Node3D=visuals.get(key)
 		if is_instance_valid(hinge_view):
-			for joint in hinge_view.get_meta("joints",[]):
+			var joints: Array=hinge_view.get_meta("joints",[])
+			var articulation_changed:=false
+			for joint in joints:
+				if joint.chain.is_empty():continue
 				var angle: float
 				if joint.control=="":
 					angle=move_toward(float(joint.angle),Model.HINGE_OPEN if joint.manual else 0.0,Model.HINGE_SPEED*delta)
 				else:
 					angle=Model.hinge_angle(joint.angle,joint.control,item.effective,item.features.battery,delta)
 				if not is_equal_approx(angle,float(joint.angle)) and _hinge_clear(hinge_view,joint,angle):
-					_apply_hinge(joint,angle)
+					joint.angle=angle
 					item.hinge_angles[joint.index]=angle
+					articulation_changed=true
 					changed=true
+			if articulation_changed:_apply_hinges(joints)
 		var drive_direction:=Vector3.ZERO
 		if item.features.battery:
 			for part in item.parts:
@@ -526,12 +541,11 @@ func _create_view(key: String,item: Dictionary) -> StaticBody3D:
 		var joint:=joints[index]
 		joint.pivot.y+=.22 # The editor displays the same grid below the installed body.
 		joint.index=index
-		joint.angle=0.0
+		joint.angle=float(item.get("hinge_angles",{}).get(index,0.0))
 		joint.manual=false
 		joint.bindings=[]
 		for part_index in joint.indices:joint.bindings.append_array(bindings[part_index])
-		_apply_hinge(joint,float(item.get("hinge_angles",{}).get(index,0.0)))
-		if joint.control=="":
+		if joint.control=="" and not joint.chain.is_empty():
 			var target:=StaticBody3D.new()
 			target.collision_layer=4
 			target.collision_mask=0
@@ -546,7 +560,11 @@ func _create_view(key: String,item: Dictionary) -> StaticBody3D:
 			box.size=Vector3(.3,.3,.3)
 			shape.shape=box
 			target.add_child(shape)
+			bindings[joint.part_index].append({"node":target,"rest":target.transform})
+	for joint in joints:
+		if joint.chain.size()>1:joints[joint.chain[-2]].bindings.append_array(bindings[joint.part_index])
 	root.set_meta("joints",joints)
+	_apply_hinges(joints)
 	for control in ["A","B"]:
 		if not item.features.get("switch_"+control.to_lower(),false):continue
 		var button:=StaticBody3D.new();button.name="Control"+control;button.collision_layer=4;button.collision_mask=0;button.position=Vector3(-.25 if control=="A" else .25,.66,-.25);root.add_child(button)

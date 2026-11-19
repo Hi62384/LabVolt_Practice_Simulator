@@ -22,6 +22,10 @@ FIXTURES = {
         "test_classroom_event_rejoin_network.gd", "EVENT_REJOIN_HOST_READY",
         "EVENT_REJOIN_HOST PASS", "EVENT_REJOIN_CLIENT PASS",
     ),
+    "assignment": (
+        "test_room_assignment_rejoin.gd", "PAPER_REJOIN_HOST_READY",
+        "PAPER_REJOIN_HOST PASS", "PAPER_REJOIN_CLIENT PASS",
+    ),
 }
 
 

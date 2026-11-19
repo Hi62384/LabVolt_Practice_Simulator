@@ -115,7 +115,7 @@ jobs:
             if ($LASTEXITCODE -or !(Test-Path $sourceLog) -or !(Select-String -Path $sourceLog -SimpleMatch $sourceTests[$test]) -or (Select-String -Path $sourceLog -Pattern 'SCRIPT ERROR:')) { throw "Source test failed: $test" }
           }
           $inventionTests = @{
-            pcb_drive_test = 'ARTICULATED_HINGE_PASS'
+            pcb_drive_test = 'CHAINED_HINGE_PASS'
             invention_network_load = 'INVENTION_NETWORK_LOAD PASS'
           }
           foreach ($test in $inventionTests.Keys) {
@@ -164,7 +164,7 @@ jobs:
             & $env:GODOT --headless --path . --script "res://tests/campus/academics/$test.gd" --log-file $log
             if ($LASTEXITCODE -or !(Test-Path $log) -or !(Select-String -Path $log -SimpleMatch $tests[$test] -Quiet) -or (Select-String -Path $log -SimpleMatch 'SCRIPT ERROR:' -Quiet)) { throw "Classroom check failed: $test" }
           }
-          python -B tests/campus/academics/run_classroom_events_network.py events live-events
+          python -B tests/campus/academics/run_classroom_events_network.py events live-events assignment
           if ($LASTEXITCODE) { throw 'Classroom reconnect checks failed' }
       - name: Bundle and verify offline firmware compilers
         shell: pwsh

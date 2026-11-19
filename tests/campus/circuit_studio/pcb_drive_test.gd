@@ -142,5 +142,37 @@ func _check_hinge() -> void:
 	await physics_frame
 	await physics_frame
 	assert(not world._hinge_clear(world.visuals.test,joint,Model.HINGE_OPEN))
+	# Place the child hinge first in the blueprint to exercise order independence.
+	var chain_parts: Array=[
+		{"type":"hinge","x":0,"y":0,"z":-2},
+		{"type":"servo","x":0,"y":0,"z":-1,"control":"B"},
+		{"type":"wood_frame","x":0,"y":0,"z":-3},
+		parts[0],parts[1],
+	]
+	var chain:=item.duplicate(true)
+	chain.position=Vector3(8,2,0)
+	chain.parts=chain_parts
+	chain.features.battery=true
+	chain.state.B=true
+	chain.hinge_angles={}
+	world.placed.chain=chain
+	world.visuals.chain=world._create_view("chain",chain)
+	var chain_joints: Array=world.visuals.chain.get_meta("joints")
+	assert(chain_joints[0].chain==[1,0] and chain_joints[1].chain==[1])
+	var tip: Dictionary=chain_joints[0].bindings[0]
+	for i in 60:world._physics_process(1.0/60.0)
+	var parent_pose:=Model.hinge_transform(Transform3D.IDENTITY,chain_joints[1].pivot,Model.HINGE_OPEN)
+	var child_pose:=Model.hinge_transform(Transform3D.IDENTITY,chain_joints[0].pivot,Model.HINGE_OPEN)
+	assert(tip.node.transform.is_equal_approx(parent_pose*child_pose*tip.rest))
+	assert(chain_joints[0].bindings[1].node.transform.is_equal_approx(tip.node.transform))
+	chain.state.B=false
+	for i in 60:world._physics_process(1.0/60.0)
+	assert(tip.node.transform.is_equal_approx(parent_pose*tip.rest))
+	# The ancestor's clearance check must include the distant descendant tip.
+	wall.global_position=tip.node.global_position
+	await physics_frame
+	await physics_frame
+	assert(not world._hinge_clear(world.visuals.chain,chain_joints[1],Model.HINGE_OPEN))
+	print("CHAINED_HINGE_PASS")
 	print("ARTICULATED_HINGE_PASS")
 	game.free()

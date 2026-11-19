@@ -31,7 +31,8 @@ static func hinges(parts: Array) -> Array[Dictionary]:
 	var used := {}
 	for i in parts.size():
 		if parts[i].type!="hinge":cells[_cell(parts[i])]=i
-	for part in parts:
+	for part_index in parts.size():
+		var part: Dictionary=parts[part_index]
 		if part.type!="hinge":continue
 		var pivot := _cell(part)
 		var forward := rotate_grid(Vector3i.FORWARD,int(part.get("turns",0)))
@@ -61,7 +62,18 @@ static func hinges(parts: Array) -> Array[Dictionary]:
 		for cell in queue:
 			used[cell]=true
 			indices.append(cells[cell])
-		result.append({"pivot":center(part),"indices":indices,"control":control})
+		result.append({"pivot":center(part),"indices":indices,"control":control,"part_index":part_index,"anchor_index":cells[anchor]})
+	var carriers := {}
+	for index in result.size():
+		for member in result[index].indices:carriers[member]=index
+	for index in result.size():
+		var chain: Array[int]=[index]
+		var parent: int=carriers.get(result[index].anchor_index,-1)
+		while parent>=0 and parent not in chain:
+			chain.push_front(parent)
+			parent=carriers.get(result[parent].anchor_index,-1)
+		# A closed linkage cannot use independent hinge angles.
+		result[index].chain=chain if parent<0 else []
 	return result
 
 static func _cell(part: Dictionary) -> Vector3i:
@@ -73,6 +85,13 @@ static func center(part: Dictionary) -> Vector3:
 static func hinge_transform(rest: Transform3D,pivot: Vector3,angle: float) -> Transform3D:
 	var yaw:=Basis(Vector3.UP,angle)
 	return Transform3D(yaw*rest.basis,pivot+yaw*(rest.origin-pivot))
+
+static func hinge_pose(joints: Array,chain: Array,changed: int=-1,angle: float=0.0) -> Transform3D:
+	var pose:=Transform3D.IDENTITY
+	for index in chain:
+		var joint: Dictionary=joints[index]
+		pose=pose*hinge_transform(Transform3D.IDENTITY,joint.pivot,angle if index==changed else float(joint.angle))
+	return pose
 
 static func hinge_angle(previous: float,control: String,channels: Dictionary,battery: bool,delta: float) -> float:
 	return move_toward(previous,HINGE_OPEN if battery and channels.get(control,false) else 0.0,HINGE_SPEED*delta)

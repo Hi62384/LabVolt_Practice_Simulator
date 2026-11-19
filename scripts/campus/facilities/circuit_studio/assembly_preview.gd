@@ -100,6 +100,10 @@ func _ready() -> void:
 		for index in joint.indices:
 			var instance := instances[index]
 			joint.bindings.append({"node":instance,"rest":instance.transform})
+	for joint in joints:
+		if joint.chain.size()>1:
+			var mount:=instances[joint.part_index]
+			joints[joint.chain[-2]].bindings.append({"node":mount,"rest":mount.transform})
 	_ghost=MeshInstance3D.new()
 	var ghost_box:=BoxMesh.new()
 	ghost_box.size=Vector3(.286,.286,.286)
@@ -116,12 +120,14 @@ func preview_power(delta: float, channels: Dictionary, battery: bool) -> void:
 	for instance in _powered_parts:
 		instance.transform=instance.get_meta("rest")
 	for joint in joints:
+		if joint.chain.is_empty():continue
 		if joint.control=="":
 			joint.angle=move_toward(float(joint.angle),Model.HINGE_OPEN if joint.manual else 0.0,Model.HINGE_SPEED*delta)
 		else:
 			joint.angle=Model.hinge_angle(joint.angle,joint.control,channels,battery,delta)
-		for binding in joint.bindings:
-			binding.node.transform=Model.hinge_transform(binding.rest,joint.pivot,joint.angle)
+	for joint in joints:
+		var pose:=Model.hinge_pose(joints,joint.chain)
+		for binding in joint.bindings:binding.node.transform=pose*binding.rest
 	for instance in _powered_parts:
 		var active: bool=battery and channels.get(instance.get_meta("channel"),false)
 		var roll: float=instance.get_meta("roll")
