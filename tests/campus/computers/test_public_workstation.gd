@@ -104,6 +104,10 @@ func run() -> void:
 	desktop._browser_save_download("manual.pdf",pdf)
 	if computers.local_snapshot.binary_files.get("Downloads/manual.pdf")!=pdf.size() or computers.stations[id].power.drive.entries["Downloads/manual.pdf"].data!=pdf:
 		push_error("Binary download did not reach the virtual drive");quit(1);return
+	var fixture_url:=OS.get_environment("LABVOLT_BROWSER_FIXTURE_URL")
+	if not fixture_url.is_empty() and not await verify_website_download(desktop,computers,id,fixture_url):
+		quit(1)
+		return
 	computers.last_request.erase(1)
 	desktop._switch_app("Files")
 	if not desktop.folder_button.visible or not desktop.delete_button.visible:
@@ -192,6 +196,56 @@ func run() -> void:
 	print("PUBLIC_WORKSTATION PASS")
 	game.front.leave_game();game.queue_free();await process_frame;quit()
 
+
+func verify_website_download(desktop: Control,computers: Node,id: String,url: String) -> bool:
+	desktop._switch_app("Browser")
+	var browser_surface: Control=desktop.browser_surface
+	if not browser_surface.renderer_available() or not browser_surface.tabs[0].native_download:
+		push_error("Native Chromium downloads are unavailable in the workstation")
+		return false
+	var browser: Variant=browser_surface.tabs[0].browser
+	browser_surface.address.text=url+"/website-download"
+	browser_surface._navigate()
+	var deadline:=Time.get_ticks_msec()+15000
+	while str(browser.get_title())!="WEBSITE_DOWNLOAD" and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if str(browser.get_title())!="WEBSITE_DOWNLOAD":
+		push_error("The website's download form did not load")
+		return false
+	await create_timer(.3).timeout
+	click_web_button(browser_surface,browser,Vector2(65,40))
+	deadline=Time.get_ticks_msec()+12000
+	while not is_instance_valid(browser_surface.download_dialog) and Time.get_ticks_msec()<deadline:
+		await process_frame
+	var path:="Downloads/website-report.pdf"
+	if not is_instance_valid(browser_surface.download_dialog) or computers.local_snapshot.binary_files.has(path):
+		push_error("Native Chromium POST download did not request virtual save confirmation: %s (%s)"%[browser_surface.status.text,browser.get_title()])
+		return false
+	computers.last_request.erase(1)
+	browser_surface.download_dialog.confirmed.emit()
+	var expected: PackedByteArray="%PDF-1.7\nActual Chromium POST download".to_ascii_buffer()
+	if computers.stations[id].power.drive.entries.get(path,{}).get("data")!=expected:
+		push_error("The website's POST download did not reach the workstation's virtual drive")
+		return false
+	await process_frame
+	click_web_button(browser_surface,browser,Vector2(65,95))
+	deadline=Time.get_ticks_msec()+12000
+	while not browser_surface.status.text.contains("exceeds") and Time.get_ticks_msec()<deadline:
+		await process_frame
+	if not browser_surface.status.text.contains("exceeds") or is_instance_valid(browser_surface.download_dialog):
+		push_error("Native Chromium accepted a file above its limit")
+		return false
+	desktop._close_window("Browser")
+	print("WORKSTATION_NATIVE_DOWNLOAD PASS")
+	return true
+
+func click_web_button(browser_surface: Control,browser: Variant,position: Vector2) -> void:
+	for pressed in [true,false]:
+		var click:=InputEventMouseButton.new()
+		click.position=position/browser_surface._desktop_pixel_scale()
+		click.button_index=MOUSE_BUTTON_LEFT
+		click.pressed=pressed
+		browser_surface._forward(browser,browser_surface.tabs[0].surface,click)
 
 func select_file(list: Tree, path: String) -> bool:
 	for row in list.get_root().get_children():

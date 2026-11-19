@@ -5,6 +5,19 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/website-download":
+            body = b"""<html><title>WEBSITE_DOWNLOAD</title>
+            <form method="post" action="/download-post">
+            <button style="position:absolute;left:20px;top:20px;width:175px;height:40px">Download report</button>
+            </form><form method="post" action="/download-too-large">
+            <button style="position:absolute;left:20px;top:75px;width:175px;height:40px">Download large file</button>
+            </form></html>"""
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path == "/signed-download.pdf":
             if "labvolt_session=fixture" not in self.headers.get("Cookie", ""):
                 self.send_error(403)
@@ -43,6 +56,20 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         size = int(self.headers.get("Content-Length", "0"))
         self.rfile.read(size)
+        if self.path in ("/download-post", "/download-too-large"):
+            body = b"%PDF-1.7\n" + b"Actual Chromium POST download"
+            if self.path == "/download-too-large":
+                body += b"x" * (256 * 1024)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Disposition", 'attachment; filename="website-report.pdf"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
         self.send_response(302)
         self.send_header("Location", "/private")
         self.send_header("Set-Cookie", "labvolt_session=fixture; HttpOnly; SameSite=Lax")

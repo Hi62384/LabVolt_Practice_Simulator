@@ -1,8 +1,16 @@
 diff --git a/gdcef/browser/src/gdbrowser.cpp b/gdcef/browser/src/gdbrowser.cpp
-index f5b3dcd..6cab63a 100644
+index f5b3dcd..7fd5036 100644
 --- a/gdcef/browser/src/gdbrowser.cpp
 +++ b/gdcef/browser/src/gdbrowser.cpp
-@@ -259,6 +259,7 @@ void GdBrowserView::_bind_methods()
+@@ -31,6 +31,7 @@
+ #include <algorithm>
+ #include <cstring>
+ #include <fstream>
++#include <godot_cpp/variant/packed_byte_array.hpp>
+
+ #include <gdextension_interface.h>
+ #include <godot_cpp/core/class_db.hpp>
+@@ -259,6 +260,7 @@ void GdBrowserView::_bind_methods()
      // Methods
      ClassDB::bind_method(D_METHOD("close"), &GdBrowserView::close);
      ClassDB::bind_method(D_METHOD("id"), &GdBrowserView::id);
@@ -10,7 +18,31 @@ index f5b3dcd..6cab63a 100644
      ClassDB::bind_method(D_METHOD("get_error"), &GdBrowserView::getError);
      ClassDB::bind_method(D_METHOD("is_valid"), &GdBrowserView::isValid);
      ClassDB::bind_method(D_METHOD("set_texture", "texture"),
-@@ -463,7 +464,8 @@ godot::String GdBrowserView::getError()
+@@ -271,6 +273,8 @@ void GdBrowserView::_bind_methods()
+     ClassDB::bind_method(D_METHOD("load_url"), &GdBrowserView::loadURL);
+     ClassDB::bind_method(D_METHOD("load_data_uri"),
+                          &GdBrowserView::loadDataURI);
++    ClassDB::bind_method(D_METHOD("enable_virtual_downloads", "directory"),
++                         &GdBrowserView::enableVirtualDownloads);
+     ClassDB::bind_method(D_METHOD("download_file"),
+                          &GdBrowserView::downloadFile);
+     ClassDB::bind_method(D_METHOD("allow_downloads"),
+@@ -384,6 +388,14 @@ void GdBrowserView::_bind_methods()
+                          &GdBrowserView::endDragging);
+
+     // Signals
++    ADD_SIGNAL(MethodInfo("virtual_download_progress",
++                          PropertyInfo(Variant::INT, "received"),
++                          PropertyInfo(Variant::INT, "total")));
++    ADD_SIGNAL(MethodInfo("virtual_download_finished",
++                          PropertyInfo(Variant::STRING, "name"),
++                          PropertyInfo(Variant::STRING, "mime"),
++                          PropertyInfo(Variant::PACKED_BYTE_ARRAY, "body"),
++                          PropertyInfo(Variant::STRING, "error")));
+     ADD_SIGNAL(MethodInfo("on_download_updated",
+                           PropertyInfo(Variant::STRING, "file"),
+                           PropertyInfo(Variant::INT, "percentage"),
+@@ -463,7 +475,8 @@ godot::String GdBrowserView::getError()
  //------------------------------------------------------------------------------
  int GdBrowserView::init(godot::String const& url,
                          CefBrowserSettings const& settings,
@@ -20,17 +52,196 @@ index f5b3dcd..6cab63a 100644
  {
      // Allocate the CEF client and the Godot rendering resources here instead of
      // in the constructor: Godot also builds throw-away instances of registered
-@@ -491,7 +493,7 @@ int GdBrowserView::init(godot::String const& url,
+@@ -491,7 +504,7 @@ int GdBrowserView::init(godot::String const& url,
      // passed to CefRenderProcessHandler::OnBrowserCreated() in the render
      // process.
      m_browser = CefBrowserHost::CreateBrowserSync(
 -        window_info, m_impl, url.utf8().get_data(), settings, nullptr, nullptr);
 +        window_info, m_impl, url.utf8().get_data(), settings, nullptr, context);
- 
+
      if ((m_browser == nullptr) || (m_browser->GetHost() == nullptr))
      {
+@@ -1206,6 +1219,14 @@ bool GdBrowserView::isValid() const
+ //------------------------------------------------------------------------------
+ void GdBrowserView::close()
+ {
++    if (m_virtual_download_callback)
++        m_virtual_download_callback->Cancel();
++    clearVirtualDownload();
++    if (!m_virtual_download_directory.empty())
++    {
++        std::error_code error;
++        fs::remove(m_virtual_download_directory, error);
++    }
+     // CEF closes the browser asynchronously and keeps calling m_impl until it
+     // is really closed, while this node may be freed meanwhile: m_impl shall
+     // no longer reach it.
+@@ -1355,62 +1376,125 @@ void GdBrowserView::downloadFile(godot::String url)
+ }
+
+ //------------------------------------------------------------------------------
+-bool GdBrowserView::canDownload(CefRefPtr<CefBrowser> browser,
+-                                const CefString& url,
+-                                const CefString& request_method)
++bool GdBrowserView::enableVirtualDownloads(godot::String directory)
++{
++    if (!m_virtual_download_directory.empty())
++        return false;
++    const auto path = utf8_to_path(directory.utf8().get_data()).make_preferred();
++    std::error_code error;
++    // The game supplies a new private directory. Existing directories,
++    // including symlinks, are rejected.
++    if (!path.is_absolute() || !fs::create_directory(path, error) || error)
++        return false;
++    m_virtual_download_directory = path;
++    return true;
++}
++
++void GdBrowserView::clearVirtualDownload()
++{
++    if (!m_virtual_download_directory.empty())
++    {
++        std::error_code error;
++        auto entry_iter = fs::directory_iterator(m_virtual_download_directory, error);
++        for (; !error && entry_iter != fs::directory_iterator(); entry_iter.increment(error))
++        {
++            const auto& entry = *entry_iter;
++            std::error_code entry_error;
++            if (fs::is_regular_file(entry.symlink_status(entry_error)) && !entry_error)
++                fs::remove(entry.path(), entry_error);
++        }
++    }
++    m_virtual_download_id = -1;
++    m_virtual_download_payload.clear();
++    m_virtual_download_callback = nullptr;
++}
++
++//------------------------------------------------------------------------------
++bool GdBrowserView::canDownload(CefRefPtr<CefBrowser>,
++                                const CefString&,
++                                const CefString&)
+ {
+-    // TODO add a whitelist ["*"]
+-    return m_allow_downloads;
++    return !m_virtual_download_directory.empty() && m_virtual_download_id < 0;
+ }
+
+ //------------------------------------------------------------------------------
+ bool GdBrowserView::onBeforeDownload(
+-    CefRefPtr<CefBrowser> browser,
++    CefRefPtr<CefBrowser>,
+     CefRefPtr<CefDownloadItem> download_item,
+     const CefString& suggested_name,
+     CefRefPtr<CefBeforeDownloadCallback> callback)
+ {
+-    // Note: only keep the file name of the suggestion, which comes from the
+-    // server: a name holding path separators or ".." would write outside of the
+-    // download folder, and an absolute one would even replace it entirely.
+-    fs::path name = utf8_to_path(suggested_name.ToString()).filename();
+-    fs::path download_path = m_download_folder / name;
+-    std::string utf8_path = path_to_utf8(download_path);
+-    BROWSER_DEBUG("Downloading file to path " << utf8_path);
+-
+-    // Don't show the download dialog, just go for it
+-    callback->Continue(utf8_path, false);
+-
+-    return false;
++    // Treat the server's proposed filename only as UI data. Chromium never
++    // receives a path influenced by a page and never opens a host dialog.
++    if (m_virtual_download_directory.empty() || m_virtual_download_id >= 0)
++        return true;
++    if (download_item->GetTotalBytes() > MAX_VIRTUAL_DOWNLOAD_BYTES)
++    {
++        emit_signal("virtual_download_finished", godot::String(), godot::String(),
++                    godot::PackedByteArray(), godot::String("The file exceeds 256 KB."));
++        return true;
++    }
++    m_virtual_download_id = download_item->GetId();
++    m_virtual_download_name = godot::String::utf8(suggested_name.ToString().c_str()).left(128);
++    const auto mime = download_item->GetMimeType().ToString();
++    const char* suffix = ".bin";
++    if (mime == "application/pdf") suffix = ".pdf";
++    else if (mime == "image/png") suffix = ".png";
++    else if (mime == "image/jpeg") suffix = ".jpg";
++    else if (mime == "image/webp") suffix = ".webp";
++    else if (mime == "application/zip") suffix = ".zip";
++    else if (mime.rfind("text/", 0) == 0) suffix = ".txt";
++    m_virtual_download_payload = m_virtual_download_directory /
++        ("payload-" + std::to_string(m_virtual_download_id) + suffix);
++    callback->Continue(path_to_utf8(m_virtual_download_payload), false);
++    return true;
+ }
+
+ //------------------------------------------------------------------------------
+ void GdBrowserView::onDownloadUpdated(
+-    CefRefPtr<CefBrowser> browser,
++    CefRefPtr<CefBrowser>,
+     CefRefPtr<CefDownloadItem> download_item,
+     CefRefPtr<CefDownloadItemCallback> callback)
+ {
+-    int percentage = download_item->GetPercentComplete();
+-    std::string file = download_item->GetFullPath();
+-
+-    BROWSER_DEBUG("Download " << file << " Updated: " << percentage);
+-
+-    // m_renderHandler->parentUI->DownloadUpdated.Broadcast(url, percentage);
+-    if ((percentage == 100) && (download_item->IsComplete()))
++    if (m_virtual_download_id < 0 || download_item->GetId() != m_virtual_download_id)
++        return;
++    m_virtual_download_callback = callback;
++    const auto received = download_item->GetReceivedBytes();
++    const auto total = download_item->GetTotalBytes();
++    godot::PackedByteArray body;
++    godot::String error;
++    if (received > MAX_VIRTUAL_DOWNLOAD_BYTES || total > MAX_VIRTUAL_DOWNLOAD_BYTES)
++    {
++        callback->Cancel();
++        error = "The file exceeds 256 KB.";
++    }
++    else if (download_item->IsComplete())
++    {
++        const auto payload = m_virtual_download_payload;
++        std::error_code file_error;
++        const auto size = fs::file_size(payload, file_error);
++        if (file_error || size > MAX_VIRTUAL_DOWNLOAD_BYTES)
++            error = "Could not read the downloaded file.";
++        else
++        {
++            body.resize(static_cast<int64_t>(size));
++            std::ifstream file(payload, std::ios::binary);
++            if (!file || (size > 0 && !file.read(reinterpret_cast<char*>(body.ptrw()), static_cast<std::streamsize>(size))))
++                error = "Could not read the downloaded file.";
++        }
++    }
++    else if (download_item->IsCanceled() || download_item->IsInterrupted())
++        error = "Chromium interrupted the download (code " +
++            godot::String::num_int64(download_item->GetInterruptReason()) + ").";
++    else
+     {
+-        BROWSER_DEBUG("Download " << file << " Complete");
+-        // m_renderHandler->parentUI->DownloadComplete.Broadcast(url);
++        emit_signal("virtual_download_progress", received, total);
++        return;
+     }
+-
+-    // Example download cancel/pause etc, we just have to hijack this
+-    // callback->Cancel();
+-
+-    // Emit signal for Godot script
+-    emit_signal(
+-        "on_download_updated",
+-        godot::String::utf8(file.c_str()),
+-        percentage,
+-        this);
++    const auto mime = godot::String::utf8(download_item->GetMimeType().ToString().c_str());
++    const auto name = m_virtual_download_name;
++    clearVirtualDownload();
++    emit_signal("virtual_download_finished", name, mime, body, error);
+ }
+
+ //------------------------------------------------------------------------------
 diff --git a/gdcef/browser/src/gdbrowser.hpp b/gdcef/browser/src/gdbrowser.hpp
-index a49e880..c1461ea 100644
+index a49e880..dc4e809 100644
 --- a/gdcef/browser/src/gdbrowser.hpp
 +++ b/gdcef/browser/src/gdbrowser.hpp
 @@ -63,9 +63,11 @@
@@ -43,7 +254,7 @@ index a49e880..c1461ea 100644
  #include "cef_render_handler.h"
 +#include "cef_request_context.h"
  #include "wrapper/cef_helpers.h"
- 
+
  #include <array>
 @@ -124,6 +126,7 @@ private: // CEF interfaces
                  public CefAudioHandler,
@@ -56,7 +267,7 @@ index a49e880..c1461ea 100644
 @@ -208,6 +211,26 @@ private: // CEF interfaces
              return this;
          }
- 
+
 +        // Never expose the host computer's filesystem picker to a web page.
 +        virtual CefRefPtr<CefDialogHandler> GetDialogHandler() override
 +        {
@@ -83,7 +294,7 @@ index a49e880..c1461ea 100644
 @@ -613,6 +636,11 @@ public:
          return m_id;
      }
- 
+
 +    inline int blockedFileDialogs() const
 +    {
 +        return m_blocked_file_dialogs;
@@ -92,24 +303,47 @@ index a49e880..c1461ea 100644
      // -------------------------------------------------------------------------
      //! \brief Return the number of browsers created and not yet closed by CEF.
      //! CloseBrowser() being asynchronous, it is used by GdCEF::shutdown() to
-@@ -1193,7 +1221,8 @@ private:
+@@ -649,6 +677,8 @@ public:
+     //! \brief Exported method to Godot script. Download the given file from
+     //! URL.
+     // -------------------------------------------------------------------------
++    bool enableVirtualDownloads(godot::String directory);
++
+     void downloadFile(godot::String url);
+
+     // -------------------------------------------------------------------------
+@@ -1193,7 +1223,8 @@ private:
      // -------------------------------------------------------------------------
      int init(godot::String const& url,
               CefBrowserSettings const& cef_settings,
 -             CefWindowInfo const& window_info);
 +             CefWindowInfo const& window_info,
 +             CefRefPtr<CefRequestContext> context);
- 
+
      // -------------------------------------------------------------------------
      //! \brief Called by GdBrowserView::Impl::GetViewRect
-@@ -1409,6 +1438,7 @@ private:
+@@ -1409,6 +1440,7 @@ private:
      //! \brief One to one CEF browser. The GdCEF is the class containing the
      //! whole browsers.
      CefRefPtr<CefBrowser> m_browser = nullptr;
 +    int m_blocked_file_dialogs = 0;
- 
+
      //! \brief Godot's texture holding the page content (CEF => Godot)
      godot::Ref<godot::ImageTexture> m_texture;
+@@ -1471,6 +1503,13 @@ private:
+     mutable std::stringstream m_error;
+
+     //! \brief Allow downloads (configured from Browser config)
++    static constexpr int64_t MAX_VIRTUAL_DOWNLOAD_BYTES = 256 * 1024;
++    int64_t m_virtual_download_id = -1;
++    fs::path m_virtual_download_directory;
++    fs::path m_virtual_download_payload;
++    godot::String m_virtual_download_name;
++    CefRefPtr<CefDownloadItemCallback> m_virtual_download_callback;
++    void clearVirtualDownload();
+     bool m_allow_downloads = true;
+
+     //! \brief Download folder (configured from Browser config)
 diff --git a/gdcef/browser/src/gdcef.cpp b/gdcef/browser/src/gdcef.cpp
 index b2c2043..b08bc53 100644
 --- a/gdcef/browser/src/gdcef.cpp
@@ -123,11 +357,11 @@ index b2c2043..b08bc53 100644
      ClassDB::bind_method(D_METHOD("is_alive"), &GdCEF::isAlive);
      ClassDB::bind_method(D_METHOD("get_error"), &GdCEF::getError);
 @@ -257,6 +258,7 @@ void GdCEF::shutdown()
- 
+
      GDCEF_DEBUG("Closing all browsers");
      m_impl->closeAllBrowsers(true);
 +    m_contexts.clear();
- 
+
      // CloseBrowser() is asynchronous and CefShutdown() requires all browsers
      // to be closed: we are the one pumping the CEF message loop (see
 @@ -753,7 +755,22 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
@@ -157,7 +391,7 @@ index b2c2043..b08bc53 100644
 @@ -799,6 +816,11 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
      return browser;
  }
- 
+
 +void GdCEF::releaseContext(godot::String const& key)
 +{
 +    m_contexts.erase(std::string(key.utf8().get_data()));
@@ -171,23 +405,23 @@ index 61920e0..e9ac507 100644
 --- a/gdcef/browser/src/gdcef.hpp
 +++ b/gdcef/browser/src/gdcef.hpp
 @@ -61,7 +61,9 @@
- 
+
  #include "cef_app.h"
  #include "cef_client.h"
 +#include "cef_request_context.h"
  #include "cef_version.h"
 +#include <unordered_map>
- 
+
  class GdBrowserView;
- 
+
 @@ -298,6 +300,8 @@ public:
                                   godot::TextureRect* texture_rect,
                                   godot::Dictionary config);
- 
+
 +    void releaseContext(godot::String const& key);
 +
  private:
- 
+
      //! \brief CEF interface implementation
 @@ -338,6 +342,7 @@ private:
      //! \brief Settings for the CEF browser instances (information set from

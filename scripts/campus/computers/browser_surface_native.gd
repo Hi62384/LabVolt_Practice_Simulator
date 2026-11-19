@@ -189,7 +189,16 @@ func _add_tab() -> void:
  var surface:=TextureRect.new();surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);surface.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;surface.stretch_mode=TextureRect.STRETCH_SCALE;surface.focus_mode=Control.FOCUS_ALL;holder.add_child(surface)
  var browser: Variant=runtime.create_browser(HOME_URL if device_kind=="computer" else "about:blank",surface,{"allow_downloads":false,"javascript":true,"javascript_access_clipboard":false,"session_key":session_key})
  if not is_instance_valid(browser):surface.queue_free();status.text="Browser tab failed: "+str(runtime.get_error());return
- tabs.append({"browser":browser,"surface":surface,"title":"New tab"});active=tabs.size()-1
+ var native_download:=false
+ if device_kind=="computer" and browser.has_method("enable_virtual_downloads"):
+  var scratch:=ProjectSettings.globalize_path("user://cef_virtual_downloads")
+  if DirAccess.make_dir_recursive_absolute(scratch)==OK:
+   var folder:=scratch.path_join(Crypto.new().generate_random_bytes(16).hex_encode())
+   native_download=bool(browser.enable_virtual_downloads(folder))
+   if native_download:
+    browser.connect("virtual_download_progress",_native_download_progress.bind(session_key))
+    browser.connect("virtual_download_finished",_native_download_finished.bind(session_key))
+ tabs.append({"browser":browser,"surface":surface,"title":"New tab","native_download":native_download});active=tabs.size()-1
  var browser_ref: WeakRef=weakref(browser)
  browser.connect("on_page_loaded",func(_view,_http_code):if browser_ref.get_ref()!=null:_loaded(browser_ref.get_ref()))
  browser.connect("on_page_failed_loading",func(_code,message,_view):if browser_ref.get_ref()==_browser():
@@ -333,7 +342,7 @@ func _loaded(browser: Variant) -> void:
   if tabs[i].browser!=browser:continue
   tabs[i].title=str(browser.get_title()) if not str(browser.get_title()).is_empty() else str(browser.get_url()).left(24)
   browser.execute_javascript(_upload_script())
-  if device_kind=="computer":
+  if device_kind=="computer" and not tabs[i].native_download:
    var token: String=tabs[i].get("page_download",{}).get("token","")
    if token.is_empty():token=Crypto.new().generate_random_bytes(12).hex_encode()
    tabs[i].page_download={"token":token,"index":0,"parts":PackedStringArray(),"length":0,"last":0}
@@ -372,16 +381,36 @@ func _check_page_download() -> void:
   return
  var extension: String=Downloads.EXTENSIONS.get(str(payload.get("mime","")),"")
  var body:=Marshalls.base64_to_raw(str(payload.get("data","")))
- if not Downloads.valid(body,extension):
-  status.text="The page offered an unsupported or invalid file."
-  return
- if is_instance_valid(download_dialog):return
- var filename:=Downloads.filename(str(payload.get("name","")).left(128),extension)
  var origin:=str(tab.browser.get_url()).get_slice("://",0)+"://"+str(tab.browser.get_url()).get_slice("://",1).get_slice("/",0)
+ _offer_download(str(payload.get("name","")),extension,body,origin.left(85))
+
+func _native_download_progress(received: int,total: int,expected_session: String) -> void:
+ if expected_session!=session_key:return
+ status.text="Downloading… %d / %d KB"%[ceili(received/1024.0),ceili(total/1024.0)] if total>0 else "Downloading… %d KB"%ceili(received/1024.0)
+
+func _native_download_finished(name: String,mime: String,body: PackedByteArray,error: String,expected_session: String) -> void:
+ if expected_session!=session_key or not virtual_download_save.is_valid():return
+ if not error.is_empty():
+  status.text=error
+  return
+ var extension: String=Downloads.EXTENSIONS.get(mime.get_slice(";",0).strip_edges().to_lower(),"")
+ if extension.is_empty() and mime in ["","application/octet-stream"]:
+  extension=name.get_extension().to_lower()
+  if extension=="jpeg":extension="jpg"
+ _offer_download(name,extension,body,"Chromium")
+
+func _offer_download(name: String,extension: String,body: PackedByteArray,source: String) -> void:
+ if not Downloads.valid(body,extension):
+  status.text="The website offered an unsupported or invalid file."
+  return
+ if is_instance_valid(download_dialog):
+  status.text="Confirm or dismiss the previous download first."
+  return
+ var filename:=Downloads.filename(name.left(128),extension)
  var expected_session:=session_key
  download_dialog=ConfirmationDialog.new()
  download_dialog.title="Save website download"
- download_dialog.dialog_text="%s offered %s (%d bytes). Save it to virtual Downloads?"%[origin.left(85),filename,body.size()]
+ download_dialog.dialog_text="%s downloaded %s (%d bytes). Save it to virtual Downloads?"%[source,filename,body.size()]
  download_dialog.ok_button_text="Save"
  add_child(download_dialog)
  download_dialog.confirmed.connect(func():
