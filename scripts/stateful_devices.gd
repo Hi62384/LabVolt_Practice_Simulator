@@ -2,13 +2,16 @@ extends RefCounted
 # Step-bounded behavioral devices. State advances only on the authoritative station.
 static func tick(kind: String,n: Array,v: Dictionary,old: Dictionary,dt: float) -> Dictionary:
  var s := old.duplicate(true)
- var g := float(v.get(n[0] if kind=="timer555" else n[6] if kind=="flip74" else n[7] if kind=="shift595" else n[1],0))
- var supply := float(v.get(n[7] if kind=="timer555" else n[13] if kind=="flip74" else n[15] if kind=="shift595" else n[0],0))-g
+ var ground: String=n[0] if kind=="timer555" else n[6] if kind=="flip74" else n[7] if kind=="shift595" else n[1]
+ var power: String=n[7] if kind=="timer555" else n[13] if kind=="flip74" else n[15] if kind=="shift595" else n[0]
+ if not v.has(ground) or not v.has(power):return {"powered":false}
+ var g := float(v[ground])
+ var supply := float(v[power])-g
  var powered := supply>= (4.5 if kind=="timer555" else 2.0) and supply<= (16.0 if kind=="timer555" else 6.0)
  s.powered=powered
  if not powered:return {"powered":false}
  var pins: Array=[]
- for pin in n:pins.append(float(v.get(pin,0))-g)
+ for pin in n:pins.append(float(v.get(pin,g))-g)
  match kind:
   "timer555":
    var threshold := float(pins[4]);var q: bool=s.get("q",false)

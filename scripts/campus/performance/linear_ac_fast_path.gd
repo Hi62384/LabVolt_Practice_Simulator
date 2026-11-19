@@ -115,6 +115,10 @@ static func build(desc: Dictionary,parts: Array,wires: Array,group: Array) -> Di
  for index in group:
   var prefix_station:="station%d/"%int(index)
   var fields:={}
+  var transformer_ratios:={}
+  for part in work:
+   if part.kind=="T" and str(part.id).begins_with(prefix_station):
+    transformer_ratios[str(part.id).trim_prefix(prefix_station)]=float(part.ratio)
   for field in ["v","i","drop"]:
    var values: Array=[];var voltage_nodes:={}
    for name in results[0][field]:
@@ -144,7 +148,7 @@ static func build(desc: Dictionary,parts: Array,wires: Array,group: Array) -> Di
   var islands:={}
   for name in results[0].islands:
    if str(name).begins_with(prefix_station):islands[str(name).trim_prefix(prefix_station)]=results[0].islands[name]
-  per_station[index]={"fields":fields,"islands":islands}
+  per_station[index]={"fields":fields,"islands":islands,"transformer_ratios":transformer_ratios}
  var state_transitions: Array=[]
  for state in states:
   var base: float=next_states[0].get(state.full,0.0)
@@ -190,7 +194,7 @@ static func advance(cache: Dictionary,group: Array,stations: Array,time: float,d
   if station.has_method("_netlist"):station.sample_time=time
   else:station.prepare_step(dt)
   var basis: Dictionary=cache.stations[index]
-  var local:={"ok":true,"v":{},"i":{},"drop":{},"mode":{},"charge":{},"islands":basis.islands,"time":time+dt}
+  var local:={"ok":true,"v":{},"i":{},"drop":{},"mode":{},"charge":{},"winding_currents":{},"islands":basis.islands,"time":time+dt}
   for field in ["v","i","drop"]:
    var output: Dictionary=local[field]
    for entry in basis.fields[field]:
@@ -201,6 +205,9 @@ static func advance(cache: Dictionary,group: Array,stations: Array,time: float,d
     output[entry[0]]=value
     if field=="v":
      for alias in entry[2]:output[alias]=value
+  for id in basis.transformer_ratios:
+   var secondary: float=local.i[id]
+   local.winding_currents[id]={"secondary":secondary,"primary":-float(basis.transformer_ratios[id])*secondary}
   for i in cache.states.size():
    if int(cache.states[i].owner)==int(index):station.solver.memory[cache.states[i].local]=next_memory[i]
   station.solver.time=time+dt;station.solver.last=local;station.result=local

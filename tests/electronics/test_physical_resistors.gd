@@ -7,9 +7,13 @@ func run() -> void:
 	var Persistent=load("res://scripts/inventory_authority/component_persistence.gd")
 	var type := "r1000_t5_w25"
 	var profile=Profile.new();profile.open("resistor-acceptance")
+	# Import legacy inventory so the host migrates its dorm stock and instance
+	# registry together. Editing an already migrated profile breaks that ledger.
+	profile.data.erase("dorm")
 	profile.data.inventory[type]=2;profile.data.kits.starter.items[type]=2
 	var ledger=Ledger.new();assert(ledger.open("user://resistor-ledger")==OK)
-	assert(ledger.bind(1,"a".repeat(48),"1".repeat(64),profile.data).ok)
+	var bound: Dictionary=ledger.bind(1,"a".repeat(48),"1".repeat(64),profile.data)
+	assert(bound.ok,str(bound.get("error","")))
 	var design: Dictionary=Board.empty();design.parts=[{"id":"load","type":type,"a":"A1","b":"F1"}]
 	var actual: Dictionary=ledger.materialize(1,design)
 	var parameters: Dictionary=actual.component_runtime["board/load"]
@@ -30,15 +34,20 @@ func run() -> void:
 	assert(ledger.recall(1))
 	var again: Dictionary=ledger.materialize(1,actual)
 	assert(again.component_runtime["board/load"]==parameters)
+	assert(ledger.transact(1,"clear-resistor-board","remove_kit_board_components",["starter"]).ok)
+	assert(ledger.transact(1,"unpack-resistors","kit_quantity",["starter",type,0]).ok)
 	var receiver=Profile.new();receiver.open("resistor-recipient")
-	assert(ledger.bind(2,"b".repeat(48),"2".repeat(64),receiver.data).ok)
+	receiver.data.erase("dorm")
+	var recipient_bound: Dictionary=ledger.bind(2,"b".repeat(48),"2".repeat(64),receiver.data)
+	assert(recipient_bound.ok,str(recipient_bound.get("error","")))
 	var selections := {1:{},2:{}}
 	for id in actual.instance_ids.values():selections[1][id]=ledger.instance_hash(ledger.account(1).profile.component_instances[id])
-	assert(ledger.exchange("physical-resistor-transfer",[1,2],{1:{type:1},2:{}},{},selections).ok)
+	var exchanged: Dictionary=ledger.exchange("physical-resistor-transfer",[1,2],{1:{type:1},2:{}},{},selections)
+	assert(exchanged.ok,str(exchanged.get("error","")))
 	var delivered: Dictionary=ledger.materialize(2,design)
 	assert(delivered.component_runtime["board/load"]==parameters)
 	var reopened=Ledger.new();assert(reopened.open("user://resistor-ledger")==OK)
-	assert(reopened.bind(3,"b".repeat(48),"2".repeat(64),receiver.data).ok)
+	assert(reopened.bind(3,"b".repeat(48),"2".repeat(64),ledger.account(2).profile).ok)
 	assert(reopened.materialize(3,design).component_runtime["board/load"]==parameters)
 	var invalid: Dictionary=parameters.duplicate();invalid.actual=1.0
 	assert(not Persistent.valid({"board/load":invalid}))

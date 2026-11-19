@@ -13,12 +13,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
     timeout-minutes: 35
     env:
       GODOT_VERSION: 4.5.1
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,16 +94,27 @@ jobs:
           New-Item -ItemType Directory -Force $game | Out-Null
           dotnet restore CollegeSimulator.sln
           if ($LASTEXITCODE) { throw 'C# restore failed' }
-          dotnet build CollegeSimulator.sln --configuration Release --no-restore
+          dotnet build CollegeSimulator.sln --configuration Debug --no-restore
           if ($LASTEXITCODE) { throw 'C# build failed' }
+          if (!(Test-Path '.godot/mono/temp/bin/Debug/CollegeSimulator.dll')) { throw 'Missing Godot source-project Debug assembly' }
           & $env:GODOT --headless --path . --import
           if ($LASTEXITCODE) { throw 'Godot import failed' }
           $originalAppData = $env:APPDATA
           $env:APPDATA = "$env:RUNNER_TEMP/menu-smoke-source"
           New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
-          & $env:GODOT --headless --path . --script res://tests/menu_startup/test_menu_routes.gd
+          $sourceLog = "$env:RUNNER_TEMP/source-play.log"
+          & $env:GODOT --headless --path . --script res://tests/menu_startup/test_menu_routes.gd --log-file $sourceLog
+          if ($LASTEXITCODE -or !(Test-Path $sourceLog) -or !(Select-String -Path $sourceLog -SimpleMatch 'MENU_ROUTES PASS') -or (Select-String -Path $sourceLog -Pattern 'SCRIPT ERROR:')) { throw 'Source Play route verification failed' }
+          $sourceTests = @{
+            test_mna_csharp_kernel = 'MNA_CSHARP_KERNEL PASS'
+            test_catalogue_audit = 'CATALOGUE_AUDIT PASS'
+          }
+          foreach ($test in $sourceTests.Keys) {
+            $sourceLog = "$env:RUNNER_TEMP/$test.log"
+            & $env:GODOT --headless --path . --script "res://tests/electronics/$test.gd" --log-file $sourceLog
+            if ($LASTEXITCODE -or !(Test-Path $sourceLog) -or !(Select-String -Path $sourceLog -SimpleMatch $sourceTests[$test]) -or (Select-String -Path $sourceLog -Pattern 'SCRIPT ERROR:')) { throw "Source test failed: $test" }
+          }
           $env:APPDATA = $originalAppData
-          if ($LASTEXITCODE) { throw 'Play route verification failed' }
           & $env:GODOT --headless --path . --export-release "Windows Desktop" "$game/LabVolt.exe"
           if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck") -or !(Test-Path "$game/data_CollegeSimulator_windows_x86_64/CollegeSimulator.dll")) { throw 'Windows .NET export failed' }
           $smoke = Join-Path $PWD 'tests/menu_startup/test_menu_routes.gd'
@@ -158,18 +168,97 @@ jobs:
           python launcher/package.py "$env:RUNNER_TEMP/game" $assets $version
           if ($LASTEXITCODE) { throw 'Packaging failed' }
           ./launcher/build.ps1 -Output "$assets/LabVoltLauncher.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-windows-package
+          path: ${{ runner.temp }}/release/
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+          retention-days: 3
+  release:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-windows-package
+          path: ${{ runner.temp }}/release
       - name: Publish the verified release
         shell: pwsh
         run: |
-          $tag = "game-$env:GITHUB_SHA-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $manifest = Get-Content "$env:RUNNER_TEMP/release/manifest.json" -Raw | ConvertFrom-Json
+          if ($manifest.version -notmatch "^$env:GITHUB_SHA-$env:GITHUB_RUN_ID-[0-9]+$") { throw 'Package version does not belong to this run' }
+          $tag = "game-$($manifest.version)"
+          $env:GH_REPO = $env:GITHUB_REPOSITORY
           $endpoint = "repos/$env:GITHUB_REPOSITORY/releases"
-          $releaseId = gh api $endpoint --method POST -f "tag_name=$tag" -f "target_commitish=$env:GITHUB_SHA" -F draft=true -f "name=College Simulator Windows build $env:GITHUB_RUN_NUMBER" -f "body=Download LabVoltLauncher.exe once. It installs College Simulator and checks for future updates on startup." --jq .id
-          if ($LASTEXITCODE) { throw 'Could not create draft release' }
-          $files = @(Get-ChildItem "$env:RUNNER_TEMP/release" -File | ForEach-Object FullName)
-          for ($i = 0; $i -lt $files.Count; $i += 40) {
-            $batch = $files[$i..([Math]::Min($i + 39, $files.Count - 1))]
-            gh release upload $tag @batch
-            if ($LASTEXITCODE) { throw 'Could not upload release assets' }
+          $files = @(Get-ChildItem "$env:RUNNER_TEMP/release" -File)
+          $expected = @{ 'manifest.json' = $true; 'LabVoltLauncher.exe' = $true }
+          foreach ($entry in $manifest.files) {
+            foreach ($block in $entry.blocks) { $expected["$($block.sha256).gz"] = $true }
           }
+          if ($files.Count -ne $expected.Count -or ($files | Group-Object Name | Where-Object Count -gt 1) -or ($files | Where-Object { !$expected.ContainsKey($_.Name) })) { throw 'Packaged release assets differ from the manifest' }
+          $hashes = @{}
+          foreach ($file in $files) { $hashes[$file.Name] = 'sha256:' + (Get-FileHash $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
+          $releasePages = gh api --paginate --slurp $endpoint
+          if ($LASTEXITCODE) { throw 'Could not inspect existing releases' }
+          $release = foreach ($page in (ConvertFrom-Json -InputObject ($releasePages -join "`n") -NoEnumerate)) {
+            $page | Where-Object tag_name -eq $tag
+          }
+          if (!$release) {
+            $releaseJson = gh api $endpoint --method POST -f "tag_name=$tag" -f "target_commitish=$env:GITHUB_SHA" -F draft=true -f "name=College Simulator Windows build $env:GITHUB_RUN_NUMBER" -f "body=Download LabVoltLauncher.exe once. It installs College Simulator and checks for future updates on startup." --jq '{id,draft}'
+            if ($LASTEXITCODE) { throw 'Could not create draft release' }
+            $release = $releaseJson | ConvertFrom-Json
+          }
+          $releaseId = $release.id
+          function Get-ReleaseAssets {
+            $json = gh api --paginate --slurp "$endpoint/$releaseId/assets"
+            if ($LASTEXITCODE) { throw 'Could not list release assets' }
+            foreach ($page in (ConvertFrom-Json -InputObject ($json -join "`n") -NoEnumerate)) {
+              foreach ($asset in $page) { $asset }
+            }
+          }
+          $assets = @{}
+          foreach ($asset in (Get-ReleaseAssets)) { $assets[$asset.name] = $asset }
+          $pending = @()
+          foreach ($file in $files) {
+            $asset = $assets[$file.Name]
+            if ($asset.state -eq 'uploaded' -and $asset.size -eq $file.Length -and $asset.digest -eq $hashes[$file.Name]) { continue }
+            if (!$release.draft) { throw "Published release differs from the verified package: $($file.Name)" }
+            if ($asset) {
+              gh api "$endpoint/assets/$($asset.id)" --method DELETE
+              if ($LASTEXITCODE) { throw "Could not remove interrupted draft asset: $($file.Name)" }
+            }
+            $pending += $file.FullName
+          }
+          for ($i = 0; $i -lt $pending.Count; $i += 40) {
+            $batch = @($pending[$i..([Math]::Min($i + 39, $pending.Count - 1))])
+            for ($retry = 0; $retry -lt 3 -and $batch.Count; $retry++) {
+              gh release upload $tag @batch
+              if (!$LASTEXITCODE) { $batch = @(); break }
+              # A request can fail after GitHub accepted the asset. Compare the actual draft.
+              $received = @{}
+              foreach ($asset in (Get-ReleaseAssets)) {
+                $received[$asset.name] = $asset
+              }
+              $batch = @(foreach ($path in $batch) {
+                $name = [IO.Path]::GetFileName($path)
+                $asset = $received[$name]
+                if ($asset.state -eq 'uploaded' -and $asset.digest -eq $hashes[$name]) { continue }
+                if ($asset) {
+                  gh api "$endpoint/assets/$($asset.id)" --method DELETE | Out-Null
+                  if ($LASTEXITCODE) { throw "Could not remove interrupted draft asset: $name" }
+                }
+                $path
+              })
+            }
+            if ($batch.Count) { throw "Could not upload $($batch.Count) draft assets starting at position $i. Re-run the release job to resume." }
+          }
+          $verified = @(Get-ReleaseAssets)
+          if ($verified.Count -ne $files.Count -or ($verified | Where-Object { $_.state -ne 'uploaded' -or !$hashes.ContainsKey($_.name) -or $_.digest -ne $hashes[$_.name] })) { throw 'Draft assets do not match the verified package' }
+          if (!$release.draft) { return }
           gh api "$endpoint/$releaseId" --method PATCH -F draft=false -f make_latest=true --jq .html_url
           if ($LASTEXITCODE) { throw 'Could not publish release' }

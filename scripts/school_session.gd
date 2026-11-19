@@ -157,7 +157,14 @@ func roster_changed() -> void:
 			_save_practice(token)
 			if not host_departure_in_progress:_fail_departing(token,peer)
 			for id in papers.keys():
-				if papers[id].owner==peer:papers.erase(id)
+				var paper: Dictionary=papers[id]
+				if paper.owner!=peer:continue
+				if str(paper.get("room_class",""))!="":
+					paper.owner=0
+					if paper.held:paper.stowed=true
+					paper.held=false
+					paper.revision+=1
+				else:papers.erase(id)
 			identities.erase(peer)
 	if game.session.online and not identities.has(1):
 		_identify(1, local_identity)
@@ -635,11 +642,14 @@ func apply(peer: int,a: Dictionary) -> void:
 	elif op=="practice_lesson":
 		if mode not in ["Open Lab","Freeplay","Creative Freeplay"]:return
 		if not game.session.roster.has(peer) or str(identities.get(peer,""))=="":return
-		var pose: Variant=game.session.poses.get(peer,{}).get("position")
-		if not pose is Vector3:return
+		var pose: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
+		if not pose.is_finite():return
 		if room_bridge.registry==null:return
 		var room_id := str(room_bridge.registry.call("locate",pose))
 		if not room_bridge.contains(room_id,pose):return
+		if game.lecture_classes.classes.has(room_id):
+			_notice(peer,"The instructor is teaching a class. Ask for a practice sheet after class.")
+			return
 		var service=preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd")
 		var course := service.course_for_room(room_id)
 		if course.is_empty():return
@@ -1096,7 +1106,7 @@ func record_room_attendance(peer: int,id: String,assignment: Dictionary,late := 
 		attendance_archive[result.id]=result.event.duplicate(true)
 		_save("user://teacher_attendance.json",attendance_archive)
 	if peer==1:_receive_attendance(result.event)
-	elif game.session.roster.has(peer):_receive_attendance.rpc_id(peer,result.event)
+	elif game.session.peer_connected_now(peer):_receive_attendance.rpc_id(peer,result.event)
 
 @rpc("authority","call_remote","reliable",4)
 func _receive_attendance(event: Dictionary) -> void:

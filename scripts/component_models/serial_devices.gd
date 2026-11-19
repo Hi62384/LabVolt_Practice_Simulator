@@ -1,5 +1,8 @@
 extends RefCounted
 ## Mode-0 SPI: DI on rising edge, DO changes on falling edge. One edge per host tick.
+static func _voltage(v: Dictionary, a: String, b: String) -> float:
+	return float(v[a])-float(v[b]) if v.has(a) and v.has(b) else 0.0
+
 static func tick(m: Dictionary,n: Array,v: Dictionary,p: Array,s: Dictionary,dt: float) -> Dictionary:
 	var kind: String=m.worker_model
 	var cs: int=9 if kind=="adc3008" else 1 if kind=="dac4921" else 0
@@ -41,10 +44,12 @@ static func tick(m: Dictionary,n: Array,v: Dictionary,p: Array,s: Dictionary,dt:
 			var bits: int=s.get("bits",0)
 			if kind=="adc3008" and bits==5:
 				var word: int=s.word;var channel := word&7
-				var analog := float(v.get(n[channel],0))-float(v.get(n[13],0))
-				if (word&8)==0:analog=float(v.get(n[channel&6 if channel%2==0 else channel],0))-float(v.get(n[channel+1 if channel%2==0 else channel-1],0))
-				var reference := float(v.get(n[14],0))-float(v.get(n[13],0))
-				s.sample=clampi(int(floor(analog/reference*1024.)),0,1023) if reference>0. else 0
+				var negative_pin := 13 if word&8 else channel^1
+				var analog := _voltage(v,n[channel],n[negative_pin])
+				var reference := _voltage(v,n[14],n[13])
+				# Saturate before integer conversion, even for a subnormal VREF.
+				s.sample=int(clampf(analog/reference,0.0,1.0)*1024.0) if reference>0. and is_finite(reference) and is_finite(analog) else 0
+				s.sample=mini(s.sample,1023)
 			if kind=="eeprom25":
 				if bits==8:s.command=int(s.word)&255
 				if bits==24:s.address=int(s.word)&32767;s.base=int(s.address)&~63

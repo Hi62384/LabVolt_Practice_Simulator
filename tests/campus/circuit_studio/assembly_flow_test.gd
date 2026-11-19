@@ -20,6 +20,19 @@ func _run() -> void:
 	assert(Model.validate("inv:cart",p.data.inventions,p.data.get("blueprints",{}))=="")
 	assert(Model.price("inv:cart",p.data.inventions,p.data.get("blueprints",{}))==73)
 	assert(Model.flattened("inv:cart",p.data.inventions,p.data.get("blueprints",{})).size()==6)
+	var rotated: Dictionary=p.data.inventions.duplicate(true)
+	rotated["inv:cart"].parts[1].turns=1
+	var rotated_parts:=Model.flattened("inv:cart",rotated,p.data.get("blueprints",{}))
+	assert(rotated_parts.size()==6)
+	Model.connect_wheels(rotated_parts)
+	var rotated_wheel: Dictionary=rotated_parts.filter(func(part):return part.type=="wheel")[0]
+	assert(Vector3i(rotated_wheel.x,rotated_wheel.y,rotated_wheel.z)==Vector3i(1,1,-1))
+	assert(rotated_wheel.turns==1 and rotated_wheel.motor_control=="A")
+	rotated_wheel.erase("turns")
+	Model.connect_wheels(rotated_parts)
+	assert(not rotated_wheel.has("motor_control"),"A wheel cannot mount across perpendicular shafts")
+	rotated["inv:cart"].parts[1].turns=4
+	assert(Model.validate("inv:cart",rotated,p.data.get("blueprints",{})).contains("Part rotation"))
 	assert(Profile.valid(p.data))
 	assert(p.save()==OK)
 	assert(p.fabricate_invention("inv:cart")=="Invention copy fabricated")

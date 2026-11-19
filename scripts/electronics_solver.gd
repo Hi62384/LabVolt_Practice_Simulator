@@ -11,11 +11,22 @@ var topology_key := []
 var topology := {}
 # Exact stamped matrices only; source voltages and transient history remain in RHS.
 var factor_cache: Array[Dictionary] = []
-var linear_kernel=LinearKernel.new()
+var linear_kernel = _create_linear_kernel()
+var last_native_matrix: Array = []
+var last_native_rhs := PackedFloat64Array()
+var last_native_solution := PackedFloat64Array()
 var use_csharp:=true
 
+static func _create_linear_kernel():
+	var kernel_script: Script = LinearKernel
+	return kernel_script.new() if kernel_script.can_instantiate() else null
+
 func reset() -> void:
-	memory.clear();battery_discharge.clear();time=0;last={};network_solver=null;factor_cache.clear();linear_kernel.Reset()
+	memory.clear();battery_discharge.clear();time=0;last={};network_solver=null;factor_cache.clear()
+	last_native_matrix.clear()
+	last_native_rhs.clear()
+	last_native_solution.clear()
+	if linear_kernel != null: linear_kernel.Reset()
 
 func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) -> Dictionary:
 	if dt==0. and hold_transients:return preload("res://scripts/electronics_buses/held_state.gd").solve(self,parts,wires)
@@ -26,22 +37,28 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 		if part.kind in ["D","LED","E","current_source","supply"]:nonlinear_parts.append(part)
 		if part.kind=="V" and float(part.get("capacity_ah",0.0))>0.0:battery_parts.append(part)
 	var layout := _layout(parts,wires,dt>0.0)
+	if layout.has("error"): return {"ok":false,"error":layout.error}
 	var net: Dictionary=layout.net
-	var groups: Dictionary=layout.groups
-	var idx: Dictionary=layout.idx
+	var indices: Dictionary=layout.pin_indices
+	var islands: Dictionary=layout.pin_islands
 	var branches: Dictionary=layout.branches
-	var count: int=idx.size()+branches.size()
-	if count==0:return {"ok":true,"v":{},"i":{},"mode":{},"islands":{},"time":time}
-	var guess := PackedFloat64Array();guess.resize(count)
+	for part in parts:
+		if part.kind != "E": continue
+		if islands[str(part.cp)] != islands[str(part.cn)]:
+			return {"ok":false,"error":"Controlled source %s has inputs in separate floating islands." % part.id}
+		if islands[str(part.high)] != islands[str(part.b)]:
+			return {"ok":false,"error":"Controlled source %s has a floating upper supply rail." % part.id}
+	var count: int=layout.idx.size()+branches.size()
 	var modes := {};var diode_on := {}
+	var tried_regions: Array = []
 	var solution := PackedFloat64Array()
-	var converged := false
-	for iteration in range(40):
+	var converged := count == 0
+	for iteration in range(0 if converged else 40):
 		var matrix: Array=[];var rhs := PackedFloat64Array();rhs.resize(count)
 		for j in range(count):
 			var row := PackedFloat64Array();row.resize(count);matrix.append(row)
 		for p in parts:
-			var a: int=idx.get(net[str(p.a)],-1);var b: int=idx.get(net[str(p.b)],-1)
+			var a: int=indices[str(p.a)];var b: int=indices[str(p.b)]
 			var id := str(p.id);var value := float(p.get("value",0))
 			match str(p.kind):
 				"R":conductance(matrix,a,b,1.0/maxf(value,.001))
@@ -59,23 +76,23 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 					if control.get("kind","") not in ["D","LED"]:return {"ok":false,"error":"Invalid controlled-current source"}
 					var on: bool=diode_on.get(str(control.id),false)
 					var g: float=float(p.get("gain",1))*(1.0/float(control.get("ron",2)) if on else 1e-10)
-					var ca: int=idx.get(net[str(control.a)],-1);var cb: int=idx.get(net[str(control.b)],-1)
+					var ca: int=indices[str(control.a)];var cb: int=indices[str(control.b)]
 					add(matrix,a,ca,g);add(matrix,a,cb,-g);add(matrix,b,ca,-g);add(matrix,b,cb,g)
 					if on:current(rhs,a,b,-g*float(control.get("vf",.65)))
 				"T":
 					var k: int=branches[id];var ratio: float=p.ratio
-					var cp: int=idx.get(net[str(p.cp)],-1);var cn: int=idx.get(net[str(p.cn)],-1)
+					var cp: int=indices[str(p.cp)];var cn: int=indices[str(p.cn)]
 					add(matrix,a,k,1);add(matrix,b,k,-1);add(matrix,cp,k,-ratio);add(matrix,cn,k,ratio)
 					add(matrix,k,a,1);add(matrix,k,b,-1);add(matrix,k,cp,-ratio);add(matrix,k,cn,ratio)
 				"E":
 					var k: int=branches[id]
 					add(matrix,a,k,1);add(matrix,b,k,-1);add(matrix,k,a,1)
 					var mode: int=modes.get(id,0)
-					add(matrix,k,idx.get(net[str(p.high)],-1) if mode==1 else b,-1)
+					add(matrix,k,indices[str(p.high)] if mode==1 else b,-1)
 					matrix[k][k]=-float(p.get("resistance",50.))
 					if mode==0:
-						add(matrix,k,idx.get(net[str(p.cp)],-1),-float(p.gain))
-						add(matrix,k,idx.get(net[str(p.cn)],-1),float(p.gain))
+						add(matrix,k,indices[str(p.cp)],-float(p.gain))
+						add(matrix,k,indices[str(p.cn)],float(p.gain))
 				"I":current(rhs,a,b,value)
 				"current_source":
 					var k: int=branches[id]
@@ -118,14 +135,14 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 		solution=solved.x
 		var changed := false
 		for p in nonlinear_parts:
-			var a: int=idx.get(net[str(p.a)],-1);var b: int=idx.get(net[str(p.b)],-1)
+			var a: int=indices[str(p.a)];var b: int=indices[str(p.b)]
 			var v := (solution[a] if a>=0 else 0.0)-(solution[b] if b>=0 else 0.0)
 			var id := str(p.id)
 			if p.kind in ["D","LED"]:
 				var on: bool=v>float(p.get("vf",.65))
 				if on!=diode_on.get(id,false):diode_on[id]=on;changed=true
 			if p.kind=="E":
-				var cp: int=idx.get(net[str(p.cp)],-1);var cn: int=idx.get(net[str(p.cn)],-1);var hi: int=idx.get(net[str(p.high)],-1)
+				var cp: int=indices[str(p.cp)];var cn: int=indices[str(p.cn)];var hi: int=indices[str(p.high)]
 				var demand: float=float(p.gain)*((solution[cp] if cp>=0 else 0.)-(solution[cn] if cn>=0 else 0.))
 				var ceiling: float=maxf(0.,(solution[hi] if hi>=0 else 0.)-(solution[b] if b>=0 else 0.))
 				var mode: int=modes.get(id,0)
@@ -143,12 +160,18 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 				elif mode==-1 and v>float(p.value)+1e-6:modes[id]=0;changed=true
 				elif mode==1 and v<float(p.value)-1e-6:modes[id]=0;changed=true
 		if not changed:converged=true;break
-		guess=solution
+		# Each region produces the same matrix and RHS until transient state commits.
+		# A repeated region therefore cannot settle by taking more iterations.
+		var region := [modes.duplicate(),diode_on.duplicate()]
+		if region in tried_regions:
+			return {"ok":false,"error":"Nonlinear operating regions oscillate. Check the feedback, switching thresholds and source limits."}
+		tried_regions.append(region)
 	if not converged:return {"ok":false,"error":"Nonlinear operating point did not converge."}
-	var voltages := {};var islands := {};var currents := {};var drops := {};var states := {}
+	var voltages := {};var currents := {};var drops := {};var states := {}
+	var winding_currents := {}
 	for pin in net:
-		var n: int=idx.get(net[pin],-1)
-		voltages[pin]=solution[n] if n>=0 else 0.0;islands[pin]=root(groups,net[pin])
+		var n: int=indices[pin]
+		voltages[pin]=solution[n] if n>=0 else 0.0
 	for p in parts:
 		var id := str(p.id);var v: float=voltages[str(p.a)]-voltages[str(p.b)]
 		var i := 0.0
@@ -162,9 +185,13 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 				var cv: float=voltages[str(control.a)]-voltages[str(control.b)]
 				i=float(p.get("gain",1))*((cv-float(control.get("vf",.65)))/float(control.get("ron",2)) if diode_on.get(str(control.id),false) else cv*1e-10)
 			"I":i=float(p.value)
-			"V","L","supply","current_source":
+			"V","L","supply","current_source","E","T":
 				i=solution[branches[id]]
 				if p.kind=="L" and dt>0:memory[id]=i
+				if p.kind=="T":
+					# The stamped branch enters a and leaves b on the secondary.
+					# The primary current enters cp and leaves cn.
+					winding_currents[id]={"secondary":i,"primary":-float(p.ratio)*i}
 		currents[id]=i;drops[id]=v
 		if p.kind=="current_source":states[id]="CC" if modes.get(id,0)==0 else "COMPLIANCE"
 		if p.kind=="supply":states[id]="CC" if modes.get(id,0)!=0 else "CV"
@@ -176,19 +203,25 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 		charge[part.id]=remaining
 		states[part.id]="DEPLETED" if remaining==0.0 else "BATTERY"
 	if dt>0:time+=dt
-	last={"ok":true,"v":voltages,"i":currents,"drop":drops,"mode":states,"charge":charge,"islands":islands,"time":time}
+	last={"ok":true,"v":voltages,"i":currents,"winding_currents":winding_currents,"drop":drops,"mode":states,"charge":charge,"islands":islands.duplicate(),"time":time}
 	return last
 
 func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
 	# Only node names, device kinds and ideal leads determine matrix positions.
 	# All numerical stamps and history are still evaluated on each solve.
 	var pins := []
-	for part in parts:pins.append([part.id,part.kind,part.a,part.b])
+	var parent := {}
+	for part in parts:
+		var terminals := [part.get("a",""),part.get("b","")]
+		if part.kind in ["E","T"]: terminals.append_array([part.get("cp",""),part.get("cn","")])
+		if part.kind=="E": terminals.append(part.get("high",""))
+		for terminal in terminals:
+			var pin := str(terminal)
+			if pin.is_empty(): return {"error":"Component %s has a missing terminal." % part.id}
+			parent[pin]=pin
+		pins.append([part.id,part.kind,terminals,part.get("control",""),part.get("coupled","")])
 	var key := [pins,wires,transient]
 	if key==topology_key:return topology
-	var parent := {}
-	for p in parts:
-		for pin in [p.a,p.b]:parent[str(pin)]=str(pin)
 	for w in wires:
 		for pin in w:parent[str(pin)]=str(pin)
 	for w in wires:parent[root(parent,str(w[0]))]=root(parent,str(w[1]))
@@ -199,6 +232,10 @@ func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
 	for p in parts:
 		if str(p.kind)=="C" and not transient:continue
 		groups[root(groups,net[str(p.a)])]=root(groups,net[str(p.b)])
+		if p.kind=="T":
+			# The ideal transformer couples differential voltage and current.
+			# Its two windings retain independent reference potentials.
+			groups[root(groups,net[str(p.cp)])]=root(groups,net[str(p.cn)])
 	var refs := {}
 	for n in groups:refs[root(groups,n)]=n
 	var idx := {}
@@ -207,8 +244,13 @@ func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
 	var branches := {}
 	for p in parts:
 		if p.kind in ["V","L","supply","current_source","E","T"]:branches[str(p.id)]=idx.size()+branches.size()
+	var pin_indices := {}
+	var pin_islands := {}
+	for pin in net:
+		pin_indices[pin]=idx.get(net[pin],-1)
+		pin_islands[pin]=root(groups,net[pin])
 	topology_key=[pins,wires.duplicate(true),transient]
-	topology={"net":net,"groups":groups,"idx":idx,"branches":branches}
+	topology={"net":net,"groups":groups,"idx":idx,"branches":branches,"pin_indices":pin_indices,"pin_islands":pin_islands}
 	return topology
 
 func reuse_flat_solution(batteries: Array, dt: float) -> bool:
@@ -254,16 +296,19 @@ static func current(rhs: PackedFloat64Array,a: int,b: int,i: float) -> void:
 	if a>=0:rhs[a]-=i
 	if b>=0:rhs[b]+=i
 func _solve_cached(matrix: Array, rhs: PackedFloat64Array) -> Dictionary:
-	if not use_csharp:return _solve_cached_gd(matrix,rhs)
-	var key:=hash(matrix)
-	for entry in factor_cache:
-		if entry.key==key and entry.matrix==matrix:return _solve_factor(entry,rhs)
-	var factor: Dictionary=linear_kernel.Factorize(matrix)
-	if not factor.get("ok",false):return {"ok":false}
-	factor["key"]=key;factor["matrix"]=matrix.duplicate(true)
-	factor_cache.push_front(factor)
-	if factor_cache.size()>4:factor_cache.pop_back()
-	return _solve_factor(factor,rhs)
+	if not use_csharp or linear_kernel == null:return _solve_cached_gd(matrix,rhs)
+	var result: Dictionary
+	if not last_native_matrix.is_empty() and last_native_matrix == matrix:
+		if not last_native_solution.is_empty() and last_native_rhs == rhs:
+			return {"ok":true,"x":last_native_solution.duplicate()}
+		result = linear_kernel.SolveLast(rhs)
+	else:
+		result = linear_kernel.SolveCached(matrix,rhs)
+		last_native_matrix = matrix.map(func(row: PackedFloat64Array): return row.duplicate()) if result.ok else []
+	last_native_rhs = rhs.duplicate()
+	var values: PackedFloat64Array = result.get("x",PackedFloat64Array())
+	last_native_solution = values.duplicate()
+	return result
 
 func _solve_cached_gd(matrix: Array, rhs: PackedFloat64Array) -> Dictionary:
 	# Only bit-identical stamps are reusable: switches, timestep, device modes,

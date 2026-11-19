@@ -99,7 +99,8 @@ func _remove_board_leads() -> void:
 
 func _remove_lead(index: int) -> void:
 	wires.remove_at(index)
-	lead_colors.remove_at(index)
+	if index < lead_colors.size():
+		lead_colors.remove_at(index)
 
 # These models depend on board settings, not on prior voltages or firmware.
 static func _fixed_parts(parts: Array, definitions: Dictionary, checked: Dictionary) -> bool:
@@ -470,6 +471,9 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			for port in [a,b]:
 				if port.begins_with("X") and not pcb_pin_available(port):return "This PCB pin is not available"
 			if (board_held or board_stowed) and (board_port(a) or board_port(b)):return "Place the board before attaching leads"
+			# Restored or generated wiring may not include optional jacket colors.
+			while lead_colors.size()<wires.size():
+				lead_colors.append(-1)
 			wires.append([a,b])
 			lead_colors.append(clampi(int(action.get("lead_color", -1)), -1, 3))
 		"unwire":

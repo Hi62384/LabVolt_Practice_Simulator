@@ -10,7 +10,7 @@ static func diode(id: String, a: String, b: String, vf := .7, ron := 1.) -> Dict
 	return {"id":id,"kind":"D","a":a,"b":b,"vf":vf,"ron":ron}
 
 static func voltage(v: Dictionary, pin: String, ground: String) -> float:
-	return float(v.get(pin,0))-float(v.get(ground,0))
+	return float(v[pin])-float(v[ground]) if v.has(pin) and v.has(ground) else 0.0
 
 static func level(v: float, supply: float) -> int:
 	if v <= .3*supply:return 0

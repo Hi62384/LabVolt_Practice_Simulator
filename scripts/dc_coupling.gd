@@ -127,7 +127,7 @@ static func step(stations: Array,links: Array,dt: float,groups: Array = []) -> v
 				for source in sources:
 					var part: Dictionary=source.duplicate()
 					for field in ["id","a","b","control","cp","cn","high","coupled"]:
-						if part.has(field):part[field]=prefix+str(part[field])
+						if part.has(field) and not str(part[field]).is_empty():part[field]=prefix+str(part[field])
 					prefixed.append(part)
 				if station.get("prefixed_netlist_cache") is Dictionary:
 					station.prefixed_netlist_cache={"source":sources,"prefix":prefix,"parts":prefixed}
@@ -149,7 +149,7 @@ static func step(stations: Array,links: Array,dt: float,groups: Array = []) -> v
 			var station=stations[i]
 			var prefix := "station%d/"%i
 			var local: Dictionary=solved.duplicate()
-			for field in ["v","i","drop","mode","islands","charge"]:
+			for field in ["v","i","drop","mode","islands","charge","winding_currents"]:
 				local[field]={}
 				for name in solved.get(field,{}):
 					if str(name).begins_with(prefix):local[field][str(name).trim_prefix(prefix)]=solved[field][name]

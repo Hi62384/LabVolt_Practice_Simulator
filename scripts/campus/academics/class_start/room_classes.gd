@@ -208,9 +208,21 @@ func _check_students() -> void:
 		for identity in activity.students:
 			var student: Dictionary=activity.students[identity]
 			if student.done:continue
-			if not _inside(int(student.peer),room) and student.failure.is_empty():
+			var connected_peer: Variant=school.identities.find_key(identity)
+			var peer := int(connected_peer) if connected_peer!=null else 0
+			student.peer=peer
+			if peer==1 and int(student.paper)>0 and not _inside(peer,room) and student.failure.is_empty():
 				student.failure="Left the classroom before completing the assessment."
-			if not student.failure.is_empty():_settle(activity,identity,false,student.failure)
+			if not student.failure.is_empty():
+				_settle(activity,identity,false,student.failure)
+				continue
+			var paper: Dictionary=school.papers.get(student.paper,{})
+			if peer>0 and not paper.is_empty() and paper.owner!=peer:
+				paper.owner=peer
+				paper.revision+=1
+				school.broadcast()
+			elif int(student.paper)==0 and _inside(peer,room) and _now()>=float(student.get("retry_at",0.0)):
+				if _issue_assessment(room,activity,student):school.broadcast()
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
@@ -243,13 +255,16 @@ func _advance() -> void:
 				activity.deadline=_now()+LessonSeconds
 				changed=true
 			"lesson":
+				if _now()<float(activity.get("enrollment_retry_at",0.0)):continue
 				if _begin_assignment(room,activity):
 					changed=true
 					assessment_intros.append(room)
 			"assignment":
 				for identity in activity.students:
 					var student: Dictionary=activity.students[identity]
-					if not student.done:_settle(activity,identity,true,str(student.failure))
+					if student.done:continue
+					if int(student.paper)==0:_withdraw_unissued(activity,identity)
+					else:_settle(activity,identity,true,str(student.failure))
 	if changed:_publish()
 	if is_instance_valid(classroom_events) and classroom_events.enabled and is_instance_valid(game.faculty):
 		for room in assessment_intros:
@@ -266,38 +281,54 @@ func _begin_assignment(room: String, activity: Dictionary) -> bool:
 			var record: Dictionary=school._enrollment_record(identity,activity.id,student.project,peer==1)
 			record.room_class=true
 			records.append(record)
-	if not records.is_empty() and Pending.enroll(school.archive,records,school._persist_archive)!=OK:return false
+	var enrollment_error: Error=Pending.enroll(school.archive,records,school._persist_archive) if not records.is_empty() else OK
+	if enrollment_error!=OK:
+		if not activity.has("enrollment_retry_at"):
+			for student in activity.students.values():
+				if int(student.peer)>0:school._notice(int(student.peer),"Assessment enrollment could not be saved (%s). Retrying without starting the assignment timer."%error_string(enrollment_error))
+		activity.enrollment_retry_at=_now()+2.0
+		return false
 	if is_instance_valid(classroom_events) and classroom_events.enabled:classroom_events.begin_assessment(room,str(activity.id),_now())
 	activity.phase="assignment"
 	activity.deadline=_now()+AssignmentSeconds
-	var desk := 0
 	for identity in activity.students:
 		var student: Dictionary=activity.students[identity]
 		if not student.get("replay",false):
 			var record: Dictionary=records.filter(func(candidate: Dictionary):return candidate.profile==identity)[0]
 			student.project.merge(Metadata.from_project(record),true)
-		var peer := int(student.peer)
-		if not _inside(peer,room):
-			student.failure="Was outside the classroom when the assessment started."
-			_settle(activity,identity,false,student.failure)
-			continue
-		var id: int=school._give(peer,student.project,false,false,true)
-		if id<=0:continue
-		var paper: Dictionary=school.papers[id]
-		paper.class_round=-1
-		paper.assessment_id=activity.id
-		paper.replay=bool(student.get("replay",false))
-		paper.room_class=room
-		paper.room_bench=int(student.get("bench",-1))
-		var desk_count: int=activity.room.desks.size()
-		paper.position=activity.room.desks[desk%desk_count]+Vector3(.29*floori(float(desk)/desk_count),.045,0)
-		paper.held=paper.held and game.dc_lab.held_board(peer)<0
-		if str(paper.course_id).begins_with("MTH"):paper.math_policy=school.course_bridge.paper_policy(student.project,false)
-		student.paper=id
-		school._notice(peer,"Your assessment is ready in room "+str(activity.room.number)+".")
-		desk+=1
+		if _inside(int(student.peer),room):_issue_assessment(room,activity,student)
 	school.broadcast()
 	return true
+
+func _issue_assessment(room: String,activity: Dictionary,student: Dictionary) -> bool:
+	if int(student.paper)>0:return false
+	var peer := int(student.peer)
+	var id: int=school._give(peer,student.project,false,false,true)
+	if id<=0:
+		if not student.has("retry_at"):school._notice(peer,"Your assessment paper could not be created. Stay in the classroom while the host retries.")
+		student.retry_at=_now()+2.0
+		return false
+	var paper: Dictionary=school.papers[id]
+	paper.class_round=-1
+	paper.assessment_id=activity.id
+	paper.replay=bool(student.get("replay",false))
+	paper.room_class=room
+	paper.room_bench=int(student.get("bench",-1))
+	var desk: int=activity.students.values().find(student)
+	var desk_count: int=activity.room.desks.size()
+	paper.position=activity.room.desks[desk%desk_count]+Vector3(.29*floori(float(desk)/desk_count),.045,0)
+	paper.held=paper.held and game.dc_lab.held_board(peer)<0
+	if str(paper.course_id).begins_with("MTH"):paper.math_policy=school.course_bridge.paper_policy(student.project,false)
+	student.paper=id
+	school._notice(peer,"Your assessment is ready in room "+str(activity.room.number)+".")
+	return true
+
+func _withdraw_unissued(activity: Dictionary,identity: String,notify := true) -> void:
+	var student: Dictionary=activity.students[identity]
+	var attempt_id := str(school._enrollment_record(identity,activity.id,student.project,false).id)
+	if Pending.withdraw(school.archive,identity,attempt_id,school._persist_archive)!=OK:return
+	student.done=true
+	if notify and int(student.peer)>0:school._notice(int(student.peer),"The assessment ended before your paper was issued. No mark was recorded.")
 
 func _settle(activity: Dictionary,identity: String,expired: bool,reason: String) -> void:
 	var student: Dictionary=activity.students[identity]
@@ -349,7 +380,10 @@ func _session_leaving() -> void:
 	for activity in classes.values():
 		if activity.phase!="assignment":continue
 		for identity in activity.students:
-			if not activity.students[identity].done:_settle(activity,identity,false,"Session ended before the assessment was completed.")
+			var student: Dictionary=activity.students[identity]
+			if student.done:continue
+			if int(student.peer)==1 and int(student.paper)>0:_settle(activity,identity,false,"Session ended before the assessment was completed.")
+			else:_withdraw_unissued(activity,identity,false)
 
 func _reset() -> void:
 	if is_instance_valid(classroom_events):

@@ -35,14 +35,20 @@ func run():
 		classes._advance()
 		if not await until(func():return activity.phase=="assignment","assignment starts"):return
 		var token: String=activity.students.keys()[0]
+		var paper_id: int=activity.students[token].paper
+		game.school.papers[paper_id].answers["0"]="saved before reconnect"
 		var old_peer: int=activity.students[token].peer
 		if not await until(func():return not game.session.roster.has(old_peer),"peer disconnected"):return
-		if not await until(func():return activity.students[token].done,"assignment settled"):return
+		if activity.students[token].done:push_error("FAIL guest was marked on disconnect");quit(1);return
 		var grades: Array=game.school.archive[token].values().filter(func(record):return record.get("assessment_id","")==activity.id)
-		if grades.size()!=1 or grades[0].get("score",-1)!=0.0 or not grades[0].get("reason","").contains("Left the classroom"):push_error("FAIL incorrect departure grade "+str(grades));quit(1);return
-		if not await until(func():return game.school.identities.values().has(token),"same identity rejoined"):return
+		if grades.size()!=1 or grades[0].has("score"):push_error("FAIL enrollment was settled early "+str(grades));quit(1);return
+		if not await until(func():
+			var new_peer: Variant=game.school.identities.find_key(token)
+			return new_peer!=null and new_peer!=old_peer and game.school.papers[paper_id].owner==new_peer
+		,"same assessment rebound to returning identity"):return
+		if game.school.papers[paper_id].answers.get("0","")!="saved before reconnect":push_error("FAIL answer lost on reconnect");quit(1);return
 		await create_timer(3).timeout
-		print("PASS host settled one zero and accepted returning identity")
+		print("PASS host preserved pending enrollment, paper and answer")
 	else:
 		if game.session.join_game("127.0.0.1","Student",26311)!=OK:quit(1);return
 		if not await until(func():
@@ -56,14 +62,16 @@ func run():
 		if not await until(func():return classes.public_classes.get(room,{}).get("phase","")=="lesson","replicated lesson phase"):return
 		classes._send("sign",room,{})
 		if not await until(func():return classes.public_classes.get(room,{}).get("phase","")=="assignment" and game.school.papers.values().any(func(p):return p.owner==game.multiplayer.get_unique_id()),"replicated assignment and owned paper"):return
-		var assessment: String=game.school.papers.values().filter(func(p):return p.owner==game.multiplayer.get_unique_id())[0].assessment_id
+		var paper: Dictionary=game.school.papers.values().filter(func(p):return p.owner==game.multiplayer.get_unique_id())[0]
+		var paper_id: int=paper.id
 		var old_peer: int=game.multiplayer.get_unique_id()
 		game.session.leave()
 		await create_timer(.75).timeout
 		if game.session.join_game("127.0.0.1","Student",26311)!=OK:quit(1);return
 		if not await until(func():
-			return game.school.gradebook.values().any(func(g):return g.get("assessment_id","")==assessment and g.get("score",-1)==0.0)
-		,"zero grade received on reconnect"):return
-		if game.multiplayer.get_unique_id()==old_peer or game.school.papers.values().any(func(p):return p.get("assessment_id","")==assessment and p.owner==game.multiplayer.get_unique_id()):push_error("FAIL assignment was reissued");quit(1);return
-		print("PASS client rejoined and received zero without another assignment")
+			var restored: Dictionary=game.school.papers.get(paper_id,{})
+			return restored.get("owner",0)==game.multiplayer.get_unique_id() and restored.get("answers",{}).get("0","")=="saved before reconnect"
+		,"assigned paper and answer restored on reconnect"):return
+		if game.multiplayer.get_unique_id()==old_peer:push_error("FAIL reconnect did not get a new peer id");quit(1);return
+		print("PASS client regained the same assignment and answer")
 	quit()

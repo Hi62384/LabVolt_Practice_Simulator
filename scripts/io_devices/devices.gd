@@ -58,7 +58,8 @@ static func resistor(out: Array,id: String,a: String,b: String,value: float) -> 
 static func track(out: Array,id: String,a: String,w: String,b: String,x: float) -> void:
 	resistor(out,id+"/upper",a,w,maxf(.01,10000.*(1.-clampf(x,0,1))))
 	resistor(out,id+"/lower",w,b,maxf(.01,10000.*clampf(x,0,1)))
-static func voltage(v: Dictionary,a: String,b: String) -> float:return float(v.get(a,0))-float(v.get(b,0))
+static func voltage(v: Dictionary,a: String,b: String) -> float:
+	return float(v[a])-float(v[b]) if v.has(a) and v.has(b) else 0.0
 
 ## Tick once per authoritative fixed electrical step, using the last valid solve.
 ## State is JSON-safe. Invalid solve freezes state; no fabricated voltage readings.

@@ -52,6 +52,15 @@ static func settle(archive: Dictionary, result: Dictionary, persist: Callable) -
 	archive.clear();archive.merge(next,true)
 	return OK
 
+static func withdraw(archive: Dictionary, token: String, id: String, persist: Callable) -> Error:
+	if archive.get(token,{}).get(id,{}).get("pending_assessment_version")!=VERSION:return OK
+	var next := archive.duplicate(true)
+	next[token].erase(id)
+	var error: Error=persist.call(next)
+	if error!=OK:return error
+	archive.clear();archive.merge(next,true)
+	return OK
+
 ## Reconcile only the named session on orderly host exit. On process startup,
 ## every persisted class has ended because class sessions cannot resume.
 static func end_host_session(archive: Dictionary, persist: Callable, session_id: String = "") -> Error:
@@ -65,7 +74,7 @@ static func end_host_session(archive: Dictionary, persist: Callable, session_id:
 			if not record is Dictionary or record.get("pending_assessment_version") != VERSION or record.has("score"):continue
 			if session_id != "" and str(record.get("assessment_id", "")) != session_id:continue
 			changed = true
-			if (record.get("class_authority_role") == "host" or record.get("room_class",false)) and str(record.get("profile", "")) == str(token) and str(record.get("id", "")) == str(id):
+			if record.get("class_authority_role") == "host" and str(record.get("profile", "")) == str(token) and str(record.get("id", "")) == str(id):
 				record.erase("pending_assessment_version")
 				record["score"] = 0.0
 				record["reason"] = "Hosted class ended before the assignment was completed."

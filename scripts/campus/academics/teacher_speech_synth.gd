@@ -15,8 +15,9 @@ var kill_adapter: Callable
 var load_adapter: Callable
 var profile_adapter: Callable
 var model_adapter: Callable
+var last_synthesis_ms := 0
 
-func request(room: String,serial: int,id: String,text: String,key: String) -> String:
+func request(room: String,serial: int,id: String,text: String,key: String,priority := 0) -> String:
 	if room.is_empty() or serial<1 or text.is_empty() or text.length()>350 or key.is_empty():return "invalid"
 	var profiles: Dictionary=profile_adapter.call() if profile_adapter.is_valid() else Profiles.profiles()
 	var profile: Dictionary=profiles.get(id,{})
@@ -29,9 +30,11 @@ func request(room: String,serial: int,id: String,text: String,key: String) -> St
 	if keys.has(key):
 		if keys[key].size()>=MAX_LISTENERS:return "busy"
 		keys[key].append({"room":room,"serial":serial})
+		for queued in pending:
+			if queued.key==key:queued.priority=maxi(int(queued.priority),priority)
 		return "duplicate"
 	if pending.size()+(1 if not active.is_empty() else 0)>=MAX_JOBS:return "busy"
-	var job:={"room":room,"serial":serial,"id":id,"text":text,"key":key,"model":model,"model_disk":model_disk,"speaker":int(profile.speaker),"rate":float(profile.rate),"gain":float(profile.gain),"pause":int(profile.pause_ms)}
+	var job:={"room":room,"serial":serial,"id":id,"text":text,"key":key,"model":model,"model_disk":model_disk,"speaker":int(profile.speaker),"rate":float(profile.rate),"gain":float(profile.gain),"pause":int(profile.pause_ms),"priority":priority}
 	keys[key]=[{"room":room,"serial":serial}];pending.append(job)
 	# Launch failures may finish immediately. Give callers a chance to connect
 	# or await completion before the worker can emit a result.
@@ -56,7 +59,10 @@ func clear_session() -> void:
 
 func _start_next() -> void:
 	if not active.is_empty() or pending.is_empty():return
-	active=pending.pop_front()
+	var next := 0
+	for index in range(1,pending.size()):
+		if int(pending[index].priority)>int(pending[next].priority):next=index
+	active=pending.pop_at(next)
 	var base:="user://teacher_speech/"+str(Time.get_ticks_usec())+"_"+str(randi())
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("user://teacher_speech"))
 	active.input=base+".txt";active.output=base+".wav"
@@ -109,6 +115,7 @@ func _process(_delta: float) -> void:
 func _finish(status: String,kill: bool=false,stream: AudioStreamWAV=null) -> void:
 	if active.is_empty():return
 	var job:=active;active={}
+	if job.has("started"):last_synthesis_ms=Time.get_ticks_msec()-int(job.started)
 	if kill and job.has("pid"):
 		if kill_adapter.is_valid():kill_adapter.call(int(job.pid))
 		else:OS.kill(int(job.pid))

@@ -109,6 +109,7 @@ static func generate(course_id: String,week: int,kind: String,difficulty: int,se
 		if physical.has("error"):return physical
 		assignment.physical_ac_plan=physical.plan
 		assignment.reference_ac=physical.reference
+		assignment.practical={"type":"physical_ac","capabilities":["ac_bench"],"requires_host_adapter":true,"rubric":{"connectivity":40,"measurements":30,"procedure":30}}
 		assignment.questions.append_array(physical.questions)
 		assignment.data+="\n\n"+str(physical.instructions)
 		assignment.procedure=physical.instructions

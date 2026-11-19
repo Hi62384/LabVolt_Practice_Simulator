@@ -44,6 +44,7 @@ var conversation_text: Label
 var conversation_name: Label
 var objective_label: Label
 var conversation_input: LineEdit
+var ask_button: Button
 var record_button: Button
 var record_player: AudioStreamPlayer
 var record_samples:=PackedByteArray()
@@ -108,6 +109,8 @@ func _clear_speech() -> void:
  if is_instance_valid(speech_player):speech_player.clear_session()
  if is_instance_valid(speech_synth):speech_synth.clear_session()
  speech_serial.clear()
+ calls.clear()
+ call_cooldowns.clear()
  class_calls.clear()
  classroom_phase.clear()
  for room in reaction_pose.keys():_clear_reaction_pose(str(room))
@@ -200,9 +203,14 @@ func _lab_activity(room: String) -> Dictionary:
 func _sync_lab_teachers() -> void:
  for room in ["ac_lab","dc_lab"]:
   var activity:=_lab_activity(room)
-  var id:=str(activity.get("teacher",""))
-  if not activity.is_empty() and Roster.has(id):_show_lab(room,id)
-  else:_hide_lab(room)
+  var id:=str(activity.get("teacher",current.get(room,"") if _freeplay_lab_available(room) else ""))
+  var root: Node3D=game.school_world.teacher if room=="ac_lab" else game.school_world.dc_instructor
+  var model:=root.get_node_or_null("InstructorModel")
+  if Roster.has(id):
+   if not is_instance_valid(model) or model.is_queued_for_deletion() or str(model.get_meta("faculty_id",""))!=id:_show_lab(room,id)
+  elif is_instance_valid(model):_hide_lab(room)
+func _freeplay_lab_available(room: String) -> bool:
+ return game.school.mode in ["Freeplay","Creative Freeplay"] and not game.school.formal_active() and _lab_activity(room).is_empty()
 func _make_model(id: String) -> Node3D:
  var model:=Toon.build(Roster.config(id))
  if id in ["bradley","mr_bro"]:
@@ -252,7 +260,10 @@ func _process(delta: float) -> void:
   memory_clock+=delta
   if memory_clock>=10.0:memory_clock=0;_save_memory()
   for room in ["ac_lab","dc_lab"]:
+   if calls.has(room):_advance_call(room,delta)
+   elif freeplay_returns.has(room):_advance_freeplay_return(room,delta)
    if game.lecture_classes.classes.has(room) or (game.school.formal_active() and str(game.school.activity.get("room",{}).get("id",""))==room):continue
+   if calls.has(room):continue
    remaining[room]=float(remaining[room])-delta
    if remaining[room]<=0:_rotate(room)
   publish_time+=delta
@@ -584,7 +595,7 @@ func _build_conversation_ui() -> void:
  conversation_text.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  conversation_scroll.add_child(conversation_text)
  conversation_input=LineEdit.new();conversation_input.placeholder_text="Ask the instructor a question...";conversation_input.max_length=500;conversation_input.text_submitted.connect(func(_value: String):_submit_question());body.add_child(conversation_input)
- var ask_button:=Button.new();ask_button.text="Ask question";ask_button.pressed.connect(_submit_question);body.add_child(ask_button)
+ ask_button=Button.new();ask_button.text="Ask question";ask_button.pressed.connect(_submit_question);body.add_child(ask_button)
  record_button=Button.new();record_button.text="Record question (up to 6 seconds)";record_button.pressed.connect(_toggle_recording);body.add_child(record_button)
  var row:=HFlowContainer.new();body.add_child(row)
  for option in [["Chat","chat"],["Ask for guidance","help"],["Inspect my circuit","inspect_circuit"],["Evaluate LED objective","evaluate_led"],["Hand over phone","hand_phone"],["Ask for phone back","reclaim_phone"],["Goodbye","bye"]]:
@@ -594,14 +605,15 @@ func _unhandled_input(event: InputEvent) -> void:
  if not is_instance_valid(game) or not game.front.in_game or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED:return
  if not (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.call_teacher):return
  var room:=str(game.campus.registry.locate(game.player.global_position))
- if room in ["ac_lab","dc_lab"]:get_viewport().set_input_as_handled()
+ if room not in ["ac_lab","dc_lab"]:return
+ get_viewport().set_input_as_handled()
+ if multiplayer.is_server():_call_request(multiplayer.get_unique_id(),room)
+ elif game.session.online:_request_call.rpc_id(1,room)
+ else:_call_notice(multiplayer.get_unique_id(),"The instructor is unavailable while the session reconnects.")
 @rpc("any_peer","call_remote","reliable")
 func _request_call(room: String) -> void:
  if multiplayer.is_server():_call_request(multiplayer.get_remote_sender_id(),room)
 func _call_request(peer: int,room: String) -> void:
- if room in ["ac_lab","dc_lab"]:
-  _call_notice(peer,"Lab instructors are present only while a lab class is active.")
-  return
  if room not in ["ac_lab","dc_lab"] or not game.session.roster.has(peer):return
  var position: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
  if not position.is_finite() or not game.campus.registry.room_contains(room,position):return
@@ -610,8 +622,10 @@ func _call_request(peer: int,room: String) -> void:
  var now:=Time.get_ticks_msec()
  if now<int(call_cooldowns.get(peer,0)):_call_notice(peer,"Give the instructor a moment before calling again.");return
  call_cooldowns[peer]=now+CALL_COOLDOWN_MS
- if game.school.mode not in ["Freeplay","Creative Freeplay"] or game.lecture_classes.classes.has(room) or game.school.formal_active() or not Roster.has(str(current.get(room,""))):
-  _call_notice(peer,"The instructor is busy with a class.");return
+ if not _freeplay_lab_available(room):
+  _call_notice(peer,"Speak to the instructor in person during class. Use Raise hand when a question is open.");return
+ if not Roster.has(str(current.get(room,""))):
+  _call_notice(peer,"The instructor is unavailable.");return
  if calls.has(room):_call_notice(peer,"The instructor is helping another student.");return
  var origin:=_teacher_position(room)
  if not _call_area(room,position) or not _call_area(room,origin):
@@ -753,15 +767,19 @@ func _animate_dc(moving: bool) -> void:
   for recipient in game.session.roster:
    if int(recipient)!=multiplayer.get_unique_id() and game.session.peer_connected_now(int(recipient)):_dc_call_finish.rpc_id(int(recipient),root.global_position,root.rotation.y,dc_motion_seq)
 func open_conversation(room: String) -> void:
- if room in ["ac_lab","dc_lab"] and _lab_activity(room).is_empty():return
+ var freeplay:=room in ["ac_lab","dc_lab"] and _freeplay_lab_available(room)
+ if room in ["ac_lab","dc_lab"] and _lab_activity(room).is_empty() and not freeplay:return
  objective_label.text="DC lesson objective: build a powered board with an LED carrying 5–20 mA and no overloaded resistor." if room=="dc_lab" and game.lecture_classes.classes.get(room,{}).get("phase","")=="lesson" else ""
  if room not in (["ac_lab","dc_lab"] + LECTURE_ROOMS):return
  conversation_room=room
  conversation_name.text="Instructor"
+ conversation_input.visible=not freeplay
+ ask_button.visible=not freeplay
+ record_button.visible=not freeplay
  for intent in ["inspect_circuit","evaluate_led"]:
-  conversation_actions[intent].visible=room=="dc_lab"
+  conversation_actions[intent].visible=room=="dc_lab" and not freeplay
  for intent in ["hand_phone","reclaim_phone"]:
-  conversation_actions[intent].visible=room in ["ac_lab","dc_lab"]
+  conversation_actions[intent].visible=room in ["ac_lab","dc_lab"] and not freeplay
  conversation_text.text="";conversation.show();game.release_mouse();_conversation_choice("chat")
 func close_conversation() -> bool:
  if not is_instance_valid(conversation) or not conversation.visible:return false
@@ -771,7 +789,10 @@ func close_conversation() -> bool:
  return true
 func interact(target: Node) -> bool:
  if not is_instance_valid(target) or target.get_meta("role","")!="faculty_teacher":return false
- open_conversation(str(target.get_meta("room","")));return true
+ var room:=str(target.get_meta("room",""))
+ if room in ["ac_lab","dc_lab"] and _freeplay_lab_available(room):game.paper_ui.teacher()
+ else:open_conversation(room)
+ return true
 func _conversation_choice(intent: String) -> void:
  if conversation_room.is_empty():return
  var phone_id: String=game.smartphones.selected() if intent=="hand_phone" else ""
@@ -908,14 +929,18 @@ func _dialogue_request(peer: int,room: String,intent: String,phone_id: String=""
  var point:=Vector3.INF
  var activity: Dictionary=game.lecture_classes.classes.get(room,{})
  if room in ["ac_lab","dc_lab"]:
-  if activity.is_empty() or activity.get("phase","") not in ["arrival","lesson","assignment"]:return
-  id=str(activity.get("teacher",""))
-  point=game.school_world.teacher.global_position if room=="ac_lab" else game.school_world.dc_instructor.global_position
+  if activity.is_empty():
+   if not _freeplay_lab_available(room) or intent not in ["chat","help","bye"]:return
+   id=str(current.get(room,""))
+  else:
+   if activity.get("phase","") not in ["arrival","lesson","assignment"]:return
+   id=str(activity.get("teacher",""))
+  point=_teacher_position(room)
  elif room in LECTURE_ROOMS and not activity.is_empty():
   id=str(activity.get("teacher",""));point=_teacher_position(room)
  else:return
  var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
- if not Roster.has(id) or not pos.is_finite() or pos.distance_to(point)>3.6:return
+ if not Roster.has(id) or not pos.is_finite() or pos.distance_to(point)>3.6 or not game.campus.registry.room_contains(room,pos):return
  var now:=Time.get_ticks_msec()
  if now-int(last_dialogue.get(peer,-1000))<350:return
  last_dialogue[peer]=now
@@ -930,7 +955,8 @@ func _dialogue_request(peer: int,room: String,intent: String,phone_id: String=""
   elif game.session.online:_dialogue_reply.rpc_id(peer,room,id,inspection)
   return
  var counter:=int(dialogue_counter.get(str(peer)+":"+id,0));dialogue_counter[str(peer)+":"+id]=counter+1
- var context:={"course":str(activity.get("course","")),"in_class":not activity.is_empty(),"phase":str(activity.get("phase","")),"title":str(activity.get("title",""))}
+ var default_course: String={"ac_lab":"ELM253","dc_lab":"ETY155"}.get(room,"")
+ var context:={"course":str(activity.get("course",default_course)),"in_class":not activity.is_empty(),"phase":str(activity.get("phase","")),"title":str(activity.get("title",""))}
  var class_events: Node=game.lecture_classes.classroom_events
  if activity.get("phase","")=="lesson" and is_instance_valid(class_events) and is_instance_valid(class_events.service):
   var event_view: Dictionary=class_events.service.view(peer,room,Time.get_ticks_msec()/1000.0)
@@ -1305,7 +1331,10 @@ func _attention(room: String,id: String,point: Vector3) -> void:_set_attention(r
 @rpc("authority","call_remote","reliable")
 func _reaction(room: String,id: String,text: String,point: Vector3,serial: int=0,priority: int=1) -> void:
  if serial>0 and is_instance_valid(speech_player) and serial<=int(speech_player.last_serial.get(room,0)):return
- if room in ["ac_lab","dc_lab"] and (_lab_activity(room).is_empty() or str(_lab_activity(room).get("teacher",""))!=id):return
+ if room in ["ac_lab","dc_lab"]:
+  var activity:=_lab_activity(room)
+  var visible_id:=str(activity.get("teacher",current.get(room,"") if _freeplay_lab_available(room) else ""))
+  if visible_id!=id:return
  if room in LECTURE_ROOMS and not is_instance_valid(_model_for_room(room,id)):return
  _show_reaction(room,id,text,point,serial,priority)
 func _show_reaction(room: String,id: String,text: String,point: Vector3,serial: int=0,priority: int=1) -> void:
@@ -1331,7 +1360,9 @@ func _show_reaction(room: String,id: String,text: String,point: Vector3,serial: 
   var key:=speech_cache_key(id,text)
   var stream: AudioStreamWAV=speech_player.stream_for(key)
   speech_player.accept(room,str(Roster.entry(id).name),serial,text,priority,root,stream)
-  if stream==null and speech_player.speech_enabled and is_instance_valid(speech_synth):speech_synth.request(room,serial,id,text,key)
+  if stream==null and speech_player.speech_enabled and is_instance_valid(speech_synth):
+   var local_room: String=game.campus.registry.locate(game.player.global_position)
+   speech_synth.request(room,serial,id,text,key,priority+(10 if local_room==room else 0))
 
 func _speech_completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String) -> void:
  if status!="ok" or stream==null or not is_instance_valid(speech_player):return

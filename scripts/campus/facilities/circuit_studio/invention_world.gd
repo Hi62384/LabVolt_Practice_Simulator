@@ -1,6 +1,9 @@
 extends Node3D
 const Model=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd")
 const PCBRun=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_runtime.gd")
+const PCB_STEP := 0.05
+const PCB_CATCHUP_LIMIT := 4
+signal placement_finished(blueprint_id: String, message: String)
 var game: Node
 var placed: Dictionary={}
 var visuals: Dictionary={}
@@ -10,20 +13,51 @@ var pcb_panel: Window
 var local_hold: Dictionary={}
 var send_clock:=0.0
 var sync_clock:=0.0
+var pending_motion: Dictionary={}
+var pending_blueprint := ""
+var last_placement_result := ""
 
 func build(owner_game: Node) -> void:
 	game=owner_game
-	game.session.restarted.connect(func():placed.clear();local_hold.clear();simulators.clear();pcb_holders.clear();_clear_visuals())
+	game.session.restarted.connect(func():
+		placed.clear()
+		local_hold.clear()
+		simulators.clear()
+		pcb_holders.clear()
+		pending_motion.clear()
+		pending_blueprint=""
+		_clear_visuals())
 	game.session.roster_changed.connect(_roster_changed)
 
 func _roster_changed() -> void:
 	if not multiplayer.is_server():return
 	for key in placed.keys():
-		if not game.session.roster.has(int(placed[key].owner)):placed.erase(key);simulators.erase(key)
+		if not game.session.roster.has(int(placed[key].owner)):_remove_placed(key)
+		else:
+			for control in ["A","B"]:
+				if int(placed[key].holder[control]) != 0 and not game.session.roster.has(int(placed[key].holder[control])):
+					placed[key].state[control]=false
+					placed[key].holder[control]=0
+	for holder_key in pcb_holders.keys():
+		if not game.session.roster.has(int(pcb_holders[holder_key].peer)):
+			_release_pcb(holder_key)
 	_sync()
+
+func _remove_placed(key: String) -> void:
+	placed.erase(key)
+	simulators.erase(key)
+	pending_motion.erase(key)
+	if visuals.has(key):
+		var view: Node3D=visuals[key]
+		remove_child(view)
+		view.queue_free()
+		visuals.erase(key)
+	for holder_key in pcb_holders.keys():
+		if pcb_holders[holder_key].key==key:pcb_holders.erase(holder_key)
 
 func request_place(id: String) -> String:
 	if not game.front.in_game:return "Enter the game before placing an invention."
+	if not pending_blueprint.is_empty():return "A placement request is already pending."
 	if int(game.electronics.profile.data.get("invention_copies",{}).get(id,0))<1:return "Fabricate a copy first."
 	var design: Dictionary=game.electronics.profile.data.get("inventions",{}).get(id,{})
 	var drive: Dictionary=design.get("drive",{"A":"manual","B":"manual"})
@@ -32,9 +66,14 @@ func request_place(id: String) -> String:
 		for item in placed.values():
 			if item.drive.A!="manual" or item.drive.B!="manual":live+=1
 		if live>=8:return "Eight live PCB inventions are already placed. Retrieve one first."
-	if multiplayer.is_server():_apply(multiplayer.get_unique_id(),{"op":"place","id":id})
-	else:command.rpc_id(1,{"op":"place","id":id})
-	return "Placing invention in front of you."
+	pending_blueprint=id
+	if multiplayer.is_server():return _apply_place_local(id)
+	command.rpc_id(1,{"op":"place","id":id})
+	return "Waiting for placement confirmation."
+
+func _apply_place_local(id: String) -> String:
+	_apply(multiplayer.get_unique_id(),{"op":"place","id":id})
+	return last_placement_result
 
 func interact(target: Node,right: bool=false) -> bool:
 	if not is_instance_valid(target) or target.get_meta("role","") not in ["invention","invention_control","invention_pcb"]:return false
@@ -86,42 +125,47 @@ func _apply(peer: int,action: Dictionary) -> void:
 		var profile:=_profile(peer)
 		var designs: Dictionary=profile.get("inventions",{})
 		var copies:=int(profile.get("invention_copies",{}).get(id,0))
-		if copies<1 or copies>100 or Model.validate(id,designs,profile.get("blueprints",{}))!="":return
+		if copies<1 or copies>100:_placement_result(peer,"You have no fabricated copies available.");return
+		if Model.validate(id,designs,profile.get("blueprints",{}))!="":_placement_result(peer,"The host could not validate this blueprint.");return
 		var slot:=0
 		while placed.has(_key(peer,id,slot)) and slot<copies:slot+=1
-		if slot>=copies:_notice(peer,"All fabricated copies of this invention are already placed.");return
-		if placed.size()>=48:_notice(peer,"The world invention limit is reached.");return
+		if slot>=copies:_placement_result(peer,"All fabricated copies of this invention are already placed.");return
+		if placed.size()>=48:_placement_result(peer,"The maximum number of active inventions has been reached.");return
 		var parts:=Model.flattened(id,designs,profile.get("blueprints",{}))
 		var drive: Dictionary=designs[id].get("drive",{"A":"manual","B":"manual"}).duplicate(true)
 		var wants_pcb: bool=drive.A!="manual" or drive.B!="manual"
 		var pcb_runtime: RefCounted
 		if wants_pcb:
-			if simulators.size()>=8:_notice(peer,"Eight live PCB inventions are already placed.");return
+			if simulators.size()>=8:_placement_result(peer,"Eight live PCB inventions are already placed.");return
 			var mounted: Array=parts.filter(func(part):return part.type=="pcb" and part.has("pin_map"))
-			if mounted.size()!=1:return
+			if mounted.size()!=1:_placement_result(peer,"The blueprint needs one mapped PCB.");return
 			pcb_runtime=PCBRun.new()
-			if not pcb_runtime.configure(str(mounted[0].ref),profile.get("blueprints",{}),mounted[0].pin_map):return
+			if not pcb_runtime.configure(str(mounted[0].ref),profile.get("blueprints",{}),mounted[0].pin_map):_placement_result(peer,"The mounted PCB could not start.");return
 		var bounds:=_bounds(parts)
 		var pose:=_pose(peer)
 		var position:=_placement(pose,peer,bounds)
-		if position==Vector3.INF:_notice(peer,"No clear space near you for this invention.");return
+		if position==Vector3.INF:_placement_result(peer,"Not enough clear space to place this invention.");return
 		var features:={"battery":false,"wheel":false,"motor_a":false,"motor_b":false,"switch_a":false,"switch_b":false}
 		for part in parts:
 			if part.type=="battery":features.battery=true
 			elif part.type=="wheel":features.wheel=true
 			elif part.type=="dc_motor":features["motor_"+str(part.control).to_lower()]=true
 			elif part.type=="switch":features["switch_"+str(part.control).to_lower()]=true
+		Model.connect_wheels(parts)
 		var key:=_key(peer,id,slot)
 		placed[key]={"owner":peer,"id":id,"name":str(designs[id].name),"parts":parts,"bounds":bounds,"features":features,"controls":designs[id].controls.duplicate(true),"drive":drive,"state":{"A":false,"B":false},"effective":{"A":false,"B":false},"pcb_voltage":{"A":0.0,"B":0.0},"pcb_error":"","pcb_inputs":pcb_runtime.inputs.duplicate(true) if wants_pcb else [],"expiry":{"A":0,"B":0},"holder":{"A":0,"B":0},"position":position,"yaw":0.0,"angle":0.0}
+		visuals[key]=_create_view(key,placed[key])
 		if wants_pcb:simulators[key]={"runtime":pcb_runtime,"clock":0.0}
-		_sync();return
+		_sync()
+		_placement_result(peer,"Invention placed successfully.")
+		return
 	var key:=str(action.get("key",""))
 	if key.length()>110 or not placed.has(key):return
 	var item: Dictionary=placed[key]
 	if _pose(peer).distance_to(item.position)>3.5:return
 	if op=="pickup":
 		if peer!=int(item.owner):return
-		placed.erase(key);simulators.erase(key);_sync();return
+		_remove_placed(key);_sync();return
 	if op=="pcb_input":
 		if not simulators.has(key) or not action.get("id") is String or not action.get("pressed") is bool or not action.get("reverse",false) is bool or not action.get("command",{}) is Dictionary or action.get("command",{}).size()>8:return
 		var input_id:=str(action.id)
@@ -139,7 +183,7 @@ func _apply(peer: int,action: Dictionary) -> void:
 			if not action.pressed and int(holder.get("peer",0))!=peer:return
 			if action.pressed:pcb_holders[holder_key]={"peer":peer,"expiry":Time.get_ticks_msec()+650,"key":key,"id":input_id,"command":command_data.duplicate(true)}
 			else:pcb_holders.erase(holder_key)
-		if simulators[key].runtime.input(input_id,action.pressed,action.reverse,command_data):simulators[key].clock=.05
+		simulators[key].runtime.input(input_id,action.pressed,action.reverse,command_data)
 		return
 	if op!="control":return
 	var control:=str(action.get("control",""))
@@ -154,23 +198,35 @@ func _apply(peer: int,action: Dictionary) -> void:
 		item.holder[control]=peer if action.pressed else 0
 	elif mode=="toggle" and action.pressed:item.state[control]=not bool(item.state[control])
 	else:return
-	_sync()
+	pending_motion[key]=true
 
 func _key(peer: int,id: String,slot: int) -> String:return "%d:%s:%d"%[peer,id,slot]
 
+func _part_center(part: Dictionary) -> Vector3:
+	return Vector3(float(part.x),float(part.y),float(part.z))*.3+Vector3(0,.36,0)
+
+func _part_size(kind: String) -> Vector3:
+	if kind=="wheel":return Vector3(.09,.28,.28)
+	if kind in ["pcb","battery","switch"]:return Vector3(.24,.12,.24)
+	return Vector3(.28,.2,.28)
+
 func _bounds(parts: Array) -> Dictionary:
-	var low:=Vector3(-.36,.10,-.36)
-	var high:=Vector3(.36,.72,.36)
+	var low:=Vector3.INF
+	var high:=-Vector3.INF
 	for part in parts:
-		var point:=Vector3(float(part.x),float(part.y),float(part.z))*.3+Vector3(0,.36,0)
-		low=low.min(point-Vector3(.17,.14,.17))
-		high=high.max(point+Vector3(.17,.17,.17))
+		var point:=_part_center(part)
+		var extent:=_part_size(str(part.type))
+		if int(part.get("turns",0))%2==1:extent=Vector3(extent.z,extent.y,extent.x)
+		var half:=extent*.5
+		low=low.min(point-half)
+		high=high.max(point+half)
 	return {"center":(low+high)*.5,"size":high-low}
 
-func _clear_space(position: Vector3,bounds: Dictionary) -> bool:
+func _clear_space(position: Vector3,bounds: Dictionary,exclude: Array[RID]=[]) -> bool:
 	var query:=PhysicsShapeQueryParameters3D.new()
 	var shape:=BoxShape3D.new();shape.size=bounds.size
 	query.shape=shape;query.transform=Transform3D(Basis.IDENTITY,position+bounds.center);query.collision_mask=1
+	query.exclude=exclude
 	return get_world_3d().direct_space_state.intersect_shape(query,1).is_empty()
 
 func _placement(pose: Vector3,peer: int,bounds: Dictionary) -> Vector3:
@@ -178,12 +234,18 @@ func _placement(pose: Vector3,peer: int,bounds: Dictionary) -> Vector3:
 	var yaw: float=game.player.rotation.y if peer==1 else float(game.session.poses.get(peer,{}).get("yaw",0.0))
 	for offset in [Vector3(0,0,-1.4),Vector3(1.4,0,0),Vector3(-1.4,0,0),Vector3(0,0,1.4)]:
 		var candidate: Vector3=pose+offset.rotated(Vector3.UP,yaw)
-		candidate.y=5.0 if pose.y>3 else 0.0
+		var query:=PhysicsRayQueryParameters3D.create(candidate+Vector3.UP*.15,candidate-Vector3.UP*2.0,1)
+		var ground:=get_world_3d().direct_space_state.intersect_ray(query)
+		if ground.is_empty() or ground.normal.y<.95:continue
+		var feet_y:=float(ground.position.y)
+		candidate.y=feet_y-float(bounds.center.y)+float(bounds.size.y)*.5+.015
 		var room_id: String=str(game.campus.registry.locate(candidate))
 		if room_id in ["exterior","stairs","lobby"]:continue
 		var near:=false
+		var volume:=AABB(candidate+bounds.center-bounds.size*.5,bounds.size)
 		for other in placed.values():
-			if candidate.distance_to(other.position)<1.2:near=true;break
+			var box: Dictionary=other.bounds
+			if volume.intersects(AABB(other.position+box.center-box.size*.5,box.size)):near=true;break
 		if near:continue
 		if _clear_space(candidate,bounds):return candidate
 	return Vector3.INF
@@ -192,9 +254,17 @@ func _sync() -> void:
 	if game.session.online and multiplayer.is_server():
 		for peer in game.session.connected_peers():receive.rpc_id(peer,placed)
 
-func _notice(peer: int,message: String) -> void:
-	if peer==1:notice(message)
-	elif game.session.roster.has(peer):notice.rpc_id(peer,message)
+func _placement_result(peer: int,message: String) -> void:
+	if peer==1:receive_placement(message)
+	elif game.session.roster.has(peer):receive_placement.rpc_id(peer,message)
+
+@rpc("authority","call_remote","reliable")
+func receive_placement(message: String) -> void:
+	var blueprint_id:=pending_blueprint
+	pending_blueprint=""
+	last_placement_result=message
+	notice(message)
+	placement_finished.emit(blueprint_id,message)
 
 @rpc("authority","call_remote","reliable")
 func notice(message: String) -> void:
@@ -205,8 +275,18 @@ func receive(snapshot: Dictionary) -> void:
 	if snapshot.size()>48 or var_to_bytes(snapshot).size()>131072:return
 	placed=snapshot
 
+# Reliable updates share the structural channel, so an old update cannot
+# affect a new invention reusing a retrieved copy's slot.
+@rpc("authority","call_remote","reliable")
+func receive_motion(updates: Dictionary) -> void:
+	for key in updates:
+		if placed.has(key):
+			placed[key].merge(updates[key],true)
+
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
+	if is_instance_valid(pcb_panel) and not placed.has(pcb_panel.key):
+		pcb_panel._close()
 	if not local_hold.is_empty():
 		var pressed:=Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT if local_hold.right else MOUSE_BUTTON_LEFT) or Input.is_physical_key_pressed(game.player.keys.interact)
 		if not pressed or not game.player.enabled:
@@ -223,34 +303,43 @@ func _process(delta: float) -> void:
 		var item: Dictionary=placed[key]
 		if not visuals.has(key):visuals[key]=_create_view(key,item)
 		var root: Node3D=visuals[key]
-		root.position=item.position;root.rotation.y=float(item.yaw)
+		root.position=item.position if multiplayer.is_server() else root.position.lerp(item.position,1.0-exp(-delta*18.0))
+		root.rotation.y=float(item.yaw)
 		for control in ["A","B"]:
 			var button:=root.get_node_or_null("Control"+control) as Node3D
 			if is_instance_valid(button):button.position.y=.62 if item.state[control] else .66
 		for shaft in root.get_meta("shafts",[]):
-			if shaft.get_meta("kind")=="wheel":shaft.rotation.x=float(item.angle)
-			elif shaft.get_meta("kind")=="servo":shaft.rotation.y=deg_to_rad(65.0 if item.effective.get(shaft.get_meta("control","B"),false) else -65.0)
+			if shaft.get_meta("kind")=="wheel" and item.effective.get(shaft.get_meta("control",""),false):shaft.rotation.x=float(item.angle)
+			elif shaft.get_meta("kind")=="servo":
+				var actuated: bool=item.features.battery and item.effective.get(shaft.get_meta("control","B"),false)
+				shaft.rotation.y=float(shaft.get_meta("base_yaw"))+deg_to_rad(65.0 if actuated else -65.0)
+
+func _release_pcb(holder_key: String) -> void:
+	var holder: Dictionary=pcb_holders[holder_key]
+	if simulators.has(holder.key):
+		var release: Dictionary=holder.get("command",{}).duplicate(true)
+		if str(release.get("op",""))=="touch":release={"op":"release"}
+		elif release.has("pressed"):release.pressed=false
+		simulators[holder.key].runtime.input(str(holder.id),false,false,release)
+	pcb_holders.erase(holder_key)
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(game) or not multiplayer.is_server():return
-	var changed:=false
 	var now:=Time.get_ticks_msec()
 	for holder_key in pcb_holders.keys():
 		var holder: Dictionary=pcb_holders[holder_key]
-		if now>int(holder.expiry):
-			if simulators.has(holder.key):
-				var release: Dictionary=holder.get("command",{}).duplicate(true)
-				if str(release.get("op",""))=="touch":release={"op":"release"}
-				elif release.has("pressed"):release.pressed=false
-				simulators[holder.key].runtime.input(str(holder.id),false,false,release)
-			pcb_holders.erase(holder_key)
+		if now>int(holder.expiry):_release_pcb(holder_key)
 	for key in placed:
 		var item: Dictionary=placed[key]
+		var changed:=false
 		if simulators.has(key):
-			simulators[key].clock+=delta
-			if float(simulators[key].clock)>=.05:
-				var pcb_result: Dictionary=simulators[key].runtime.tick(float(simulators[key].clock))
-				simulators[key].clock=0.0
+			var simulator: Dictionary=simulators[key]
+			simulator.clock+=delta
+			var steps:=0
+			while float(simulator.clock)+0.000001>=PCB_STEP and steps<PCB_CATCHUP_LIMIT:
+				var pcb_result: Dictionary=simulator.runtime.tick(PCB_STEP)
+				simulator.clock=maxf(0.0,float(simulator.clock)-PCB_STEP)
+				steps+=1
 				var pcb_error: String=str(pcb_result.get("error","")) if not pcb_result.get("ok",false) else ""
 				if pcb_error!=str(item.pcb_error):item.pcb_error=pcb_error;changed=true
 				for control in ["A","B"]:
@@ -258,36 +347,62 @@ func _physics_process(delta: float) -> void:
 					if absf(voltage-float(item.pcb_voltage[control]))>.01:item.pcb_voltage[control]=voltage;changed=true
 		for control in ["A","B"]:
 			if item.controls[control]=="hold" and item.state[control] and now>int(item.expiry[control]):item.state[control]=false;item.holder[control]=0;changed=true
-			var pcb_high: bool=float(item.pcb_voltage[control])>=2.5
-			var effective: bool=bool(item.state[control]) if item.drive[control]=="manual" else pcb_high if item.drive[control]=="pcb" else bool(item.state[control]) and pcb_high
+			var effective:=Model.energized(item.drive[control],item.state[control],item.pcb_voltage[control])
 			if effective!=bool(item.effective[control]):item.effective[control]=effective;changed=true
-		var active_motor: bool=bool(item.features.battery) and ((bool(item.features.motor_a) and bool(item.effective.A)) or (bool(item.features.motor_b) and bool(item.effective.B)))
-		if active_motor:
-			item.angle=wrapf(float(item.angle)+delta*8.0,0,TAU)
-			if item.features.wheel:
-				var next: Vector3=item.position+Vector3(0,0,-delta*.5).rotated(Vector3.UP,float(item.yaw))
-				if game.campus.registry.locate(next)==game.campus.registry.locate(item.position):
-					if _clear_space(next,item.bounds):item.position=next
-			changed=true
-	if changed:
-		sync_clock+=delta
-		if sync_clock>=.1:sync_clock=0;_sync()
+		var drive_direction:=Vector3.ZERO
+		if item.features.battery:
+			for part in item.parts:
+				if part.type=="wheel" and item.effective.get(part.get("motor_control",""),false):
+					drive_direction=Vector3(Model.rotate_grid(Vector3i.FORWARD,int(part.get("turns",0))))
+					break
+		if drive_direction!=Vector3.ZERO:
+			var view: StaticBody3D=visuals.get(key)
+			var solid: StaticBody3D=view.get_node("Solid") if is_instance_valid(view) else null
+			var next: Vector3=item.position+(drive_direction*delta*.5).rotated(Vector3.UP,float(item.yaw))
+			if is_instance_valid(solid) and game.campus.registry.locate(next)==game.campus.registry.locate(item.position):
+				if _clear_space(next,item.bounds,[solid.get_rid()]):
+					item.position=next
+					view.position=next
+					item.angle=wrapf(float(item.angle)+delta*.5/.14,0,TAU)
+					changed=true
+		if changed:pending_motion[key]=true
+	sync_clock+=delta
+	if sync_clock<.1:return
+	sync_clock=fmod(sync_clock,.1)
+	if game.session.online and not pending_motion.is_empty():
+		var updates: Dictionary={}
+		for key in pending_motion:
+			var item: Dictionary=placed[key]
+			updates[key]={"position":item.position,"yaw":item.yaw,"angle":item.angle,"state":item.state,"effective":item.effective,"pcb_voltage":item.pcb_voltage,"pcb_error":item.pcb_error}
+		for peer in game.session.connected_peers():receive_motion.rpc_id(peer,updates)
+	pending_motion.clear()
 
 func _create_view(key: String,item: Dictionary) -> StaticBody3D:
 	var root:=StaticBody3D.new();root.collision_layer=4;root.collision_mask=0
 	root.set_meta("role","invention");root.set_meta("invention_key",key);root.set_meta("label",str(item.name)+" · retrieve")
 	add_child(root)
-	var hit:=CollisionShape3D.new();var bounds:=BoxShape3D.new();bounds.size=Vector3(.72,.52,.72);hit.shape=bounds;hit.position.y=.26;root.add_child(hit)
+	root.position=item.position
+	var solid:=StaticBody3D.new()
+	solid.name="Solid";solid.collision_layer=1;solid.collision_mask=0;root.add_child(solid)
+	var hit:=CollisionShape3D.new();var bounds:=BoxShape3D.new();bounds.size=item.bounds.size;hit.shape=bounds;hit.position=item.bounds.center;root.add_child(hit)
 	var shafts: Array=[]
 	for part in item.parts:
 		var kind:=str(part.type)
-		var pivot:=Node3D.new();pivot.position=Vector3(float(part.x),float(part.y),float(part.z))*.3+Vector3(0,.36,0);root.add_child(pivot)
-		if kind in ["wheel","servo"]:pivot.set_meta("kind",kind);pivot.set_meta("control",part.get("control","B"));shafts.append(pivot)
+		var pivot:=Node3D.new();pivot.position=_part_center(part);root.add_child(pivot)
+		pivot.rotation.y=float(part.get("turns",0))*PI*.5
+		if kind in ["wheel","servo"]:
+			pivot.set_meta("kind",kind)
+			pivot.set_meta("base_yaw",pivot.rotation.y)
+			pivot.set_meta("control",part.get("motor_control","") if kind=="wheel" else part.get("control","B"))
+			shafts.append(pivot)
+		var part_hit:=CollisionShape3D.new()
+		var part_box:=BoxShape3D.new();part_box.size=_part_size(kind);part_hit.shape=part_box;part_hit.position=pivot.position;solid.add_child(part_hit)
+		part_hit.rotation.y=pivot.rotation.y
 		var mesh:=MeshInstance3D.new()
 		if kind=="wheel":
 			var cylinder:=CylinderMesh.new();cylinder.top_radius=.14;cylinder.bottom_radius=.14;cylinder.height=.09;mesh.mesh=cylinder;mesh.rotation.z=PI/2
 		else:
-			var box:=BoxMesh.new();box.size=Vector3(.24,.12,.24) if kind in ["pcb","battery","switch"] else Vector3(.28,.2,.28);mesh.mesh=box
+			var box:=BoxMesh.new();box.size=_part_size(kind);mesh.mesh=box
 		var material:=StandardMaterial3D.new();material.albedo_color=Color(str(Model.PARTS.get(kind,{}).get("color","777777")));mesh.material_override=material;pivot.add_child(mesh)
 		if kind=="pcb" and (item.drive.A!="manual" or item.drive.B!="manual"):
 			var pcb_target:=StaticBody3D.new();pcb_target.collision_layer=4;pcb_target.collision_mask=0;pcb_target.position=pivot.position+Vector3(0,.24,0);root.add_child(pcb_target)

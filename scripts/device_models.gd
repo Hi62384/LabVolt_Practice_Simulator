@@ -1,6 +1,10 @@
 extends RefCounted
 # Bounded educational behavioral models. Logic updates once per simulation step.
 static func expand(model: Dictionary,id: String,nodes: Array,state: Dictionary,voltages: Dictionary={},runtime: Dictionary={}) -> Array:
+	# Board and custom-package data can outlive changes to a component footprint.
+	# Refuse an incomplete footprint before reading its positional terminals.
+	if nodes.size()<2 or (model.has("pins") and nodes.size()!=model.pins.size()):
+		return []
 	if model.get("kind","")=="native_controller":
 		var program_state := state.duplicate(true);program_state.merge(runtime.get("__programs",{}).get(id,{}),true)
 		# Missing disconnected header nodes are relative to this board ground. An
@@ -63,12 +67,13 @@ static func expand(model: Dictionary,id: String,nodes: Array,state: Dictionary,v
 			for i in 8:out.append({"id":id+"/"+str(i),"kind":"LED","a":nodes[8] if model.get("common_anode",false) else nodes[i],"b":nodes[i] if model.get("common_anode",false) else nodes[8],"vf":1.8,"ron":10})
 		"logic":
 			var ground: String=nodes[6];var supply: String=nodes[13]
-			var zero := float(voltages.get(ground,0));var vcc := float(voltages.get(supply,0))-zero
+			var zero := float(voltages.get(ground,0))
+			var vcc := float(voltages[supply])-zero if voltages.has(ground) and voltages.has(supply) else 0.0
 			out.append({"id":id+"/power","kind":"R","a":supply,"b":ground,"value":1e6})
 			var gates: Array=[[0,1,2],[3,4,5],[8,9,7],[11,12,10]]
 			if model.gate=="NOT":gates=[[0,0,1],[2,2,3],[4,4,5],[8,8,7],[10,10,9],[12,12,11]]
 			for i in gates.size():
-				var gate: Array=gates[i];var va := float(voltages.get(nodes[gate[0]],0))-zero;var vb := float(voltages.get(nodes[gate[1]],0))-zero
+				var gate: Array=gates[i];var va := float(voltages.get(nodes[gate[0]],zero))-zero;var vb := float(voltages.get(nodes[gate[1]],zero))-zero
 				for input_pin in ([gate[0]] if gate[0]==gate[1] else [gate[0],gate[1]]):out.append({"id":id+"/input"+str(i)+"/"+str(input_pin),"kind":"R","a":nodes[input_pin],"b":ground,"value":1e9})
 				var high_a := va>=.7*vcc;var high_b := vb>=.7*vcc;var high := false
 				match str(model.gate):

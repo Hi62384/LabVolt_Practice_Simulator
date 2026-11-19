@@ -27,6 +27,25 @@ func _run() -> void:
 		assert(changed.ok and absf(changed.x[0]-actual.x[0])>1e-6)
 	var singular: Dictionary=kernel.SolveCached([PackedFloat64Array([0.0,0.0]),PackedFloat64Array([0.0,0.0])],PackedFloat64Array([1.0,1.0]))
 	assert(not singular.ok)
+	# Interleaved blocks with unequal RHS and one-way cross-node dependencies.
+	var blocks: Array=[]
+	var block_rhs:=PackedFloat64Array()
+	for i in 30:
+		var row:=PackedFloat64Array()
+		row.resize(30)
+		row[i]=4.0+float(i)
+		if i<20:row[i+10]=-1.0
+		if i>=20:row[i-20]=0.5
+		blocks.append(row)
+		block_rhs.append(float(i+1))
+	var block_expected: Dictionary=solver._solve_cached_gd(blocks,block_rhs)
+	var block_actual: Dictionary=solver._solve_cached(blocks,block_rhs)
+	assert(block_expected.ok and block_actual.ok)
+	for i in 30:assert(absf(block_expected.x[i]-block_actual.x[i])<1e-10)
+	block_rhs[13]+=2.0
+	block_expected=solver._solve_cached_gd(blocks,block_rhs)
+	block_actual=solver._solve_cached(blocks,block_rhs)
+	for i in 30:assert(absf(block_expected.x[i]-block_actual.x[i])<1e-10)
 	var matrix: Array=[];var rhs:=PackedFloat64Array()
 	for i in 16:
 		var row:=PackedFloat64Array();row.resize(16)
@@ -66,6 +85,6 @@ func _run() -> void:
 		bigger[0][0]=120.0+float(i)*.01
 		hybrid._solve_cached(bigger,bigger_rhs)
 	cs_usec=Time.get_ticks_usec()-started
-	print("hybrid uncached 60x60 x20 GDScript ",gd_usec," us; C# factor ",cs_usec," us")
+	print("integrated uncached 60x60 x20 GDScript ",gd_usec," us; C# solve ",cs_usec," us")
 	print("MNA_CSHARP_KERNEL PASS")
 	quit()

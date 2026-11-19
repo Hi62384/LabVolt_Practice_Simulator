@@ -79,10 +79,7 @@ func run() -> void:
  faculty.calls.ac_lab.until=0
  faculty._advance_call("ac_lab",.1)
  assert(not faculty.calls.has("ac_lab"))
- assert(game.school.teacher_goal==Vector3(2,0,4))
- game.school_world.dc_instructor.global_position=faculty.dc_home+Vector3(-1,0,0)
- faculty._return_dc_home(2.0)
- assert(game.school_world.dc_instructor.global_position.distance_to(faculty.dc_home)<.02)
+ assert(faculty.freeplay_returns.has("ac_lab"))
  game.player.global_position=faculty.dc_home+Vector3(-3,0,0)
  faculty.call_cooldowns.erase(peer)
  faculty._call_request(peer,"dc_lab")

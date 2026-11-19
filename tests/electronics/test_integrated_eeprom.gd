@@ -21,7 +21,8 @@ func run():
  assert(not material.is_empty());assert(station.apply({"op":"board","design":material})=="");station.board_owner=1
  station.master=true
  for channel in station.channels:channel.enabled=true;channel.limit=.1
- station.wires=[["CH1+","B3"],["CH2+","B2"],["CH3+","B1"],["CH1-","B4"],["CH2-","B4"],["CH3-","B4"]]
+ for lead in [["CH1+","B3"],["CH2+","B2"],["CH3+","B1"],["CH1-","B4"],["CH2-","B4"],["CH3-","B4"]]:
+  assert(station.apply({"op":"wire","a":lead[0],"b":lead[1]})=="")
  tick(5.,0.,0.);byte_out(6);tick(5.,0.,0.)
  byte_out(2);byte_out(0);byte_out(16);byte_out(165);tick(5.,0.,0.)
  for i in 20:station.step(.0005)
@@ -35,12 +36,24 @@ func run():
  assert(station.firmware_states["board/nv"].memory["16"]==165)
  var ledger=load("res://scripts/inventory_authority/ledger.gd").new()
  assert(ledger.open("user://actual_eeprom_trade")==OK)
- assert(ledger.bind(1,"a".repeat(48),"1".repeat(64),saved).ok)
+ var sender_profile: Dictionary=saved.duplicate(true)
+ # Detach the captured chip from the packed kit before offering it in a trade.
+ sender_profile.kits[sender_profile.equipped].board=load("res://scripts/breadboard_model.gd").empty()
+ sender_profile.kits[sender_profile.equipped].items.erase("eeprom25")
+ sender_profile.erase("dorm")
+ var sender_bound: Dictionary=ledger.bind(1,"a".repeat(48),"1".repeat(64),sender_profile)
+ assert(sender_bound.ok,str(sender_bound.get("error","")))
  var receiver=load("res://scripts/electronics_profile.gd").new();receiver.open("user://recipient")
- assert(ledger.bind(2,"b".repeat(48),"2".repeat(64),receiver.data).ok)
- var identity: String=ledger.account(1).profile.component_instances.keys()[0]
+ receiver.data.erase("dorm")
+ var receiver_bound: Dictionary=ledger.bind(2,"b".repeat(48),"2".repeat(64),receiver.data)
+ assert(receiver_bound.ok,str(receiver_bound.get("error","")))
+ var instances: Dictionary=ledger.account(1).profile.component_instances
+ var eeproms: Array=instances.keys().filter(func(id):return instances[id].type=="eeprom25")
+ assert(eeproms.size()==1,"Expected one captured EEPROM instance")
+ var identity: String=eeproms[0]
  var selections={1:{identity:ledger.instance_hash(ledger.account(1).profile.component_instances[identity])},2:{}}
- assert(ledger.exchange("electrically-written-memory",[1,2],{1:{"eeprom25":1},2:{}},{},selections).ok)
+ var exchanged: Dictionary=ledger.exchange("electrically-written-memory",[1,2],{1:{"eeprom25":1},2:{}},{},selections)
+ assert(exchanged.ok,str(exchanged.get("error","")))
  var receiver_design=design.duplicate(true)
  receiver_design.parts=receiver_design.parts.filter(func(part):return part.type=="eeprom25")
  var recipient_material: Dictionary=ledger.materialize(2,receiver_design)
@@ -51,7 +64,7 @@ func run():
  assert(ledger.materialize(1,design).component_runtime.is_empty())
  var restarted=load("res://scripts/inventory_authority/ledger.gd").new()
  assert(restarted.open("user://actual_eeprom_trade")==OK)
- assert(restarted.bind(3,"b".repeat(48),"2".repeat(64),receiver.data).ok)
+ assert(restarted.bind(3,"b".repeat(48),"2".repeat(64),ledger.account(2).profile).ok)
  assert(restarted.materialize(3,receiver_design).component_runtime["board/nv"].memory["16"]==165)
  print("PASS: solved SPI writes byte, owned capture and JSON restore retain it, reviewed trade transfers one physical unit, recipient deployment and host restart preserve byte, donor cannot clone it")
  quit()

@@ -2,6 +2,19 @@ extends SceneTree
 const Board=preload("res://scripts/breadboard_model.gd")
 const Custom=preload("res://scripts/custom_circuit.gd")
 const Runtime=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_runtime.gd")
+const World=preload("res://scripts/campus/facilities/circuit_studio/invention_world.gd")
+
+class MockGame extends Node:
+	var session := {"online":false}
+
+class ClockProbe extends RefCounted:
+	var calls := 0
+	var elapsed := 0.0
+
+	func tick(delta: float) -> Dictionary:
+		calls+=1
+		elapsed+=delta
+		return {"ok":true,"A":0.0,"B":0.0}
 
 func _initialize() -> void:call_deferred("_run")
 
@@ -40,5 +53,38 @@ func _run() -> void:
 	var start:=Time.get_ticks_usec()
 	for i in 80:runtime.tick(.05)
 	print("PCB_DRIVE_80_TICKS_MS ",(Time.get_ticks_usec()-start)/1000.0)
+	_check_world_clock()
 	print("PCB_DRIVE_PASS")
 	quit()
+
+func _check_world_clock() -> void:
+	var world:=World.new()
+	var game:=MockGame.new()
+	get_root().add_child(game)
+	game.add_child(world)
+	world.set_process(false)
+	world.set_physics_process(false)
+	world.game=game
+	world.placed["test"]={
+		"controls":{"A":"hold","B":"toggle"},
+		"state":{"A":false,"B":false},
+		"effective":{"A":false,"B":false},
+		"drive":{"A":"manual","B":"manual"},
+		"pcb_voltage":{"A":0.0,"B":0.0},
+		"pcb_error":"","features":{"battery":false}
+	}
+	for fps in [15,30,60,144]:
+		var probe:=ClockProbe.new()
+		world.simulators["test"]={"runtime":probe,"clock":0.0}
+		for frame in fps:
+			world._physics_process(1.0/float(fps))
+		assert(probe.calls==20 and is_equal_approx(probe.elapsed,1.0),"PCB time differed at %d FPS"%fps)
+	var stalled:=ClockProbe.new()
+	world.simulators["test"]={"runtime":stalled,"clock":0.0}
+	world._physics_process(.53)
+	assert(stalled.calls==4,"Lag catch-up exceeded its step budget")
+	world._physics_process(0.0)
+	world._physics_process(0.0)
+	assert(stalled.calls==10 and is_equal_approx(float(world.simulators.test.clock),.03),"Lag catch-up discarded elapsed time")
+	print("PCB_WORLD_CLOCK_PASS 15/30/60/144 FPS and 530 ms stall")
+	game.free()
