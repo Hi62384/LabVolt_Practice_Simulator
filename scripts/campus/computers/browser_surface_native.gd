@@ -13,6 +13,7 @@ var attachment_loader: Callable
 var assistant_virtual_save: Callable
 var virtual_download_save: Callable
 var download_request: HTTPRequest
+var download_dialog: ConfirmationDialog
 var game: Node
 var device_kind:=""
 var device_id:=""
@@ -53,6 +54,7 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
  _record_step()
  _assistant_check_title()
+ _check_page_download()
  if not is_instance_valid(back) or not is_instance_valid(forward):return
  var browser: Variant=_browser()
  back.disabled=browser==null or not browser.has_previous_page()
@@ -96,6 +98,8 @@ func close_session() -> void:
   download_request.cancel_request()
   download_request.queue_free()
  download_request=null
+ if is_instance_valid(download_dialog):download_dialog.queue_free()
+ download_dialog=null
  virtual_download_save=Callable()
  assistant_pending.clear();assistant_action.clear();assistant_response=""
  if is_instance_valid(game) and is_instance_valid(game.browser_assistant) and game.browser_assistant.reply_received.is_connected(_assistant_reply):game.browser_assistant.reply_received.disconnect(_assistant_reply)
@@ -329,15 +333,85 @@ func _loaded(browser: Variant) -> void:
   if tabs[i].browser!=browser:continue
   tabs[i].title=str(browser.get_title()) if not str(browser.get_title()).is_empty() else str(browser.get_url()).left(24)
   browser.execute_javascript(_upload_script())
+  if device_kind=="computer":
+   var token: String=tabs[i].get("page_download",{}).get("token","")
+   if token.is_empty():token=Crypto.new().generate_random_bytes(12).hex_encode()
+   tabs[i].page_download={"token":token,"index":0,"parts":PackedStringArray(),"length":0,"last":0}
+   browser.execute_javascript(Downloads.page_script(token))
   if i==active:status.text="";_refresh()
   return
+
+func _check_page_download() -> void:
+ if not virtual_download_save.is_valid() or tabs.is_empty():return
+ var tab: Dictionary=tabs[active]
+ if not tab.has("page_download") or not is_instance_valid(tab.browser):return
+ var transfer: Dictionary=tab.page_download
+ var title:=str(tab.browser.get_title())
+ var prefix: String="__LVD__"+transfer.token+"|"
+ if not title.begins_with(prefix):return
+ var pieces:=title.substr(prefix.length()).split("|",true,2)
+ if pieces.size()!=3 or pieces[1] not in ["0","1"] or not pieces[0].is_valid_int() or int(pieces[0])!=int(transfer.index):return
+ if transfer.index==0:transfer.last=Time.get_ticks_msec()
+ var piece: String=pieces[2]
+ var max_wire:=Downloads.MAX_BYTES*2
+ if piece.length()>Downloads.PAGE_CHUNK or int(transfer.length)+piece.length()>max_wire or Time.get_ticks_msec()-int(transfer.last)>20000:
+  _finish_page_report(tab,transfer)
+  status.text="The page download exceeded its transfer limit."
+  return
+ transfer.parts.append(piece)
+ transfer.length+=piece.length()
+ if pieces[1]=="0":
+  transfer.index+=1
+  tab.browser.execute_javascript("window.__labvoltDownload?.(%s,%d)"%[JSON.stringify(transfer.token),transfer.index])
+  return
+ var payload: Variant=JSON.parse_string(Marshalls.base64_to_raw("".join(transfer.parts)).get_string_from_utf8())
+ _finish_page_report(tab,transfer)
+ if not payload is Dictionary:return
+ if payload.has("error"):
+  status.text=str(payload.error).left(120)
+  return
+ var extension: String=Downloads.EXTENSIONS.get(str(payload.get("mime","")),"")
+ var body:=Marshalls.base64_to_raw(str(payload.get("data","")))
+ if not Downloads.valid(body,extension):
+  status.text="The page offered an unsupported or invalid file."
+  return
+ if is_instance_valid(download_dialog):return
+ var filename:=Downloads.filename(str(payload.get("name","")).left(128),extension)
+ var origin:=str(tab.browser.get_url()).get_slice("://",0)+"://"+str(tab.browser.get_url()).get_slice("://",1).get_slice("/",0)
+ var expected_session:=session_key
+ download_dialog=ConfirmationDialog.new()
+ download_dialog.title="Save website download"
+ download_dialog.dialog_text="%s offered %s (%d bytes). Save it to virtual Downloads?"%[origin.left(85),filename,body.size()]
+ download_dialog.ok_button_text="Save"
+ add_child(download_dialog)
+ download_dialog.confirmed.connect(func():
+  if session_key==expected_session and virtual_download_save.is_valid():
+   status.text="Saving to Downloads…"
+   virtual_download_save.call(filename,body)
+ )
+ download_dialog.confirmed.connect(download_dialog.queue_free)
+ download_dialog.canceled.connect(download_dialog.queue_free)
+ download_dialog.popup_centered()
+
+func _finish_page_report(tab: Dictionary,transfer: Dictionary) -> void:
+ # Block duplicate reads until CEF has acknowledged the report.
+ transfer.index=-1
+ transfer.parts=PackedStringArray()
+ transfer.length=0
+ var token: String=transfer.token
+ tab.browser.execute_javascript("window.__labvoltDownload?.(%s,-1)"%JSON.stringify(token))
+ _reset_page_report(tab,token)
+
+func _reset_page_report(tab: Dictionary,token: String) -> void:
+ await get_tree().create_timer(.2).timeout
+ if tab.get("page_download",{}).get("token")==token:tab.page_download.index=0
 
 func _download_address() -> void:
  if not virtual_download_save.is_valid():status.text="This computer has no Downloads folder.";return
  if is_instance_valid(download_request):status.text="A download is already in progress.";return
  var url:=address.text.strip_edges()
  if not (url.begins_with("https://") or url.begins_with("http://")) or url.length()>2048:
-  status.text="Enter a direct HTTP or HTTPS text-file address."
+  status.text="Enter a direct HTTP or HTTPS file address."
   return
  var request:=HTTPRequest.new()
  request.body_size_limit=Downloads.MAX_BYTES
@@ -360,7 +434,7 @@ func _download_finished(result: int,code: int,headers: PackedStringArray,body: P
   status.text="The file exceeds this computer's 256 KB download limit."
   return
  if result!=HTTPRequest.RESULT_SUCCESS or code!=200:
-  status.text="Could not download this address. Use a direct text-file link."
+  status.text="Could not download this address. Use a direct file link."
   return
  var mime:=""
  for header in headers:
@@ -370,11 +444,7 @@ func _download_finished(result: int,code: int,headers: PackedStringArray,body: P
  if not Downloads.valid(body,extension):
   status.text="Unsupported or invalid file. Text files are limited to 32 KB."
   return
- var original:=url.get_slice("?",0).get_slice("#",0).get_file().uri_decode().get_basename()
- var stem:=""
- for character in original.left(20):
-  if character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-":stem+=character
- var filename:="%s.%s"%[stem if not stem.is_empty() else "download",extension]
+ var filename:=Downloads.filename(url.get_slice("?",0).get_slice("#",0).uri_decode(),extension)
  status.text="Saving to Downloads…"
  virtual_download_save.call(filename,body)
 

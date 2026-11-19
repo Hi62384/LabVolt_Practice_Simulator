@@ -11,7 +11,7 @@ var step:=-1
 func bind(legs: Dictionary) -> void:
 	restore()
 	for data in legs.values():
-		var leg: Node3D=data.node
+		var leg: Variant=data.node
 		if not is_instance_valid(leg):continue
 		for child in leg.get_children():
 			if not child is Node3D:continue
@@ -34,18 +34,18 @@ func apply(phase: float, reverse := false) -> void:
 	if reverse:angle*=1.45
 	var rotation:=Basis(Vector3.RIGHT,angle)
 	for part in parts:
-		var node: MeshInstance3D=part.node
-		var leg: Node3D=part.leg
+		var node: Variant=part.node
+		var leg: Variant=part.leg
 		if not is_instance_valid(node) or not is_instance_valid(leg):continue
 		if node.mesh!=part.original and node.mesh not in part.cache.values():
 			part.original=node.mesh;part.cache.clear()
 		if next==0:node.mesh=part.original;continue
 		if not part.cache.has(next):
-			var frame:=leg.global_transform.affine_inverse()*node.global_transform
+			var frame: Transform3D=leg.global_transform.affine_inverse()*node.global_transform
 			part.cache[next]=_bent_mesh(part.original,frame,rotation)
 		node.mesh=part.cache[next]
 	for foot in feet:
-		var node: Node3D=foot.node
+		var node: Variant=foot.node
 		if not is_instance_valid(node):continue
 		var base: Transform3D=foot.original
 		# Translate the shoes with the shin while keeping their soles level.
@@ -53,7 +53,7 @@ func apply(phase: float, reverse := false) -> void:
 
 func restore() -> void:
 	for part in parts:
-		var node: MeshInstance3D=part.node
+		var node: Variant=part.node
 		if is_instance_valid(node) and node.mesh in part.cache.values():node.mesh=part.original
 	for foot in feet:
 		if is_instance_valid(foot.node):foot.node.transform=foot.original

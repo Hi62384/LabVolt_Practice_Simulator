@@ -151,7 +151,7 @@ func teacher() -> void:
 		_label(column,"%s · Week %d · %s"%[str(assigned.get("course_id","Assigned course")),int(assigned.get("week",0)),str(assigned.get("kind","Class")).capitalize()])
 		_label(column,"%s · %02d:%02d"%[school.phase.capitalize(),maxi(0,int(school.remaining))/60,maxi(0,int(school.remaining))%60])
 		if school.phase=="travel":_label(column,"Find your assigned room. Teaching begins when the countdown ends.")
-		elif school.phase=="lesson":_label(column,str(school.teaching_stage().get("title","Teaching in progress")))
+		elif school.phase=="lesson":_label(column,str(school.activity.get("assessment_status",school.teaching_stage().get("title","Teaching in progress"))))
 		elif school.phase=="assignment":_label(column,"Complete your assigned work before the deadline.")
 		if school.phase=="assignment" and school.held(multiplayer.get_unique_id())==0:_button(column,"Replace missing Class sheet",func():school.request({"op":"replacement"});close())
 		if preload("res://scripts/campus/academics/open_lab/tutorials/formal_guide_policy.gd").allowed(school.mode,assigned):_button(column,"Equipment guide",func():school.request({"op":"guide"});close())
@@ -369,6 +369,9 @@ func _build_reader() -> void:
 	if _can_mark(paper):_button(toolbar,"Undo",_undo_mark)
 	if _can_mark(paper):_button(toolbar,"Redo",func():_undo_mark(true))
 	_button(toolbar,"Close",close)
+	if not str(paper.project.get("assessment_focus","")).is_empty():
+		var focus := _label(column,str(paper.project.assessment_focus),14)
+		focus.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var row := HBoxContainer.new();row.add_theme_constant_override("separation",0);row.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(row)
 	workspace_view=preload("res://scripts/ui/paper_workspace/workspace/viewport.gd").new()
 	workspace_view.name="PaperViewport"

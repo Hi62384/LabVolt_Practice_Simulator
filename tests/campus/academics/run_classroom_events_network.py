@@ -14,6 +14,14 @@ BUNDLED = (
     / "Godot_v4.5.1-stable_mono_win64_console.exe"
 )
 FIXTURES = {
+    "voice": (
+        "test_live_voice_network.gd", "VOICE_HOST_READY",
+        "LIVE_VOICE_HOST PASS", "LIVE_VOICE_CLIENT PASS",
+    ),
+    "gym": (
+        "../facilities/test_lift_network.gd", "LIFT_HOST_READY",
+        "LIFT_HOST PASS", "LIFT_CLIENT PASS", "26376",
+    ),
     "events": (
         "test_classroom_events_network.gd", "CLASSROOM_RPC_HOST_READY",
         "CLASSROOM_RPC_HOST PASS", "CLASSROOM_RPC_CLIENT PASS",
@@ -30,7 +38,9 @@ FIXTURES = {
 
 
 def run_pair(godot, fixture):
-    script, ready_marker, *pass_markers = FIXTURES[fixture]
+    script, ready_marker, host_marker, client_marker, *arguments = FIXTURES[fixture]
+    pass_markers = (host_marker, client_marker)
+    script_path = (ROOT / "tests" / "campus" / "academics" / script).resolve()
     with tempfile.TemporaryDirectory(prefix="classroom-network-", dir=ROOT / ".godot",
                                      ignore_cleanup_errors=True) as work:
         peers = []
@@ -42,7 +52,7 @@ def run_pair(godot, fixture):
                 with log.open("w", encoding="utf-8") as output:
                     process = subprocess.Popen(
                         [str(godot), "--headless", "--path", str(ROOT), "--script",
-                         f"res://tests/campus/academics/{script}", "--", role],
+                         str(script_path), "--", role, *arguments],
                         cwd=ROOT, env={**os.environ, "APPDATA": str(appdata)},
                         stdout=output, stderr=subprocess.STDOUT,
                     )

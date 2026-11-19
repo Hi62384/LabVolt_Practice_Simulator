@@ -36,6 +36,7 @@ var document_sequence := 0
 var last_requests := {}
 const GradePolicy = preload("res://scripts/campus/academics/grade_policy.gd")
 const PendingAssessment = preload("res://scripts/campus/academics/pending_assessment.gd")
+const AssessmentPlan = preload("res://scripts/campus/academics/ai_assessment_plan.gd")
 const CourseProgression = preload("res://scripts/campus/academics/course_progression_adapter.gd")
 const RecordMetadata=preload("res://scripts/campus/academics/record_metadata.gd")
 const Attendance = preload("res://scripts/campus/academics/attendance_ledger.gd")
@@ -58,6 +59,7 @@ var public_math_projects := {}
 var allocation := {}
 var assessment_id := ""
 var assessment_deadline := 0.0
+var formal_assessment_plan := {}
 var teaching_seconds := 300.0
 var assessment_seconds := 1800.0
 var category_weights := {"lecture":1.0,"lab":1.0}
@@ -1204,6 +1206,38 @@ func _assessment_remaining() -> float:
 	# Keep the original wall-clock deadline authoritative, including between frames.
 	return minf(remaining,maxf(0,assessment_deadline-_academic_now())) if assessment_deadline>0 else remaining
 
+func compile_ai_assessment(original: Dictionary, plan: Dictionary, salt: String) -> Dictionary:
+	var generated:=AssessmentPlan.compile(course_bridge,original,plan,salt)
+	if not generated.get("practical",{}).is_empty() and is_instance_valid(equipment_adapter) and equipment_adapter.has_method("supports"):
+		var capability: Dictionary=equipment_adapter.supports(generated)
+		if not capability.get("ok",false):return {}
+	return generated
+
+func _prepare_formal_ai_assessments() -> bool:
+	if formal_assessment_plan.get("id","")!=assessment_id:formal_assessment_plan={"id":assessment_id}
+	var expected_id:=assessment_id
+	var plan:=AssessmentPlan.plan(game.host_openai,formal_assessment_plan,project,teaching_stage(),
+		func():return assessment_id==expected_id and phase=="lesson")
+	activity.assessment_status=formal_assessment_plan.get("status","")
+	if plan.is_empty():return false
+	var generated:=compile_ai_assessment(project,plan,expected_id)
+	var prepared := {}
+	if not generated.is_empty() and str(activity.get("course_id","")) in ["MTH147","MTH255"]:
+		for token in class_students:
+			var individual:=compile_ai_assessment(_individual_project(token),plan,token)
+			if individual.is_empty():
+				generated={}
+				break
+			prepared[token]=individual
+	if generated.is_empty():
+		AssessmentPlan.retry(formal_assessment_plan)
+		activity.assessment_status=formal_assessment_plan.status
+		return false
+	for token in prepared:class_students[token].project=prepared[token]
+	project=generated
+	activity.erase("assessment_status")
+	return true
+
 func advance(delta: float) -> void:
 	if mode!="Class" or suspended or phase in ["travel","complete"]:return
 	remaining=maxf(0,remaining-maxf(0,delta))
@@ -1213,6 +1247,7 @@ func advance(delta: float) -> void:
 	if phase=="break":
 		_new_round()
 	elif phase=="lesson":
+		if activity.get("ai_teaching",false) and not _prepare_formal_ai_assessments():return
 		phase="assignment"
 		remaining=assessment_seconds
 		assessment_deadline=_academic_now()+remaining
@@ -1545,6 +1580,8 @@ func teaching_stage() -> Dictionary:
 		if elapsed<cursor or i==stages.size()-1:
 			var result := stage.duplicate(true)
 			result.index=i;result.count=stages.size()
+			if activity.get("ai_teaching",false):
+				result["teaching_step"]=preload("res://scripts/campus/academics/adaptive_lesson.gd").window(elapsed,teaching_seconds)
 			return result
 	return {}
 

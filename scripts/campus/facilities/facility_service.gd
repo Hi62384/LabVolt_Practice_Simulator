@@ -84,8 +84,8 @@ func _event(peer: int, event: Dictionary) -> void:
 		for machine in rooms.gym.gym_cables:
 			if not is_instance_valid(machine):continue
 			var activity: Variant=visuals.get(peer)
-			var avatar: Node3D=activity.visual if is_instance_valid(activity) else null
-			machine.on_room_event(peer,event,avatar)
+			var avatar: Variant=activity.visual if is_instance_valid(activity) else null
+			machine.on_room_event(peer,event,avatar if is_instance_valid(avatar) and avatar.is_inside_tree() else null)
 			if event.get("activity","")=="exercise" and event.get("station","")==machine.station_id:
 				event=event.duplicate();event.machine_position=machine.global_position
 				event.cable_stance=machine.to_global(Vector3(0,0,1.25))

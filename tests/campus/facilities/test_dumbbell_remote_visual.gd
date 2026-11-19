@@ -15,7 +15,7 @@ func run():
   var activity=preload("res://scripts/campus/facilities/avatar_activity.gd").new();avatar.add_child(activity);activity.bind_visual(body)
   var left: Node3D=weights.remote_models[2].parts[0]
   var before:=left.global_position
-  activity.apply_event({"activity":"exercise","station":"gym/dumbbell/2","exercise":"curl","phase":1,"half_ms":700},false)
+  activity.apply_event({"activity":"exercise","station":"gym/dumbbell/2","exercise":"curl","phase":0,"half_ms":700},false)
   for i in 90:activity._process(.02);weights._sync_remote_visuals()
   ok=ok and left.global_position.distance_to(before)>.08
   activity.apply_event({"activity":"idle"},false)

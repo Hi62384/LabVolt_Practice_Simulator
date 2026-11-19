@@ -68,5 +68,23 @@ func run() -> void:
 		assert(cancel.ok,str(cancel))
 		await create_timer(1.55).timeout
 		assert(not host.active.has(1))
+	var bar_station := "gym/barbell_rack_2"
+	game.player.global_position=belts.POSITIONS[bar_station]-Vector3.UP
+	belts.request("pickup_bar",bar_station,0.0,0)
+	assert(belts.held_bar(1)==bar_station)
+	for id in ["gym/seated_bench_1","gym/seated_bench_2"]:
+		game.player.global_position=host.anchors[id].bench_position+Vector3(0,0,1.0)
+		await create_timer(.25).timeout
+		var sequence: int=host.private_state(1).profile.last_sequence+1
+		var seated: Dictionary=host.act(1,{"op":"sit","station":id,"sequence":sequence})
+		assert(seated.ok,str(seated))
+		await create_timer(.12).timeout
+		var response: Dictionary=host.act(1,{"op":"start","station":id,"exercise":"overhead_press","equipment":"barbell","sequence":sequence+1})
+		assert(response.ok,str(response))
+		assert(host.active[1].equipment=="barbell" and host.active[1].bench_position==host.anchors[id].bench_position)
+		var cancel: Dictionary=host.act(1,{"op":"cancel","sequence":sequence+2})
+		assert(cancel.ok,str(cancel))
+		await create_timer(1.55).timeout
+		assert(not host.movement_locked(1) and not game.player.workout_camera_override)
 	print("GYM_LIVE_SEQUENCE PASS")
 	game.queue_free();await process_frame;quit()

@@ -156,6 +156,7 @@ jobs:
           $tests = @{
             test_live_classroom_teachers = 'LIVE_CLASSROOM_TEACHERS PASS'
             test_room_ac_evidence = 'PASS all room-hosted AC lab weeks'
+            test_adaptive_classroom = 'ADAPTIVE_CLASSROOM PASS'
           }
           foreach ($test in $tests.Keys) {
             $env:APPDATA = "$env:RUNNER_TEMP/$test-appdata"
@@ -164,8 +165,21 @@ jobs:
             & $env:GODOT --headless --path . --script "res://tests/campus/academics/$test.gd" --log-file $log
             if ($LASTEXITCODE -or !(Test-Path $log) -or !(Select-String -Path $log -SimpleMatch $tests[$test] -Quiet) -or (Select-String -Path $log -SimpleMatch 'SCRIPT ERROR:' -Quiet)) { throw "Classroom check failed: $test" }
           }
-          python -B tests/campus/academics/run_classroom_events_network.py events live-events assignment
-          if ($LASTEXITCODE) { throw 'Classroom reconnect checks failed' }
+          $env:APPDATA = "$env:RUNNER_TEMP/assessment-plan-appdata"
+          $env:LABVOLT_TEST_OPENAI = '1'
+          New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
+          $apiFixture = Start-Process python -ArgumentList 'tests/campus/ai/openai_fixture_server.py' -WindowStyle Hidden -PassThru
+          try {
+            Start-Sleep -Seconds 1
+            $log = "$env:RUNNER_TEMP/ai-assessment-plan.log"
+            & $env:GODOT --headless --path . --script res://tests/campus/ai/test_ai_assessment_plan.gd --log-file $log --max-fps 120 --quit-after 7200
+            if ($LASTEXITCODE -or !(Test-Path $log) -or !(Select-String -Path $log -SimpleMatch 'AI_FORMAL_ASSESSMENT PASS' -Quiet) -or (Select-String -Path $log -Pattern 'SCRIPT ERROR:' -Quiet)) { throw 'AI assessment validation failed' }
+          } finally {
+            if (!$apiFixture.HasExited) { Stop-Process -Id $apiFixture.Id }
+            Remove-Item Env:LABVOLT_TEST_OPENAI
+          }
+          python -B tests/campus/academics/run_classroom_events_network.py events live-events assignment voice gym
+          if ($LASTEXITCODE) { throw 'Campus networking checks failed' }
       - name: Bundle and verify offline firmware compilers
         shell: pwsh
         run: |

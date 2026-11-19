@@ -16,6 +16,9 @@ func _initialize():
  var seq:=1;var failed:=false
  for i in 30:
   now+=int(host.active[1].half_ms);seq+=1
+  result=host.act(1,{"op":"lower","sequence":seq})
+  assert(result.ok)
+  now+=int(host.active[1].half_ms);seq+=1
   result=host.act(1,{"op":"beat","sequence":seq})
   assert(result.ok)
   if result.muscular_failure:failed=true;break

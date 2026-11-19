@@ -1,6 +1,7 @@
 extends Node3D
 
 const Pending = preload("res://scripts/campus/academics/pending_assessment.gd")
+const AssessmentPlan = preload("res://scripts/campus/academics/ai_assessment_plan.gd")
 const Metadata = preload("res://scripts/campus/academics/record_metadata.gd")
 const TeachingBoard = preload("res://scripts/campus/academics/teaching_board.gd")
 const LessonBoardState = preload("res://scripts/campus/academics/lesson_board_state.gd")
@@ -281,6 +282,8 @@ func _advance() -> void:
 			if classes.has(room):game.faculty.present_assessment_intro(room,str(classes[room].teacher),str(classes[room].course))
 
 func _begin_assignment(room: String, activity: Dictionary) -> bool:
+	if activity.get("ai_teaching",false) and not activity.students.is_empty() and not _prepare_ai_assessments(room,activity):
+		return false
 	var records: Array[Dictionary]=[]
 	for identity in activity.students:
 		var student: Dictionary=activity.students[identity]
@@ -308,6 +311,25 @@ func _begin_assignment(room: String, activity: Dictionary) -> bool:
 			student.project.merge(Metadata.from_project(record),true)
 		if _inside(int(student.peer),room):_issue_assessment(room,activity,student)
 	school.broadcast()
+	return true
+
+func _prepare_ai_assessments(room: String, activity: Dictionary) -> bool:
+	var state: Dictionary=activity.get_or_add("assessment_plan_state",{})
+	var reference: Dictionary=activity.students.values()[0].project
+	var plan:=AssessmentPlan.plan(game.host_openai,state,reference,_stage(activity),
+		func():return is_same(classes.get(room),activity) and activity.phase=="lesson")
+	activity.ai_status=state.get("status","")
+	if plan.is_empty():return false
+	var prepared := {}
+	for identity in activity.students:
+		if activity.students[identity].project.has("assessment_focus"):continue
+		var generated: Dictionary=school.compile_ai_assessment(activity.students[identity].project,plan,identity)
+		if generated.is_empty():
+			AssessmentPlan.retry(state)
+			activity.ai_status=state.status
+			return false
+		prepared[identity]=generated
+	for identity in prepared:activity.students[identity].project=prepared[identity]
 	return true
 
 func _issue_assessment(room: String,activity: Dictionary,student: Dictionary) -> bool:
@@ -407,7 +429,10 @@ func _reset() -> void:
 
 func _stage(activity: Dictionary) -> Dictionary:
 	var elapsed := LessonSeconds-maxf(0.0,float(activity.deadline)-_now())
-	return LessonBoardState.at(activity.teaching,str(activity.title),elapsed,LessonSeconds)
+	var board := LessonBoardState.at(activity.teaching,str(activity.title),elapsed,LessonSeconds)
+	if activity.get("ai_teaching",false):
+		board["teaching_step"]=preload("res://scripts/campus/academics/adaptive_lesson.gd").window(elapsed,LessonSeconds)
+	return board
 
 func _publish() -> void:
 	for peer in game.session.roster:
@@ -417,7 +442,7 @@ func _publish() -> void:
 			var activity: Dictionary=classes[room]
 			var student: Dictionary=activity.students.get(identity,{})
 			var stage := _stage(activity) if activity.phase=="lesson" and _inside(int(peer),room) else {}
-			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage,"ai_status":activity.get("ai_status","")}
+			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage,"ai_status":activity.get("ai_status",""),"ai_teaching":activity.get("ai_teaching",false)}
 		if int(peer)==multiplayer.get_unique_id():receive(public)
 		elif game.session.online and game.session.peer_connected_now(int(peer)):receive.rpc_id(int(peer),public)
 
@@ -524,6 +549,7 @@ func _update_views() -> void:
 			cards[room]=panel
 		var seconds := maxi(0,ceili(float(info.seconds)-elapsed))
 		var title := "Class starting" if info.phase=="arrival" else "Assessment" if info.phase=="assignment" else "Lesson"
+		if info.phase=="lesson":title=str(info.get("stage",{}).get("teaching_step",{}).get("title",title))
 		var text := "%s · %s\n%s · Week %d   %d:%02d" % [title,info.number,info.course,info.week,seconds/60,seconds%60]
 		if not str(info.get("ai_status","")).is_empty():text+="\n"+str(info.ai_status)
 		var label: Label=cards[room].get_child(0)

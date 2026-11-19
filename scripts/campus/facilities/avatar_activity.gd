@@ -62,11 +62,13 @@ func apply_event(value: Dictionary, show_food: bool) -> void:
 		state=value.duplicate(true)
 		elapsed=0.0
 		exit_pose.clear()
-		if is_instance_valid(visual):
+		if is_instance_valid(visual) and visual.is_inside_tree():
 			exit_pose.root=visual.transform
 			exit_pose.torso=torso.transform if is_instance_valid(torso) else torso_original
-			for key in arms:exit_pose[key]=arms[key].node.transform
-			for key in legs:exit_pose[key]=legs[key].node.transform
+			for key in arms:
+				if is_instance_valid(arms[key].node):exit_pose[key]=arms[key].node.transform
+			for key in legs:
+				if is_instance_valid(legs[key].node):exit_pose[key]=legs[key].node.transform
 		_hold_animation()
 		set_process(true)
 		return
@@ -113,7 +115,7 @@ func _release_animation() -> void:
 
 func _process(delta: float) -> void:
 	if is_instance_valid(visual) and visual.has_meta(&"dorm_rest_pose"):return
-	if not is_instance_valid(visual):set_process(false);return
+	if not is_instance_valid(visual) or not visual.is_inside_tree() or visual.is_queued_for_deletion():set_process(false);return
 	elapsed+=delta
 	if state.get("activity","")=="exercise_exit":
 		_animate_exit()
@@ -379,10 +381,12 @@ func _animate_exit() -> void:
 		var body_start: Transform3D=exit_pose.torso
 		torso.transform=body_start.interpolate_with(torso_original,blend)
 	for key in arms:
+		if not exit_pose.has(key) or not is_instance_valid(arms[key].node):continue
 		var base: Transform3D=arms[key].transform
 		var arm_start: Transform3D=exit_pose[key]
 		arms[key].node.transform=arm_start.interpolate_with(base,smoothstep(0.0,.82,time))
 	for key in legs:
+		if not exit_pose.has(key) or not is_instance_valid(legs[key].node):continue
 		var base: Transform3D=legs[key].transform
 		var leg_start: Transform3D=exit_pose[key]
 		var knee_bend := sin(PI*time)*.64 if with_intermediate else 0.0

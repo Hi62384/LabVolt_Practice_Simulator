@@ -300,7 +300,14 @@ func _workout_camera(camera: Camera3D, exercise: String, bar: Node3D, machine: N
 		target=eye+forward+Vector3(0,-.24,0)
 	elif bench is Vector3:
 		var mode:=Bench.position_for(exercise)
-		var posture:=Bench.body_pose(exercise,1.0)
+		var pad_angle := -1.0
+		if workout_state.get("station")=="gym/benchpress":
+			var gym: Variant=game.campus_services.facilities.rooms.get("gym")
+			if is_instance_valid(gym) and is_instance_valid(gym.gym_bench) and is_instance_valid(gym.gym_bench.backrest):
+				pad_angle=gym.gym_bench.backrest.rotation.x
+		# Follow the moving pad so a quick position change does not put the
+		# first-person view inside a backrest that is still rotating.
+		var posture:=Bench.body_pose(exercise,1.0,pad_angle)
 		eye=bench+posture*Vector3(0,1.62,.10)
 		match mode:
 			"flat","incline":
@@ -414,7 +421,8 @@ func _update_workout(delta: float) -> void:
 	var raised := 1.0-workout_phase
 	var station := str(workout_state.get("station", ""))
 	var machine: Node3D = game.campus_services._cable_machine(station) if station.begins_with("gym/cable_") else null
-	var bar: Node3D = game.campus_services.gym_motion.bars.get(station)
+	# Dumbbells use their individual hand positions, even at the barbell bench.
+	var bar: Node3D = game.campus_services.gym_motion.bars.get(station) if workout_state.get("equipment")!="dumbbell" else null
 	if active:_workout_camera(camera,exercise,bar,machine,raised,delta)
 	else:_restore_workout_camera()
 	if active and is_instance_valid(machine):
@@ -448,7 +456,8 @@ func _update_workout(delta: float) -> void:
 		var fixed_grip: Variant=workout_state.get("grip_anchor")
 		var mat: Variant=workout_state.get("mat_position")
 		if fixed_grip is Vector3:
-			grip=camera.to_local(fixed_grip+Vector3(side*(.48 if exercise=="dip" else .36),0,0))
+			var grip_side := side if camera.global_basis.x.x>=0.0 else -side
+			grip=camera.to_local(fixed_grip+Vector3(grip_side*(.48 if exercise=="dip" else .36),0,0))
 		elif mat is Vector3 and exercise in ["pushup","pike_pushup"]:
 			# The camera faces +Z here, so screen-right is negative world X.
 			grip=camera.to_local(MatPose.palm(mat,-side,exercise))
@@ -458,7 +467,8 @@ func _update_workout(delta: float) -> void:
 			var actual := camera.to_local(grip_node.to_global(offset))
 			grip = actual
 		elif is_instance_valid(bar):
-			var actual := camera.to_local(bar.to_global(Vector3(side*.27,0,0)))
+			var grip_side := side if camera.global_basis.x.dot(bar.global_basis.x)>=0.0 else -side
+			var actual := camera.to_local(bar.to_global(Vector3(grip_side*.27,0,0)))
 			grip = actual
 		elif is_instance_valid(pair) and workout_state.get("equipment") == "dumbbell":
 			var weight := pair.get_node_or_null("LeftDumbbell" if left else "RightDumbbell") as Node3D

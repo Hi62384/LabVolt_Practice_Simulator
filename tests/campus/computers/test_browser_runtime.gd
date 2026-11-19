@@ -94,6 +94,18 @@ func _run() -> void:
    surface._forward(browser,surface.tabs[0].surface,down)
    surface._forward(browser,surface.tabs[0].surface,up)
    if not await _wait_title(browser,"SIGNED_IN",8000):failures.append("Form login and session cookie failed")
+   else:
+    await create_timer(.2).timeout
+    surface._forward(browser,surface.tabs[0].surface,down)
+    surface._forward(browser,surface.tabs[0].surface,up)
+    var page_deadline:=Time.get_ticks_msec()+10000
+    while not is_instance_valid(surface.download_dialog) and Time.get_ticks_msec()<page_deadline:await process_frame
+    if not is_instance_valid(surface.download_dialog) or virtual_downloads.has("lecture.pdf"):
+     failures.append("Authenticated website download did not request explicit virtual save approval")
+    else:
+     surface.download_dialog.confirmed.emit()
+     if virtual_downloads.get("lecture.pdf",PackedByteArray()).size()!=16509:
+      failures.append("Chunked website download failed to preserve the file bytes")
   surface._add_tab()
   var second: Variant=surface._browser()
   second.load_url(base+"/private")

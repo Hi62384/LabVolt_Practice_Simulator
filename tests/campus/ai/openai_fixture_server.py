@@ -47,6 +47,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "The board shows a current path."}]}]})
         if self.path == "/v1/responses" and body.get("store") is False:
             request_input = body.get("input")
+            if isinstance(request_input, str) and request_input.startswith("Prepare a new classroom assessment plan"):
+                plan = {"focus": "evidence", "scenarios": [37, 526, 1044]}
+                return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(plan)}]}]})
             if request_input == "Reply with the single word Ready.":
                 if body.get("model") != "gpt-5.4-mini":
                     return self._reply(403, {"error": {"message": "unavailable model"}})

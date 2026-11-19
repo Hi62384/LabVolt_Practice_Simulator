@@ -33,9 +33,13 @@ func run() -> void:
 		# Use deterministic fixture profiles while the real host controller ticks.
 		game.campus_services.set_process(false)
 		var rules=controller.host
+		var positions := {}
 		rules.context=func(peer):
 			var station := "gym/pullup" if peer == 1 else "gym/pushup"
-			return {"identity":str(peer),"position":rules.anchors[station].position,"room_id":"gym","allowed":true,"grounded":true}
+			return {"identity":str(peer),"position":positions.get(peer,rules.anchors[station].position),"room_id":"gym","allowed":true,"grounded":true}
+		# The fixture fixes the starting position but must follow the same
+		# server-approved alignment that the live player context does.
+		rules.apply_exercise_alignment=func(peer,position,_yaw):positions[peer]=position
 		rules.load_profile=func(id):
 			if not profiles.has(id):profiles[id]=Rules.empty_profile()
 			return profiles[id].duplicate(true)
@@ -52,8 +56,13 @@ func run() -> void:
 		var remote:=0
 		for peer in game.session.roster:
 			if int(peer)!=1:remote=int(peer)
+		var remote_avatar: Node=game.campus_services.facilities.visuals.get(remote)
+		if not is_instance_valid(remote_avatar) or remote_avatar.state.get("exercise")!="pushup" or not remote_avatar.state.has("mat_position"):
+			push_error("Remote avatar did not receive the push-up mat pose");quit(1);return
 		if profiles.get(str(remote),{}).get("gym",{}).get("muscles",{}).is_empty():push_error("Remote repetition did not persist fatigue");quit(1);return
 		if not await until(func():return events.any(func(e):return e.peer==remote and e.event.get("activity","")=="idle"),"remote finish broadcast"):return
+		if not remote_avatar.state.is_empty() and remote_avatar.state.get("activity")!="idle":
+			push_error("Remote avatar did not return from the exercise pose");quit(1);return
 		print("LIFT_HOST PASS")
 	else:
 		if game.session.join_game("127.0.0.1","Student",port)!=OK:push_error("Join failed");quit(1);return
@@ -89,8 +98,18 @@ func run() -> void:
 		if not panel.handle_workout_input(finish):
 			push_error("Workout HUD did not handle finishing");quit(1);return
 		if not await until(func():return not panel.pending and panel.state.get("active",{}).is_empty(),"finish acknowledged"):return
+		if game.player.workout_camera_override:
+			push_error("Client camera remained locked after exit");quit(1);return
 		await create_timer(.5).timeout
 		print("LIFT_CLIENT PASS")
+	game.session.leave()
+	if role=="host":
+		controller.host.context=Callable()
+		controller.host.apply_exercise_alignment=Callable()
+		controller.host.load_profile=Callable()
+		controller.host.commit_profile=Callable()
+	game.queue_free()
+	await process_frame
 	quit(0)
 
 

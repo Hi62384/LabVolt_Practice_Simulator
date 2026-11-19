@@ -1038,7 +1038,8 @@ func _process(delta: float) -> void:
 		if not bar_station.is_empty():bar_hand=_bar_model(bar_station);game.camera.add_child(bar_hand);bar_hand.position=Vector3(0,-.34,-.92);bar_hand.scale=Vector3(.55,.55,.55)
 	if is_instance_valid(bar_hand):
 		var exercise: Dictionary=game.campus_services.facility_panel.state.get("active",{})
-		bar_hand.visible=game.front.in_game and game.player.enabled and (not hide_idle_gear or exercise.get("equipment")=="barbell")
+		var bench_uses_world_bar: bool=hide_idle_gear and exercise.get("station")=="gym/benchpress"
+		bar_hand.visible=game.front.in_game and game.player.enabled and (not hide_idle_gear or (exercise.get("equipment")=="barbell" and not bench_uses_world_bar))
 		if not hide_idle_gear:bar_hand.position=Vector3(0,-.34,-.92)
 	if is_instance_valid(game.interaction_presentation) and is_instance_valid(game.gym_weights):
 		game.interaction_presentation.render_idle_gym_hold(bar_hand,game.gym_weights.held_visual)

@@ -142,6 +142,9 @@ func step(now: float) -> void:
    if class_id.is_empty():continue
    if not attempted.has(class_id):attempted[class_id]={"count":0,"tries":0,"next":float(activity.get("deadline",0))-210.0,"recent":[],"recent_modes":[],"last_step":now,"teaching_seconds":0.0,"event_seconds":0.0,"interruption_seconds":0.0,"offtopic_seconds":0.0}
    var schedule: Dictionary=attempted[class_id]
+   if activity.get("ai_teaching",false):
+    _step_adaptive_activity(room,activity,schedule,now)
+    continue
    # Requests may create a partial schedule before the first timed step.
    for key in ["count","tries","next","last_step","teaching_seconds","event_seconds","interruption_seconds","offtopic_seconds"]:
     if not schedule.has(key):schedule[key]=now if key=="last_step" else 0.0
@@ -257,6 +260,24 @@ func step(now: float) -> void:
    if not live_ids.has(str(key).get_slice(":",0)):demonstration_cooldown.erase(key)
   for key in board_challenge_cooldown.keys():
    if not live_ids.has(str(key).get_slice(":",0)):board_challenge_cooldown.erase(key)
+
+func _step_adaptive_activity(room: String,activity: Dictionary,schedule: Dictionary,now: float) -> void:
+ if activity.get("ai_waiting",false) or service.rooms.has(room) or _present_count(room,activity)==0:return
+ var board: Dictionary=game.lecture_classes._stage(activity)
+ var phase:=str(board.get("teaching_step",{}).get("key",""))
+ if phase not in ["example","practice"] or schedule.has(phase) or now<float(schedule.get("adaptive_retry_at",0.0)):return
+ var modes: Array[String]=["practice"]
+ if activity.get("kind","")=="lab":
+  if activity.get("course","")!="ELM253" or phase!="practice":return
+  modes=["physical"]
+ elif phase=="example":modes=["demonstration","practice"]
+ for mode in modes:
+  if service.start(room,now,schedule.recent,mode,{},true,str(board.get("title",""))):
+   schedule[phase]=true
+   var index: int=service.rooms[room].round.question_index
+   if index>=0:schedule.recent.append(index)
+   return
+ schedule.adaptive_retry_at=now+5.0
 
 func on_teacher_disruption(room: String,teacher: String) -> void:
  if not enabled or not multiplayer.is_server() or not is_instance_valid(game):return

@@ -64,15 +64,7 @@ func _process(delta: float) -> void:
  if refresh<.1:return
  refresh=0.0
  for peer in remotes.keys():
-  var voice: Dictionary=remotes[peer]
-  var point: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
-  var speaker: AudioStreamPlayer3D=voice.player
-  if point.is_finite():
-   speaker.global_position=point+Vector3.UP*1.6
-   var distance:=point.distance_to(game.player.global_position)
-   var level:=minf(1.0,5.0/maxf(5.0,distance))*(1.0-smoothstep(MAX_RANGE*.7,MAX_RANGE,distance))
-   speaker.volume_db=linear_to_db(maxf(.001,level))-3.0
-  else:speaker.volume_db=-63.0
+  _position_speaker(peer,remotes[peer].player)
  for peer in remotes.keys()+call_last.keys():
   var avatar: Node3D=game.avatars.get(peer)
   if not is_instance_valid(avatar):continue
@@ -173,8 +165,20 @@ func _create_remote(peer: int) -> void:
  player.attenuation_model=AudioStreamPlayer3D.ATTENUATION_DISABLED
  player.volume_db=-63.0
  player.max_distance=MAX_RANGE
- add_child(player);player.play()
+ add_child(player)
+ _position_speaker(peer,player)
+ player.play()
  remotes[peer]={"player":player,"last":0}
+
+func _position_speaker(peer: int,speaker: AudioStreamPlayer3D) -> void:
+ var point: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
+ if not point.is_finite():
+  speaker.volume_db=-63.0
+  return
+ speaker.global_position=point+Vector3.UP*1.6
+ var distance:=point.distance_to(game.player.global_position)
+ var level:=minf(1.0,5.0/maxf(5.0,distance))*(1.0-smoothstep(MAX_RANGE*.7,MAX_RANGE,distance))
+ speaker.volume_db=linear_to_db(maxf(.001,level))-3.0
 
 func _stop() -> void:
  talking=false

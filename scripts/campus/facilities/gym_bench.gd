@@ -19,15 +19,16 @@ static func backrest_angle(mode: String) -> float:
 
 # The frame faces +Z, and the adjustable pad runs toward -Z from its hinge.
 # Align the body to that pad around the hips, independent of approach yaw.
-static func body_pose(exercise: String, avatar_height: float) -> Transform3D:
+static func body_pose(exercise: String, avatar_height: float, pad_angle: float=-1.0) -> Transform3D:
 	var mode:=position_for(exercise)
+	var angle:=backrest_angle(mode) if pad_angle<0.0 else pad_angle
 	var hips:=Vector3(0,.59,0)
 	var facing:=Basis.IDENTITY
 	if mode in ["flat","incline"]:
-		facing=Basis(Vector3.RIGHT,backrest_angle(mode)-PI*.5)
+		facing=Basis(Vector3.RIGHT,angle-PI*.5)
 		hips=Vector3(0,.68,-.18)
 	elif mode=="supported":
-		facing=Basis(Vector3.UP,PI)*Basis(Vector3.RIGHT,PI*.5-backrest_angle(mode))
+		facing=Basis(Vector3.UP,PI)*Basis(Vector3.RIGHT,PI*.5-angle)
 		hips=Vector3(0,.67,-.12)
 	return Transform3D(facing,hips-facing*Vector3.UP*.86*avatar_height)
 
