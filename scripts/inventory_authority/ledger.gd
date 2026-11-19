@@ -202,7 +202,7 @@ func unbind(peer: int) -> void:bindings.erase(peer)
 ## Call only after the recipient has durably verified its staged archive and
 ## the sender has durably reserved the drive locally. Both ledger updates are
 ## committed in one generation; reconnect markers protect lost acknowledgements.
-func commit_usb_handoff(source_peer: int,target_peer: int,id: String,token: String) -> Dictionary:
+func commit_usb_handoff(source_peer: int,target_peer: int,id: String,token: String,claim_token := "") -> Dictionary:
 	if source_peer==target_peer or not bindings.has(source_peer) or not bindings.has(target_peer):return failure("Both players must be connected")
 	if id.length()!=32 or not id.is_valid_hex_number() or token.length()!=32 or not token.is_valid_hex_number():return failure("Invalid handoff")
 	var source_id: String=bindings[source_peer];var target_id: String=bindings[target_peer]
@@ -223,8 +223,31 @@ func commit_usb_handoff(source_peer: int,target_peer: int,id: String,token: Stri
 	target.profile.usb_delivery_receipts[id]=token
 	source.revision+=1;target.revision+=1
 	if not Profile.valid(source.profile) or not Profile.valid(target.profile):return failure("Invalid handoff profiles")
+	if not stage_lost_found_receipt(next,claim_token,token):return failure("Too many unconfirmed lost-and-found deliveries")
 	if not persist(next):return failure("Could not save USB handoff")
 	return {"ok":true,"source":snapshot(source_peer),"target":snapshot(target_peer)}
+
+func stage_lost_found_receipt(next: Dictionary,token: String,holder: String) -> bool:
+	if token.is_empty():return true
+	var receipts: Dictionary=next.get("lost_found_claims",{})
+	if receipts.get(token,{})!={"holder":holder,"awarded":false}:return false
+	receipts[token]={"holder":holder,"awarded":true}
+	next.lost_found_claims=receipts
+	return true
+
+func begin_lost_found_receipt(token: String,holder: String) -> bool:
+	var next: Dictionary=state.duplicate(true)
+	var receipts: Dictionary=next.get("lost_found_claims",{})
+	if receipts.size()>=64 or receipts.has(token):return false
+	receipts[token]={"holder":holder,"awarded":false}
+	next.lost_found_claims=receipts
+	return persist(next)
+
+func clear_lost_found_receipt(token: String,holder: String) -> void:
+	if state.get("lost_found_claims",{}).get(token,{}).get("holder")!=holder:return
+	var next: Dictionary=state.duplicate(true)
+	next.lost_found_claims.erase(token)
+	persist(next)
 func failure(message: String) -> Dictionary:return {"ok":false,"error":message}
 func snapshot(peer: int) -> Dictionary:
 	if not bindings.has(peer):return failure("Profile is not bound")

@@ -14,6 +14,9 @@ static func status(owner: Node,token: String) -> Dictionary:
 static func reserve(owner: Node,token: String,holder: String) -> Dictionary:
 	return await _send(owner,token,HTTPClient.METHOD_POST,"reserve",holder)
 
+static func prepare(owner: Node,token: String,holder: String) -> Dictionary:
+	return await _send(owner,token,HTTPClient.METHOD_POST,"prepare",holder)
+
 static func commit(owner: Node,token: String,holder: String) -> Dictionary:
 	return await _send(owner,token,HTTPClient.METHOD_POST,"commit",holder)
 
@@ -30,7 +33,7 @@ static func _send(owner: Node,token: String,method: int,operation := "",holder :
 	var request:=HTTPRequest.new()
 	owner.add_child(request)
 	request.timeout=8.0
-	var headers: Array[String]=["Authorization: Bearer "+token]
+	var headers: Array[String]=["Authorization: Bearer "+token,"X-Claim-Protocol: 2"]
 	if not holder.is_empty():headers.append("X-Claim-Holder: "+holder)
 	var url:=base+"/v1/claims/"+token.sha256_text()+("/"+operation if not operation.is_empty() else "")
 	var code:=request.request(url,headers,method)
@@ -46,8 +49,10 @@ static func _send(owner: Node,token: String,method: int,operation := "",holder :
 		if int(response[1])==423:return {"ok":false,"reserved":true,"error":"Another pickup is in progress."}
 	elif not operation.is_empty():
 		if int(response[1])==200:return {"ok":true}
+		if int(response[1])==428:return {"ok":false,"error":"Update the game before claiming lost-and-found items."}
 		if int(response[1])==423:return {"ok":false,"reserved":true,"error":"Another pickup is in progress."}
 		if int(response[1])==409:return {"ok":false,"claimed":true,"error":"This item was already claimed."}
+		if int(response[1])==404:return {"ok":false,"missing":true,"error":"The claim is no longer held by this host."}
 	else:
 		if int(response[1])==201:return {"ok":true}
 		if int(response[1])==409:return {"ok":false,"claimed":true,"error":"This item was already claimed on another host."}

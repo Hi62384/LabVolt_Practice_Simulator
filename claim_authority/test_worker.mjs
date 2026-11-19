@@ -50,21 +50,27 @@ const otherUrl = "https://claims.example/v1/claims/" + otherHash;
 const firstHolder = crypto.randomBytes(16).toString("hex");
 const secondHolder = crypto.randomBytes(16).toString("hex");
 const operation = (suffix, holder, method = "POST") => worker.default.fetch(new Request(otherUrl + suffix, {
-  method, headers: { Authorization: "Bearer " + otherToken, "X-Claim-Holder": holder },
+  method, headers: { Authorization: "Bearer " + otherToken, "X-Claim-Holder": holder, "X-Claim-Protocol": "2" },
 }), env);
+assert.equal((await worker.default.fetch(new Request(otherUrl + "/reserve", {
+  method: "POST", headers: { Authorization: "Bearer " + otherToken, "X-Claim-Holder": firstHolder },
+}), env)).status, 428);
 assert.equal((await operation("/reserve", firstHolder)).status, 200);
 assert.equal((await operation("", firstHolder, "GET")).status, 423);
 assert.equal((await operation("/reserve", secondHolder)).status, 423);
 assert.equal((await operation("/release", firstHolder)).status, 200);
 assert.equal((await operation("", firstHolder, "GET")).status, 404);
 assert.equal((await operation("/reserve", secondHolder)).status, 200);
+assert.equal((await operation("/commit", secondHolder)).status, 404);
+assert.equal((await operation("/prepare", secondHolder)).status, 200);
+assert.equal((await operation("/commit", secondHolder)).status, 200);
 assert.equal((await operation("/commit", secondHolder)).status, 200);
 assert.equal((await operation("", secondHolder, "GET")).status, 200);
 const expiringToken = crypto.randomBytes(16).toString("hex");
 const expiringHash = crypto.createHash("sha256").update(expiringToken).digest("hex");
 const expiringUrl = "https://claims.example/v1/claims/" + expiringHash;
 const expiring = (suffix, holder, method = "POST") => worker.default.fetch(new Request(expiringUrl + suffix, {
-  method, headers: { Authorization: "Bearer " + expiringToken, "X-Claim-Holder": holder },
+  method, headers: { Authorization: "Bearer " + expiringToken, "X-Claim-Holder": holder, "X-Claim-Protocol": "2" },
 }), env);
 const realNow = Date.now;
 try {
@@ -75,6 +81,13 @@ try {
   assert.equal((await expiring("", firstHolder, "GET")).status, 404);
   assert.equal((await expiring("/reserve", secondHolder)).status, 200);
   assert.equal((await expiring("/commit", firstHolder)).status, 404);
+  assert.equal((await expiring("/prepare", secondHolder)).status, 200);
+  assert.equal((await expiring("/prepare", secondHolder)).status, 200);
+  time += 120001;
+  instances.clear();
+  assert.equal((await expiring("", firstHolder, "GET")).status, 423);
+  assert.equal((await expiring("/reserve", firstHolder)).status, 423);
+  assert.equal((await expiring("/release", firstHolder)).status, 404);
   assert.equal((await expiring("/commit", secondHolder)).status, 200);
 } finally {
   Date.now = realNow;

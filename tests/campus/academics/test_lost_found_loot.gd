@@ -21,13 +21,13 @@ func run():
  assert(world._visual_kind({"parcel":{"paper":{"calculator":true}}})=="calculator")
  assert(world._visual_kind({"parcel":{"paper":{"notebook":true}}})=="notebook")
  for supply in ["flashlight","pencil_case"]:
-  var lost_supply: Dictionary={"position":world._available_table_position(),"label":supply,"parcel":{"paper":{"supply_id":supply}}}
+  var lost_supply: Dictionary={"position":world._available_table_position(),"expires":0,"label":supply,"parcel":{"paper":{"supply_id":supply}}}
   assert(world._visual_kind(lost_supply)==supply)
   var supply_view: StaticBody3D=world._make_view(1200 if supply=="flashlight" else 1201,lost_supply)
   assert(supply_view.get_child(0).find_children("*","MeshInstance3D",true,false).size()>0)
   assert(supply_view.global_position.y>.5)
   supply_view.queue_free()
- var component={"position":Vector3.ZERO,"label":"Resistor","parcel":{"item":{"kind":"component","type":"r1000"}}}
+ var component={"position":Vector3.ZERO,"expires":0,"label":"Resistor","parcel":{"item":{"kind":"component","type":"r1000"}}}
  var component_view: StaticBody3D=world._make_view(1234,component)
  assert(world._visual_kind(component)=="component:r1000")
  assert(component_view.get_child(0).find_children("*","MeshInstance3D",true,false).size()>=2)
@@ -42,7 +42,7 @@ func run():
  var published: Dictionary=world._public_drops()[99]
  assert(published.visual=="pcb" and published.pcb_preview==preview and not published.has("parcel"))
  world.drops.erase(99)
- var pcb_view: StaticBody3D=world._make_view(1235,{"position":Vector3.ZERO,"label":"Circuit board","visual":"pcb","pcb_preview":preview})
+ var pcb_view: StaticBody3D=world._make_view(1235,{"position":Vector3.ZERO,"expires":0,"label":"Circuit board","visual":"pcb","pcb_preview":preview})
  assert(pcb_view.get_child(0).has_node("PCB outline"))
  assert(pcb_view.get_child(0).find_children("*","MeshInstance3D",true,false).size()>4)
  pcb_view.queue_free()

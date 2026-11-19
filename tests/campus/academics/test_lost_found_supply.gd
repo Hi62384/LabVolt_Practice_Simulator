@@ -3,13 +3,13 @@ func _initialize():call_deferred("run")
 func run():
  var game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
  for i in 6:await physics_frame
+ var profile=game.electronics.profile
+ profile.open("lost-found-supply-fixture")
+ game.school.local_identity=profile.data.dorm.owner
  game.school.identities[1]=game.school.local_identity
  game.player.global_position=Vector3(13,.05,-9)
- var profile=game.electronics.profile
- var counts: Dictionary=profile.data.dorm.get("supply_counts",{})
- counts.flashlight=1;profile.data.dorm.supply_counts=counts
- profile.data.dorm.carry_items=profile.data.dorm.get("carry_items",[])+["flashlight"]
- assert(profile.save()==OK)
+ var purchase: String=profile.buy_study_tool("flashlight")
+ assert(profile.operation_succeeded and "flashlight" in profile.data.dorm.get("carry_items",[]),purchase)
  var lesson: Dictionary=load("res://scripts/course_generator.gd").generate(0,0,123)
  var paper_id: int=game.school._give(1,lesson,true,false,true)
  game.school.papers[paper_id].supply_id="flashlight"

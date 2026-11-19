@@ -182,15 +182,16 @@ func _receipt(peer: int,token: String,ok: bool) -> void:
 	var record: Dictionary=pending.get(token,{})
 	if record.is_empty() or record.target!=peer or record.phase!="download":return
 	if not ok or not game.session.roster.has(record.source) or not world.drops.has(record.drop):_abort(token);return
+	record.item_token=str(world.drops[record.drop].get("token",""))
 	record.phase="claim"
 	var claim: Dictionary=await world.claim_handoff(int(record.drop),token)
 	if not pending.has(token) or pending[token].phase!="claim":
 		if claim.get("ok",false):
-			var orphan_token:=str(world.drops.get(record.drop,{}).get("token",""))
+			var orphan_token: String=record.item_token
 			if not orphan_token.is_empty():world.ClaimAuthority.release(world,orphan_token,token)
 		return
 	if not claim.get("ok",false):
-		var item_token:=str(world.drops.get(record.drop,{}).get("token",""))
+		var item_token: String=record.item_token
 		_abort(token,not claim.get("claimed",false))
 		if claim.get("claimed",false) and world.drops.has(record.drop):
 			world.forget_ground(int(world.drops[record.drop].get("owner",0)),item_token)
@@ -199,10 +200,8 @@ func _receipt(peer: int,token: String,ok: bool) -> void:
 			world._publish()
 		world._notice(peer,str(claim.get("error","Shared item claim failed.")))
 		return
-	var result: Dictionary=game.electronics_trade.authority.ledger.commit_usb_handoff(record.source,record.target,record.id,token)
+	var result: Dictionary=game.electronics_trade.authority.ledger.commit_usb_handoff(record.source,record.target,record.id,token,record.item_token)
 	if not result.get("ok",false):
-		var item_token:=str(world.drops.get(record.drop,{}).get("token",""))
-		if not item_token.is_empty():world.ClaimAuthority.release(world,item_token,token)
 		_abort(token)
 		return
 	record.phase="claim_commit"
@@ -213,12 +212,13 @@ func _receipt(peer: int,token: String,ok: bool) -> void:
 func _complete_claim(token: String) -> void:
 	var record: Dictionary=pending.get(token,{})
 	if record.is_empty() or record.phase!="claim_commit" or record.claim_busy:return
-	var item_token:=str(world.drops.get(record.drop,{}).get("token",""))
+	var item_token: String=record.item_token
 	if item_token.is_empty():return
 	record.claim_busy=true
 	var confirmed: Dictionary=await world.ClaimAuthority.commit(world,item_token,token)
 	if not pending.has(token) or pending[token].phase!="claim_commit":return
 	if not confirmed.get("ok",false):record.claim_busy=false;return
+	game.electronics_trade.authority.ledger.clear_lost_found_receipt(item_token,token)
 	var result: Dictionary=record.committed
 	pending.erase(token)
 	if game.session.roster.has(record.source):game.electronics_trade.authority.send_snapshot(record.source,result.source)
@@ -235,7 +235,7 @@ func _abort(token: String,notify_target := true) -> void:
 	if record.is_empty():return
 	if record.phase=="claim_commit":return
 	if record.phase=="claim":
-		var item_token:=str(world.drops.get(record.drop,{}).get("token",""))
+		var item_token: String=record.item_token
 		if not item_token.is_empty():world.ClaimAuthority.release(world,item_token,token)
 	pending.erase(token)
 	var ledger=game.electronics_trade.authority.ledger

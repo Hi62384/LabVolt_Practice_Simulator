@@ -390,13 +390,14 @@ func move_world_backpack(peer: int, bag: String, into_hotbar: bool, point := Vec
 	if not Dorm.valid(profile.dorm,profile.inventory,profile.get("component_instances",{})):return {"ok":false,"error":"Invalid backpack transfer"}
 	return _commit_world_inventory(peer,identity,profile)
 
-func _commit_world_inventory(peer: int, identity: String, updated: Dictionary, deployment: Variant = null) -> Dictionary:
+func _commit_world_inventory(peer: int, identity: String, updated: Dictionary, deployment: Variant = null, claim_token := "", claim_holder := "") -> Dictionary:
 	if game.session.online:
 		var ledger: RefCounted=_ledger()
 		var next: Dictionary=ledger.state.duplicate(true)
 		next.accounts[identity].profile=updated
 		if deployment is Dictionary:next.accounts[identity].deployment=deployment
 		next.accounts[identity].revision+=1
+		if not ledger.stage_lost_found_receipt(next,claim_token,claim_holder):return {"ok":false,"error":"Too many unconfirmed lost-and-found deliveries"}
 		if not ledger.persist(next):return {"ok":false,"error":"Could not save supply transfer"}
 		game.electronics_trade.authority.send_snapshot(peer,ledger.snapshot(peer))
 	else:

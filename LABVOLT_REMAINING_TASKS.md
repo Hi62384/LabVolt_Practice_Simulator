@@ -15,6 +15,6 @@ This page tracks the Windows game and the checks that support its current status
 
 - A live OpenAI account request requires host credentials. The classroom integration test uses a loopback API fixture.
 - Chromium packaging and gameplay checks here cover Windows x64. Other platforms need compatible renderer builds if they are targeted.
-- The shared lost-and-found service already enforces one completed claim per token. Its [handoff documentation](claim_authority/README.md) describes the crash window between inventory award and claim commit. Eliminating that window requires durable coordination across the two services.
+- The updated shared lost-and-found protocol blocks repeat awards after a host crash and recovers inventory-backed delivery receipts when the same ledger reopens. The Worker update is required in production. Session-only papers and cables can stay locked after an interrupted delivery. See the [handoff documentation](claim_authority/README.md).
 - Enabling the native C/C++ toolchain requires a trusted installed toolchain and a matching acceptance receipt on the target host.
-- The current checks do not establish a campus-wide Ultra frame-rate target or exhaustive visual and audio coverage.
+- The Forward+ Ultra tour sampled 37 locations at 1280×720 on an RTX 3060 Laptop GPU. Most views averaged about 60 FPS. The upper hallway was slowest at 57.4 FPS, with a 38.6 ms worst frame. These are stationary singleplayer samples and do not measure multiplayer load or continuous room transitions. The tour is reproducible with `tests/campus/performance/ultra_campus.gd`.

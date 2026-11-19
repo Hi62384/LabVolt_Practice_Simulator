@@ -26,6 +26,8 @@ var drops := {}
 var claim_pending := {}
 var claimed_tokens := {}
 var pending_commits := {}
+var recovering_claim := false
+var claim_recovery_cursor := 0
 var commit_clock := 0.0
 var views := {}
 var next_id := 1
@@ -159,7 +161,6 @@ func _pickup(peer: int,id: int,slots: int) -> void:
 		var reservation: Dictionary=await ClaimAuthority.reserve(self,token,holder)
 		if epoch!=import_retry_epoch:
 			if reservation.get("ok",false):ClaimAuthority.release(self,token,holder)
-			claim_pending.erase(token)
 			return
 		if not reservation.get("ok",false):
 			claim_pending.erase(token)
@@ -174,7 +175,20 @@ func _pickup(peer: int,id: int,slots: int) -> void:
 			ClaimAuthority.release(self,token,holder)
 			claim_pending.erase(token)
 			return
-	if not _deliver_drop(peer,slots,drop):
+		if not (parcel.has("paper") or parcel.has("wire")) and not _begin_claim_receipt(token,holder):
+			ClaimAuthority.release(self,token,holder)
+			claim_pending.erase(token)
+			_notice(peer,"Could not save the lost-and-found claim.")
+			return
+		var prepared: Dictionary=await ClaimAuthority.prepare(self,token,holder)
+		if epoch!=import_retry_epoch or not prepared.get("ok",false) or not game.session.roster.has(peer) or drops.get(id,{}).get("token","")!=token or not game.school._near(peer,drop.position):
+			# Delivery has not started, so releasing is safe even after a lost response.
+			ClaimAuthority.release(self,token,holder)
+			if epoch==import_retry_epoch:
+				claim_pending.erase(token)
+				if not prepared.get("ok",false):_notice(peer,str(prepared.get("error","Could not prepare the claim.")))
+			return
+	if not _deliver_drop(peer,slots,drop,token if not holder.is_empty() else "",holder):
 		if not holder.is_empty():
 			ClaimAuthority.release(self,token,holder)
 			claim_pending.erase(token)
@@ -183,11 +197,13 @@ func _pickup(peer: int,id: int,slots: int) -> void:
 		claimed_tokens[token]=id
 		pending_commits[token]={"id":id,"holder":holder,"owner":int(drop.get("owner",0)),"busy":true}
 		var committed: Dictionary=await ClaimAuthority.commit(self,token,holder)
+		if pending_commits.get(token,{}).get("holder","")!=holder:return
 		claim_pending.erase(token)
 		if not committed.get("ok",false):
 			if pending_commits.has(token):pending_commits[token].busy=false
 			_notice(peer,"Item delivery needs claim confirmation; please wait.")
 			return
+		game.electronics_trade.authority.ledger.clear_lost_found_receipt(token,holder)
 	_finalized_claim(token,id,int(drop.get("owner",0)))
 
 func _finalized_claim(token: String,id: int,owner: int) -> void:
@@ -203,11 +219,39 @@ func _retry_commit(token: String) -> void:
 	var record: Dictionary=pending_commits[token]
 	record.busy=true
 	var result: Dictionary=await ClaimAuthority.commit(self,token,str(record.holder))
-	if not pending_commits.has(token):return
-	if result.get("ok",false):_finalized_claim(token,int(record.id),int(record.owner))
+	if pending_commits.get(token,{}).get("holder","")!=record.holder:return
+	if result.get("ok",false):
+		game.electronics_trade.authority.ledger.clear_lost_found_receipt(token,str(record.holder))
+		_finalized_claim(token,int(record.id),int(record.owner))
 	else:record.busy=false
 
-func _deliver_drop(peer: int,slots: int,drop: Dictionary) -> bool:
+func _recover_claim_receipt() -> void:
+	if recovering_claim or not game.session.online:return
+	var ledger: RefCounted=game.electronics_trade.authority.ledger
+	var receipts: Dictionary=ledger.state.get("lost_found_claims",{})
+	var tokens := receipts.keys()
+	for i in tokens.size():
+		claim_recovery_cursor %= tokens.size()
+		var token: String=tokens[claim_recovery_cursor]
+		claim_recovery_cursor+=1
+		if pending_commits.has(token) or claim_pending.has(token):continue
+		var receipt: Dictionary=receipts[token]
+		var holder: String=receipt.holder
+		recovering_claim=true
+		var result: Dictionary
+		if receipt.awarded:
+			result=await ClaimAuthority.commit(self,token,holder)
+		else:
+			result=await ClaimAuthority.release(self,token,holder)
+		if result.get("ok",false) or (not receipt.awarded and (result.get("missing",false) or result.get("claimed",false))):
+			ledger.clear_lost_found_receipt(token,holder)
+		recovering_claim=false
+		return
+
+func _begin_claim_receipt(token: String,holder: String) -> bool:
+	return game.electronics_trade.authority.ledger.begin_lost_found_receipt(token,holder)
+
+func _deliver_drop(peer: int,slots: int,drop: Dictionary,claim_token := "",claim_holder := "") -> bool:
 	var parcel: Dictionary=drop.parcel
 	if parcel.has("usb"):
 		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
@@ -219,7 +263,7 @@ func _deliver_drop(peer: int,slots: int,drop: Dictionary) -> bool:
 		if identity!=usb.owner or item.get("location","")!="lost" or int(item.get("capacity_mb",0))!=int(usb.capacity_mb):_notice(peer,"USB ownership could not be verified.");return false
 		if d.get("carry_items",[]).size()+d.get("carried_components",[]).size()>=6:_notice(peer,"Free a hotbar slot first.");return false
 		d.carry_items=d.get("carry_items",[])+["usb:"+str(usb.id)];item.location="hotbar";d.revision+=1
-		var saved: Dictionary=game.dorm_interactions._commit_world_inventory(peer,identity,profile)
+		var saved: Dictionary=game.dorm_interactions._commit_world_inventory(peer,identity,profile,null,claim_token,claim_holder)
 		if not saved.ok:_notice(peer,str(saved.error));return false
 	elif parcel.has("paper"):
 		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
@@ -238,11 +282,11 @@ func _deliver_drop(peer: int,slots: int,drop: Dictionary) -> bool:
 		if not _give_wire(peer,parcel):_notice(peer,"This cable cannot fit in your hotbar.");return false
 	elif parcel.has("food"):
 		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
-		var result := _move_food(peer,"",parcel.food)
+		var result := _move_food(peer,"",parcel.food,claim_token,claim_holder)
 		if not result.ok:_notice(peer,str(result.error));return false
 	elif parcel.has("pcb"):
 		if slots<=0:_notice(peer,"Free a hotbar slot first.");return false
-		var result := _give_pcb(peer,parcel)
+		var result := _give_pcb(peer,parcel,claim_token,claim_holder)
 		if not result.ok:_notice(peer,str(result.error));return false
 	else:
 		var dorm = game.dorm_interactions
@@ -254,7 +298,7 @@ func _deliver_drop(peer: int,slots: int,drop: Dictionary) -> bool:
 		var limit := mini(6,d.get("carry_items",[]).size()+d.get("carried_components",[]).size()+clampi(slots,0,6))
 		var result := Transfer.give(profile,parcel,limit)
 		if not result.ok:_notice(peer,str(result.error));return false
-		var saved: Dictionary = dorm._commit_world_inventory(peer,identity,result.profile)
+		var saved: Dictionary = dorm._commit_world_inventory(peer,identity,result.profile,null,claim_token,claim_holder)
 		if not saved.ok:_notice(peer,str(saved.error));return false
 	return true
 
@@ -266,10 +310,19 @@ func claim_handoff(drop_id: int,holder: String) -> Dictionary:
 	claim_pending[token]=true
 	var epoch:=import_retry_epoch
 	var result: Dictionary=await ClaimAuthority.reserve(self,token,holder)
-	claim_pending.erase(token)
+	if result.get("ok",false) and epoch==import_retry_epoch and drops.get(drop_id,{}).get("token","")==token:
+		if _begin_claim_receipt(token,holder):
+			result=await ClaimAuthority.prepare(self,token,holder)
+		else:
+			ClaimAuthority.release(self,token,holder)
+			result={"ok":false,"error":"Could not save the lost-and-found claim."}
+	if epoch==import_retry_epoch:claim_pending.erase(token)
 	if epoch!=import_retry_epoch:
-		if result.get("ok",false):ClaimAuthority.release(self,token,holder)
+		ClaimAuthority.release(self,token,holder)
 		return {"ok":false,"error":"Game session changed."}
+	if drops.get(drop_id,{}).get("token","")!=token:
+		ClaimAuthority.release(self,token,holder)
+		return {"ok":false,"error":"The item is no longer available."}
 	return result
 
 func _take_wire(peer: int,item: Dictionary) -> Dictionary:
@@ -359,7 +412,7 @@ func _take_pcb(peer: int,slot: int,identity: String) -> Dictionary:
 	result.parcel.pcb=board
 	return result
 
-func _give_pcb(peer: int,parcel: Dictionary) -> Dictionary:
+func _give_pcb(peer: int,parcel: Dictionary,claim_token := "",claim_holder := "") -> Dictionary:
 	var dorm=game.dorm_interactions
 	var identity: String=dorm.authenticated_identity(peer)
 	var profile: Dictionary=dorm._profile(identity)
@@ -386,7 +439,7 @@ func _give_pcb(peer: int,parcel: Dictionary) -> Dictionary:
 		var slots: Dictionary=ledger.deployment_slots(ledger.account(peer).get("deployment",{}))
 		slots[str(slot)]={"slot":slot,"counts":{item.type:1},"kit":"","instance_ids":design.get("instance_ids",{}).values()}
 		deployment=ledger.summarize_slots(slots)
-	var saved: Dictionary=dorm._commit_world_inventory(peer,identity,next,deployment)
+	var saved: Dictionary=dorm._commit_world_inventory(peer,identity,next,deployment,claim_token,claim_holder)
 	if not saved.ok:return saved
 	var station=lab.benches[slot]
 	station.apply({"op":"board","design":design})
@@ -395,8 +448,9 @@ func _give_pcb(peer: int,parcel: Dictionary) -> Dictionary:
 	lab.broadcast()
 	return {"ok":true}
 
-func _move_food(peer: int,id: String,incoming: Dictionary = {}) -> Dictionary:
-	var controller = game.campus_services.facilities.controller
+func _move_food(peer: int,id: String,incoming: Dictionary = {},claim_token := "",claim_holder := "") -> Dictionary:
+	var facilities = game.campus_services.facilities
+	var controller = facilities.controller
 	var host = controller.host
 	var context: Dictionary = host.trusted(peer)
 	var profile: Dictionary = host.profile(context) if not context.is_empty() else {}
@@ -412,7 +466,12 @@ func _move_food(peer: int,id: String,incoming: Dictionary = {}) -> Dictionary:
 		while profile.orders.has(str(key)):key-=1
 		profile.orders[str(key)]=order.duplicate(true)
 	profile.revision+=1
-	if not host.commit_profile.call(str(context.identity),0,profile):return Transfer.Dorm.fail("Could not save food transfer.")
+	var saved: bool
+	if game.session.online:
+		saved=facilities.adapter.commit(str(context.identity),0,profile,true,claim_token,claim_holder)
+	else:
+		saved=facilities.adapter.commit(str(context.identity),0,profile,true)
+	if not saved:return Transfer.Dorm.fail("Could not save food transfer.")
 	controller._deliver(peer,{"ok":true,"state":host.private_state(peer)})
 	return {"ok":true,"order":order}
 
@@ -476,11 +535,12 @@ func _pickup_pending(id: int, drop: Dictionary) -> bool:
 
 func _process(_delta: float) -> void:
 	if not is_instance_valid(game):return
-	if multiplayer.is_server() and not pending_commits.is_empty():
+	if multiplayer.is_server() and game.session.online:
 		commit_clock+=_delta
 		if commit_clock>=3.0:
 			commit_clock=0.0
 			for token in pending_commits.keys():_retry_commit(str(token))
+			_recover_claim_receipt()
 	if multiplayer.is_server() and game.session.online and not import_waiting.is_empty():
 		request_clock+=_delta
 		if request_clock>=3.0:

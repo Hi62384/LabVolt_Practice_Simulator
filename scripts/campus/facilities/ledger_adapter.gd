@@ -15,11 +15,12 @@ func load_facilities(identity: String) -> Dictionary:
 func available(identity: String) -> bool:
 	return is_authority.is_valid() and bool(is_authority.call()) and ledger!=null and ledger.state.accounts.has(identity) and identity in ledger.bindings.values()
 
-func commit(identity: String, dollar_delta: int, facilities: Dictionary) -> bool:
+func commit(identity: String, dollar_delta: int, facilities: Dictionary, world_transfer := false, claim_token := "", claim_holder := "") -> bool:
 	if not available(identity) or dollar_delta>0 or dollar_delta < -10000 or not Rules.valid_profile(facilities):return false
 	var account: Dictionary=ledger.state.accounts[identity]
 	var old: Dictionary=load_facilities(identity)
-	if not Rules.valid_profile(old) or int(facilities.revision)!=int(old.revision)+1 or int(facilities.last_sequence)!=int(old.last_sequence)+1:return false
+	var sequence_step := 0 if world_transfer else 1
+	if not Rules.valid_profile(old) or int(facilities.revision)!=int(old.revision)+1 or int(facilities.last_sequence)!=int(old.last_sequence)+sequence_step:return false
 	if not account.profile.get("pending_trade",{}).is_empty():return false
 	var debit := preload("res://scripts/economy/temporary_playtest/policy.gd").purchase_debit(account.profile.dollars,-dollar_delta,true)
 	if not debit.ok:return false
@@ -28,6 +29,7 @@ func commit(identity: String, dollar_delta: int, facilities: Dictionary) -> bool
 	next.accounts[identity].profile.facilities=facilities.duplicate(true)
 	next.accounts[identity].facilities_authority=true
 	next.accounts[identity].revision+=1
+	if not claim_token.is_empty() and not ledger.stage_lost_found_receipt(next,claim_token,claim_holder):return false
 	if not bool(ledger.persist(next)):return false
 	committed.emit(identity)
 	return true

@@ -54,6 +54,11 @@ static func state(value: Variant) -> bool:
  if not value is Dictionary or value.get("schema") not in [1,2] or not value.get("accounts") is Dictionary or not value.get("transactions") is Dictionary:return false
  if value.schema==2 and not root(value.get("receipt_archive")):return false
  if value.schema==1 and value.has("receipt_archive"):return false
+ var claims: Variant=value.get("lost_found_claims",{})
+ if not claims is Dictionary or claims.size()>64:return false
+ for token in claims:
+  var receipt: Variant=claims[token]
+  if not hex_id(token,32) or not receipt is Dictionary or not hex_id(receipt.get("holder"),32) or not receipt.get("awarded") is bool:return false
  for owner in value.accounts:
   var account=value.accounts[owner]
   if not hex_id(owner,48) or not account is Dictionary or not account.get("receipts") is Dictionary or not Profile.valid(account.get("profile")):return false
