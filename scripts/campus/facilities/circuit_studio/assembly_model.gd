@@ -18,6 +18,64 @@ const PARTS={
 const MAX_PARTS:=32
 const MAX_DEPTH:=4
 const MAX_EXPANDED_PARTS:=64
+const HINGE_OPEN := PI * 65.0 / 180.0
+const HINGE_SPEED := PI
+const GRID_NEIGHBORS := [Vector3i.RIGHT,Vector3i.LEFT,Vector3i.UP,Vector3i.DOWN,Vector3i.FORWARD,Vector3i.BACK]
+
+## The hinge's forward face carries the moving assembly. Its back face mounts
+## to the frame or servo. A servo under the pivot can also drive the joint.
+## A frame that wraps around the hinge constrains both sides and locks it.
+static func hinges(parts: Array) -> Array[Dictionary]:
+	var cells := {}
+	var result: Array[Dictionary] = []
+	var used := {}
+	for i in parts.size():
+		if parts[i].type!="hinge":cells[_cell(parts[i])]=i
+	for part in parts:
+		if part.type!="hinge":continue
+		var pivot := _cell(part)
+		var forward := rotate_grid(Vector3i.FORWARD,int(part.get("turns",0)))
+		var anchor := pivot-forward
+		var moving := pivot+forward
+		if not cells.has(anchor) or not cells.has(moving):continue
+		var queue: Array[Vector3i] = [moving]
+		var visited := {moving:true}
+		var cursor := 0
+		while cursor<queue.size():
+			var cell := queue[cursor]
+			cursor+=1
+			for direction: Vector3i in GRID_NEIGHBORS:
+				var neighbor := cell+direction
+				if cells.has(neighbor) and not visited.has(neighbor):
+					visited[neighbor]=true
+					queue.append(neighbor)
+		if visited.has(anchor) or queue.any(func(cell):return used.has(cell)):continue
+		var control := ""
+		for mount in [anchor,pivot+Vector3i.DOWN]:
+			if not cells.has(mount) or visited.has(mount):continue
+			var driver: Dictionary=parts[cells[mount]]
+			if driver.type=="servo" and posmod(int(driver.get("turns",0))-int(part.get("turns",0)),2)==0:
+				control=str(driver.control)
+				break
+		var indices: Array[int]=[]
+		for cell in queue:
+			used[cell]=true
+			indices.append(cells[cell])
+		result.append({"pivot":center(part),"indices":indices,"control":control})
+	return result
+
+static func _cell(part: Dictionary) -> Vector3i:
+	return Vector3i(part.x,part.y,part.z)
+
+static func center(part: Dictionary) -> Vector3:
+	return Vector3(_cell(part))*.3+Vector3.UP*.14
+
+static func hinge_transform(rest: Transform3D,pivot: Vector3,angle: float) -> Transform3D:
+	var yaw:=Basis(Vector3.UP,angle)
+	return Transform3D(yaw*rest.basis,pivot+yaw*(rest.origin-pivot))
+
+static func hinge_angle(previous: float,control: String,channels: Dictionary,battery: bool,delta: float) -> float:
+	return move_toward(previous,HINGE_OPEN if battery and channels.get(control,false) else 0.0,HINGE_SPEED*delta)
 
 ## A wheel and motor must have parallel shafts and occupy adjacent cells
 ## along the shaft axis.

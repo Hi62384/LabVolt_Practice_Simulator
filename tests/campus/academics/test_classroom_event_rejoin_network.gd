@@ -45,8 +45,6 @@ func run() -> void:
 		if not await until(func():return game.session.roster.size()==2,"reconnect"):return
 		print("EVENT_REJOIN_HOST_RECONNECTED")
 		var new_peer: int=game.session.roster.keys().filter(func(peer):return peer!=1)[0]
-		await create_timer(1).timeout
-		print("EVENT_REJOIN_HOST_STATE ",school.identities," expected ",identity," pose ",classes._position(new_peer))
 		if not await until(func():return str(school.identities.get(new_peer,""))==identity and classes._position(new_peer).distance_to(desk)<.6,"identity and pose restored"):return
 		print("EVENT_REJOIN_HOST_RESTORED")
 		service.sync_roster(ROOM,classes._now())
@@ -54,14 +52,16 @@ func run() -> void:
 		assert(service.lifecycle.states[id].phase=="active")
 		assert(service.perform(old_peer,ROOM,activity.id,id,"hand",true,classes._now())=="denied")
 		assert(service.perform(new_peer,ROOM,activity.id,id,"hand",true,classes._now())=="accepted")
+		service.publish(ROOM,classes._now())
+		await create_timer(.5).timeout
 		activity.phase="assignment";service.tick(classes._now())
 		assert(service.rooms.is_empty() and service.lifecycle.reservations.is_empty())
 		print("EVENT_REJOIN_HOST PASS")
 		await create_timer(2).timeout
 	else:
-		var saw_event:=[false]
+		var current_event:=[{}]
 		service.view_received.connect(func(_room: String,snapshot: Dictionary):
-			if not snapshot.is_empty():saw_event[0]=true)
+			current_event[0]=snapshot)
 		if game.session.join_game("127.0.0.1","Student",26370)!=OK:quit(1);return
 		if not await until(func():
 			game.player.global_position=desk;game.session.send_pose({"position":desk})
@@ -69,15 +69,18 @@ func run() -> void:
 		,"lesson"):return
 		classes._send("sign",ROOM,{})
 		if not await until(func():return classes.public_classes.get(ROOM,{}).get("signed",false),"signed"):return
-		if not await until(func():return bool(saw_event[0]),"event view"):return
+		if not await until(func():return not current_event[0].is_empty(),"event view"):return
+		var event_id: String=current_event[0].event_id
 		var old_peer: int=game.multiplayer.get_unique_id()
 		game.session.leave()
+		current_event[0]={}
 		await create_timer(.8).timeout
 		if game.session.join_game("127.0.0.1","Student",26370)!=OK:quit(1);return
 		if not await until(func():
 			game.player.global_position=desk;game.session.send_pose({"position":desk})
-			return game.session.roster.size()==2 and game.multiplayer.get_unique_id()!=old_peer
-		,"new peer"):return
+			return (game.session.roster.size()==2 and game.multiplayer.get_unique_id()!=old_peer
+				and current_event[0].get("event_id","")==event_id)
+		,"same event view on the new peer"):return
 		print("EVENT_REJOIN_CLIENT PASS")
 		await create_timer(8).timeout
 	game.session.leave();await create_timer(.2).timeout

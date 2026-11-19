@@ -1,5 +1,8 @@
 extends "res://scripts/campus/academics/equipment_evidence.gd"
 const Catalog=preload("res://scripts/equipment_catalog.gd")
+# The 1.2 kΩ bank plus both finite-impedance voltage coils can load a
+# branch ammeter by slightly over 2%. Retain margin for shunt voltage drop.
+const AMMETER_LOADING_TOLERANCE := 0.03
 var ac_observations := {}
 var ac_steps := {}
 var ac_retained := {}
@@ -78,6 +81,18 @@ func record_measurement(peer: int,bench: int,assignment: Dictionary) -> bool:
 	if not lab.powered:return false
 	var roots := _ac_roots(lab,false);var key := _key(peer,bench,assignment)
 	var measured_channels := {}
+	var resistor_high := Solver.root(roots,"R0_P")
+	var resistor_low := Solver.root(roots,"R0_N")
+	var current_path := [resistor_high]
+	var expected_watts: float=lab.readings.bank_voltages.get("R0",0.0)*lab.readings.bank_currents.get("R0",0.0)
+	for i in range(2):
+		var inlet := Solver.root(roots,"W%d_IN"%i)
+		var outlet := Solver.root(roots,"W%d_OUT"%i)
+		var common := Solver.root(roots,"W%d_VN"%i)
+		var watts: float=lab.readings.wattmeters[i]
+		if inlet!=outlet and outlet==resistor_high:
+			current_path.append(inlet)
+			if common==resistor_low and _matches_watts(watts,expected_watts):measured_channels.power=watts
 	for i in range(3):
 		for tap in ["150","300"]:
 			var matches: bool=Solver.root(roots,"V%d_COM"%i)==Solver.root(roots,"R0_N") and Solver.root(roots,"V%d_%s"%[i,tap])==Solver.root(roots,"R0_P")
@@ -85,10 +100,9 @@ func record_measurement(peer: int,bench: int,assignment: Dictionary) -> bool:
 			if matches and value<=float(lab.readings.voltmeter_ranges[i]):measured_channels.voltage=value
 		for tap in ["IN","2_5","8","25"]:
 			var a := Solver.root(roots,"AM%d_%s"%[i,tap]);var b := Solver.root(roots,"AM%d_OUT"%i)
-			var rp := Solver.root(roots,"R0_P")
 			var measured: float=lab.readings.ammeters[i]
 			var actual: float=lab.readings.bank_currents.get("R0",0)
-			if a!=b and (a==rp or b==rp) and measured>1e-9 and measured<=float(lab.readings.ammeter_ranges[i]) and absf(measured-actual)<maxf(1e-7,actual*0.02):measured_channels.current=measured
+			if a!=b and (a in current_path or b in current_path) and measured>1e-9 and measured<=float(lab.readings.ammeter_ranges[i]) and absf(measured-actual)<maxf(1e-7,actual*AMMETER_LOADING_TOLERANCE):measured_channels.current=measured
 	if measured_channels.is_empty():return false
 	ac_observations[key]=measured_channels
 	evidence.observations=measured_channels.duplicate()
@@ -110,7 +124,13 @@ func observe_ac_action(peer: int,bench: int,action: Dictionary,before: Dictionar
 	if op in ["plug","unplug","switch"] and not before.get("powered",true) and not "power_off_before_wiring" in ac_steps[key]:ac_steps[key].append("power_off_before_wiring")
 	if op in ["plug","unplug","switch"] and before.get("powered",false) and not "unsafe_live_change" in ac_steps[key]:ac_steps[key].append("unsafe_live_change")
 	var lab: RefCounted=game.session.labs[bench]
-	if op=="power" and before.get("powered",false) and not lab.powered and ac_retained.get(key,{}).get("signature","")==_ac_signature(lab) and ac_observations.get(key,{}).size()==2 and not "power_off_after_measurement" in ac_steps[key]:ac_steps[key].append("power_off_after_measurement")
+	if op=="power" and before.get("powered",false) and not lab.powered and ac_retained.get(key,{}).get("signature","")==_ac_signature(lab) and _complete_observations(assignment,ac_observations.get(key,{})) and not "power_off_after_measurement" in ac_steps[key]:ac_steps[key].append("power_off_after_measurement")
+
+func _complete_observations(assignment: Dictionary, observations: Dictionary) -> bool:
+	return observations.has("voltage") and observations.has("current") and (not assignment.get("practical",{}).get("requires_wattmeter",false) or observations.has("power"))
+
+func _matches_watts(watts: float, expected: float) -> bool:
+	return is_finite(watts) and watts>0.0 and expected>0.0 and absf(watts-expected)<=maxf(1e-6,expected*0.03)
 
 func grade(assignment: Dictionary,evidence: Dictionary,procedure: Dictionary={}) -> Dictionary:
 	if assignment.get("course_id","") in ["ETY155","DGS266"]:return super.grade(assignment,evidence,procedure)
@@ -136,9 +156,19 @@ func grade(assignment: Dictionary,evidence: Dictionary,procedure: Dictionary={})
 	var score := 40.0 if operating else 0.0
 	var r_voltage: float=evidence.readings.bank_voltages.get("R0",0)
 	var r_current: float=evidence.readings.bank_currents.get("R0",0)
-	for pair in [["voltage",r_voltage],["current",r_current]]:
-		if evidence.observations.has(pair[0]) and absf(float(evidence.observations[pair[0]])-float(pair[1]))<=maxf(1e-7,float(pair[1])*0.02):score+=15
-	if evidence.observations.size()==2:score+=10
+	var requires_wattmeter: bool=assignment.get("practical",{}).get("requires_wattmeter",false)
+	var verified_channels := {}
+	for pair in [["voltage",r_voltage,0.02],["current",r_current,AMMETER_LOADING_TOLERANCE]]:
+		if evidence.observations.has(pair[0]) and absf(float(evidence.observations[pair[0]])-float(pair[1]))<=maxf(1e-7,float(pair[1])*float(pair[2])):
+			verified_channels[pair[0]]=true
+			score+=10 if requires_wattmeter else 15
+	if requires_wattmeter and _matches_watts(float(evidence.observations.get("power",0.0)),r_voltage*r_current):
+		verified_channels.power=true
+		score+=10
+	if _complete_observations(assignment,verified_channels):score+=10
 	for step in ["power_off_before_wiring","power_off_after_measurement"]:
 		if step in evidence.steps:score+=10
-	return {"score":score,"verified":true,"operating_point":operating,"reason":"Actual AC bank switches, cable connectivity, shared phasor solver, physical meter readings and host-observed procedure."}
+	var reason := "Actual AC bank switches, cable connectivity, shared phasor solver, physical meter readings and host-observed procedure."
+	if requires_wattmeter and not verified_channels.has("power"):
+		reason="Record the R0 wattmeter reading with its current coil in series and its voltage common on R0_N."
+	return {"score":score,"verified":true,"operating_point":operating,"reason":reason}

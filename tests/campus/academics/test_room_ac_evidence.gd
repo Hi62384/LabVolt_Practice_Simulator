@@ -31,26 +31,24 @@ func verify_week(game: Node,identity: String,week: int) -> void:
  lab.cables.clear();lab.powered=false
  for kind in ["R","L","C"]:lab.switches[kind]=[false,false,false,false,false,false,false,false,false]
  lab.level=plan.variable_level;lab.frequency=plan.frequency_hz
- var nodes: Dictionary=plan.source_nodes.duplicate();var serial:=1
  for bank in plan.banks:
-  var id: String=str(bank.kind)+str(bank.index)
   var switch_index: int=Catalog.LOADS[bank.kind].values.find(bank.value)
   assert(switch_index>=0)
   lab.switches[bank.kind][int(bank.index)*3+switch_index]=true
-  for pair in [[bank.a,id+"_P"],[bank.b,id+"_N"]]:
-   if not nodes.has(pair[0]):nodes[pair[0]]=pair[1]
-   else:lab.cables.append({"id":serial,"a":nodes[pair[0]],"b":pair[1],"owner":0,"color":0});serial+=1
- for lead in lab.cables:
-  if lead.b=="R0_P":lead.b="AM0_IN";break
- for pair in [["AM0_OUT","R0_P"],["V0_COM","R0_N"],["V0_150","R0_P"]]:
-  lab.cables.append({"id":serial,"a":pair[0],"b":pair[1],"owner":0,"color":0});serial+=1
+ assert(paper.project.physical_wire_steps.has(["W0_VN","R0_N"]))
+ for pair in paper.project.physical_wire_steps:
+  lab.cables.append({"id":lab.cables.size()+1,"a":pair[0],"b":pair[1],"owner":0,"color":0})
  adapter.observe_ac_action(1,bench,{"op":"plug"},{"powered":false})
  lab.powered=true;lab.recalculate()
  assert(adapter.record_measurement(1,bench,paper.project))
+ var evidence: Dictionary=adapter.capture(1,bench,paper.project)
+ assert(evidence.observations.get("power",0.0)>0.0)
+ evidence.observations.erase("power")
+ assert(adapter.grade(paper.project,evidence).score<100)
  lab.powered=false;lab.recalculate()
  adapter.observe_ac_action(1,bench,{"op":"power"},{"powered":true})
  var grade: Dictionary=adapter.grade(paper.project,adapter.capture(1,bench,paper.project))
- assert(grade.score==100,"ELM253 week %d scored %s"%[week,grade])
+ assert(grade.score==100,"ELM253 week %d scored %s with %s"%[week,grade,adapter.capture(1,bench,paper.project).observations])
  assert(not adapter.record_measurement(1,bench,paper.project))
  assert(adapter.capture(1,(bench+1)%game.session.labs.size(),paper.project).is_empty())
  lab.frequency+=1.0

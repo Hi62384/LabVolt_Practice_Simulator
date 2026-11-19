@@ -12,6 +12,7 @@ var _ghost: MeshInstance3D
 var _ghost_material: StandardMaterial3D
 var _parts: Array=[]
 var _powered_parts: Array[MeshInstance3D]=[]
+var joints: Array[Dictionary]=[]
 var camera_state: Dictionary={"focus":Vector3.ZERO,"distance":4.2,"yaw":.65,"pitch":.72}
 var _orbiting := false
 var _panning := false
@@ -63,6 +64,7 @@ func _ready() -> void:
 	if library.has("inv:preview") and Model.validate("inv:preview",library,pcbs)=="":
 		visible_parts=Model.flattened("inv:preview",library,pcbs)
 	Model.connect_wheels(visible_parts)
+	var instances: Array[MeshInstance3D]=[]
 	for part in visible_parts:
 		var kind:=str(part.get("type",""))
 		var instance:=MeshInstance3D.new()
@@ -83,11 +85,21 @@ func _ready() -> void:
 		instance.position=Vector3(part.x,part.y,part.z)*.3+Vector3.UP*.14
 		instance.rotation.y=float(part.get("turns",0))*PI*.5
 		scene.add_child(instance)
-		if kind in ["wheel","servo","dc_motor"]:
+		instances.append(instance)
+		if kind=="wheel":
 			instance.set_meta("kind",kind)
-			instance.set_meta("base_yaw",instance.rotation.y)
-			instance.set_meta("channel",part.get("motor_control","") if kind=="wheel" else part.get("control",""))
+			instance.set_meta("channel",part.get("motor_control",""))
+			instance.set_meta("roll",0.0)
+			instance.set_meta("rest",instance.transform)
 			_powered_parts.append(instance)
+	joints=Model.hinges(visible_parts)
+	for joint in joints:
+		joint.angle=0.0
+		joint.manual=false
+		joint.bindings=[]
+		for index in joint.indices:
+			var instance := instances[index]
+			joint.bindings.append({"node":instance,"rest":instance.transform})
 	_ghost=MeshInstance3D.new()
 	var ghost_box:=BoxMesh.new()
 	ghost_box.size=Vector3(.286,.286,.286)
@@ -102,11 +114,20 @@ func _ready() -> void:
 
 func preview_power(delta: float, channels: Dictionary, battery: bool) -> void:
 	for instance in _powered_parts:
+		instance.transform=instance.get_meta("rest")
+	for joint in joints:
+		if joint.control=="":
+			joint.angle=move_toward(float(joint.angle),Model.HINGE_OPEN if joint.manual else 0.0,Model.HINGE_SPEED*delta)
+		else:
+			joint.angle=Model.hinge_angle(joint.angle,joint.control,channels,battery,delta)
+		for binding in joint.bindings:
+			binding.node.transform=Model.hinge_transform(binding.rest,joint.pivot,joint.angle)
+	for instance in _powered_parts:
 		var active: bool=battery and channels.get(instance.get_meta("channel"),false)
-		if instance.get_meta("kind")=="wheel" and active:
-			instance.rotate_object_local(Vector3.UP,delta*.5/.14)
-		elif instance.get_meta("kind")=="servo":
-			instance.rotation.y=float(instance.get_meta("base_yaw"))+deg_to_rad(65.0 if active else -65.0)
+		var roll: float=instance.get_meta("roll")
+		if active:roll=wrapf(roll+delta*.5/.14,0.0,TAU)
+		instance.set_meta("roll",roll)
+		instance.rotate_object_local(Vector3.UP,roll)
 
 func _update_camera() -> void:
 	var pitch:=float(camera_state.pitch)

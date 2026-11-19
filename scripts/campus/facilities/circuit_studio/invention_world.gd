@@ -3,6 +3,10 @@ const Model=preload("res://scripts/campus/facilities/circuit_studio/assembly_mod
 const PCBRun=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_runtime.gd")
 const PCB_STEP := 0.05
 const PCB_CATCHUP_LIMIT := 4
+const MAX_PLACEMENTS := 48
+const STRUCTURE_CHUNK_TARGET := 32768
+const INTEREST_ENTER_DISTANCE_SQUARED := 42.0*42.0
+const INTEREST_LEAVE_DISTANCE_SQUARED := 50.0*50.0
 signal placement_finished(blueprint_id: String, message: String)
 var game: Node
 var placed: Dictionary={}
@@ -14,6 +18,9 @@ var local_hold: Dictionary={}
 var send_clock:=0.0
 var sync_clock:=0.0
 var pending_motion: Dictionary={}
+var sent_structure: Dictionary={}
+var structural_additions: Dictionary={}
+var structural_removals: Array=[]
 var pending_blueprint := ""
 var last_placement_result := ""
 
@@ -25,6 +32,9 @@ func build(owner_game: Node) -> void:
 		simulators.clear()
 		pcb_holders.clear()
 		pending_motion.clear()
+		sent_structure.clear()
+		structural_additions.clear()
+		structural_removals.clear()
 		pending_blueprint=""
 		_clear_visuals())
 	game.session.roster_changed.connect(_roster_changed)
@@ -76,9 +86,12 @@ func _apply_place_local(id: String) -> String:
 	return last_placement_result
 
 func interact(target: Node,right: bool=false) -> bool:
-	if not is_instance_valid(target) or target.get_meta("role","") not in ["invention","invention_control","invention_pcb"]:return false
+	if not is_instance_valid(target) or target.get_meta("role","") not in ["invention","invention_control","invention_pcb","invention_hinge"]:return false
 	var key:=str(target.get_meta("invention_key",""))
 	if not placed.has(key):return true
+	if target.get_meta("role")=="invention_hinge":
+		_request({"op":"hinge","key":key,"joint":target.get_meta("joint")})
+		return true
 	if target.get_meta("role")=="invention":
 		if int(placed[key].owner)==multiplayer.get_unique_id():_request({"op":"pickup","key":key})
 		else:game.ui.log_message("Only the owner can retrieve this invention.")
@@ -130,7 +143,7 @@ func _apply(peer: int,action: Dictionary) -> void:
 		var slot:=0
 		while placed.has(_key(peer,id,slot)) and slot<copies:slot+=1
 		if slot>=copies:_placement_result(peer,"All fabricated copies of this invention are already placed.");return
-		if placed.size()>=48:_placement_result(peer,"The maximum number of active inventions has been reached.");return
+		if placed.size()>=MAX_PLACEMENTS:_placement_result(peer,"The maximum number of active inventions has been reached.");return
 		var parts:=Model.flattened(id,designs,profile.get("blueprints",{}))
 		var drive: Dictionary=designs[id].get("drive",{"A":"manual","B":"manual"}).duplicate(true)
 		var wants_pcb: bool=drive.A!="manual" or drive.B!="manual"
@@ -154,6 +167,7 @@ func _apply(peer: int,action: Dictionary) -> void:
 		Model.connect_wheels(parts)
 		var key:=_key(peer,id,slot)
 		placed[key]={"owner":peer,"id":id,"name":str(designs[id].name),"parts":parts,"bounds":bounds,"features":features,"controls":designs[id].controls.duplicate(true),"drive":drive,"state":{"A":false,"B":false},"effective":{"A":false,"B":false},"pcb_voltage":{"A":0.0,"B":0.0},"pcb_error":"","pcb_inputs":pcb_runtime.inputs.duplicate(true) if wants_pcb else [],"expiry":{"A":0,"B":0},"holder":{"A":0,"B":0},"position":position,"yaw":0.0,"angle":0.0}
+		placed[key]["hinge_angles"]={}
 		visuals[key]=_create_view(key,placed[key])
 		if wants_pcb:simulators[key]={"runtime":pcb_runtime,"clock":0.0}
 		_sync()
@@ -163,6 +177,15 @@ func _apply(peer: int,action: Dictionary) -> void:
 	if key.length()>110 or not placed.has(key):return
 	var item: Dictionary=placed[key]
 	if _pose(peer).distance_to(item.position)>3.5:return
+	if op=="hinge":
+		var joint_index: Variant=action.get("joint")
+		var view: Node3D=visuals.get(key)
+		if not joint_index is int or not is_instance_valid(view):return
+		var joints: Array=view.get_meta("joints",[])
+		if joint_index<0 or joint_index>=joints.size() or joints[joint_index].control!="":return
+		if _pose(peer).distance_to(view.to_global(joints[joint_index].pivot))>3.5:return
+		joints[joint_index].manual=not bool(joints[joint_index].manual)
+		return
 	if op=="pickup":
 		if peer!=int(item.owner):return
 		_remove_placed(key);_sync();return
@@ -251,8 +274,39 @@ func _placement(pose: Vector3,peer: int,bounds: Dictionary) -> Vector3:
 	return Vector3.INF
 
 func _sync() -> void:
-	if game.session.online and multiplayer.is_server():
-		for peer in game.session.connected_peers():receive.rpc_id(peer,placed)
+	if not game.session.online or not multiplayer.is_server():return
+	var peers: Array=game.session.connected_peers()
+	for peer in sent_structure.keys():
+		if peer not in peers:sent_structure.erase(peer)
+	var row_sizes: Dictionary={}
+	for peer in peers:
+		var previous: Dictionary=sent_structure.get(peer,{})
+		var pose: Vector3=_pose(peer)
+		var keys: Dictionary={}
+		for key in placed:
+			var item: Dictionary=placed[key]
+			var limit:=INTEREST_LEAVE_DISTANCE_SQUARED if previous.has(key) else INTEREST_ENTER_DISTANCE_SQUARED
+			if int(item.owner)==peer or pose.distance_squared_to(item.position)<=limit:keys[key]=true
+		if previous==keys and sent_structure.has(peer):continue
+		var removed: Array=[]
+		for key in previous:
+			if not keys.has(key):removed.append(key)
+		var chunk: Dictionary={}
+		var total_bytes:=0
+		for key in keys:
+			if previous.has(key):continue
+			if not row_sizes.has(key):row_sizes[key]=var_to_bytes({key:placed[key]}).size()
+			var row_bytes: int=row_sizes[key]
+			if not chunk.is_empty() and total_bytes+row_bytes>STRUCTURE_CHUNK_TARGET:
+				receive.rpc_id(peer,chunk,removed,false)
+				chunk={}
+				removed=[]
+				total_bytes=0
+			chunk[key]=placed[key]
+			total_bytes+=row_bytes
+		# An empty final packet also closes a first sync with no placed items.
+		receive.rpc_id(peer,chunk,removed,true)
+		sent_structure[peer]=keys
 
 func _placement_result(peer: int,message: String) -> void:
 	if peer==1:receive_placement(message)
@@ -271,9 +325,18 @@ func notice(message: String) -> void:
 	if is_instance_valid(game) and is_instance_valid(game.ui):game.ui.log_message(message.left(140))
 
 @rpc("authority","call_remote","reliable")
-func receive(snapshot: Dictionary) -> void:
-	if snapshot.size()>48 or var_to_bytes(snapshot).size()>131072:return
-	placed=snapshot
+func receive(additions: Dictionary,removals: Array,final: bool) -> void:
+	if additions.size()>MAX_PLACEMENTS or removals.size()>MAX_PLACEMENTS or var_to_bytes(additions).size()>131072:
+		structural_additions.clear()
+		structural_removals.clear()
+		return
+	structural_additions.merge(additions,true)
+	structural_removals.append_array(removals)
+	if not final:return
+	for key in structural_removals:placed.erase(key)
+	placed.merge(structural_additions,true)
+	structural_additions.clear()
+	structural_removals.clear()
 
 # Reliable updates share the structural channel, so an old update cannot
 # affect a new invention reusing a retrieved copy's slot.
@@ -310,9 +373,30 @@ func _process(delta: float) -> void:
 			if is_instance_valid(button):button.position.y=.62 if item.state[control] else .66
 		for shaft in root.get_meta("shafts",[]):
 			if shaft.get_meta("kind")=="wheel" and item.effective.get(shaft.get_meta("control",""),false):shaft.rotation.x=float(item.angle)
-			elif shaft.get_meta("kind")=="servo":
-				var actuated: bool=item.features.battery and item.effective.get(shaft.get_meta("control","B"),false)
-				shaft.rotation.y=float(shaft.get_meta("base_yaw"))+deg_to_rad(65.0 if actuated else -65.0)
+		if not multiplayer.is_server():
+			for joint in root.get_meta("joints",[]):
+				var angle: float=item.get("hinge_angles",{}).get(joint.index,0.0)
+				_apply_hinge(joint,move_toward(float(joint.angle),angle,Model.HINGE_SPEED*delta))
+
+func _apply_hinge(joint: Dictionary,angle: float) -> void:
+	if is_equal_approx(float(joint.angle),angle):return
+	joint.angle=angle
+	for binding in joint.bindings:
+		binding.node.transform=Model.hinge_transform(binding.rest,joint.pivot,angle)
+
+func _hinge_clear(view: Node3D,joint: Dictionary,angle: float) -> bool:
+	var solid: StaticBody3D=view.get_node("Solid")
+	var query:=PhysicsShapeQueryParameters3D.new()
+	query.collision_mask=1
+	query.exclude=[solid.get_rid()]
+	var space:=get_world_3d().direct_space_state
+	for binding in joint.bindings:
+		var collider:=binding.node as CollisionShape3D
+		if collider==null or collider.get_parent()!=solid:continue
+		query.shape=collider.shape
+		query.transform=solid.global_transform*Model.hinge_transform(binding.rest,joint.pivot,angle)
+		if not space.intersect_shape(query,1).is_empty():return false
+	return true
 
 func _release_pcb(holder_key: String) -> void:
 	var holder: Dictionary=pcb_holders[holder_key]
@@ -349,6 +433,18 @@ func _physics_process(delta: float) -> void:
 			if item.controls[control]=="hold" and item.state[control] and now>int(item.expiry[control]):item.state[control]=false;item.holder[control]=0;changed=true
 			var effective:=Model.energized(item.drive[control],item.state[control],item.pcb_voltage[control])
 			if effective!=bool(item.effective[control]):item.effective[control]=effective;changed=true
+		var hinge_view: Node3D=visuals.get(key)
+		if is_instance_valid(hinge_view):
+			for joint in hinge_view.get_meta("joints",[]):
+				var angle: float
+				if joint.control=="":
+					angle=move_toward(float(joint.angle),Model.HINGE_OPEN if joint.manual else 0.0,Model.HINGE_SPEED*delta)
+				else:
+					angle=Model.hinge_angle(joint.angle,joint.control,item.effective,item.features.battery,delta)
+				if not is_equal_approx(angle,float(joint.angle)) and _hinge_clear(hinge_view,joint,angle):
+					_apply_hinge(joint,angle)
+					item.hinge_angles[joint.index]=angle
+					changed=true
 		var drive_direction:=Vector3.ZERO
 		if item.features.battery:
 			for part in item.parts:
@@ -369,12 +465,17 @@ func _physics_process(delta: float) -> void:
 	sync_clock+=delta
 	if sync_clock<.1:return
 	sync_clock=fmod(sync_clock,.1)
+	_sync()
 	if game.session.online and not pending_motion.is_empty():
 		var updates: Dictionary={}
 		for key in pending_motion:
 			var item: Dictionary=placed[key]
-			updates[key]={"position":item.position,"yaw":item.yaw,"angle":item.angle,"state":item.state,"effective":item.effective,"pcb_voltage":item.pcb_voltage,"pcb_error":item.pcb_error}
-		for peer in game.session.connected_peers():receive_motion.rpc_id(peer,updates)
+			updates[key]={"position":item.position,"yaw":item.yaw,"angle":item.angle,"state":item.state,"effective":item.effective,"pcb_voltage":item.pcb_voltage,"pcb_error":item.pcb_error,"hinge_angles":item.hinge_angles}
+		for peer in sent_structure:
+			var visible: Dictionary={}
+			for key in updates:
+				if sent_structure[peer].has(key):visible[key]=updates[key]
+			if not visible.is_empty():receive_motion.rpc_id(peer,visible)
 	pending_motion.clear()
 
 func _create_view(key: String,item: Dictionary) -> StaticBody3D:
@@ -384,31 +485,68 @@ func _create_view(key: String,item: Dictionary) -> StaticBody3D:
 	root.position=item.position
 	var solid:=StaticBody3D.new()
 	solid.name="Solid";solid.collision_layer=1;solid.collision_mask=0;root.add_child(solid)
-	var hit:=CollisionShape3D.new();var bounds:=BoxShape3D.new();bounds.size=item.bounds.size;hit.shape=bounds;hit.position=item.bounds.center;root.add_child(hit)
 	var shafts: Array=[]
+	var bindings: Array=[]
 	for part in item.parts:
 		var kind:=str(part.type)
 		var pivot:=Node3D.new();pivot.position=_part_center(part);root.add_child(pivot)
 		pivot.rotation.y=float(part.get("turns",0))*PI*.5
-		if kind in ["wheel","servo"]:
-			pivot.set_meta("kind",kind)
-			pivot.set_meta("base_yaw",pivot.rotation.y)
-			pivot.set_meta("control",part.get("motor_control","") if kind=="wheel" else part.get("control","B"))
-			shafts.append(pivot)
 		var part_hit:=CollisionShape3D.new()
 		var part_box:=BoxShape3D.new();part_box.size=_part_size(kind);part_hit.shape=part_box;part_hit.position=pivot.position;solid.add_child(part_hit)
 		part_hit.rotation.y=pivot.rotation.y
+		var moving_nodes: Array=[{"node":pivot,"rest":pivot.transform},{"node":part_hit,"rest":part_hit.transform}]
+		var interaction_shape:=CollisionShape3D.new()
+		interaction_shape.shape=part_box
+		interaction_shape.transform=part_hit.transform
+		root.add_child(interaction_shape)
+		moving_nodes.append({"node":interaction_shape,"rest":interaction_shape.transform})
+		bindings.append(moving_nodes)
 		var mesh:=MeshInstance3D.new()
 		if kind=="wheel":
 			var cylinder:=CylinderMesh.new();cylinder.top_radius=.14;cylinder.bottom_radius=.14;cylinder.height=.09;mesh.mesh=cylinder;mesh.rotation.z=PI/2
+			# Roll on a child axis so a hinge can rotate the entire wheel mount.
+			var shaft:=Node3D.new()
+			shaft.set_meta("kind",kind)
+			shaft.set_meta("control",part.get("motor_control",""))
+			pivot.add_child(shaft)
+			shaft.add_child(mesh)
+			shafts.append(shaft)
 		else:
 			var box:=BoxMesh.new();box.size=_part_size(kind);mesh.mesh=box
-		var material:=StandardMaterial3D.new();material.albedo_color=Color(str(Model.PARTS.get(kind,{}).get("color","777777")));mesh.material_override=material;pivot.add_child(mesh)
+			pivot.add_child(mesh)
+		var material:=StandardMaterial3D.new();material.albedo_color=Color(str(Model.PARTS.get(kind,{}).get("color","777777")));mesh.material_override=material
 		if kind=="pcb" and (item.drive.A!="manual" or item.drive.B!="manual"):
 			var pcb_target:=StaticBody3D.new();pcb_target.collision_layer=4;pcb_target.collision_mask=0;pcb_target.position=pivot.position+Vector3(0,.24,0);root.add_child(pcb_target)
 			pcb_target.set_meta("role","invention_pcb");pcb_target.set_meta("invention_key",key);pcb_target.set_meta("label",str(item.name)+" · inspect live PCB")
 			var pcb_hit:=CollisionShape3D.new();var pcb_shape:=BoxShape3D.new();pcb_shape.size=Vector3(.28,.16,.28);pcb_hit.shape=pcb_shape;pcb_target.add_child(pcb_hit)
+			moving_nodes.append({"node":pcb_target,"rest":pcb_target.transform})
 	root.set_meta("shafts",shafts)
+	var joints:=Model.hinges(item.parts)
+	for index in joints.size():
+		var joint:=joints[index]
+		joint.pivot.y+=.22 # The editor displays the same grid below the installed body.
+		joint.index=index
+		joint.angle=0.0
+		joint.manual=false
+		joint.bindings=[]
+		for part_index in joint.indices:joint.bindings.append_array(bindings[part_index])
+		_apply_hinge(joint,float(item.get("hinge_angles",{}).get(index,0.0)))
+		if joint.control=="":
+			var target:=StaticBody3D.new()
+			target.collision_layer=4
+			target.collision_mask=0
+			target.position=joint.pivot
+			root.add_child(target)
+			target.set_meta("role","invention_hinge")
+			target.set_meta("invention_key",key)
+			target.set_meta("joint",index)
+			target.set_meta("label",str(item.name)+" · swing hinge")
+			var shape:=CollisionShape3D.new()
+			var box:=BoxShape3D.new()
+			box.size=Vector3(.3,.3,.3)
+			shape.shape=box
+			target.add_child(shape)
+	root.set_meta("joints",joints)
 	for control in ["A","B"]:
 		if not item.features.get("switch_"+control.to_lower(),false):continue
 		var button:=StaticBody3D.new();button.name="Control"+control;button.collision_layer=4;button.collision_mask=0;button.position=Vector3(-.25 if control=="A" else .25,.66,-.25);root.add_child(button)

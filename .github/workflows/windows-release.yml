@@ -114,6 +114,15 @@ jobs:
             & $env:GODOT --headless --path . --script "res://tests/electronics/$test.gd" --log-file $sourceLog
             if ($LASTEXITCODE -or !(Test-Path $sourceLog) -or !(Select-String -Path $sourceLog -SimpleMatch $sourceTests[$test]) -or (Select-String -Path $sourceLog -Pattern 'SCRIPT ERROR:')) { throw "Source test failed: $test" }
           }
+          $inventionTests = @{
+            pcb_drive_test = 'ARTICULATED_HINGE_PASS'
+            invention_network_load = 'INVENTION_NETWORK_LOAD PASS'
+          }
+          foreach ($test in $inventionTests.Keys) {
+            $sourceLog = "$env:RUNNER_TEMP/$test.log"
+            & $env:GODOT --headless --path . --script "res://tests/campus/circuit_studio/$test.gd" --log-file $sourceLog
+            if ($LASTEXITCODE -or !(Test-Path $sourceLog) -or !(Select-String -Path $sourceLog -SimpleMatch $inventionTests[$test]) -or (Select-String -Path $sourceLog -Pattern 'SCRIPT ERROR:')) { throw "Invention test failed: $test" }
+          }
           $env:APPDATA = $originalAppData
           & $env:GODOT --headless --path . --export-release "Windows Desktop" "$game/LabVolt.exe"
           if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck") -or !(Test-Path "$game/data_CollegeSimulator_windows_x86_64/CollegeSimulator.dll")) { throw 'Windows .NET export failed' }
@@ -141,6 +150,22 @@ jobs:
           $voiceArgs = @('--headless','--path',('"' + $game + '"'),'--script',('"' + $test + '"'),'--log-file',('"' + $log + '"'))
           $voiceTest = Start-Process -FilePath "$game/LabVolt.exe" -ArgumentList $voiceArgs -WindowStyle Hidden -Wait -PassThru
           if ($voiceTest.ExitCode -or !(Test-Path $log) -or !(Select-String -Path $log -SimpleMatch 'REAL_TEACHER_VOICES PASS' -Quiet)) { throw 'Exported instructor voices failed synthesis verification' }
+      - name: Verify live classroom playback, practical grading and reconnect
+        shell: pwsh
+        run: |
+          $tests = @{
+            test_live_classroom_teachers = 'LIVE_CLASSROOM_TEACHERS PASS'
+            test_room_ac_evidence = 'PASS all room-hosted AC lab weeks'
+          }
+          foreach ($test in $tests.Keys) {
+            $env:APPDATA = "$env:RUNNER_TEMP/$test-appdata"
+            New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
+            $log = "$env:RUNNER_TEMP/$test.log"
+            & $env:GODOT --headless --path . --script "res://tests/campus/academics/$test.gd" --log-file $log
+            if ($LASTEXITCODE -or !(Test-Path $log) -or !(Select-String -Path $log -SimpleMatch $tests[$test] -Quiet) -or (Select-String -Path $log -SimpleMatch 'SCRIPT ERROR:' -Quiet)) { throw "Classroom check failed: $test" }
+          }
+          python -B tests/campus/academics/run_classroom_events_network.py events live-events
+          if ($LASTEXITCODE) { throw 'Classroom reconnect checks failed' }
       - name: Bundle and verify offline firmware compilers
         shell: pwsh
         run: |

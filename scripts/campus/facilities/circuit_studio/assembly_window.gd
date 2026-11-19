@@ -191,7 +191,10 @@ func _editor(message: String="") -> void:
 		part_z.value=part.z
 		preview.placement_height=int(part_y.value)
 		_label(inspector,"Selected  ·  "+str(Model.PARTS[part.type].name))
-		_button(inspector,"Rotate %d°"%[int(part.get("turns",0))*90],_rotate_part.bind(selected_part))
+		var rotate:=_button(inspector,"Rotate %d°"%[int(part.get("turns",0))*90],_rotate_part.bind(selected_part))
+		if part.type=="hinge":
+			var forward:=Model.rotate_grid(Vector3i.FORWARD,int(part.get("turns",0)))
+			rotate.tooltip_text="Moving side: %+d X, %+d Z. Mount a frame or servo on the opposite side."%[forward.x,forward.z]
 		_button(inspector,"Delete selected",_remove_part.bind(selected_part))
 	part_y.value_changed.connect(func(value: float):preview.placement_height=int(value))
 	preview.cell_clicked.connect(_viewport_click)
@@ -244,6 +247,7 @@ func _test_draft() -> void:
 	test_view.custom_minimum_size=Vector2(260,360)
 	body.add_child(test_view)
 	test_parts=Model.flattened("inv:preview",test_view.library,test_view.pcbs)
+	Model.connect_wheels(test_parts)
 	test_clock=0.0
 	test_switches={"A":false,"B":false}
 	test_output={"A":0.0,"B":0.0}
@@ -255,6 +259,11 @@ func _test_draft() -> void:
 		button.toggle_mode=true
 		button.disabled=not test_parts.any(func(part):return part.type=="switch" and part.control==selected_channel)
 	_button(controls,"Reset test",_test_draft)
+	for index: int in range(test_view.joints.size()):
+		var joint: Dictionary=test_view.joints[index]
+		if joint.control!="":continue
+		var button:=_button(controls,"Hinge %d"%(index+1),func():joint.manual=not joint.manual)
+		button.toggle_mode=true
 	test_status=_label(body,"")
 	if draft.drive.A=="manual" and draft.drive.B=="manual":return
 	for part in test_parts:
@@ -290,7 +299,8 @@ func _process(delta: float) -> void:
 	for channel in ["A","B"]:
 		channels[channel]=String(test_output.get("error","")).is_empty() and Model.energized(draft.drive[channel],test_switches[channel],test_output[channel])
 	test_view.preview_power(delta,channels,battery)
-	var active_motors:=test_parts.filter(func(part):return part.type in ["dc_motor","servo"] and battery and channels.get(part.control,false)).size()
+	var active_motors:=test_parts.filter(func(part):return part.type=="wheel" and battery and channels.get(part.get("motor_control",""),false)).size()
+	active_motors+=test_view.joints.filter(func(joint):return joint.control!="" and battery and channels.get(joint.control,false)).size()
 	test_status.text="Battery %s  ·  %d active motors  ·  PCB A %.2f V  ·  PCB B %.2f V"%["connected" if battery else "missing",active_motors,test_output.A,test_output.B]
 	var error:=String(test_output.get("error",""))
 	if not error.is_empty():test_status.text+="\n"+error

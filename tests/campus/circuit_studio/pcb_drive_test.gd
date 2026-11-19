@@ -3,6 +3,7 @@ const Board=preload("res://scripts/breadboard_model.gd")
 const Custom=preload("res://scripts/custom_circuit.gd")
 const Runtime=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_runtime.gd")
 const World=preload("res://scripts/campus/facilities/circuit_studio/invention_world.gd")
+const Model=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd")
 
 class MockGame extends Node:
 	var session := {"online":false}
@@ -54,6 +55,7 @@ func _run() -> void:
 	for i in 80:runtime.tick(.05)
 	print("PCB_DRIVE_80_TICKS_MS ",(Time.get_ticks_usec()-start)/1000.0)
 	_check_world_clock()
+	await _check_hinge()
 	print("PCB_DRIVE_PASS")
 	quit()
 
@@ -87,4 +89,58 @@ func _check_world_clock() -> void:
 	world._physics_process(0.0)
 	assert(stalled.calls==10 and is_equal_approx(float(world.simulators.test.clock),.03),"Lag catch-up discarded elapsed time")
 	print("PCB_WORLD_CLOCK_PASS 15/30/60/144 FPS and 530 ms stall")
+	game.free()
+
+func _check_hinge() -> void:
+	var game:=MockGame.new()
+	var world:=World.new()
+	root.add_child(game)
+	game.add_child(world)
+	world.set_process(false)
+	world.set_physics_process(false)
+	world.game=game
+	var parts: Array = [
+		{"type":"servo","x":0,"y":0,"z":1,"control":"A"},
+		{"type":"hinge","x":0,"y":0,"z":0},
+		{"type":"wood_frame","x":0,"y":0,"z":-1},
+		{"type":"plastic_shell","x":0,"y":0,"z":-2}
+	]
+	var joints:=Model.hinges(parts)
+	assert(joints.size()==1 and joints[0].indices==[2,3] and joints[0].control=="A")
+	var passive:=parts.duplicate(true)
+	passive[0].type="wood_frame"
+	assert(Model.hinges(passive)[0].control=="")
+	var locked:=parts.duplicate(true)
+	for z in [-1,0,1]:locked.append({"type":"wood_frame","x":1,"y":0,"z":z})
+	assert(Model.hinges(locked).is_empty())
+	var item := {
+		"name":"Servo hinge", "position":Vector3(0,2,0),"parts":parts,"angle":0.0,"yaw":0.0,
+		"controls":{"A":"toggle","B":"toggle"},"state":{"A":true,"B":false},"effective":{"A":false,"B":false},
+		"drive":{"A":"manual","B":"manual"},"pcb_voltage":{"A":0.0,"B":0.0},"pcb_error":"",
+		"features":{"battery":true},"hinge_angles":{}
+	}
+	world.placed.test=item
+	world.visuals.test=world._create_view("test",item)
+	var joint: Dictionary=world.visuals.test.get_meta("joints")[0]
+	var moving: Node3D=joint.bindings[0].node
+	var collider: CollisionShape3D=joint.bindings[1].node
+	var origin := moving.position
+	for i in 60:world._physics_process(1.0/60.0)
+	assert(is_equal_approx(item.hinge_angles[0],Model.HINGE_OPEN))
+	assert(not moving.position.is_equal_approx(origin) and moving.transform.is_equal_approx(collider.transform))
+	item.features.battery=false
+	for i in 60:world._physics_process(1.0/60.0)
+	assert(moving.position.is_equal_approx(origin) and is_zero_approx(item.hinge_angles[0]))
+	var wall:=StaticBody3D.new()
+	game.add_child(wall)
+	wall.position=Vector3(-.28,2.36,-.15)
+	var wall_shape:=CollisionShape3D.new()
+	var box:=BoxShape3D.new()
+	box.size=Vector3(.18,.25,.2)
+	wall_shape.shape=box
+	wall.add_child(wall_shape)
+	await physics_frame
+	await physics_frame
+	assert(not world._hinge_clear(world.visuals.test,joint,Model.HINGE_OPEN))
+	print("ARTICULATED_HINGE_PASS")
 	game.free()

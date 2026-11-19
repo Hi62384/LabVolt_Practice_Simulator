@@ -4,6 +4,8 @@ const Catalog=preload("res://scripts/equipment_catalog.gd")
 static func socket(id:String)->String:
  var supply={"PV_A":"power supply: red socket 4 in the middle output column", "PV_B":"power supply: black socket 5 below 4", "PV_C":"power supply: blue socket 6 below 5", "PV_N":"power supply: pale-yellow N below 6", "AM0_OUT":"first (left/red) ammeter: socket ±", "AM0_IN":"first (left/red) ammeter: socket 0.5 A", "AM0_2_5":"first (left/red) ammeter: socket 2.5 A", "AM0_8":"first (left/red) ammeter: socket 8 A", "V0_COM":"first (left) voltmeter: black ± common socket", "V0_150":"first (left) voltmeter: yellow socket 100 V", "V0_300":"first (left) voltmeter: yellow socket 250 V"}
  if supply.has(id):return supply[id]
+ if id in ["W0_IN","W0_OUT","W0_VN"]:
+  return "three-phase wattmeter, left section: "+{"W0_IN":"red socket 1","W0_OUT":"black socket 2","W0_VN":"blue socket 3"}[id]
  if id.length()>=4 and id.substr(0,1) in ["R","L","C"] and id.substr(1,1).is_valid_int():
   var module_name={"R":"VARIABLE RESISTANCE","L":"VARIABLE INDUCTANCE","C":"VARIABLE CAPACITANCE"}[id.substr(0,1)]
   var bank=clampi(int(id.substr(1,1)),0,2)
@@ -42,9 +44,13 @@ static func apply(assignment:Dictionary)->Dictionary:
  var amps:float=assignment.get("reference_ac",{}).get("result",{}).get("currents",{}).get("R0",Vector2.ZERO).length()
  if amps>7.2:return {"error":"R0 current exceeds the supported 7.2 A limit. Keep supply power OFF; do not wire or energize this experiment."}
  if amps>.45:meter="AM0_2_5" if amps<=2.25 else "AM0_8"
+ var wattmeter: bool=assignment.get("practical",{}).get("requires_wattmeter",false)
  for terminals in groups.values():
   for i in range(1,terminals.size()):
-   if str(terminals[i])=="R0_P":wires.append([terminals[0],"AM0_OUT"]);wires.append([meter,"R0_P"])
+   if str(terminals[i])=="R0_P":
+    wires.append([terminals[0],"AM0_OUT"])
+    if wattmeter:wires.append_array([[meter,"W0_IN"],["W0_OUT","R0_P"],["W0_VN","R0_N"]])
+    else:wires.append([meter,"R0_P"])
    else:wires.append([terminals[0],terminals[i]])
  var first:Dictionary=plan.banks.filter(func(bank):return str(bank.kind)+str(bank.index)=="R0")[0]
  var voltages:Dictionary=assignment.get("reference_ac",{}).get("result",{}).get("voltages",{})
@@ -53,7 +59,8 @@ static func apply(assignment:Dictionary)->Dictionary:
  text.append("Now make these %d cable connections, in order. Any cable colour works. When a socket already has a plug, click its end to stack the next one."%wires.size())
  for i in wires.size():text.append("Cable %d: %s → %s."%[i+1,socket(str(wires[i][0])),socket(str(wires[i][1]))])
  text.append("The ammeter is inserted into one wire feeding the resistor. The voltmeter uses two EXTRA cables across the resistor. Do not put the ammeter across the supply.")
- text.append("Check every cable against the steps. Turn the supply ON. Read the left ammeter and left voltmeter, then use Record equipment on the worksheet. Turn power OFF when finished. A node letter on the diagram just means sockets joined together; it is not another hidden part to find.")
+ if wattmeter:text.append("The wattmeter's red and black sockets carry current in series. The blue socket connects to the low side of R0 to measure its voltage.")
+ text.append("Check every cable against the steps. Turn the supply ON. Read the left ammeter and left voltmeter%s, then use Record equipment on the worksheet. Turn power OFF when finished. A node letter on the diagram just means sockets joined together."%(" and the left wattmeter" if wattmeter else ""))
  var old:String=assignment.get("procedure","")
  assignment.procedure="\n\n".join(text)
  assignment.equipment_text=assignment.procedure
