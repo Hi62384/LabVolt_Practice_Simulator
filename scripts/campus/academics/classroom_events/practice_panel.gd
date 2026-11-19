@@ -41,12 +41,12 @@ func build(question: Dictionary,course: String="") -> bool:
  if not preload("res://scripts/campus/academics/classroom_events/practice_round.gd").supports_question(question,course):return false
  theme=preload("res://scripts/ui/design_system/theme.gd").create()
  add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/theme.gd").card_style())
- custom_minimum_size.x=340
+ custom_minimum_size.x=0
  var column:=VBoxContainer.new();column.add_theme_constant_override("separation",8);add_child(column)
  title_label=Label.new();title_label.text="Practice question";column.add_child(title_label)
  timer_label=Label.new();column.add_child(timer_label)
  clue_label=Label.new();clue_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;column.add_child(clue_label);clue_label.hide()
- prompt_label=Label.new();prompt_label.text=str(question.get("prompt","")).left(500);prompt_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;column.add_child(prompt_label)
+ prompt_label=Label.new();prompt_label.text=str(question.get("prompt",""));prompt_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;column.add_child(prompt_label)
  if course in ["MTH147","MTH255"] and str(question.get("input",{}).get("kind",""))!="choice":
   math_view=preload("res://scripts/mth255/worksheet_adapter.gd").new() if course=="MTH255" else preload("res://scripts/math_ui/workspace.gd").new()
   var scroll:=ScrollContainer.new();scroll.custom_minimum_size=Vector2(340,220)
@@ -59,8 +59,8 @@ func build(question: Dictionary,course: String="") -> bool:
   for item in choices:options.add_item(str(item).left(160))
   options.select(-1);column.add_child(options)
  else:
-  entry=LineEdit.new();entry.max_length=256;entry.placeholder_text="Your answer";column.add_child(entry)
- var row:=HBoxContainer.new();column.add_child(row)
+  entry=LineEdit.new();entry.max_length=256;entry.placeholder_text="Your answer";entry.text_submitted.connect(func(_value: String): _submit());column.add_child(entry)
+ var row:=HFlowContainer.new();column.add_child(row)
  submit_button=Button.new();submit_button.text="Submit";submit_button.pressed.connect(_submit);row.add_child(submit_button)
  hand_button=Button.new();hand_button.toggle_mode=true;hand_button.text="Raise hand";hand_button.toggled.connect(func(raised: bool):hand_changed.emit(raised));row.add_child(hand_button)
  hint_button=Button.new();hint_button.text="Hint";hint_button.pressed.connect(func():hint_requested.emit());row.add_child(hint_button)

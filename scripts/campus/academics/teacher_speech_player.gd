@@ -79,6 +79,9 @@ func _start(room: String,item: Dictionary) -> void:
 	player.unit_size=5.0
 	player.max_distance=18.0
 	anchor.add_child(player)
+	var head := anchor.find_child("Head", true, false) as Node3D
+	if is_instance_valid(head):
+		player.global_position = head.global_position
 	var mouth:=_mouth(anchor)
 	active[room]={"serial":item.serial,"priority":item.priority,"player":player,"mouth":mouth}
 	player.finished.connect(func():_finished(room,int(item.serial)))
@@ -158,10 +161,15 @@ func _show_subtitle(room: String,item: Dictionary) -> void:
 	label.add_theme_color_override("font_color",Color("f3faf5"))
 	label.add_theme_color_override("font_shadow_color",Color("071923"))
 	label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size=Vector2(520,0)
-	label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	label.position=Vector2(-260,-118)
+	label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	label.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	subtitle_layer.add_child(label)
+	label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	var half_width := minf(360.0,get_viewport().get_visible_rect().size.x*.40)
+	label.offset_left = -half_width
+	label.offset_right = half_width
+	label.offset_top = -206
+	label.offset_bottom = -150
 	subtitles[room]={"label":label,"item":item,"until":Time.get_ticks_msec()+7000}
 
 func _clear_subtitle(room: String) -> void:

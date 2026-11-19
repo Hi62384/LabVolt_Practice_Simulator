@@ -74,7 +74,7 @@ func show_content(course: String, phase: String, heading: String, stage: Diction
 func _lesson(stage: Dictionary) -> void:
 	_label("%d / %d  ·  %s"%[int(stage.get("index",0))+1,maxi(1,int(stage.get("count",1))),_limited(str(stage.get("title","Lesson")),100)],46 if event_mode else 54,column,Color("ffd198"))
 	var history: Variant=stage.get("board_history",[])
-	if history is Array and not history.is_empty():
+	if event_mode and history is Array and not history.is_empty():
 		var trail:=VBoxContainer.new();trail.add_theme_constant_override("separation",4);column.add_child(trail)
 		for entry in history.slice(maxi(0,history.size()-2),history.size()):
 			if not entry is Dictionary:continue
@@ -90,9 +90,23 @@ func _lesson(stage: Dictionary) -> void:
 	words.size_flags_stretch_ratio = 1.1
 	words.add_theme_constant_override("separation",15)
 	row.add_child(words)
-	_label(_limited(str(stage.get("text",stage.get("caption",""))),320 if not event_mode else 1300),50 if event_mode else 58,words)
-	for field in ["formulas","worked"]:
-		if not str(stage.get(field,"")).is_empty():_label(_limited(str(stage[field]),220 if not event_mode else 430),48 if not event_mode else 29,words,Color("e9d49e"))
+	var summary := str(stage.get("text",stage.get("caption",""))).strip_edges()
+	if event_mode:
+		_label(_limited(summary,1300),50,words)
+		for field in ["formulas","worked"]:
+			if not str(stage.get(field,"")).is_empty(): _label(_limited(str(stage[field]),430),29,words,Color("e9d49e"))
+	else:
+		var worked := str(stage.get("worked","")).strip_edges()
+		var source := worked if not worked.is_empty() else summary
+		var sentences := source.split(". ",false)
+		var lines := mini(2, sentences.size())
+		for index in lines:
+			var line := str(sentences[index]).strip_edges()
+			if index < sentences.size() - 1 and not line.ends_with("."): line += "."
+			_label(_limited(line,125),48,words,Color("e9d49e") if not worked.is_empty() else Color("e7f2fa"))
+		var formula := str(stage.get("formulas","")).strip_edges()
+		if worked.is_empty() and not formula.is_empty() and not formula.begins_with(str(sentences[0]) if not sentences.is_empty() else summary):
+			_label(_limited(formula.get_slice(". ",0),100),43,words,Color("e9d49e"))
 	var problem: Dictionary = stage.get("problem",{}) if stage.get("problem",{}) is Dictionary else {}
 	var notation: Variant = stage.get("math",problem.get("ast",{}))
 	if notation is Dictionary and not notation.is_empty():
@@ -110,9 +124,9 @@ func _lesson(stage: Dictionary) -> void:
 	if visual is Dictionary and not visual.is_empty():_visual(row,visual)
 	var steps: Variant = stage.get("steps",[])
 	if steps is Array:
-		for item in steps.slice(0,4):
-			if item is Dictionary:_label("• "+_limited(str(item.get("text","")),160 if not event_mode else 260),40 if not event_mode else 25,words)
-			elif item is String:_label("• "+_limited(item,160 if not event_mode else 260),40 if not event_mode else 25,words)
+		for item in steps.slice(0,2 if not event_mode else 4):
+			if item is Dictionary:_label("• "+_limited(str(item.get("text","")),85 if not event_mode else 260),40 if not event_mode else 25,words)
+			elif item is String:_label("• "+_limited(item,85 if not event_mode else 260),40 if not event_mode else 25,words)
 
 func _visual(parent: Node, data: Dictionary) -> void:
 	data = _bounded_diagram(data)

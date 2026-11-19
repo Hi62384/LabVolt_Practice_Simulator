@@ -33,7 +33,9 @@ func request(room: String,serial: int,id: String,text: String,key: String) -> St
 	if pending.size()+(1 if not active.is_empty() else 0)>=MAX_JOBS:return "busy"
 	var job:={"room":room,"serial":serial,"id":id,"text":text,"key":key,"model":model,"model_disk":model_disk,"speaker":int(profile.speaker),"rate":float(profile.rate),"gain":float(profile.gain),"pause":int(profile.pause_ms)}
 	keys[key]=[{"room":room,"serial":serial}];pending.append(job)
-	if active.is_empty():_start_next()
+	# Launch failures may finish immediately. Give callers a chance to connect
+	# or await completion before the worker can emit a result.
+	if active.is_empty():_start_next.call_deferred()
 	return "queued"
 
 func cancel(room: String) -> void:
@@ -66,13 +68,15 @@ func _start_next() -> void:
 	var input_path:=ProjectSettings.globalize_path(active.input)
 	var output_path:=ProjectSettings.globalize_path(active.output)
 	var args: PackedStringArray
+	var bundled:=OS.get_executable_path().get_base_dir().path_join("piper/piper.exe")
 	if executable.is_empty():
-		active.standalone=true
-		var bundled:=OS.get_executable_path().get_base_dir().path_join("piper/piper.exe")
 		if not FileAccess.file_exists(bundled):
 			var development:=ProjectSettings.globalize_path("res://.deps/piper-standalone/piper/piper.exe")
 			if FileAccess.file_exists(development):bundled=development
-		if not FileAccess.file_exists(bundled) and not launch_adapter.is_valid():_finish("engine_unavailable");return
+		if not FileAccess.file_exists(bundled) and not launch_adapter.is_valid():
+			executable = "piper.exe" if OS.get_name() == "Windows" else "piper"
+	if executable.is_empty():
+		active.standalone=true
 		var runner:=ProjectSettings.globalize_path("res://scripts/campus/academics/piper_runner.ps1")
 		if not FileAccess.file_exists(runner):runner=OS.get_executable_path().get_base_dir().path_join("teacher_voices/piper_runner.ps1")
 		if not FileAccess.file_exists(runner) and not launch_adapter.is_valid():_finish("engine_unavailable");return
@@ -113,4 +117,4 @@ func _finish(status: String,kill: bool=false,stream: AudioStreamWAV=null) -> voi
 	var listeners: Array=keys.get(job.key,[])
 	keys.erase(job.key)
 	for listener in listeners:completed.emit(str(listener.room),int(listener.serial),str(job.key),stream,status)
-	_start_next()
+	if not pending.is_empty():_start_next.call_deferred()

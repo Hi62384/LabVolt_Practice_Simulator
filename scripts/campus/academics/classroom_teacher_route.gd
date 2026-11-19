@@ -51,7 +51,7 @@ static func _id(x: int,z: int,half: int) -> int:
  return (x+half)*(half*2+1)+z+half
 
 static func _clear(game: Node,space: PhysicsDirectSpaceState3D,query: PhysicsShapeQueryParameters3D,at: Vector3) -> bool:
- query.transform=Transform3D(Basis(),at+Vector3.UP*(HEIGHT*.5))
+ query.transform=Transform3D(Basis(),at+Vector3.UP*(HEIGHT*.5+.035))
  if not space.intersect_shape(query,1).is_empty():return false
  var local: Vector3=game.player.global_position
  if _actor_near(at,local):return false

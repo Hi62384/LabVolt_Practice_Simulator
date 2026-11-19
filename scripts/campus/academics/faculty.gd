@@ -6,6 +6,8 @@ const TeacherAI=preload("res://scripts/campus/academics/teacher_ai.gd")
 const VoicePolicy=preload("res://scripts/campus/academics/teacher_voice_policy.gd")
 const SpeechPlayer=preload("res://scripts/campus/academics/teacher_speech_player.gd")
 const SpeechSynth=preload("res://scripts/campus/academics/teacher_speech_synth.gd")
+const LECTURE_ROOMS := ["elm253_lecture","ety155_lecture","lecture_north_west","lecture_north_east","lecture_north_annex"]
+const LectureDirector=preload("res://scripts/campus/academics/lecture_director.gd")
 const ClassroomRoute=preload("res://scripts/campus/academics/classroom_teacher_route.gd")
 const InventionRubric=preload("res://scripts/campus/academics/invention_rubric.gd")
 const ROTATE_SECONDS:=1200.0
@@ -16,6 +18,10 @@ var current:={}
 var remaining:={"ac_lab":0.0,"dc_lab":0.0}
 var lecture_models:={}
 var classroom_routes:={}
+var lecture_cues := {}
+var lecture_clock := 0.0
+var conversation_scroll: ScrollContainer
+var conversation_actions := {}
 var classroom_homes:={}
 var classroom_route_seen:={}
 var classroom_group_visits:={}
@@ -213,7 +219,16 @@ func _make_model(id: String) -> Node3D:
  return model
 
 func _tag_name(parent: Node3D,value: String) -> void:
- var label:=Label3D.new();label.name="FacultyName";label.text=value;label.position.y=2.05;label.billboard=BaseMaterial3D.BILLBOARD_ENABLED;label.pixel_size=.003;label.font_size=36;label.outline_size=5;label.visibility_range_end=12;parent.add_child(label)
+ var label_height := 2.05
+ var head := parent.find_child("Head",true,false) as Node3D
+ if is_instance_valid(head):
+  var top := -INF
+  for part in head.find_children("*","MeshInstance3D",true,false):
+   var mesh := part as MeshInstance3D
+   var bounds: AABB = parent.global_transform.affine_inverse() * mesh.global_transform * mesh.get_aabb()
+   top = maxf(top, bounds.end.y)
+  if is_finite(top): label_height = top + .15
+ var label:=Label3D.new();label.name="FacultyName";label.text=value;label.position.y=label_height;label.billboard=BaseMaterial3D.BILLBOARD_ENABLED;label.pixel_size=.003;label.font_size=36;label.outline_size=5;label.visibility_range_end=12;parent.add_child(label)
 func _publish() -> void:
  if not multiplayer.is_server() or not game.session.online:return
  for peer in game.session.roster:
@@ -243,6 +258,10 @@ func _process(delta: float) -> void:
   publish_time+=delta
   if publish_time>=5.0:publish_time=0;_publish()
  _sync_lectures()
+ lecture_clock += delta
+ if multiplayer.is_server() and lecture_clock >= 0.5:
+  lecture_clock = 0.0
+  _direct_lectures()
  _step_classroom_routes(delta)
  _animate_lecture_movement()
  if multiplayer.is_server():
@@ -314,17 +333,76 @@ func _sync_lectures() -> void:
   if str(classroom_phase.get(room,""))=="lesson" and phase!="lesson":_clear_reaction_pose(room)
   if phase!="lesson":class_overlap.erase(room)
   classroom_phase[room]=phase
-  if room not in ["elm253_lecture","ety155_lecture"] or lecture_models.has(room):continue
+  if room not in LECTURE_ROOMS or lecture_models.has(room):continue
   var id:=str(active[room].get("teacher",""))
   if not Roster.has(id):continue
   var model:=_make_model(id);model.name="LectureTeacher";model.set_meta("faculty_id",id)
-  model.position=game.lecture_classes.signs[room].desk+Vector3(0,-.88,.15)
+  var info: Dictionary = game.campus.registry.get_room(room)
+  var center: Vector3 = game.campus.registry.vector(info.center)
+  var desk: Vector3 = game.lecture_classes.signs[room].desk
+  var toward_center := signf(center.x-desk.x)
+  var candidates := [desk + Vector3(toward_center*1.45,0,0), desk + Vector3(0,0,-1.05), desk + Vector3(-toward_center*1.45,0,0)]
+  model.position = Vector3(candidates[0].x, center.y, candidates[0].z)
+  for candidate in candidates:
+   var at := Vector3(candidate.x, center.y, candidate.z)
+   if game.campus.registry.room_contains(room, at) and ClassroomRoute.clear_step(game, at, at):
+    model.position = at
+    break
+  _ground_standing_model(model)
   add_child(model);_tag_name(model,str(Roster.entry(id).name));lecture_models[room]=model
   classroom_homes[room]=model.global_position
   var target:=StaticBody3D.new();target.collision_layer=4;target.collision_mask=0;target.set_meta("role","faculty_teacher");target.set_meta("room",room);target.set_meta("label",str(Roster.entry(id).name));model.add_child(target)
   var hit:=CollisionShape3D.new();var capsule:=CapsuleShape3D.new();capsule.radius=.3;capsule.height=1.7;hit.shape=capsule;hit.position.y=.85;target.add_child(hit)
  for room in classroom_phase.keys():
   if not active.has(room):_clear_reaction_pose(room);class_overlap.erase(room);classroom_phase.erase(room)
+
+func _ground_standing_model(model: Node3D) -> void:
+ var sole_y := INF
+ for leg_name in ["LegL", "LegR"]:
+  var leg := model.get_node_or_null(leg_name) as Node3D
+  if leg == null: continue
+  for part in leg.get_children():
+   if part is MeshInstance3D and str(part.get_meta("toon_part", part.name)).begins_with("Sole"):
+    var bounds: AABB = leg.transform * part.transform * part.get_aabb()
+    sole_y = minf(sole_y, bounds.position.y)
+ if not is_finite(sole_y): return
+ for part in model.get_children():
+  if part is Node3D: part.position.y -= sole_y
+
+func _direct_lectures() -> void:
+ for room in lecture_cues.keys():
+  if not game.lecture_classes.classes.has(room): lecture_cues.erase(room)
+ for room in game.lecture_classes.classes:
+  var activity: Dictionary = game.lecture_classes.classes[room]
+  var phase := str(activity.get("phase",""))
+  var teacher := str(activity.get("teacher",""))
+  if not Roster.has(teacher): continue
+  var panel: Node = game.lecture_classes.classroom_events
+  var current_event: Dictionary = panel.service.rooms.get(room,{}) if is_instance_valid(panel) and is_instance_valid(panel.service) else {}
+  var now: float = game.lecture_classes._now()
+  var cue: Dictionary
+  if phase == "arrival":
+   cue = {"key":"arrival", "text":"Welcome to %s. Sign the attendance sheet and find a seat. We'll begin shortly." % activity.course}
+  elif phase == "lesson":
+   if not current_event.is_empty():
+    if now >= float(current_event.get("open_at",0)): continue
+    cue = {"key":"practice:"+str(current_event.round.event_id), "text":"Try this next question. Show your reasoning, then submit."}
+   else:
+    cue = LectureDirector.cue(activity, game.lecture_classes._stage(activity), now, Dialogue.personalities().get(teacher,{}))
+  if cue.is_empty(): continue
+  var key := str(activity.id)+":"+str(cue.key)
+  if lecture_cues.get(room,"") == key: continue
+  var point := _teacher_position(room)
+  if not point.is_finite(): continue
+  lecture_cues[room] = key
+  var serial := _next_speech(room)
+  var text := str(cue.text).left(220)
+  _show_reaction(room,teacher,text,point,serial,2)
+  _broadcast_reaction(room,teacher,text,point,serial,2)
+  if phase == "lesson" and cue.has("anchor") and lecture_models.has(room):
+   var board: Node3D = game.lecture_classes.signs[room].board
+   var goal := Vector3(board.global_position.x + float(cue.anchor), classroom_homes[room].y, board.global_position.z + 1.7)
+   _request_classroom_route(room, teacher, "lecture:"+key, goal, 0.0, 0, Time.get_ticks_msec()+24000)
 
 func _maybe_ai_lesson(room: String) -> void:
  var client: Node=game.host_openai
@@ -348,7 +426,7 @@ func _generate_ai_lesson(room: String,id: String,class_id: String,key: String,bo
  if checked.get("ok",false) and not checked.get("flagged",false) and str(ai_stage.get(room,""))==key:present_class_reaction(room,id,text_value,2)
 
 func _request_classroom_route(room: String,id: String,key: String,goal: Vector3,stand_off: float,peer: int=0,until: int=0) -> void:
- if not multiplayer.is_server() or room not in ["elm253_lecture","ety155_lecture"] or classroom_route_seen.get(room,"")==key:return
+ if not multiplayer.is_server() or room not in LECTURE_ROOMS or classroom_route_seen.get(room,"")==key:return
  var activity: Dictionary=game.lecture_classes.classes.get(room,{})
  var model: Node3D=lecture_models.get(room)
  if not is_instance_valid(model) or activity.get("phase","")!="lesson" or str(activity.get("teacher",""))!=id or not goal.is_finite():return
@@ -393,9 +471,6 @@ func _step_classroom_routes(delta: float) -> void:
   return
  var events: Node=game.lecture_classes.classroom_events
  var events_enabled: bool=is_instance_valid(events) and events.enabled
- if not events_enabled:
-  for room in classroom_routes.keys():
-   if str(classroom_routes[room].get("phase",""))!="return":_return_classroom_teacher(str(room))
  classroom_motion_clock+=delta
  if classroom_motion_clock>=.2:
   classroom_motion_clock=0.0
@@ -414,7 +489,7 @@ func _step_classroom_routes(delta: float) -> void:
   var event_key: String=str(activity.get("id",""))+":"+str(round.event_id) if round!=null and is_instance_valid(round) and not round.closed else ""
   if classroom_group_visits.has(room) and str(classroom_group_visits[room].get("event",""))!=event_key:classroom_group_visits.erase(room)
   var route: Dictionary=classroom_routes.get(room,{})
-  var valid: bool=events_enabled and activity.get("phase","")=="lesson" and str(activity.get("teacher",""))==str(model.get_meta("faculty_id",""))
+  var valid: bool=activity.get("phase","")=="lesson" and str(activity.get("teacher",""))==str(model.get_meta("faculty_id",""))
   if not route.is_empty() and str(route.get("phase",""))!="return":
    var peer:=int(route.get("peer",0))
    if not valid or str(route.get("class_id",""))!=str(activity.get("id","")) or (peer>0 and (not game.session.roster.has(peer) or not game.lecture_classes._inside(peer,room))) or (str(route.key).begins_with("event:") and (event_key.is_empty() or not str(route.key).begins_with("event:"+event_key))) or (int(route.get("until",0))>0 and Time.get_ticks_msec()>=int(route.until)):
@@ -429,6 +504,10 @@ func _step_classroom_routes(delta: float) -> void:
   route=classroom_routes.get(room,{})
   if route.is_empty():continue
   if str(route.phase)=="hold":
+   if str(route.key).begins_with("lecture:") and not attention.has(room):
+    var classroom_center: Vector3 = game.campus.registry.vector(game.campus.registry.get_room(room).center)
+    var toward_students := classroom_center - model.global_position
+    model.rotation.y = lerp_angle(model.rotation.y, atan2(toward_students.x,toward_students.z), minf(delta*4.0,1.0))
    if not event_key.is_empty() and str(route.key).begins_with("event:"+event_key) and str(route.key).contains(":group:"):
     if not route.has("group_hold_until"):
      route.group_hold_until=Time.get_ticks_msec()+4500;classroom_routes[room]=route
@@ -454,7 +533,7 @@ func _step_classroom_routes(delta: float) -> void:
    if str(route.phase)=="return":classroom_routes.erase(room)
    else:_return_classroom_teacher(room)
    continue
-  model.global_position=next;model.rotation.y=atan2(-offset.x,-offset.z)
+  model.global_position=next;model.rotation.y=lerp_angle(model.rotation.y,atan2(offset.x,offset.z),minf(delta*6.0,1.0))
   classroom_routes[room]=route
 
 func _animate_lecture_movement() -> void:
@@ -468,7 +547,7 @@ func _animate_lecture_movement() -> void:
 
 @rpc("authority","call_remote","unreliable_ordered")
 func _classroom_teacher_motion(room: String,id: String,position: Vector3,yaw: float,sequence: int) -> void:
- if multiplayer.get_remote_sender_id()!=1 or not position.is_finite() or not is_finite(yaw) or room not in ["elm253_lecture","ety155_lecture"] or not game.campus.registry.room_contains(room,position):return
+ if multiplayer.get_remote_sender_id()!=1 or not position.is_finite() or not is_finite(yaw) or room not in LECTURE_ROOMS or not game.campus.registry.room_contains(room,position):return
  var model: Node3D=lecture_models.get(room)
  if not is_instance_valid(model) or str(model.get_meta("faculty_id",""))!=id:return
  if sequence<=int(classroom_remote_seq.get(room,0)):return
@@ -482,18 +561,34 @@ func _clear_reaction_pose(room: String) -> void:
 
 func _build_conversation_ui() -> void:
  var layer:=CanvasLayer.new();layer.layer=31;add_child(layer)
- conversation=PanelContainer.new();conversation.theme=preload("res://scripts/ui/design_system/theme.gd").create();conversation.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/theme.gd").card_style());layer.add_child(conversation)
- conversation.set_anchors_and_offsets_preset(Control.PRESET_CENTER);conversation.position=Vector2(-250,-130);conversation.custom_minimum_size=Vector2(500,260);conversation.hide()
+ var wrapper := CenterContainer.new()
+ wrapper.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+ wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ layer.add_child(wrapper)
+ conversation=PanelContainer.new();conversation.theme=preload("res://scripts/ui/design_system/theme.gd").create();conversation.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/theme.gd").card_style());wrapper.add_child(conversation)
+ var fit := func():
+  var viewport_size := get_viewport().get_visible_rect().size
+  conversation.custom_minimum_size = Vector2(minf(760,viewport_size.x*.85),minf(480,viewport_size.y*.8))
+ wrapper.resized.connect(fit)
+ fit.call()
+ conversation.hide()
  var body:=VBoxContainer.new();body.add_theme_constant_override("separation",12);conversation.add_child(body)
  conversation_name=Label.new();conversation_name.add_theme_font_size_override("font_size",24);body.add_child(conversation_name)
  objective_label=Label.new();objective_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;body.add_child(objective_label)
- conversation_text=Label.new();conversation_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;conversation_text.size_flags_vertical=Control.SIZE_EXPAND_FILL;body.add_child(conversation_text)
- conversation_input=LineEdit.new();conversation_input.placeholder_text="Ask the instructor in your own words";conversation_input.max_length=500;conversation_input.text_submitted.connect(func(_value: String):_submit_question());body.add_child(conversation_input)
+ conversation_scroll=ScrollContainer.new()
+ conversation_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+ conversation_scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ body.add_child(conversation_scroll)
+ conversation_text=Label.new()
+ conversation_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+ conversation_text.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ conversation_scroll.add_child(conversation_text)
+ conversation_input=LineEdit.new();conversation_input.placeholder_text="Ask the instructor a question...";conversation_input.max_length=500;conversation_input.text_submitted.connect(func(_value: String):_submit_question());body.add_child(conversation_input)
  var ask_button:=Button.new();ask_button.text="Ask question";ask_button.pressed.connect(_submit_question);body.add_child(ask_button)
  record_button=Button.new();record_button.text="Record question (up to 6 seconds)";record_button.pressed.connect(_toggle_recording);body.add_child(record_button)
  var row:=HFlowContainer.new();body.add_child(row)
  for option in [["Chat","chat"],["Ask for guidance","help"],["Inspect my circuit","inspect_circuit"],["Evaluate LED objective","evaluate_led"],["Hand over phone","hand_phone"],["Ask for phone back","reclaim_phone"],["Goodbye","bye"]]:
-  var button:=Button.new();button.text=option[0];button.pressed.connect(_conversation_choice.bind(str(option[1])));row.add_child(button)
+  var button:=Button.new();button.text=option[0];button.pressed.connect(_conversation_choice.bind(str(option[1])));row.add_child(button);conversation_actions[option[1]]=button
  var close:=Button.new();close.text="Close";close.pressed.connect(close_conversation);row.add_child(close)
 func _unhandled_input(event: InputEvent) -> void:
  if not is_instance_valid(game) or not game.front.in_game or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED:return
@@ -660,8 +755,14 @@ func _animate_dc(moving: bool) -> void:
 func open_conversation(room: String) -> void:
  if room in ["ac_lab","dc_lab"] and _lab_activity(room).is_empty():return
  objective_label.text="DC lesson objective: build a powered board with an LED carrying 5–20 mA and no overloaded resistor." if room=="dc_lab" and game.lecture_classes.classes.get(room,{}).get("phase","")=="lesson" else ""
- if room not in ["ac_lab","dc_lab","elm253_lecture","ety155_lecture"]:return
- conversation_room=room;conversation_name.text="Instructor";conversation_text.text="…";conversation.show();game.release_mouse();_conversation_choice("chat")
+ if room not in (["ac_lab","dc_lab"] + LECTURE_ROOMS):return
+ conversation_room=room
+ conversation_name.text="Instructor"
+ for intent in ["inspect_circuit","evaluate_led"]:
+  conversation_actions[intent].visible=room=="dc_lab"
+ for intent in ["hand_phone","reclaim_phone"]:
+  conversation_actions[intent].visible=room in ["ac_lab","dc_lab"]
+ conversation_text.text="";conversation.show();game.release_mouse();_conversation_choice("chat")
 func close_conversation() -> bool:
  if not is_instance_valid(conversation) or not conversation.visible:return false
  _cancel_recording()
@@ -679,7 +780,8 @@ func _conversation_choice(intent: String) -> void:
 func _submit_question() -> void:
  var question:=conversation_input.text.strip_edges()
  if conversation_room.is_empty() or question.is_empty():return
- conversation_input.clear();conversation_text.text="Thinking…"
+ conversation_text.text=(conversation_text.text+"\n\nYou: "+question).right(4200)
+ conversation_scroll.set_deferred("scroll_vertical", 100000)
  if multiplayer.is_server():_question_request(multiplayer.get_unique_id(),conversation_room,question)
  elif game.session.online:_ask_question.rpc_id(1,conversation_room,question)
 func _toggle_recording() -> void:
@@ -766,7 +868,9 @@ func _question_request(peer: int,room: String,question: String) -> void:
  ai_busy[peer]=true
  _answer_question(peer,room,id,str(activity.get("id","")),question,pos)
 func _answer_question(peer: int,room: String,id: String,class_id: String,question: String,pos: Vector3) -> void:
- var reply: String="The AI instructor is unavailable. Ask a shorter question or try again later."
+ var activity_context := _ai_activity(room)
+ var current_stage: Dictionary = game.lecture_classes._stage(activity_context) if activity_context.get("phase","") == "lesson" else {}
+ var reply := LectureDirector.answer(question, current_stage)
  var client: Node=game.host_openai
  if is_instance_valid(client) and client.enabled and client.configured():
   var checked: Dictionary=await client.moderate(question)
@@ -788,7 +892,7 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
  if str(current_class.get("id",""))!=class_id or str(current_class.get("teacher",""))!=id:return
  if peer==multiplayer.get_unique_id():_dialogue_reply(room,id,reply)
  elif game.session.online and game.session.peer_connected_now(peer):_dialogue_reply.rpc_id(peer,room,id,reply)
- if reply.length()<=180 and not reply.begins_with("The AI instructor") and not reply.begins_with("OpenAI"):
+ if reply.length()<=220 and not reply.begins_with("OpenAI"):
   _publish_attention(room,id,pos)
   if current_class.get("phase","")=="lesson":present_class_reaction(room,id,reply,3)
   else:
@@ -807,8 +911,8 @@ func _dialogue_request(peer: int,room: String,intent: String,phone_id: String=""
   if activity.is_empty() or activity.get("phase","") not in ["arrival","lesson","assignment"]:return
   id=str(activity.get("teacher",""))
   point=game.school_world.teacher.global_position if room=="ac_lab" else game.school_world.dc_instructor.global_position
- elif room in ["elm253_lecture","ety155_lecture"] and not activity.is_empty():
-  id=str(activity.get("teacher",""));point=game.lecture_classes.signs[room].desk
+ elif room in LECTURE_ROOMS and not activity.is_empty():
+  id=str(activity.get("teacher",""));point=_teacher_position(room)
  else:return
  var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
  if not Roster.has(id) or not pos.is_finite() or pos.distance_to(point)>3.6:return
@@ -876,7 +980,10 @@ func _inspect_student_circuit(peer: int,room: String,teacher: String,activity: D
 @rpc("authority","call_remote","reliable")
 func _dialogue_reply(room: String,id: String,response: String) -> void:
  if not conversation.visible or conversation_room!=room or not Roster.has(id):return
- conversation_name.text=str(Roster.entry(id).name);conversation_text.text=response.left(350)
+ conversation_name.text=str(Roster.entry(id).name)
+ var separator := "\n\n" if not conversation_text.text.is_empty() else ""
+ conversation_text.text=(conversation_text.text+separator+str(Roster.entry(id).name)+": "+response).right(4200)
+ conversation_scroll.set_deferred("scroll_vertical", 100000)
 
 ## A departure is considered only after this host has observed the student in
 ## an actual classroom chair. Lecture seating is free; no chair is assigned.
@@ -887,7 +994,7 @@ func _observe_classroom_seats() -> void:
   seat_watch.clear();return
  var now:=Time.get_ticks_msec()/1000.0
  var active: Dictionary={}
- for room in ["elm253_lecture","ety155_lecture"]:
+ for room in LECTURE_ROOMS:
   var activity: Dictionary=game.lecture_classes.classes.get(room,{})
   if activity.get("phase","")!="lesson":continue
   var class_id:=str(activity.get("id",""))
@@ -970,7 +1077,7 @@ func report_event(peer: int,room: String,kind: String,position: Vector3,severity
   if station<0 or station>=game.session.labs.size() or fault.is_empty() or str(game.session.labs[station].readings.get("fault","")).left(120)!=fault:return false
   if verified_incidents.is_empty() or int(verified_incidents.back().get("peer",0))!=peer or int(verified_incidents.back().get("station",-1))!=station or str(verified_incidents.back().get("fault",""))!=fault or Time.get_ticks_msec()-int(verified_incidents.back().get("time",0))>1000:return false
   verified_incidents.pop_back()
- if kind not in ["lab_hazard","class_message","addressed_speech","voice_noise","ambient_speech","phone_use","seat_departure","thrown_object"] or room not in ["ac_lab","dc_lab","elm253_lecture","ety155_lecture"]:return false
+ if kind not in ["lab_hazard","class_message","addressed_speech","voice_noise","ambient_speech","phone_use","seat_departure","thrown_object"] or room not in (["ac_lab","dc_lab"] + LECTURE_ROOMS):return false
  var activity: Dictionary=game.lecture_classes.classes.get(room,{})
  var identity:=str(game.school.identities.get(peer,""))
  if identity.is_empty():return false
@@ -1118,6 +1225,17 @@ func present_class_reaction(room: String,id: String,text: String,priority: int=1
  _show_reaction(room,id,text,point,speech_id,priority)
  _broadcast_reaction(room,id,text,point,speech_id,priority)
 
+func acknowledge_attendance(room: String, teacher: String, peer: int) -> void:
+ if not Roster.has(teacher): return
+ var point := _teacher_position(room)
+ if not point.is_finite(): return
+ var serial := _next_speech(room)
+ var message := "You're marked present. Find a seat and join us when you're ready."
+ if peer == multiplayer.get_unique_id():
+  _show_reaction(room,teacher,message,point,serial)
+ elif game.session.online and game.session.peer_connected_now(peer):
+  _reaction.rpc_id(peer,room,teacher,message,point,serial)
+
 func present_assessment_intro(room: String,id: String,course: String) -> void:
  if not multiplayer.is_server() or not Roster.has(id):return
  var activity: Dictionary=game.lecture_classes.classes.get(room,{})
@@ -1188,7 +1306,7 @@ func _attention(room: String,id: String,point: Vector3) -> void:_set_attention(r
 func _reaction(room: String,id: String,text: String,point: Vector3,serial: int=0,priority: int=1) -> void:
  if serial>0 and is_instance_valid(speech_player) and serial<=int(speech_player.last_serial.get(room,0)):return
  if room in ["ac_lab","dc_lab"] and (_lab_activity(room).is_empty() or str(_lab_activity(room).get("teacher",""))!=id):return
- if room in ["elm253_lecture","ety155_lecture"] and not is_instance_valid(_model_for_room(room,id)):return
+ if room in LECTURE_ROOMS and not is_instance_valid(_model_for_room(room,id)):return
  _show_reaction(room,id,text,point,serial,priority)
 func _show_reaction(room: String,id: String,text: String,point: Vector3,serial: int=0,priority: int=1) -> void:
  if not Roster.has(id):return
@@ -1198,14 +1316,16 @@ func _show_reaction(room: String,id: String,text: String,point: Vector3,serial: 
  else:root=lecture_models.get(room)
  if not is_instance_valid(root):return
  _set_attention(room,id,point)
- if priority>=3:
+ if priority>=3 or (priority==2 and room in LECTURE_ROOMS):
   var gesture_model:=_model_for_room(room,id)
   if is_instance_valid(gesture_model):reaction_pose[room]={"model":gesture_model,"until":Time.get_ticks_msec()+2200}
+ if priority>=3:
   if is_instance_valid(speech_player):speech_player.cancel(room)
   if is_instance_valid(speech_synth):speech_synth.cancel(room)
  if is_instance_valid(reaction_labels.get(room)):reaction_labels[room].queue_free()
- var label:=Label3D.new();label.text=text.left(220);label.position.y=2.35;label.billboard=BaseMaterial3D.BILLBOARD_ENABLED;label.pixel_size=.003;label.font_size=30;label.outline_size=7;label.modulate=Color("f3faf5");label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.width=420;label.visibility_range_end=13;root.add_child(label)
- reaction_labels[room]=label;reaction_until[room]=Time.get_ticks_msec()+7000
+ if room not in LECTURE_ROOMS or serial <= 0:
+  var label:=Label3D.new();label.text=text.left(220);label.position.y=2.35;label.billboard=BaseMaterial3D.BILLBOARD_ENABLED;label.pixel_size=.003;label.font_size=30;label.outline_size=7;label.modulate=Color("f3faf5");label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.width=420;label.visibility_range_end=13;root.add_child(label)
+  reaction_labels[room]=label;reaction_until[room]=Time.get_ticks_msec()+7000
  if serial>0 and is_instance_valid(speech_player):
   speech_player.configure(bool(game.client_preferences.values.teacher_speech),bool(game.client_preferences.values.teacher_subtitles))
   var key:=speech_cache_key(id,text)

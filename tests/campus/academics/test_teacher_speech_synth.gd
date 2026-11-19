@@ -18,6 +18,7 @@ func run() -> void:
 	output=AudioStreamWAV.new();output.format=AudioStreamWAV.FORMAT_16_BITS;output.mix_rate=16000;output.data=PackedByteArray([0,0,100,0])
 	synth.load_adapter=func(_path):return output
 	assert(synth.request("ac_lab",1,"x","Hello","k")=="queued")
+	await process_frame
 	assert(synth.request("dc_lab",2,"x","Hello","k")=="duplicate")
 	for serial in range(2,Synth.MAX_LISTENERS):assert(synth.request("dc_lab",serial+1,"x","Hello","k")=="duplicate")
 	assert(synth.request("dc_lab",99,"x","Hello","k")=="busy")
@@ -34,14 +35,17 @@ func run() -> void:
 	assert(not FileAccess.file_exists(path))
 	running=true
 	assert(synth.request("ac_lab",3,"x","Late","late")=="queued")
+	await process_frame
 	synth.active.started=Time.get_ticks_msec()-Synth.TIMEOUT_MS-1
 	synth._process(0)
 	assert(events[-1][4]=="timeout" and killed.size()==1)
 	assert(synth.request("ac_lab",4,"x","Cancel","cancel")=="queued")
+	await process_frame
 	synth.cancel("ac_lab")
 	assert(events[-1][4]=="cancelled" and killed.size()==2 and synth.keys.is_empty())
 	synth.launch_adapter=func(_exe,_args):return 0
 	assert(synth.request("ac_lab",5,"x","Failure","failure")=="queued")
+	await process_frame
 	assert(events[-1][4]=="engine_unavailable")
 	synth.queue_free()
 	print("TEACHER_SPEECH_SYNTH PASS (adapter only; no real voice)")

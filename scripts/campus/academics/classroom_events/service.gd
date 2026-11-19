@@ -116,7 +116,8 @@ func start(room: String,now: float,recent_indices: Array=[],mode: String="practi
  var focus:=clampf(float(personality.get("focus",.5)),0.0,1.0)
  # A busy room gives the teacher a little more time; focused, capable teachers solve sooner.
  var teacher_seconds:=clampf(25.0-10.0*competency-7.0*focus+minf(3.0,maxi(0,members.size()-1)*.5),8.0,24.0)
- var round_end:=now+teacher_seconds if mode=="teacher" else now+ROUND_SECONDS
+ var introduction_seconds := 3.0 if staged else 0.0
+ var round_end := now + introduction_seconds + (teacher_seconds if mode == "teacher" else ROUND_SECONDS)
  var prepared: bool=practice.prepare_live(true,id,lab,bench,round_end,members) if mode=="physical" else practice.prepare(true,id,str(activity.course),int(activity.week),int(activity.difficulty),int(game.school.random.randi()),round_end,members,recent_indices)
  if not prepared:lifecycle.cancel(id);lifecycle.states.erase(id);return false
  if practice.get_script()==Round and not stage_focus.is_empty():practice.focus_question(stage_focus,recent_indices)
@@ -131,7 +132,7 @@ func start(room: String,now: float,recent_indices: Array=[],mode: String="practi
  if not staged:lifecycle.advance(id,"active")
  var target:=clampi(floori((time_left-10.0)/(ROUND_SECONDS+RESULTS_SECONDS)),1,QUIZ_ROUNDS) if mode=="quiz" else 1
  var series: Dictionary=existing_series if not existing_series.is_empty() else {"completed":0,"target":target,"scores":{},"streaks":{},"teams":{},"labels":{},"recent":[]}
- rooms[room]={"class_id":str(activity.id),"teacher":str(activity.get("teacher","")),"round":practice,"hands":hands,"shared":shared,"open_at":now+(3.0 if staged else 0.0),"next_call":now+clampf(14.0-6.0*float(personality.get("difficulty",.5)),7.0,14.0),"called_until":0.0,"call_count":0,"called":{},"closed_at":0.0,"series":series,"teacher_seconds":teacher_seconds,"duel_lock_at":now+7.0,"duel_locked":false,"duel_slots":[],"physical_bench":bench,"notice_until":0.0,"notice_cooldown":0.0,"board_strokes":0,"board_feedback_at":0.0,"board_called_at":0.0,"board_strokes_at_call":0,"board_notes_at_call":0,"board_idle_prompted":false}
+ rooms[room]={"class_id":str(activity.id),"teacher":str(activity.get("teacher","")),"round":practice,"hands":hands,"shared":shared,"open_at":now+introduction_seconds,"next_call":now+clampf(14.0-6.0*float(personality.get("difficulty",.5)),7.0,14.0),"called_until":0.0,"call_count":0,"called":{},"closed_at":0.0,"series":series,"teacher_seconds":teacher_seconds,"duel_lock_at":now+7.0,"duel_locked":false,"duel_slots":[],"physical_bench":bench,"notice_until":0.0,"notice_cooldown":0.0,"board_strokes":0,"board_feedback_at":0.0,"board_called_at":0.0,"board_strokes_at_call":0,"board_notes_at_call":0,"board_idle_prompted":false}
  rooms[room].decline_reactions=0;rooms[room].last_decline_reaction=-100.0
  rooms[room].group_prompts={};rooms[room].group_notice_at={};rooms[room].group_status={}
  if mode=="board":rooms[room].next_call=now+4.0

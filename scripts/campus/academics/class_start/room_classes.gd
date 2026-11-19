@@ -35,9 +35,9 @@ func build(owner: Node) -> void:
 	announcements=VBoxContainer.new()
 	announcements.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	overlay.add_child(announcements)
-	announcements.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	announcements.offset_left=-370
-	announcements.offset_right=-22
+	announcements.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	announcements.offset_left=22
+	announcements.offset_right=294
 	announcements.offset_top=80
 	announcements.add_theme_constant_override("separation",8)
 	for room in game.campus.registry.lecture_rooms() + ["ac_lab","dc_lab"]:_build_sign(room)
@@ -187,6 +187,7 @@ func _sign(peer: int,room: String) -> String:
 		bench=counts.find(counts.min())
 	activity.students[identity]={"peer":peer,"project":assignment,"replay":school._is_replay(identity,assignment),"done":false,"paper":0,"failure":"","bench":bench}
 	school.record_room_attendance(peer,activity.id,assignment,phase=="lesson")
+	game.faculty.acknowledge_attendance(room,str(activity.teacher),peer)
 	return ""
 
 func _now() -> float:return Time.get_ticks_msec()/1000.0
@@ -430,10 +431,10 @@ func _build_sign(room: String) -> void:
 	hit.shape=shape
 	body.add_child(hit)
 	var marker := Label3D.new()
-	marker.position.y=.48
+	marker.position.y=.12
 	marker.text="!"
-	marker.font_size=80
-	marker.pixel_size=.004
+	marker.font_size=42
+	marker.pixel_size=.0025
 	marker.modulate=Color("ffdb6e")
 	marker.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 	body.add_child(marker)
@@ -446,6 +447,8 @@ func _build_sign(room: String) -> void:
 func _update_views() -> void:
 	var elapsed := (Time.get_ticks_msec()-received_at)/1000.0
 	var visible_cards := []
+	var local_room: String = game.campus.registry.locate(game.player.global_position)
+	var show_local_only := public_classes.has(local_room)
 	for room in signs:
 		var info: Dictionary=public_classes.get(room,{})
 		var sign: Dictionary=signs[room]
@@ -465,6 +468,7 @@ func _update_views() -> void:
 			sign.lesson_key=lesson_key
 			if teaching:sign.board.show_content(info.course,"lesson",info.title,info.stage,"Room "+str(info.number))
 		if not game.front.in_game or info.is_empty() or (phase!="arrival" and not teaching and (not info.signed or info.done)):continue
+		if show_local_only and room != local_room: continue
 		visible_cards.append(room)
 		if not cards.has(room):
 			var panel := PanelContainer.new()

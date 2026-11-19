@@ -5,6 +5,17 @@ signal action_requested(class_id: String,event_id: String,op: String,payload: Va
 signal opened
 signal closed
 var panel: Control
+var panel_scroll: ScrollContainer
+
+func _ready() -> void:
+ resized.connect(_fit_panel)
+
+func _fit_panel() -> void:
+ if not is_instance_valid(panel_scroll): return
+ var width := minf(470.0, maxf(1.0, size.x - 32.0))
+ var top := 120.0 if size.x >= 800 and size.y >= 540 else 24.0
+ panel_scroll.position = Vector2(size.x - width - 24.0 if top == 120.0 else (size.x - width) * .5, top)
+ panel_scroll.size = Vector2(width, minf(maxf(1.0,size.y - top - 28.0), panel.get_combined_minimum_size().y + 4.0))
 var active_id: String=""
 var active_class: String=""
 var dismissed_key: String=""
@@ -41,17 +52,22 @@ func apply(view: Dictionary) -> void:
  announcement.hide()
  var key:=class_id+":"+id
  if key==dismissed_key:
-  if is_instance_valid(panel):panel.update_state(view)
+  if is_instance_valid(panel):panel.update_state(view);_fit_panel.call_deferred()
   return
  if id!=active_id or class_id!=active_class:
   _clear();dismissed_key=""
   var question: Variant=view.get("question",{})
   if not question is Dictionary:return
-  var next:=PracticePanel.new();add_child(next)
-  if not next.build(question,str(view.get("course",""))):next.queue_free();return
+  panel_scroll=ScrollContainer.new()
+  panel_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+  add_child(panel_scroll)
+  var next:=PracticePanel.new()
+  next.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+  panel_scroll.add_child(next)
+  if not next.build(question,str(view.get("course",""))):
+   panel_scroll.queue_free();panel_scroll=null;return
   panel=next;active_id=id;active_class=class_id
-  next.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-  next.offset_left=-390;next.offset_right=-18;next.offset_top=90;next.offset_bottom=90
+  _fit_panel.call_deferred()
   next.submitted.connect(func(response):action_requested.emit(class_id,id,"submit",response))
   next.hand_changed.connect(func(raised):action_requested.emit(class_id,id,"hand",raised))
   next.hint_requested.connect(func():action_requested.emit(class_id,id,"hint",null))
@@ -60,22 +76,23 @@ func apply(view: Dictionary) -> void:
   next.explained.connect(func(value):action_requested.emit(class_id,id,"explain",value))
   next.vote_requested.connect(func(agree):action_requested.emit(class_id,id,"vote",agree))
   next.dismissed.connect(func():
-   dismissed_key=key;panel.hide();reopen_hint.show();closed.emit()
+   dismissed_key=key;panel.hide();panel_scroll.hide();reopen_hint.show();closed.emit()
   )
   opened.emit()
- if is_instance_valid(panel):panel.update_state(view)
+ if is_instance_valid(panel):panel.update_state(view);_fit_panel.call_deferred()
 
 func action_status(class_id: String,event_id: String,op: String,status: String) -> void:
  if class_id==active_class and event_id==active_id and is_instance_valid(panel):panel.action_status(op,status)
 
 func reopen() -> bool:
  if dismissed_key.is_empty() or not is_instance_valid(panel):return false
- dismissed_key="";reopen_hint.hide();panel.show();opened.emit();return true
+ dismissed_key="";reopen_hint.hide();panel_scroll.show();panel.show();opened.emit();return true
 
 func _clear() -> void:
  var had_panel:=is_instance_valid(panel)
- var was_visible:=had_panel and panel.visible
- if had_panel:panel.queue_free()
+ var was_visible:=had_panel and panel.is_visible_in_tree()
+ if is_instance_valid(panel_scroll):panel_scroll.queue_free()
+ panel_scroll=null
  panel=null;active_id="";active_class=""
  if is_instance_valid(reopen_hint):reopen_hint.hide()
  if is_instance_valid(announcement):announcement.hide()
