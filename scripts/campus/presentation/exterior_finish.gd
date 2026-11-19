@@ -67,14 +67,20 @@ func _build_facade() -> void:
 	heading.visibility_range_end = 52
 
 func _window(x: float, y: float, z: float, width := 2.94, height := 1.72) -> void:
-	_box(Vector3(x, y, z), Vector3(width, height, .19), FRAME)
+	z -= .04
+	var rail := .08
+	for side in [-1.0, 1.0]:
+		_box(Vector3(x, y + side * (height - rail) * .5, z), Vector3(width, rail, .19), FRAME)
+		_box(Vector3(x + side * (width - rail) * .5, y, z), Vector3(rail, height - rail * 2, .19), FRAME)
+	_box(Vector3(x, y, z), Vector3(rail, height - rail * 2, .19), FRAME)
+	var pane_width := (width - 3.0 * rail) * .5
 	for pane in [-1.0, 1.0]:
-		var cx: float = x + pane * width * .245
+		var cx: float = x + pane * (pane_width + rail) * .5
 		var tint := "537586" if pane < 0 else "5c7e91"
-		_box(Vector3(cx, y, z - .105), Vector3(width * .466, height - .16, .028), tint)
-		_box(Vector3(cx, y + height * .285, z - .124), Vector3(width * .45, height * .25, .018), "7092a4")
-	_box(Vector3(x, y - height * .15, z - .134), Vector3(width - .1, .045, .05), FRAME)
-	_box(Vector3(x, y - height * .5, z - .08), Vector3(width + .13, .10, .31), "718694")
+		_box(Vector3(cx, y, z - .047), Vector3(pane_width - .004, height - rail * 2 - .004, .028), tint)
+		_box(Vector3(cx, y + height * .285, z - .063), Vector3(pane_width - .014, height * .24, .006), "7092a4")
+	_box(Vector3(x, y - height * .15, z - .081), Vector3(width - rail * 2, .045, .025), FRAME)
+	_box(Vector3(x, y - height * .5 - .05, z - .08), Vector3(width + .13, .10, .31), "718694")
 
 func _build_courtyard() -> void:
 	# Ground art is slightly above the existing solid slab. Grass beds and

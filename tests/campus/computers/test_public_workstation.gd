@@ -52,6 +52,9 @@ func run() -> void:
 		root.get_texture().get_image().save_png("res://.godot/campus-os-boot.png")
 		camera.queue_free()
 		game.player.eyes.make_current()
+	var preview: Control=game.computer_room_adapter.idle_render.get_child(0)
+	if not preview.shortcuts_by_name.has("Settings") or game.computer_room_adapter.boot_desktop.texture!=game.computer_room_adapter.idle_render.get_texture():
+		push_error("Boot did not transition to the current Campus OS shell");quit(1);return
 	if not computers.stations[id].power.powered:push_error("Workstation did not power on");quit(1);return
 	computers.request({"op":"enter","station":id})
 	if computers.sessions.has(1):push_error("Boot accepted a premature login");quit(1);return
@@ -69,6 +72,8 @@ func run() -> void:
 		if root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://.godot/public-desktop.png"))!=OK:
 			push_error("Desktop capture failed");quit(1);return
 	var desktop: Control=game.computer_room_adapter.desktop
+	if not desktop.windows.is_empty() or "Course work" in desktop.app_names:
+		push_error("A fresh desktop opened an app or exposed Course work");quit(1);return
 	if DisplayServer.get_name()!="headless":
 		var pixels: Vector2i=game.computer_room_adapter.desktop_render.size
 		var expected:=Vector2i((desktop.size*root.get_stretch_transform().get_scale()).round())
@@ -80,6 +85,8 @@ func run() -> void:
 	var calculator: Control=desktop.content.get_child(0)
 	calculator.display.text="2+3"
 	var calculator_window: Control=desktop.app_window
+	if not desktop.workspace.get_global_rect().encloses(calculator_window.get_global_rect()):
+		push_error("The calculator opened partly outside the desktop");quit(1);return
 	desktop._switch_app("Files")
 	if not calculator_window.visible:
 		push_error("Opening Files hid the calculator");quit(1);return
@@ -142,12 +149,25 @@ func run() -> void:
 	if args.size()>1 and args[1]=="capture":
 		await process_frame;await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.godot/campus-os-windows.png")
+	desktop._switch_app("Text editor")
+	desktop._new_file()
+	desktop.editor.text="Unsaved draft"
+	desktop.editor.text_changed.emit()
+	var computer_chair: Node3D=game.player.seated
 	desktop._request_exit()
+	if not is_instance_valid(computer_chair) or game.player.seated!=computer_chair or computer_chair.occupant!=1:
+		push_error("Exiting Campus OS released the chair");quit(1);return
 	if computers.sessions.has(1):push_error("Exit did not release the session");quit(1);return
 	computers.request({"op":"enter","station":id})
 	if desktop.windows.Calculator.rect!=saved_rect or desktop.windows.Calculator.shell!=calculator_window:
 		push_error("Re-entry failed to restore application windows");quit(1);return
+	if desktop.active_app!="Text editor" or desktop.editor.text!="Unsaved draft":
+		push_error("A parked desktop lost its unnamed draft");quit(1);return
 	desktop._switch_app("Files")
+	computers.last_request.erase(1)
+	desktop._move_entry({"campus_virtual_path":"Downloads/manual.pdf"},"Work")
+	if computers.local_snapshot.binary_files.has("Downloads/manual.pdf") or computers.local_snapshot.binary_files.get("Work/manual.pdf")!=pdf.size():
+		push_error("A binary drag move did not preserve its contents");quit(1);return
 	if not computers.local_snapshot.get("files",{}).has("Work/note.txt"):
 		push_error("Powered computer lost files after leaving");quit(1);return
 	computers.last_request.erase(1)
@@ -164,8 +184,8 @@ func run() -> void:
 	desktop._switch_app("Terminal")
 	var terminal: Control=desktop.content.get_child(0)
 	terminal._run("cat Work/note.txt")
-	assert(terminal.transcript.text.contains("temporary"))
-	assert("Circuit Lab" not in desktop.app_names)
+	assert(terminal.transcript.get_parsed_text().contains("temporary"))
+	assert("Circuit Lab" not in desktop.app_names and "Course work" not in desktop.app_names)
 	desktop._switch_app("Circuit Lab")
 	assert(not desktop.windows.has("Circuit Lab"))
 	desktop._switch_app("Code editor")

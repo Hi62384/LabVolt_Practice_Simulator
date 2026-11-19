@@ -7,6 +7,7 @@ var room_id:=""
 var venue:=""
 var placed_food:={}
 var gym_bench: Node3D
+var adjustable_benches: Dictionary={}
 var gym_cables: Array[Node3D]=[]
 static var meshes:={}
 static var shapes:={}
@@ -41,7 +42,7 @@ func box(at: Vector3,size: Vector3,color: Color,collision: bool=true) -> MeshIns
 	if not meshes.has(size):
 		var mesh:=BoxMesh.new();mesh.size=size;meshes[size]=mesh
 	node.mesh=meshes[size];node.material_override=material(color);node.position=at
-	node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if room_id!="gym":node.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.visibility_range_end=32
 	add_child(node)
 	if collision:
@@ -184,6 +185,7 @@ func _gym() -> void:
 		elif kind=="benchpress":
 			gym_bench=preload("res://scripts/campus/facilities/gym_bench.gd").new()
 			gym_bench.position=at;add_child(gym_bench);gym_bench.build()
+			adjustable_benches[room_id+"/"+key]=gym_bench
 			# M105 motion adapter owns the moving bar and plates.
 			for x in [-0.9,0.9]:
 				box(at+Vector3(x,0.6,-0.8),Vector3(0.12,1.2,0.12),metal)
@@ -194,7 +196,9 @@ func _gym() -> void:
 			var seat_bench:=preload("res://scripts/campus/facilities/gym_bench.gd").new()
 			seat_bench.position=at
 			add_child(seat_bench)
-			seat_bench.build(true)
+			seat_bench.station_id=room_id+"/"+key
+			seat_bench.build()
+			adjustable_benches[seat_bench.station_id]=seat_bench
 		# No dedicated curl table: dumbbell choices are opened by right-clicking
 		# while a dumbbell pair is held.
 		# Compact HUD presents station context; no floating station labels.
@@ -204,8 +208,8 @@ func _gym() -> void:
 		if kind=="benchpress":stations[room_id+"/"+key]["bench_position"]=position+at+gym_bench.mount_offset()
 		elif kind=="seated_bench":
 			var anchor: Dictionary=stations[room_id+"/"+key]
-			anchor.bench_position=position+at
-			anchor.seat_position=position+at+Vector3.UP*.585
+			anchor.bench_position=position+at+adjustable_benches[room_id+"/"+key].mount_offset()
+			anchor.seat_position=anchor.bench_position+Vector3.UP*.585
 			anchor.seat_yaw=PI
 		if kind=="pullup":
 			stations[room_id+"/"+kind]["pullup_grip"]=position+at+Vector3(0,2.6,0)

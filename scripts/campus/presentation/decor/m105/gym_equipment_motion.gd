@@ -10,14 +10,16 @@ const BAR_STATIONS := {
 # Approximate hand positions relative to the bench bar's rest position, used
 # when the exercising avatar is not present locally (such as first person).
 const BENCH_GRIPS := {
-	"incline_press":[Vector2(.31,.89),Vector2(.52,.56)],
-	"overhead_press":[Vector2(-.47,1.75),Vector2(-.08,1.72)],
-	"front_raise":[Vector2(-.79,1.31),Vector2(-.45,1.76)],
-	"curl":[Vector2(-.685,1.558),Vector2(-.348,1.644)],
-	"wrist_curl":[Vector2(-.572,1.68),Vector2(-.572,1.68)],
-	"overhead_extension":[Vector2(-.084,.944),Vector2(.080,1.058)],
+	"incline_press":[Vector2(.52,.91),Vector2(.31,.99)],
+	"overhead_press":[Vector2(.62,1.53),Vector2(-.08,1.72)],
+	"front_raise":[Vector2(-.45,1.31),Vector2(-.79,1.76)],
+	"curl":[Vector2(-.348,1.644),Vector2(-.685,1.558)],
+	"wrist_curl":[Vector2(-.54,1.68),Vector2(-.572,1.68)],
+	"overhead_extension":[Vector2(.40,1.16),Vector2(.080,1.058)],
 	"good_morning":[Vector2(-.29,1.31),Vector2(-.33,1.48)],
-	"chest_supported_row":[Vector2(-.35,.77),Vector2(-.46,.56)]
+	"chest_supported_row":[Vector2(-.35,-.34),Vector2(-.67,-.47)],
+	"shrug":[Vector2(-.43,1.55),Vector2(-.51,1.55)],
+	"upright_row":[Vector2(.08,1.60),Vector2(-.47,1.60)]
 }
 var grip_position := Callable()
 var tracked_grips := {}
@@ -117,7 +119,6 @@ func _part(parent: Node3D, mesh: Mesh, pos: Vector3, rot: Vector3, mat: Material
 	part.position = pos
 	part.rotation = rot
 	part.material_override = mat
-	part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(part)
 
 func _material(color: Color, roughness: float, metallic: float) -> Material:

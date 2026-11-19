@@ -41,8 +41,8 @@ func build(width: float, west: bool, frame: Material, glass: Material) -> void:
 		_door_part(leaf,Vector3(0,-.92,0),Vector3(.1,1.10,leaf_width),frame)
 		_door_part(leaf,Vector3(0,1.26,0),Vector3(.1,.42,leaf_width),frame)
 		for edge in [-1.0,1.0]:
-			_door_part(leaf,Vector3(0,.34,edge*(leaf_width*.5-.065)),Vector3(.1,1.52,.13),frame)
-		_door_part(leaf,Vector3(0,.34,0),Vector3(.025,1.52,leaf_width-.24),window_mat)
+			_door_part(leaf,Vector3(0,.34,edge*(leaf_width*.5-.065)),Vector3(.1,1.42,.13),frame)
+		_door_part(leaf,Vector3(0,.34,0),Vector3(.025,1.416,leaf_width-.264),window_mat)
 		for face in [-1.0,1.0]:
 			_door_part(leaf,Vector3(face*.065,-1.20,0),Vector3(.025,.22,leaf_width-.12),metal)
 			_door_part(leaf,Vector3(face*.105,-.30,-side*(leaf_width*.5-.19)),Vector3(.08,.39,.045),metal)

@@ -84,11 +84,6 @@ func request(action: Dictionary) -> void:
 		action=action.duplicate()
 		var slot: int=game.hotbar.active
 		if slot in range(game.hotbar.slots.size()) and game.hotbar.slots[slot].get("kind","")=="usb":action.id=str(game.hotbar.slots[slot].id)
-	if action.get("op","")=="exit" and game.get("player")!=null and game.player.seated!=null:
-		game._stand_from_chair()
-		if game.player.seated!=null:
-			operation_failed.emit("Move clear of the desk before standing.")
-			return
 	if action.get("op","")=="enter":
 		var identity: String=game.school.local_identity
 		if identity.is_empty():operation_failed.emit("Select a student profile first.");return
@@ -230,8 +225,9 @@ func _accept(peer: int, action: Dictionary) -> void:
 		if action.get("lease",-1)==session.lease and stations[session.station].has("power") and _has_access(peer,stations[session.station]):
 			stations[session.station].power.touch(Time.get_ticks_msec())
 		return
-	if action.get("lease",-1)!=session.lease or action.get("revision",-1)!=session.revision:return
-	if op=="exit":_close(peer,true);return
+	if action.get("lease",-1)!=session.lease:return
+	if op=="exit":_close(peer,false);return
+	if action.get("revision",-1)!=session.revision:return
 	var entry: Dictionary=stations[session.station]
 	if usb_writes.has(session.station):_error(peer,"Wait for the USB save to finish.");return
 	if not _has_access(peer,entry):_close(peer,false);return
@@ -749,6 +745,7 @@ func _reply(peer: int) -> void:
 	if packet.get("public_device",false):
 		packet.folders=[]
 		packet.binary_files={}
+		packet.modified={}
 		packet.copyable_downloads=[]
 		var device=stations[packet.station].power
 		var drive=device.drive
@@ -763,13 +760,17 @@ func _reply(peer: int) -> void:
 			packet.recycle=[]
 			for id in workspaces[peer].get("recycle",{}):
 				var record: Dictionary=workspaces[peer].recycle[id]
-				packet.recycle.append({"id":id,"path":record.original,"deleted":record.deleted})
+				var recycled: Dictionary=drive.entries.get(record.stored,{})
+				var item: Dictionary={"id":id,"path":record.original,"deleted":record.deleted,"folder":recycled.get("type","")=="folder"}
+				if recycled.has("data"):item.bytes=recycled.data.size()
+				packet.recycle.append(item)
 		for path in packet.files.keys():
 			if str(path).begins_with(".Recycle/"):packet.files.erase(path)
 		for name in drive.entries:
 			if str(name)==".Recycle" or str(name).begins_with(".Recycle/"):continue
+			if drive.entries[name].has("modified"):packet.modified[name]=drive.entries[name].modified
 			if drive.entries[name].type=="folder":packet.folders.append(name)
-			elif str(name).begins_with("Downloads/") and not packet.files.has(name) and Files.path(name)==name:
+			elif not packet.files.has(name) and Files.path(name)==name:
 				packet.binary_files[name]=drive.entries[name].data.size()
 	packet.restored=restored.has(peer)
 	packet.assignments=[]
@@ -930,7 +931,7 @@ func _power_off(id: String) -> void:
 		if sessions[peer].station==id:
 			if bool(sessions[peer].get("public_device",false)):
 				workspaces.erase(peer);restored.erase(peer)
-			_close(peer,true)
+			_close(peer,false)
 	_publish()
 func _prune() -> void:
 	var now:=Time.get_ticks_msec()

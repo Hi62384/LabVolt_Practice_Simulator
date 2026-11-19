@@ -191,40 +191,16 @@ func _build_idle_display() -> void:
 	idle_render=SubViewport.new()
 	idle_render.size=Vector2i(384,216)
 	idle_render.disable_3d=true
+	idle_render.gui_disable_input=true
+	idle_render.size_2d_override=Vector2i(960,540)
+	idle_render.size_2d_override_stretch=true
 	idle_render.render_target_update_mode=SubViewport.UPDATE_ONCE
 	add_child(idle_render)
-	var background := ColorRect.new()
-	background.size=Vector2(idle_render.size)
-	background.color=Color("143849")
-	idle_render.add_child(background)
-	var accent := ColorRect.new()
-	accent.color=Color("275a67")
-	accent.position=Vector2(224,0)
-	accent.size=Vector2(160,216)
-	background.add_child(accent)
-	var shortcuts := VBoxContainer.new()
-	shortcuts.position=Vector2(20,17)
-	background.add_child(shortcuts)
-	for shortcut in ["▤  Files","✎  Text editor","▣  Course work","◎  Browser"]:
-		var label := Label.new()
-		label.text=shortcut
-		label.add_theme_font_size_override("font_size",13)
-		shortcuts.add_child(label)
-	var taskbar := ColorRect.new()
-	taskbar.position=Vector2(0,191)
-	taskbar.size=Vector2(384,25)
-	taskbar.color=Color("0c2530")
-	background.add_child(taskbar)
-	var start := Label.new()
-	start.text="⊞  Start"
-	start.position=Vector2(9,3)
-	start.add_theme_font_size_override("font_size",12)
-	taskbar.add_child(start)
-	idle_clock=Label.new()
-	idle_clock.position=Vector2(316,3)
-	idle_clock.add_theme_font_size_override("font_size",12)
-	taskbar.add_child(idle_clock)
-	_update_idle_clock()
+	var preview: Control=Desktop.new()
+	idle_render.add_child(preview)
+	preview.set_process_input(false)
+	preview.build_monitor_preview()
+	idle_clock=preview.clock_label
 
 func _update_idle_clock() -> void:
 	var time := Time.get_time_string_from_system().left(5)

@@ -66,6 +66,8 @@ func run() -> void:
 	service.request({"op":"usb_port","station":station})
 	if not service.stations[station].power.usb.is_empty() or profile.data.dorm.usb_drives[id].location!="hotbar":push_error("USB removal failed");quit(1);return
 	if service.public_workspaces.has(station):push_error("Powered-off workstation retained temporary files");quit(1);return
+	game._stand_from_chair()
+	if game.player.seated!=null:push_error("Could not stand before moving the USB to the next workstation");quit(1);return
 	station="commons_r0_c1"
 	point=service.stations[station].anchor
 	game.session.poses[1]={"position":point};game.player.global_position=point

@@ -22,10 +22,12 @@ static func _valid_entries(entries: Variant,capacity: int) -> bool:
 	for key in entries:
 		if not key is String or not Drive.valid_path(key) or not entries[key] is Dictionary:return false
 		var entry: Dictionary=entries[key]
+		var has_timestamp:=int(entry.has("modified"))
+		if has_timestamp and (not entry.modified is int or entry.modified<0 or entry.modified>253402300799):return false
 		if entry.get("type","")=="folder":
-			if entry.size()!=1:return false
+			if entry.size()!=1+has_timestamp:return false
 		elif entry.get("type","")=="file":
-			if entry.size()!=2 or not entry.get("data") is PackedByteArray:return false
+			if entry.size()!=2+has_timestamp or not entry.get("data") is PackedByteArray:return false
 			used+=entry.data.size()
 			if used>capacity:return false
 		else:return false

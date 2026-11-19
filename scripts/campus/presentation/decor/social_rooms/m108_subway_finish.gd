@@ -74,7 +74,6 @@ func build(_menu: Dictionary) -> void:
 			_box(Vector3(x,3.78,z),Vector3(1.55,.045,.42),"f8f6df","Rectangular ceiling light")
 			var fixture := preload("res://scripts/campus/presentation/fixture_light.gd").down(self,Vector3(x,3.73,z),1.12,6.5)
 			fixture.distance_fade_enabled=true
-			if x==0.0 and z==2.6: fixture.set_meta("shadow_fixture",true)
 	# Existing service counter collision is 6 x .8 at z=-2.5. The
 	# visual shell is directly supported by that exact footprint.
 	_box(Vector3(0,.56,-2.5),Vector3(6.03,1.1,.82),"167849","Long green counter")

@@ -38,7 +38,8 @@ func mount_profile(id: String, campus: Node3D, generic_root: Node3D = null) -> b
 		instance.name = name.to_pascal_case()
 		instance.mesh = mesh
 		instance.material_override = materials[name]
-		instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if name in ["line","paper","mirror"]:
+			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(instance)
 	_add_solid_furniture(root, profile)
 	campus.add_child(root)

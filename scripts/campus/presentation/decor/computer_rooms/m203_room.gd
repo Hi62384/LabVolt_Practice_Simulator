@@ -2,6 +2,7 @@ extends Node3D
 ## Registry-guarded M203 fitout. Mount once; caller owns classroom session logic.
 
 const STATION_SCRIPT = preload("res://scripts/campus/presentation/decor/computer_rooms/computer_station.gd")
+const InteriorShadows = preload("res://scripts/campus/presentation/lighting/interior_shadows.gd")
 const COLUMNS := [-7.2,-3.6,0.0,3.6,7.2]
 const ROWS := [16.2,18.4,20.6,22.8]
 const EXPECTED_MIN := Vector3(-10,5,13)
@@ -21,12 +22,19 @@ func mount(campus: Node3D,registry: Object) -> bool:
 	root=Node3D.new();root.name="M203ComputerClassroom";campus.add_child(root)
 	_build_finish()
 	_build_teaching_area()
+	var floor_shadows: Array[Transform3D] = []
 	for row in ROWS.size():
 		for column in COLUMNS.size():
 			var id:="m203_r%d_c%d" % [row,column]
 			var station=STATION_SCRIPT.new();root.add_child(station)
-			station.position=Vector3(COLUMNS[column],5,ROWS[row]);station.configure(id)
+			station.position=Vector3(COLUMNS[column],5,ROWS[row]);station.configure(id,true)
 			stations[id]=station
+			# The desks and fixed chairs use two soft footprints on the tile.
+			# Keep these just above the grout and build the batch once per mount.
+			var floor_point: Vector3=station.position+Vector3(0,.034,0)
+			floor_shadows.append(Transform3D(Basis.from_scale(Vector3(2.15,1,1.30)),floor_point))
+			floor_shadows.append(Transform3D(Basis.from_scale(Vector3(.86,1,.88)),floor_point+Vector3(0,0,1.03)))
+	InteriorShadows.add_contacts(root,floor_shadows)
 	if not campus.has_method("register_content") or not campus.call("register_content","computer",root):
 		root.queue_free();root=null;stations.clear();return false
 	mounted=true

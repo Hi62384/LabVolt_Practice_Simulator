@@ -36,7 +36,7 @@ func used_bytes() -> int:
 func make_folder(path: String) -> bool:
 	if not valid_path(path) or not _parent_exists(path) or entries.has(path) or entries.size() >= MAX_ENTRIES:
 		return false
-	entries[path] = {"type": "folder"}
+	entries[path] = {"type": "folder", "modified": int(Time.get_unix_time_from_system())}
 	return true
 
 func write_file(path: String, data: PackedByteArray) -> bool:
@@ -46,7 +46,7 @@ func write_file(path: String, data: PackedByteArray) -> bool:
 	if previous.is_empty() and entries.size() >= MAX_ENTRIES: return false
 	var old_size: int = previous.get("data", PackedByteArray()).size()
 	if used_bytes() - old_size + data.size() > capacity: return false
-	entries[path] = {"type": "file", "data": data.duplicate()}
+	entries[path] = {"type": "file", "data": data.duplicate(), "modified": int(Time.get_unix_time_from_system())}
 	return true
 
 func remove(path: String) -> bool:

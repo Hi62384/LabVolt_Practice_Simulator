@@ -82,11 +82,6 @@ func _build_ceiling(root: Node3D) -> void:
 			_box(root,"LightFrame",Vector3(x,3.94,z),Vector3(4.4,.11,.31),"navy")
 			_box(root,"LightDiffuser",Vector3(x,3.876,z),Vector3(4.31,.025,.24),"diffuser")
 			var light:=Fixtures.down(root, Vector3(x,3.82,z), 1.25, 7.2)
-			# One shadow fixture per bay anchors the benches and chairs.
-			light.shadow_enabled = (x == 0.0 and z == 0.0) or (x != 0.0 and z == 6.0)
-			if light.shadow_enabled and x!=0.0:
-				light.set_meta("shadow_fixture",true)
-				light.set_meta("shadow_tier",2)
 			light.shadow_bias = .06
 			light.shadow_normal_bias = 1.1
 			light.shadow_blur = 1.5

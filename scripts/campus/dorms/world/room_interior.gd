@@ -29,15 +29,12 @@ func build(contract: Dictionary, public_style: Dictionary = {}) -> void:
 	_box("SuspendedCeiling",c+Vector3(0,3.95,0),Vector3(6.55,.05,10.9),"eeeae0")
 	for z in range(-4,5,2):
 		_box("CeilingJoint",c+Vector3(0,3.923,z),Vector3(6.54,.009,.014),"c9c8c4")
-	_box("CeilingHousing",c+Vector3(0,3.88,0),Vector3(.95,.10,1.78),"354957")
-	_box("CeilingPanel",c+Vector3(0,3.821,0),Vector3(.85,.027,1.65),"fff1d8")
-	preload("res://scripts/campus/presentation/fixture_light.gd").down(self, c + Vector3(0,3.77,0), .95, 6.0)
 	# Exterior-facing window only.
 	var wx := c.x+outward*3.39
-	_box("WindowGlass",Vector3(wx,2.25,c.z-.25),Vector3(.035,1.35,1.85),"9fb7bb")
-	_box("WindowMullion",Vector3(wx-outward*.055,2.25,c.z-.25),Vector3(.10,1.40,.05),"506976")
-	_box("WindowSill",Vector3(wx-outward*.08,1.52,c.z-.25),Vector3(.23,.075,1.95),"bb936d")
-	for z in [-1.0,.5]:_box("WindowFrame",Vector3(wx-outward*.04,2.25,c.z+z),Vector3(.11,1.48,.08),"ded8ca")
+	_box("WindowGlass",Vector3(wx,2.25,c.z-.25),Vector3(.035,1.316,1.686),"9fb7bb")
+	_box("WindowMullion",Vector3(wx-outward*.055,2.25,c.z-.25),Vector3(.10,1.316,.05),"506976")
+	_box("WindowSill",Vector3(wx-outward*.08,1.4725,c.z-.25),Vector3(.23,.075,1.95),"bb936d")
+	for z in [-1.135,.635]:_box("WindowFrame",Vector3(wx-outward*.04,2.25,c.z+z),Vector3(.11,1.32,.08),"ded8ca")
 	for y in [1.55,2.95]:_box("WindowFrame",Vector3(wx-outward*.04,y,c.z-.25),Vector3(.11,.08,1.85),"ded8ca")
 	_box("Blind",Vector3(wx-outward*.08,2.88,c.z-.25),Vector3(.06,.12,1.72),"e7e1d4")
 	# A recognizable single bed; side circulation remains clear.
@@ -53,7 +50,7 @@ func build(contract: Dictionary, public_style: Dictionary = {}) -> void:
 	_target("bed",Vector3(bx,.65,c.z-3.55),Vector3(1.35,.94,2.35),"Bed")
 	_box("Bedside",Vector3(bx-outward*.95,.55,c.z-4.2),Vector3(.52,1.05,.52),"876c54")
 	_lamp("bedside_lamp",Vector3(bx-outward*.95,1.095,c.z-4.2))
-	# Study surface leaves room for a worksheet; laptop occupies its rear edge.
+	# Keep the study surface clear for worksheets and portable items.
 	var dx := c.x-outward*1.65
 	_box("StudyDesk",Vector3(dx,.76,c.z-2.25),Vector3(2.35,.1,1.1),"8b6b50")
 	_target("study_desk",Vector3(dx,.76,c.z-2.25),Vector3(2.35,.1,1.1),"Study desk")
@@ -61,9 +58,6 @@ func build(contract: Dictionary, public_style: Dictionary = {}) -> void:
 	targets.study_desk.set_meta("role","table")
 	for x in [-1.05,1.05]:
 		for z in [-.45,.45]:_box("DeskLeg",Vector3(dx+x,.38,c.z-2.25+z),Vector3(.1,.76,.1),"68513f")
-	_box("LaptopBase",Vector3(dx,.84,c.z-2.55),Vector3(.68,.04,.48),"39464a")
-	_box("LaptopScreen",Vector3(dx,1.12,c.z-2.82),Vector3(.68,.52,.045),"27383e")
-	_target("computer",Vector3(dx,1.03,c.z-2.55),Vector3(.7,.62,.6),"Use study computer")
 	_box("ChairSeat",Vector3(dx,.45,c.z-.95),Vector3(.65,.12,.58),"66787b")
 	_box("ChairBack",Vector3(dx,.83,c.z-.65),Vector3(.65,.78,.09),"66787b")
 	for x in [-.26,.26]:
@@ -111,7 +105,7 @@ func _target(kind: String, pos: Vector3, size: Vector3, label: String) -> void:
 	var body:=StaticBody3D.new();body.name=kind;body.position=pos;body.collision_layer=4;body.collision_mask=0
 	var shape:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=size;shape.shape=box;body.add_child(shape)
 	body.set_meta("role","dorm_room_prop");body.set_meta("kind",kind);body.set_meta("room_id",room_id);body.set_meta("label",label);add_child(body);targets[kind]=body
-	var furnishing: String = {"computer":"desk_laptop","storage":"storage_cabinet"}.get(kind,kind)
+	var furnishing: String = {"storage":"storage_cabinet"}.get(kind,kind)
 	if furnishing in SavedRenderer.Dorm.DEFAULTS:body.set_meta("furniture",furnishing)
 
 func _lamp(kind: String, pos: Vector3) -> void:

@@ -3,7 +3,6 @@ extends Node
 const Interior = preload("res://scripts/campus/dorms/world/room_interior.gd")
 var game: Node
 var authority: Object
-var computer_session: Object
 var room: Node3D
 var room_id := ""
 var occupant_count := 0
@@ -12,8 +11,8 @@ var begin_rest: Callable
 var use_desk_chair: Callable
 var open_storage: Callable
 
-func configure(owner_game: Node, dorm_authority: Object, m203_session: Object) -> void:
-	game=owner_game;authority=dorm_authority;computer_session=m203_session
+func configure(owner_game: Node, dorm_authority: Object) -> void:
+	game=owner_game;authority=dorm_authority
 
 func bind_personal_actions(wardrobe: Callable, rest: Callable, chair: Callable, storage: Callable) -> void:
 	open_wardrobe=wardrobe;begin_rest=rest;use_desk_chair=chair;open_storage=storage
@@ -49,9 +48,6 @@ func interact(target: Node, authenticated_identity: String) -> bool:
 			if open_wardrobe.is_valid():open_wardrobe.call()
 		"storage":
 			if open_storage.is_valid():open_storage.call(room_id)
-		"computer":
-			if authority.has_method("request_personal_computer"):
-				authority.call("request_personal_computer",room_id)
 		"bed":
 			if begin_rest.is_valid():begin_rest.call(target.global_transform)
 		"study_chair":

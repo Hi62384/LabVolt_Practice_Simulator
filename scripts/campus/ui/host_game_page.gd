@@ -13,6 +13,8 @@ var required_kind := ""
 var required_room := ""
 var allowed_courses: Array = []
 var class_requested: Callable
+var practice_requested: Callable
+var practice_button: Button
 var model := {}
 var selected_course := ""
 var selected_kind := ""
@@ -112,6 +114,10 @@ func build(owner_game: Node) -> void:
 	start.size_flags_horizontal = SIZE_EXPAND_FILL
 	start.custom_minimum_size.y = 50
 	start.add_theme_font_size_override("font_size", 18)
+	if practice_requested.is_valid():
+		practice_button=_action(footer,"Practice Sheet","course",_request_practice)
+		practice_button.size_flags_horizontal=SIZE_EXPAND_FILL
+		practice_button.custom_minimum_size.y=50
 
 	resized.connect(_layout)
 	model = Source.from_school(game.school, game.school.pending_gradebook_records())
@@ -235,6 +241,12 @@ func _update_start() -> void:
 	var host:=multiplayer.is_server()
 	connection_status.text=game.host_openai.class_connection_status() if host else "Only the host can start a class."
 	start.disabled=selected_week.is_empty() or not host or not game.host_openai.verified_for_class()
+	if is_instance_valid(practice_button):practice_button.disabled=selected_week.is_empty() or not str(selected_week.get("id","")).is_empty()
+
+func _request_practice() -> void:
+	if practice_button.disabled:return
+	practice_button.disabled=true
+	practice_requested.call({"course_id":selected_course,"week":selected_week.week,"difficulty":difficulty.selected})
 
 func _launch() -> void:
 	if start.disabled or not class_requested.is_valid():

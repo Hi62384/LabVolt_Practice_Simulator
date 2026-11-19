@@ -29,6 +29,7 @@ func _run() -> void:
  if browser.get_texture()==null:failures.append("Browser texture was not created")
  if loaded:
   await create_timer(.3).timeout
+  await _check_context_inspector(surface,browser)
   var click:=InputEventMouseButton.new()
   click.position=Vector2(40,22)
   click.button_index=MOUSE_BUTTON_LEFT
@@ -145,6 +146,29 @@ func _run() -> void:
   phone_browser.load_url(base+"/private")
   if not await _wait_title(phone_browser,"SIGNED_OUT",8000):failures.append("A new device inherited the previous device's login cookie")
  _finish(surface)
+
+func _check_context_inspector(surface: Control,browser: Variant) -> void:
+ var click:=InputEventMouseButton.new()
+ click.position=Vector2(40,22)
+ click.button_index=MOUSE_BUTTON_RIGHT
+ surface._forward(browser,surface.tabs[0].surface,click)
+ var menu: PopupMenu
+ for child in surface.get_children():
+  if child is PopupMenu and child.visible:menu=child
+ if menu==null:
+  failures.append("Right-click did not open the browser menu")
+  return
+ menu.id_pressed.emit(4)
+ menu.hide()
+ var deadline:=Time.get_ticks_msec()+3500
+ while Time.get_ticks_msec()<deadline:
+  for child in surface.get_children():
+   if child is AcceptDialog and child.title.begins_with("Inspect <input>"):
+    child.hide()
+    child.queue_free()
+    return
+  await process_frame
+ failures.append("Inspect element did not report the clicked input")
 
 func _wait_title(browser: Variant,title: String,timeout_ms: int) -> bool:
  var deadline:=Time.get_ticks_msec()+timeout_ms

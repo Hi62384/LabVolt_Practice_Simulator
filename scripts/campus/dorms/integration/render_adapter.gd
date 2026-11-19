@@ -2,7 +2,7 @@ extends RefCounted
 const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Rules=preload("res://scripts/campus/dorms/customization/placement_rules.gd")
 static func mark(node: Node,label: String) -> void:
-	var groups := {"BedFrame":"bed","Headboard":"bed","Mattress":"bed","Duvet":"bed","Pillow":"bed","Bedside":"bedside","StudyDesk":"study_desk","DeskLeg":"study_desk","Laptop":"desk_laptop","Notebook":"study_desk","Chair":"study_chair","Wardrobe":"wardrobe","StorageCabinet":"storage_cabinet","Shelf":"shelf","Rug":"rug","Plant":"plant","bedside_lamp":"bedside_lamp","desk_lamp":"desk_lamp"}
+	var groups := {"BedFrame":"bed","Headboard":"bed","Mattress":"bed","Duvet":"bed","Pillow":"bed","Bedside":"bedside","StudyDesk":"study_desk","DeskLeg":"study_desk","Notebook":"study_desk","Chair":"study_chair","Wardrobe":"wardrobe","StorageCabinet":"storage_cabinet","Shelf":"shelf","Rug":"rug","Plant":"plant","bedside_lamp":"bedside_lamp","desk_lamp":"desk_lamp"}
 	for prefix in groups:
 		if label.begins_with(prefix):node.set_meta("furniture",groups[prefix]);return
 static func style(saved: Dictionary) -> Dictionary:

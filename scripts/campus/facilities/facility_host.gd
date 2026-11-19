@@ -4,12 +4,12 @@ const Sandwich = preload("res://scripts/campus/facilities/sandwich_recipe.gd")
 signal public_event(room_id: String, peer: int, state: Dictionary)
 const LB_TO_KG := 0.45359237
 const EXERCISES := {"pushup":1400,"pullup":1800,"benchpress":1800,"squat":1600,"curl":1400,"crunch":1600,"leg_raise":1800,"pike_pushup":1800,"hanging_leg_raise":2000,"dip":1800,"deadlift":2100,"romanian_deadlift":2000,"front_raise":1700,"upright_row":1700,"wrist_curl":1400,"overhead_extension":1800,"bent_over_row":1800,"shrug":1400,"lateral_raise":1700,"reverse_fly":1800,"calf_raise":1500,"overhead_press":1800,"good_morning":1800,"incline_press":1800,"chest_supported_row":1800,"chest_fly":1800,"cable_fly":1800,"cable_reverse_fly":1800,"cable_press":1800,"lat_pulldown":1800,"cable_row":1800,"tricep_pushdown":1600,"cable_crunch":1800}
-const DUMBBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","wrist_curl","overhead_extension","bent_over_row","shrug","lateral_raise","reverse_fly","calf_raise"]
-const BENCH_DUMBBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_curl","overhead_extension","good_morning","incline_press","benchpress","lateral_raise","chest_supported_row","reverse_fly","chest_fly"]
-const BENCH_BARBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_curl","overhead_extension","good_morning","incline_press","benchpress","chest_supported_row"]
-const SEATED_DUMBBELL_EXERCISES := ["curl","overhead_press","lateral_raise","front_raise","overhead_extension","wrist_curl","good_morning"]
-const SEATED_BARBELL_EXERCISES := ["curl","overhead_press","front_raise","overhead_extension","wrist_curl","good_morning"]
-const BARBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","overhead_extension","bent_over_row","shrug","wrist_curl","calf_raise"]
+const DUMBBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","wrist_curl","overhead_extension","bent_over_row","shrug","lateral_raise","reverse_fly","calf_raise","overhead_press","good_morning"]
+const BENCH_DUMBBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_curl","overhead_extension","good_morning","incline_press","benchpress","lateral_raise","chest_supported_row","reverse_fly","chest_fly","shrug","upright_row"]
+const BENCH_BARBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_curl","overhead_extension","good_morning","incline_press","benchpress","chest_supported_row","shrug","upright_row"]
+const SEATED_DUMBBELL_EXERCISES := BENCH_DUMBBELL_EXERCISES
+const SEATED_BARBELL_EXERCISES := BENCH_BARBELL_EXERCISES
+const BARBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","overhead_extension","bent_over_row","shrug","wrist_curl","calf_raise","overhead_press","good_morning"]
 const CABLE_EXERCISES := ["cable_fly","cable_reverse_fly","cable_press","lat_pulldown","cable_row","lateral_raise","front_raise","overhead_press","curl","tricep_pushdown","overhead_extension","cable_crunch"]
 const STATION_EXERCISES := {"pushup":["pushup","crunch","leg_raise","pike_pushup"],"pullup":["pullup","hanging_leg_raise","dip"],"benchpress":BENCH_BARBELL_EXERCISES,"squat":["squat"],"curl":DUMBBELL_EXERCISES,"barbell":BARBELL_EXERCISES,"cable":CABLE_EXERCISES}
 const WEIGHTS := {"pushup":[0],"pullup":[0],"benchpress":[10,20,40],"squat":[10,20,40],"curl":[5,10,20],"crunch":[0],"leg_raise":[0],"pike_pushup":[0],"hanging_leg_raise":[0],"dip":[0]}
@@ -68,6 +68,7 @@ var last_bite := {}
 var gym_recovery_clock := {}
 var last_assist := {}
 var pending_sets := {}
+var pending_effort := {}
 
 static func empty_profile() -> Dictionary:
 	return {"version":1,"revision":0,"xp":0,"records":{},"unlocks":["wave"],"held":{},"last_sequence":0}
@@ -135,6 +136,10 @@ func profile(c: Dictionary) -> Dictionary:
 	var p: Variant=load_profile.call(str(c.identity))
 	if not valid_profile(p):return {}
 	var value: Dictionary=p.duplicate(true)
+	var identity:=str(c.identity)
+	if pending_effort.has(identity):
+		if not value.has("gym"):value.gym=GymProgress.empty()
+		value.gym.muscles=pending_effort[identity].duplicate(true)
 	if not value.has("orders"):
 		value.orders={}
 		if not value.held.is_empty():value.orders["0"]=value.held
@@ -180,6 +185,7 @@ func commit_recovery(peer: int) -> bool:
 	next.last_sequence=int(p.last_sequence)+1
 	next.revision=int(p.revision)+1
 	if not valid_profile(next) or not bool(commit_profile.call(str(c.identity),0,next)):return false
+	pending_effort.erase(str(c.identity))
 	gym_recovery_clock[c.identity]=t
 	return true
 
@@ -264,6 +270,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			GymProgress.record_set(stopped.gym,current,"cancelled",t)
 			stopped.last_sequence=seq;stopped.revision=int(p.revision)+1
 			saved=valid_profile(stopped) and bool(commit_profile.call(str(c.identity),0,stopped))
+			if saved:pending_effort.erase(str(c.identity))
 		if not saved:return fail("Set could not be saved; retry or wait for recovery")
 		if live_lifts and current.get("type","")=="exercise":
 			active[peer]=_exit_state(current,t)
@@ -278,10 +285,11 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		clear_activity(peer,"input_failure" if t-int(current.last_beat)>15000 else "interrupted")
 		return fail("Exercise interrupted; start a new set")
 	if live_lifts and op == "effort":
-		var result := _lift_effort(peer, current)
+		var result := _lift_effort(peer,current,p.get("gym",GymProgress.empty()),str(c.identity))
 		if not result.get("failed", false):
 			return result
 		op = "rep_fail"
+		p=profile(c)
 	var next:=p.duplicate(true)
 	if not next.has("gym"):next.gym=GymProgress.empty()
 	var recovery_since: int=int(gym_recovery_clock.get(c.identity,t))
@@ -361,7 +369,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if seat_kind=="seated_bench":
 			var dumbbells:=dumbbell_mass.is_valid() and float(dumbbell_mass.call(peer))>0.0
 			var free_bar:=held_barbell_mass.is_valid() and float(held_barbell_mass.call(peer))>0.0
-			if not dumbbells and not free_bar:return fail("Equip dumbbells or a barbell to use the seated bench.")
+			if not dumbbells and not free_bar:return fail("Equip dumbbells or a barbell to use the adjustable bench.")
 		next_active={"type":"seat","station":station,"position":c.position,"room_id":c.room_id}
 		event={"activity":"seat","station":station}
 		if anchors[station].has("seat_position"):
@@ -454,7 +462,9 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if int(current.reps)>=500:return fail("Set complete; finish to save")
 		next_active.last_beat=t
 		next_active.phase=0
-		if int(next_active.phase)==0:
+		if live_lifts:
+			next_active.reps+=1
+		else:
 			var effort: Dictionary=GymProgress.rep(next.gym,str(current.exercise),float(current.weight),float(current.get("body_mass",70.0)))
 			if effort.failure:
 				GymProgress.record_set(next.gym,current,"failure",t)
@@ -471,8 +481,12 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.phase)!=1:return fail("No repetition to fail")
 		if live_lifts and not _effort_failed(current, t):return fail("The lift is still in progress")
 		GymProgress.record_set(next.gym,current,"failure",t)
-		next_active = _failed_lift(next_active, next.gym, t)
-		event = trap_event(next_active) if not next_active.is_empty() else {"activity":"idle"}
+		if live_lifts and not _can_pin(current):
+			next_active=_exit_state(current,t)
+			event=_exit_event(next_active)
+		else:
+			next_active = _failed_lift(next_active, next.gym, t)
+			event = trap_event(next_active) if not next_active.is_empty() else {"activity":"idle"}
 		event.failure = true
 	elif op=="wiggle":
 		if current.get("type","")!="trapped" or not activity_valid(c,current):return fail("No trapped bar to move")
@@ -517,6 +531,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	next.last_sequence=seq
 	next.revision=int(p.revision)+1
 	if not valid_profile(next) or not bool(commit_profile.call(str(c.identity),dollars,next.duplicate(true))):return fail("Purchase or save failed; nothing changed")
+	pending_effort.erase(str(c.identity))
 	if op=="sandwich_checkout": clear_sandwich()
 	gym_recovery_clock[c.identity]=t
 	if op=="consume":last_bite[c.identity]=t
@@ -542,6 +557,8 @@ func _prepare_raise(value: Dictionary, gym: Dictionary, t: int) -> void:
 	value.phase = 1
 	value.lift_progress = 0.0
 	value.lift_at = t
+	value.lift_peak=0.0
+	value.stalled_presses=0
 
 func _progress_at(value: Dictionary, t: int) -> float:
 	match int(value.phase):
@@ -551,25 +568,38 @@ func _progress_at(value: Dictionary, t: int) -> float:
 			return float(value.get("lower_from",1.0)) * (1.0 - smoothstep(0.0, float(value.half_ms), float(t-int(value.last_beat))))
 		_:
 			var settings: Vector3 = value.lift_settings
-			var grace := lerpf(200.0,0.0,smoothstep(.73,1.0,settings.z))
+			var grace := lerpf(85.0,0.0,smoothstep(.55,.9,settings.z))
 			var elapsed := maxf(0.0, (float(t-int(value.lift_at))-grace)/1000.0)
-			return maxf(0.0, float(value.lift_progress)-settings.y*elapsed)
+			return GymProgress.drain_lift(float(value.lift_progress),settings.y,elapsed)
 
 func _effort_failed(value: Dictionary, t: int) -> bool:
 	var settings: Vector3 = value.lift_settings
-	return _can_pin(value) and float(value.lift_progress) >= .20 and settings.z >= .9 and _progress_at(value,t) <= .005
+	if not _can_pin(value):
+		return settings.z>=.9 and int(value.get("stalled_presses",0))>=7
+	return settings.z>=.9 and float(value.lift_peak)>=.20 and (int(value.stalled_presses)>=7 or (float(value.lift_progress)>=.20 and _progress_at(value,t)<=.005))
 
-func _lift_effort(peer: int, value: Dictionary) -> Dictionary:
+func _lift_effort(peer: int,value: Dictionary,gym: Dictionary,identity: String) -> Dictionary:
 	if value.get("type") != "exercise" or int(value.phase) != 1:
 		return fail("Wait until the weight is ready to raise")
 	var t := now()
 	if _effort_failed(value,t):
 		return {"failed":true}
 	var settings: Vector3 = value.lift_settings
-	# A stalled attempt may be restarted. A mechanically overloaded bar loses
-	# at least the force gained per press at the minimum legal network interval.
-	var gain := lerpf(settings.x,minf(settings.x,settings.y*.065),smoothstep(.90,1.0,settings.z))
-	value.lift_progress = minf(1.0, _progress_at(value, t)+gain)
+	var before:=_progress_at(value,t)
+	var gain := lerpf(settings.x,minf(settings.x,settings.y*.065),smoothstep(1.12,1.65,settings.z))
+	var progress:=minf(1.0,before+gain)
+	var exercise:=str(value.exercise)
+	GymProgress.advance(gym,maxf(0.0,float(t-int(gym_recovery_clock.get(identity,t)))/1000.0))
+	GymProgress.effort(gym,exercise,settings.z,progress-before)
+	pending_effort[identity]=gym.muscles
+	gym_recovery_clock[identity]=t
+	value.lift_settings=GymProgress.lift_parameters(GymProgress.capacity(gym,exercise),GymProgress.effective_load(exercise,float(value.weight),float(value.body_mass)))
+	value.lift_progress=progress
+	if progress>float(value.lift_peak)+.006:
+		value.lift_peak=progress
+		value.stalled_presses=0
+	else:
+		value.stalled_presses+=1
 	value.lift_at = t
 	value.last_beat = t
 	if value.lift_progress >= 1.0:
@@ -670,6 +700,7 @@ func _flush_pending(identity: String) -> bool:
 		GymProgress.record_set(next.gym,record.active,str(record.outcome),int(record.at))
 		next.last_sequence=int(previous.last_sequence)+1;next.revision=int(previous.revision)+1
 		if not valid_profile(next) or not bool(commit_profile.call(identity,0,next)):return false
+		pending_effort.erase(identity)
 		var queue: Array=pending_sets[identity]
 		queue.pop_front()
 	pending_sets.erase(identity)

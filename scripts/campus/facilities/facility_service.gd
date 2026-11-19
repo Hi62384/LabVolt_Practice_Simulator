@@ -78,9 +78,9 @@ func _event(peer: int, event: Dictionary) -> void:
 				if machine.station_id == event.get("station"):
 					machine.set_resistance(int(event.weight))
 		return
-	if rooms.has("gym") and is_instance_valid(rooms.gym) and is_instance_valid(rooms.gym.gym_bench):
-		rooms.gym.gym_bench.on_room_event(peer,event)
 	if rooms.has("gym") and is_instance_valid(rooms.gym):
+		for bench in rooms.gym.adjustable_benches.values():
+			bench.on_room_event(peer,event)
 		for machine in rooms.gym.gym_cables:
 			if not is_instance_valid(machine):continue
 			var activity: Variant=visuals.get(peer)

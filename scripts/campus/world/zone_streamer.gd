@@ -59,6 +59,7 @@ func set_viewer_position(point: Vector3) -> void:
 
 func _update_desired_rooms() -> void:
 	var point := viewer
+	var occupied_room: String=registry.locate(point) if not _menu_mode else ""
 	for id in registry.rooms:
 		var room: Dictionary=registry.rooms[id]
 		var center: Vector3=registry.vector(room.center)
@@ -68,12 +69,18 @@ func _update_desired_rooms() -> void:
 		# No request churn: replace pending desire for the same zone.
 		for index in range(queue.size()-1,-1,-1):
 			if queue[index].id==id: queue.remove_at(index)
-		if wanted!=bool(active.get(id,false)): queue.append({"id":id,"active":wanted})
+		if wanted!=bool(active.get(id,false)):
+			var change := {"id":id,"active":wanted}
+			# Stream the room the player is entering before its neighbours.
+			if wanted and id==occupied_room:queue.push_front(change)
+			else:queue.append(change)
 
 func request_room(id: String) -> void:
 	if registry.rooms.has(id) and not bool(active.get(id,false)):
-		for item in queue:
-			if item.id==id: item.active=true; return
+		for index in range(queue.size()):
+			if queue[index].id==id:
+				queue.remove_at(index)
+				break
 		queue.push_front({"id":id,"active":true})
 
 func advance(frame_usec: int) -> int:

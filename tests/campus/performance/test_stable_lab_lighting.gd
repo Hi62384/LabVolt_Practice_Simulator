@@ -11,7 +11,7 @@ func run() -> void:
   var shadow_lights=[]
   for light in lab.find_children("*","SpotLight3D",true,false):
    if light.shadow_enabled:shadow_lights.append(light)
-  var expected=3 if name=="M101Environment" else 1
+  var expected=lab.find_children("*","SpotLight3D",true,false).size()
   if shadow_lights.size()!=expected:push_error("Unexpected local shadow fixture count in "+name);quit(1);return
   for light in shadow_lights:
    if light.distance_fade_enabled:push_error("Lab shadow fixture changes with camera distance");quit(1);return
@@ -25,7 +25,7 @@ func run() -> void:
   var count=0
   for light in lab.find_children("*","SpotLight3D",true,false):
    if light.shadow_enabled:count+=1
-  var expected=3 if lab.name=="M101Environment" else 1
+  var expected=lab.find_children("*","SpotLight3D",true,false).size()
   if count!=expected:push_error("Shadow setting did not restore the stable fixtures");quit(1);return
  var representative: SpotLight3D=lab_roots[0].find_children("*","SpotLight3D",true,false)[0]
  var base_energy:=representative.light_energy

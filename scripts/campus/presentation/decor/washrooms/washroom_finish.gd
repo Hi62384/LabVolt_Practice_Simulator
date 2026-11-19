@@ -113,7 +113,7 @@ func _box(parent: Node3D, name: String, position: Vector3, size: Vector3, materi
 	shape.size = size
 	mesh.mesh = shape
 	mesh.material_override = material
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if not solid:mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	body.add_child(mesh)
 	if solid:
 		var collision := CollisionShape3D.new()

@@ -5,6 +5,7 @@ signal door_motion_finished
 ## anchors only; the host-authoritative dorm service owns assignment and door use.
 
 const Layout = preload("res://scripts/campus/dorms/world/dorm_layout.gd")
+const Fixtures = preload("res://scripts/campus/presentation/fixture_light.gd")
 
 var _unit_box := BoxMesh.new()
 var _unit_cylinder := CylinderMesh.new()
@@ -89,7 +90,6 @@ func _build_corridor() -> void:
 	_solid(self, "HallFloor", Vector3(13.0, -0.12, center_z), Vector3(6.0, 0.24, length), "8c98a9")
 	_mesh(self, "HallCeiling", Vector3(13.0, 4.08, center_z), Vector3(6.0, 0.16, length), "e1dfdd")
 	_solid(self, "NorthEndWall", Vector3(13.0, 2.0, end_z), Vector3(6.0, 4.0, 0.16), "dcdde1")
-	# Warm, instanced ceiling panels; emissive-looking surfaces without per-room lights.
 	var count := maxi(1, ceili(length / 5.5))
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -100,15 +100,17 @@ func _build_corridor() -> void:
 		var center := Vector3(13.0, 3.94, minf(z, end_z - 1.0))
 		mm.set_instance_transform(index, Transform3D(Basis.IDENTITY.scaled(Vector3(1.85, 0.035, 0.52)), center))
 		_mesh(self, "LightHousing", center + Vector3(0, .045, 0), Vector3(1.98, .075, .63), "334755")
-		preload("res://scripts/campus/presentation/fixture_light.gd").down(self,center-Vector3(0,.06,0),.74,6.0)
+		Fixtures.ceiling_omni(self,center,1.45,7.5)
+		Fixtures.ceiling_spill(self,center-Vector3(0,.20,0))
 	var lights := MultiMeshInstance3D.new()
 	lights.name = "CeilingPanels"
 	lights.multimesh = mm
 	var diffuser := _material("fff2de")
 	diffuser.emission_enabled = true
 	diffuser.emission = Color("fff2de")
-	diffuser.emission_energy_multiplier = .38
+	diffuser.emission_energy_multiplier = 1.6
 	lights.material_override = diffuser
+	lights.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(lights)
 
 func _build_room(contract: Dictionary) -> void:
@@ -125,6 +127,13 @@ func _build_room(contract: Dictionary) -> void:
 	var z_max := center.z + Layout.ROOM_DEPTH / 2.0
 	_solid(root, "Floor", center + Vector3(0, -0.12, 0), Vector3(Layout.ROOM_WIDTH, 0.24, Layout.ROOM_DEPTH), "897c6c")
 	_mesh(root, "Ceiling", center + Vector3(0, 4.08, 0), Vector3(Layout.ROOM_WIDTH, 0.16, Layout.ROOM_DEPTH), "e8dfd0")
+	for offset in [-2.55,2.55]:
+		var panel := center + Vector3(0,3.80,offset)
+		_mesh(root,"RoomLightHousing",panel+Vector3.UP*.04,Vector3(1.70,.09,.68),"334755")
+		var diffuser:=_mesh(root,"RoomLightDiffuser",panel-Vector3.UP*.025,Vector3(1.55,.025,.55),"fff2de")
+		diffuser.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		Fixtures.ceiling_omni(root,panel-Vector3.UP*.025,1.18,6.4)
+		Fixtures.ceiling_spill(root,panel-Vector3.UP*.14)
 	_solid(root, "OuterWall", Vector3(outer_x, 2.0, center.z), Vector3(0.16, 4.0, Layout.ROOM_DEPTH), "dcdde1")
 	for z in [z_min, z_max]:
 		_solid(root, "Partition", Vector3(center.x, 2.0, z), Vector3(Layout.ROOM_WIDTH, 4.0, 0.16), "dcdde1")
@@ -232,4 +241,4 @@ func _build_loadout_notes(root: Node3D, anchor: Vector3, west: bool) -> void:
 		paper.rotation.y = -0.18 + 0.09 * index
 
 func metrics() -> Dictionary:
-	return {"capacity": _capacity, "rooms": room_contracts.size(), "doors": door_targets.size(), "shared_materials": _materials.size(), "realtime_lights": 0}
+	return {"capacity": _capacity, "rooms": room_contracts.size(), "doors": door_targets.size(), "shared_materials": _materials.size(), "realtime_lights": find_children("*","Light3D",true,false).size()}

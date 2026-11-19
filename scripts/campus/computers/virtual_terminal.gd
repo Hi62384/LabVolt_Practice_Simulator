@@ -1,7 +1,8 @@
 extends VBoxContainer
 const UI=preload("res://scripts/ui/design_system/widgets.gd")
 var desktop: Control
-var transcript: TextEdit
+var transcript: RichTextLabel
+var lines: Array[String]=[]
 var entry: LineEdit
 var folder := ""
 var history: Array[String]=[]
@@ -11,16 +12,18 @@ func build(parent: Control) -> void:
 	desktop=parent
 	var mono := SystemFont.new()
 	mono.font_names = PackedStringArray(["Consolas", "DejaVu Sans Mono"])
-	transcript=TextEdit.new()
-	transcript.add_theme_font_override("font", mono)
-	transcript.editable=false
-	transcript.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY
+	transcript=RichTextLabel.new()
+	transcript.add_theme_stylebox_override("normal",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("031d2c"),Color("27596b"),10))
+	transcript.add_theme_font_override("normal_font", mono)
+	transcript.selection_enabled=true
+	transcript.scroll_following=true
 	transcript.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	transcript.custom_minimum_size.y=150
 	add_child(transcript)
-	transcript.text="Campus Terminal\nType help for virtual workspace commands."
+	_print("Campus Terminal\nType help for virtual workspace commands.",Color("91b4c6"))
 	entry=LineEdit.new()
 	entry.placeholder_text="Workspace command"
+	entry.right_icon=UI.icon("code")
 	entry.add_theme_font_override("font", mono)
 	entry.caret_blink = true
 	entry.max_length=160
@@ -50,8 +53,9 @@ func _run(raw: String) -> void:
 	history_index=history.size()
 	if verb=="clear":
 		transcript.clear()
+		lines.clear()
 		return
-	_print("campus:/" + folder + "$ " + command)
+	_print("campus:/" + folder + "$ " + command,Color("84e8ad"))
 	match verb:
 		"help":_print("help  clear  pwd  ls  cd  mkdir  touch  cat  echo  open  date")
 		"pwd":_print("/"+folder)
@@ -96,6 +100,12 @@ func _path(value: String) -> String:
 	if value.begins_with("/"):return value.substr(1)
 	return value if folder.is_empty() else folder+"/"+value
 
-func _print(text: String) -> void:
-	transcript.text=(transcript.text+"\n"+text).right(10000)
-	transcript.set_caret_line(transcript.get_line_count()-1)
+func _print(text: String,tint := Color("d9eaf4")) -> void:
+	if lines.size()>=160:
+		lines.pop_front()
+		transcript.remove_paragraph(0)
+	lines.append(text)
+	transcript.push_color(tint)
+	transcript.add_text(text)
+	transcript.pop()
+	transcript.newline()

@@ -4,11 +4,13 @@ extends RefCounted
 var _records: Array[Dictionary] = []
 var _batches: Array[MeshInstance3D] = []
 var _protected: Array = []
+var _architectural_shell := false
 var max_vertices_per_batch := 120000
 var stats := {"source_instances":0,"batch_instances":0,"saved_instances":0,"skipped_interaction_branches":0}
 
-func apply(root: Node3D, protected_nodes: Array = []) -> Dictionary:
+func apply(root: Node3D, protected_nodes: Array = [], architectural_shell := false) -> Dictionary:
 	_protected = protected_nodes
+	_architectural_shell = architectural_shell
 	_visit(root,root)
 	return stats.duplicate()
 
@@ -23,7 +25,7 @@ func _visit(parent: Node3D, root: Node3D) -> void:
 	for child in children:
 		if _eligible(child):
 			var material: StandardMaterial3D = child.get_active_material(0)
-			var key := "%s:%s:%s:%s:%s:%s:%s" % [material.get_instance_id(),child.layers,child.cast_shadow,child.gi_mode,child.visibility_range_begin,child.visibility_range_end,child.ignore_occlusion_culling]
+			var key := "%s:%s:%s:%s:%s:%s:%s:%s:%s" % [material.get_instance_id(),child.layers,child.cast_shadow,child.gi_mode,child.visibility_range_begin,child.visibility_range_end,child.ignore_occlusion_culling,child.visibility_range_begin_margin,child.visibility_range_end_margin]
 			if not groups.has(key):
 				groups[key] = []
 			groups[key].append(child)
@@ -54,13 +56,13 @@ func _eligible(node: Node) -> bool:
 		return false
 	if node.skin != null or (not node.skeleton.is_empty() and node.get_node_or_null(node.skeleton) is Skeleton3D):
 		return false
-	if not node.scale.is_equal_approx(Vector3.ONE):
+	if not _architectural_shell and not node.scale.is_equal_approx(Vector3.ONE):
 		return false
 	if node.material_overlay != null or node.transparency != 0.0 or node.visibility_parent != NodePath(""):
 		return false
 	if node.visibility_range_fade_mode != GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED:
 		return false
-	if node.visibility_range_begin != 0.0 or node.visibility_range_end != 0.0:
+	if not _architectural_shell and (node.visibility_range_begin != 0.0 or node.visibility_range_end != 0.0):
 		return false
 	var material := node.get_active_material(0) as StandardMaterial3D
 	if material == null or material.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or material.grow or material.proximity_fade_enabled or material.distance_fade_mode != BaseMaterial3D.DISTANCE_FADE_DISABLED or material.next_pass != null:
@@ -89,6 +91,8 @@ func _commit(parent: Node3D, nodes: Array) -> void:
 	batch.gi_mode = first.gi_mode
 	batch.visibility_range_begin = first.visibility_range_begin
 	batch.visibility_range_end = first.visibility_range_end
+	batch.visibility_range_begin_margin = first.visibility_range_begin_margin
+	batch.visibility_range_end_margin = first.visibility_range_end_margin
 	batch.ignore_occlusion_culling = first.ignore_occlusion_culling
 	parent.add_child(batch)
 	_batches.append(batch)

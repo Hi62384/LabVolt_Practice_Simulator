@@ -36,8 +36,10 @@ func build() -> void:
 	add_child(streamer)
 	streamer.zone_activation_changed.connect(func(id: String, enabled: bool): zone_activation_changed.emit(id,enabled))
 	_circulation()
+	var static_shells:=preload("res://scripts/campus/performance/static_panel_batch.gd").new()
 	for room in registry.rooms.values():
 		_room(room)
+		static_shells.apply(room_roots[room.id],[],true)
 		_room_lighting(room)
 	_close_hallway_voids()
 	_stairs()
@@ -183,6 +185,8 @@ func _room(room: Dictionary) -> void:
 	anchors[room.id]=marker
 func _window_wall(root: Node3D, x: float, y: float, z: float, length: float, color: String) -> void:
 	var width := minf(2.2, length-.5)
+	var liner_overlap := .018
+	var clear_width := width - liner_overlap * 2.0
 	var edge := (length-width)*.5
 	var face := x + (.09 if x < 13.0 else -.09)
 	box(root,Vector3(face,y+.52,z),Vector3(.018,1.04,length),"4e697e",false)
@@ -197,13 +201,14 @@ func _window_wall(root: Node3D, x: float, y: float, z: float, length: float, col
 	var glass := MeshInstance3D.new()
 	glass.mesh=box_mesh
 	glass.position=Vector3(x,y+1.95,z)
-	glass.scale=Vector3(.035,1.82,width)
+	glass.scale=Vector3(.035,1.746,clear_width-.004)
 	var glass_material := StandardMaterial3D.new()
 	glass_material.albedo_color=Color(.55,.78,.85,.18)
 	glass_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass_material.roughness=.15
 	glass_material.cull_mode=BaseMaterial3D.CULL_DISABLED
 	glass.material_override=glass_material
+	glass.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(glass)
 	var body := StaticBody3D.new()
 	body.position=glass.position
@@ -213,10 +218,12 @@ func _window_wall(root: Node3D, x: float, y: float, z: float, length: float, col
 	collision.shape=shape
 	body.add_child(collision)
 	root.add_child(body)
+	# The inner jamb face must sit inside the opening. A face located
+	# exactly at width/2 is coplanar with the structural wall reveal.
 	for height in [1.04,2.86]:
-		box(root,Vector3(x,y+height,z),Vector3(.22,.07,width+.12),"314757",false)
+		box(root,Vector3(x,y+height,z),Vector3(.32,.07,width+.11),"314757",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for direction in [-1.0,1.0]:
-		box(root,Vector3(x,y+1.95,z+direction*(width+.055)*.5),Vector3(.22,1.75,.055),"314757",false)
+		box(root,Vector3(x,y+1.95,z+direction*(clear_width+.055)*.5),Vector3(.32,1.75,.055),"314757",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 func _add_door(root: Node3D, point: Vector3, width: float, west: bool, id: String) -> void:
 	var door := preload("res://scripts/campus/world/room_door.gd").new()
@@ -323,7 +330,7 @@ func _upper_hall_extension() -> void:
 	for z in [70.5,75.0,79.5,84.0,88.5,93.0]:
 		if z>=end:break
 		box(self,Vector3(13,8.94,z),Vector3(1.68,.04,.45),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		fixtures.ceiling_omni(self,Vector3(13,8.91,z),1.25,6.4,false)
+		fixtures.ceiling_omni(self,Vector3(13,8.91,z),1.25,6.4,false).distance_fade_shadow=9.0
 		fixtures.ceiling_spill(self,Vector3(13,8.76,z))
 
 func _close_hallway_voids() -> void:

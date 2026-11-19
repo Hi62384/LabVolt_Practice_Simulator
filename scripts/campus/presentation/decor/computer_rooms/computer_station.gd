@@ -19,9 +19,11 @@ var screen: MeshInstance3D
 var power_led: MeshInstance3D
 var screen_material: StandardMaterial3D
 var led_material: StandardMaterial3D
+var baked_floor_shadows := false
 
-func configure(id: String) -> void:
+func configure(id: String, use_baked_floor_shadows := false) -> void:
 	station_id=id
+	baked_floor_shadows=use_baked_floor_shadows
 	name=id
 	seat_anchor=_marker("SeatAnchor",Vector3(0,0,.98))
 	interaction_anchor=_marker("InteractionAnchor",Vector3(0,0,1.38))
@@ -37,10 +39,10 @@ func _build() -> void:
 	var desk:=StaticBody3D.new();desk.name="Desk";desk.set_meta("role","table");desk.set_meta("label","Computer desk "+station_id);add_child(desk)
 	var shape:=BoxShape3D.new();shape.size=Vector3(1.7,.08,.86)
 	var hit:=CollisionShape3D.new();hit.shape=shape;hit.position=Vector3(0,.73,0);desk.add_child(hit)
-	_box(desk,Vector3(0,.73,0),shape.size,"wood")
+	_box(desk,Vector3(0,.73,0),shape.size,"wood",true)
 	for x in [-.76,.76]:
-		for z in [-.35,.35]:_box(desk,Vector3(x,.365,z),Vector3(.055,.73,.055),"steel")
-	_box(self,Vector3(0,1.16,-.17),Vector3(.70,.43,.045),"bezel")
+		for z in [-.35,.35]:_box(desk,Vector3(x,.365,z),Vector3(.055,.73,.055),"steel",true)
+	_box(self,Vector3(0,1.16,-.17),Vector3(.70,.43,.045),"bezel",true)
 	var panel := QuadMesh.new()
 	panel.size=Vector2(.657,.370)
 	screen=MeshInstance3D.new()
@@ -85,10 +87,11 @@ func _build() -> void:
 	mouse.rotation.x=PI*.5
 	mouse.scale.z=.40
 	mouse.position=Vector3(.54,.793,.19)
+	mouse.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mouse)
 	mouse.material_override=shared_materials.get("key")
 	_box(self,Vector3(.54,.807,.157),Vector3(.005,.008,.025),"steel")
-	_box(self,Vector3(.50,.91,-.16),Vector3(.22,.27,.32),"dark")
+	_box(self,Vector3(.50,.91,-.16),Vector3(.22,.27,.32),"dark",true)
 	_box(self,Vector3(.50,.91,.004),Vector3(.205,.25,.014),"bezel")
 	_box(self,Vector3(.50,.777,-.16),Vector3(.24,.014,.34),"steel")
 	for i in range(6):
@@ -106,10 +109,10 @@ func _build() -> void:
 	_box(self,Vector3(.446,.776,-.21),Vector3(.009,.009,.20),"rubber")
 	set_display(false)
 	# Chair back stays behind the desk and has no collision trap around the seat.
-	_box(self,Vector3(0,.45,.98),Vector3(.50,.09,.47),"chair")
-	_box(self,Vector3(0,.77,1.23),Vector3(.50,.60,.08),"chair")
-	_box(self,Vector3(0,.24,.98),Vector3(.06,.40,.06),"steel")
-	_box(self,Vector3(0,.035,.98),Vector3(.48,.05,.42),"steel")
+	_box(self,Vector3(0,.45,.98),Vector3(.50,.09,.47),"chair",true)
+	_box(self,Vector3(0,.77,1.23),Vector3(.50,.60,.08),"chair",true)
+	_box(self,Vector3(0,.24,.98),Vector3(.06,.40,.06),"steel",true)
+	_box(self,Vector3(0,.035,.98),Vector3(.48,.05,.42),"steel",true)
 
 func set_display(powered: bool, source: Texture2D = null) -> void:
 	# Graphics filtering may have localized either material since the last power event.
@@ -119,7 +122,7 @@ func set_display(powered: bool, source: Texture2D = null) -> void:
 	screen_material.albedo_color=Color.WHITE if powered and source!=null else Color("050608")
 	led_material.albedo_color=Color("69e6c0") if powered else Color("1a252b")
 
-func _box(parent: Node3D,at: Vector3,size: Vector3,key: String) -> MeshInstance3D:
+func _box(parent: Node3D,at: Vector3,size: Vector3,key: String,casts_shadow := false) -> MeshInstance3D:
 	var mesh_key:=str(size)
 	if not shared_meshes.has(mesh_key):
 		var mesh:=BoxMesh.new();mesh.size=size;shared_meshes[mesh_key]=mesh
@@ -127,5 +130,7 @@ func _box(parent: Node3D,at: Vector3,size: Vector3,key: String) -> MeshInstance3
 		var material:=StandardMaterial3D.new();material.albedo_color=Color(str(PALETTE[key]));material.roughness=.45 if key in ["steel","edge"] else .82;material.metallic=.55 if key in ["steel","edge"] else .04
 		shared_materials[key]=material
 	var part:=MeshInstance3D.new();part.mesh=shared_meshes[mesh_key];part.material_override=shared_materials[key]
-	part.position=at;part.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;parent.add_child(part)
+	part.position=at
+	part.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_ON if casts_shadow and not baked_floor_shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(part)
 	return part

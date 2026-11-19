@@ -69,7 +69,7 @@ static func _add_frame(world: Node3D, x: float, y: float, z: float, half: float)
 	var structural_x: float = 10.0 if x < 13.0 else 16.0
 	for side in [-1.0, 1.0]:
 		world.box(world, Vector3(structural_x, y + 1.49, z + side * (half + 0.033)), Vector3(.285, 2.98, .112), FRAME, false)
-	world.box(world, Vector3(structural_x, y + 3.052, z), Vector3(.285, .145, 2.0 * half + .178), FRAME, false)
+	world.box(world, Vector3(structural_x, y + 2.98 + .145 * .5, z), Vector3(.285, .145, 2.0 * half + .178), FRAME, false)
 
 static func _add_floor_tiles(world: Node3D, floor: int, z0: float, z1: float) -> void:
 	var transforms_a: Array[Transform3D] = []
@@ -115,32 +115,28 @@ static func _add_fixtures(world: Node3D) -> void:
 			world.box(fixture, Vector3.ZERO, Vector3(1.79, .085, .76), FRAME, false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			world.box(fixture, Vector3(0, -.047, 0), Vector3(1.68, .027, .64), "fff0d8", false)
 			var light:=Fixtures.ceiling_omni(fixture, Vector3(0, -.047, 0), 1.65, 6.5)
-			light.set_meta("ultra_shadow_fixture", ((z-first)/5) % 2 == 0)
 			light.distance_fade_enabled=true
 			light.distance_fade_begin=30.0
 			light.distance_fade_length=10.0
-			light.distance_fade_shadow=12.0
+			light.distance_fade_shadow=9.0
 			Fixtures.ceiling_spill(fixture,Vector3(0,-.18,0),Color("ffddbc"))
 			if floor==0 and z in [15,20,30,40]:
 				for side in [-1.0,1.0]:
 					var wash := Fixtures.down(fixture,Vector3(side*1.90,-.22,0),.37,3.4,Vector3(side*.54,-.84,0),53.0,Color("ffe1c1"))
 					wash.set_meta("fixture_quality_min",3)
-			if (floor==0 and z==20) or (floor==1 and z==38):
-				light.set_meta("shadow_fixture",true)
-				light.set_meta("shadow_tier",3)
+					wash.distance_fade_shadow=9.0
 	# The split landing has a floor slab over the east walkway and an open
 	# stairwell on the west. Keep the two sets of fixtures under their own ceilings.
 	for z in [52.5, 57.0, 61.5, 66.0]:
 		var position := Vector3(14.5,4.69,z)
 		world.box(world,position,Vector3(1.35,.055,.48),FRAME,false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		world.box(world,position-Vector3.UP*.04,Vector3(1.24,.025,.38),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var light := Fixtures.ceiling_omni(world,position-Vector3.UP*.06,1.5,6.7)
-		light.set_meta("shadow_fixture",z==57.0 or z==66.0)
+		Fixtures.ceiling_omni(world,position-Vector3.UP*.06,1.5,6.7).distance_fade_shadow=9.0
 		Fixtures.ceiling_spill(world,position-Vector3.UP*.18)
 	for z in [53.5,58.5,63.0]:
 		var position := Vector3(11.5,8.92,z)
 		world.box(world,position,Vector3(1.4,.045,.44),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		Fixtures.ceiling_omni(world,position,1.45,9.0)
+		Fixtures.ceiling_omni(world,position,1.45,9.0).distance_fade_shadow=11.0
 		Fixtures.ceiling_spill(world,position-Vector3.UP*.15)
 
 static func _sconce(world: Node3D, wall_x: float, base_y: float, z: float) -> void:
@@ -149,7 +145,7 @@ static func _sconce(world: Node3D, wall_x: float, base_y: float, z: float) -> vo
 	world.box(world, point, Vector3(.23, .29, .33), FRAME, true)
 	world.box(world, point - Vector3(0, .15, 0), Vector3(.19, .023, .29), "fff0d8", false)
 	Fixtures.down(world, point + Vector3(inward * .095, -.185, 0), .76, 2.85,
-		Vector3(-inward * .32, -.94, 0).normalized(), 54.0)
+		Vector3(-inward * .32, -.94, 0).normalized(), 54.0).distance_fade_shadow=9.0
 
 static func _add_direction_sign(world: Node3D, y: float, z: float, title: String) -> void:
 	for x in [11.86, 14.14]:

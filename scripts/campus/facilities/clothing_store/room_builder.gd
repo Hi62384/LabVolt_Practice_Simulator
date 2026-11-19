@@ -161,12 +161,20 @@ func _shop_target(at: Vector3, size: Vector3, category: String, label: String) -
 	add_child(target)
 
 func _build_lighting() -> void:
+	var fixtures=preload("res://scripts/campus/presentation/fixture_light.gd")
 	for x in [-5.5, 0.0, 5.5]:
 		_box("Track", Vector3(.1, .09, 12.2), Vector3(x, 3.92, .2), Color("302c29"), .42)
 		for z in [-4.5, 1.0, 5.2]:
 			_cylinder("TrackHead", .19, .23, Vector3(x, 3.75, z), Color("453a32"))
-			if x != 0.0 and z == 1.0: continue
-			var light := OmniLight3D.new(); light.name = "WarmTrackLight"; light.position = Vector3(x, 3.65, z); light.omni_range = 5.2; light.light_energy = .62; light.light_color = Color("ffe0ad"); add_child(light)
+			var bulb:=Vector3(x,3.621,z)
+			var diffuser:=_material(Color("ffebcb"),.45).duplicate() as StandardMaterial3D
+			diffuser.emission_enabled=true
+			diffuser.emission=Color("ffebcb")
+			diffuser.emission_energy_multiplier=1.6
+			var lens:=_cylinder("TrackDiffuser",.145,.018,bulb,Color("ffebcb"))
+			lens.material_override=diffuser
+			lens.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			fixtures.down(self,bulb-Vector3.UP*.06,1.10,6.0,Vector3.DOWN,62.0,Color("ffe0ad"))
 
 func _material(color: Color, roughness: float, metallic := 0.0) -> StandardMaterial3D:
 	var key := [color,roughness,metallic]
@@ -182,11 +190,12 @@ func _box(label: String, size: Vector3, at: Vector3, color: Color, roughness := 
 		var shape := CollisionShape3D.new(); var box := BoxShape3D.new(); box.size = size; shape.shape = box; body.add_child(shape); add_child(body)
 	return node
 
-func _cylinder(label: String, radius: float, height: float, at: Vector3, color: Color) -> void:
+func _cylinder(label: String, radius: float, height: float, at: Vector3, color: Color) -> MeshInstance3D:
 	var node := MeshInstance3D.new(); node.name = label; var mesh := CylinderMesh.new(); mesh.top_radius = radius; mesh.bottom_radius = radius; mesh.height = height; mesh.material = _material(color, .55); node.mesh = mesh; node.position = at; add_child(node)
 	if label in ["Plinth","FittingStool"]:
 		var body := StaticBody3D.new(); body.name = label+"Collision"; body.position = at
 		var shape := CollisionShape3D.new(); var cylinder := CylinderShape3D.new(); cylinder.radius = radius; cylinder.height = height; shape.shape = cylinder; body.add_child(shape); add_child(body)
+	return node
 
 func _sphere(label: String, radii: Vector3, at: Vector3, color: Color) -> MeshInstance3D:
 	var node := MeshInstance3D.new()

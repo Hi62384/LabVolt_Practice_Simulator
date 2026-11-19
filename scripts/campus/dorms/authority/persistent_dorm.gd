@@ -270,8 +270,12 @@ static func migrate(profile: Dictionary,identity: String) -> Dictionary:
 	if next.has("dorm"):
 		if not valid(next.dorm,next.get("inventory",{}),next.get("component_instances",{})) or next.dorm.owner!=identity:return fail("Invalid saved dorm; original retained")
 		if not eligible_layout(next,next.dorm.customization):return fail("Invalid saved furnishings; original retained")
-		var changed: bool = not next.dorm.has("supply_counts")
-		if changed:
+		var changed := false
+		var items: Array=next.dorm.customization.items
+		next.dorm.customization.items=items.filter(func(item):return item.kind!="desk_laptop")
+		changed=items.size()!=next.dorm.customization.items.size()
+		if not next.dorm.has("supply_counts"):
+			changed=true
 			next.dorm.supply_counts=supply_counts(next.dorm)
 			next.dorm.erase("owned_tools")
 		if int(next.dorm.supply_counts.get("notebook",0))>1:
@@ -303,7 +307,9 @@ static func migrate(profile: Dictionary,identity: String) -> Dictionary:
 static func starter_layout() -> Dictionary:
 	var coordinates := {"bed":Vector2(-1.95,-3.55),"bedside":Vector2(-1,-4.2),"wardrobe":Vector2(-2.3,3.65),"study_desk":Vector2(1.65,-2.25),"study_chair":Vector2(1.65,-.95),"desk_laptop":Vector2(1.65,-2.55),"storage_cabinet":Vector2(1.65,3.6),"shelf":Vector2(1.65,4.65),"rug":Vector2(0,.4),"plant":Vector2(.35,4.75),"bedside_lamp":Vector2(-1,-4.2),"desk_lamp":Vector2(.8,-2.65)}
 	var items := []
-	for id in DEFAULTS:items.append({"id":id,"kind":id,"x":coordinates[id].x,"z":coordinates[id].y,"rotation":0})
+	for id in DEFAULTS:
+		if id=="desk_laptop":continue
+		items.append({"id":id,"kind":id,"x":coordinates[id].x,"z":coordinates[id].y,"rotation":0})
 	return {"items":items,"styles":{}}
 static func may_enter(d: Dictionary,owner: String,visitor: String) -> bool:
 	return identity_ok(visitor) and (visitor==owner or d.get("policy")=="Open" or (d.get("policy")=="Invited" and visitor in d.get("invited",[])))
@@ -499,6 +505,7 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 			else:d.storage[type]=amount
 		"edit":
 			if not intent.get("edit") is Dictionary:return fail("Invalid edit")
+			if str(intent.edit.get("id",""))=="desk_laptop":return fail("Dorm study computers have been removed")
 			var eligible := func(candidate: Dictionary,state: Dictionary) -> bool:return eligible_edit(next,candidate,state)
 			var edited: Dictionary=Edits.apply(d.customization,intent.edit,"west",eligible)
 			if not edited.ok:return fail(str(edited.error))
@@ -541,7 +548,9 @@ static func public_room(profile: Dictionary) -> Dictionary:
 	var d: Dictionary=profile.get("dorm",{})
 	var safe := {"items":[],"styles":{}}
 	var customization: Dictionary=d.get("customization",{})
-	if valid_customization(customization):safe=customization.duplicate(true)
+	if valid_customization(customization):
+		safe=customization.duplicate(true)
+		safe.items=safe.items.filter(func(item):return item.kind!="desk_laptop")
 	return {"room_id":d.get("room_id",""),"number":d.get("number",""),"policy":d.get("policy","Private"),"customization":safe}
 static func fail(message: String) -> Dictionary:return {"ok":false,"error":message}
 

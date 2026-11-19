@@ -105,7 +105,7 @@ func _process(delta: float) -> void:
 		movement.value = progress
 		return
 	if phase!=1:return
-	progress=maxf(0.0,progress-delta*drain_rate);movement.value=progress
+	progress=preload("res://scripts/campus/facilities/gym_progress.gd").drain_lift(progress,drain_rate,delta);movement.value=progress
 	motion_changed.emit(progress)
 	if progress<=0.0:
 		# The bottom is a stable resting position for another attempt.

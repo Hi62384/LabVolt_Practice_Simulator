@@ -20,7 +20,7 @@ var operation_window: PanelContainer
 var cabinet_layer: CanvasLayer
 var cabinet_scroll: ScrollContainer
 var cabinet_revision := -1
-var computer_stations := {}
+var study_chairs := {}
 var observed_local_room := ""
 var interiors := {}
 var interior_versions := {}
@@ -140,7 +140,7 @@ func _reconcile() -> void:
 	_publish()
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
-	_bind_computers()
+	_bind_study_chairs()
 	if is_instance_valid(operation_window) and operation_window.visible:
 		var revision := int(game.electronics.profile.data.get("dorm",{}).get("revision",-1))
 		if revision!=cabinet_revision:
@@ -409,47 +409,31 @@ func _commit_world_inventory(peer: int, identity: String, updated: Dictionary, d
 			return {"ok":false,"error":"Could not save supply transfer"}
 	return {"ok":true}
 
-func _bind_computers() -> void:
-	if not is_instance_valid(game.get("computers")):return
+func _bind_study_chairs() -> void:
 	for contract in hall.room_contracts:
 		var bay: String=contract.dorm_id
-		var station := "personal_"+bay
-		if not computer_stations.has(bay):
+		if not study_chairs.has(bay):
 			var outward := -1.0 if contract.side=="west" else 1.0
 			var point: Vector3=contract.center+Vector3(-outward*1.65,0,-.95)
-			var chair: int=game.chairs.size();game._add_chair(point)
-			game.chairs[chair].fixed_seat=true
-			game.chairs[chair].set_physics_process(false)
-			_hide_chair_visuals(game.chairs[chair])
-			# The streamed furnishing owns the visible chair's collision and prompt.
-			game.chairs[chair].collision_layer=0
-			for child in game.chairs[chair].get_children():
+			var index: int=game.chairs.size()
+			game._add_chair(point)
+			var seat: Node3D=game.chairs[index]
+			seat.fixed_seat=true
+			seat.set_meta("dorm_study_bay",bay)
+			seat.set_physics_process(false)
+			_hide_chair_visuals(seat)
+			seat.collision_layer=0
+			for child in seat.get_children():
 				if child is StaticBody3D:child.collision_layer=0
-			if not game.computers.register_station(station,chair,point+Vector3(0,0,-1.6)):continue
-			computer_stations[bay]=station
+			study_chairs[bay]=index
 		var room := str(leases.get(bay,""))
-		var owner := ""
-		if interiors.has(room):
-			var furnished: Node3D=interiors[room].room
-			var has_seat: bool=furnished.targets.has("study_chair") and furnished.targets.study_chair.visible
-			if has_seat and furnished.targets.has("computer") and furnished.targets.computer.visible:
-				owner=owner_identity(room)
-				game.computers.stations[station].anchor=furnished.targets.computer.global_position
-			if has_seat:
-				var index: int=game.computers.stations[station].chair
-				var anchor: Vector3=furnished.targets.study_chair.global_position-Vector3(0,.55,0)
-				if game.chairs[index].occupant==0 and game.chairs[index].global_position!=anchor:
-					game.chairs[index].global_position=anchor
-				game.chairs[index].fixed_yaw=furnished.targets.study_chair.global_rotation.y
-		game.computers.set_private_owner(station,owner)
-
-func request_personal_computer(room: String) -> bool:
-	var identity := authenticated_identity(multiplayer.get_unique_id())
-	if not is_owner(identity,room):return false
-	var bay := _bay_for(room)
-	if not computer_stations.has(bay):return false
-	game.computers.request({"op":"enter","station":computer_stations[bay]})
-	return true
+		if not interiors.has(room):continue
+		var target: Node3D=interiors[room].room.targets.get("study_chair")
+		if not is_instance_valid(target) or not target.visible:continue
+		var seat: Node3D=game.chairs[study_chairs[bay]]
+		var anchor := target.global_position-Vector3(0,.55,0)
+		if seat.occupant==0 and seat.global_position!=anchor:seat.global_position=anchor
+		seat.fixed_yaw=target.global_rotation.y
 
 func _sync_interiors(data: Dictionary) -> void:
 	var active: Array=data.get("occupants",{}).values()
@@ -480,7 +464,7 @@ func _sync_interiors(data: Dictionary) -> void:
 			if physical.dorm_id!=entry.bay:continue
 			var contract: Dictionary=physical.duplicate(true);contract.dorm_id=room
 			var adapter=preload("res://scripts/campus/dorms/integration/room_adapter.gd").new();add_child(adapter)
-			adapter.configure(game,self,game.get("computers"))
+			adapter.configure(game,self)
 			var rest := func(_transform: Transform3D):
 				if is_instance_valid(game.get("dorm_rest")):game.dorm_rest.request(room)
 			var chair := func(_transform: Transform3D):_request_desk_chair(room)
@@ -712,7 +696,9 @@ func _open_decorate(room: String) -> void:
 	var layer := CanvasLayer.new();add_child(layer)
 	decorate=preload("res://scripts/campus/dorms/customization/decorate_panel.gd").new();layer.add_child(decorate);decorate_room=room
 	var options: Array[Dictionary]=[]
-	for id in Dorm.DEFAULTS:options.append({"id":id,"kind":id,"name":id.replace("_"," ")})
+	for id in Dorm.DEFAULTS:
+		if id=="desk_laptop":continue
+		options.append({"id":id,"kind":id,"name":id.replace("_"," ")})
 	var profile: Dictionary=game.electronics.profile.data
 	for type in profile.inventory:
 		if int(profile.inventory[type])>0:options.append({"id":"display:"+str(type),"kind":"display","name":"Display "+str(type)})
@@ -756,7 +742,7 @@ func _unregister_bed(room: String) -> void:
 		game.dorm_rest.state.exit_aisles.erase(room)
 func _request_desk_chair(room: String) -> void:
 	var bay := _bay_for(room)
-	if computer_stations.has(bay) and is_owner(authenticated_identity(multiplayer.get_unique_id()),room):game._request_chair(int(game.computers.stations[computer_stations[bay]].chair))
+	if study_chairs.has(bay) and is_owner(authenticated_identity(multiplayer.get_unique_id()),room):game._request_chair(int(study_chairs[bay]))
 func _hide_chair_visuals(node: Node) -> void:
 	for child in node.get_children():
 		if child is VisualInstance3D:child.hide()

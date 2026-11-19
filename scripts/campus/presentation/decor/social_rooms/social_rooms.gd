@@ -67,7 +67,7 @@ func build_room(id: String, registry: Object, campus: Node3D) -> bool:
 		var contacts: Array[Transform3D]=[]
 		for group in profile.groups:
 			if group.mesh not in ["dining_table__oak","chair__sage"]:continue
-			var width := 1.2 if group.mesh=="dining_table__oak" else .8
+			var width := 1.65 if group.mesh=="dining_table__oak" else 1.0
 			for item in group.items:
 				var basis := Basis(Vector3.UP,deg_to_rad(float(item[3]))).scaled(Vector3(width,1,width*.82))
 				contacts.append(Transform3D(basis,Vector3(item[0],.022,item[2])))

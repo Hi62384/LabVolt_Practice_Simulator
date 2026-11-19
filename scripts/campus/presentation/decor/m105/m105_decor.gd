@@ -24,7 +24,6 @@ func mount(campus: Node3D) -> bool:
 		mat.roughness=float(spec[1]);mat.metallic=float(spec[2])
 		var visual:=MeshInstance3D.new()
 		visual.mesh=mesh;visual.material_override=mat
-		visual.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		stage.add_child(visual)
 	var furniture := StaticBody3D.new()
 	furniture.name = "PerimeterFurniture"
@@ -73,7 +72,7 @@ func _add_hit(body: StaticBody3D, at: Vector3, size: Vector3) -> void:
 
 func _add_box(parent: Node3D, at: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
 	var visual:=MeshInstance3D.new();var mesh:=BoxMesh.new();mesh.size=size;visual.mesh=mesh;visual.material_override=material;visual.position=at
-	visual.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;parent.add_child(visual);return visual
+	parent.add_child(visual);return visual
 
 func _point(values: Array) -> Vector3:
 	return Vector3(float(values[0]), float(values[1]), float(values[2]))

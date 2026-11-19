@@ -26,11 +26,7 @@ static func issue_for_course(course_id: String, provider: Object, seed_value: in
 	var data := str(project.get("data",""))
 	if not mathematics and (steps.is_empty() or data.is_empty() or str(project.get("theory","")).is_empty()):return {"error":"Generated practice lacks required teaching content."}
 	project=project.duplicate(true)
-	project.title="Practice · "+str(project.get("title",course_id))
-	project.practice_scope="ungraded"
-	project.practice=true
-	project.is_exam=false;project.assessment_type="practice";project.grade_weight=null
-	project.assessment_policy={"practice_never_official":true,"gradebook_owner":"none","assessment_seconds":0}
+	_mark_practice(project,course_id)
 	if mathematics:
 		project.learning_objective="Study the generated unit and explain your solution method."
 		project.verification="Use optional practice feedback; this worksheet does not count toward a course mark."
@@ -52,3 +48,21 @@ static func issue_for_course(course_id: String, provider: Object, seed_value: in
 		project.observations="Record measured voltage/current and compare signed values, units and expected tolerances with your prediction."
 		project.verification="Use the generated question targets and the simulator's actual connected instrument readings; explain any difference."
 	return project
+
+static func issue_for_lecture(course_id: String,week: int,difficulty: int,provider: Object,seed_value: int) -> Dictionary:
+	if difficulty not in range(5) or week<1 or week>provider.weeks(course_id,"lecture").size():
+		return {"error":"Choose an available lecture week and difficulty."}
+	var project: Dictionary=provider.generate(course_id,week,"lecture",difficulty,seed_value)
+	if project.has("error") or project.get("questions",[]).is_empty() or project.get("course_id")!=course_id or project.get("kind")!="lecture":
+		return {"error":"No practice sheet is available for that lecture."}
+	project=project.duplicate(true)
+	_mark_practice(project,course_id)
+	project.verification="Use optional practice feedback. This worksheet does not count toward a course mark."
+	return project
+
+static func _mark_practice(project: Dictionary,course_id: String) -> void:
+	project.title="Practice · "+str(project.get("title",course_id))
+	project.practice_scope="ungraded"
+	project.practice=true
+	project.is_exam=false;project.assessment_type="practice";project.grade_weight=null
+	project.assessment_policy={"practice_never_official":true,"gradebook_owner":"none","assessment_seconds":0}

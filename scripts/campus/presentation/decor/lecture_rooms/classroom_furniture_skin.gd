@@ -24,6 +24,7 @@ static func dress_desk(desk: StaticBody3D) -> bool:
 			_box(visual,Vector3(x,-.385,z),Vector3(.05,.74,.05),STEEL)
 	for child in desk.get_children():
 		if child!=visual and child is MeshInstance3D:child.hide()
+	preload("res://scripts/campus/performance/static_panel_batch.gd").new().apply(visual)
 	return true
 
 static func _box(parent: Node3D,at: Vector3,size: Vector3,color: Color) -> void:
@@ -31,4 +32,4 @@ static func _box(parent: Node3D,at: Vector3,size: Vector3,color: Color) -> void:
 	if not mats.has(key):
 		var material:=StandardMaterial3D.new();material.albedo_color=color;material.roughness=.83;mats[key]=material
 	var mesh:=BoxMesh.new();mesh.size=size
-	var inst:=MeshInstance3D.new();inst.mesh=mesh;inst.position=at;inst.material_override=mats[key];inst.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;parent.add_child(inst)
+	var inst:=MeshInstance3D.new();inst.mesh=mesh;inst.position=at;inst.material_override=mats[key];parent.add_child(inst)

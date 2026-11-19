@@ -1,7 +1,8 @@
-[gd_scene load_steps=6 format=3 uid="uid://dehdqgg32g3ds"]
+[gd_scene load_steps=7 format=3 uid="uid://dehdqgg32g3ds"]
 
 [ext_resource type="Script" uid="uid://bg1xj88qdmodb" path="res://scripts/game.gd" id="1_main"]
 [ext_resource type="Texture2D" uid="uid://c15itb2oiego1" path="res://assets/campus/lighting/campus_daylight_2k.hdr" id="2_rvslj"]
+[ext_resource type="Script" uid="uid://bannwxain6fyg" path="res://scripts/campus/presentation/lighting/campus_visual_settings.gd" id="3_visuals"]
 
 [sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_0bbpv"]
 panorama = ExtResource("2_rvslj")
@@ -13,28 +14,41 @@ sky_material = SubResource("PanoramaSkyMaterial_0bbpv")
 resource_local_to_scene = true
 background_mode = 2
 sky = SubResource("Sky_rvslj")
-ambient_light_sky_contribution = 0.0
-ambient_light_source = 2
-ambient_light_color = Color(0.78, 0.83, 0.92, 1)
-ambient_light_energy = 0.24
 ssr_enabled = true
+ssr_fade_out = 1.0
 ssao_enabled = true
+ssao_radius = 1.5
+ssao_intensity = 8.0
+ssao_light_affect = 0.25
 ssil_enabled = true
+sdfgi_enabled = true
 sdfgi_use_occlusion = true
-sdfgi_read_sky_light = false
-sdfgi_bounce_feedback = 0.55
+sdfgi_cascades = 8
+sdfgi_min_cell_size = 0.0125
 glow_enabled = true
 glow_normalized = true
+glow_intensity = 0.5
 glow_mix = 0.626
 glow_bloom = 0.05
 glow_blend_mode = 1
 glow_hdr_scale = 0.0
-volumetric_fog_density = 0.2165
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.003
+volumetric_fog_length = 1024.0
+volumetric_fog_detail_spread = 6.0
+volumetric_fog_ambient_inject = 16.0
 adjustment_enabled = true
-adjustment_saturation = 1.25
+adjustment_saturation = 1.4
 
 [node name="LabVoltTraining" type="Node3D"]
 script = ExtResource("1_main")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_0bbpv")
+
+[node name="CampusVisualSettings" type="Node" parent="."]
+script = ExtResource("3_visuals")
+sun_energy = 3.0
+shadow_softness = 0.3
+baked_light_strength = 2.0
+use_scene_environment_effects = true

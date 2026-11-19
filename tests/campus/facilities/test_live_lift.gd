@@ -85,8 +85,47 @@ func run() -> void:
 	host.cable_extra_mass=func(_station):return 6.25
 	assert(host.act(1,request).ok and is_equal_approx(host.active[1].weight,70 * 0.45359237 + 6.25) and host.active[1].selector_weight==70)
 	assert(not host.set_cable_weight(1,"gym/cable_0",40).ok)
+	_check_drop_set()
 	print("LIVE_LIFT PASS")
 	quit()
+
+func _check_drop_set() -> void:
+	saved=Host.empty_profile()
+	saved.gym=Host.GymProgress.empty()
+	var host := Host.new()
+	host.live_lifts=true
+	host.authority=func():return true
+	host.clock=func():return now
+	host.context=func(_peer):return {"identity":"student","position":Vector3.ZERO,"room_id":"gym","allowed":true,"grounded":true}
+	host.load_profile=func(_identity):return saved
+	host.commit_profile=func(_identity,_dollars,value):saved=value.duplicate(true);return true
+	host.dumbbell_mass=func(_peer):return load_kg
+	var fresh: float=Host.GymProgress.capacity(saved.gym,"curl")
+	load_kg=fresh*.99
+	assert(_start_curl(host).ok)
+	assert(_action(host,"effort").ok)
+	var live: Dictionary=host.profile({"identity":"student"}).gym
+	assert(live.muscles.values().any(func(muscle):return muscle.fatigue>0.0 and muscle.stimulus>0.0))
+	var peak := 0.0
+	for press in 60:
+		if host.active[1].type!="exercise":break
+		assert(_action(host,"effort").ok)
+		if host.active[1].type=="exercise":
+			peak=maxf(peak,float(host.active[1].lift_progress))
+			assert(host.active[1].reps==0)
+	assert(peak>.3 and peak<.85)
+	assert(saved.gym.history.back().outcome=="failure")
+	_finish_exit(host)
+	load_kg=fresh*.82
+	assert(_start_curl(host).ok)
+	assert(float(host.active[1].lift_settings.z)>.82)
+	var reduced_capacity: float=Host.GymProgress.capacity(saved.gym,"curl")
+	assert(_action(host,"effort").ok)
+	assert(Host.GymProgress.capacity(host.profile({"identity":"student"}).gym,"curl")<reduced_capacity)
+
+func _start_curl(host: RefCounted) -> Dictionary:
+	now+=100
+	return host.act(1,{"op":"start","station":"gym/dumbbell","exercise":"curl","sequence":int(saved.last_sequence)+1})
 
 func _action(host: RefCounted, op: String) -> Dictionary:
 	now += 100

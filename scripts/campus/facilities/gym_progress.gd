@@ -153,6 +153,23 @@ static func rep(state: Dictionary,exercise: String,kg: float,body_kg: float=70.0
   muscle.stimulus=clampf(float(muscle.stimulus)+(.001+.012*relative*relative)*impact*(1.0-float(muscle.stimulus)),0.0,1.0)
  return {"failure":false,"capacity":available,"load":required}
 
+static func effort(state: Dictionary,exercise: String,ratio: float,travel: float) -> void:
+ var effort_scale:=clampf((2.0-ratio)/.65,0.0,1.0)
+ if effort_scale<=0.0:return
+ var intensity:=clampf(ratio,0.0,1.0)
+ for name in exercise_data()[exercise].muscles:
+  if not state.muscles.has(name):state.muscles[name]={"fatigue":0.0,"strength":0.0,"size":0.0,"stimulus":0.0,"delay":0.0}
+  var muscle: Dictionary=state.muscles[name]
+  var dose: float=exercise_data()[exercise].muscles[name]*effort_scale*(.025+travel)
+  muscle.delay=1.0
+  muscle.fatigue=clampf(float(muscle.fatigue)+dose*(.010+.035*intensity),0.0,1.0)
+  muscle.stimulus=clampf(float(muscle.stimulus)+dose*(.0007+.009*intensity*intensity)*(1.0-float(muscle.stimulus)),0.0,1.0)
+
+static func drain_lift(progress: float,rate: float,seconds: float) -> float:
+ # Integrate dp/dt = -rate * (1 + 5*p²), independent of tick rate.
+ const CURVE_ROOT := 2.2360679775
+ return maxf(0.0,tan(maxf(0.0,atan(progress*CURVE_ROOT)-rate*CURVE_ROOT*seconds))/CURVE_ROOT)
+
 static func lift_parameters(available: float, required: float) -> Vector3:
  var ratio := required / maxf(available, .001)
  var strain := clampf(ratio, 0.0, 1.0)

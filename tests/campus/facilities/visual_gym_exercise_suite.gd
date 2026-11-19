@@ -53,6 +53,13 @@ func run() -> void:
 	_add_cases(cases,"gym/benchpress",Rules.BENCH_DUMBBELL_EXERCISES,"dumbbell")
 	_add_cases(cases,"gym/seated_bench_1",Rules.SEATED_DUMBBELL_EXERCISES,"dumbbell")
 	_add_cases(cases,"gym/seated_bench_2",Rules.SEATED_BARBELL_EXERCISES,"barbell")
+	_add_cases(cases,"gym/dumbbell/1",Rules.DUMBBELL_EXERCISES,"dumbbell")
+	_add_cases(cases,"gym/barbell/1",Rules.BARBELL_EXERCISES,"barbell")
+	_add_cases(cases,"gym/squat",Rules.STATION_EXERCISES.squat)
+	for id in rules.anchors:
+		if rules.anchors[id].kind=="cable":
+			_add_cases(cases,id,Rules.CABLE_EXERCISES)
+			break
 	var first_camera: Camera3D=game.camera
 	var weight_view: Node3D=game.gym_weights._pair_model(20.0)
 	first_camera.add_child(weight_view)
@@ -64,7 +71,7 @@ func run() -> void:
 	game.gym_weights.set_process(false)
 	game.gym_barbells.set_process(false)
 	for movement in cases:
-		var anchor: Dictionary=rules.anchors[movement.station]
+		var anchor: Dictionary=rules.anchors.get(movement.station,{"position":Vector3(0,0,33)})
 		var event := {"activity":"exercise","exercise":movement.exercise,"station":movement.station,"phase":.30,"half_ms":750,"weight":20.0}
 		for field in ["mat_position","bench_position"]:
 			if anchor.has(field):event[field]=anchor[field]
@@ -80,14 +87,20 @@ func run() -> void:
 		fixtures.controller.room_event.emit(1,event)
 		weight_view.visible=movement.equipment=="dumbbell"
 		bar_view.visible=movement.equipment=="barbell"
+		var bench: Node3D=fixtures.rooms.gym.adjustable_benches.get(movement.station)
 		for i in 20:
 			pose._process(.05)
-			if movement.station=="gym/benchpress":fixtures.rooms.gym.gym_bench._process(.05)
+			if is_instance_valid(bench):bench._process(.05)
 			game.campus_services.gym_motion._process(.05)
 			bridge._update_workout(.05)
-		var name: String=movement.station.replace("gym/","")+"-"+movement.exercise+"-"+movement.equipment
+		var name: String=movement.station.trim_prefix("gym/").replace("/","-")+"-"+movement.exercise+"-"+movement.equipment
 		avatar.hide()
 		first_camera.make_current()
+		if movement.equipment=="dumbbell":
+			for weight in weight_view.get_children():
+				assert(first_camera.is_position_in_frustum(weight.global_position),name+" dumbbell is outside the view")
+		if movement.equipment=="barbell" and movement.exercise not in ["squat","good_morning"]:
+			assert(first_camera.is_position_in_frustum(bar_view.global_position),name+" barbell is outside the view")
 		if movement.exercise in ["pushup","pike_pushup","pullup","dip","benchpress","incline_press"]:
 			# Hands should remain on the same screen side as their shoulder.
 			for arm in bridge.workout_arms:

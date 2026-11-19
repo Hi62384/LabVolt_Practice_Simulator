@@ -329,6 +329,14 @@ func _ready() -> void:
 	client_preferences.load_settings(self)
 	client_preferences.apply_all()
 	menu_campus.show_menu()
+	if not get_meta("exporting_campus_lightmaps", false):
+		var campus_bake := preload("res://scripts/campus/presentation/lighting/campus_lightmaps.gd").new()
+		campus_bake.name = "CampusBakedLighting"
+		add_child(campus_bake)
+		campus_bake.install(campus, ui.graphics_controller)
+		var visuals := get_node_or_null("CampusVisualSettings")
+		if visuals != null:
+			visuals.watch_saved_scene()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 ## Call once after campus registry/world composition; graphics_settings.attach accepts this adapter.
@@ -900,7 +908,7 @@ func _physics_process(delta: float) -> void:
 		held_hint.text="%s: place laptop on a flat surface" % OS.get_keycode_string(player.keys.place_item)
 	elif is_instance_valid(ac_laptops) and ac_laptops._held("cables")>=0:
 		held_hint.text="Click laptop USB, then DAQ Computer I/O  •  Return cable to cabinet"
-	elif school.held(multiplayer.get_unique_id())!=0 or kit_world.held() or dc_lab.held_board()>=0 or not hotbar.selected_food().is_empty():
+	elif (is_instance_valid(school) and school.held(multiplayer.get_unique_id())!=0) or kit_world.held() or dc_lab.held_board()>=0 or not hotbar.selected_food().is_empty():
 		var drop_hint := "%s: place on a flat surface" % OS.get_keycode_string(player.keys.place_item)
 		if held_hint.text.is_empty():held_hint.text=drop_hint
 		elif not "place" in held_hint.text.to_lower():held_hint.text+="  •  "+drop_hint
@@ -976,7 +984,7 @@ func _physics_process(delta: float) -> void:
 				hint="Right click: disconnect lead"
 		elif role in ["dorm_room_prop","dorm_decorate"]:
 			var prop := str(current_target.get_meta("kind",""))
-			var name := str({"storage":"Drawer","study_chair":"Study chair","computer":"Study computer","bed":"Bed","wardrobe":"Wardrobe","bedside_lamp":"Bedside lamp","desk_lamp":"Desk lamp"}.get(prop,current_target.get_meta("label","")))
+			var name := str({"storage":"Drawer","study_chair":"Study chair","bed":"Bed","wardrobe":"Wardrobe","bedside_lamp":"Bedside lamp","desk_lamp":"Desk lamp"}.get(prop,current_target.get_meta("label","")))
 			hint="%s - %s" % [key_name,name]
 		elif role=="clothing_shop":
 			hint="%s - %s" % [key_name,str(current_target.get_meta("label","Clothing rack"))]
@@ -1556,6 +1564,8 @@ func _claim_chair(peer: int,index: int) -> void:
 	var actor_position: Vector3 = player.global_position if peer==multiplayer.get_unique_id() else session.poses.get(peer,{}).get("position",Vector3.INF)
 	if chair.occupant!=0 or actor_position.distance_to(chair.global_position)>3:
 		return
+	var dorm_bay := str(chair.get_meta("dorm_study_bay",""))
+	if not dorm_bay.is_empty() and not dorm_interactions.is_owner(dorm_interactions.authenticated_identity(peer),str(dorm_interactions.leases.get(dorm_bay,""))):return
 	if is_instance_valid(computers):
 		for station in computers.stations.values():
 			if station.chair==index and not computers._private_allowed(peer,station):return

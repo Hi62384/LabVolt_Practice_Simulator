@@ -54,7 +54,7 @@ var workspace: Control
 var windows := {}
 var clock_label: Label
 var desktop_status: Label
-var app_names := ["Files","Text editor","Course work","Calculator","Browser","Code editor","Terminal","Settings","Recycle Bin"]
+var app_names := ["Files","Text editor","Calculator","Browser","Code editor","Terminal","Settings","Recycle Bin"]
 var pinned_apps := ["Files","Browser"]
 var selected_shortcut := ""
 var shortcuts_by_name := {}
@@ -66,7 +66,7 @@ var wallpaper_panel: TextureRect
 var style_choice := 0
 var pending_open_path := ""
 const Icon = preload("res://scripts/ui/design_system/widgets.gd")
-const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Course work":"course","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Recycle Bin":"trash"}
+const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Recycle Bin":"trash"}
 
 func build(source: Node, owner_game: Node = null) -> void:
 	session = source
@@ -95,7 +95,12 @@ func build(source: Node, owner_game: Node = null) -> void:
 	if session.has_signal("power_changed"):session.power_changed.connect(_clear_powered_off)
 	_build_shell()
 
-func _build_shell() -> void:
+func build_monitor_preview() -> void:
+	theme=preload("res://scripts/ui/design_system/theme.gd").create()
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_build_shell(true)
+
+func _build_shell(preview := false) -> void:
 	var backdrop := TextureRect.new()
 	wallpaper_panel=backdrop
 	var pixel := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
@@ -223,12 +228,13 @@ void fragment() {
 	clock_label.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
 	clock_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	taskbar.add_child(clock_label)
+	_update_clock()
+	if preview:return
 	var clock_tick := Timer.new()
 	clock_tick.wait_time=1.0
 	clock_tick.autostart=true
 	clock_tick.timeout.connect(_update_clock)
 	add_child(clock_tick)
-	_update_clock()
 	start_panel = PanelContainer.new()
 	start_panel.hide()
 	start_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
@@ -305,10 +311,10 @@ void fragment() {
 	laptop_display_filter.material = filter_material
 	laptop_display_filter.visible = false
 	add_child(laptop_display_filter)
-	_switch_app("Files")
+	status_label=desktop_status
 
 func _desktop_app_icon(name: String) -> Texture2D:
-	var tile_colors := {"Files":"1c6197", "Text editor":"1379b9", "Course work":"6550bf",
+	var tile_colors := {"Files":"1c6197", "Text editor":"1379b9",
 		"Calculator":"247794", "Browser":"0986cf", "Code editor":"3c459e",
 		"Terminal":"365367", "Settings":"5279a0", "Recycle Bin":"079482"}
 	var tile := Image.new()
@@ -343,17 +349,30 @@ func _create_window(key: String,name: String) -> Dictionary:
 	window.set_meta("desktop_app",key)
 	window.clip_contents=true
 	var frame := StyleBoxFlat.new()
-	frame.bg_color=Color("082b3def")
-	frame.border_color=Color("2cbbce")
+	frame.bg_color=Color("052536fa")
+	frame.border_color=Color("34d9e3")
 	frame.anti_aliasing = true
 	frame.set_border_width_all(1)
 	frame.set_corner_radius_all(16)
 	frame.set_content_margin_all(10)
-	frame.shadow_color=Color("00000066")
+	frame.shadow_color=Color("0ab4c64a")
 	frame.shadow_size=12
 	window.add_theme_stylebox_override("panel",frame)
 	window.theme = _application_theme()
+	window.add_theme_constant_override("separation",5)
 	workspace.add_child(window)
+	if window_sheen==null:
+		var gradient:=Gradient.new()
+		gradient.offsets=PackedFloat32Array([0.0,.16,.7,1.0])
+		gradient.colors=PackedColorArray([Color("20a6be42"),Color("0a344608"),Color("0a344600"),Color("16bdd329")])
+		window_sheen=GradientTexture2D.new()
+		window_sheen.gradient=gradient
+		window_sheen.fill_to=Vector2(0,1)
+	var sheen:=TextureRect.new()
+	sheen.texture=window_sheen
+	sheen.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+	sheen.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	window.add_child(sheen)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation",7)
 	window.add_child(column)
@@ -379,7 +398,7 @@ func _create_window(key: String,name: String) -> Dictionary:
 		control.text=spec[0]
 		control.tooltip_text=spec[1]
 		control.accessibility_name=spec[1]
-		control.custom_minimum_size=Vector2(34,26)
+		control.custom_minimum_size=Vector2(31,23)
 		control.pressed.connect(spec[2])
 		bar.add_child(control)
 	var area := VBoxContainer.new()
@@ -389,7 +408,7 @@ func _create_window(key: String,name: String) -> Dictionary:
 	message.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	message.add_theme_font_size_override("font_size",12)
 	column.add_child(message)
-	var base := Vector2(830,575) if name in ["Files","Text editor","Code editor","Browser","Course work","Terminal","Recycle Bin"] else Vector2(338,460)
+	var base := Vector2(830,575) if name in ["Files","Text editor","Code editor","Browser","Terminal","Recycle Bin","Settings"] else Vector2(338,460)
 	var offset := float(windows.size()%5)*24.0
 	window.position=Vector2(maxf(155.0,workspace.size.x-base.x-12) if name=="Calculator" else 210+offset,12+offset)
 	var state := {"shell":window,"title":title,"content":area,"status":message,"app":name,"built":false,"maximized":false,"rect":Rect2(window.position,base),"restore":Rect2(window.position,base)}
@@ -398,19 +417,39 @@ func _create_window(key: String,name: String) -> Dictionary:
 	return state
 
 var application_theme: Theme
+var window_sheen: GradientTexture2D
 
 func _application_theme() -> Theme:
 	if application_theme != null: return application_theme
 	application_theme = theme.duplicate()
 	var tokens = preload("res://scripts/ui/design_system/tokens.gd")
 	for style in [["normal","104054","28677b"],["hover","1a5365","46bdd0"],["pressed","116578","55d8df"],["disabled","102d40","244251"]]:
-		application_theme.set_stylebox(style[0], "Button", tokens.surface(Color(style[1]), Color(style[2]), 9))
+		var button_skin: StyleBoxFlat=tokens.surface(Color(style[1]),Color(style[2]),9)
+		button_skin.content_margin_top=4
+		button_skin.content_margin_bottom=4
+		button_skin.content_margin_left=8
+		button_skin.content_margin_right=8
+		application_theme.set_stylebox(style[0],"Button",button_skin)
+		var active_skin: StyleBoxFlat=button_skin.duplicate()
+		if style[0]!="disabled":
+			active_skin.bg_color=Color("075563") if style[0]=="normal" else Color("087583")
+			active_skin.border_color=Color("29c9d2")
+		application_theme.set_stylebox(style[0],"PrimaryButton",active_skin)
+	for style in ["tab_selected","tab_hovered","tab_unselected"]:
+		var selected: bool=style!="tab_unselected"
+		application_theme.set_stylebox(style,"TabBar",tokens.surface(Color("125469" if selected else "082b3d"),Color("35b8c7" if selected else "1b485a"),8))
+	for style in ["title_button_normal","title_button_hover","title_button_pressed"]:
+		application_theme.set_stylebox(style,"Tree",tokens.surface(Color("082b3d"),Color("163d50"),0))
+	application_theme.set_color("title_button_color","Tree",Color("b0d4e2"))
+	application_theme.set_color("current_line_color","CodeEdit",Color("16485d63"))
+	application_theme.set_color("line_number_color","CodeEdit",Color("779baa"))
 	for control in ["ItemList", "Tree"]:
 		application_theme.set_stylebox("panel", control, tokens.surface(Color("041e2f"), Color("255e73"), 10))
 		application_theme.set_stylebox("selected", control, tokens.surface(Color("135366"), Color("36a6be"), 6))
 	for control in ["TextEdit", "CodeEdit", "LineEdit"]:
 		application_theme.set_stylebox("normal", control, tokens.surface(Color("031e2e"), Color("2e7f91"), 8))
 		application_theme.set_color("caret_color", control, Color("71f8ff"))
+		application_theme.set_stylebox("focus",control,tokens.surface(Color.TRANSPARENT,Color("30c9d5"),8))
 	return application_theme
 
 func _recoverable_window_position(point: Vector2, extent: Vector2) -> Vector2:
@@ -526,8 +565,9 @@ func _switch_app(name: String) -> void:
 	if name not in app_names: return
 	_capture_draft()
 	var key := _window_key(name)
-	var state: Dictionary=windows[key] if windows.has(key) else _create_window(key,name)
-	var rebuild: bool=not state.built or state.app!=name or name in ["Course work","Recycle Bin"]
+	var new_window:=not windows.has(key)
+	var state: Dictionary=_create_window(key,name) if new_window else windows[key]
+	var rebuild: bool=not state.built or state.app!=name or name in ["Recycle Bin"]
 	if state.app!=name:task_buttons[state.app].visible=state.app in pinned_apps
 	state.app=name
 	task_buttons[name].show()
@@ -544,8 +584,6 @@ func _switch_app(name: String) -> void:
 	if name == "Files" or name == "Text editor" or name == "Code editor":
 		_build_files(name)
 		state.merge({"file_list":file_list,"project_tree":project_tree,"breadcrumbs":breadcrumbs,"editor":editor,"path_field":path_field,"folder_button":folder_button,"delete_button":delete_button},true)
-	elif name == "Course work":
-		_build_course_work()
 	elif name == "Calculator":
 		var calculator := preload("res://scripts/scientific_calculator.gd").new()
 		calculator.campus_style = true
@@ -576,6 +614,13 @@ func _switch_app(name: String) -> void:
 		terminal.build(self)
 	elif name=="Settings":_build_os_settings()
 	elif name=="Recycle Bin":_build_recycle_bin()
+	if new_window:
+		var initial: Rect2=state.rect
+		initial.size=initial.size.max(state.shell.get_combined_minimum_size()).min(workspace.size)
+		initial.position=initial.position.clamp(Vector2.ZERO,(workspace.size-initial.size).max(Vector2.ZERO))
+		state.rect=initial
+		state.restore=initial
+		_fit_windows()
 
 func _select_shortcut(name: String) -> void:
 	selected_shortcut=name
@@ -603,7 +648,7 @@ func _desktop_shortcut_input(name: String, button: Button, event: InputEvent) ->
 		button.accept_event()
 
 func _app_description(name: String) -> String:
-	return {"Files":"Browse and organize virtual workspace files.","Text editor":"Write and autosave plain text notes.","Code editor":"Edit source files and run numeric CampusScript programs.","Course work":"Open assigned documents and see instructor feedback.","Calculator":"Scientific calculator for campus work.","Browser":"Open websites in the isolated Chromium session.","Terminal":"Work with virtual files using commands.","Settings":"Customize this Campus OS desktop."}.get(name,"Campus OS application")
+	return {"Files":"Browse and organize virtual workspace files.","Text editor":"Write and autosave plain text notes.","Code editor":"Edit source files and run numeric CampusScript programs.","Calculator":"Scientific calculator for campus work.","Browser":"Open websites in the isolated Chromium session.","Terminal":"Work with virtual files using commands.","Settings":"Customize this Campus OS desktop."}.get(name,"Campus OS application")
 
 func _toggle_pin(name: String) -> void:
 	if name in pinned_apps:pinned_apps.erase(name)
@@ -662,44 +707,55 @@ func _build_recycle_bin() -> void:
 	content.add_child(toolbar)
 	var search := LineEdit.new()
 	search.placeholder_text = "Search deleted items"
+	search.right_icon=Icon.icon("search")
 	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toolbar.add_child(search)
 	var sort := OptionButton.new()
-	sort.add_item("Newest first")
+	sort.add_item("Date deleted")
 	sort.add_item("Name")
 	toolbar.add_child(sort)
 	var split := HSplitContainer.new()
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(split)
 	var entries := Tree.new()
-	entries.columns = 3
+	entries.columns = 4
 	entries.hide_root = true
 	entries.column_titles_visible = true
 	entries.set_column_title(0, "Name")
 	entries.set_column_title(1, "Original location")
 	entries.set_column_title(2, "Date deleted")
+	entries.set_column_title(3,"Size")
+	entries.set_column_custom_minimum_width(3,62)
+	entries.set_column_expand(3,false)
 	entries.custom_minimum_size = Vector2(310, 140)
 	entries.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(entries)
+	var details_panel:=PanelContainer.new()
+	details_panel.custom_minimum_size.x=180
+	details_panel.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("082b3d"),Color("27596b"),10))
+	split.add_child(details_panel)
 	var details := Label.new()
-	details.custom_minimum_size.x = 142
 	details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	details.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	split.add_child(details)
+	details_panel.add_child(details)
 	var tools := HBoxContainer.new()
 	content.add_child(tools)
 	var restore := _button("Restore",func():
 		var selected := entries.get_selected()
 		if selected != null: _send({"op":"untrash","item":selected.get_metadata(0).id}))
+	restore.icon=Icon.icon("refresh")
+	restore.theme_type_variation="PrimaryButton"
 	tools.add_child(restore)
 	var purge := _button("Delete permanently",func():
 		var selected := entries.get_selected()
 		if selected != null:
 			var item: String = selected.get_metadata(0).id
 			_confirm_action("Delete this recycled item permanently?",func():_send({"op":"purge","item":item})))
+	purge.icon=Icon.icon("trash")
 	tools.add_child(purge)
 	var empty := _button("Empty Recycle Bin",func():
 		_confirm_action("Delete all recycled items permanently?",func():_send({"op":"purge"})))
+	empty.icon=Icon.icon("trash")
 	tools.add_child(empty)
 	var items: Array = snapshot.get("recycle", []).duplicate()
 	var update := func(_query: String = ""):
@@ -714,9 +770,10 @@ func _build_recycle_bin() -> void:
 			if not path.to_lower().contains(search.text.strip_edges().to_lower()): continue
 			var row := entries.create_item(root_item)
 			row.set_text(0, path.get_file())
-			row.set_icon(0, Icon.icon("course"))
+			row.set_icon(0, Icon.icon("folder" if item.get("folder",false) else "course"))
 			row.set_text(1, "/" + _parent_folder(path))
 			row.set_text(2, Time.get_datetime_string_from_unix_time(int(item.deleted), true).left(16))
+			row.set_text(3,String.humanize_size(int(item.bytes)) if item.has("bytes") else "—")
 			row.set_metadata(0, item)
 		details.text = "Recycle Bin is empty" if items.is_empty() else "Select an item"
 		restore.disabled = true
@@ -727,7 +784,7 @@ func _build_recycle_bin() -> void:
 	entries.item_selected.connect(func():
 		var selected := entries.get_selected()
 		if selected == null: return
-		details.text = "%s\n\n%s\n%s" % [selected.get_text(0),selected.get_text(1),selected.get_text(2)]
+		details.text = "%s\n\nOriginal location   %s\nDate deleted   %s\nSize   %s" % [selected.get_text(0),selected.get_text(1),selected.get_text(2),selected.get_text(3)]
 		restore.disabled = false
 		purge.disabled = false)
 	update.call()
@@ -793,10 +850,46 @@ func _apply_wallpaper() -> void:
 	wallpaper_panel.modulate=[Color.WHITE,Color("9dbad9"),Color("83c8bb")][style_choice]
 
 func _build_os_settings() -> void:
-	var sections := TabContainer.new()
-	sections.tab_alignment = TabBar.ALIGNMENT_LEFT
-	sections.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(sections)
+	var split:=HBoxContainer.new()
+	split.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	content.add_child(split)
+	var navigation:=VBoxContainer.new()
+	navigation.custom_minimum_size.x=132
+	split.add_child(navigation)
+	var sections:=TabContainer.new()
+	sections.tabs_visible=false
+	sections.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	split.add_child(sections)
+	var system:=VBoxContainer.new()
+	system.name="System"
+	sections.add_child(system)
+	var banner:=PanelContainer.new()
+	banner.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("104c61"),Color("27aabf"),12))
+	system.add_child(banner)
+	var identity:=Label.new()
+	identity.text="Campus OS\nLabVolt Practice Simulator"
+	identity.add_theme_font_size_override("font_size",21)
+	banner.add_child(identity)
+	var system_heading:=Label.new()
+	system_heading.text="System"
+	system_heading.add_theme_font_size_override("font_size",18)
+	system.add_child(system_heading)
+	var theme_row:=HBoxContainer.new()
+	system.add_child(theme_row)
+	var theme_name:=Label.new()
+	theme_name.text="System theme"
+	theme_name.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	theme_row.add_child(theme_name)
+	var system_style:=_os_theme_select()
+	theme_row.add_child(system_style)
+	var pins_row:=HBoxContainer.new()
+	system.add_child(pins_row)
+	var pins_label:=Label.new()
+	pins_label.text="Taskbar pins"
+	pins_label.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	pins_row.add_child(pins_label)
+	pins_row.add_child(_button("Manage pins",func():sections.current_tab=2))
+	system.add_child(HSeparator.new())
 	var appearance := VBoxContainer.new()
 	appearance.name = "Appearance"
 	sections.add_child(appearance)
@@ -804,14 +897,10 @@ func _build_os_settings() -> void:
 	heading.text = "System theme"
 	heading.add_theme_font_size_override("font_size", 20)
 	appearance.add_child(heading)
-	var style := OptionButton.new()
-	for name in ["Campus navy", "Evening blue", "Muted teal"]: style.add_item(name)
-	style.select(style_choice)
-	style.item_selected.connect(func(index):
-		style_choice = index
-		_apply_wallpaper()
-		_save_os_preferences())
+	var style:=_os_theme_select()
 	appearance.add_child(style)
+	style.item_selected.connect(system_style.select)
+	system_style.item_selected.connect(style.select)
 	var apps := VBoxContainer.new()
 	apps.name = "Taskbar pins"
 	sections.add_child(apps)
@@ -834,11 +923,33 @@ func _build_os_settings() -> void:
 	about.text = "Campus OS\nLabVolt Practice Simulator"
 	about.add_theme_font_size_override("font_size", 22)
 	sections.add_child(about)
+	var group:=ButtonGroup.new()
+	var section_icons:=["settings","palette","inventory","info"]
+	for index in sections.get_child_count():
+		var destination:=index
+		var button:=_button(str(sections.get_child(index).name),func():sections.current_tab=destination)
+		button.icon=Icon.icon(section_icons[index])
+		button.alignment=HORIZONTAL_ALIGNMENT_LEFT
+		button.toggle_mode=true
+		button.button_group=group
+		button.button_pressed=index==0
+		navigation.add_child(button)
+		sections.tab_changed.connect(func(active:int):button.set_pressed_no_signal(active==destination))
+
+func _os_theme_select() -> OptionButton:
+	var selector:=OptionButton.new()
+	for name in ["Campus navy","Evening blue","Muted teal"]:selector.add_item(name)
+	selector.select(style_choice)
+	selector.item_selected.connect(func(index:int):
+		style_choice=index
+		_apply_wallpaper()
+		_save_os_preferences())
+	return selector
 
 func _build_files(name: String) -> void:
 	var toolbar := HFlowContainer.new()
 	content.add_child(toolbar)
-	toolbar.add_child(_button("New file",func():
+	var create:=_button("New file",func():
 		var extension := ".campus" if name=="Code editor" else ".txt"
 		_name_dialog("New virtual file","untitled"+extension,func(filename):
 			if filename.is_empty() or filename.contains("/"):return
@@ -847,15 +958,26 @@ func _build_files(name: String) -> void:
 				desktop_status.text="Choose an unused virtual filename."
 				return
 			pending_open_path=destination
-			_send({"op":"save","path":destination,"text":"","version":0}))))
+			_send({"op":"save","path":destination,"text":"","version":0})))
+	create.icon=Icon.icon("plus")
+	create.theme_type_variation="PrimaryButton"
+	toolbar.add_child(create)
 	folder_button=_button("New folder",func():
 		_name_dialog("New virtual folder","",func(name_value):
 			if name_value.is_empty() or name_value.contains("/"):return
 			var destination: String=name_value if folder_path.is_empty() else folder_path+"/"+name_value
 			if _valid_path(destination):_send({"op":"mkdir","path":destination})))
-	folder_button.visible=bool(snapshot.get("public_device",false));toolbar.add_child(folder_button)
-	toolbar.add_child(_button("Open", func():_open_selected(true)))
-	if name!="Files":toolbar.add_child(_button("Save  Ctrl+S",_save_file))
+	folder_button.icon=Icon.icon("folder")
+	folder_button.visible=bool(snapshot.get("public_device",false)) and name!="Text editor";toolbar.add_child(folder_button)
+	var open_button:=_button("Open",func():
+		if name=="Files":_open_selected(true)
+		else:_pick_editor_file())
+	open_button.icon=Icon.icon("folder")
+	toolbar.add_child(open_button)
+	if name!="Files":
+		var save_button:=_button("Save  Ctrl+S",_save_file)
+		save_button.icon=Icon.icon("save")
+		toolbar.add_child(save_button)
 	var rename := _button("Rename",func():
 		var selected:=_selected_entry()
 		var source:=str(selected.get("path",current_path))
@@ -865,16 +987,28 @@ func _build_files(name: String) -> void:
 			var directory:=_parent_folder(source)
 			var destination: String=filename if directory.is_empty() else directory+"/"+filename
 			if not _valid_path(destination) or source==destination:return
-			if selected.get("folder",false):
-				pending_folder_source=source
-				pending_folder_target=destination
-			elif source==current_path:pending_rename=destination
+			pending_folder_source=source
+			pending_folder_target=destination
 			_send({"op":"rename","path":source,"new_path":destination})))
 	rename.disabled = not _supports_rename()
 	rename.tooltip_text = "Rename is unavailable in this computer session." if rename.disabled else "Rename the selected virtual file."
 	toolbar.add_child(rename)
 	delete_button=_button("Delete", _delete_selected)
-	delete_button.visible=bool(snapshot.get("public_device",false));toolbar.add_child(delete_button)
+	delete_button.icon=Icon.icon("trash")
+	delete_button.visible=bool(snapshot.get("public_device",false))
+	var actions: HFlowContainer
+	if name=="Files":
+		toolbar.add_child(delete_button)
+	else:
+		actions=HFlowContainer.new()
+		actions.hide()
+		var more:=_button("⋯",func():actions.visible=not actions.visible)
+		more.tooltip_text="Document actions"
+		toolbar.add_child(more)
+		content.add_child(actions)
+		toolbar.remove_child(rename)
+		actions.add_child(rename)
+		actions.add_child(delete_button)
 	var path_row := HBoxContainer.new()
 	content.add_child(path_row)
 	var path_label := Label.new()
@@ -893,7 +1027,15 @@ func _build_files(name: String) -> void:
 		var open_tabs:=TabBar.new()
 		open_tabs.clip_tabs=true
 		open_tabs.tab_close_display_policy=TabBar.CLOSE_BUTTON_SHOW_ACTIVE_ONLY
-		content.add_child(open_tabs)
+		var tab_row:=HBoxContainer.new()
+		tab_row.name="DocumentTabs"
+		open_tabs.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		tab_row.add_child(open_tabs)
+		var new_tab:=_button("+",func():create.pressed.emit())
+		new_tab.custom_minimum_size.x=32
+		new_tab.tooltip_text="New document"
+		tab_row.add_child(new_tab)
+		content.add_child(tab_row)
 		var editor_state: Dictionary=windows[name]
 		editor_state.tabs=open_tabs
 		editor_state.documents=[]
@@ -903,6 +1045,7 @@ func _build_files(name: String) -> void:
 			current_path=editor_state.documents[index]
 			_load_editor())
 		open_tabs.tab_close_pressed.connect(func(index):
+			if index<0 or index>=editor_state.documents.size():return
 			_capture_draft()
 			editor_state.documents.remove_at(index)
 			if index==open_tabs.current_tab:
@@ -910,12 +1053,25 @@ func _build_files(name: String) -> void:
 			_load_editor())
 	var trail := HBoxContainer.new()
 	content.add_child(trail)
-	var up := _button("↑",_folder_up)
+	var back_button:=_button("‹",func():_browse_history(-1))
+	back_button.custom_minimum_size.x=34
+	back_button.tooltip_text="Back"
+	trail.add_child(back_button)
+	var forward_button:=_button("›",func():_browse_history(1))
+	forward_button.custom_minimum_size.x=34
+	forward_button.tooltip_text="Forward"
+	trail.add_child(forward_button)
+	var trail_panel:=PanelContainer.new()
+	trail_panel.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	trail_panel.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("062638"),Color("286478"),16))
+	trail.add_child(trail_panel)
+	breadcrumbs=Label.new()
+	trail_panel.add_child(breadcrumbs)
+	var up:=_button("↑",_folder_up)
+	up.custom_minimum_size.x=34
 	up.tooltip_text="Parent folder"
 	trail.add_child(up)
-	breadcrumbs=Label.new()
-	trail.add_child(breadcrumbs)
-	trail.visible=name!="Text editor"
+	trail.visible=name=="Files"
 	var split := HSplitContainer.new()
 	split.split_offset=-165 if name=="Code editor" else -220 if name=="Files" else 0
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -927,22 +1083,39 @@ func _build_files(name: String) -> void:
 		var heading:=Label.new()
 		heading.text="Locations"
 		shortcuts.add_child(heading)
-		var home:=_button("Workspace",func():folder_path="";_refresh_file_list())
-		home.icon=Icon.icon("folder")
-		shortcuts.add_child(home)
+		for location in [["Workspace","","folder"],["Documents","Documents","course"],["Downloads","Downloads","download"],["Pictures","Pictures","palette"]]:
+			var destination: String=location[1]
+			var place:=_button(location[0],func():_go_to_location(destination))
+			place.icon=Icon.icon(location[2])
+			place.alignment=HORIZONTAL_ALIGNMENT_LEFT
+			place.set_drag_forwarding(func(_point):return null,func(_point,data):return not _move_destination(data,destination).is_empty(),func(_point,data):_move_entry(data,destination))
+			shortcuts.add_child(place)
+		shortcuts.add_child(HSeparator.new())
 		var bin:=_button("Recycle Bin",func():_switch_app("Recycle Bin"))
 		bin.icon=Icon.icon("trash")
+		bin.alignment=HORIZONTAL_ALIGNMENT_LEFT
 		shortcuts.add_child(bin)
 		var copy:=_button("Copy download to USB",_choose_download_to_copy)
 		copy.icon=Icon.icon("save")
 		shortcuts.add_child(copy)
 	file_list = Tree.new()
+	file_list.set_meta("nav_history",[""])
+	file_list.set_meta("nav_index",0)
+	file_list.set_meta("nav_back",back_button)
+	file_list.set_meta("nav_forward",forward_button)
+	file_list.set_drag_forwarding(_file_drag_data,_file_can_drop_data,_file_drop_data)
 	file_list.hide_root = true
-	file_list.columns = 3
+	file_list.columns = 4
 	file_list.column_titles_visible = true
 	file_list.set_column_title(0, "Name")
 	file_list.set_column_title(1, "Type")
 	file_list.set_column_title(2, "Size")
+	file_list.set_column_custom_minimum_width(2,65)
+	file_list.set_column_expand(2,false)
+	file_list.set_column_expand_ratio(0,3)
+	file_list.set_column_title(3,"Modified")
+	file_list.set_column_custom_minimum_width(3,115)
+	file_list.set_column_expand(3,false)
 	file_list.custom_minimum_size.x = 260
 	file_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	file_list.add_theme_constant_override("v_separation", 7)
@@ -952,7 +1125,7 @@ func _build_files(name: String) -> void:
 	project_tree = null
 	if name == "Code editor":
 		project_tree = Tree.new()
-		project_tree.custom_minimum_size.x = 150
+		project_tree.custom_minimum_size.x = 188
 		project_tree.item_activated.connect(func():
 			var item := project_tree.get_selected()
 			if item != null and not item.get_metadata(0).get("folder", false):
@@ -984,8 +1157,10 @@ func _build_files(name: String) -> void:
 	if name!="Files":
 		var find:=LineEdit.new()
 		find.placeholder_text="Find in document"
+		find.right_icon=Icon.icon("search")
 		find.custom_minimum_size.x=138
-		toolbar.add_child(find)
+		if name=="Code editor":actions.add_child(find)
+		else:toolbar.add_child(find)
 		find.text_submitted.connect(func(term):
 			if term.is_empty():return
 			var hit:=editor.search(term,0,editor.get_caret_line(),editor.get_caret_column()+1)
@@ -994,37 +1169,51 @@ func _build_files(name: String) -> void:
 	var document := VBoxContainer.new()
 	document.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	split.add_child(document)
+	if name=="Code editor":
+		var tab_row: Control=windows[name].tabs.get_parent()
+		tab_row.reparent(document)
 	document.visible = name != "Files"
 	editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	document.add_child(editor)
 	editor.visible=name!="Files"
 	if name != "Files":
+		var footer:=PanelContainer.new()
+		footer.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("0b3448"),Color("22586f"),8))
 		var caret := Label.new()
 		caret.add_theme_color_override("font_color", Color("a0c2d4"))
-		document.add_child(caret)
+		document.add_child(footer)
+		footer.add_child(caret)
 		var local_editor: TextEdit = editor
 		var update_caret := func():
-			caret.text = "%s     Ln %d, Col %d     UTF-8" % ["Source" if name == "Code editor" else "Plain text", local_editor.get_caret_line() + 1, local_editor.get_caret_column() + 1]
+			caret.text = "%s     Ln %d, Col %d     UTF-8     Spaces: 4" % ["Source" if name == "Code editor" else "Plain text", local_editor.get_caret_line() + 1, local_editor.get_caret_column() + 1]
 		local_editor.caret_changed.connect(update_caret)
 		update_caret.call()
 	_refresh_file_list()
 	_load_editor()
 	if name == "Code editor":
+		var editor_footer: Node=document.get_child(document.get_child_count()-1)
 		var output:=TextEdit.new()
-		var output_header := CheckButton.new()
-		output_header.text = "Program output"
-		output_header.button_pressed = true
-		output_header.toggled.connect(func(value: bool): output.visible = value)
-		content.add_child(output_header)
+		var output_tools:=HBoxContainer.new()
+		document.add_child(output_tools)
+		var output_header:=Label.new()
+		output_header.text="›_   Program output"
+		output_header.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		output_tools.add_child(output_header)
+		output_tools.add_child(_button("Clear",func():output.clear()))
+		output_tools.add_child(_button("Copy",func():DisplayServer.clipboard_set(output.text)))
 		output.editable=false
-		output.custom_minimum_size.y=88
+		output.custom_minimum_size.y=72
 		output.placeholder_text="Program output"
-		content.add_child(output)
-		toolbar.add_child(_button("Run",func():
+		document.add_child(output)
+		document.move_child(editor_footer,-1)
+		var run_button:=_button("Run",func():
 			if current_path.get_extension().to_lower()!="campus":
 				output.text="Run supports .campus files. Other source files can be edited and saved."
 				return
-			output.text=preload("res://scripts/campus/computers/campus_script.gd").new().run(editor.text)))
+			output.text=preload("res://scripts/campus/computers/campus_script.gd").new().run(editor.text))
+		run_button.icon=Icon.icon("play")
+		run_button.theme_type_variation="PrimaryButton"
+		toolbar.add_child(run_button)
 		toolbar.add_child(_button("Syntax",func():_message("CampusScript","let r = 3\nrepeat 3\n  print r * 2\n  let r = r + 1\nend\nif r > 4\n  print sqrt(r)\nend")))
 
 func _file_rows() -> Array:
@@ -1052,11 +1241,128 @@ func _parent_folder(path: String) -> String:
 	return path.get_base_dir() if path.contains("/") else ""
 
 func _folder_up() -> void:
-	folder_path=_parent_folder(folder_path)
+	_navigate_folder(_parent_folder(folder_path))
+
+func _go_to_location(destination: String) -> void:
+	if destination.is_empty() or destination in snapshot.get("folders",[]):
+		_navigate_folder(destination)
+	elif snapshot.get("public_device",false):
+		file_list.set_meta("pending_location",destination)
+		_send({"op":"mkdir","path":destination})
+
+func _navigate_folder(destination: String) -> void:
+	var history: Array=file_list.get_meta("nav_history")
+	var index: int=file_list.get_meta("nav_index")
+	if history[index]!=destination:
+		history=history.slice(0,index+1)
+		history.append(destination)
+		file_list.set_meta("nav_history",history)
+		file_list.set_meta("nav_index",history.size()-1)
+	folder_path=destination
 	_refresh_file_list()
+
+func _browse_history(direction: int) -> void:
+	var history: Array=file_list.get_meta("nav_history")
+	var index: int=file_list.get_meta("nav_index")+direction
+	while index>=0 and index<history.size():
+		var destination: String=history[index]
+		if destination.is_empty() or destination in snapshot.get("folders",[]):
+			file_list.set_meta("nav_index",index)
+			folder_path=destination
+			_refresh_file_list()
+			return
+		index+=direction
+
+func _pick_editor_file() -> void:
+	var dialog:=ConfirmationDialog.new()
+	dialog.title="Open virtual file"
+	dialog.ok_button_text="Open"
+	var choices:=ItemList.new()
+	choices.custom_minimum_size=Vector2(370,230)
+	for row in _file_rows():choices.add_item(str(row.path),Icon.icon("course"))
+	dialog.add_child(choices)
+	add_child(dialog)
+	dialog.get_ok_button().disabled=true
+	choices.item_selected.connect(func(_index):dialog.get_ok_button().disabled=false)
+	dialog.confirmed.connect(func():
+		var selected:=choices.get_selected_items()
+		if not selected.is_empty():_open_path(choices.get_item_text(selected[0]))
+		dialog.queue_free())
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered()
+
+func _file_drag_data(point: Vector2) -> Variant:
+	if not _supports_rename():return null
+	var row:=file_list.get_item_at_position(point)
+	var entry: Variant=row.get_metadata(0) if row!=null else null
+	if not entry is Dictionary:return null
+	var preview:=Label.new()
+	preview.text=str(entry.path).get_file()
+	file_list.set_drag_preview(preview)
+	return {"campus_virtual_path":entry.path}
+
+func _drop_folder(point: Vector2) -> Variant:
+	var row:=file_list.get_item_at_position(point)
+	if row==null:return folder_path
+	var entry: Variant=row.get_metadata(0)
+	return entry.path if entry is Dictionary and entry.get("folder",false) else null
+
+func _file_can_drop_data(point: Vector2,data: Variant) -> bool:
+	var destination: Variant=_drop_folder(point)
+	var allowed:=destination is String and not _move_destination(data,destination).is_empty()
+	file_list.drop_mode_flags=Tree.DROP_MODE_ON_ITEM if allowed else Tree.DROP_MODE_DISABLED
+	return allowed
+
+func _file_drop_data(point: Vector2,data: Variant) -> void:
+	var destination: Variant=_drop_folder(point)
+	if destination is String:_move_entry(data,destination)
+
+func _virtual_path_exists(path: String) -> bool:
+	return path in snapshot.get("folders",[]) or snapshot.get("binary_files",{}).has(path) or not _file(path).is_empty()
+
+func _move_destination(data: Variant,directory: String) -> String:
+	if not _supports_rename() or not data is Dictionary:return ""
+	var source:=str(data.get("campus_virtual_path",""))
+	if not _valid_path(source) or not _virtual_path_exists(source):return ""
+	if not directory.is_empty() and directory not in snapshot.get("folders",[]):return ""
+	var target:=source.get_file() if directory.is_empty() else directory+"/"+source.get_file()
+	if target.begins_with(source+"/") or not _valid_path(target) or _virtual_path_exists(target):return ""
+	return target
+
+func _move_entry(data: Variant,directory: String) -> void:
+	var target:=_move_destination(data,directory)
+	if target.is_empty():return
+	var source:=str(data.campus_virtual_path)
+	pending_folder_source=source
+	pending_folder_target=target
+	status_label.text="Moving "+source.get_file()+"…"
+	_send({"op":"rename","path":source,"new_path":target})
+
+func _rebase_open_documents(source: String,target: String) -> void:
+	var remap:=func(path: String) -> String:
+		return target+path.substr(source.length()) if path==source or path.begins_with(source+"/") else path
+	current_path=remap.call(current_path)
+	folder_path=remap.call(folder_path)
+	for path in drafts.keys():
+		var moved: String=remap.call(path)
+		if moved!=path:
+			drafts[moved]=drafts[path]
+			drafts.erase(path)
+	for window in windows.values():
+		window.path=remap.call(str(window.get("path","")))
+		window.folder=remap.call(str(window.get("folder","")))
+		if window.has("documents"):window.documents=window.documents.map(remap)
 
 func _refresh_file_list() -> void:
 	if file_list==null:return
+	var pending_location: String=file_list.get_meta("pending_location","")
+	if not pending_location.is_empty() and pending_location in snapshot.get("folders",[]):
+		file_list.remove_meta("pending_location")
+		_navigate_folder(pending_location)
+		return
+	var index: int=file_list.get_meta("nav_index")
+	file_list.get_meta("nav_back").disabled=index==0
+	file_list.get_meta("nav_forward").disabled=index>=file_list.get_meta("nav_history").size()-1
 	if not folder_path.is_empty() and not folder_path in snapshot.get("folders",[]):folder_path=""
 	breadcrumbs.text="Workspace" if folder_path.is_empty() else "Workspace  ›  "+folder_path.replace("/","  ›  ")
 	file_list.clear()
@@ -1067,8 +1373,10 @@ func _refresh_file_list() -> void:
 		var row := file_list.create_item(root_item)
 		row.set_text(0, path.get_file())
 		row.set_icon(0, Icon.icon("folder"))
+		row.set_icon_modulate(0,Color("ffd17b"))
 		row.set_text(1, "Folder")
 		row.set_text(2, "—")
+		row.set_text(3,_modified_label(path))
 		row.set_metadata(0, {"path":path,"folder":true})
 	for value in _file_rows():
 		var path := str(value.get("path", ""))
@@ -1078,6 +1386,7 @@ func _refresh_file_list() -> void:
 		row.set_icon(0, Icon.icon("course"))
 		row.set_text(1, path.get_extension().to_upper() if not path.get_extension().is_empty() else "File")
 		row.set_text(2, String.humanize_size(str(value.get("text", "")).to_utf8_buffer().size()))
+		row.set_text(3,_modified_label(path))
 		row.set_metadata(0, {"path":path,"folder":false})
 	for path: String in snapshot.get("binary_files",{}):
 		if _parent_folder(path)!=folder_path:continue
@@ -1086,6 +1395,7 @@ func _refresh_file_list() -> void:
 		row.set_icon(0,Icon.icon("course"))
 		row.set_text(1,path.get_extension().to_upper())
 		row.set_text(2,String.humanize_size(int(snapshot.binary_files[path])))
+		row.set_text(3,_modified_label(path))
 		row.set_metadata(0,{"path":path,"folder":false,"binary":true})
 	if root_item.get_child_count() == 0:
 		var empty := file_list.create_item(root_item)
@@ -1093,7 +1403,12 @@ func _refresh_file_list() -> void:
 		empty.set_selectable(0, false)
 		empty.set_selectable(1, false)
 		empty.set_selectable(2, false)
+		empty.set_selectable(3, false)
 	if is_instance_valid(project_tree): _refresh_project_tree()
+
+func _modified_label(path: String) -> String:
+	var stamp:=int(snapshot.get("modified",{}).get(path,0))
+	return Time.get_datetime_string_from_unix_time(stamp,true).substr(5,11) if stamp>0 else "—"
 
 func _refresh_project_tree() -> void:
 	var expanded := {}
@@ -1158,7 +1473,6 @@ func _delete_selected() -> void:
 func _load_editor() -> void:
 	if editor == null or active_app=="Files":
 		return
-	if pending_new and current_path.is_empty():return
 	var file := _file(current_path)
 	var next_text:=str(drafts.get(current_path,file.get("text","")))
 	if editor.text!=next_text:
@@ -1175,8 +1489,9 @@ func _load_editor() -> void:
 			_rendering=true
 			tabs.clear_tabs()
 			for path in window.documents:tabs.add_tab(str(path).get_file())
+			if current_path.is_empty():tabs.add_tab("Untitled")
 			var selected: int=window.documents.find(current_path)
-			if selected>=0:tabs.current_tab=selected
+			tabs.current_tab=selected if selected>=0 else tabs.tab_count-1
 			_rendering=false
 		app_window_title.text=(current_path.get_file() if not current_path.is_empty() else "Untitled")+"  ·  "+active_app
 	if path_field != null:
@@ -1216,9 +1531,7 @@ func _open_selected(open_in_editor := false) -> void:
 	if selected.is_empty():
 		return
 	if selected.get("folder",false):
-		folder_path=str(selected.path)
-		if is_instance_valid(path_field):path_field.text=folder_path+"/"
-		_refresh_file_list()
+		_navigate_folder(str(selected.path))
 		return
 	if selected.get("binary",false):
 		status_label.text="This file is stored on the virtual drive."
@@ -1276,11 +1589,6 @@ func _autosave() -> void:
 		status_label.text="Saving…"
 		_send({"op":"save","path":path,"text":str(drafts[path]),"version":int(_file(path).get("version",0))})
 		return
-	if exit_requested:
-		if drafts.is_empty():_exit_now()
-		else:
-			exit_requested=false
-			status_label.text="Name this file to save and leave."
 
 func _rename_file() -> void:
 	if not _supports_rename():
@@ -1305,91 +1613,6 @@ func _rename_file() -> void:
 
 func _supports_rename() -> bool:
 	return session != null and session.has_method("supports_operation") and bool(session.call("supports_operation", "rename"))
-
-func _build_course_work() -> void:
-	var assignments: Array=snapshot.get("assignments",[])
-	var tabs:=TabContainer.new()
-	tabs.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	content.add_child(tabs)
-	var overview:=_course_page(tabs,"Overview")
-	var header := Label.new()
-	header.text = "Course overview"
-	header.add_theme_font_size_override("font_size", 23)
-	overview.add_child(header)
-	var metrics := HFlowContainer.new()
-	overview.add_child(metrics)
-	var graded := assignments.filter(func(item): return not item.get("mark", {}).is_empty())
-	for stat in [["Assignments",str(assignments.size())],["Marked",str(graded.size())],["Materials",str(snapshot.get("materials",[]).size())]]:
-		var card := PanelContainer.new()
-		card.custom_minimum_size = Vector2(123, 64)
-		card.add_theme_stylebox_override("panel", preload("res://scripts/ui/design_system/tokens.gd").surface(Color("104354"),Color("327d92"),10))
-		metrics.add_child(card)
-		var value := Label.new()
-		value.text = stat[1] + "   " + stat[0]
-		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		card.add_child(value)
-	if assignments.is_empty(): _course_text(overview, "No assignments yet.")
-	overview.add_child(_button("Refresh course work",func():_send({"op":"refresh"})))
-	var work:=_course_page(tabs,"Assignments")
-	if assignments.is_empty():_course_text(work,"No assignments are available in this session.")
-	var grades:=_course_page(tabs,"Grades")
-	var marked:=0
-	for assignment in assignments:
-		var id:=int(assignment.get("id",0))
-		var title:=str(assignment.get("title","Assignment"))
-		var mark: Dictionary=assignment.get("mark",{})
-		_course_text(work,title+"  ·  "+("In progress" if mark.is_empty() else "Marked"))
-		work.add_child(_button("Open in Paper Workspace",func():_open_paper(id)))
-		if not mark.is_empty():
-			marked+=1
-			_course_text(grades,"%s  ·  %.1f%%" % [title,float(mark.get("score",0))])
-			if mark.has("reason"):_course_text(grades,str(mark.reason))
-			continue
-		var questions: Array=assignment.get("questions",[])
-		for index in questions.size():
-			var question: Variant=questions[index]
-			var key:=str(index)
-			var prompt:=str(question.get("prompt",question.get("text","Question %d"%(index+1)))) if question is Dictionary else str(question)
-			_course_text(work,prompt)
-			var row:=HBoxContainer.new()
-			work.add_child(row)
-			var answer:=LineEdit.new()
-			answer.max_length=512
-			answer.text=str(assignment.get("answers",{}).get(key,""))
-			answer.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-			row.add_child(answer)
-			row.add_child(_button("Save answer",func():_send({"op":"answer","paper":id,"question":key,"value":answer.text})))
-		if assignment.get("can_submit",false):
-			work.add_child(_button("Submit assignment",func():
-				_confirm_action("Submit "+title+" for grading?",func():_send({"op":"submit","paper":id}))))
-	if marked==0:_course_text(grades,"Marked results will appear here.")
-	var materials:=_course_page(tabs,"Materials")
-	for item in snapshot.get("materials",[]):
-		if item is Dictionary:_course_text(materials,str(item.get("title","Material"))+"\n"+str(item.get("text","")))
-	if materials.get_child_count()==0:_course_text(materials,"No lesson materials are available in this session.")
-	tabs.current_tab=clampi(int(windows["Course work"].get("tab",0)),0,tabs.get_tab_count()-1)
-	tabs.tab_changed.connect(func(index):windows["Course work"].tab=index)
-
-func _course_page(tabs: TabContainer, name: String) -> VBoxContainer:
-	var scroll:=ScrollContainer.new()
-	scroll.name=name
-	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
-	tabs.add_child(scroll)
-	var column:=VBoxContainer.new()
-	column.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	scroll.add_child(column)
-	return column
-
-func _course_text(column: VBoxContainer, text: String) -> void:
-	var label:=Label.new()
-	label.text=text
-	label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(label)
-
-func _open_paper(id: int) -> void:
-	pending_paper_id=id
-	_request_exit()
 
 func _send(payload: Dictionary) -> void:
 	if session == null or snapshot.is_empty():
@@ -1417,21 +1640,25 @@ func _on_operation_failed(message: String) -> void:
 	pending_rename = ""
 	pending_folder_source="";pending_folder_target=""
 	saving_path=""
-	exit_requested=false
 	pending_paper_id=0
 	pending_open_path=""
-	status_label.text=message
+	if is_instance_valid(file_list) and file_list.has_meta("pending_location"):file_list.remove_meta("pending_location")
+	if is_instance_valid(status_label):
+		status_label.text=message
+	elif is_instance_valid(game) and is_instance_valid(game.get("ui")):
+		game.ui.log_message(message)
 
 func _request_exit() -> void:
 	_capture_draft()
 	exit_requested=true
-	_autosave()
+	autosave_timer.stop()
+	_exit_now()
 
 func request_close() -> void:
 	_request_exit()
 
 func _exit_now() -> void:
-	if snapshot.has("power_cycle") and str(snapshot.get("tier","")).is_empty():
+	if snapshot.has("power_cycle"):
 		parked_device=str(snapshot.get("station",""))
 		parked_cycle=int(snapshot.get("power_cycle",-1))
 		parked_profile=str(session.get("local_profile"))
@@ -1440,9 +1667,9 @@ func _exit_now() -> void:
 			var key := str(child.get_meta("desktop_app",""))
 			if not windows.has(key) or windows[key].shell!=child:continue
 			var window: Dictionary=windows[key]
-			layout.append({"app":window.app,"rect":window.rect,"restore":window.restore,"maximized":window.maximized,"minimized":not child.visible,"path":current_path if child==app_window else window.get("path",""),"folder":folder_path if child==app_window else window.get("folder","")})
+			layout.append({"app":window.app,"rect":window.rect,"restore":window.restore,"maximized":window.maximized,"minimized":not child.visible,"path":current_path if child==app_window else window.get("path",""),"folder":folder_path if child==app_window else window.get("folder",""),"documents":window.get("documents",[]).duplicate()})
 		var browser: Dictionary=browser_surface.parked_tabs() if is_instance_valid(browser_surface) else {}
-		parked_workspaces[parked_device]={"cycle":parked_cycle,"profile":parked_profile,"layout":layout,"path":current_path,"folder":folder_path,"browser":browser}
+		parked_workspaces[parked_device]={"cycle":parked_cycle,"profile":parked_profile,"layout":layout,"path":current_path,"folder":folder_path,"browser":browser,"drafts":drafts.duplicate(true),"pending_new":pending_new}
 	_send({"op":"exit"})
 
 func _clear_powered_off(power: Dictionary) -> void:
@@ -1451,6 +1678,7 @@ func _clear_powered_off(power: Dictionary) -> void:
 	if not parked_device.is_empty() and not power.get(parked_device,false):_reset_windows()
 
 func _restore_parked(record: Dictionary) -> void:
+	drafts=record.get("drafts",{}).duplicate(true)
 	current_path=str(record.path)
 	folder_path=str(record.folder)
 	for entry in record.layout:
@@ -1462,11 +1690,13 @@ func _restore_parked(record: Dictionary) -> void:
 		window.maximized=entry.maximized
 		window.path=entry.get("path","")
 		window.folder=entry.get("folder","")
+		if window.has("documents"):window.documents=entry.get("documents",[]).duplicate()
 		current_path=window.path;folder_path=window.folder
 		_load_editor()
 		window.shell.visible=not entry.minimized
 	_fit_windows()
 	_focus_last_window()
+	pending_new=bool(record.get("pending_new",false))
 	if is_instance_valid(browser_surface):browser_surface.restore_parked_tabs(record.browser)
 
 func _reset_windows() -> void:
@@ -1575,7 +1805,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	if power_button != null:power_button.visible=snapshot.has("power_cycle")
 	monitor_share.visible = is_instance_valid(game) and game.session.online and snapshot.has("power_cycle") and str(snapshot.get("tier", "")).is_empty()
 	if retry_documents_button != null:retry_documents_button.visible=not str(snapshot.get("local_error","")).is_empty()
-	if folder_button != null:folder_button.visible=bool(snapshot.get("public_device",false))
+	if folder_button != null:folder_button.visible=bool(snapshot.get("public_device",false)) and active_app!="Text editor"
 	if delete_button != null:delete_button.visible=bool(snapshot.get("public_device",false))
 	for path in drafts.keys():
 		if not _file(str(path)).is_empty() and str(drafts[path]) == str(_file(str(path)).get("text", "")):
@@ -1583,8 +1813,8 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	if prior_lease != snapshot.get("lease") and not resumed:
 		drafts.clear()
 		current_path = str(snapshot.get("editor", {}).get("path", ""))
-	elif not pending_folder_target.is_empty() and pending_folder_target in snapshot.get("folders",[]):
-		if current_path.begins_with(pending_folder_source+"/"):current_path=pending_folder_target+current_path.substr(pending_folder_source.length())
+	elif not pending_folder_target.is_empty() and _virtual_path_exists(pending_folder_target):
+		_rebase_open_documents(pending_folder_source,pending_folder_target)
 		pending_folder_source="";pending_folder_target=""
 	elif not pending_rename.is_empty() and not _file(pending_rename).is_empty():
 		var old_path := current_path
@@ -1605,15 +1835,18 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		game.release_mouse()
 	elif game == null and not was_visible:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	if prior_lease!=snapshot.get("lease") and not resumed and can_restore:_restore_parked(stored)
-	if windows.is_empty() and not can_restore:_switch_app("Files")
+	if prior_lease!=snapshot.get("lease") and can_restore:
+		if resumed:
+			drafts=stored.get("drafts",{}).duplicate(true)
+			pending_new=bool(stored.get("pending_new",false))
+		else:_restore_parked(stored)
 	_refresh_file_list()
 	_load_editor()
-	if active_app in ["Recycle Bin","Course work"] and windows.has(active_app):_switch_app(active_app)
+	if active_app=="Recycle Bin" and windows.has(active_app):_switch_app(active_app)
 	if save_acked:
 		saving_path=""
 		if drafts.is_empty():status_label.text="Saved"
-		if exit_requested or not drafts.is_empty():_autosave.call_deferred()
+		if not drafts.is_empty():_autosave.call_deferred()
 	if not pending_open_path.is_empty() and not _file(pending_open_path).is_empty():
 		var new_path:=pending_open_path
 		pending_open_path=""

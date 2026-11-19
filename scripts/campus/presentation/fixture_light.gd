@@ -25,12 +25,7 @@ static func down(parent: Node3D, point: Vector3, energy: float, reach: float, ai
 	light.set_meta("ultra_distance_fade", true)
 	light.distance_fade_begin=34.0
 	light.distance_fade_length=6.0
-	light.distance_fade_shadow=12.0
-	# Reuse a fixed set of ceiling shadow maps as the camera moves.
-	if aim == Vector3.DOWN:
-		var index := int(parent.get_meta("ceiling_fixture_count", 0))
-		parent.set_meta("ceiling_fixture_count", index + 1)
-		light.set_meta("ultra_shadow_fixture", index % 3 == 0)
+	light.distance_fade_shadow=light.distance_fade_begin
 	light.set_meta("room_fixture", true)
 	parent.add_child(light)
 	return light
@@ -47,4 +42,5 @@ static func ceiling_spill(parent: Node3D, point: Vector3, tint := Color("fff0dd"
 	light.omni_range=1.50
 	light.omni_attenuation=1.6
 	light.set_meta("room_fixture",true)
+	light.set_meta("fixture_spill",true)
 	parent.add_child(light)

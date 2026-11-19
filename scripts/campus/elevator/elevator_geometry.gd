@@ -84,16 +84,25 @@ func _landing(floor_id: int) -> void:
 	# The corridor front also closes the space on either side of the cabin.
 	for side in [-1.0,1.0]:
 		var z: float = DOOR_Z+side*2.0
-		if side > 0:
+		if side > 0 and floor_id==1:
 			_box(Vector3(16.0,y+2.04,z),Vector3(.10,4.08,2),"859aa5")
 		_box(Vector3(CABIN_FRONT,y+CABIN_HEIGHT*.5,z),Vector3(.08,CABIN_HEIGHT,2),"859aa5")
 	# Each piece owns its volume: the wall begins above the header and the
 	# sliding leaves run behind the hallway-facing jambs.
 	var header_top := DOOR_HEIGHT+.124
 	_box(Vector3(16.05,y+(4.08+header_top)*.5,DOOR_Z),Vector3(.22,4.08-header_top,WIDTH),"e3e9e6")
+	# The visible surround is a face-mounted plate. Its back clears the
+	# corridor skin, and the separate reveal stays behind the moving leaves.
+	var surround_x := 15.80
+	var jamb_inset := .025
 	for side in [-1.0,1.0]:
-		_box(Vector3(15.92,y+DOOR_HEIGHT*.5,DOOR_Z+side*(WIDTH*.5+.047)),Vector3(.13,DOOR_HEIGHT,.094),"29404f",false)
-	_box(Vector3(15.92,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.13,.124,WIDTH+.188),"29404f",false)
+		_box(Vector3(surround_x,y+DOOR_HEIGHT*.5,DOOR_Z+side*(WIDTH*.5+.047-jamb_inset*.5)),Vector3(.065,DOOR_HEIGHT,.094+jamb_inset),"29404f",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# Separate liners on either side of the sliding-leaf track conceal
+		# the structural wall ends without intersecting the moving doors.
+		var jamb_z: float=DOOR_Z+side*(WIDTH*.5+.018)
+		_box(Vector3(15.968,y+DOOR_HEIGHT*.5,jamb_z),Vector3(.266,DOOR_HEIGHT,.086),"29404f",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_box(Vector3(16.31,y+DOOR_HEIGHT*.5,jamb_z),Vector3(.16,DOOR_HEIGHT,.086),"486879",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_box(Vector3(surround_x,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.065,.124,WIDTH+.188),"29404f",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_box(Vector3(DOOR_X,y+DOOR_HEIGHT+.035,DOOR_Z),Vector3(.12,.045,WIDTH),"486879",false)
 	var cabin_header_bottom := DOOR_HEIGHT+.06
 	_box(Vector3(CABIN_FRONT,y+(cabin_header_bottom+CABIN_HEIGHT)*.5,DOOR_Z),Vector3(.08,CABIN_HEIGHT-cabin_header_bottom,WIDTH),"859aa5",false)

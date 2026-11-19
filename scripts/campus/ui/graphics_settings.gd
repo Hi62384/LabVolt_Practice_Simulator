@@ -7,6 +7,21 @@ signal changed(options: Dictionary)
 const SAVE := "user://campus_graphics.cfg"
 const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"sdfgi":false,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"lighting_quality":1,"shadow_quality":2,"bloom_quality":1,"brightness":1.0,"indoor_intensity":1.0,"lighting_tone":"Neutral","interaction_hands":true}
 const PRESETS := ["Low", "Medium", "High", "Ultra", "Custom"]
+const MAX_FOG_DENSITY := 0.00299
+const INDOOR_SUN_SHADOW_DISTANCE := 22.0
+const INDOOR_FIXTURE_SHADOW_DISTANCE := 9.0
+const ENVIRONMENT_CONTROLS := {
+	"ssr_fade_out": ["Reflection Fade-Out", 0.0, 8.0, 0.01],
+	"ssao_intensity": ["Contact Shadow Intensity", 0.0, 8.0, 0.05],
+	"ssil_radius": ["Indirect Light Radius", 0.0, 16.0, 0.05],
+	"sdfgi_cascades": ["Global Illumination Cascades", 1, 8, 1],
+	"glow_bloom": ["Bloom Strength", 0.0, 1.0, 0.01],
+	"glow_intensity": ["Glow Intensity", 0.0, 8.0, 0.01],
+	"glow_blend_mode": ["Glow Blend Mode"],
+	"volumetric_fog_density": ["Indoor Fog Density", 0.0, MAX_FOG_DENSITY, 0.00001],
+	"adjustment_saturation": ["Color Saturation", 0.0, 2.0, 0.01],
+	"adjustment_contrast": ["Color Contrast", 0.0, 2.0, 0.01],
+}
 var quality_preset := "Medium"
 var save_error := OK
 var options := DEFAULTS.duplicate()
@@ -18,6 +33,11 @@ var texture_materials := {}
 var shared_material_copies := {}
 var node_refs := {}
 var density_controls: Array[OptionButton]=[]
+var _fog_environment: Environment
+var _fog_density := 0.0
+var _fog_clock := 0.0
+var _sun: DirectionalLight3D
+var _sun_shadow_distance := 0.0
 func attach(target: Viewport, root: Node, crowd_adapter: Object=null) -> void:
 	viewport=target; world=root; crowd=crowd_adapter
 	load_settings()
@@ -28,6 +48,10 @@ func load_settings(path := SAVE) -> void:
 	var saved := str(cfg.get_value("graphics", "preset", ""))
 	for key in DEFAULTS:
 		_validate(key,cfg.get_value("graphics",key,true if key=="sdfgi" and saved=="Ultra" else DEFAULTS[key]))
+	for key in ENVIRONMENT_CONTROLS:
+		options.erase(key)
+		if cfg.has_section_key("graphics", key):
+			_validate(key, cfg.get_value("graphics", key))
 	if not options.shadows:options.shadow_quality=0
 	if not options.bloom:options.bloom_quality=0
 	options.shadows=options.shadow_quality>0
@@ -50,6 +74,18 @@ func save_settings(path := SAVE) -> Error:
 	cfg.set_value("graphics", "preset", quality_preset)
 	return cfg.save(path)
 func _validate(key: String, value: Variant) -> bool:
+	if ENVIRONMENT_CONTROLS.has(key):
+		if not (value is float or value is int) or not is_finite(float(value)):
+			return false
+		if key == "glow_blend_mode":
+			if value not in [Environment.GLOW_BLEND_MODE_SCREEN, Environment.GLOW_BLEND_MODE_SOFTLIGHT]:
+				return false
+			options[key] = int(value)
+		else:
+			var spec: Array = ENVIRONMENT_CONTROLS[key]
+			var amount := clampf(float(value), float(spec[1]), float(spec[2]))
+			options[key] = roundi(amount) if key == "sdfgi_cascades" else amount
+		return true
 	if not DEFAULTS.has(key): return false
 	if key in ["render_scale","view_distance","texture","aa","lighting_quality","shadow_quality","bloom_quality","brightness","indoor_intensity"]:
 		if not (value is float or value is int) or not is_finite(float(value)):return false
@@ -123,6 +159,8 @@ func apply(key := "") -> void:
 				var node: Node=reference.get_ref()
 				if is_instance_valid(node) and _affects(node,key):register_node(node,false)
 func _affects(node: Node, key: String) -> bool:
+	if ENVIRONMENT_CONTROLS.has(key):
+		return node is WorldEnvironment
 	match key:
 		"brightness","bloom","bloom_quality","sdfgi":return node is WorldEnvironment
 		"lighting_tone","indoor_intensity","lighting_quality":return node is Light3D or node is ReflectionProbe or node is WorldEnvironment or node.has_meta("satin_floor")
@@ -158,23 +196,29 @@ func register_node(node: Node, recursive := true) -> void:
 	node_refs[id]=weakref(node)
 	if not originals.has(id):
 		var original := {}
-		if node is Light3D: original={"shadow":node.shadow_enabled,"fade":node.distance_fade_enabled,"visible":node.visible,"range":node.spot_range if node is SpotLight3D else 0.0,"energy":node.light_energy,"color":node.light_color,"specular":node.light_specular,"blur":node.shadow_blur}
+		if node is Light3D: original={"shadow":node.shadow_enabled,"fade":node.distance_fade_enabled,"fade_shadow":node.distance_fade_shadow,"visible":node.visible,"range":node.spot_range if node is SpotLight3D else 0.0,"energy":node.light_energy,"color":node.light_color,"specular":node.light_specular,"blur":node.shadow_blur}
 		elif node is ReflectionProbe or node is GPUParticles3D or node is CPUParticles3D: original={"visible":node.visible}
 		elif node is Camera3D: original={"far":node.far}
-		elif node is WorldEnvironment and node.environment!=null: original={"reflected":node.environment.reflected_light_source,"ssr":node.environment.ssr_enabled,"glow":node.environment.glow_enabled,"ssao":node.environment.ssao_enabled,"ssil":node.environment.ssil_enabled,"exposure":node.environment.tonemap_exposure}
+		elif node is WorldEnvironment and node.environment!=null:
+			var env: Environment = node.environment
+			original={"reflected":env.reflected_light_source,"ssr":env.ssr_enabled,"glow":env.glow_enabled,"ssao":env.ssao_enabled,"ssil":env.ssil_enabled,"exposure":env.tonemap_exposure,"sdfgi":env.sdfgi_enabled,"glow_threshold":env.glow_hdr_threshold}
+			for key in ENVIRONMENT_CONTROLS:
+				original[key] = env.get(key)
 		elif node is GeometryInstance3D: original={"end":node.visibility_range_end,"cast":node.cast_shadow,"fine":_fine_detail(node)}
 		originals[id]=original
 	var saved: Dictionary=originals[id]
+	var visuals := world.get_node_or_null("CampusVisualSettings") if is_instance_valid(world) else null
 	if node is Light3D:
 		var quality := int(options.shadow_quality) if options.shadows else 0
 		node.shadow_enabled=InteriorShadows.enabled(node,bool(saved.shadow),quality)
-		node.shadow_blur=float(saved.blur)*[1.0,.6,1.0,1.55][quality]
+		node.shadow_blur=float(saved.blur)*[1.0,.65,.85,1.0][quality]
 		if node is DirectionalLight3D and node.shadow_enabled:
 			node.directional_shadow_mode=DirectionalLight3D.SHADOW_ORTHOGONAL if quality==1 else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			if node.name == "Sun" and node != _sun:
+				_sun = node
+				_sun_shadow_distance = node.directional_shadow_max_distance
 		elif node.get_meta("room_fixture",false):
 			var lighting := int(options.lighting_quality)
-			if node.get_meta("ultra_distance_fade", false):
-				node.distance_fade_enabled = lighting == 3 or bool(saved.fade)
 			node.light_energy=float(saved.energy)*[.84,1.0,1.04,1.65][lighting]*float(options.indoor_intensity)
 			if node is SpotLight3D:node.spot_range=float(saved.range)
 			var tint: Color=saved.color
@@ -182,27 +226,32 @@ func register_node(node: Node, recursive := true) -> void:
 				"Cool":tint=tint.lerp(Color("e5edff"),.45)
 				"Warm":tint=tint.lerp(Color("ffdab5"),.42)
 			node.light_color=tint
+			if visuals != null:
+				node.light_energy *= visuals.fixture_energy
+				node.light_color *= visuals.fixture_tint
 			node.light_specular=float(saved.specular)*([.7,1.0,1.12,1.18][lighting] if options.reflections else 0.0)
+		if not node is DirectionalLight3D:
+			# Keep fixture lighting visible at its authored distance, while
+			# avoiding shadow-map work for fixtures farther down the corridor.
+			node.distance_fade_enabled=bool(saved.fade) or node.get_meta("ultra_distance_fade",false) or node.shadow_enabled
+			var reach: float=node.spot_range if node is SpotLight3D else node.omni_range
+			node.distance_fade_shadow=minf(float(saved.fade_shadow),clampf(reach+6.0,11.0,21.0))
+			if node is SpotLight3D and node.get_meta("room_fixture", false):
+				# The light still illuminates its full range. Only distant dynamic shadows fade.
+				node.distance_fade_shadow = minf(node.distance_fade_shadow, INDOOR_FIXTURE_SHADOW_DISTANCE)
 		# Room fixtures provide basic illumination even with accent lights disabled.
 		if not node is DirectionalLight3D:
 			node.visible = bool(saved.visible) and int(options.lighting_quality)>=int(node.get_meta("fixture_quality_min",0)) and (bool(options.lights) or bool(node.get_meta("room_fixture", false)))
+		if visuals != null and (node.name == "Sun" or node.get_meta("room_fixture", false)):
+			if not saved.has("opacity"):
+				saved["opacity"] = node.shadow_opacity
+			node.shadow_opacity = float(saved.opacity) * visuals.shadow_opacity
+			node.shadow_blur *= visuals.shadow_softness
 	elif node is ReflectionProbe: node.visible=bool(saved.visible) and options.reflections and (not node.has_meta("room_probe") or int(options.lighting_quality)>=3)
 	elif node is GPUParticles3D or node is CPUParticles3D: node.visible=bool(saved.visible) and options.effects
 	elif node is Camera3D: node.far=minf(float(saved.far),float(options.view_distance))
 	elif node is WorldEnvironment and node.environment!=null:
-		var forward := RenderingServer.get_current_rendering_method()=="forward_plus"
-		node.environment.sdfgi_enabled=forward and bool(options.sdfgi)
-		node.environment.tonemap_exposure=float(saved.exposure)*float(options.brightness)
-		node.environment.ssr_enabled=forward and (bool(saved.ssr) or int(options.lighting_quality)>=3) and options.reflections
-		node.environment.reflected_light_source = int(saved.reflected) if options.reflections else Environment.REFLECTION_SOURCE_DISABLED
-		var bloom_level := int(options.bloom_quality) if options.bloom else 0
-		node.environment.glow_enabled=bool(saved.glow) and bloom_level>0
-		if bool(saved.glow):
-			node.environment.glow_intensity=[0.0,.65,.98,1.35][bloom_level]
-			node.environment.glow_hdr_threshold=[1.0,.93,.85,.78][bloom_level]
-			node.environment.glow_bloom=0.0
-		node.environment.ssao_enabled=forward and (bool(saved.ssao) or int(options.lighting_quality)>=3) and options.effects
-		node.environment.ssil_enabled=forward and bool(saved.ssil) and options.effects
+		_apply_environment(node, saved, visuals != null and bool(visuals.use_scene_environment_effects))
 	elif node is GeometryInstance3D:
 		if node.get_meta("floor_contact_shadows",false):node.visible=bool(options.shadows)
 		if node.get_meta("satin_floor",false) and node.material_override is ShaderMaterial:
@@ -230,6 +279,67 @@ func register_node(node: Node, recursive := true) -> void:
 			for material in texture_materials[id]: material.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if options.texture==0 else BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	if recursive:
 		for child in node.get_children(): register_node(child)
+func _apply_environment(node: WorldEnvironment, saved: Dictionary, scene_effects: bool) -> void:
+	var env := node.environment
+	var authored := scene_effects or quality_preset == "Ultra"
+	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
+	var bloom_level := int(options.bloom_quality) if options.bloom else 0
+	env.sdfgi_enabled = forward and (bool(saved.sdfgi) if authored else bool(options.sdfgi))
+	env.tonemap_exposure = float(saved.exposure) * (1.0 if authored else float(options.brightness))
+	env.ssr_enabled = forward and (bool(saved.ssr) if authored else (bool(saved.ssr) or int(options.lighting_quality) >= 3) and bool(options.reflections))
+	env.reflected_light_source = int(saved.reflected) if authored or options.reflections else Environment.REFLECTION_SOURCE_DISABLED
+	env.glow_enabled = bool(saved.glow) and (authored or bloom_level > 0)
+	env.glow_hdr_threshold = float(saved.glow_threshold) if authored else [1.0, 0.93, 0.85, 0.78][bloom_level]
+	env.ssao_enabled = forward and (bool(saved.ssao) if authored else (bool(saved.ssao) or int(options.lighting_quality) >= 3) and bool(options.effects))
+	env.ssil_enabled = forward and bool(saved.ssil) and (authored or bool(options.effects))
+	for key in ENVIRONMENT_CONTROLS:
+		if key == "volumetric_fog_density":
+			continue
+		var value: Variant = options.get(key, saved[key])
+		if not authored and not options.has(key):
+			if key == "glow_intensity":
+				value = [0.0, 0.65, 0.98, 1.35][bloom_level]
+			elif key == "glow_bloom":
+				value = 0.0
+		if env.get(key) != value:
+			env.set(key, value)
+	if node.get_parent() == world:
+		_fog_environment = env
+		_fog_density = clampf(float(options.get("volumetric_fog_density", saved.volumetric_fog_density)), 0.0, MAX_FOG_DENSITY)
+		_update_fog()
+
+func _process(delta: float) -> void:
+	_fog_clock += delta
+	if _fog_clock >= 0.1:
+		_fog_clock = 0.0
+		_update_fog()
+		_update_sun_shadow_distance()
+
+func _update_sun_shadow_distance() -> void:
+	if not is_instance_valid(_sun) or not _sun.shadow_enabled or not is_instance_valid(viewport):
+		return
+	var camera := viewport.get_camera_3d()
+	if camera == null:
+		return
+	# The facade blocks the interior from the exterior directional light.
+	# Blend to the outdoor range in the lobby so the distance does not jump at the door.
+	var interior := smoothstep(-11.0, -3.0, camera.global_position.z)
+	var distance := lerpf(_sun_shadow_distance, minf(_sun_shadow_distance, INDOOR_SUN_SHADOW_DISTANCE), interior)
+	if not is_equal_approx(_sun.directional_shadow_max_distance, distance):
+		_sun.directional_shadow_max_distance = distance
+
+func _update_fog() -> void:
+	if _fog_environment == null or not is_instance_valid(viewport):
+		return
+	var camera := viewport.get_camera_3d()
+	var factor := 1.0
+	if camera != null:
+		# The campus front threshold spans the corridor at z = -11.
+		factor = smoothstep(-11.0, -3.0, camera.global_position.z)
+	var density := _fog_density * factor
+	if not is_equal_approx(_fog_environment.volumetric_fog_density, density):
+		_fog_environment.volumetric_fog_density = density
+
 func build_controls(parent: VBoxContainer) -> void:
 	var body := Layout.section(parent, "Graphics", "Applies immediately • choose a preset or tune each setting", "palette")
 	var presets := Layout.flow(body)
@@ -259,6 +369,45 @@ func build_controls(parent: VBoxContainer) -> void:
 		select.select(maxi(values.find(options[key]),0))
 		select.item_selected.connect(func(index):set_option(key,values[index]))
 		changed.connect(func(_o):select.select(maxi(values.find(options[key]),0)))
+	var advanced := Layout.section(body, "Advanced lighting and color", "Fine-tune individual effects", "palette")
+	for key in ENVIRONMENT_CONTROLS:
+		_add_environment_control(advanced, key)
+
+func _add_environment_control(parent: VBoxContainer, key: String) -> void:
+	var spec: Array = ENVIRONMENT_CONTROLS[key]
+	var row := VBoxContainer.new()
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = spec[0]
+	row.add_child(label)
+	if key == "glow_blend_mode":
+		var select := OptionButton.new()
+		select.add_item("Screen", Environment.GLOW_BLEND_MODE_SCREEN)
+		select.add_item("Soft Light", Environment.GLOW_BLEND_MODE_SOFTLIGHT)
+		row.add_child(select)
+		var refresh := func(_options): select.select(select.get_item_index(int(_environment_value(key))))
+		refresh.call(options)
+		changed.connect(refresh)
+		select.item_selected.connect(func(index): set_option(key, select.get_item_id(index)))
+		return
+	var number := SpinBox.new()
+	number.min_value = spec[1]
+	number.max_value = spec[2]
+	number.step = spec[3]
+	row.add_child(number)
+	number.set_value_no_signal(float(_environment_value(key)))
+	changed.connect(func(_options): number.set_value_no_signal(float(_environment_value(key))))
+	number.value_changed.connect(func(value): set_option(key, value))
+
+func _environment_value(key: String) -> Variant:
+	var node := world.get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if node == null or node.environment == null:
+		return ENVIRONMENT_CONTROLS[key][1] if key != "glow_blend_mode" else Environment.GLOW_BLEND_MODE_SCREEN
+	var value: Variant = node.environment.get(key)
+	if key == "volumetric_fog_density":
+		var authored: Dictionary = originals.get(node.get_instance_id(), {})
+		value = minf(float(options.get(key, authored.get(key, value))), MAX_FOG_DENSITY)
+	return value
 
 func _fine_detail(node: GeometryInstance3D) -> bool:
 	# Printed text/schematic strokes and tiny fixtures retain their lit appearance;

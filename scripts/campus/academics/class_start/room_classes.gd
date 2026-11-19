@@ -4,6 +4,7 @@ const Pending = preload("res://scripts/campus/academics/pending_assessment.gd")
 const AssessmentPlan = preload("res://scripts/campus/academics/ai_assessment_plan.gd")
 const Metadata = preload("res://scripts/campus/academics/record_metadata.gd")
 const TeachingBoard = preload("res://scripts/campus/academics/teaching_board.gd")
+const Practice = preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd")
 const LessonBoardState = preload("res://scripts/campus/academics/lesson_board_state.gd")
 const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
@@ -64,6 +65,8 @@ func interact(target: Node) -> bool:
 		picker=preload("res://scripts/campus/ui/host_game_page.gd").new()
 		picker.classroom=str(game.campus.registry.get_room(room).number)
 		picker.class_requested=func(config: Dictionary):_send("start",room,config)
+		if room in game.campus.registry.lecture_rooms():
+			picker.practice_requested=func(config: Dictionary):_send("practice",room,config)
 		overlay.add_child(picker)
 		picker.build(game)
 		picker.closed.connect(close_picker)
@@ -80,6 +83,7 @@ func open_lab_picker(room: String) -> void:
 	picker.required_kind="lab"
 	picker.required_room=room
 	picker.class_requested=func(config: Dictionary):_send("start",room,config)
+	picker.practice_requested=func(config: Dictionary):_send("practice",room,config)
 	overlay.add_child(picker)
 	picker.build(game)
 	picker.closed.connect(close_picker)
@@ -111,6 +115,7 @@ func _apply(peer: int,op: String,room: String,config: Dictionary) -> void:
 			else:
 				error=_start(room,config)
 				if error.is_empty():classes[room]["ai_teaching"]=true
+		elif op=="practice":error=_issue_practice(peer,room,config)
 		elif op=="sign":error=_sign(peer,room)
 		else:return
 	if peer==multiplayer.get_unique_id():action_result(op,error)
@@ -119,11 +124,30 @@ func _apply(peer: int,op: String,room: String,config: Dictionary) -> void:
 
 @rpc("authority","call_remote","reliable")
 func action_result(op: String,error: String) -> void:
-	if op=="start" and is_instance_valid(picker):
+	if op in ["start","practice"] and is_instance_valid(picker):
 		if error.is_empty():close_picker()
 		else:picker.classroom_error(error)
 	elif not error.is_empty():game.ui.log_message(error)
 	elif op=="sign":game.ui.log_message("Attendance signed. Be in the room when the assessment starts.")
+
+func _issue_practice(peer: int,room: String,config: Dictionary) -> String:
+	var lab := room in ["ac_lab","dc_lab"]
+	if (not lab and room not in game.campus.registry.lecture_rooms()) or classes.has(room) or (school.formal_active() and school.activity.get("room",{}).get("id","")==room):
+		return "Practice sheets are available from the class desk between classes."
+	var course:=str(config.get("course_id",""))
+	if course not in school.course_ids() or not config.get("week") is int or not config.get("difficulty") is int or str(school.identities.get(peer,"")).is_empty():
+		return "Choose a course and week."
+	if lab and Practice.course_for_room(room)!=course:return "Choose the course assigned to this lab."
+	var seed_value: int=school.random.randi()
+	var project:=Practice.issue_for_course(course,school.course_bridge,seed_value,config.week,config.difficulty) if lab else Practice.issue_for_lecture(course,config.week,config.difficulty,school.course_bridge,seed_value)
+	if project.has("error"):return str(project.error)
+	var id: int=school._give(peer,project,true,false)
+	if id==0:return "Free a sheet slot before requesting another worksheet."
+	if not school.papers[id].held:
+		var layout: Dictionary=game.campus.registry.activity_room(course,"lab" if lab else "lecture",room)
+		if not layout.get("desks",[]).is_empty():school.papers[id].position=layout.desks[0]
+	school.broadcast()
+	return ""
 
 func _start(room: String,config: Dictionary) -> String:
 	if classes.has(room):return "This lecture room already has a class."

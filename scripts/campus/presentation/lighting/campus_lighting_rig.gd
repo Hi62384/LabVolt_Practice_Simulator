@@ -131,6 +131,10 @@ func _apply_time_of_day() -> void:
 	sun.light_color = Color("ffb178").lerp(Color("fff7ea"), clampf(daylight * 1.8, 0.0, 1.0))
 	sun.light_energy = lerpf(0.025, 0.55, day_mix) * brightness_scale
 	interior_fill.light_energy = lerpf(0.009, 0.020, day_mix) * brightness_scale
+	var visuals := get_parent().get_node_or_null("CampusVisualSettings")
+	if visuals != null:
+		sun.light_color *= visuals.sun_tint
+		sun.light_energy *= visuals.sun_energy
 
 	if scene_environment:return
 	sky_material.sky_top_color = NIGHT_SKY_TOP.lerp(DAY_SKY_TOP, day_mix)
