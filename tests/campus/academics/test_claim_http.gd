@@ -51,7 +51,9 @@ func recover_host_claims() -> void:
 	var competitor:=Crypto.new().generate_random_bytes(16).hex_encode()
 	var delivered:=Crypto.new().generate_random_bytes(16).hex_encode()
 	var interrupted:=Crypto.new().generate_random_bytes(16).hex_encode()
-	for token in [delivered,interrupted]:
+	var paper_token:=Crypto.new().generate_random_bytes(16).hex_encode()
+	var cable_token:=Crypto.new().generate_random_bytes(16).hex_encode()
+	for token in [delivered,interrupted,paper_token,cable_token]:
 		assert((await Claims.reserve(world,token,holder)).ok)
 		assert(ledger.begin_lost_found_receipt(token,holder))
 		assert((await Claims.prepare(world,token,holder)).ok)
@@ -60,18 +62,32 @@ func recover_host_claims() -> void:
 		"kits":{},"tiers":{},"bags":{},"instances":{},"supplies":{},"definitions":{},"carried_instances":[]}
 	assert(world._deliver_drop(1,6,{"parcel":parcel},delivered,holder))
 	assert(ledger.account(1).profile.inventory.r1000==initial+1)
+	var lesson: Dictionary=preload("res://scripts/course_generator.gd").generate(0,0,123)
+	var source_id: int=game.school._give(1,lesson,true,false,true)
+	var paper: Dictionary=game.school.papers[source_id]
+	game.school.papers.erase(source_id)
+	var paper_id: int=game.school.next_id
+	assert(world._deliver_drop(1,6,{"parcel":{"paper":paper}},paper_token,holder))
+	assert(game.school.papers.has(paper_id))
+	assert(world._deliver_drop(1,6,{"parcel":{"wire":true,"dc":false,"station":0,"color":2}},cable_token,holder))
+	assert(2 in game.session.labs[0].stored_cables[1])
 	assert((await Claims.reserve(world,delivered,competitor)).reserved)
 	assert((await Claims.reserve(world,interrupted,competitor)).reserved)
 	var reopened:=Ledger.new()
 	assert(reopened.open(path)==OK)
+	# Simulate the loss of volatile awards while the ledger survives a crash.
+	game.school.papers.erase(paper_id)
+	game.session.labs[0].release(-1)
+	assert(game.session.labs[0].stored_cables.is_empty())
 	authority.ledger=reopened
 	game.session.online=true
-	await world._recover_claim_receipt()
-	await world._recover_claim_receipt()
+	for index in 4:await world._recover_claim_receipt()
 	assert(reopened.state.lost_found_claims.is_empty())
 	assert(reopened.state.accounts[identity].profile.inventory.r1000==initial+1)
 	assert((await Claims.status(world,delivered)).claimed)
 	assert((await Claims.reserve(world,interrupted,competitor)).ok)
+	assert((await Claims.reserve(world,paper_token,competitor)).ok)
+	assert((await Claims.reserve(world,cable_token,competitor)).ok)
 	game.session.online=false
 	game.queue_free()
 	await process_frame

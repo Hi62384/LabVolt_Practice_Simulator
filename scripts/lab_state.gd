@@ -79,10 +79,11 @@ func snapshot() -> Dictionary:
 	return {"stored_cables":stored_cables.duplicate(true),"last_action":last_action,"drawer_open":drawer_open,"cables":cables.duplicate(true),"switches":switches.duplicate(true),"powered":powered,"level":level,"frequency":frequency,"dyn_load":dyn_load,"supply_meter":supply_meter,"dyn_measure":dyn_measure,"igbt_damping":igbt_damping,"daq_settings":daq_settings.duplicate(),"revision":revision,"readings":readings.duplicate(true),"checked":checked,"mode":mode,"task":task,"seed":seed_value,"element":element,"records":records.duplicate(true),"result":result,"safety_errors":safety_errors}
 
 func release(peer: int) -> void:
-	stored_cables.erase(peer)
 	if peer < 0:
+		stored_cables.clear()
 		dyn_measure_holders.clear()
 	else:
+		stored_cables.erase(peer)
 		dyn_measure_holders.erase(peer)
 	dyn_measure = not dyn_measure_holders.is_empty()
 	for c in cables:

@@ -175,7 +175,9 @@ func _pickup(peer: int,id: int,slots: int) -> void:
 			ClaimAuthority.release(self,token,holder)
 			claim_pending.erase(token)
 			return
-		if not (parcel.has("paper") or parcel.has("wire")) and not _begin_claim_receipt(token,holder):
+		# Paper and cable awards live only in this session. Leave the receipt
+		# unawarded on disk so a fresh host can release an unconfirmed pickup.
+		if not _begin_claim_receipt(token,holder):
 			ClaimAuthority.release(self,token,holder)
 			claim_pending.erase(token)
 			_notice(peer,"Could not save the lost-and-found claim.")
