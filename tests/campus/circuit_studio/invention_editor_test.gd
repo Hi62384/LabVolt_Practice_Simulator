@@ -78,7 +78,16 @@ func _run() -> void:
 	assert(window.draft.parts[4].control=="A" and window.draft.parts[4].x==0,"Undo lost the original properties")
 	window._history(window.redo_stack,window.undo_stack)
 	assert(window.draft.parts[4].control=="B" and window.draft.parts[4].x==4,"Redo did not restore edited properties")
+	# Test uses pending inspector coordinates even without clicking Apply.
+	window.selected_part=4
+	window._editor()
+	window.part_x.value=5
 	window.draft.controls={"A":"hold","B":"toggle"}
+	window._test_draft()
+	assert(window.draft.parts[4].x==5,"Test silently discarded an unapplied inspector edit")
+	window._editor()
+	window.part_x.value=4
+	window._apply_selected()
 	window._test_draft()
 	await process_frame
 	var hold:=_button(window,"Hold A")
@@ -143,10 +152,12 @@ func _run() -> void:
 	window.editing_id="inv:child"
 	window.draft=child.duplicate(true)
 	window.draft.parts.append({"type":"plastic_shell","x":2,"y":0,"z":0,"control":"","ref":""})
-	window.selected_part=-1
+	window.selected_part=1
 	window._editor()
+	window.part_x.value=3
 	assert(window._draft_error()=="","A revised child must be validated independently of the frozen parent")
 	window._save()
+	assert(window.draft.parts[1].x==3,"Save silently discarded pending inspector coordinates")
 	assert(window.editing_id=="inv:child","Original editing identity should remain unchanged by saving")
 	assert(game.electronics.profile.data.inventions["inv:child"]==child,"Fabricated parent's child blueprint changed in place")
 	assert(game.electronics.profile.data.inventions["inv:parent"].parts[1].ref=="inv:child","Fabricated parent was silently rewired to a new child")
@@ -156,6 +167,15 @@ func _run() -> void:
 	assert(game.electronics.profile.data.inventions.has("inv:parent"),"Discard should preserve the blueprint")
 	window._remove("inv:parent")
 	assert(not game.electronics.profile.data.inventions.has("inv:parent"),"An unreferenced blueprint should be removable after its copies are cleared")
+	# Valid pre-drive-map blueprints must still enter Test from the library.
+	var legacy: Dictionary=Model.empty("Legacy manual drive")
+	legacy.erase("drive")
+	assert(Model.validate("inv:legacy",{"inv:legacy":legacy},game.electronics.profile.data.blueprints)=="")
+	window._library()
+	window.draft=legacy
+	window._test_draft()
+	assert(window.page=="test" and window.draft.drive=={"A":"manual","B":"manual"},
+		"Legacy invention preview crashed or lost the default manual drive")
 	game.electronics.profile.data=old_profile
 	window._close()
 	await process_frame

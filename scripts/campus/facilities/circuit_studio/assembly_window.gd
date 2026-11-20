@@ -129,6 +129,8 @@ func _library() -> void:
 func _editor(message: String="") -> void:
 	page="editor";_ui("EDIT INVENTION")
 	notice.text=message
+	var guide:=_label(body,"Choose a part, then click the grid or Add part. Select a part to edit it; Save and Test include any changes in the inspector.")
+	guide.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var name_row:=_row(body)
 	_button(name_row,"Library",_library)
 	name_field=LineEdit.new();name_field.text=str(draft.get("name",""));name_field.max_length=40;name_field.size_flags_horizontal=Control.SIZE_EXPAND_FILL;name_row.add_child(name_field)
@@ -239,7 +241,7 @@ func _editor(message: String="") -> void:
 	validation.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	validation.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var save:=_button(actions,"Save blueprint",_save)
-	var test:=_button(actions,"Test",func():_sync_fields();_test_draft())
+	var test:=_button(actions,"Test",_test_draft)
 	var refresh:=func():
 		var error:=_draft_error()
 		validation.text=error
@@ -263,6 +265,14 @@ func _fill_parts(query: String) -> void:
 	if is_instance_valid(part_ref) and is_instance_valid(pin_row):_reference_options()
 
 func _test_draft() -> void:
+	# A part inspector is staged while the user types. Testing should always
+	# use those visible values, even when Apply has not been pressed separately.
+	if page=="editor":
+		_sync_fields()
+		if not _commit_selected_changes():return
+	# Older saved designs may have no explicit drive map. Validation treats
+	# those as manual; the live preview must use the same default.
+	if not draft.has("drive"):draft.drive={"A":"manual","B":"manual"}
 	page="test"
 	_ui("TEST INVENTION")
 	_button(body,"Back to editor",func():test_pcb=null;_editor())
@@ -451,6 +461,7 @@ func _drive_mode(parent: Node,label_text: String,selected: String) -> OptionButt
 	var choice:=OptionButton.new();parent.add_child(choice)
 	for value in ["Manual","PCB output","Both"]:choice.add_item(value)
 	choice.select(["manual","pcb","both"].find(selected))
+	choice.tooltip_text="Manual uses the physical switch. PCB output activates above 2.5 V. Both requires the switch AND the PCB output."
 	return choice
 
 func _axis(parent: Node,label_text: String) -> SpinBox:
@@ -520,6 +531,17 @@ func _add_part() -> void:
 func _apply_selected() -> void:
 	if selected_part<0 or selected_part>=draft.parts.size() or part_kind.selected<0:return
 	_sync_fields()
+	var before: Dictionary=draft.parts[selected_part].duplicate(true)
+	if not _commit_selected_changes():return
+	if before==draft.parts[selected_part]:
+		notice.text="Selected part already has those settings."
+		return
+	_editor("Selected part updated.")
+
+# Use the same inspector-to-model path for Apply, Save and Test. Previously
+# Save/Test could silently discard pending coordinates, controls and PCB pins.
+func _commit_selected_changes() -> bool:
+	if selected_part<0 or selected_part>=draft.parts.size() or not is_instance_valid(part_kind) or part_kind.selected<0:return true
 	var changed: Dictionary=draft.parts[selected_part].duplicate(true)
 	changed.type=str(part_kind.get_item_metadata(part_kind.selected))
 	changed.x=int(part_x.value)
@@ -529,7 +551,7 @@ func _apply_selected() -> void:
 	if changed.type in ["pcb","nested"]:
 		if part_ref.selected<0:
 			notice.text="Choose a blueprint for the selected part."
-			return
+			return false
 		changed.ref=str(part_ref.get_item_metadata(part_ref.selected))
 	else:changed.ref=""
 	if changed.type=="pcb":
@@ -539,18 +561,16 @@ func _apply_selected() -> void:
 				var choice: OptionButton=pin_choices[role]
 				changed.pin_map[role]=int(choice.get_item_metadata(choice.selected))
 	else:changed.erase("pin_map")
-	if changed==draft.parts[selected_part]:
-		notice.text="Selected part already has those settings."
-		return
+	if changed==draft.parts[selected_part]:return true
 	for index in draft.parts.size():
 		if index==selected_part:continue
 		var other: Dictionary=draft.parts[index]
 		if int(other.x)==int(changed.x) and int(other.y)==int(changed.y) and int(other.z)==int(changed.z):
 			notice.text="Another part occupies that grid cell."
-			return
+			return false
 	_track_edit()
 	draft.parts[selected_part]=changed
-	_editor("Selected part updated.")
+	return true
 
 func _remove_part(index: int) -> void:
 	_sync_fields()
@@ -573,6 +593,7 @@ func _draft_error() -> String:
 
 func _save() -> void:
 	_sync_fields()
+	if not _commit_selected_changes():return
 	var error:=_draft_error()
 	if error!="":notice.text=error;return
 	var revised: bool=editing_id!="" and Model.fabricated_dependencies(profile.data.get("inventions",{}),profile.data.get("invention_copies",{})).has(editing_id) and profile.data.get("inventions",{}).get(editing_id,{})!=draft
