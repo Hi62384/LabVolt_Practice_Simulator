@@ -57,7 +57,7 @@ func _initialize() -> void:
 	var cpu_board: Dictionary=Board.empty()
 	cpu_board.parts=[{
 		"id":"cpu","type":"lv_mcu","a":"A1","b":"F1",
-		"pins":["A1","A2","A3","F1","F2","F3"],
+		"pins":["A1","F1","A2","F2","A3","F3"],
 		"firmware":"mode D0 out\nwrite D0 1\nwait 200\nwrite D0 0\nhalt"
 	}]
 	var cpu_bp: Dictionary=Board.blueprint(cpu_board,"Mounted CPU")
@@ -69,6 +69,12 @@ func _initialize() -> void:
 		{"name":"GND","node":"R1"},
 		{"name":"OUT_A","node":"L2"}
 	]
+	# The external ground must connect to CPU pin GND (index 1), and
+	# OUT_A must connect to CPU pin D0 (index 2). The previous fixture
+	# accidentally mapped them to D1 and GND, producing a false reading.
+	check(Board.node(str(cpu_board.parts[0].pins[1]))==str(cpu_bp.pins[1].node)
+		and Board.node(str(cpu_board.parts[0].pins[2]))==str(cpu_bp.pins[2].node),
+		"Mounted CPU external ground and D0 outputs are correctly routed")
 	var cpu_defs: Dictionary={"ic:mounted_cpu":cpu_bp}
 	check(Custom.validate("ic:mounted_cpu",cpu_defs)=="","Programmed MCU PCB definition is valid")
 	if failures==0:
