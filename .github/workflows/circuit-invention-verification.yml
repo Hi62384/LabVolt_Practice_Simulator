@@ -90,9 +90,18 @@ jobs:
           foreach ($test in $tests.Keys) {
             $log = "$env:RUNNER_TEMP/$([IO.Path]::GetFileNameWithoutExtension($test)).log"
             Write-Host "RUN $test"
-            & $env:GODOT --headless --path . --script "res://$test" --log-file $log
-            if ($LASTEXITCODE -ne 0 -or !(Test-Path $log) -or (Select-String -Path $log -SimpleMatch 'SCRIPT ERROR:' -Quiet)) {
-              if (Test-Path $log) { Get-Content $log -Tail 100 }
+            # Assertion failures in a SceneTree script may leave Godot open
+            # without calling quit(). Terminate that particular test rather than
+            # burning the whole Windows CI timeout on an idle process.
+            $proc = Start-Process -FilePath $env:GODOT -ArgumentList @('--headless','--path','.','--script',"res://$test",'--log-file',$log) -PassThru -NoNewWindow
+            if (!$proc.WaitForExit(120000)) {
+              $proc.Kill($true)
+              $proc.WaitForExit()
+              if (Test-Path $log) { Get-Content $log -Tail 120 }
+              throw "Godot test timed out after 120 seconds: $test"
+            }
+            if ($proc.ExitCode -ne 0 -or !(Test-Path $log) -or (Select-String -Path $log -SimpleMatch 'SCRIPT ERROR:' -Quiet)) {
+              if (Test-Path $log) { Get-Content $log -Tail 120 }
               throw "Godot test failed: $test"
             }
             $required = $tests[$test]
