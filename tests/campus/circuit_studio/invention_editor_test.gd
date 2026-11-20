@@ -24,6 +24,13 @@ func _run() -> void:
 	var game=load("res://scenes/Main.tscn").instantiate()
 	root.add_child(game)
 	for frame in 4:await process_frame
+	# An editor opened through real gameplay already has an active character.
+	# This isolated SceneTree fixture bypasses the menu and must create one.
+	# Use a fresh identity so the test never touches a player's saved profile.
+	var identity:=Crypto.new().generate_random_bytes(12).hex_encode()
+	game.electronics.profile.open(identity)
+	assert(game.electronics.profile.data.get("blueprints") is Dictionary,
+		"Isolated character profile must initialize its blueprint library")
 	var window=WindowScript.new()
 	game.add_child(window)
 	window.open_station(game)
