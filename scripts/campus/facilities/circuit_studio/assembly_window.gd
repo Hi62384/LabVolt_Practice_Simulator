@@ -302,17 +302,62 @@ func _test_draft() -> void:
 			notice.text="The mounted PCB could not start."
 			test_pcb=null
 			return
-		var inputs:=HFlowContainer.new()
+		var inputs:=VBoxContainer.new()
 		body.add_child(inputs)
-		for entry in test_pcb.inputs:
-			var id:=String(entry.id)
-			if entry.kind=="button":
-				var hold:=_button(inputs,entry.name,func():pass)
-				hold.button_down.connect(func():test_pcb.input(id,true))
-				hold.button_up.connect(func():test_pcb.input(id,false))
-			elif entry.kind=="toggle":
-				_button(inputs,entry.name,func():test_pcb.input(id,true))
+		_test_pcb_controls(inputs)
 		break
+
+func _test_input(id: String,pressed: bool,reverse: bool=false,command: Dictionary={}) -> void:
+	if not is_instance_valid(test_pcb):return
+	if not test_pcb.input(id,pressed,reverse,command):
+		notice.text="Could not apply that PCB input in the test."
+
+func _test_pcb_controls(parent: VBoxContainer) -> void:
+	# Use the same input commands as the mounted world panel. Previously only
+	# buttons and toggles were testable, leaving sliders and serial inputs blind.
+	for entry in test_pcb.inputs:
+		var id:=str(entry.id)
+		var kind:=str(entry.kind)
+		var row:=_row(parent)
+		_label(row,str(entry.name))
+		if kind=="button":
+			var hold:=_button(row,"Hold",func():pass)
+			hold.button_down.connect(func():_test_input(id,true))
+			hold.button_up.connect(func():_test_input(id,false))
+		elif kind=="toggle":
+			_button(row,"Toggle",func():_test_input(id,true))
+		elif kind=="io_encoder":
+			for steps in [-1,1]:
+				_button(row,"−" if steps<0 else "+",func():_test_input(id,true,false,{"op":"turn","steps":steps}))
+		elif kind=="io_selector":
+			var selector:=OptionButton.new()
+			row.add_child(selector)
+			for index in 3:selector.add_item(str(index))
+			selector.item_selected.connect(func(index: int):_test_input(id,true,false,{"op":"select","position":index}))
+		elif kind=="io_keypad":
+			for number in 12:
+				var button:=_button(row,str(number+1),func():pass)
+				button.button_down.connect(func():_test_input(id,true,false,{"op":"key","key":number,"pressed":true}))
+				button.button_up.connect(func():_test_input(id,false,false,{"op":"key","key":number,"pressed":false}))
+		elif kind in ["io_slider","io_joystick","xpt2046"]:
+			var x:=HSlider.new()
+			x.min_value=0.0;x.max_value=1.0;x.step=.05;x.value=.5
+			x.custom_minimum_size.x=130;row.add_child(x)
+			var y:=HSlider.new()
+			y.min_value=0.0;y.max_value=1.0;y.step=.05;y.value=.5
+			if kind!="io_slider":row.add_child(y)
+			if kind=="io_slider":
+				x.drag_ended.connect(func(_changed: bool):_test_input(id,true,false,{"op":"move","x":x.value}))
+			elif kind=="io_joystick":
+				x.drag_ended.connect(func(_changed: bool):_test_input(id,true,false,{"op":"move","x":x.value,"y":y.value}))
+				y.drag_ended.connect(func(_changed: bool):_test_input(id,true,false,{"op":"move","x":x.value,"y":y.value}))
+			if kind in ["io_joystick","xpt2046"]:
+				var press:=_button(row,"Press" if kind=="io_joystick" else "Touch",func():pass)
+				press.button_down.connect(func():_test_input(id,true,false,{"op":"press","pressed":true} if kind=="io_joystick" else {"op":"touch","x":x.value,"y":y.value,"pressed":true}))
+				press.button_up.connect(func():_test_input(id,false,false,{"op":"press","pressed":false} if kind=="io_joystick" else {"op":"release"}))
+		else:
+			_button(row,"−",func():_test_input(id,true,true))
+			_button(row,"+",func():_test_input(id,true,false))
 
 func _process(delta: float) -> void:
 	if page!="test" or not is_instance_valid(test_status):return
