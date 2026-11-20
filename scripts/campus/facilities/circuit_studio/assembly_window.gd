@@ -186,11 +186,33 @@ func _editor(message: String="") -> void:
 	_reference_options()
 	if selected_part>=0 and selected_part<draft.parts.size():
 		var part: Dictionary=draft.parts[selected_part]
+		# The selected item's real properties must populate the inspector.
+		# Otherwise edits silently target the next added part instead.
+		for index in part_kind.item_count:
+			if str(part_kind.get_item_metadata(index))==str(part.type):
+				part_kind.select(index)
+				placement_kind=str(part.type)
+				break
+		part_control.select(1 if part.get("control","")=="A" else 2 if part.get("control","")=="B" else 0)
+		_reference_options()
+		for index in part_ref.item_count:
+			if str(part_ref.get_item_metadata(index))==str(part.get("ref","")):
+				part_ref.select(index)
+				break
+		_pin_options()
+		if part.type=="pcb" and part.has("pin_map"):
+			for role in pin_choices:
+				var choice: OptionButton=pin_choices[role]
+				for index in choice.item_count:
+					if int(choice.get_item_metadata(index))==int(part.pin_map.get(role,-1)):
+						choice.select(index)
+						break
 		part_x.value=part.x
 		part_y.value=part.y
 		part_z.value=part.z
 		preview.placement_height=int(part_y.value)
 		_label(inspector,"Selected  ·  "+str(Model.PARTS[part.type].name))
+		_button(inspector,"Apply selected changes",_apply_selected)
 		var rotate:=_button(inspector,"Rotate %d°"%[int(part.get("turns",0))*90],_rotate_part.bind(selected_part))
 		if part.type=="hinge":
 			var forward:=Model.rotate_grid(Vector3i.FORWARD,int(part.get("turns",0)))
@@ -255,8 +277,15 @@ func _test_draft() -> void:
 	var controls:=_row(body)
 	for channel in ["A","B"]:
 		var selected_channel:=String(channel)
-		var button:=_button(controls,"Switch "+selected_channel,func():test_switches[selected_channel]=not test_switches[selected_channel])
-		button.toggle_mode=true
+		var hold_mode: bool=str(draft.controls.get(selected_channel,"hold"))=="hold"
+		var button: Button
+		if hold_mode:
+			button=_button(controls,"Hold "+selected_channel,func():pass)
+			button.button_down.connect(func():test_switches[selected_channel]=true)
+			button.button_up.connect(func():test_switches[selected_channel]=false)
+		else:
+			button=_button(controls,"Switch "+selected_channel,func():test_switches[selected_channel]=not test_switches[selected_channel])
+			button.toggle_mode=true
 		button.disabled=not test_parts.any(func(part):return part.type=="switch" and part.control==selected_channel)
 	_button(controls,"Reset test",_test_draft)
 	for index: int in range(test_view.joints.size()):
@@ -427,6 +456,41 @@ func _add_part() -> void:
 	draft.parts.append(part)
 	selected_part=draft.parts.size()-1
 	_editor()
+
+func _apply_selected() -> void:
+	if selected_part<0 or selected_part>=draft.parts.size() or part_kind.selected<0:return
+	_sync_fields()
+	var changed: Dictionary=draft.parts[selected_part].duplicate(true)
+	changed.type=str(part_kind.get_item_metadata(part_kind.selected))
+	changed.x=int(part_x.value)
+	changed.y=int(part_y.value)
+	changed.z=int(part_z.value)
+	changed.control="" if part_control.selected==0 else "A" if part_control.selected==1 else "B"
+	if changed.type in ["pcb","nested"]:
+		if part_ref.selected<0:
+			notice.text="Choose a blueprint for the selected part."
+			return
+		changed.ref=str(part_ref.get_item_metadata(part_ref.selected))
+	else:changed.ref=""
+	if changed.type=="pcb":
+		if pin_choices.size()==4:
+			changed.pin_map={}
+			for role in pin_choices:
+				var choice: OptionButton=pin_choices[role]
+				changed.pin_map[role]=int(choice.get_item_metadata(choice.selected))
+	else:changed.erase("pin_map")
+	if changed==draft.parts[selected_part]:
+		notice.text="Selected part already has those settings."
+		return
+	for index in draft.parts.size():
+		if index==selected_part:continue
+		var other: Dictionary=draft.parts[index]
+		if int(other.x)==int(changed.x) and int(other.y)==int(changed.y) and int(other.z)==int(changed.z):
+			notice.text="Another part occupies that grid cell."
+			return
+	_track_edit()
+	draft.parts[selected_part]=changed
+	_editor("Selected part updated.")
 
 func _remove_part(index: int) -> void:
 	_sync_fields()
