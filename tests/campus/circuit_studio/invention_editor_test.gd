@@ -113,6 +113,13 @@ func _run() -> void:
 	parent.parts.append({"type":"nested","x":1,"y":0,"z":0,"control":"","ref":"inv:child"})
 	game.electronics.profile.data.inventions={"inv:child":child,"inv:parent":parent}
 	game.electronics.profile.data.invention_copies={"inv:parent":1}
+	var nested_preview=preload("res://scripts/campus/facilities/circuit_studio/assembly_preview.gd").new()
+	nested_preview.design=parent
+	nested_preview.library={"inv:preview":parent,"inv:child":child}
+	nested_preview.pcbs=game.electronics.profile.data.blueprints
+	game.add_child(nested_preview)
+	assert(nested_preview._selection_bounds.any(func(entry):return entry.index==1 and float(entry.bounds.position.x)>.1),"Expanded nested parts need selectable hit regions")
+	nested_preview.queue_free()
 	window.editing_id="inv:child"
 	window.draft=child.duplicate(true)
 	window.draft.parts.append({"type":"plastic_shell","x":2,"y":0,"z":0,"control":"","ref":""})

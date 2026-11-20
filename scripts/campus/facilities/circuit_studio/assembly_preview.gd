@@ -11,6 +11,7 @@ var _camera: Camera3D
 var _ghost: MeshInstance3D
 var _ghost_material: StandardMaterial3D
 var _parts: Array=[]
+var _selection_bounds: Array[Dictionary]=[]
 var _powered_parts: Array[MeshInstance3D]=[]
 var joints: Array[Dictionary]=[]
 var camera_state: Dictionary={"focus":Vector3.ZERO,"distance":4.2,"yaw":.65,"pitch":.72}
@@ -60,6 +61,23 @@ func _ready() -> void:
 	floor_grid.mesh=grid
 	scene.add_child(floor_grid)
 	_parts=design.get("parts",[]).duplicate(true)
+	# The render expands nested blueprints, so use their *visible* member
+	# footprints for editor hit-testing. Keep the index of the containing
+	# top-level part so selecting/moving a nested design remains intuitive.
+	_selection_bounds.clear()
+	for source_index in _parts.size():
+		var outer: Dictionary=_parts[source_index]
+		var selectable: Array=[outer]
+		if outer.get("type","")=="nested" and library.has(str(outer.get("ref",""))):
+			var descendants: Array=Model.flattened(str(outer.ref),library,pcbs)
+			if not descendants.is_empty():
+				selectable=[]
+				for inner in descendants:
+					var cell:=Vector3i(outer.x,outer.y,outer.z)+Model.rotate_grid(Vector3i(inner.x,inner.y,inner.z),int(outer.get("turns",0)))
+					selectable.append({"x":cell.x,"y":cell.y,"z":cell.z})
+		for member in selectable:
+			var point:=Vector3(member.x,member.y,member.z)*.3+Vector3(-.15,-.01,-.15)
+			_selection_bounds.append({"index":source_index,"bounds":AABB(point,Vector3.ONE*.3)})
 	var visible_parts: Array=_parts
 	if library.has("inv:preview") and Model.validate("inv:preview",library,pcbs)=="":
 		visible_parts=Model.flattened("inv:preview",library,pcbs)
@@ -159,14 +177,13 @@ func _pick_part(at: Vector2) -> int:
 	var direction:=_camera.project_ray_normal(at)
 	var nearest:=INF
 	var found:=-1
-	for index in _parts.size():
-		var part: Dictionary=_parts[index]
-		var bounds:=AABB(Vector3(part.x,part.y,part.z)*.3+Vector3(-.15,-.01,-.15),Vector3.ONE*.3)
+	for entry in _selection_bounds:
+		var bounds: AABB=entry.bounds
 		var hit: Variant=bounds.intersects_ray(origin,direction)
 		if hit==null:continue
 		var depth:=origin.distance_squared_to(hit)
 		if depth<nearest:
-			found=index
+			found=int(entry.index)
 			nearest=depth
 	return found
 
