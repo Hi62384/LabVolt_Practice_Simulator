@@ -55,8 +55,11 @@ func export_shell() -> void:
 			var light := node as Light3D
 			if not light.is_visible_in_tree() or _moving_branch(light, parent):
 				continue
+			# Godot bakes one directional shadowmask. The two fill lights remain runtime-only.
+			if light is DirectionalLight3D and light.name != "Sun":
+				continue
 			var copy := light.duplicate(0) as Light3D
-			copy.name = "BakeLight%04d" % light_count
+			copy.name = "BakeSun" if light is DirectionalLight3D else "BakeLight%04d" % light_count
 			copy.transform = light.global_transform
 			copy.light_bake_mode = Light3D.BAKE_DYNAMIC if light is DirectionalLight3D else Light3D.BAKE_STATIC
 			stage.add_child(copy)
@@ -67,6 +70,8 @@ func export_shell() -> void:
 	gi.name = "CampusLightmap"
 	gi.directional = true
 	gi.bounces = 2
+	# Store the sun's static occlusion separately so live moving shadows can overlay it.
+	gi.shadowmask_mode = LightmapGIData.SHADOWMASK_MODE_OVERLAY
 	stage.add_child(gi)
 	gi.owner = stage
 	var scene := PackedScene.new()

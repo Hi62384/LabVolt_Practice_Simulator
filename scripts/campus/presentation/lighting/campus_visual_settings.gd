@@ -74,7 +74,7 @@ func _apply_scene(path: String) -> bool:
 		var rig := game.find_child("CampusLightingRig", false, false) as CampusLightingRig
 		if rig != null:
 			rig.set_time_of_day(rig.time_of_day)
-		graphics.apply()
+		graphics.apply_scene_preview()
 		var bake := game.get_node_or_null("CampusBakedLighting")
 		if bake != null:
 			bake.refresh_visual_settings(graphics.options)

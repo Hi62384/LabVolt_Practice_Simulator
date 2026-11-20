@@ -97,6 +97,7 @@ func _room_lighting(room: Dictionary) -> void:
 func box(parent: Node3D, pos: Vector3, size: Vector3, color: String, solid: bool=true) -> Node3D:
 	var node := MeshInstance3D.new()
 	node.mesh=box_mesh
+	node.set_meta("campus_architecture", true)
 	node.material_override=material(color)
 	node.position=pos
 	node.scale=size

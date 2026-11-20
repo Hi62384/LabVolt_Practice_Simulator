@@ -296,6 +296,20 @@ func _display_controls() -> void:
 	_quality_choice("Bloom", "bloom_quality", [0,1,2,3], ["Off","Low","Medium","High"])
 	_toggle("Reflections", graphics.options.reflections, _quality.bind("reflections"))
 	_toggle("Global illumination (SDFGI, Forward+)", graphics.options.sdfgi, _quality.bind("sdfgi"))
+	_label(body, "Advanced lighting and color", 18)
+	for key in graphics.ENVIRONMENT_CONTROLS:
+		var spec: Array = graphics.ENVIRONMENT_CONTROLS[key]
+		var value: Variant = graphics.environment_value(key)
+		if key == "glow_blend_mode":
+			var modes := [Environment.GLOW_BLEND_MODE_SCREEN, Environment.GLOW_BLEND_MODE_SOFTLIGHT]
+			_choice(spec[0], ["Screen", "Soft Light"], maxi(0, modes.find(value)), func(index): _quality(modes[index], key))
+		else:
+			var format := "%.2f"
+			if key == "volumetric_fog_density":
+				format = "%.5f"
+			elif key == "sdfgi_cascades":
+				format = "%.0f"
+			_slider(spec[0], spec[1], spec[2], spec[3], float(value), _quality.bind(key), format)
 	_label(body, "World detail", 18)
 	_quality_choice("Fixture quality", "lighting_quality", [0,1,2,3], ["Basic","Balanced","Enhanced","Extended"])
 	for spec in [["Fine-detail shadows","detail_shadows"],["Accent lights","lights"],["Particle effects","effects"],["First-person interaction hands","interaction_hands"]]:

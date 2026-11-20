@@ -145,6 +145,11 @@ func _check_singleplayer_pause(game: Node) -> void:
 		settings.pressed.emit()
 		await process_frame
 		_check(paused and front.page == "settings", "Opening Settings resumed singleplayer")
+		var labels: Array[String] = []
+		for label in front.menu_page.find_children("*", "Label", true, false):
+			labels.append(label.text)
+		for spec in game.ui.graphics_controller.ENVIRONMENT_CONTROLS.values():
+			_check(labels.has(spec[0]), "Graphics & Display is missing " + spec[0])
 		root.push_input(escape)
 		await process_frame
 		_check(paused and front.page == "pause", "Esc from Settings did not return to the paused menu")

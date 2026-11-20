@@ -9,7 +9,9 @@ const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows
 const PRESETS := ["Low", "Medium", "High", "Ultra", "Custom"]
 const MAX_FOG_DENSITY := 0.00299
 const INDOOR_SUN_SHADOW_DISTANCE := 22.0
+const BAKED_OUTDOOR_SUN_SHADOW_DISTANCE := 12.0
 const INDOOR_FIXTURE_SHADOW_DISTANCE := 9.0
+const FIXTURE_SHADOW_BLEND_DISTANCE := 3.0
 const ENVIRONMENT_CONTROLS := {
 	"ssr_fade_out": ["Reflection Fade-Out", 0.0, 8.0, 0.01],
 	"ssao_intensity": ["Contact Shadow Intensity", 0.0, 8.0, 0.05],
@@ -38,6 +40,8 @@ var _fog_density := 0.0
 var _fog_clock := 0.0
 var _sun: DirectionalLight3D
 var _sun_shadow_distance := 0.0
+var _fixture_shadow_opacity := {}
+var _preview_scene_effects := false
 func attach(target: Viewport, root: Node, crowd_adapter: Object=null) -> void:
 	viewport=target; world=root; crowd=crowd_adapter
 	load_settings()
@@ -106,6 +110,8 @@ func _validate(key: String, value: Variant) -> bool:
 	return true
 func set_option(key: String, value: Variant) -> bool:
 	if not _validate(key,value): return false
+	if key == "sdfgi":
+		_preview_scene_effects = false
 	if key=="shadow_quality": options.shadows=options.shadow_quality>0
 	elif key=="bloom_quality": options.bloom=options.bloom_quality>0
 	elif key=="shadows":options.shadow_quality=maxi(int(options.shadow_quality),2) if options.shadows else 0
@@ -117,6 +123,7 @@ func preset(level: String) -> void:
 	if level not in PRESETS:
 		return
 	quality_preset = level
+	_preview_scene_effects = false
 	if level != "Custom":
 		options = _preset_options(level)
 	_apply_and_save()
@@ -148,6 +155,7 @@ func apply(key := "") -> void:
 	for id in node_refs.keys():
 		if node_refs[id].get_ref()==null:
 			node_refs.erase(id); originals.erase(id); texture_materials.erase(id)
+			_fixture_shadow_opacity.erase(id)
 	if is_instance_valid(world):
 		var first_pass := not get_tree().node_added.is_connected(_node_added)
 		if first_pass:get_tree().node_added.connect(_node_added)
@@ -201,7 +209,7 @@ func register_node(node: Node, recursive := true) -> void:
 		elif node is Camera3D: original={"far":node.far}
 		elif node is WorldEnvironment and node.environment!=null:
 			var env: Environment = node.environment
-			original={"reflected":env.reflected_light_source,"ssr":env.ssr_enabled,"glow":env.glow_enabled,"ssao":env.ssao_enabled,"ssil":env.ssil_enabled,"exposure":env.tonemap_exposure,"sdfgi":env.sdfgi_enabled,"glow_threshold":env.glow_hdr_threshold}
+			original={"reflected":env.reflected_light_source,"ssr":env.ssr_enabled,"glow":env.glow_enabled,"ssao":env.ssao_enabled,"ssil":env.ssil_enabled,"fog":env.volumetric_fog_enabled,"exposure":env.tonemap_exposure,"sdfgi":env.sdfgi_enabled,"glow_threshold":env.glow_hdr_threshold}
 			for key in ENVIRONMENT_CONTROLS:
 				original[key] = env.get(key)
 		elif node is GeometryInstance3D: original={"end":node.visibility_range_end,"cast":node.cast_shadow,"fine":_fine_detail(node)}
@@ -214,6 +222,8 @@ func register_node(node: Node, recursive := true) -> void:
 		node.shadow_blur=float(saved.blur)*[1.0,.65,.85,1.0][quality]
 		if node is DirectionalLight3D and node.shadow_enabled:
 			node.directional_shadow_mode=DirectionalLight3D.SHADOW_ORTHOGONAL if quality==1 else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+			node.directional_shadow_blend_splits = true
+			node.directional_shadow_fade_start = 0.65
 			if node.name == "Sun" and node != _sun:
 				_sun = node
 				_sun_shadow_distance = node.directional_shadow_max_distance
@@ -242,11 +252,17 @@ func register_node(node: Node, recursive := true) -> void:
 		# Room fixtures provide basic illumination even with accent lights disabled.
 		if not node is DirectionalLight3D:
 			node.visible = bool(saved.visible) and int(options.lighting_quality)>=int(node.get_meta("fixture_quality_min",0)) and (bool(options.lights) or bool(node.get_meta("room_fixture", false)))
-		if visuals != null and (node.name == "Sun" or node.get_meta("room_fixture", false)):
+		if node.name == "Sun" or node.get_meta("room_fixture", false):
 			if not saved.has("opacity"):
 				saved["opacity"] = node.shadow_opacity
-			node.shadow_opacity = float(saved.opacity) * visuals.shadow_opacity
-			node.shadow_blur *= visuals.shadow_softness
+			node.shadow_opacity = float(saved.opacity)
+			if visuals != null:
+				node.shadow_opacity *= visuals.shadow_opacity
+				node.shadow_blur *= visuals.shadow_softness
+		if node is SpotLight3D and node.get_meta("room_fixture", false) and node.shadow_enabled:
+			_fixture_shadow_opacity[id] = node.shadow_opacity
+		else:
+			_fixture_shadow_opacity.erase(id)
 	elif node is ReflectionProbe: node.visible=bool(saved.visible) and options.reflections and (not node.has_meta("room_probe") or int(options.lighting_quality)>=3)
 	elif node is GPUParticles3D or node is CPUParticles3D: node.visible=bool(saved.visible) and options.effects
 	elif node is Camera3D: node.far=minf(float(saved.far),float(options.view_distance))
@@ -279,19 +295,26 @@ func register_node(node: Node, recursive := true) -> void:
 			for material in texture_materials[id]: material.texture_filter=BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS if options.texture==0 else BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	if recursive:
 		for child in node.get_children(): register_node(child)
+func apply_scene_preview() -> void:
+	_preview_scene_effects = true
+	apply()
+
 func _apply_environment(node: WorldEnvironment, saved: Dictionary, scene_effects: bool) -> void:
 	var env := node.environment
-	var authored := scene_effects or quality_preset == "Ultra"
+	var author_preview := scene_effects and _preview_scene_effects
+	var authored := quality_preset == "Ultra" or (quality_preset == "Custom" and int(options.lighting_quality) == 3) or author_preview
 	var forward := RenderingServer.get_current_rendering_method() == "forward_plus"
 	var bloom_level := int(options.bloom_quality) if options.bloom else 0
-	env.sdfgi_enabled = forward and (bool(saved.sdfgi) if authored else bool(options.sdfgi))
+	var authored_gi := quality_preset == "Ultra" or author_preview
+	env.sdfgi_enabled = forward and (bool(saved.sdfgi) if authored_gi else bool(options.sdfgi))
 	env.tonemap_exposure = float(saved.exposure) * (1.0 if authored else float(options.brightness))
-	env.ssr_enabled = forward and (bool(saved.ssr) if authored else (bool(saved.ssr) or int(options.lighting_quality) >= 3) and bool(options.reflections))
+	env.ssr_enabled = forward and (bool(saved.ssr) if authored else bool(saved.ssr) and int(options.lighting_quality) >= 2 and bool(options.reflections))
 	env.reflected_light_source = int(saved.reflected) if authored or options.reflections else Environment.REFLECTION_SOURCE_DISABLED
 	env.glow_enabled = bool(saved.glow) and (authored or bloom_level > 0)
 	env.glow_hdr_threshold = float(saved.glow_threshold) if authored else [1.0, 0.93, 0.85, 0.78][bloom_level]
 	env.ssao_enabled = forward and (bool(saved.ssao) if authored else (bool(saved.ssao) or int(options.lighting_quality) >= 3) and bool(options.effects))
-	env.ssil_enabled = forward and bool(saved.ssil) and (authored or bool(options.effects))
+	env.ssil_enabled = forward and bool(saved.ssil) and (authored or (bool(options.effects) and int(options.lighting_quality) >= 2))
+	env.volumetric_fog_enabled = forward and bool(saved.fog) and (authored or (bool(options.effects) and int(options.lighting_quality) >= 2))
 	for key in ENVIRONMENT_CONTROLS:
 		if key == "volumetric_fog_density":
 			continue
@@ -314,6 +337,25 @@ func _process(delta: float) -> void:
 		_fog_clock = 0.0
 		_update_fog()
 		_update_sun_shadow_distance()
+		_update_fixture_shadow_opacity()
+
+func _update_fixture_shadow_opacity() -> void:
+	if not is_instance_valid(viewport):
+		return
+	var camera := viewport.get_camera_3d()
+	if camera == null:
+		return
+	var eye := camera.global_position
+	for id in _fixture_shadow_opacity:
+		var light := node_refs[id].get_ref() as SpotLight3D
+		if not is_instance_valid(light) or not light.is_visible_in_tree():
+			continue
+		# Forward+ stops drawing the shadow at its cutoff. Reach zero opacity first.
+		var cutoff := light.distance_fade_shadow
+		var distance := eye.distance_to(light.global_position)
+		var opacity: float = _fixture_shadow_opacity[id] * (1.0 - smoothstep(maxf(0.0, cutoff - FIXTURE_SHADOW_BLEND_DISTANCE), cutoff, distance))
+		if not is_equal_approx(light.shadow_opacity, opacity):
+			light.shadow_opacity = opacity
 
 func _update_sun_shadow_distance() -> void:
 	if not is_instance_valid(_sun) or not _sun.shadow_enabled or not is_instance_valid(viewport):
@@ -324,7 +366,11 @@ func _update_sun_shadow_distance() -> void:
 	# The facade blocks the interior from the exterior directional light.
 	# Blend to the outdoor range in the lobby so the distance does not jump at the door.
 	var interior := smoothstep(-11.0, -3.0, camera.global_position.z)
-	var distance := lerpf(_sun_shadow_distance, minf(_sun_shadow_distance, INDOOR_SUN_SHADOW_DISTANCE), interior)
+	var outdoors := _sun_shadow_distance
+	var bake := world.get_node_or_null("CampusBakedLighting") if is_instance_valid(world) else null
+	if bake != null and bake.has_active_sun_mask():
+		outdoors = minf(outdoors, BAKED_OUTDOOR_SUN_SHADOW_DISTANCE)
+	var distance := lerpf(outdoors, minf(_sun_shadow_distance, INDOOR_SUN_SHADOW_DISTANCE), interior)
 	if not is_equal_approx(_sun.directional_shadow_max_distance, distance):
 		_sun.directional_shadow_max_distance = distance
 
@@ -385,7 +431,7 @@ func _add_environment_control(parent: VBoxContainer, key: String) -> void:
 		select.add_item("Screen", Environment.GLOW_BLEND_MODE_SCREEN)
 		select.add_item("Soft Light", Environment.GLOW_BLEND_MODE_SOFTLIGHT)
 		row.add_child(select)
-		var refresh := func(_options): select.select(select.get_item_index(int(_environment_value(key))))
+		var refresh := func(_options): select.select(select.get_item_index(int(environment_value(key))))
 		refresh.call(options)
 		changed.connect(refresh)
 		select.item_selected.connect(func(index): set_option(key, select.get_item_id(index)))
@@ -395,11 +441,11 @@ func _add_environment_control(parent: VBoxContainer, key: String) -> void:
 	number.max_value = spec[2]
 	number.step = spec[3]
 	row.add_child(number)
-	number.set_value_no_signal(float(_environment_value(key)))
-	changed.connect(func(_options): number.set_value_no_signal(float(_environment_value(key))))
+	number.set_value_no_signal(float(environment_value(key)))
+	changed.connect(func(_options): number.set_value_no_signal(float(environment_value(key))))
 	number.value_changed.connect(func(value): set_option(key, value))
 
-func _environment_value(key: String) -> Variant:
+func environment_value(key: String) -> Variant:
 	var node := world.get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if node == null or node.environment == null:
 		return ENVIRONMENT_CONTROLS[key][1] if key != "glow_blend_mode" else Environment.GLOW_BLEND_MODE_SCREEN
@@ -410,6 +456,8 @@ func _environment_value(key: String) -> Variant:
 	return value
 
 func _fine_detail(node: GeometryInstance3D) -> bool:
+	if node.has_meta("batch_fine_detail"):
+		return bool(node.get_meta("batch_fine_detail"))
 	# Printed text/schematic strokes and tiny fixtures retain their lit appearance;
 	# only their contribution to the shadow map is optional. Large equipment,
 	# furniture, people and the room keep ordinary shadows enabled.

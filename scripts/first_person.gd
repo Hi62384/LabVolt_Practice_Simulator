@@ -106,9 +106,10 @@ func _physics_process(delta: float) -> void:
 	if crouched and not wants_crouch:
 		var query := PhysicsRayQueryParameters3D.create(global_position+Vector3.UP,global_position+Vector3.UP*1.8,1)
 		wants_crouch = not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
-	crouched = wants_crouch
-	(collider.shape as CapsuleShape3D).height = 1.0 if crouched else 1.7
-	collider.position.y = 0.5 if crouched else 0.85
+	if wants_crouch != crouched:
+		crouched = wants_crouch
+		(collider.shape as CapsuleShape3D).height = 1.0 if crouched else 1.7
+		collider.position.y = 0.5 if crouched else 0.85
 	var wish := Vector2(float(down("right"))-float(down("left")),float(down("back"))-float(down("forward"))).normalized()
 	var direction := basis * Vector3(wish.x,0,wish.y)
 	var speed := (1.4 if crouched else (6.4 if down("sprint") else 3.2))*load_speed

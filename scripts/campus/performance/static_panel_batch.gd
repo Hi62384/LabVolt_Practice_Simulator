@@ -84,6 +84,8 @@ func _commit(parent: Node3D, nodes: Array) -> void:
 	var batch := MeshInstance3D.new()
 	batch.name = "StaticPanelBatch"
 	batch.mesh = mesh
+	if _architectural_shell:
+		batch.set_meta("campus_architecture", true)
 	var first: MeshInstance3D = nodes[0]
 	batch.material_override = first.get_active_material(0)
 	batch.layers = first.layers
