@@ -66,6 +66,7 @@ jobs:
           New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
           $tests = [ordered]@{
             'tests/electronics/test_catalogue_audit.gd' = 'CATALOGUE_AUDIT PASS'
+            'tests/electronics/test_invention_analog_ui_regression.gd' = 'INVENTION_ANALOG_UI PASS'
 
             'tests/electronics/test_ac_passive.gd' = ''
             'tests/electronics/test_ac_bridge.gd' = ''
