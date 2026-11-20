@@ -826,12 +826,22 @@ func unplug() -> void:
 func _aims_at_control(id: String) -> bool:
 	return is_instance_valid(current_target) and str(current_target.get_meta("role",""))=="control" and str(current_target.get_meta("id",""))==id
 
+func _resolve_invention_hit(collider: StaticBody3D) -> StaticBody3D:
+	# An invention has a physical Solid body plus overlapping interaction
+	# shapes. Either can win a layer-1+4 raycast, but only the invention root
+	# has the retrieve action and prompt. Preserve all other target routing.
+	if is_instance_valid(collider) and collider.name=="Solid":
+		var owner:=collider.get_parent()
+		if owner is StaticBody3D and owner.get_meta("role","")=="invention":
+			return owner
+	return collider
+
 func _get_target() -> StaticBody3D:
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return null
 	var query := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3.0,5)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	return hit.get("collider") as StaticBody3D
+	return _resolve_invention_hit(hit.get("collider") as StaticBody3D)
 
 func _set_highlighted_target(target: StaticBody3D) -> void:
 	if is_instance_valid(target) and str(target.get_meta("role", "")) not in ["socket", "switch"]:

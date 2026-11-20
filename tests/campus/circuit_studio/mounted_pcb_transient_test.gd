@@ -51,6 +51,36 @@ func _initialize() -> void:
 	check(absf(rt.station.solver.time-.1)<1e-7,"Consecutive mounted PCB ticks preserve solver time")
 	var failure: Dictionary=rt.tick(-.5)
 	check(not failure.get("ok",true),"Negative time is rejected")
+
+	# Verify actual LV Micro firmware executes inside a mounted invention PCB;
+	# ordinary lab-only controller tests do not cover this nested route.
+	var cpu_board: Dictionary=Board.empty()
+	cpu_board.parts=[{
+		"id":"cpu","type":"lv_mcu","a":"A1","b":"F1",
+		"pins":["A1","A2","A3","F1","F2","F3"],
+		"firmware":"mode D0 out\nwrite D0 1\nwait 200\nwrite D0 0\nhalt"
+	}]
+	var cpu_bp: Dictionary=Board.blueprint(cpu_board,"Mounted CPU")
+	cpu_bp.package="PCB"
+	cpu_bp.footprint={"width":8,"height":8,"color":"24775b"}
+	cpu_bp.layout={"rows":30,"parts":cpu_board.parts.duplicate(true),"wires":[]}
+	cpu_bp.pins=[
+		{"name":"VCC","node":"L1"},
+		{"name":"GND","node":"R1"},
+		{"name":"OUT_A","node":"L2"}
+	]
+	var cpu_defs: Dictionary={"ic:mounted_cpu":cpu_bp}
+	check(Custom.validate("ic:mounted_cpu",cpu_defs)=="","Programmed MCU PCB definition is valid")
+	if failures==0:
+		var cpu:=Runtime.new()
+		check(cpu.configure("ic:mounted_cpu",cpu_defs,{"power":0,"ground":1,"A":2,"B":-1}),"Mounted MCU initializes")
+		if failures==0:
+			var output: Dictionary=cpu.tick(.05)
+			check(output.get("ok",false) and float(output.get("A",0.0))>2.5,
+				"Firmware writes D0 high on the real mounted PCB circuit")
+			for index in 5:output=cpu.tick(.05)
+			check(output.get("ok",false) and float(output.get("A",5.0))<1.0,
+				"Firmware wait and write pull D0 low in the mounted circuit")
 	print("MOUNTED_PCB_TRANSIENT %s (%.3f ms first world tick, %d failures)" %
 		["PASS" if failures==0 else "FAIL",duration_ms,failures])
 	quit(1 if failures>0 else 0)

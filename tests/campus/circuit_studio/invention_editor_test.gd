@@ -28,6 +28,15 @@ func _run() -> void:
 	game.add_child(window)
 	window.open_station(game)
 	var old_profile: Dictionary=game.electronics.profile.data.duplicate(true)
+	# Check the same raycast normalization used by the interactive game.
+	var fake_invention:=StaticBody3D.new()
+	fake_invention.set_meta("role","invention")
+	var fake_solid:=StaticBody3D.new()
+	fake_solid.name="Solid"
+	fake_invention.add_child(fake_solid)
+	game.add_child(fake_invention)
+	assert(game._resolve_invention_hit(fake_solid)==fake_invention,"Physical invention target lost the retrieve interaction")
+	fake_invention.queue_free()
 	var draft: Dictionary=Model.empty("Editor checks")
 	draft.parts.append_array([
 		{"type":"battery","x":1,"y":0,"z":0,"control":"","ref":""},

@@ -180,6 +180,12 @@ func _check_invention_world(game: Node) -> void:
 	if game.invention_world.placed.size()==1:
 		var key: String=str(game.invention_world.placed.keys()[0])
 		var before: Vector3=game.invention_world.placed[key].position
+		var view: StaticBody3D=game.invention_world.visuals[key]
+		var solid: StaticBody3D=view.get_node("Solid") as StaticBody3D
+		_check(game._resolve_invention_hit(solid)==view,"A physical invention collider did not resolve to its retrieve action")
+		var actuator: StaticBody3D=view.find_child("ControlA",true,false) as StaticBody3D
+		_check(is_instance_valid(actuator) and actuator.get_parent().get_meta("assembly_kind","")=="switch",
+			"Invention control A is not attached to the placed physical switch")
 		game.invention_world._apply(1,{"op":"control","key":key,"control":"A","pressed":true})
 		game.invention_world._physics_process(.25)
 		_check(game.invention_world.placed[key].position.distance_to(before)>.01,"Powered wheels did not move")

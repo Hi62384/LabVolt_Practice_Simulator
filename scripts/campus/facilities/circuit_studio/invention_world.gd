@@ -370,8 +370,8 @@ func _process(delta: float) -> void:
 		root.position=item.position if multiplayer.is_server() else root.position.lerp(item.position,1.0-exp(-delta*18.0))
 		root.rotation.y=float(item.yaw)
 		for control in ["A","B"]:
-			var button:=root.get_node_or_null("Control"+control) as Node3D
-			if is_instance_valid(button):button.position.y=.62 if item.state[control] else .66
+			var button:=root.find_child("Control"+control,true,false) as Node3D
+			if is_instance_valid(button):button.position.y=.10 if item.state[control] else .14
 		for shaft in root.get_meta("shafts",[]):
 			if shaft.get_meta("kind")=="wheel" and item.effective.get(shaft.get_meta("control",""),false):shaft.rotation.x=float(item.angle)
 		if not multiplayer.is_server():
@@ -508,10 +508,14 @@ func _create_view(key: String,item: Dictionary) -> StaticBody3D:
 	solid.name="Solid";solid.collision_layer=1;solid.collision_mask=0;root.add_child(solid)
 	var shafts: Array=[]
 	var bindings: Array=[]
+	var switch_mounts: Dictionary={}
 	for part in item.parts:
 		var kind:=str(part.type)
 		var pivot:=Node3D.new();pivot.position=_part_center(part);root.add_child(pivot)
 		pivot.rotation.y=float(part.get("turns",0))*PI*.5
+		pivot.set_meta("assembly_kind",kind)
+		if kind=="switch" and str(part.get("control","")) in ["A","B"] and not switch_mounts.has(str(part.control)):
+			switch_mounts[str(part.control)]=pivot
 		var part_hit:=CollisionShape3D.new()
 		var part_box:=BoxShape3D.new();part_box.size=_part_size(kind);part_hit.shape=part_box;part_hit.position=pivot.position;solid.add_child(part_hit)
 		part_hit.rotation.y=pivot.rotation.y
@@ -573,7 +577,11 @@ func _create_view(key: String,item: Dictionary) -> StaticBody3D:
 	_apply_hinges(joints)
 	for control in ["A","B"]:
 		if not item.features.get("switch_"+control.to_lower(),false):continue
-		var button:=StaticBody3D.new();button.name="Control"+control;button.collision_layer=4;button.collision_mask=0;button.position=Vector3(-.25 if control=="A" else .25,.66,-.25);root.add_child(button)
+		var mount: Node3D=switch_mounts.get(control)
+		if not is_instance_valid(mount):continue
+		# The physical button belongs to the actual placed switch, even if its
+		# subassembly moves on a hinge. It must not float at a fixed root offset.
+		var button:=StaticBody3D.new();button.name="Control"+control;button.collision_layer=4;button.collision_mask=0;button.position=Vector3(0,.14,0);mount.add_child(button)
 		button.set_meta("role","invention_control");button.set_meta("invention_key",key);button.set_meta("control",control);button.set_meta("label",str(item.name)+" · control "+control+" ("+str(item.controls[control])+")")
 		var cap:=MeshInstance3D.new();var box:=BoxMesh.new();box.size=Vector3(.18,.1,.18);cap.mesh=box;button.add_child(cap)
 		var color:=StandardMaterial3D.new();color.albedo_color=Color("e2ad65" if control=="A" else "83cae0");cap.material_override=color
