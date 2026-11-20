@@ -78,6 +78,18 @@ func _run() -> void:
 	assert(window.draft.parts[4].control=="A" and window.draft.parts[4].x==0,"Undo lost the original properties")
 	window._history(window.redo_stack,window.undo_stack)
 	assert(window.draft.parts[4].control=="B" and window.draft.parts[4].x==4,"Redo did not restore edited properties")
+	window.selected_part=4
+	window._editor()
+	window.part_x.value=5
+	window._viewport_click(Vector3i(3,0,0),3)
+	assert(window.draft.parts[4].x==5 and window.selected_part==3,
+		"Selecting another part silently discarded edits to the previous selection")
+	window._viewport_click(Vector3i(6,0,6),-1)
+	assert(window.selected_part==-1,"Clicking empty grid space must deselect a part")
+	window._history(window.undo_stack,window.redo_stack)
+	assert(window.draft.parts[4].x==4,"Undo must revert selection-committed coordinate changes")
+	window._history(window.redo_stack,window.undo_stack)
+	assert(window.draft.parts[4].x==5,"Redo must restore selection-committed coordinate changes")
 	# Test uses pending inspector coordinates even without clicking Apply.
 	window.selected_part=4
 	window._editor()

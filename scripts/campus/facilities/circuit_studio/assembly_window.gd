@@ -400,8 +400,11 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 		if index>=0:_rotate_part(index)
 		return
 	if viewport_tool=="select":
-		if index>=0:
-			_sync_fields()
+		# Keep staged inspector edits when changing selection or clicking
+		# empty space. Leave invalid edits visible for correction.
+		_sync_fields()
+		if not _commit_selected_changes():return
+		if selected_part!=index:
 			selected_part=index
 			_editor()
 		return
@@ -428,6 +431,7 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 
 func _rotate_part(index: int) -> void:
 	_sync_fields()
+	if not _commit_selected_changes():return
 	_track_edit()
 	var part: Dictionary=draft.parts[index]
 	var turns:=posmod(int(part.get("turns",0))+1,4)
