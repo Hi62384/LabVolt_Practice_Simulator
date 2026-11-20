@@ -66,6 +66,21 @@ jobs:
           New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
           $tests = [ordered]@{
             'tests/electronics/test_catalogue_audit.gd' = 'CATALOGUE_AUDIT PASS'
+
+            'tests/electronics/test_ac_passive.gd' = ''
+            'tests/electronics/test_ac_bridge.gd' = ''
+            'tests/electronics/test_ac_netlist_cache.gd' = ''
+            'tests/electronics/test_linear_ac_board.gd' = 'LINEAR AC BOARD PASS'
+            'tests/electronics/test_coupling.gd' = ''
+            'tests/electronics/test_solver_battery.gd' = ''
+            'tests/electronics/test_firmware.gd' = 'FIRMWARE FAILURES: 0'
+            'tests/electronics/test_inputs.gd' = ''
+            'tests/electronics/test_io_input_guard.gd' = ''
+            'tests/electronics/test_meter_modes.gd' = ''
+            'tests/electronics/test_normally_closed_button.gd' = ''
+            'tests/electronics/test_public_device_state.gd' = ''
+            'tests/electronics/test_current_source_scheduler.gd' = ''
+            'tests/electronics/test_physical_resistors.gd' = ''
             'tests/electronics/test_dc.gd' = 'DC FAILURES: 0'
             'tests/electronics/test_transformer_transient.gd' = 'PASS: transformer branch currents'
             'tests/electronics/test_devices.gd' = ''
@@ -87,7 +102,9 @@ jobs:
             'tests/campus/circuit_studio/mounted_pcb_transient_test.gd' = 'MOUNTED_PCB_TRANSIENT PASS'
             'tests/campus/circuit_studio/invention_network_load.gd' = 'INVENTION_NETWORK_LOAD PASS'
           }
+          $failed = @()
           foreach ($test in $tests.Keys) {
+            try {
             $log = "$env:RUNNER_TEMP/$([IO.Path]::GetFileNameWithoutExtension($test)).log"
             Write-Host "RUN $test"
             # Assertion failures in a SceneTree script may leave Godot open
@@ -110,4 +127,11 @@ jobs:
               throw "Missing pass marker for $test"
             }
             Write-Host "PASS $test"
+            } catch {
+              Write-Warning ("FAIL " + $test + ": " + $_.ToString())
+              $failed += $test
+            }
+          }
+          if ($failed.Count -gt 0) {
+            throw ("Circuit/invention verification failures: " + ($failed -join ", "))
           }
