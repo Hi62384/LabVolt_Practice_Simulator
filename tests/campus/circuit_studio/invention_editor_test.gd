@@ -29,8 +29,12 @@ func _run() -> void:
 	# Use a fresh identity so the test never touches a player's saved profile.
 	var identity:=Crypto.new().generate_random_bytes(12).hex_encode()
 	game.electronics.profile.open(identity)
+	# An untouched starter profile legitimately omits the optional blueprints
+	# map until the first PCB is saved. Supply it for this fixture's PCB edit.
+	if not game.electronics.profile.data.has("blueprints"):
+		game.electronics.profile.data.blueprints={}
 	assert(game.electronics.profile.data.get("blueprints") is Dictionary,
-		"Isolated character profile must initialize its blueprint library")
+		"Test PCB library must be initialized before the editor manipulates it")
 	var window=WindowScript.new()
 	game.add_child(window)
 	window.open_station(game)
