@@ -186,8 +186,33 @@ func _run() -> void:
 	assert(window._finish_discard("inv:parent")=="","Singleplayer must allow returning unused fabricated copies")
 	assert(not game.electronics.profile.data.invention_copies.has("inv:parent"),"Discarded copy count was retained")
 	assert(game.electronics.profile.data.inventions.has("inv:parent"),"Discard should preserve the blueprint")
-	window._remove("inv:parent")
-	assert(not game.electronics.profile.data.inventions.has("inv:parent"),"An unreferenced blueprint should be removable after its copies are cleared")
+	window._request_remove("inv:parent")
+	assert(game.electronics.profile.data.inventions.has("inv:parent"),
+		"Clicking Remove must not delete a blueprint before confirmation")
+	var remove_dialogs: Array=window.get_children().filter(func(node):return node is ConfirmationDialog)
+	assert(remove_dialogs.size()==1 and remove_dialogs[0].title.contains("Remove"),
+		"Blueprint deletion must show a meaningful confirmation")
+	remove_dialogs[0].confirmed.emit()
+	assert(not game.electronics.profile.data.inventions.has("inv:parent"),"Confirmed unreferenced blueprint was not removed")
+	# Leaving the editor must also protect an unapplied inspector edit.
+	window.editing_id="inv:child"
+	window.draft=child.duplicate(true)
+	window.selected_part=0
+	window._editor()
+	window.part_x.value=1
+	assert(window._has_unsaved_changes(),"Pending coordinates should mark the editor dirty")
+	window._go_library()
+	assert(window.page=="editor","Unsaved work must remain until the player confirms a discard")
+	var discard_dialogs: Array=window.get_children().filter(func(node):return node is ConfirmationDialog)
+	assert(discard_dialogs.size()==1 and discard_dialogs[0].title.contains("Discard"),
+		"Unsaved editor changes must show a discard confirmation")
+	discard_dialogs[0].canceled.emit()
+	assert(window.page=="editor","Cancelling discard must preserve the editor")
+	window._go_library()
+	discard_dialogs=window.get_children().filter(func(node):return node is ConfirmationDialog and not node.is_queued_for_deletion())
+	assert(discard_dialogs.size()==1,"The discard confirmation should be reopenable after cancelling")
+	discard_dialogs[0].confirmed.emit()
+	assert(window.page=="library","Confirmed discard must return to the library")
 	# Valid pre-drive-map blueprints must still enter Test from the library.
 	var legacy: Dictionary=Model.empty("Legacy manual drive")
 	legacy.erase("drive")
@@ -198,7 +223,7 @@ func _run() -> void:
 	assert(window.page=="test" and window.draft.drive=={"A":"manual","B":"manual"},
 		"Legacy invention preview crashed or lost the default manual drive")
 	game.electronics.profile.data=old_profile
-	window._close()
+	window._close_now()
 	await process_frame
 	game.queue_free()
 	await process_frame

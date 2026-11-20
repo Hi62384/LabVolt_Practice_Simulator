@@ -36,6 +36,8 @@ var test_parts: Array=[]
 var test_switches: Dictionary={}
 var test_output: Dictionary={}
 var test_clock := 0.0
+var discard_prompt: ConfirmationDialog
+var remove_prompt: ConfirmationDialog
 
 func open_station(owner_game: Node) -> void:
 	game=owner_game;profile=game.electronics.profile
@@ -55,8 +57,67 @@ func open_station(owner_game: Node) -> void:
 	popup_centered()
 
 func _close() -> void:
+	if _has_unsaved_changes():
+		_prompt_discard(_close_now)
+	else:
+		_close_now()
+
+func _close_now() -> void:
 	hide();queue_free()
 	if is_instance_valid(game) and game.front.in_game:game.capture()
+
+# Closing the editor or returning to the library must never silently erase a
+# draft. Include changes visible in the inspector, not only applied changes.
+func _has_unsaved_changes() -> bool:
+	if page not in ["editor","test"]:return false
+	if editing_id.is_empty():return true
+	var stored: Dictionary=profile.data.get("inventions",{}).get(editing_id,{})
+	if stored.is_empty():return true
+	var candidate: Dictionary=draft.duplicate(true)
+	if page=="editor" and is_instance_valid(name_field):
+		candidate.name=name_field.text.strip_edges()
+		candidate.controls={"A":"toggle" if mode_a.selected==1 else "hold","B":"toggle" if mode_b.selected==1 else "hold"}
+		candidate.drive={"A":["manual","pcb","both"][drive_a.selected],"B":["manual","pcb","both"][drive_b.selected]}
+		if selected_part>=0 and selected_part<candidate.parts.size() and is_instance_valid(part_kind) and part_kind.selected>=0:
+			var part: Dictionary=candidate.parts[selected_part]
+			part.x=int(part_x.value)
+			part.y=int(part_y.value)
+			part.z=int(part_z.value)
+			part.control="" if part_control.selected==0 else "A" if part_control.selected==1 else "B"
+			var palette_kind:=str(part_kind.get_item_metadata(part_kind.selected))
+			if palette_kind==str(part.type):
+				if part.type in ["pcb","nested"] and part_ref.selected>=0:
+					part.ref=str(part_ref.get_item_metadata(part_ref.selected))
+				if part.type=="pcb" and pin_choices.size()==4:
+					part.pin_map={}
+					for role in pin_choices:
+						var choice: OptionButton=pin_choices[role]
+						part.pin_map[role]=int(choice.get_item_metadata(choice.selected))
+	# Saved older inventions may omit drive, implicitly meaning manual.
+	if not stored.has("drive") and candidate.get("drive",{})=={"A":"manual","B":"manual"}:
+		candidate.erase("drive")
+	return candidate!=stored
+
+func _prompt_discard(on_confirm: Callable) -> void:
+	if is_instance_valid(discard_prompt):return
+	var prompt:=ConfirmationDialog.new()
+	discard_prompt=prompt
+	prompt.title="Discard unsaved invention changes?"
+	prompt.dialog_text="Changes since the last saved blueprint will be lost. Discard them?"
+	add_child(prompt)
+	prompt.confirmed.connect(func():
+		discard_prompt=null
+		on_confirm.call())
+	prompt.canceled.connect(func():discard_prompt=null)
+	prompt.confirmed.connect(prompt.queue_free)
+	prompt.canceled.connect(prompt.queue_free)
+	prompt.popup_centered()
+
+func _go_library() -> void:
+	if _has_unsaved_changes():
+		_prompt_discard(_library)
+	else:
+		_library()
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:return
@@ -123,7 +184,7 @@ func _library() -> void:
 		var place:=_button(actions,"Place copy",_place.bind(str(id)));place.disabled=cost<0 or int(profile.data.get("invention_copies",{}).get(id,0))<1
 		if int(profile.data.get("invention_copies",{}).get(id,0))>0 and not game.session.online:
 			_button(actions,"Discard copies",_discard_copies.bind(str(id)))
-		_button(actions,"Remove blueprint",_remove.bind(str(id)))
+		_button(actions,"Remove blueprint",_request_remove.bind(str(id)))
 	if ids.is_empty():_label(body,"No inventions saved yet.")
 
 func _editor(message: String="") -> void:
@@ -132,7 +193,7 @@ func _editor(message: String="") -> void:
 	var guide:=_label(body,"Choose a part, then click the grid or Add part. Select a part to edit it; Save and Test include any changes in the inspector.")
 	guide.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	var name_row:=_row(body)
-	_button(name_row,"Library",_library)
+	_button(name_row,"Library",_go_library)
 	name_field=LineEdit.new();name_field.text=str(draft.get("name",""));name_field.max_length=40;name_field.size_flags_horizontal=Control.SIZE_EXPAND_FILL;name_row.add_child(name_field)
 	name_field.placeholder_text="Invention name"
 	var preview:=preload("res://scripts/campus/facilities/circuit_studio/assembly_preview.gd").new()
@@ -661,6 +722,22 @@ func _discard_copies(id: String) -> void:
 	confirm.canceled.connect(confirm.queue_free)
 	confirm.confirmed.connect(confirm.queue_free)
 	confirm.popup_centered()
+
+func _request_remove(id: String) -> void:
+	if is_instance_valid(remove_prompt):return
+	if not profile.data.get("inventions",{}).has(id):return
+	var prompt:=ConfirmationDialog.new()
+	remove_prompt=prompt
+	prompt.title="Remove invention blueprint?"
+	prompt.dialog_text="Permanently remove %s? This cannot be undone."%str(profile.data.inventions[id].get("name",id))
+	add_child(prompt)
+	prompt.confirmed.connect(func():
+		remove_prompt=null
+		_remove(id))
+	prompt.canceled.connect(func():remove_prompt=null)
+	prompt.confirmed.connect(prompt.queue_free)
+	prompt.canceled.connect(prompt.queue_free)
+	prompt.popup_centered()
 
 func _remove(id: String) -> void:
 	var before: Dictionary=profile.data.duplicate(true)
