@@ -54,7 +54,13 @@ func _run() -> void:
 					window.draft=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd").empty()
 					window._editor()
 					_check(window.find_children("*","Control",true,false).any(func(node):return node.get_script()==preload("res://scripts/campus/facilities/circuit_studio/assembly_preview.gd")),"Assembly editor preview missing")
-				if is_instance_valid(window):window._close()
+				if is_instance_valid(window):
+					window._close()
+					if action=="assembly_table":
+						var discard_prompts: Array=window.get_children().filter(func(node):return node is ConfirmationDialog)
+						_check(discard_prompts.size()==1,
+							"Closing an unsaved assembly draft must request confirmation")
+						if not discard_prompts.is_empty():discard_prompts[0].confirmed.emit()
 				await process_frame
 	if game.terminal_bodies.has("DAQ_POWER_A"):
 		var indicator := game.terminal_bodies.DAQ_POWER_A.get_parent().get_node_or_null("DaqPowerIndicator") as MeshInstance3D
@@ -219,6 +225,10 @@ func _check_invention_world(game: Node) -> void:
 	editor._add_part()
 	_check(editor.draft.parts.back().get("pin_map",{}).get("A",-1)==2,"Assembly editor did not map PCB output A")
 	editor._close()
+	var draft_prompts: Array=editor.get_children().filter(func(node):return node is ConfirmationDialog)
+	_check(draft_prompts.size()==1,"Unsaved PCB assembly draft must offer discard confirmation")
+	if not draft_prompts.is_empty():draft_prompts[0].confirmed.emit()
+	await process_frame
 	game.invention_world.request_place("inv:pcb_test")
 	_check(game.invention_world.placed.size()==1,"PCB invention did not appear")
 	if game.invention_world.placed.size()==1:

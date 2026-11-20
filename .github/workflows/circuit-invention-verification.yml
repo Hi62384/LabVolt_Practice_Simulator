@@ -14,6 +14,7 @@ on:
       - 'scripts/inventory_authority/ledger.gd'
       - 'tests/electronics/**'
       - 'tests/campus/circuit_studio/**'
+      - 'tests/menu_startup/test_menu_routes.gd'
       - '.github/workflows/circuit-invention-verification.yml'
   workflow_dispatch:
 
@@ -97,11 +98,13 @@ jobs:
             'tests/electronics/test_solver_blocks.gd' = ''
             'tests/electronics/test_stateful.gd' = 'STATEFUL FAILURES: 0'
             'tests/electronics/test_mna_csharp_kernel.gd' = 'MNA_CSHARP_KERNEL PASS'
+            'tests/campus/circuit_studio/source_contract_test.gd' = 'CIRCUIT_STUDIO_SOURCE_CONTRACT_OK'
             'tests/campus/circuit_studio/assembly_flow_test.gd' = 'ASSEMBLY_FLOW_PASS'
             'tests/campus/circuit_studio/invention_editor_test.gd' = 'INVENTION_EDITOR PASS'
             'tests/campus/circuit_studio/pcb_drive_test.gd' = 'CHAINED_HINGE_PASS'
             'tests/campus/circuit_studio/mounted_pcb_transient_test.gd' = 'MOUNTED_PCB_TRANSIENT PASS'
             'tests/campus/circuit_studio/invention_network_load.gd' = 'INVENTION_NETWORK_LOAD PASS'
+            'tests/menu_startup/test_menu_routes.gd' = 'MENU_ROUTES PASS'
           }
           $failed = @()
           foreach ($test in $tests.Keys) {
