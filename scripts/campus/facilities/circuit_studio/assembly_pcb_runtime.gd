@@ -15,6 +15,9 @@ var inputs: Array=[]
 func configure(id: String,definitions: Dictionary,mapping: Dictionary) -> bool:
 	var board: Dictionary=Board.standalone(id,definitions)
 	if board.is_empty():return false
+	# Do not let a malformed mapping crash the station or short its supply.
+	# Match invention validation before creating a live circuit instance.
+	if preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd").validate_pcb_pin_map(definitions[id],mapping)!="":return false
 	station=Station.new()
 	station.board=board
 	station.board_epoch=1

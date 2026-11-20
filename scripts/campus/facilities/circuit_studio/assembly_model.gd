@@ -2,6 +2,7 @@ extends RefCounted
 ## Small, bounded electromechanical assemblies. All prices and references are
 ## derived from trusted catalogs; clients never submit a cost or a world mesh.
 const Custom=preload("res://scripts/custom_circuit.gd")
+const Copper=preload("res://scripts/pcb_design/design.gd")
 const PARTS={
 	"wood_frame":{"name":"Wood frame","group":"Material","price":8,"color":"a47b51"},
 	"aluminum_frame":{"name":"Aluminum frame","group":"Material","price":18,"color":"aabec7"},
@@ -127,6 +128,33 @@ static func energized(drive: String, switch_on: bool, voltage: float) -> bool:
 static func empty(name: String="New invention") -> Dictionary:
 	return {"name":name,"parts":[{"type":"wood_frame","x":0,"y":0,"z":0,"control":"","ref":""}],"controls":{"A":"hold","B":"toggle"},"drive":{"A":"manual","B":"manual"}}
 
+# The external supply must not be shorted by assigning different physical
+# connectors to the SAME electrical net. On a routed PCB compare actual copper
+# topology; schematic labels alone are not conductive until routed.
+static func validate_pcb_pin_map(bp: Dictionary,mapping: Variant) -> String:
+	if not mapping is Dictionary or mapping.size()!=4:return "Configure PCB supply and output pins"
+	var pins: Array=bp.get("pins",[])
+	for role in ["power","ground","A","B"]:
+		var raw: Variant=mapping.get(role)
+		if not (raw is int or raw is float) or not is_finite(float(raw)) or float(raw)!=floor(float(raw)):
+			return "Invalid PCB pin mapping"
+		if int(raw)<(-1 if role in ["A","B"] else 0) or int(raw)>=pins.size():return "Invalid PCB pin mapping"
+	var power:=int(mapping.power)
+	var ground:=int(mapping.ground)
+	if power==ground:return "PCB power and ground must use different pins"
+	var power_net: String
+	var ground_net: String
+	if Copper.active(bp):
+		var routed: Dictionary=Copper.connectivity(bp)
+		power_net=str(routed.get(Copper.external_id(pins[power],power),""))
+		ground_net=str(routed.get(Copper.external_id(pins[ground],ground),""))
+	else:
+		power_net=str(pins[power].get("node",""))
+		ground_net=str(pins[ground].get("node",""))
+	if not power_net.is_empty() and power_net==ground_net:
+		return "PCB power and ground must use different electrical nets"
+	return ""
+
 static func validate(id: String,designs: Dictionary,pcbs: Dictionary,depth: int=0,stack: Array=[]) -> String:
 	if depth>MAX_DEPTH or id in stack:return "Nested design limit or cycle"
 	if not designs.has(id) or not designs[id] is Dictionary:return "Unknown invention"
@@ -168,12 +196,8 @@ static func validate(id: String,designs: Dictionary,pcbs: Dictionary,depth: int=
 			if not ref is String:return "Invalid part reference"
 			if kind=="pcb" and (not pcbs.has(ref) or Custom.validate(ref,pcbs)!="" or str(pcbs[ref].get("package",""))!="PCB"):return "Choose a saved PCB blueprint"
 			if kind=="pcb" and part.has("pin_map"):
-				var map: Variant=part.pin_map
-				if not map is Dictionary or map.size()!=4:return "Configure PCB supply and output pins"
-				for pin in ["power","ground","A","B"]:
-					var index: Variant=map.get(pin)
-					if not (index is int or index is float) or not is_finite(float(index)) or float(index)!=floor(float(index)) or int(index)<(-1 if pin in ["A","B"] else 0) or int(index)>=pcbs[ref].pins.size():return "Invalid PCB pin mapping"
-				if int(map.power)==int(map.ground):return "PCB power and ground must use different pins"
+				var mapping_error:=validate_pcb_pin_map(pcbs[ref],part.pin_map)
+				if not mapping_error.is_empty():return mapping_error
 			if kind=="nested":
 				var error:=validate(ref,designs,pcbs,depth+1,next_stack)
 				if error!="":return error

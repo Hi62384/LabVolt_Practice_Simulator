@@ -36,6 +36,27 @@ func _run() -> void:
 	bp.pins=[{"name":"VCC","node":"L1"},{"name":"GND","node":"R1"},{"name":"OUT_A","node":"L2"}]
 	var defs: Dictionary={"ic:drive_test":bp}
 	assert(Custom.validate("ic:drive_test",defs)=="")
+	# Identical PCB nets on different pins are still a direct source short.
+	var bad_bp: Dictionary=bp.duplicate(true)
+	bad_bp.pins[1].node=bad_bp.pins[0].node
+	var bad_definitions: Dictionary={"ic:short_supply":bad_bp}
+	assert(Custom.validate("ic:short_supply",bad_definitions)=="")
+	var valid_map: Dictionary={"power":0,"ground":1,"A":2,"B":-1}
+	assert(Model.validate_pcb_pin_map(bad_bp,valid_map).contains("electrical nets"))
+	assert(not Runtime.new().configure("ic:short_supply",bad_definitions,valid_map))
+	assert(not Runtime.new().configure("ic:drive_test",defs,{"power":0,"ground":1,"A":99,"B":-1}))
+	var invention: Dictionary=Model.empty("PCB-controlled machine")
+	invention.parts.append_array([
+		{"type":"battery","x":1,"y":0,"z":0,"control":"","ref":""},
+		{"type":"servo","x":0,"y":1,"z":0,"control":"A","ref":""},
+		{"type":"pcb","x":2,"y":0,"z":0,"control":"","ref":"ic:short_supply","pin_map":valid_map.duplicate()}
+	])
+	invention.drive.A="pcb"
+	assert(Model.validate("inv:short",{"inv:short":invention},bad_definitions).contains("electrical nets"),
+		"Fabrication allowed PCB power and ground on the same conductive net")
+	invention.parts[-1].ref="ic:drive_test"
+	assert(Model.validate("inv:working",{"inv:working":invention},defs)=="",
+		"Valid PCB-driven servo invention should still be manufacturable")
 	var runtime:=Runtime.new()
 	assert(runtime.configure("ic:drive_test",defs,{"power":0,"ground":1,"A":2,"B":-1}))
 	var low: Dictionary=runtime.tick(.01)
