@@ -4,6 +4,10 @@ extends RefCounted
 const Board=preload("res://scripts/breadboard_model.gd")
 const Station=preload("res://scripts/dc_station.gd")
 const IO=preload("res://scripts/io_devices/controls.gd")
+# World actuators update at 20 Hz, but internal RLC and digital circuits need
+# much finer integration to preserve their 0.5-1 ms component timings.
+const INTERNAL_STEP := 0.001
+const MAX_INTERNAL_STEPS := 50
 var station: RefCounted
 var pin_map: Dictionary={}
 var inputs: Array=[]
@@ -30,7 +34,17 @@ func configure(id: String,definitions: Dictionary,mapping: Dictionary) -> bool:
 
 func tick(dt: float) -> Dictionary:
 	if not is_instance_valid(station):return {"A":0.0,"B":0.0,"ok":false}
-	station.step(clampf(dt,.001,.05))
+	if not is_finite(dt) or dt<=0.0:return {"A":0.0,"B":0.0,"ok":false,"error":"Invalid PCB simulation step."}
+	# A single 50 ms backward-Euler step badly underestimates RC charging and
+	# can skip switch edges, firmware updates and short pulses altogether.
+	# Preserve the world update budget while integrating each 50 ms slice in
+	# bounded 1 ms increments. The final published outputs are sampled at t+dt.
+	var duration: float=minf(dt,0.05)
+	var steps: int=clampi(ceili(duration/INTERNAL_STEP),1,MAX_INTERNAL_STEPS)
+	var step_duration: float=duration/float(steps)
+	for index in steps:
+		station.step(step_duration)
+		if not bool(station.result.get("ok",false)):break
 	var result: Dictionary={"ok":bool(station.result.get("ok",false)),"error":str(station.result.get("error","")),"A":0.0,"B":0.0}
 	if not result.ok:return result
 	var ground: String="X%d"%(int(pin_map.ground)+1)
