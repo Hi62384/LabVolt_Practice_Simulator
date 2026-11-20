@@ -29,6 +29,8 @@ func _initialize() -> void:
 	station.step();check(station.result.ok and absf(station.difference("VΩ","COM")-5)<.001,"wired supply and meter")
 	station.meter_mode="Resistance";station.step();check(station.meter.begins_with("LIVE"),"ohmmeter rejects energized circuit")
 	station.master=false;station.step();check(station.meter.begins_with("1000"),"ohmmeter injects test current")
+	station.master=true;station.step();check(station.meter.begins_with("LIVE"),"ohmmeter notices power restored without stale passive cache")
+	station.master=false;station.step();check(station.meter.begins_with("1000"),"ohmmeter refreshes immediately when power is removed again")
 	station=load("res://scripts/dc_station.gd").new();station.generator.enabled=true
 	# Keep several real 10 Hz periods in the shared acquisition window.
 	check(station.apply({"op":"scope","key":"timebase","value":.05})=="","scope timebase includes enough periods for frequency measurement")

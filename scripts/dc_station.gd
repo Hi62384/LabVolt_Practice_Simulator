@@ -293,7 +293,12 @@ func finish_step(reused := false) -> void:
 		"DC V":meter="OL" if meter_range>0 and absf(v)>meter_range else "%.4f V"%v
 		"DC A":meter="FUSE OPEN" if fuse else "OL" if meter_range>0 and absf(float(result.i.get("ammeter",0)))>meter_range else "%.6f A"%float(result.i.get("ammeter",0))
 		"Resistance","Continuity","Diode","Capacitance":
-			var key := [revision, linked, board_simulating(), meter_mode]
+			# Changing the source or wiring directly (including a host restore)
+			# must invalidate the passive reading. A previous LIVE warning is not
+			# valid after switching a power supply off, even if revision is unchanged.
+			var key := [revision, linked, board_simulating(), meter_mode, master,
+				generator.enabled, hash(channels), hash(current_source), hash(auxiliary_sources),
+				board_epoch, hash(wires), hash(resistance), capacitance]
 			if not passive_cache.has(key):passive_cache={key:test_capacitance() if meter_mode=="Capacitance" else test_measure()}
 			meter=passive_cache[key]
 		"AC V","AC A","Frequency","Duty":
