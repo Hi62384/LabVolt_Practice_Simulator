@@ -65,6 +65,8 @@ var recent_files: Array[String]=[]
 var wallpaper_panel: TextureRect
 var style_choice := 0
 var pending_open_path := ""
+var _covered_viewport: Viewport
+var _covered_viewport_disabled_3d := false
 const Icon = preload("res://scripts/ui/design_system/widgets.gd")
 const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Recycle Bin":"trash"}
 
@@ -94,6 +96,24 @@ func build(source: Node, owner_game: Node = null) -> void:
 	add_child(autosave_timer)
 	if session.has_signal("power_changed"):session.power_changed.connect(_clear_powered_off)
 	_build_shell()
+	visibility_changed.connect(_update_world_rendering)
+	tree_exiting.connect(_restore_world_rendering)
+
+func _update_world_rendering() -> void:
+	if not is_visible_in_tree():
+		_restore_world_rendering()
+		return
+	if not is_instance_valid(game) or _covered_viewport != null:
+		return
+	# The opaque, full-screen desktop covers the world. Keep gameplay processing behind it.
+	_covered_viewport = game.get_viewport()
+	_covered_viewport_disabled_3d = _covered_viewport.disable_3d
+	_covered_viewport.disable_3d = true
+
+func _restore_world_rendering() -> void:
+	if is_instance_valid(_covered_viewport):
+		_covered_viewport.disable_3d = _covered_viewport_disabled_3d
+	_covered_viewport = null
 
 func build_monitor_preview() -> void:
 	theme=preload("res://scripts/ui/design_system/theme.gd").create()

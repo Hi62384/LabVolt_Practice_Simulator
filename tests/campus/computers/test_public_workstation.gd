@@ -72,6 +72,7 @@ func run() -> void:
 		if root.get_texture().get_image().save_png(ProjectSettings.globalize_path("res://.godot/public-desktop.png"))!=OK:
 			push_error("Desktop capture failed");quit(1);return
 	var desktop: Control=game.computer_room_adapter.desktop
+	assert(root.disable_3d, "Campus OS should suspend rendering the covered world")
 	if not desktop.windows.is_empty() or "Course work" in desktop.app_names:
 		push_error("A fresh desktop opened an app or exposed Course work");quit(1);return
 	if DisplayServer.get_name()!="headless":
@@ -155,6 +156,7 @@ func run() -> void:
 	desktop.editor.text_changed.emit()
 	var computer_chair: Node3D=game.player.seated
 	desktop._request_exit()
+	assert(not root.disable_3d, "Leaving Campus OS should restore the world view")
 	if not is_instance_valid(computer_chair) or game.player.seated!=computer_chair or computer_chair.occupant!=1:
 		push_error("Exiting Campus OS released the chair");quit(1);return
 	if computers.sessions.has(1):push_error("Exit did not release the session");quit(1);return
