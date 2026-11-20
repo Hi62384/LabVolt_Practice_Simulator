@@ -21,7 +21,7 @@ var part_y: SpinBox
 var part_z: SpinBox
 var part_control: OptionButton
 var part_ref: OptionButton
-var pin_row: HBoxContainer
+var pin_row: VBoxContainer
 var pin_choices: Dictionary={}
 var selected_part := -1
 var viewport_tool := "select"
@@ -184,7 +184,11 @@ func _editor(message: String="") -> void:
 		placement_kind=str(part_kind.get_item_metadata(index))
 		_reference_options())
 	part_ref.item_selected.connect(func(_index: int):_pin_options())
-	pin_row=_row(body)
+	# Keep PCB pin assignment beside the selected part instead of hiding the
+	# mapping controls below the entire 3D assembly editor.
+	pin_row=VBoxContainer.new()
+	pin_row.add_theme_constant_override("separation",6)
+	inspector.add_child(pin_row)
 	_reference_options()
 	if selected_part>=0 and selected_part<draft.parts.size():
 		var part: Dictionary=draft.parts[selected_part]
@@ -469,12 +473,17 @@ func _pin_options() -> void:
 	for child in pin_row.get_children():pin_row.remove_child(child);child.queue_free()
 	pin_choices.clear()
 	if part_kind.selected<0 or str(part_kind.get_item_metadata(part_kind.selected))!="pcb" or part_ref.item_count==0:return
+	_label(pin_row,"PCB PIN MAPPING")
 	var ref:=str(part_ref.get_item_metadata(part_ref.selected))
 	var bp: Dictionary=profile.data.get("blueprints",{}).get(ref,{})
 	if bp.is_empty():return
 	for role in ["power","ground","A","B"]:
 		_label(pin_row,{"power":"5 V pin","ground":"Ground pin","A":"Output A","B":"Output B"}[role])
-		var choice:=OptionButton.new();pin_row.add_child(choice);pin_choices[role]=choice
+		var choice:=OptionButton.new()
+		choice.fit_to_longest_item=false
+		choice.custom_minimum_size.x=170
+		pin_row.add_child(choice)
+		pin_choices[role]=choice
 		if role in ["A","B"]:choice.add_item("Unused");choice.set_item_metadata(0,-1)
 		for index in bp.pins.size():
 			choice.add_item(str(bp.pins[index].get("name","Pin "+str(index+1))))

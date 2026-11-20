@@ -8,6 +8,14 @@ const Model=preload("res://scripts/campus/facilities/circuit_studio/assembly_mod
 class MockGame extends Node:
 	var session := {"online":false}
 
+class ThresholdProbe extends RefCounted:
+	var values := [2.499,2.501,2.499]
+	var calls := 0
+	func tick(_dt: float) -> Dictionary:
+		var value: float=float(values[mini(calls,values.size()-1)])
+		calls+=1
+		return {"ok":true,"A":value,"B":0.0}
+
 class ClockProbe extends RefCounted:
 	var calls := 0
 	var elapsed := 0.0
@@ -89,6 +97,19 @@ func _check_world_clock() -> void:
 	world._physics_process(0.0)
 	assert(stalled.calls==10 and is_equal_approx(float(world.simulators.test.clock),.03),"Lag catch-up discarded elapsed time")
 	print("PCB_WORLD_CLOCK_PASS 15/30/60/144 FPS and 530 ms stall")
+	# Motor drive must update when a PCB voltage crosses 2.5 V by less than
+	# the normal 10 mV voltage-publication deadband.
+	world.placed.test.drive.A="pcb"
+	world.placed.test.pcb_voltage.A=0.0
+	world.placed.test.effective.A=false
+	var edge:=ThresholdProbe.new()
+	world.simulators.test={"runtime":edge,"clock":0.0}
+	world._physics_process(.05)
+	assert(not world.placed.test.effective.A,"2.499 V should leave PCB drive off")
+	world._physics_process(.05)
+	assert(world.placed.test.effective.A,"2.501 V must activate PCB drive")
+	world._physics_process(.05)
+	assert(not world.placed.test.effective.A,"2.499 V must deactivate PCB drive")
 	game.free()
 
 func _check_hinge() -> void:

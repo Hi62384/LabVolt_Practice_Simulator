@@ -438,7 +438,13 @@ func _physics_process(delta: float) -> void:
 				if pcb_error!=str(item.pcb_error):item.pcb_error=pcb_error;changed=true
 				for control in ["A","B"]:
 					var voltage: float=float(pcb_result.get(control,0.0)) if pcb_result.get("ok",false) else 0.0
-					if absf(voltage-float(item.pcb_voltage[control]))>.01:item.pcb_voltage[control]=voltage;changed=true
+					var previous: float=float(item.pcb_voltage[control])
+					# A small change across the activation knee is significant
+					# even when it falls below the 10 mV telemetry deadband.
+					var crossed_threshold: bool=(voltage>=2.5)!=(previous>=2.5)
+					if absf(voltage-previous)>.01 or crossed_threshold:
+						item.pcb_voltage[control]=voltage
+						changed=true
 		for control in ["A","B"]:
 			if item.controls[control]=="hold" and item.state[control] and now>int(item.expiry[control]):item.state[control]=false;item.holder[control]=0;changed=true
 			var effective:=Model.energized(item.drive[control],item.state[control],item.pcb_voltage[control])
