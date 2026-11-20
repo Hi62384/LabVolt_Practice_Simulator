@@ -121,6 +121,8 @@ func _library() -> void:
 			_editor())
 		var fabricate:=_button(actions,"Fabricate",_fabricate.bind(str(id)));fabricate.disabled=cost<0
 		var place:=_button(actions,"Place copy",_place.bind(str(id)));place.disabled=cost<0 or int(profile.data.get("invention_copies",{}).get(id,0))<1
+		if int(profile.data.get("invention_copies",{}).get(id,0))>0 and not game.session.online:
+			_button(actions,"Discard copies",_discard_copies.bind(str(id)))
 		_button(actions,"Remove blueprint",_remove.bind(str(id)))
 	if ids.is_empty():_label(body,"No inventions saved yet.")
 
@@ -580,6 +582,45 @@ func _fabricate(id: String) -> void:
 func _place(id: String) -> void:
 	var message: String=game.invention_world.request_place(id)
 	notice.text=message
+
+func _can_discard(id: String) -> String:
+	if game.session.online:return "Discarding fabricated copies is unavailable in hosted sessions."
+	if int(profile.data.get("invention_copies",{}).get(id,0))<1:return "There are no fabricated copies to discard."
+	for item in game.invention_world.placed.values():
+		if str(item.get("id",""))==id:return "Retrieve all placed copies of this invention first."
+	return ""
+
+func _finish_discard(id: String) -> String:
+	var error: String=_can_discard(id)
+	if not error.is_empty():return error
+	var before: Dictionary=profile.data.duplicate(true)
+	profile.data.invention_copies.erase(id)
+	if profile.save()!=OK:
+		profile.data=before
+		return "Could not save the copy discard; no copies were removed."
+	return ""
+
+func _discard_copies(id: String) -> void:
+	var error: String=_can_discard(id)
+	if not error.is_empty():
+		notice.text=error
+		return
+	var count: int=int(profile.data.invention_copies[id])
+	var name: String=str(profile.data.get("inventions",{}).get(id,{}).get("name",id))
+	var confirm:=ConfirmationDialog.new()
+	confirm.title="Discard fabricated copies?"
+	confirm.dialog_text="Permanently discard %d fabricated copies of %s? The saved blueprint will remain."%[count,name]
+	add_child(confirm)
+	confirm.confirmed.connect(func():
+		var result: String=_finish_discard(id)
+		if result.is_empty():
+			_library()
+			notice.text="Fabricated copies discarded. You can now remove this blueprint."
+		else:notice.text=result
+	)
+	confirm.canceled.connect(confirm.queue_free)
+	confirm.confirmed.connect(confirm.queue_free)
+	confirm.popup_centered()
 
 func _remove(id: String) -> void:
 	var before: Dictionary=profile.data.duplicate(true)

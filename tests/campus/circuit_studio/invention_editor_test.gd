@@ -124,6 +124,11 @@ func _run() -> void:
 	assert(game.electronics.profile.data.inventions["inv:child"]==child,"Fabricated parent's child blueprint changed in place")
 	assert(game.electronics.profile.data.inventions["inv:parent"].parts[1].ref=="inv:child","Fabricated parent was silently rewired to a new child")
 	assert(game.electronics.profile.data.inventions.size()==3,"A fresh revision should be saved")
+	assert(window._finish_discard("inv:parent")=="","Singleplayer must allow returning unused fabricated copies")
+	assert(not game.electronics.profile.data.invention_copies.has("inv:parent"),"Discarded copy count was retained")
+	assert(game.electronics.profile.data.inventions.has("inv:parent"),"Discard should preserve the blueprint")
+	window._remove("inv:parent")
+	assert(not game.electronics.profile.data.inventions.has("inv:parent"),"An unreferenced blueprint should be removable after its copies are cleared")
 	game.electronics.profile.data=old_profile
 	window._close()
 	await process_frame
