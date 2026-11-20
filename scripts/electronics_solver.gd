@@ -207,6 +207,11 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 	return last
 
 func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
+	# Damaged/imported connections should fail with an error rather than
+	# indexing missing endpoints during the live circuit solve.
+	for wire in wires:
+		if not (wire is Array or wire is PackedStringArray) or wire.size() != 2 or str(wire[0]).is_empty() or str(wire[1]).is_empty():
+			return {"error":"Invalid wire connection."}
 	# Only node names, device kinds and ideal leads determine matrix positions.
 	# All numerical stamps and history are still evaluated on each solve.
 	var pins := []

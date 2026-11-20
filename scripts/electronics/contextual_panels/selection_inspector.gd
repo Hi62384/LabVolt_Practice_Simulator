@@ -3,6 +3,7 @@ signal action_requested(operation: String, payload: Dictionary)
 const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const Debug = preload("res://scripts/electronics/circuit_workspace/debug_instruments.gd")
 const Values = preload("res://scripts/electronics/component_values/values.gd")
+const Guide = preload("res://scripts/electronics/component_shop_ui/guide_content.gd")
 var content: VBoxContainer
 var validator := Callable()
 var selected := {}
@@ -67,6 +68,29 @@ func bind_selection(part: Dictionary, definition: Dictionary = {}, edit_validato
 		content.add_child(field)
 		field.get_node("Input").text_submitted.connect(func(value: String):_submit_property(key,value,field))
 	var actions := HFlowContainer.new();content.add_child(actions)
+	if not definition.is_empty():
+		# Reuse the existing component-store lessons without leaving the editor.
+		var guide_section := VBoxContainer.new()
+		guide_section.visible = false
+		content.add_child(guide_section)
+		actions.add_child(UI.action("Guide","info",func():guide_section.visible = not guide_section.visible))
+		for line in Guide.lesson(definition):
+			var paragraph := UI.text(str(line),"MutedLabel")
+			paragraph.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			guide_section.add_child(paragraph)
+		var exercise: String = Guide.exercise(definition)
+		if not exercise.is_empty():
+			guide_section.add_child(UI.text("Practice","MutedLabel"))
+			var tip := UI.text(exercise,"MutedLabel")
+			tip.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			guide_section.add_child(tip)
+		var roles: Dictionary = Guide.pin_roles(definition)
+		if not roles.is_empty():
+			guide_section.add_child(UI.text("Pin roles","MutedLabel"))
+			for pin in roles:
+				var role := UI.text("%s · %s" % [pin,roles[pin]],"MutedLabel")
+				role.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+				guide_section.add_child(role)
 	actions.add_child(UI.action("Rotate","refresh",func():action_requested.emit("rotate",{"id":part.get("id","")})))
 	actions.add_child(UI.action("Copy","plus",func():action_requested.emit("copy",{"id":part.get("id","")})))
 	actions.add_child(UI.action("Delete Component","trash",func():action_requested.emit("remove",{"id":part.get("id","")})))
