@@ -1,0 +1,94 @@
+name: Verify circuits and inventions
+
+on:
+  push:
+    branches: [windows-launcher]
+    paths:
+      - 'scripts/electronics_solver.gd'
+      - 'scripts/dc_station.gd'
+      - 'scripts/breadboard_model.gd'
+      - 'scripts/device_models.gd'
+      - 'scripts/electronics/**'
+      - 'scripts/component_models/**'
+      - 'scripts/campus/facilities/circuit_studio/**'
+      - 'scripts/inventory_authority/ledger.gd'
+      - 'tests/electronics/**'
+      - 'tests/campus/circuit_studio/**'
+      - '.github/workflows/circuit-invention-verification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-circuit-invention
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      GODOT_VERSION: 4.5.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Set up Godot Mono
+        shell: pwsh
+        run: |
+          $directory = "$env:RUNNER_TEMP/godot"
+          New-Item -ItemType Directory -Force $directory | Out-Null
+          $engine = "Godot_v$env:GODOT_VERSION-stable_mono_win64"
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION-stable"
+          curl.exe --fail --location --retry 3 --output "$directory/engine.zip" "$base/$engine.zip"
+          if ($LASTEXITCODE) { throw 'Godot download failed' }
+          Expand-Archive "$directory/engine.zip" -DestinationPath $directory
+          "GODOT=$directory/$engine/$($engine)_console.exe" >> $env:GITHUB_ENV
+      - name: Compile and import the project
+        shell: pwsh
+        run: |
+          git lfs pull
+          if ($LASTEXITCODE) { throw 'Git LFS download failed' }
+          dotnet restore CollegeSimulator.sln
+          if ($LASTEXITCODE) { throw 'C# restore failed' }
+          dotnet build CollegeSimulator.sln --configuration Debug --no-restore
+          if ($LASTEXITCODE) { throw 'C# build failed' }
+          & $env:GODOT --headless --path . --import
+          if ($LASTEXITCODE) { throw 'Godot import failed' }
+      - name: Execute electrical and invention integration fixtures
+        shell: pwsh
+        run: |
+          $env:APPDATA = "$env:RUNNER_TEMP/invention-circuit-test-data"
+          New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
+          $tests = [ordered]@{
+            'tests/electronics/test_catalogue_audit.gd' = 'CATALOGUE_AUDIT PASS'
+            'tests/electronics/test_dc.gd' = 'DC FAILURES: 0'
+            'tests/electronics/test_transformer_transient.gd' = 'PASS: transformer branch currents'
+            'tests/electronics/test_devices.gd' = ''
+            'tests/electronics/test_stateful.gd' = 'STATEFUL FAILURES: 0'
+            'tests/electronics/test_mna_csharp_kernel.gd' = 'MNA_CSHARP_KERNEL PASS'
+            'tests/campus/circuit_studio/assembly_flow_test.gd' = 'ASSEMBLY_FLOW_PASS'
+            'tests/campus/circuit_studio/invention_editor_test.gd' = 'INVENTION_EDITOR PASS'
+            'tests/campus/circuit_studio/pcb_drive_test.gd' = 'CHAINED_HINGE_PASS'
+            'tests/campus/circuit_studio/mounted_pcb_transient_test.gd' = 'MOUNTED_PCB_TRANSIENT PASS'
+            'tests/campus/circuit_studio/invention_network_load.gd' = 'INVENTION_NETWORK_LOAD PASS'
+          }
+          foreach ($test in $tests.Keys) {
+            $log = "$env:RUNNER_TEMP/$([IO.Path]::GetFileNameWithoutExtension($test)).log"
+            Write-Host "RUN $test"
+            & $env:GODOT --headless --path . --script "res://$test" --log-file $log
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path $log) -or (Select-String -Path $log -SimpleMatch 'SCRIPT ERROR:' -Quiet)) {
+              if (Test-Path $log) { Get-Content $log -Tail 100 }
+              throw "Godot test failed: $test"
+            }
+            $required = $tests[$test]
+            if ($required -and !(Select-String -Path $log -SimpleMatch $required -Quiet)) {
+              Get-Content $log -Tail 100
+              throw "Missing pass marker for $test"
+            }
+            Write-Host "PASS $test"
+          }
