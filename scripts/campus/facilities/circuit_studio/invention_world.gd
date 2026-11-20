@@ -540,7 +540,7 @@ func _create_view(key: String,item: Dictionary) -> StaticBody3D:
 			var box:=BoxMesh.new();box.size=_part_size(kind);mesh.mesh=box
 			pivot.add_child(mesh)
 		var material:=StandardMaterial3D.new();material.albedo_color=Color(str(Model.PARTS.get(kind,{}).get("color","777777")));mesh.material_override=material
-		if kind=="pcb" and (item.drive.A!="manual" or item.drive.B!="manual"):
+		if kind=="pcb" and part.has("pin_map") and (item.drive.A!="manual" or item.drive.B!="manual"):
 			var pcb_target:=StaticBody3D.new();pcb_target.collision_layer=4;pcb_target.collision_mask=0;pcb_target.position=pivot.position+Vector3(0,.24,0);root.add_child(pcb_target)
 			pcb_target.set_meta("role","invention_pcb");pcb_target.set_meta("invention_key",key);pcb_target.set_meta("label",str(item.name)+" · inspect live PCB")
 			var pcb_hit:=CollisionShape3D.new();var pcb_shape:=BoxShape3D.new();pcb_shape.size=Vector3(.28,.16,.28);pcb_hit.shape=pcb_shape;pcb_target.add_child(pcb_hit)

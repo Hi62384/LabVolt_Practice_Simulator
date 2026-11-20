@@ -110,6 +110,25 @@ func _check_world_clock() -> void:
 	assert(world.placed.test.effective.A,"2.501 V must activate PCB drive")
 	world._physics_process(.05)
 	assert(not world.placed.test.effective.A,"2.499 V must deactivate PCB drive")
+	# A decorative/unmapped PCB cannot open the live controls of the one
+	# separately mapped PCB that drives the invention.
+	var mixed: Dictionary={
+		"name":"Mapped and unmapped PCBs", "position":Vector3(0,2,0),
+		"parts":[
+			{"type":"pcb","x":0,"y":0,"z":0,
+				"pin_map":{"power":0,"ground":1,"A":2,"B":-1}},
+			{"type":"pcb","x":1,"y":0,"z":0}
+		],
+		"drive":{"A":"pcb","B":"manual"},
+		"controls":{"A":"hold","B":"toggle"},
+		"features":{"battery":false}
+	}
+	var mixed_view:=world._create_view("mixed_pcb",mixed)
+	var inspect_targets:=mixed_view.find_children("*","StaticBody3D",true,false).filter(
+		func(node):return node.get_meta("role","")=="invention_pcb")
+	assert(inspect_targets.size()==1,
+		"Unmapped PCB must not open a different mounted PCB's live circuit controls")
+	mixed_view.queue_free()
 	game.free()
 
 func _check_hinge() -> void:
