@@ -178,6 +178,8 @@ func configure_maker(board: Dictionary, callbacks: Dictionary, catalog: Dictiona
 			canvas.currents.clear()
 			canvas.device_states.clear()
 			canvas.accept_measurements({})
+			# Repaint LEDs and meter readings immediately after stopping simulation.
+			canvas.queue_redraw()
 		notify("Simulation running." if enabled else "Simulation stopped."))
 	state = Label.new()
 	state.size_flags_horizontal = Control.SIZE_EXPAND_FILL
