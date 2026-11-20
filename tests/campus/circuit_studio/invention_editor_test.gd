@@ -94,9 +94,18 @@ func _run() -> void:
 	window.selected_part=4
 	window._editor()
 	window.part_x.value=5
+	# The library is also a placement palette. Merely browsing it must not
+	# replace the selected servo during Save/Test without explicit Apply.
+	for kind_index in window.part_kind.item_count:
+		if str(window.part_kind.get_item_metadata(kind_index))=="wood_frame":
+			window.part_kind.select(kind_index)
+			break
+	window._reference_options()
 	window.draft.controls={"A":"hold","B":"toggle"}
 	window._test_draft()
 	assert(window.draft.parts[4].x==5,"Test silently discarded an unapplied inspector edit")
+	assert(window.draft.parts[4].type=="servo",
+		"Changing the placement palette silently replaced a selected part")
 	window._editor()
 	window.part_x.value=4
 	window._apply_selected()

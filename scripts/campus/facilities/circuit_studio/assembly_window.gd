@@ -220,7 +220,8 @@ func _editor(message: String="") -> void:
 		part_z.value=part.z
 		preview.placement_height=int(part_y.value)
 		_label(inspector,"Selected  ·  "+str(Model.PARTS[part.type].name))
-		_button(inspector,"Apply selected changes",_apply_selected)
+		var apply:=_button(inspector,"Apply selected changes",_apply_selected)
+		apply.tooltip_text="Apply position, control, PCB pins and an intentional part-type replacement from the library."
 		var rotate:=_button(inspector,"Rotate %d°"%[int(part.get("turns",0))*90],_rotate_part.bind(selected_part))
 		if part.type=="hinge":
 			var forward:=Model.rotate_grid(Vector3i.FORWARD,int(part.get("turns",0)))
@@ -536,7 +537,7 @@ func _apply_selected() -> void:
 	if selected_part<0 or selected_part>=draft.parts.size() or part_kind.selected<0:return
 	_sync_fields()
 	var before: Dictionary=draft.parts[selected_part].duplicate(true)
-	if not _commit_selected_changes():return
+	if not _commit_selected_changes(true):return
 	if before==draft.parts[selected_part]:
 		notice.text="Selected part already has those settings."
 		return
@@ -544,27 +545,32 @@ func _apply_selected() -> void:
 
 # Use the same inspector-to-model path for Apply, Save and Test. Previously
 # Save/Test could silently discard pending coordinates, controls and PCB pins.
-func _commit_selected_changes() -> bool:
+func _commit_selected_changes(replace_type := false) -> bool:
 	if selected_part<0 or selected_part>=draft.parts.size() or not is_instance_valid(part_kind) or part_kind.selected<0:return true
 	var changed: Dictionary=draft.parts[selected_part].duplicate(true)
-	changed.type=str(part_kind.get_item_metadata(part_kind.selected))
+	var palette_kind:=str(part_kind.get_item_metadata(part_kind.selected))
+	# The left palette also selects which kind to place next. Browsing the
+	# palette must never silently replace an existing part on Save, Test,
+	# rotation or selection. A deliberate Apply is required for type changes.
+	if replace_type:changed.type=palette_kind
 	changed.x=int(part_x.value)
 	changed.y=int(part_y.value)
 	changed.z=int(part_z.value)
 	changed.control="" if part_control.selected==0 else "A" if part_control.selected==1 else "B"
-	if changed.type in ["pcb","nested"]:
-		if part_ref.selected<0:
-			notice.text="Choose a blueprint for the selected part."
-			return false
-		changed.ref=str(part_ref.get_item_metadata(part_ref.selected))
-	else:changed.ref=""
-	if changed.type=="pcb":
-		if pin_choices.size()==4:
-			changed.pin_map={}
-			for role in pin_choices:
-				var choice: OptionButton=pin_choices[role]
-				changed.pin_map[role]=int(choice.get_item_metadata(choice.selected))
-	else:changed.erase("pin_map")
+	if replace_type or palette_kind==str(changed.type):
+		if changed.type in ["pcb","nested"]:
+			if part_ref.selected<0:
+				notice.text="Choose a blueprint for the selected part."
+				return false
+			changed.ref=str(part_ref.get_item_metadata(part_ref.selected))
+		else:changed.ref=""
+		if changed.type=="pcb":
+			if pin_choices.size()==4:
+				changed.pin_map={}
+				for role in pin_choices:
+					var choice: OptionButton=pin_choices[role]
+					changed.pin_map[role]=int(choice.get_item_metadata(choice.selected))
+		else:changed.erase("pin_map")
 	if changed==draft.parts[selected_part]:return true
 	for index in draft.parts.size():
 		if index==selected_part:continue
