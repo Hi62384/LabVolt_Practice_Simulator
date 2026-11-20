@@ -100,6 +100,24 @@ func _run() -> void:
 	var updated: Dictionary=window.draft.parts.back()
 	assert(updated.pin_map.A==3 and updated.pin_map.B==2,"Apply must update the existing PCB pin map")
 	assert(Model.validate("inv:test",{"inv:test":window.draft},game.electronics.profile.data.blueprints)=="")
+	# A nested child with no individual copies must still get a new revision
+	# when its parent was fabricated. The parent keeps referring to the old ID.
+	var child: Dictionary=Model.empty("Nested child")
+	var parent: Dictionary=Model.empty("Fabricated parent")
+	parent.parts.append({"type":"nested","x":1,"y":0,"z":0,"control":"","ref":"inv:child"})
+	game.electronics.profile.data.inventions={"inv:child":child,"inv:parent":parent}
+	game.electronics.profile.data.invention_copies={"inv:parent":1}
+	window.editing_id="inv:child"
+	window.draft=child.duplicate(true)
+	window.draft.parts.append({"type":"plastic_shell","x":2,"y":0,"z":0,"control":"","ref":""})
+	window.selected_part=-1
+	window._editor()
+	assert(window._draft_error()=="","A revised child must be validated independently of the frozen parent")
+	window._save()
+	assert(window.editing_id=="inv:child","Original editing identity should remain unchanged by saving")
+	assert(game.electronics.profile.data.inventions["inv:child"]==child,"Fabricated parent's child blueprint changed in place")
+	assert(game.electronics.profile.data.inventions["inv:parent"].parts[1].ref=="inv:child","Fabricated parent was silently rewired to a new child")
+	assert(game.electronics.profile.data.inventions.size()==3,"A fresh revision should be saved")
 	game.electronics.profile.data=old_profile
 	window._close()
 	await process_frame

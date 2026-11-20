@@ -209,6 +209,23 @@ static func _expanded_check(id: String,designs: Dictionary,offset: Vector3i,turn
 			if occupied.size()>MAX_EXPANDED_PARTS:return "Invention exceeds 64 physical parts"
 	return ""
 
+## Once an invention is fabricated, its complete nested blueprint dependency
+## graph becomes immutable. Otherwise editing an unfabricated child silently
+## changes a parent whose physical copies have already been purchased.
+static func fabricated_dependencies(designs: Dictionary,copies: Dictionary) -> Dictionary:
+	var frozen: Dictionary={}
+	for root in copies:
+		if int(copies[root])<=0:continue
+		var pending: Array=[str(root)]
+		while not pending.is_empty():
+			var id: String=str(pending.pop_back())
+			if frozen.has(id) or not designs.has(id):continue
+			frozen[id]=true
+			for part in designs[id].get("parts",[]):
+				if part is Dictionary and part.get("type","")=="nested":
+					pending.append(str(part.get("ref","")))
+	return frozen
+
 static func price(id: String,designs: Dictionary,pcbs: Dictionary) -> int:
 	if validate(id,designs,pcbs)!="":return -1
 	return _price(id,designs,pcbs)

@@ -422,8 +422,10 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid metadata")
 			var incoming: Dictionary=args[0]
 			if incoming.get("inventions") is Dictionary:
-				for invention_id in a.profile.get("invention_copies",{}):
-					if int(a.profile.invention_copies[invention_id])>0 and (not incoming.inventions.has(invention_id) or not Profile.same(incoming.inventions[invention_id],a.profile.get("inventions",{}).get(invention_id,{}))):return failure("Fabricated invention blueprints are immutable; save a new revision")
+				var immutable: Dictionary=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd").fabricated_dependencies(a.profile.get("inventions",{}),a.profile.get("invention_copies",{}))
+				for invention_id in immutable:
+					if not incoming.inventions.has(invention_id) or not Profile.same(incoming.inventions[invention_id],a.profile.get("inventions",{}).get(invention_id,{})):
+						return failure("Fabricated inventions and their nested blueprints are immutable; save a new revision")
 			# Existing kit stock moves through the dedicated host operation, not a
 			# client-supplied replacement of the whole profile metadata document.
 			if incoming.get("kits") is Dictionary:

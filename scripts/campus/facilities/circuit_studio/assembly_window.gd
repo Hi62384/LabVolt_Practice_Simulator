@@ -545,12 +545,14 @@ func _remove_part(index: int) -> void:
 	_editor()
 
 func _draft_error() -> String:
-	var test_id:=editing_id if editing_id!="" else "inv:draft"
 	var designs: Dictionary=profile.data.get("inventions",{}).duplicate(true)
 	var candidate: Dictionary=draft.duplicate(true)
 	candidate.name=name_field.text.strip_edges()
 	candidate.controls={"A":"toggle" if mode_a.selected==1 else "hold","B":"toggle" if mode_b.selected==1 else "hold"}
 	candidate.drive={"A":["manual","pcb","both"][drive_a.selected],"B":["manual","pcb","both"][drive_b.selected]}
+	var frozen: Dictionary=Model.fabricated_dependencies(designs,profile.data.get("invention_copies",{}))
+	var revised: bool=not editing_id.is_empty() and frozen.has(editing_id) and designs.get(editing_id,{})!=candidate
+	var test_id: String="inv:draft" if editing_id.is_empty() or revised else editing_id
 	designs[test_id]=candidate
 	return Model.validate(test_id,designs,profile.data.get("blueprints",{}))
 
@@ -558,7 +560,7 @@ func _save() -> void:
 	_sync_fields()
 	var error:=_draft_error()
 	if error!="":notice.text=error;return
-	var revised: bool=editing_id!="" and int(profile.data.get("invention_copies",{}).get(editing_id,0))>0 and profile.data.get("inventions",{}).get(editing_id,{})!=draft
+	var revised: bool=editing_id!="" and Model.fabricated_dependencies(profile.data.get("inventions",{}),profile.data.get("invention_copies",{})).has(editing_id) and profile.data.get("inventions",{}).get(editing_id,{})!=draft
 	var id: String="inv:"+Crypto.new().generate_random_bytes(12).hex_encode() if editing_id=="" or revised else editing_id
 	var before: Dictionary=profile.data.duplicate(true)
 	if not profile.data.has("inventions"):profile.data.inventions={}
