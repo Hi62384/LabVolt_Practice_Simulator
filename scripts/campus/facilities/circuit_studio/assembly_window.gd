@@ -493,6 +493,10 @@ func _add_part() -> void:
 	var ref: String=str(part_ref.get_item_metadata(part_ref.selected)) if kind in ["pcb","nested"] and part_ref.item_count>0 else ""
 	if kind in ["pcb","nested"] and ref.is_empty():_editor("Save a compatible blueprint first.");return
 	if draft.parts.size()>=Model.MAX_PARTS:_editor("A design holds at most 32 parts.");return
+	for existing in draft.parts:
+		if int(existing.x)==int(part_x.value) and int(existing.y)==int(part_y.value) and int(existing.z)==int(part_z.value):
+			notice.text="Another part occupies that grid cell."
+			return
 	var part: Dictionary={"type":kind,"x":int(part_x.value),"y":int(part_y.value),"z":int(part_z.value),"control":"" if part_control.selected==0 else "A" if part_control.selected==1 else "B","ref":ref}
 	if kind=="pcb" and pin_choices.size()==4:
 		part.pin_map={}

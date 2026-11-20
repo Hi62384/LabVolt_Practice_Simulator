@@ -48,6 +48,12 @@ func _run() -> void:
 	assert(window.draft.parts[4].control=="B" and window.draft.parts[4].x==4,"Apply did not update the selected servo")
 	assert(Model.validate("inv:test",{"inv:test":window.draft},old_profile.get("blueprints",{}))=="")
 	assert(window.undo_stack.size()==1,"Editing an existing part must be undoable")
+	var part_count: int=window.draft.parts.size()
+	window.part_x.value=0
+	window.part_y.value=0
+	window.part_z.value=0
+	window._add_part()
+	assert(window.draft.parts.size()==part_count and window.notice.text.contains("occupies"),"Add Part must reject an already occupied cell")
 	window._history(window.undo_stack,window.redo_stack)
 	assert(window.draft.parts[4].control=="A" and window.draft.parts[4].x==0,"Undo lost the original properties")
 	window._history(window.redo_stack,window.undo_stack)
