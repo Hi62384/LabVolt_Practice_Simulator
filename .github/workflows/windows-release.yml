@@ -115,6 +115,8 @@ jobs:
             if ($LASTEXITCODE -or !(Test-Path $sourceLog) -or !(Select-String -Path $sourceLog -SimpleMatch $sourceTests[$test]) -or (Select-String -Path $sourceLog -Pattern 'SCRIPT ERROR:')) { throw "Source test failed: $test" }
           }
           $inventionTests = @{
+            assembly_flow_test = 'ASSEMBLY_FLOW_PASS'
+            invention_editor_test = 'INVENTION_EDITOR PASS'
             pcb_drive_test = 'CHAINED_HINGE_PASS'
             invention_network_load = 'INVENTION_NETWORK_LOAD PASS'
           }

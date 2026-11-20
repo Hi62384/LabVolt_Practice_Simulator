@@ -1,0 +1,109 @@
+extends SceneTree
+## Real assembly-window widget path, with an isolated source-game profile.
+const Model=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd")
+const WindowScript=preload("res://scripts/campus/facilities/circuit_studio/assembly_window.gd")
+const Board=preload("res://scripts/breadboard_model.gd")
+const Custom=preload("res://scripts/custom_circuit.gd")
+
+func _initialize() -> void:
+	call_deferred("_run")
+
+func _button(parent: Node,label: String) -> Button:
+	for node in parent.find_children("*","Button",true,false):
+		if node.text==label:return node
+	return null
+
+func _choose(choice: OptionButton,value: Variant) -> bool:
+	for index in choice.item_count:
+		if choice.get_item_metadata(index)==value:
+			choice.select(index)
+			return true
+	return false
+
+func _run() -> void:
+	var game=load("res://scenes/Main.tscn").instantiate()
+	root.add_child(game)
+	for frame in 4:await process_frame
+	var window=WindowScript.new()
+	game.add_child(window)
+	window.open_station(game)
+	var old_profile: Dictionary=game.electronics.profile.data.duplicate(true)
+	var draft: Dictionary=Model.empty("Editor checks")
+	draft.parts.append_array([
+		{"type":"battery","x":1,"y":0,"z":0,"control":"","ref":""},
+		{"type":"switch","x":2,"y":0,"z":0,"control":"A","ref":""},
+		{"type":"switch","x":3,"y":0,"z":0,"control":"B","ref":""},
+		{"type":"servo","x":0,"y":1,"z":0,"control":"A","ref":""}
+	])
+	assert(Model.validate("inv:test",{"inv:test":draft},old_profile.get("blueprints",{}))=="")
+	window.draft=draft
+	window.selected_part=4
+	window._editor()
+	assert(window.part_kind.get_item_metadata(window.part_kind.selected)=="servo","Selection must use the existing part type")
+	assert(window.part_control.selected==1,"Selection must display its saved A channel")
+	assert(window.part_x.value==0 and window.part_y.value==1,"Selected coordinates were not populated")
+	window.part_control.select(2)
+	window.part_x.value=4
+	window._apply_selected()
+	assert(window.draft.parts[4].control=="B" and window.draft.parts[4].x==4,"Apply did not update the selected servo")
+	assert(Model.validate("inv:test",{"inv:test":window.draft},old_profile.get("blueprints",{}))=="")
+	assert(window.undo_stack.size()==1,"Editing an existing part must be undoable")
+	window._history(window.undo_stack,window.redo_stack)
+	assert(window.draft.parts[4].control=="A" and window.draft.parts[4].x==0,"Undo lost the original properties")
+	window._history(window.redo_stack,window.undo_stack)
+	assert(window.draft.parts[4].control=="B" and window.draft.parts[4].x==4,"Redo did not restore edited properties")
+	window.draft.controls={"A":"hold","B":"toggle"}
+	window._test_draft()
+	await process_frame
+	var hold:=_button(window,"Hold A")
+	var toggle:=_button(window,"Switch B")
+	assert(is_instance_valid(hold) and is_instance_valid(toggle),"Test controls must match configured hold and toggle modes")
+	hold.button_down.emit()
+	assert(window.test_switches.A,"Holding A did not energize the test input")
+	hold.button_up.emit()
+	assert(not window.test_switches.A,"Releasing A did not deenergize the test input")
+	toggle.pressed.emit()
+	assert(window.test_switches.B,"Toggle B did not latch its test input")
+	toggle.pressed.emit()
+	assert(not window.test_switches.B,"Second B press did not release its test input")
+	
+	var board: Dictionary=Board.empty()
+	board.parts=[
+		{"id":"gate","type":"toggle","a":"A1","b":"A2"},
+		{"id":"load","type":"r1000","a":"A2","b":"F1"}
+	]
+	var bp: Dictionary=Board.blueprint(board,"Editor test PCB")
+	bp.package="PCB"
+	bp.footprint={"width":8,"height":8,"color":"24775b"}
+	bp.layout={"rows":30,"parts":board.parts.duplicate(true),"wires":[]}
+	bp.pins=[
+		{"name":"VCC","node":"L1"},
+		{"name":"GND","node":"R1"},
+		{"name":"OUT_A","node":"L2"},
+		{"name":"OUT_B","node":"R2"}
+	]
+	var id: String="ic:editor_regression"
+	assert(Custom.validate(id,{id:bp})=="")
+	game.electronics.profile.data.blueprints[id]=bp
+	window.draft.parts.append({
+		"type":"pcb","x":5,"y":0,"z":0,"control":"","ref":id,
+		"pin_map":{"power":0,"ground":1,"A":2,"B":3}
+	})
+	window.selected_part=window.draft.parts.size()-1
+	window._editor()
+	assert(window.part_kind.get_item_metadata(window.part_kind.selected)=="pcb","Selected PCB type must be retained")
+	assert(window.part_ref.get_item_metadata(window.part_ref.selected)==id,"Selected PCB blueprint reference was not restored")
+	assert(int(window.pin_choices.A.get_item_metadata(window.pin_choices.A.selected))==2,"Selected PCB output A was not restored")
+	assert(_choose(window.pin_choices.A,3),"Output A should offer the fourth PCB pin")
+	assert(_choose(window.pin_choices.B,2),"Output B should offer the third PCB pin")
+	window._apply_selected()
+	var updated: Dictionary=window.draft.parts.back()
+	assert(updated.pin_map.A==3 and updated.pin_map.B==2,"Apply must update the existing PCB pin map")
+	assert(Model.validate("inv:test",{"inv:test":window.draft},game.electronics.profile.data.blueprints)=="")
+	game.electronics.profile.data=old_profile
+	window._close()
+	await process_frame
+	game.queue_free()
+	await process_frame
+	print("INVENTION_EDITOR PASS")
+	quit()
