@@ -19,6 +19,16 @@ func _run() -> void:
 	p.data.inventions={"inv:drive":drive,"inv:cart":shell}
 	assert(Model.validate("inv:cart",p.data.inventions,p.data.get("blueprints",{}))=="")
 	assert(Model.price("inv:cart",p.data.inventions,p.data.get("blueprints",{}))==73)
+	var module: Dictionary=Model.empty("Power module")
+	module.parts.append({"type":"battery","x":1,"y":0,"z":0,"control":"","ref":""})
+	module.parts.append({"type":"switch","x":2,"y":0,"z":0,"control":"A","ref":""})
+	var modular: Dictionary=Model.empty("Modular servo")
+	modular.parts.append({"type":"nested","x":0,"y":0,"z":1,"control":"","ref":"inv:power_module"})
+	modular.parts.append({"type":"servo","x":0,"y":1,"z":0,"control":"A","ref":""})
+	var modular_designs: Dictionary={"inv:power_module":module,"inv:modular":modular}
+	assert(Model.validate("inv:power_module",modular_designs,{})=="")
+	assert(Model.validate("inv:modular",modular_designs,{})=="","Nested batteries and switches must power a parent actuator")
+	assert(Model.flattened("inv:modular",modular_designs,{}).size()==5)
 	assert(Model.flattened("inv:cart",p.data.inventions,p.data.get("blueprints",{})).size()==6)
 	var rotated: Dictionary=p.data.inventions.duplicate(true)
 	rotated["inv:cart"].parts[1].turns=1

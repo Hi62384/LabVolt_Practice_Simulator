@@ -178,21 +178,33 @@ static func validate(id: String,designs: Dictionary,pcbs: Dictionary,depth: int=
 				var error:=validate(ref,designs,pcbs,depth+1,next_stack)
 				if error!="":return error
 		elif str(part.get("ref",""))!="":return "Unexpected part reference"
+	# First enforce the physical expansion bound, then inspect the *combined*
+	# assembly. A parent actuator can use the battery/switch of a nested module,
+	# just as the host runtime does after flattening.
+	var expanded: Dictionary={}
+	var error:=_expanded_check(id,designs,Vector3i.ZERO,0,expanded)
+	if error!="":return error
+	var expanded_parts: Array=[]
+	_flatten(id,designs,Vector3i.ZERO,0,expanded_parts)
+	has_frame=false
+	has_battery=false
+	switches.clear()
+	actuators.clear()
+	for member in expanded_parts:
+		var kind: String=str(member.type)
+		if kind in ["wood_frame","aluminum_frame","plastic_shell"]:has_frame=true
+		elif kind=="battery":has_battery=true
+		elif kind=="switch":switches[str(member.control)]=true
+		elif kind in ["dc_motor","servo"]:actuators[str(member.control)]=true
 	if not has_frame:return "Add a structural frame or shell"
 	if not actuators.is_empty() and not has_battery:return "Add a battery pack to power the moving parts"
 	for control in actuators:
 		if drive[control] in ["manual","both"] and not switches.has(control):return "Add a control switch for "+str(control)
-	if depth==0:
-		var expanded: Dictionary={}
-		var error:=_expanded_check(id,designs,Vector3i.ZERO,0,expanded)
-		if error!="":return error
-		if drive.A in ["pcb","both"] or drive.B in ["pcb","both"]:
-			var expanded_parts: Array=[]
-			_flatten(id,designs,Vector3i.ZERO,0,expanded_parts)
-			var mapped_pcbs: Array=expanded_parts.filter(func(part):return part.type=="pcb" and part.has("pin_map"))
-			if mapped_pcbs.size()!=1:return "Choose exactly one PCB with mapped pins for PCB drive"
-			for control in ["A","B"]:
-				if drive[control] in ["pcb","both"] and int(mapped_pcbs[0].pin_map[control])<0:return "Map PCB output "+control
+	if depth==0 and (drive.A in ["pcb","both"] or drive.B in ["pcb","both"]):
+		var mapped_pcbs: Array=expanded_parts.filter(func(part):return part.type=="pcb" and part.has("pin_map"))
+		if mapped_pcbs.size()!=1:return "Choose exactly one PCB with mapped pins for PCB drive"
+		for control in ["A","B"]:
+			if drive[control] in ["pcb","both"] and int(mapped_pcbs[0].pin_map[control])<0:return "Map PCB output "+control
 	return ""
 
 static func _expanded_check(id: String,designs: Dictionary,offset: Vector3i,turns: int,occupied: Dictionary) -> String:
