@@ -143,6 +143,12 @@ func _check_input_leases() -> void:
 	assert(probe.calls.size()==before,"A second player moved another player's held joystick")
 	world._apply(1,move)
 	assert(probe.calls.size()==before+1,"The joystick's holder could not move its own axes")
+	var forged_release: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":true,
+		"command":{"op":"release"}}
+	before=probe.calls.size()
+	world._apply(2,forged_release)
+	assert(probe.calls.size()==before and world.pcb_holders.has("fixture|board/joy:"),
+		"A forged release bypassed another player's joystick lease")
 	var release: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":false,
 		"command":{"op":"release"}}
 	probe.accept=false
@@ -154,6 +160,22 @@ func _check_input_leases() -> void:
 	before=probe.calls.size()
 	world._apply(2,move)
 	assert(probe.calls.size()==before+1,"Another player must regain input access after release")
+	world.placed["fixture"].pcb_inputs.append({"kind":"io_keypad","id":"board/keys"})
+	before=probe.calls.size()
+	world._apply(2,{"op":"pcb_input","key":"fixture","id":"board/keys","pressed":true,
+		"command":{"op":"release"}})
+	assert(probe.calls.size()==before,"Remote keypad-wide release could clear another player's held keys")
+	world.placed["fixture"].pcb_inputs.append({"kind":"xpt2046","id":"board/touch"})
+	world._apply(1,{"op":"pcb_input","key":"fixture","id":"board/touch","pressed":true,
+		"command":{"op":"touch","x":0.2,"y":0.4,"pressed":true}})
+	assert(world.pcb_holders.has("fixture|board/touch:"))
+	before=probe.calls.size()
+	world._apply(2,{"op":"pcb_input","key":"fixture","id":"board/touch","pressed":true,
+		"command":{"op":"release"}})
+	assert(probe.calls.size()==before,"Another player released an active touchscreen contact")
+	world._apply(1,{"op":"pcb_input","key":"fixture","id":"board/touch","pressed":false,
+		"command":{"op":"release"}})
+	assert(not world.pcb_holders.has("fixture|board/touch:"))
 	game.free()
 	print("PCB_INPUT_LEASE_PASS")
 
