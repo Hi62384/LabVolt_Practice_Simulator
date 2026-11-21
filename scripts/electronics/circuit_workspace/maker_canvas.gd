@@ -61,13 +61,19 @@ func _gui_input(event: InputEvent) -> void:
 		elif not selected_lab_lead.is_empty():selected_lab_lead=""
 		elif not grabbed_hole.is_empty():
 			cancel_grab()
+		elif not first.is_empty():
+			# A pending two-click wire/component placement cancels on right
+			# click; it must never delete an unrelated component beneath it.
+			first=""
 		elif _disconnect_lab_lead_at(input_position):
 			pass
 		elif selected_type=="interact" and _operate_manual_input(event):
 			accept_event()
 			return
 		else:
-			var removed := _delete_component_at(input_position) or _delete_wire_at(input_position)
+			# A wire crossing a component body should delete the explicitly
+			# clicked jumper first, not unexpectedly destroy the component.
+			var removed := _delete_wire_at(input_position) or _delete_component_at(input_position)
 			if not removed and not hole.is_empty():removed=_delete_component_at(input_position,hole)
 			first=""
 		_update_placement()
