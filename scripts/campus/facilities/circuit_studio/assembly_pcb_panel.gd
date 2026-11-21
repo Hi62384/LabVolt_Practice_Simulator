@@ -47,9 +47,12 @@ func open_board(owner_game: Node,invention_key: String) -> void:
 				key_button.button_down.connect(_begin_hold.bind(id,{"op":"key","key":number,"pressed":true}))
 				key_button.button_up.connect(_end_hold.bind(id,{"key":number}))
 		elif entry.kind in ["io_slider","io_joystick","xpt2046"]:
+			var x_label:=Label.new();x_label.text="Level" if entry.kind=="io_slider" else "X";row.add_child(x_label)
 			var x:=HSlider.new();x.min_value=0;x.max_value=1;x.step=.05;x.value=.5;x.custom_minimum_size.x=130;row.add_child(x)
 			var y:=HSlider.new();y.min_value=0;y.max_value=1;y.step=.05;y.value=.5;y.custom_minimum_size.x=130
-			if entry.kind!="io_slider":row.add_child(y)
+			if entry.kind!="io_slider":
+				var y_label:=Label.new();y_label.text="Y";row.add_child(y_label)
+				row.add_child(y)
 			var move:=func(_value: float):
 				if entry.kind=="io_slider":_submit(id,{"op":"move","x":x.value})
 				elif entry.kind=="io_joystick":_submit(id,{"op":"move","x":x.value,"y":y.value})
@@ -58,12 +61,15 @@ func open_board(owner_game: Node,invention_key: String) -> void:
 			x.value_changed.connect(move)
 			if entry.kind!="io_slider":y.value_changed.connect(move)
 			if entry.kind=="io_joystick":
-				var press:=Button.new();press.text="Press";row.add_child(press)
-				press.button_down.connect(_begin_hold.bind(id,{"op":"press","pressed":true}))
-				press.button_up.connect(func():
-					_end_hold(id)
-					x.set_value_no_signal(.5)
-					y.set_value_no_signal(.5))
+				# A single pointer must be able to hold the push-button while moving
+				# both joystick axes. Release recenters the spring-loaded stick.
+				var press:=Button.new();press.text="Press on/off";press.toggle_mode=true;row.add_child(press)
+				press.toggled.connect(func(pressed: bool):
+					if pressed:_begin_hold(id,{"op":"press","pressed":true})
+					else:
+						_end_hold(id)
+						x.set_value_no_signal(.5)
+						y.set_value_no_signal(.5))
 			elif entry.kind=="xpt2046":
 				# A mouse cannot drag the coordinate sliders while holding a button.
 				# Toggle contact on/off so one pointer can perform touch gestures.

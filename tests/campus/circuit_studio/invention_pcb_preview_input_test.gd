@@ -32,10 +32,11 @@ func _run() -> void:
 	var joy_y: HSlider=sliders[4]
 	var buttons: Array=window.find_children("*","Button",true,false)
 	var touch_buttons: Array=buttons.filter(func(button):return button.text=="Touch on/off")
-	var joystick_buttons: Array=buttons.filter(func(button):return button.text=="Press")
+	var joystick_buttons: Array=buttons.filter(func(button):return button.text=="Press on/off")
 	assert(touch_buttons.size()==1 and touch_buttons[0].toggle_mode,
 		"Preview touch must toggle so the pointer sliders can move while pressed")
-	assert(joystick_buttons.size()==1,"Preview must show a joystick Press input")
+	assert(joystick_buttons.size()==1 and joystick_buttons[0].toggle_mode,
+		"Preview joystick push-button must latch during axis movement")
 	var touch: Button=touch_buttons[0]
 	touch_x.value=.75
 	assert(runtime.requests.is_empty(),"Unpressed touch movement must be inert")
@@ -54,14 +55,14 @@ func _run() -> void:
 	assert(runtime.requests.back().command.get("op")=="move"
 		and absf(float(runtime.requests.back().command.get("x",0))-.35)<.01,
 		"Analog preview slider must update circuit on value change")
-	joystick_buttons[0].button_down.emit()
+	joystick_buttons[0].button_pressed=true
 	assert(runtime.requests.back().command.get("op")=="press" and runtime.requests.back().command.pressed)
 	joy_x.value=.9
 	joy_y.value=.1
 	assert(runtime.requests.back().command.get("op")=="move"
 		and absf(float(runtime.requests.back().command.get("y",0))-.1)<.01,
 		"Joystick must send live X/Y changes before dragging ends")
-	joystick_buttons[0].button_up.emit()
+	joystick_buttons[0].button_pressed=false
 	assert(runtime.requests.back().command.get("op")=="release" and not runtime.requests.back().pressed,
 		"Preview joystick release must trigger hardware neutral")
 	assert(is_equal_approx(joy_x.value,.5) and is_equal_approx(joy_y.value,.5),

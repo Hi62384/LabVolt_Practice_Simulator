@@ -441,12 +441,15 @@ func _test_pcb_controls(parent: VBoxContainer) -> void:
 				button.button_down.connect(func():_test_input(id,true,false,{"op":"key","key":number,"pressed":true}))
 				button.button_up.connect(func():_test_input(id,false,false,{"op":"key","key":number,"pressed":false}))
 		elif kind in ["io_slider","io_joystick","xpt2046"]:
+			var x_label:=_label(row,"Level" if kind=="io_slider" else "X")
 			var x:=HSlider.new()
 			x.min_value=0.0;x.max_value=1.0;x.step=.05;x.value=.5
 			x.custom_minimum_size.x=130;row.add_child(x)
 			var y:=HSlider.new()
 			y.min_value=0.0;y.max_value=1.0;y.step=.05;y.value=.5
-			if kind!="io_slider":row.add_child(y)
+			if kind!="io_slider":
+				_label(row,"Y")
+				row.add_child(y)
 			var touch_state: Dictionary={"active":false}
 			var move:=func(_value: float):
 				if kind=="io_slider":_test_input(id,true,false,{"op":"move","x":x.value})
@@ -456,12 +459,14 @@ func _test_pcb_controls(parent: VBoxContainer) -> void:
 			x.value_changed.connect(move)
 			if kind!="io_slider":y.value_changed.connect(move)
 			if kind=="io_joystick":
-				var press:=_button(row,"Press",func():pass)
-				press.button_down.connect(func():_test_input(id,true,false,{"op":"press","pressed":true}))
-				press.button_up.connect(func():
-					_test_input(id,false,false,{"op":"release"})
-					x.set_value_no_signal(.5)
-					y.set_value_no_signal(.5))
+				var press:=_button(row,"Press on/off",func():pass)
+				press.toggle_mode=true
+				press.toggled.connect(func(pressed: bool):
+					if pressed:_test_input(id,true,false,{"op":"press","pressed":true})
+					else:
+						_test_input(id,false,false,{"op":"release"})
+						x.set_value_no_signal(.5)
+						y.set_value_no_signal(.5))
 			elif kind=="xpt2046":
 				var touch:=_button(row,"Touch on/off",func():pass)
 				touch.toggle_mode=true

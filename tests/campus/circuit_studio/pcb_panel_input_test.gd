@@ -74,16 +74,17 @@ func _run() -> void:
 	assert(world.requests.back().command.get("op")=="move"
 		and absf(float(world.requests.back().command.get("x",0))-.35)<.01,
 		"Analog slider movements must update the circuit without requiring drag-end")
-	var press_buttons: Array=panel.find_children("*","Button",true,false).filter(func(button):return button.text=="Press")
-	assert(press_buttons.size()==1,"Joystick press control must be present")
-	press_buttons[0].button_down.emit()
+	var press_buttons: Array=panel.find_children("*","Button",true,false).filter(func(button):return button.text=="Press on/off")
+	assert(press_buttons.size()==1 and press_buttons[0].toggle_mode,
+		"Joystick push-button must latch so X/Y sliders can move with one pointer")
+	press_buttons[0].button_pressed=true
 	assert(panel.held.has("board/joy:") and world.requests.back().command.get("op")=="press")
 	joy_x.value=.9
 	joy_y.value=.1
 	assert(world.requests.back().command.get("op")=="move"
 		and absf(float(world.requests.back().command.get("y",0))-.1)<.01,
 		"Joystick must report live changes while pressed")
-	press_buttons[0].button_up.emit()
+	press_buttons[0].button_pressed=false
 	assert(not panel.held.has("board/joy:") and not world.requests.back().pressed
 		and world.requests.back().command.get("op")=="release",
 		"Releasing joystick must request its return to center")
