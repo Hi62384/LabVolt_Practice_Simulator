@@ -22,6 +22,13 @@ class CapturingRuntime extends RefCounted:
 		commands.append({"id":device_id,"pressed":pressed,"command":command.duplicate(true)})
 		return true
 
+func _simulate_slider_drag(slider: HSlider,value: float) -> void:
+	# Controls created off-tree cannot receive GUI gestures. Explicitly
+	# simulate the very signal the engine emits during a real drag, without
+	# creating renderer-backed nodes in the headless CI runner.
+	slider.set_value_no_signal(value)
+	slider.value_changed.emit(slider.value)
+
 func _initialize() -> void:call_deferred("_run")
 
 func _run() -> void:
@@ -42,17 +49,14 @@ func _run() -> void:
 	# Control signals and the host lease path in headless mode without forcing
 	# the dummy renderer to allocate window-only textures.
 	panel.open_board(game,"fixture",false)
-	# Range signals must be exercised while their widgets belong to the
-	# SceneTree. Keep the Window itself off-tree so headless CI does not try
-	# to create a renderer-backed native subwindow.
-	var mounted_content:=panel.get_child(0) as Control
-	panel.remove_child(mounted_content)
-	game.add_child(mounted_content)
+	# The widget hierarchy remains off-tree: a headless runner has no
+	# native subwindow or CanvasItem renderer to clean up at exit. Simulated
+	# slider drags below deliver the real Range.value_changed signal directly.
 	await process_frame
 
-	var sliders: Array=mounted_content.find_children("*","HSlider",true,false)
+	var sliders: Array=panel.find_children("*","HSlider",true,false)
 	assert(sliders.size()==5,"Touch X/Y, analog slider and joystick X/Y must be present")
-	var touch_buttons: Array=mounted_content.find_children("*","Button",true,false).filter(func(button):return button.text=="Touch on/off")
+	var touch_buttons: Array=panel.find_children("*","Button",true,false).filter(func(button):return button.text=="Touch on/off")
 	assert(touch_buttons.size()==1 and touch_buttons[0].toggle_mode,"Touch control must latch so its sliders remain usable")
 	var touch: Button=touch_buttons[0]
 	var touch_x: HSlider=sliders[0]
@@ -61,15 +65,12 @@ func _run() -> void:
 	var joy_x: HSlider=sliders[3]
 	var joy_y: HSlider=sliders[4]
 	var start_events: int=world.requests.size()
-	touch_x.value=.75
+	_simulate_slider_drag(touch_x,.75)
 	assert(world.requests.size()==start_events,"Moving an unpressed touch point must not generate a touch event")
 	touch.button_pressed=true
 	assert(panel.held.has("board/touch:") and world.requests.back().command.get("op")=="touch"
 		and world.requests.back().pressed,"Toggling Touch on must begin a held contact")
-	var moved_signals: Array=[]
-	touch_y.value_changed.connect(func(v: float):moved_signals.append(v))
-	touch_y.value=.2
-	print("PANEL_TOUCH_DIAGNOSTIC signals=",moved_signals," requests=",world.requests," held=",panel.held)
+	_simulate_slider_drag(touch_y,.2)
 	assert(absf(float(world.requests.back().command.get("y",0))-.2)<.01 and world.requests.back().command.pressed,
 		"Moving a touch coordinate must send live pressed coordinates")
 	var before_renew: int=world.requests.size()
@@ -82,17 +83,17 @@ func _run() -> void:
 	assert(panel.held.is_empty() and not world.requests.back().pressed
 		and world.requests.back().command.get("op")=="release",
 		"Toggling Touch off must release the host touch lease")
-	analog.value=.35
+	_simulate_slider_drag(analog,.35)
 	assert(world.requests.back().command.get("op")=="move"
 		and absf(float(world.requests.back().command.get("x",0))-.35)<.01,
 		"Analog slider movements must update the circuit without requiring drag-end")
-	var press_buttons: Array=mounted_content.find_children("*","Button",true,false).filter(func(button):return button.text=="Press on/off")
+	var press_buttons: Array=panel.find_children("*","Button",true,false).filter(func(button):return button.text=="Press on/off")
 	assert(press_buttons.size()==1 and press_buttons[0].toggle_mode,
 		"Joystick push-button must latch so X/Y sliders can move with one pointer")
 	press_buttons[0].button_pressed=true
 	assert(panel.held.has("board/joy:") and world.requests.back().command.get("op")=="press")
-	joy_x.value=.9
-	joy_y.value=.1
+	_simulate_slider_drag(joy_x,.9)
+	_simulate_slider_drag(joy_y,.1)
 	assert(world.requests.back().command.get("op")=="move"
 		and absf(float(world.requests.back().command.get("y",0))-.1)<.01,
 		"Joystick must report live changes while pressed")
@@ -103,7 +104,7 @@ func _run() -> void:
 	assert(is_equal_approx(joy_x.value,.5) and is_equal_approx(joy_y.value,.5),
 		"Joystick UI must re-center after release")
 	for setting in ["Voltage +","Frequency −","Waveform +"]:
-		var buttons: Array=mounted_content.find_children("*","Button",true,false).filter(func(button):return button.text==setting)
+		var buttons: Array=panel.find_children("*","Button",true,false).filter(func(button):return button.text==setting)
 		assert(buttons.size()==1,"Mounted generator needs a labeled "+setting+" control")
 		buttons[0].pressed.emit()
 		assert(world.requests.back().id=="board/source"

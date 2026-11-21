@@ -14,26 +14,32 @@ class FakePCB extends RefCounted:
 		requests.append({"id":id,"pressed":pressed,"reverse":reverse,"command":command.duplicate(true)})
 		return true
 
+func _simulate_slider_drag(slider: HSlider,value: float) -> void:
+	# Synthetic GUI drags must send the same signal as a real slider while
+	# keeping headless fixtures free of renderer-backed CanvasItems.
+	slider.set_value_no_signal(value)
+	slider.value_changed.emit(slider.value)
+
 func _initialize() -> void:call_deferred("_run")
 
 func _run() -> void:
-	# Keep the Window off-tree to avoid native headless subwindow rendering,
-	# but attach its actual controls to the tree so Range signals behave
-	# exactly as they do in the gameplay UI.
+	# Exercise the production callbacks without entering the headless
+	# renderer's scene tree. _simulate_slider_drag dispatches exactly
+	# the Range signal a real user drag generates.
 	var window:=Studio.new()
 	var controls:=VBoxContainer.new()
-	root.add_child(controls)
+	window.add_child(controls)
 	var runtime:=FakePCB.new()
 	window.test_pcb=runtime
 	window._test_pcb_controls(controls)
-	var sliders: Array=controls.find_children("*","HSlider",true,false)
+	var sliders: Array=window.find_children("*","HSlider",true,false)
 	assert(sliders.size()==5,"Preview must have touch X/Y, slider and joystick X/Y")
 	var touch_x: HSlider=sliders[0]
 	var touch_y: HSlider=sliders[1]
 	var analog: HSlider=sliders[2]
 	var joy_x: HSlider=sliders[3]
 	var joy_y: HSlider=sliders[4]
-	var buttons: Array=controls.find_children("*","Button",true,false)
+	var buttons: Array=window.find_children("*","Button",true,false)
 	var touch_buttons: Array=buttons.filter(func(button):return button.text=="Touch on/off")
 	var joystick_buttons: Array=buttons.filter(func(button):return button.text=="Press on/off")
 	assert(touch_buttons.size()==1 and touch_buttons[0].toggle_mode,
@@ -41,15 +47,12 @@ func _run() -> void:
 	assert(joystick_buttons.size()==1 and joystick_buttons[0].toggle_mode,
 		"Preview joystick push-button must latch during axis movement")
 	var touch: Button=touch_buttons[0]
-	touch_x.value=.75
+	_simulate_slider_drag(touch_x,.75)
 	assert(runtime.requests.is_empty(),"Unpressed touch movement must be inert")
 	touch.button_pressed=true
 	assert(runtime.requests.size()==1 and runtime.requests.back().command.get("op")=="touch"
 		and runtime.requests.back().pressed,"Touch-on must start a real PCB touch command")
-	var moved_signals: Array=[]
-	touch_y.value_changed.connect(func(v: float):moved_signals.append(v))
-	touch_y.value=.2
-	print("PREVIEW_TOUCH_DIAGNOSTIC signals=",moved_signals," requests=",runtime.requests," active=",window.test_touch_active)
+	_simulate_slider_drag(touch_y,.2)
 	assert(runtime.requests.size()==2 and runtime.requests.back().command.get("op")=="touch"
 		and runtime.requests.back().command.pressed
 		and absf(float(runtime.requests.back().command.get("y",0))-.2)<.01,
@@ -57,14 +60,14 @@ func _run() -> void:
 	touch.button_pressed=false
 	assert(not runtime.requests.back().pressed and runtime.requests.back().command.get("op")=="release",
 		"Touch-off must release the preview PCB contact")
-	analog.value=.35
+	_simulate_slider_drag(analog,.35)
 	assert(runtime.requests.back().command.get("op")=="move"
 		and absf(float(runtime.requests.back().command.get("x",0))-.35)<.01,
 		"Analog preview slider must update circuit on value change")
 	joystick_buttons[0].button_pressed=true
 	assert(runtime.requests.back().command.get("op")=="press" and runtime.requests.back().command.pressed)
-	joy_x.value=.9
-	joy_y.value=.1
+	_simulate_slider_drag(joy_x,.9)
+	_simulate_slider_drag(joy_y,.1)
 	assert(runtime.requests.back().command.get("op")=="move"
 		and absf(float(runtime.requests.back().command.get("y",0))-.1)<.01,
 		"Joystick must send live X/Y changes before dragging ends")
@@ -74,14 +77,13 @@ func _run() -> void:
 	assert(is_equal_approx(joy_x.value,.5) and is_equal_approx(joy_y.value,.5),
 		"Preview joystick sliders must visibly recenter")
 	for setting in ["Voltage +","Frequency −","Waveform +"]:
-		var matching: Array=controls.find_children("*","Button",true,false).filter(func(button):return button.text==setting)
+		var matching: Array=window.find_children("*","Button",true,false).filter(func(button):return button.text==setting)
 		assert(matching.size()==1,"Preview generator needs a labeled "+setting+" control")
 		matching[0].pressed.emit()
 		assert(runtime.requests.back().id=="board/source"
 			and runtime.requests.back().command.get("source_adjust","")=={"Voltage +":"voltage","Frequency −":"frequency","Waveform +":"wave"}[setting]
 			and runtime.requests.back().reverse==(setting=="Frequency −"),
 			"Preview source control must forward the correct adjustment and direction")
-	controls.free()
 	window.free()
 	await process_frame
 	print("INVENTION_PCB_PREVIEW_INPUT PASS")
