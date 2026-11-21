@@ -109,6 +109,7 @@ func _run() -> void:
 	print("PCB_DRIVE_80_TICKS_MS ",(Time.get_ticks_usec()-start)/1000.0)
 	_check_world_clock()
 	_check_input_leases()
+	_check_disconnect_releases()
 	await _check_hinge()
 	print("PCB_DRIVE_PASS")
 	quit()
@@ -178,6 +179,39 @@ func _check_input_leases() -> void:
 	assert(not world.pcb_holders.has("fixture|board/touch:"))
 	game.free()
 	print("PCB_INPUT_LEASE_PASS")
+
+func _check_disconnect_releases() -> void:
+	# When a peer disconnects and a Both-mode PCB drive is already off,
+	# effective motion stays false. Other clients must still see the released
+	# physical switch (and the host must drop its stale input lease).
+	var game:=MockGame.new()
+	root.add_child(game)
+	game.add_child(game.player)
+	var world:=World.new()
+	game.add_child(world)
+	world.game=game
+	world.set_process(false)
+	world.set_physics_process(false)
+	world.placed["fixture"]={
+		"owner":1,
+		"controls":{"A":"hold","B":"toggle"},
+		"state":{"A":true,"B":false},
+		"holder":{"A":2,"B":0},
+		"expiry":{"A":Time.get_ticks_msec()+10000,"B":0},
+		"effective":{"A":false,"B":false},
+		"drive":{"A":"both","B":"manual"},
+		"pcb_voltage":{"A":0.0,"B":0.0}
+	}
+	game.session.roster.erase(2)
+	world._roster_changed()
+	assert(not world.placed["fixture"].state.A
+		and world.placed["fixture"].holder.A==0
+		and world.placed["fixture"].expiry.A==0,
+		"Disconnect must release a held invention control and its lease")
+	assert(world.pending_motion.has("fixture"),
+		"Disconnect must replicate button release even when effective drive was already inactive")
+	game.free()
+	print("INVENTION_DISCONNECT_CONTROL_PASS")
 
 func _check_world_clock() -> void:
 	var world:=World.new()

@@ -48,6 +48,11 @@ func _roster_changed() -> void:
 				if int(placed[key].holder[control]) != 0 and not game.session.roster.has(int(placed[key].holder[control])):
 					placed[key].state[control]=false
 					placed[key].holder[control]=0
+					placed[key].expiry[control]=0
+					# A disconnect can release a visible held switch without
+					# changing the effective drive (for example Both when the
+					# PCB output is low). Publish the new button state anyway.
+					pending_motion[key]=true
 	for holder_key in pcb_holders.keys():
 		if not game.session.roster.has(int(pcb_holders[holder_key].peer)):
 			_release_pcb(holder_key)
