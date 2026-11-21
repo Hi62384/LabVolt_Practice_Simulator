@@ -535,11 +535,10 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 		_add_part()
 	elif selected_part>=0 and selected_part<draft.parts.size():
 		_sync_fields()
-		_track_edit()
-		var part: Dictionary=draft.parts[selected_part]
-		part.x=cell.x
-		part.y=cell.y
-		part.z=cell.z
+		# Moving an existing part must apply the rest of the staged inspector
+		# too (control and PCB pin mapping), just like selecting a new part.
+		# _commit_selected_changes records one undoable edit for the whole move.
+		if not _commit_selected_changes():return
 		_editor()
 
 func _rotate_part(index: int) -> void:

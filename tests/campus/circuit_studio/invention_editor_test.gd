@@ -90,6 +90,18 @@ func _run() -> void:
 	assert(window.draft.parts[4].x==4,"Undo must revert selection-committed coordinate changes")
 	window._history(window.redo_stack,window.undo_stack)
 	assert(window.draft.parts[4].x==5,"Redo must restore selection-committed coordinate changes")
+	# Moving a selected part must commit its staged control alongside position
+	# rather than silently reverting the inspector's unapplied change.
+	window.selected_part=4
+	window._editor()
+	window.viewport_tool="move"
+	window.part_control.select(1)
+	window._viewport_click(Vector3i(6,1,0),-1)
+	assert(window.draft.parts[4].x==6 and window.draft.parts[4].control=="A",
+		"Moving a part discarded its pending control assignment")
+	window._history(window.undo_stack,window.redo_stack)
+	assert(window.draft.parts[4].x==5 and window.draft.parts[4].control=="B",
+		"Undo must restore position and control together")
 	# A valid draft must react to pending inspector edits immediately; neither
 	# Save nor Test should accept an unassigned actuator or overlapping cells.
 	window.selected_part=4
