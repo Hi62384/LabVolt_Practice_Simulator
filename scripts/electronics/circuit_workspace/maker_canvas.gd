@@ -94,7 +94,10 @@ func _gui_input(event: InputEvent) -> void:
 	if selected_type=="interact" and grabbed_hole.is_empty() and _operate_manual_input(event,true):
 		accept_event()
 		return
-	if not hole.is_empty() and (_finish_grab(hole) or (not event.shift_pressed and _start_grab(hole))):
+	# Ordinary clicks must follow the active Select/Wire/Place tool, even
+	# when a component pin or existing jumper ends at this hole. Reposition
+	# an existing lead only with an explicit Alt-click.
+	if not hole.is_empty() and (_finish_grab(hole) or (event.alt_pressed and not event.shift_pressed and _start_grab(hole))):
 		hovered=hole
 		_update_placement()
 		queue_redraw()

@@ -243,7 +243,7 @@ func _choose_mode(mode: String) -> void:
 		button.theme_type_variation=&"PrimaryButton" if id==mode else &"Button"
 	canvas.queue_redraw()
 	if mode=="wire":
-		state.text="Click two holes to connect. Shift-click an occupied hole to start a new jumper."
+		state.text="Click two holes to connect, including occupied holes. Alt-click an endpoint to reposition it."
 		if is_instance_valid(notices):notices.stop()
 	elif mode=="interact":
 		state.text="Click or drag inputs. Scroll over a knob to adjust it."
