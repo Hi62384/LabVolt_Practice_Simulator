@@ -143,6 +143,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.keycode==KEY_ESCAPE:
 		if page=="editor" and viewport_tool!="select":
 			_sync_fields()
+			# Escape only leaves the active tool. Preserve the same pending
+			# inspector edits that Select, Save, and Test already commit.
+			if not _commit_selected_changes():return
 			viewport_tool="select"
 			_editor()
 		else:_close()
@@ -213,6 +216,11 @@ func _editor(message: String="") -> void:
 	reference_kind=""
 	pin_mapping_cache.clear()
 	pin_mapping_ref=""
+	# _ui queues the old controls for deletion. Never populate those old widgets
+	# while the new part palette is being constructed.
+	part_ref=null
+	pin_row=null
+	pin_choices.clear()
 	page="editor";_ui("EDIT INVENTION")
 	notice.text=message
 	var guide:=_label(body,"Choose a part, then click the grid or Add part. Select a part to edit it; Save and Test include any changes in the inspector.")

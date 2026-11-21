@@ -90,6 +90,20 @@ func _run() -> void:
 	assert(window.draft.parts[4].x==4,"Undo must revert selection-committed coordinate changes")
 	window._history(window.redo_stack,window.undo_stack)
 	assert(window.draft.parts[4].x==5,"Redo must restore selection-committed coordinate changes")
+	# Escape from a tool must not throw away inspector changes, and those
+	# committed changes must remain a normal undoable edit.
+	window.selected_part=4
+	window._editor()
+	window.viewport_tool="move"
+	window.part_x.value=6
+	var escape_event:=InputEventKey.new()
+	escape_event.keycode=KEY_ESCAPE
+	escape_event.pressed=true
+	window._unhandled_key_input(escape_event)
+	assert(window.viewport_tool=="select" and window.draft.parts[4].x==6,
+		"Escape discarded pending inspector changes when leaving move mode")
+	window._history(window.undo_stack,window.redo_stack)
+	assert(window.draft.parts[4].x==5,"Undo must restore the pre-Escape part position")
 	# Moving a selected part must commit its staged control alongside position
 	# rather than silently reverting the inspector's unapplied change.
 	window.selected_part=4
@@ -179,6 +193,11 @@ func _run() -> void:
 	]
 	var id: String="ic:editor_regression"
 	assert(Custom.validate(id,{id:bp})=="")
+	# Place an alternate PCB before the selected one so changing the palette
+	# cannot accidentally pass by reverting to the library's first entry.
+	var alternative: Dictionary=bp.duplicate(true)
+	alternative.name="Spare PCB"
+	game.electronics.profile.data.blueprints["ic:aaa_spare"]=alternative
 	game.electronics.profile.data.blueprints[id]=bp
 	window.draft.parts.append({
 		"type":"pcb","x":5,"y":0,"z":0,"control":"","ref":id,
