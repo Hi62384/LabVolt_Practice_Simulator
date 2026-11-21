@@ -28,6 +28,13 @@ func run() -> void:
 	assert(canvas.resize_board(10));assert(canvas.board.rows==10)
 	var Store=load("res://scripts/notebook_store.gd")
 	var notes={"strokes":{"0":[{"points":[Vector2(.1,.2),Vector2(.2,.3)],"color":"263743","width":2}]},"annotations":{},"page":2}
-	assert(Store.valid(notes));Store.write("test",notes);assert(Store.read("test")==notes)
+	assert(Store.valid(notes))
+	var notebook_identity: String="integration-"+Crypto.new().generate_random_bytes(8).hex_encode()
+	assert(Store.write(notebook_identity,notes),"Notebook writes must succeed")
+	var restored: Dictionary=Store.read(notebook_identity)
+	assert(restored.get("strokes",{})==notes.strokes and restored.get("annotations",{})==notes.annotations
+		and int(restored.get("page",-1))==notes.page,"Notebook content must survive save/reload")
+	assert(str(restored.get("document_uid",""))==(notebook_identity+":legacy notebook").sha256_text().left(32),
+		"Legacy notebook reads must return a stable document identity")
 	print("PASS: common board/supply/meter netlist, passive measurement, kit templates, rewards once, bundle purchase, save validation, board move/undo/resize, notebook roundtrip")
 	quit()

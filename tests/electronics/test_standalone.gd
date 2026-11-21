@@ -27,7 +27,14 @@ func run():
 	assert(station.apply({"op":"stow_board"})!="")
 	game.dc_lab.broadcast()
 	for i in 3:await process_frame
-	assert(game.dc_lab.physical_boards[1].external_ports.size()==2)
+	# The menu does not guarantee a live-world presentation frame. Force one
+	# from the same host snapshot before testing the real PCB connector meshes.
+	var displayed: Dictionary=game.dc_lab.states[1]
+	assert(displayed.get("board",{}).get("standalone",false) and displayed.get("board_held",false),
+		"The host snapshot must preserve the carried standalone PCB")
+	game.dc_lab.physical_boards[1].update_state(displayed)
+	assert(game.dc_lab.physical_boards[1].external_ports.size()==2,
+		"The physical PCB view must expose both named external terminals")
 	station.wires=[];assert(station.apply({"op":"carry_board"})=="")
 	assert(station.apply({"op":"stow_board"})=="");assert(station.board_stowed)
 	var profile=game.electronics.profile;profile.data.blueprints=defs;profile.data.inventory["ic:standalone_test"]=1

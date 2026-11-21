@@ -37,6 +37,7 @@ var test_switches: Dictionary={}
 var test_output: Dictionary={}
 var test_clock := 0.0
 var discard_prompt: ConfirmationDialog
+var discard_action: Callable = Callable()
 var remove_prompt: ConfirmationDialog
 var validation_refresh: Callable = Callable()
 
@@ -100,18 +101,26 @@ func _has_unsaved_changes() -> bool:
 	return candidate!=stored
 
 func _prompt_discard(on_confirm: Callable) -> void:
-	if is_instance_valid(discard_prompt):return
+	# A canceled exclusive window remains alive until its queued deletion.
+	# Reuse it instead of creating a second exclusive child in the same frame.
+	discard_action=on_confirm
+	if is_instance_valid(discard_prompt) and not discard_prompt.is_queued_for_deletion():
+		discard_prompt.popup_centered()
+		return
 	var prompt:=ConfirmationDialog.new()
 	discard_prompt=prompt
 	prompt.title="Discard unsaved invention changes?"
 	prompt.dialog_text="Changes since the last saved blueprint will be lost. Discard them?"
 	add_child(prompt)
 	prompt.confirmed.connect(func():
+		var action: Callable=discard_action
+		discard_action=Callable()
 		discard_prompt=null
-		on_confirm.call())
-	prompt.canceled.connect(func():discard_prompt=null)
-	prompt.confirmed.connect(prompt.queue_free)
-	prompt.canceled.connect(prompt.queue_free)
+		prompt.queue_free()
+		if action.is_valid():action.call())
+	# Keep the canceled dialog hidden and reusable, rather than leaving an
+	# exclusive window queued for deletion while opening a new one.
+	prompt.canceled.connect(func():discard_action=Callable())
 	prompt.popup_centered()
 
 func _go_library() -> void:

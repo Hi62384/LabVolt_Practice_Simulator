@@ -233,11 +233,13 @@ func _run() -> void:
 	var discard_dialogs: Array=window.get_children().filter(func(node):return node is ConfirmationDialog)
 	assert(discard_dialogs.size()==1 and discard_dialogs[0].title.contains("Discard"),
 		"Unsaved editor changes must show a discard confirmation")
-	discard_dialogs[0].canceled.emit()
+	var first_discard: ConfirmationDialog=discard_dialogs[0]
+	first_discard.canceled.emit()
 	assert(window.page=="editor","Cancelling discard must preserve the editor")
 	window._go_library()
 	discard_dialogs=window.get_children().filter(func(node):return node is ConfirmationDialog and not node.is_queued_for_deletion())
-	assert(discard_dialogs.size()==1,"The discard confirmation should be reopenable after cancelling")
+	assert(discard_dialogs.size()==1 and discard_dialogs[0]==first_discard,
+		"Cancel and immediate reopen must reuse the existing exclusive discard dialog")
 	discard_dialogs[0].confirmed.emit()
 	assert(window.page=="library","Confirmed discard must return to the library")
 	# Valid pre-drive-map blueprints must still enter Test from the library.

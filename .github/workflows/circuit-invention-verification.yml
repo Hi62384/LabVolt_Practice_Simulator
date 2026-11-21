@@ -131,7 +131,7 @@ jobs:
               if (Test-Path $log) { Get-Content $log -Tail 120 }
               throw "Godot test timed out after 60 seconds: $test"
             }
-            if ($proc.ExitCode -ne 0 -or !(Test-Path $log) -or (Select-String -Path $log -SimpleMatch 'SCRIPT ERROR:' -Quiet)) {
+            if ($proc.ExitCode -ne 0 -or !(Test-Path $log) -or (Select-String -Path $log -SimpleMatch 'ERROR:' -Quiet)) {
               if (Test-Path $log) { Get-Content $log -Tail 120 }
               throw "Godot test failed: $test"
             }
