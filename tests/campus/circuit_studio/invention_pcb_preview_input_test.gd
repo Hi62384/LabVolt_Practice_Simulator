@@ -16,10 +16,9 @@ class FakePCB extends RefCounted:
 func _initialize() -> void:call_deferred("_run")
 
 func _run() -> void:
-	var host:=Node.new()
-	root.add_child(host)
+	# Widget signal behavior can be verified without putting a test-only
+	# Window into the headless render tree.
 	var window:=Studio.new()
-	host.add_child(window)
 	var controls:=VBoxContainer.new()
 	window.add_child(controls)
 	var runtime:=FakePCB.new()
@@ -69,11 +68,7 @@ func _run() -> void:
 		"Preview joystick release must trigger hardware neutral")
 	assert(is_equal_approx(joy_x.value,.5) and is_equal_approx(joy_y.value,.5),
 		"Preview joystick sliders must visibly recenter")
-	# The fixture owns a real Window; free it synchronously and flush the
-	# headless render server before exit to avoid leaked CanvasItem/texture RIDs.
 	window.free()
-	host.free()
-	await process_frame
 	await process_frame
 	print("INVENTION_PCB_PREVIEW_INPUT PASS")
 	quit()

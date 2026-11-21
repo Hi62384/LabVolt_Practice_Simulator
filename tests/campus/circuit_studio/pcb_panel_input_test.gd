@@ -37,9 +37,10 @@ func _run() -> void:
 	root.add_child(game)
 	game.add_child(world)
 	var panel:=PCBPanel.new()
-	# Match the real hierarchy: a live PCB Window belongs to the game.
-	game.add_child(panel)
-	panel.open_board(game,"fixture")
+	# Build the production controls without an actual subwindow. This tests
+	# Control signals and the host lease path in headless mode without forcing
+	# the dummy renderer to allocate window-only textures.
+	panel.open_board(game,"fixture",false)
 	await process_frame
 
 	var sliders: Array=panel.find_children("*","HSlider",true,false)
@@ -103,11 +104,7 @@ func _run() -> void:
 		and invention.pcb_holders.is_empty(),
 		"Expired host joystick leases must release and center rather than stick at their last coordinates")
 	invention.free()
-	panel._close()
-	# Godot's headless renderer needs the subwindow teardown to complete before
-	# SceneTree.quit(); otherwise dummy textures/RIDs leak after a passing test.
-	await process_frame
-	await process_frame
+	panel.free()
 	game.free()
 	await process_frame
 	print("PCB_PANEL_INPUT PASS")

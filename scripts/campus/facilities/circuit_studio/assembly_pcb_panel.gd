@@ -6,7 +6,7 @@ var held: Dictionary={}
 var hold_clock:=0.0
 var voltage: Label
 
-func open_board(owner_game: Node,invention_key: String) -> void:
+func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -> void:
 	game=owner_game;key=invention_key
 	title="Mounted PCB";borderless=true;theme=StudioTheme.create()
 	size=Vector2i(560,420);min_size=Vector2i(480,320)
@@ -84,7 +84,9 @@ func open_board(owner_game: Node,invention_key: String) -> void:
 	if item.get("pcb_inputs",[]).is_empty():
 		var label:=Label.new();label.text="This PCB has no manual inputs. Its circuit and firmware run while placed.";controls.add_child(label)
 	_update_voltage()
-	popup_centered()
+	# Headless test fixtures can exercise real controls without creating
+	# a renderer-backed subwindow; normal gameplay always opens the window.
+	if show_window:popup_centered()
 
 func _update_voltage() -> void:
 	if not is_instance_valid(voltage):return
