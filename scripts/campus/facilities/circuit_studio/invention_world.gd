@@ -201,13 +201,21 @@ func _apply(peer: int,action: Dictionary) -> void:
 		var command_data: Dictionary=action.get("command",{})
 		var holder_key:=key+"|"+input_id+":"+str(command_data.get("key",""))
 		var holdable: bool=input_record.kind=="button" or str(command_data.get("op","")) in ["key","press","touch"] or (not action.pressed and input_record.kind in ["xpt2046","io_joystick"])
+		var holder: Dictionary=pcb_holders.get(holder_key,{})
+		# The joystick axes share the push-button lease. Another player cannot
+		# steer a held joystick by sending an unleased move command.
+		if input_record.kind=="io_joystick" and str(command_data.get("op",""))=="move":
+			if int(holder.get("peer",0)) not in [0,peer] and Time.get_ticks_msec()<=int(holder.get("expiry",0)):return
 		if holdable:
-			var holder: Dictionary=pcb_holders.get(holder_key,{})
 			if action.pressed and int(holder.get("peer",0)) not in [0,peer] and Time.get_ticks_msec()<=int(holder.get("expiry",0)):return
 			if not action.pressed and int(holder.get("peer",0))!=peer:return
+		# Do not acquire, renew or release a lease for a command the actual
+		# circuit/input reducer rejected. Otherwise stale or invalid input can
+		# lock other players out without changing the device.
+		if not simulators[key].runtime.input(input_id,action.pressed,action.reverse,command_data):return
+		if holdable:
 			if action.pressed:pcb_holders[holder_key]={"peer":peer,"expiry":Time.get_ticks_msec()+650,"key":key,"id":input_id,"command":command_data.duplicate(true)}
 			else:pcb_holders.erase(holder_key)
-		simulators[key].runtime.input(input_id,action.pressed,action.reverse,command_data)
 		return
 	if op!="control":return
 	var control:=str(action.get("control",""))

@@ -13,6 +13,11 @@ var pin_map: Dictionary={}
 var inputs: Array=[]
 
 func configure(id: String,definitions: Dictionary,mapping: Dictionary) -> bool:
+	# A rejected reconfiguration must not leave the previous powered circuit
+	# or its input controls available under a stale pin map.
+	station=null
+	pin_map.clear()
+	inputs.clear()
 	var board: Dictionary=Board.standalone(id,definitions)
 	if board.is_empty():return false
 	# Do not let a malformed mapping crash the station or short its supply.
@@ -27,7 +32,6 @@ func configure(id: String,definitions: Dictionary,mapping: Dictionary) -> bool:
 	station.channels[0].limit=.5
 	station.wires=[["CH1+","X%d"%(int(mapping.power)+1)],["CH1-","X%d"%(int(mapping.ground)+1)]]
 	pin_map=mapping.duplicate(true)
-	inputs.clear()
 	for device in Board.devices(board):
 		var kind: String=Board.manual_input_type(str(device.part.type))
 		if kind.is_empty() and not IO.defaults(str(device.part.type)).is_empty():kind=str(device.part.type)

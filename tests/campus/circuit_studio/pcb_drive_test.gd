@@ -6,7 +6,15 @@ const World=preload("res://scripts/campus/facilities/circuit_studio/invention_wo
 const Model=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd")
 
 class MockGame extends Node:
-	var session := {"online":false}
+	var session := {"online":false,"roster":{1:true,2:true},"poses":{2:{"position":Vector3.ZERO}}}
+	var player := Node3D.new()
+
+class InputProbe extends RefCounted:
+	var accept := true
+	var calls: Array=[]
+	func input(id: String,pressed: bool,reverse: bool=false,command: Dictionary={}) -> bool:
+		calls.append({"id":id,"pressed":pressed,"reverse":reverse,"command":command.duplicate(true)})
+		return accept
 
 class ThresholdProbe extends RefCounted:
 	var values := [2.499,2.501,2.499]
@@ -69,6 +77,12 @@ func _run() -> void:
 		"Valid PCB-driven servo invention should still be manufacturable")
 	var runtime:=Runtime.new()
 	assert(runtime.configure("ic:drive_test",defs,{"power":0,"ground":1,"A":2,"B":-1}))
+	var rejected:=Runtime.new()
+	assert(rejected.configure("ic:drive_test",defs,valid_map))
+	assert(not rejected.configure("ic:drive_test",defs,{"power":0,"ground":0,"A":2,"B":-1}))
+	assert(not rejected.tick(.01).get("ok",false) and rejected.inputs.is_empty(),
+		"A rejected remap must disable the previously running PCB and its controls")
+	assert(not rejected.input("board/pcb/gate",true),"Stale PCB inputs remained live after a rejected remap")
 	var low: Dictionary=runtime.tick(.01)
 	assert(low.ok and float(low.A)<1.0,str(low))
 	assert(runtime.input("board/pcb/gate",true))
@@ -94,9 +108,54 @@ func _run() -> void:
 	for i in 80:runtime.tick(.05)
 	print("PCB_DRIVE_80_TICKS_MS ",(Time.get_ticks_usec()-start)/1000.0)
 	_check_world_clock()
+	_check_input_leases()
 	await _check_hinge()
 	print("PCB_DRIVE_PASS")
 	quit()
+
+func _check_input_leases() -> void:
+	var game:=MockGame.new()
+	root.add_child(game)
+	game.add_child(game.player)
+	var world:=World.new()
+	game.add_child(world)
+	world.set_process(false)
+	world.set_physics_process(false)
+	world.game=game
+	var probe:=InputProbe.new()
+	world.placed["fixture"]={
+		"position":Vector3.ZERO,
+		"pcb_inputs":[{"kind":"io_joystick","id":"board/joy"}]
+	}
+	world.simulators["fixture"]={"runtime":probe}
+	var press: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":true,
+		"command":{"op":"press","pressed":true}}
+	probe.accept=false
+	world._apply(1,press)
+	assert(world.pcb_holders.is_empty(),"A rejected PCB input must not acquire an exclusive control lease")
+	probe.accept=true
+	world._apply(1,press)
+	assert(world.pcb_holders.has("fixture|board/joy:"),"Valid joystick press did not acquire a lease")
+	var move: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":true,
+		"command":{"op":"move","x":0.9,"y":0.1}}
+	var before: int=probe.calls.size()
+	world._apply(2,move)
+	assert(probe.calls.size()==before,"A second player moved another player's held joystick")
+	world._apply(1,move)
+	assert(probe.calls.size()==before+1,"The joystick's holder could not move its own axes")
+	var release: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":false,
+		"command":{"op":"release"}}
+	probe.accept=false
+	world._apply(1,release)
+	assert(world.pcb_holders.has("fixture|board/joy:"),"Rejected release incorrectly erased the live control lease")
+	probe.accept=true
+	world._apply(1,release)
+	assert(world.pcb_holders.is_empty(),"Successful joystick release did not free the lease")
+	before=probe.calls.size()
+	world._apply(2,move)
+	assert(probe.calls.size()==before+1,"Another player must regain input access after release")
+	game.free()
+	print("PCB_INPUT_LEASE_PASS")
 
 func _check_world_clock() -> void:
 	var world:=World.new()
