@@ -111,6 +111,7 @@ jobs:
             'tests/campus/circuit_studio/source_contract_test.gd' = 'CIRCUIT_STUDIO_SOURCE_CONTRACT_OK'
             'tests/campus/circuit_studio/assembly_flow_test.gd' = 'ASSEMBLY_FLOW_PASS'
             'tests/campus/circuit_studio/invention_editor_test.gd' = 'INVENTION_EDITOR PASS'
+            'tests/campus/circuit_studio/pcb_panel_input_test.gd' = 'PCB_PANEL_INPUT PASS'
             'tests/campus/circuit_studio/pcb_drive_test.gd' = 'CHAINED_HINGE_PASS'
             'tests/campus/circuit_studio/mounted_pcb_transient_test.gd' = 'MOUNTED_PCB_TRANSIENT PASS'
             'tests/campus/circuit_studio/invention_network_load.gd' = 'INVENTION_NETWORK_LOAD PASS'

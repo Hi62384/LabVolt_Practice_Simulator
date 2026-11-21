@@ -50,15 +50,27 @@ func open_board(owner_game: Node,invention_key: String) -> void:
 			var x:=HSlider.new();x.min_value=0;x.max_value=1;x.step=.05;x.value=.5;x.custom_minimum_size.x=130;row.add_child(x)
 			var y:=HSlider.new();y.min_value=0;y.max_value=1;y.step=.05;y.value=.5;y.custom_minimum_size.x=130
 			if entry.kind!="io_slider":row.add_child(y)
-			var move:=func(_changed: bool):
+			var move:=func(_value: float):
 				if entry.kind=="io_slider":_submit(id,{"op":"move","x":x.value})
 				elif entry.kind=="io_joystick":_submit(id,{"op":"move","x":x.value,"y":y.value})
-			x.drag_ended.connect(move)
-			if entry.kind!="io_slider":y.drag_ended.connect(move)
-			if entry.kind in ["io_joystick","xpt2046"]:
-				var press:=Button.new();press.text="Press" if entry.kind=="io_joystick" else "Touch";row.add_child(press)
-				press.button_down.connect(func():_begin_hold(id,{"op":"press","pressed":true} if entry.kind=="io_joystick" else {"op":"touch","x":x.value,"y":y.value,"pressed":true}))
-				press.button_up.connect(_end_hold.bind(id))
+				elif entry.kind=="xpt2046":_move_touch(id,x.value,y.value)
+			# Update the live circuit while a slider moves, not only on release.
+			x.value_changed.connect(move)
+			if entry.kind!="io_slider":y.value_changed.connect(move)
+			if entry.kind=="io_joystick":
+				var press:=Button.new();press.text="Press";row.add_child(press)
+				press.button_down.connect(_begin_hold.bind(id,{"op":"press","pressed":true}))
+				press.button_up.connect(func():
+					_end_hold(id)
+					x.set_value_no_signal(.5)
+					y.set_value_no_signal(.5))
+			elif entry.kind=="xpt2046":
+				# A mouse cannot drag the coordinate sliders while holding a button.
+				# Toggle contact on/off so one pointer can perform touch gestures.
+				var touch:=Button.new();touch.text="Touch on/off";touch.toggle_mode=true;row.add_child(touch)
+				touch.toggled.connect(func(pressed: bool):
+					if pressed:_begin_hold(id,{"op":"touch","x":x.value,"y":y.value,"pressed":true})
+					else:_end_hold(id))
 		else:
 			for reverse in [true,false]:
 				var adjust:=Button.new();adjust.text="−" if reverse else "+";row.add_child(adjust)
@@ -88,11 +100,21 @@ func _begin_hold(id: String,command: Dictionary) -> void:
 	hold_clock=0.0
 	game.invention_world.request_pcb_input(key,id,true,false,command)
 
+func _move_touch(id: String,x: float,y: float) -> void:
+	var token:=id+":"
+	if not held.has(token):return
+	var command: Dictionary={"op":"touch","x":x,"y":y,"pressed":true}
+	var active: Dictionary=held[token]
+	active.command=command.duplicate(true)
+	held[token]=active
+	hold_clock=0.0
+	game.invention_world.request_pcb_input(key,id,true,false,command)
+
 func _end_hold(id: String,command: Dictionary={}) -> void:
 	var token:=id+":"+str(command.get("key",""))
 	if not held.has(token):return
 	var release: Dictionary=held[token].command.duplicate(true)
-	if str(release.get("op",""))=="touch":release={"op":"release"}
+	if str(release.get("op","")) in ["touch","press"]:release={"op":"release"}
 	elif release.has("pressed"):release.pressed=false
 	game.invention_world.request_pcb_input(key,id,false,false,release)
 	held.erase(token)

@@ -200,7 +200,7 @@ func _apply(peer: int,action: Dictionary) -> void:
 		if input_record.is_empty():return
 		var command_data: Dictionary=action.get("command",{})
 		var holder_key:=key+"|"+input_id+":"+str(command_data.get("key",""))
-		var holdable: bool=input_record.kind=="button" or str(command_data.get("op","")) in ["key","press","touch"] or (not action.pressed and input_record.kind=="xpt2046")
+		var holdable: bool=input_record.kind=="button" or str(command_data.get("op","")) in ["key","press","touch"] or (not action.pressed and input_record.kind in ["xpt2046","io_joystick"])
 		if holdable:
 			var holder: Dictionary=pcb_holders.get(holder_key,{})
 			if action.pressed and int(holder.get("peer",0)) not in [0,peer] and Time.get_ticks_msec()<=int(holder.get("expiry",0)):return
@@ -412,7 +412,7 @@ func _release_pcb(holder_key: String) -> void:
 	var holder: Dictionary=pcb_holders[holder_key]
 	if simulators.has(holder.key):
 		var release: Dictionary=holder.get("command",{}).duplicate(true)
-		if str(release.get("op",""))=="touch":release={"op":"release"}
+		if str(release.get("op","")) in ["touch","press"]:release={"op":"release"}
 		elif release.has("pressed"):release.pressed=false
 		simulators[holder.key].runtime.input(str(holder.id),false,false,release)
 	pcb_holders.erase(holder_key)
