@@ -39,6 +39,9 @@ var test_clock := 0.0
 var discard_prompt: ConfirmationDialog
 var discard_action: Callable = Callable()
 var remove_prompt: ConfirmationDialog
+var remove_target := ""
+var copies_prompt: ConfirmationDialog
+var copies_target := ""
 var validation_refresh: Callable = Callable()
 
 func open_station(owner_game: Node) -> void:
@@ -120,7 +123,7 @@ func _prompt_discard(on_confirm: Callable) -> void:
 		if action.is_valid():action.call())
 	# Keep the canceled dialog hidden and reusable, rather than leaving an
 	# exclusive window queued for deletion while opening a new one.
-	prompt.canceled.connect(func():discard_action=Callable())
+	prompt.canceled.connect(func():discard_action=Callable();prompt.hide())
 	prompt.popup_centered()
 
 func _go_library() -> void:
@@ -743,35 +746,53 @@ func _discard_copies(id: String) -> void:
 		return
 	var count: int=int(profile.data.invention_copies[id])
 	var name: String=str(profile.data.get("inventions",{}).get(id,{}).get("name",id))
+	copies_target=id
+	var description: String="Permanently discard %d fabricated copies of %s? The saved blueprint will remain."%[count,name]
+	if is_instance_valid(copies_prompt) and not copies_prompt.is_queued_for_deletion():
+		copies_prompt.dialog_text=description
+		copies_prompt.popup_centered()
+		return
 	var confirm:=ConfirmationDialog.new()
+	copies_prompt=confirm
 	confirm.title="Discard fabricated copies?"
-	confirm.dialog_text="Permanently discard %d fabricated copies of %s? The saved blueprint will remain."%[count,name]
+	confirm.dialog_text=description
 	add_child(confirm)
 	confirm.confirmed.connect(func():
-		var result: String=_finish_discard(id)
+		var target: String=copies_target
+		copies_target=""
+		copies_prompt=null
+		confirm.queue_free()
+		if target.is_empty():return
+		var result: String=_finish_discard(target)
 		if result.is_empty():
 			_library()
 			notice.text="Fabricated copies discarded. You can now remove this blueprint."
-		else:notice.text=result
-	)
-	confirm.canceled.connect(confirm.queue_free)
-	confirm.confirmed.connect(confirm.queue_free)
+		else:notice.text=result)
+	# Reuse the hidden modal after cancel. Deleting and immediately reopening an
+	# exclusive child produces a Godot window error before the next frame.
+	confirm.canceled.connect(func():copies_target="";confirm.hide())
 	confirm.popup_centered()
 
 func _request_remove(id: String) -> void:
-	if is_instance_valid(remove_prompt):return
 	if not profile.data.get("inventions",{}).has(id):return
+	remove_target=id
+	var description: String="Permanently remove %s? This cannot be undone."%str(profile.data.inventions[id].get("name",id))
+	if is_instance_valid(remove_prompt) and not remove_prompt.is_queued_for_deletion():
+		remove_prompt.dialog_text=description
+		remove_prompt.popup_centered()
+		return
 	var prompt:=ConfirmationDialog.new()
 	remove_prompt=prompt
 	prompt.title="Remove invention blueprint?"
-	prompt.dialog_text="Permanently remove %s? This cannot be undone."%str(profile.data.inventions[id].get("name",id))
+	prompt.dialog_text=description
 	add_child(prompt)
 	prompt.confirmed.connect(func():
+		var target: String=remove_target
+		remove_target=""
 		remove_prompt=null
-		_remove(id))
-	prompt.canceled.connect(func():remove_prompt=null)
-	prompt.confirmed.connect(prompt.queue_free)
-	prompt.canceled.connect(prompt.queue_free)
+		prompt.queue_free()
+		if not target.is_empty():_remove(target))
+	prompt.canceled.connect(func():remove_target="";prompt.hide())
 	prompt.popup_centered()
 
 func _remove(id: String) -> void:

@@ -210,15 +210,30 @@ func _run() -> void:
 	assert(game.electronics.profile.data.inventions["inv:child"]==child,"Fabricated parent's child blueprint changed in place")
 	assert(game.electronics.profile.data.inventions["inv:parent"].parts[1].ref=="inv:child","Fabricated parent was silently rewired to a new child")
 	assert(game.electronics.profile.data.inventions.size()==3,"A fresh revision should be saved")
+	window._discard_copies("inv:parent")
+	var copies_dialogs: Array=window.get_children().filter(func(node):return node is ConfirmationDialog and node.title.contains("Discard fabricated"))
+	assert(copies_dialogs.size()==1,"Discard copies must open exactly one confirmation")
+	var first_copies: ConfirmationDialog=copies_dialogs[0]
+	first_copies.canceled.emit()
+	window._discard_copies("inv:parent")
+	copies_dialogs=window.get_children().filter(func(node):return node is ConfirmationDialog and node.title.contains("Discard fabricated"))
+	assert(copies_dialogs.size()==1 and copies_dialogs[0]==first_copies,
+		"Cancel and immediate reopen must reuse the fabricated-copies dialog")
+	first_copies.canceled.emit()
 	assert(window._finish_discard("inv:parent")=="","Singleplayer must allow returning unused fabricated copies")
 	assert(not game.electronics.profile.data.invention_copies.has("inv:parent"),"Discarded copy count was retained")
 	assert(game.electronics.profile.data.inventions.has("inv:parent"),"Discard should preserve the blueprint")
 	window._request_remove("inv:parent")
 	assert(game.electronics.profile.data.inventions.has("inv:parent"),
 		"Clicking Remove must not delete a blueprint before confirmation")
-	var remove_dialogs: Array=window.get_children().filter(func(node):return node is ConfirmationDialog)
-	assert(remove_dialogs.size()==1 and remove_dialogs[0].title.contains("Remove"),
-		"Blueprint deletion must show a meaningful confirmation")
+	var remove_dialogs: Array=window.get_children().filter(func(node):return node is ConfirmationDialog and node.title.contains("Remove invention"))
+	assert(remove_dialogs.size()==1,"Blueprint deletion must show a meaningful confirmation")
+	var first_remove: ConfirmationDialog=remove_dialogs[0]
+	first_remove.canceled.emit()
+	window._request_remove("inv:parent")
+	remove_dialogs=window.get_children().filter(func(node):return node is ConfirmationDialog and node.title.contains("Remove invention"))
+	assert(remove_dialogs.size()==1 and remove_dialogs[0]==first_remove,
+		"Cancel and immediate reopen must reuse the remove-blueprint dialog")
 	remove_dialogs[0].confirmed.emit()
 	assert(not game.electronics.profile.data.inventions.has("inv:parent"),"Confirmed unreferenced blueprint was not removed")
 	# Leaving the editor must also protect an unapplied inspector edit.
