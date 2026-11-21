@@ -1,7 +1,7 @@
 extends SceneTree
 ## Exercises the mounted-PCB controls through their real Window signals, and
 ## verifies the host-side joystick lease releases to neutral on expiry.
-const Panel=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_panel.gd")
+const PCBPanel=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_panel.gd")
 const World=preload("res://scripts/campus/facilities/circuit_studio/invention_world.gd")
 
 class FakeWorld extends Node:
@@ -36,7 +36,7 @@ func _run() -> void:
 	game.invention_world=world
 	root.add_child(game)
 	game.add_child(world)
-	var panel:=Panel.new()
+	var panel:=PCBPanel.new()
 	root.add_child(panel)
 	panel.open_board(game,"fixture")
 	await process_frame
