@@ -37,7 +37,8 @@ func _run() -> void:
 	root.add_child(game)
 	game.add_child(world)
 	var panel:=PCBPanel.new()
-	root.add_child(panel)
+	# Match the real hierarchy: a live PCB Window belongs to the game.
+	game.add_child(panel)
 	panel.open_board(game,"fixture")
 	await process_frame
 
@@ -103,7 +104,11 @@ func _run() -> void:
 		"Expired host joystick leases must release and center rather than stick at their last coordinates")
 	invention.free()
 	panel._close()
-	game.queue_free()
+	# Godot's headless renderer needs the subwindow teardown to complete before
+	# SceneTree.quit(); otherwise dummy textures/RIDs leak after a passing test.
+	await process_frame
+	await process_frame
+	game.free()
 	await process_frame
 	print("PCB_PANEL_INPUT PASS")
 	quit()
