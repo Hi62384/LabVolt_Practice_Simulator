@@ -68,6 +68,15 @@ jobs:
           $tests = [ordered]@{
             'tests/electronics/test_catalogue_audit.gd' = 'CATALOGUE_AUDIT PASS'
             'tests/electronics/test_invention_analog_ui_regression.gd' = 'INVENTION_ANALOG_UI PASS'
+            'tests/electronics/test_integrated.gd' = ''
+            'tests/electronics/test_editor.gd' = ''
+            'tests/electronics/test_ic_surface.gd' = ''
+            'tests/electronics/test_pcb_coupling.gd' = 'PCB COUPLING PASS'
+            'tests/electronics/test_designer.gd' = ''
+            'tests/electronics/test_standalone.gd' = ''
+            'tests/electronics/test_wire_only_mapping.gd' = ''
+            'tests/electronics/test_recursive_surface.gd' = ''
+            'tests/electronics/test_component_guide_in_builder.gd' = 'COMPONENT_GUIDE_IN_BUILDER PASS'
 
             'tests/electronics/test_ac_passive.gd' = ''
             'tests/electronics/test_ac_bridge.gd' = ''
