@@ -44,6 +44,16 @@ func _run() -> void:
 	var valid_map: Dictionary={"power":0,"ground":1,"A":2,"B":-1}
 	assert(Model.validate_pcb_pin_map(bad_bp,valid_map).contains("electrical nets"))
 	assert(not Runtime.new().configure("ic:short_supply",bad_definitions,valid_map))
+	# Two independently named external pins can still share one electrical
+	# net through a straight internal jumper; the solver sees an ideal short.
+	var wired_short: Dictionary=bp.duplicate(true)
+	wired_short.wires=[["L1","R1"]]
+	var wired_definitions: Dictionary={"ic:wired_short":wired_short}
+	assert(Custom.validate("ic:wired_short",wired_definitions)=="")
+	assert(Model.validate_pcb_pin_map(wired_short,valid_map).contains("electrical nets"),
+		"A direct internal jumper must count as a supply short")
+	assert(not Runtime.new().configure("ic:wired_short",wired_definitions,valid_map),
+		"Mounted PCB must refuse a supply short through internal wiring")
 	assert(not Runtime.new().configure("ic:drive_test",defs,{"power":0,"ground":1,"A":99,"B":-1}))
 	var invention: Dictionary=Model.empty("PCB-controlled machine")
 	invention.parts.append_array([

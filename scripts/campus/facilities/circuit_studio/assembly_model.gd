@@ -149,8 +149,12 @@ static func validate_pcb_pin_map(bp: Dictionary,mapping: Variant) -> String:
 		power_net=str(routed.get(Copper.external_id(pins[power],power),""))
 		ground_net=str(routed.get(Copper.external_id(pins[ground],ground),""))
 	else:
-		power_net=str(pins[power].get("node",""))
-		ground_net=str(pins[ground].get("node",""))
+		# Non-routed PCBs still contain ideal internal jumper wires.
+		# Compare joined electrical nodes, not just the external pin labels;
+		# different labels may be directly shorted by a saved wire.
+		var intended: Dictionary=Copper.intent(bp)
+		power_net=str(intended.get(Copper.external_id(pins[power],power),""))
+		ground_net=str(intended.get(Copper.external_id(pins[ground],ground),""))
 	if not power_net.is_empty() and power_net==ground_net:
 		return "PCB power and ground must use different electrical nets"
 	return ""
