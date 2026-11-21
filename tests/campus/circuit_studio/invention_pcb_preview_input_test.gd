@@ -7,7 +7,8 @@ class FakePCB extends RefCounted:
 	var inputs: Array=[
 		{"kind":"xpt2046","id":"board/touch","name":"Touch panel"},
 		{"kind":"io_slider","id":"board/slider","name":"Analog slider"},
-		{"kind":"io_joystick","id":"board/joy","name":"Joystick"}]
+		{"kind":"io_joystick","id":"board/joy","name":"Joystick"},
+		{"kind":"battery_generator_adjustable","id":"board/source","name":"Adjustable generator"}]
 	var requests: Array=[]
 	func input(id: String,pressed: bool,reverse: bool=false,command: Dictionary={}) -> bool:
 		requests.append({"id":id,"pressed":pressed,"reverse":reverse,"command":command.duplicate(true)})
@@ -68,6 +69,14 @@ func _run() -> void:
 		"Preview joystick release must trigger hardware neutral")
 	assert(is_equal_approx(joy_x.value,.5) and is_equal_approx(joy_y.value,.5),
 		"Preview joystick sliders must visibly recenter")
+	for setting in ["Voltage +","Frequency −","Waveform +"]:
+		var matching: Array=window.find_children("*","Button",true,false).filter(func(button):return button.text==setting)
+		assert(matching.size()==1,"Preview generator needs a labeled "+setting+" control")
+		matching[0].pressed.emit()
+		assert(runtime.requests.back().id=="board/source"
+			and runtime.requests.back().command.get("source_adjust","")=={"Voltage +":"voltage","Frequency −":"frequency","Waveform +":"wave"}[setting]
+			and runtime.requests.back().reverse==(setting=="Frequency −"),
+			"Preview source control must forward the correct adjustment and direction")
 	window.free()
 	await process_frame
 	print("INVENTION_PCB_PREVIEW_INPUT PASS")

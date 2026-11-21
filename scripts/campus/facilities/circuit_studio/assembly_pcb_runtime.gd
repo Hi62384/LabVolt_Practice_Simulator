@@ -66,6 +66,13 @@ func input(id: String,pressed: bool,reverse: bool=false,command: Dictionary={}) 
 		if entry.id==id:kind=str(entry.kind);break
 	if kind.is_empty():return false
 	var action: Dictionary={"op":"input","id":id,"pressed":pressed,"hold":true,"reverse":reverse}
+	# Portable sources need an explicit adjustment target. Without this field
+	# the station accepts the command but never changes the source output.
+	if kind in ["battery_adjustable","battery_generator","battery_generator_adjustable"]:
+		var settings: Array=["wave"] if kind=="battery_generator" else ["voltage"] if kind=="battery_adjustable" else ["voltage","frequency","wave"]
+		var setting: Variant=command.get("source_adjust",settings[0])
+		if not setting is String or setting not in settings:return false
+		action.source_adjust=setting
 	if not IO.defaults(kind).is_empty():
 		var current: Dictionary=station.board.get("io_controls",{}).get(id,IO.defaults(kind))
 		var submitted: Dictionary=command.duplicate(true)

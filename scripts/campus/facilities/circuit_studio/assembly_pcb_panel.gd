@@ -74,6 +74,18 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 				touch.toggled.connect(func(pressed: bool):
 					if pressed:_begin_hold(id,{"op":"touch","x":x.value,"y":y.value,"pressed":true})
 					else:_end_hold(id))
+		elif entry.kind in ["battery_adjustable","battery_generator","battery_generator_adjustable"]:
+			var settings: Array=["wave"] if entry.kind=="battery_generator" else ["voltage"] if entry.kind=="battery_adjustable" else ["voltage","frequency","wave"]
+			for setting in settings:
+				var setting_row:=row if settings.size()==1 else HBoxContainer.new()
+				if settings.size()!=1:controls.add_child(setting_row)
+				var setting_name: String={"voltage":"Voltage","frequency":"Frequency","wave":"Waveform"}[setting]
+				for reverse in [true,false]:
+					var adjust:=Button.new()
+					adjust.text=setting_name+(" −" if reverse else " +")
+					adjust.tooltip_text={"voltage":"Change output by 0.5 V","frequency":"Change frequency by 1 Hz","wave":"Cycle waveform"}[setting]
+					setting_row.add_child(adjust)
+					adjust.pressed.connect(_adjust.bind(id,reverse,setting))
 		else:
 			for reverse in [true,false]:
 				var adjust:=Button.new();adjust.text="−" if reverse else "+";row.add_child(adjust)
@@ -95,8 +107,9 @@ func _update_voltage() -> void:
 func _submit(id: String,command: Dictionary) -> void:
 	game.invention_world.request_pcb_input(key,id,true,false,command)
 
-func _adjust(id: String,reverse: bool) -> void:
-	game.invention_world.request_pcb_input(key,id,true,reverse)
+func _adjust(id: String,reverse: bool,source_adjust: String="") -> void:
+	var command: Dictionary={"source_adjust":source_adjust} if not source_adjust.is_empty() else {}
+	game.invention_world.request_pcb_input(key,id,true,reverse,command)
 
 func _begin_hold(id: String,command: Dictionary) -> void:
 	var token:=id+":"+str(command.get("key",""))

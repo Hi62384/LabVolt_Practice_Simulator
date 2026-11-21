@@ -464,9 +464,19 @@ func _test_pcb_controls(parent: VBoxContainer) -> void:
 				var touch:=_button(row,"Touch on/off",func():pass)
 				touch.toggle_mode=true
 				touch.toggled.connect(_test_touch_toggled.bind(id,x,y))
+		elif kind in ["battery_adjustable","battery_generator","battery_generator_adjustable"]:
+			var settings: Array=["wave"] if kind=="battery_generator" else ["voltage"] if kind=="battery_adjustable" else ["voltage","frequency","wave"]
+			for setting in settings:
+				var setting_row:=row if settings.size()==1 else _row(parent)
+				var setting_name: String={"voltage":"Voltage","frequency":"Frequency","wave":"Waveform"}[setting]
+				for reverse in [true,false]:
+					_button(setting_row,setting_name+(" −" if reverse else " +"),_test_source_input.bind(id,reverse,setting))
 		else:
 			_button(row,"−",func():_test_input(id,true,true))
 			_button(row,"+",func():_test_input(id,true,false))
+
+func _test_source_input(id: String,reverse: bool,setting: String) -> void:
+	_test_input(id,true,reverse,{"source_adjust":setting})
 
 func _test_axes_changed(_value: float,kind: String,id: String,x: HSlider,y: HSlider) -> void:
 	match kind:

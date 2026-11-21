@@ -31,7 +31,8 @@ func _run() -> void:
 		"pcb_inputs":[
 			{"kind":"xpt2046","id":"board/touch","name":"Touch panel"},
 			{"kind":"io_slider","id":"board/slider","name":"Analog slider"},
-			{"kind":"io_joystick","id":"board/joy","name":"Joystick"}],
+			{"kind":"io_joystick","id":"board/joy","name":"Joystick"},
+			{"kind":"battery_generator_adjustable","id":"board/source","name":"Adjustable generator"}],
 		"pcb_error":"","pcb_voltage":{"A":0.0,"B":0.0}}}
 	game.invention_world=world
 	root.add_child(game)
@@ -92,6 +93,14 @@ func _run() -> void:
 		"Releasing joystick must request its return to center")
 	assert(is_equal_approx(joy_x.value,.5) and is_equal_approx(joy_y.value,.5),
 		"Joystick UI must re-center after release")
+	for setting in ["Voltage +","Frequency −","Waveform +"]:
+		var buttons: Array=panel.find_children("*","Button",true,false).filter(func(button):return button.text==setting)
+		assert(buttons.size()==1,"Mounted generator needs a labeled "+setting+" control")
+		buttons[0].pressed.emit()
+		assert(world.requests.back().id=="board/source"
+			and world.requests.back().command.get("source_adjust","")=={"Voltage +":"voltage","Frequency −":"frequency","Waveform +":"wave"}[setting]
+			and world.requests.back().reverse==(setting=="Frequency −"),
+			"Mounted source control did not forward its requested setting and direction")
 
 	var invention:=World.new()
 	var runtime:=CapturingRuntime.new()

@@ -87,6 +87,39 @@ func _initialize() -> void:
 			for index in 5:output=cpu.tick(.05)
 			check(output.get("ok",false) and float(output.get("A",5.0))<1.0,
 				"Firmware wait and write pull D0 low in the mounted circuit")
+	_check_mounted_source_adjustments()
 	print("MOUNTED_PCB_TRANSIENT %s (%.3f ms first world tick, %d failures)" %
 		["PASS" if failures==0 else "FAIL",duration_ms,failures])
 	quit(1 if failures>0 else 0)
+
+func _check_mounted_source_adjustments() -> void:
+	# Exercise the actual mounted-PCB to DC-station input path, not just fake
+	# button callbacks, for every configurable portable source type.
+	var sources=["battery_adjustable","battery_generator","battery_generator_adjustable"]
+	for kind in sources:
+		var rt:=Runtime.new()
+		rt.station=preload("res://scripts/dc_station.gd").new()
+		rt.station.board=Board.empty()
+		rt.station.board.parts=[{"id":"source","type":kind,"a":"A1","b":"F1"}]
+		rt.inputs=[{"id":"board/source","kind":kind}]
+		var model=preload("res://scripts/electronics_catalog.gd").simulation_entry(kind)
+		check(not model.is_empty(),"Portable source "+kind+" is in the catalogue")
+		var settings: Array=["wave"] if kind=="battery_generator" else ["voltage"] if kind=="battery_adjustable" else ["voltage","frequency","wave"]
+		for setting in settings:
+			check(rt.input("board/source",true,false,{"source_adjust":setting}),
+				"Mounted "+kind+" accepts a "+setting+" command")
+			var state: Dictionary=rt.station.board.get("controls",{}).get("board/source",{})
+			if setting=="voltage":
+				check(is_equal_approx(float(state.get("source_voltage",-1)),float(model.value)+.5),
+					"Mounted "+kind+" voltage increases by 0.5 V")
+			elif setting=="frequency":
+				check(is_equal_approx(float(state.get("source_frequency",-1)),float(model.frequency)+1.0),
+					"Mounted "+kind+" frequency increases by 1 Hz")
+			else:
+				check(int(state.get("source_wave",-1))==1,
+					"Mounted "+kind+" cycles its waveform")
+		var before: Dictionary=rt.station.board.get("controls",{}).duplicate(true)
+		check(not rt.input("board/source",true,false,{"source_adjust":"invalid"}),
+			"Reject unknown source adjustment")
+		check(before==rt.station.board.get("controls",{}),
+			"Invalid source commands must leave the circuit unchanged")
