@@ -34,6 +34,7 @@ var test_status: Label
 var test_pcb: RefCounted
 var test_parts: Array=[]
 var test_switches: Dictionary={}
+var test_touch_active: Dictionary={}
 var test_output: Dictionary={}
 var test_clock := 0.0
 var discard_prompt: ConfirmationDialog
@@ -373,6 +374,7 @@ func _test_draft() -> void:
 	Model.connect_wheels(test_parts)
 	test_clock=0.0
 	test_switches={"A":false,"B":false}
+	test_touch_active.clear()
 	test_output={"A":0.0,"B":0.0}
 	test_pcb=null
 	var controls:=_row(body)
@@ -450,33 +452,41 @@ func _test_pcb_controls(parent: VBoxContainer) -> void:
 			if kind!="io_slider":
 				_label(row,"Y")
 				row.add_child(y)
-			var touch_state: Dictionary={"active":false}
-			var move:=func(_value: float):
-				if kind=="io_slider":_test_input(id,true,false,{"op":"move","x":x.value})
-				elif kind=="io_joystick":_test_input(id,true,false,{"op":"move","x":x.value,"y":y.value})
-				elif touch_state.active:_test_input(id,true,false,{"op":"touch","x":x.value,"y":y.value,"pressed":true})
-			# The preview must behave like a mounted world PCB while dragging.
-			x.value_changed.connect(move)
-			if kind!="io_slider":y.value_changed.connect(move)
+			# Use a bound callback per device to avoid a loop-scoped lambda
+			# forwarding axis changes to a different PCB input row.
+			x.value_changed.connect(_test_axes_changed.bind(kind,id,x,y))
+			if kind!="io_slider":y.value_changed.connect(_test_axes_changed.bind(kind,id,x,y))
 			if kind=="io_joystick":
 				var press:=_button(row,"Press on/off",func():pass)
 				press.toggle_mode=true
-				press.toggled.connect(func(pressed: bool):
-					if pressed:_test_input(id,true,false,{"op":"press","pressed":true})
-					else:
-						_test_input(id,false,false,{"op":"release"})
-						x.set_value_no_signal(.5)
-						y.set_value_no_signal(.5))
+				press.toggled.connect(_test_joystick_toggled.bind(id,x,y))
 			elif kind=="xpt2046":
 				var touch:=_button(row,"Touch on/off",func():pass)
 				touch.toggle_mode=true
-				touch.toggled.connect(func(pressed: bool):
-					touch_state.active=pressed
-					if pressed:_test_input(id,true,false,{"op":"touch","x":x.value,"y":y.value,"pressed":true})
-					else:_test_input(id,false,false,{"op":"release"}))
+				touch.toggled.connect(_test_touch_toggled.bind(id,x,y))
 		else:
 			_button(row,"−",func():_test_input(id,true,true))
 			_button(row,"+",func():_test_input(id,true,false))
+
+func _test_axes_changed(_value: float,kind: String,id: String,x: HSlider,y: HSlider) -> void:
+	match kind:
+		"io_slider":_test_input(id,true,false,{"op":"move","x":x.value})
+		"io_joystick":_test_input(id,true,false,{"op":"move","x":x.value,"y":y.value})
+		"xpt2046":
+			if test_touch_active.get(id,false):
+				_test_input(id,true,false,{"op":"touch","x":x.value,"y":y.value,"pressed":true})
+
+func _test_touch_toggled(pressed: bool,id: String,x: HSlider,y: HSlider) -> void:
+	test_touch_active[id]=pressed
+	if pressed:_test_input(id,true,false,{"op":"touch","x":x.value,"y":y.value,"pressed":true})
+	else:_test_input(id,false,false,{"op":"release"})
+
+func _test_joystick_toggled(pressed: bool,id: String,x: HSlider,y: HSlider) -> void:
+	if pressed:_test_input(id,true,false,{"op":"press","pressed":true})
+	else:
+		_test_input(id,false,false,{"op":"release"})
+		x.set_value_no_signal(.5)
+		y.set_value_no_signal(.5)
 
 func _process(delta: float) -> void:
 	if page!="test" or not is_instance_valid(test_status):return

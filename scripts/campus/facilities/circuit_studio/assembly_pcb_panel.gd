@@ -53,13 +53,10 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 			if entry.kind!="io_slider":
 				var y_label:=Label.new();y_label.text="Y";row.add_child(y_label)
 				row.add_child(y)
-			var move:=func(_value: float):
-				if entry.kind=="io_slider":_submit(id,{"op":"move","x":x.value})
-				elif entry.kind=="io_joystick":_submit(id,{"op":"move","x":x.value,"y":y.value})
-				elif entry.kind=="xpt2046":_move_touch(id,x.value,y.value)
-			# Update the live circuit while a slider moves, not only on release.
-			x.value_changed.connect(move)
-			if entry.kind!="io_slider":y.value_changed.connect(move)
+			# Bind each row's device and sliders explicitly. Loop-local closures
+			# may otherwise end up observing another device's moving values.
+			x.value_changed.connect(_axes_changed.bind(str(entry.kind),id,x,y))
+			if entry.kind!="io_slider":y.value_changed.connect(_axes_changed.bind(str(entry.kind),id,x,y))
 			if entry.kind=="io_joystick":
 				# A single pointer must be able to hold the push-button while moving
 				# both joystick axes. Release recenters the spring-loaded stick.
@@ -107,6 +104,12 @@ func _begin_hold(id: String,command: Dictionary) -> void:
 	held[token]={"id":id,"command":command.duplicate(true)}
 	hold_clock=0.0
 	game.invention_world.request_pcb_input(key,id,true,false,command)
+
+func _axes_changed(_value: float,kind: String,id: String,x: HSlider,y: HSlider) -> void:
+	match kind:
+		"io_slider":_submit(id,{"op":"move","x":x.value})
+		"io_joystick":_submit(id,{"op":"move","x":x.value,"y":y.value})
+		"xpt2046":_move_touch(id,x.value,y.value)
 
 func _move_touch(id: String,x: float,y: float) -> void:
 	var token:=id+":"
