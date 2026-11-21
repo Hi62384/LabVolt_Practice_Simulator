@@ -37,6 +37,20 @@ func _ready() -> void:
 			4:fit_selection()
 	)
 
+# The core breadboard workspace also commits edits through the shared host
+# adapter. Reset an in-progress gesture on accept/revert; the maker subclass
+# extends this with its additional grab/placement state.
+func reset_interaction() -> void:
+	release_io_capture()
+	first=""
+	moving=false
+	dragging=false
+	hovered=""
+	hovered_wire=-1
+	selected_wire=-1
+	selected_lab_lead=""
+	queue_redraw()
+
 func initial_fit() -> void:
 	if not fitted:fit_board()
 

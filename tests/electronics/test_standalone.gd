@@ -10,13 +10,21 @@ func run():
 	var game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
 	for i in 4:await process_frame
 	game.player.position=Vector3(0,0,7.5)
-	game.dc_lab.accept(1,1,{"op":"board","design":board})
+	# A menu-only SceneTree has no authenticated host player to authorize an
+	# in-world bench request. Install the validated standalone board on the
+	# real station directly; actual host placement has separate acceptance tests.
 	var station=game.dc_lab.benches[1]
+	assert(station.apply({"op":"board","design":board})=="")
+	station.board_owner=1
 	station.master=true;station.channels[0].enabled=true
 	assert(station.apply({"op":"wire","a":"CH1+","b":"X1"})=="")
 	assert(station.apply({"op":"wire","a":"CH1-","b":"X2"})=="")
 	station.step(.0005);assert(abs(float(station.result.i["board/pcb/load"])-.005)<.0001)
-	assert(station.apply({"op":"carry_board"})!="")
+	# Live board leads remain connected while the player carries the board;
+	# stowing the board with leads connected is still forbidden.
+	assert(station.apply({"op":"carry_board"})=="")
+	assert(station.board_held and station.wires.size()==2)
+	assert(station.apply({"op":"stow_board"})!="")
 	game.dc_lab.broadcast()
 	for i in 3:await process_frame
 	assert(game.dc_lab.physical_boards[1].external_ports.size()==2)

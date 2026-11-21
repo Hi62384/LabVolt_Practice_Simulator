@@ -16,7 +16,11 @@ func run() -> void:
 	var profile=load("res://scripts/electronics_profile.gd").new();profile.open("integration-"+str(Time.get_ticks_usec()))
 	assert(profile.kit_error("starter")=="")
 	var before=profile.data.inventory.duplicate(true);profile.duplicate_kit();assert(profile.data.inventory==before)
-	assert(profile.reward("assignment",50,1,false)==60);assert(profile.reward("assignment",100,1,false)==0)
+	var expected_reward:=0 if preload("res://scripts/economy/temporary_playtest/policy.gd").SUPPRESS_EARNINGS else 60
+	assert(profile.reward("assignment",50,1,false)==expected_reward)
+	assert(int(profile.data.reward_ids.get("assignment",-1))==60,
+		"The assessment must record its computed award even when playtest earnings are suppressed")
+	assert(profile.reward("assignment",100,1,false)==0)
 	assert(profile.purchase_bundle({"r1000":10},8)=="Bundle purchased")
 	var malformed=profile.data.duplicate(true);malformed.inventory.r1000=1.5;assert(not profile.valid(malformed))
 	var canvas=load("res://scripts/breadboard_canvas.gd").new();root.add_child(canvas);canvas.board=design.duplicate(true);canvas.selected=["load"]

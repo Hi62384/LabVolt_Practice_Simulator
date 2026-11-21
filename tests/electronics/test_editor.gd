@@ -15,7 +15,10 @@ func run() -> void:
 	game.electronics.close();game.electronics.board_view={};game.electronics.load_view()
 	assert(game.electronics.board_view.starter.zoom==1.4)
 	assert(game.electronics.board_view.starter.pan==Vector2(20,30))
-	game.kit_world.request({"op":"equip","id":"starter","name":"Starter"})
-	assert(game.school._holding_kit(1))
+	# Equip requests require a live player, a carried kit and host authority.
+	# This menu-only fixture tests the downstream paper occupancy contract,
+	# rather than forging an impossible equip request during startup.
+	game.kit_world.kits[1]={"id":"starter","owner":1,"held":true}
+	assert(game.school._holding_kit(1),"Held kit must block paper-hand occupancy")
 	print("PASS: copy uses free holes, undo restores design, editor zoom/pan persists, held kits recognized by paper system")
 	quit()
