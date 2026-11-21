@@ -75,6 +75,46 @@ func _run() -> void:
 	invention.parts[-1].ref="ic:drive_test"
 	assert(Model.validate("inv:working",{"inv:working":invention},defs)=="",
 		"Valid PCB-driven servo invention should still be manufacturable")
+	# Two physical switches on the same channel are valid invention parts.
+	# Both must be clickable and animate instead of only the first one.
+	var dual: Dictionary=Model.empty("Dual-channel switches")
+	dual.parts.append_array([
+		{"type":"switch","x":1,"y":0,"z":0,"control":"A","ref":""},
+		{"type":"switch","x":2,"y":0,"z":0,"control":"A","ref":""}
+	])
+	assert(Model.validate("inv:dual",{"inv:dual":dual},{})=="",
+		"Multiple switches for the same channel must remain manufacturable")
+	var switch_game:=MockGame.new()
+	root.add_child(switch_game)
+	switch_game.add_child(switch_game.player)
+	var switch_world:=World.new()
+	switch_game.add_child(switch_world)
+	switch_world.game=switch_game
+	switch_world.set_process(false)
+	switch_world.set_physics_process(false)
+	var dual_item: Dictionary={
+		"name":"Dual-channel switches","position":Vector3.ZERO,
+		"parts":Model.flattened("inv:dual",{"inv:dual":dual},{}),
+		"drive":dual.drive.duplicate(true),"controls":dual.controls.duplicate(true),
+		"state":{"A":false,"B":false},"effective":{"A":false,"B":false},
+		"features":{"switch_a":true,"switch_b":false,"battery":false},
+		"yaw":0.0,"angle":0.0,"hinge_angles":{}
+	}
+	switch_world.placed["dual"]=dual_item
+	var physical: StaticBody3D=switch_world._create_view("dual",dual_item)
+	switch_world.visuals["dual"]=physical
+	var buttons: Array=physical.find_children("ControlA*",true,false)
+	assert(buttons.size()==2,"Second channel-A switch is invisible or cannot be clicked")
+	for button in buttons:
+		assert(button.get_meta("role")=="invention_control" and button.get_meta("control")=="A"
+			and button.get_meta("invention_key")=="dual",
+			"Both physical switches must route to their real channel and instance")
+	dual_item.state.A=true
+	switch_world._process(0.02)
+	for button in buttons:
+		assert(is_equal_approx(button.position.y,.10),
+			"All switches on a shared control channel must show the pressed state")
+	switch_game.queue_free()
 	var runtime:=Runtime.new()
 	assert(runtime.configure("ic:drive_test",defs,{"power":0,"ground":1,"A":2,"B":-1}))
 	var rejected:=Runtime.new()
