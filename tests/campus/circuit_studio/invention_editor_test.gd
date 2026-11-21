@@ -194,6 +194,21 @@ func _run() -> void:
 	window._apply_selected()
 	var updated: Dictionary=window.draft.parts.back()
 	assert(updated.pin_map.A==3 and updated.pin_map.B==2,"Apply must update the existing PCB pin map")
+	# Searching for another part temporarily hides PCB selectors; returning to
+	# PCB must preserve both the referenced blueprint and un-applied pin edits.
+	assert(_choose(window.pin_choices.A,2) and _choose(window.pin_choices.B,3))
+	window._fill_parts("wood")
+	window._fill_parts("pcb")
+	assert(window.part_kind.get_item_metadata(window.part_kind.selected)=="pcb")
+	assert(window.part_ref.get_item_metadata(window.part_ref.selected)==id,
+		"Filtering the part palette lost the selected PCB reference")
+	assert(int(window.pin_choices.A.get_item_metadata(window.pin_choices.A.selected))==2
+		and int(window.pin_choices.B.get_item_metadata(window.pin_choices.B.selected))==3,
+		"Filtering the part palette reset pending PCB output pins")
+	assert(window._draft_error()=="","Restored PCB pin settings must remain valid")
+	assert(window._commit_selected_changes())
+	assert(window.draft.parts.back().pin_map.A==2 and window.draft.parts.back().pin_map.B==3,
+		"Committed PCB pins must match the selections after a palette search")
 	assert(Model.validate("inv:test",{"inv:test":window.draft},game.electronics.profile.data.blueprints)=="")
 	# A nested child with no individual copies must still get a new revision
 	# when its parent was fabricated. The parent keeps referring to the old ID.

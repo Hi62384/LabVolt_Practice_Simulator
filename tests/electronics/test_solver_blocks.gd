@@ -42,5 +42,19 @@ func _initialize() -> void:
  for i in 12:
   var row=PackedFloat64Array();row.resize(12);singular.append(row)
  if Solver.gaussian(singular,zero).ok or cached_solver._solve_cached(singular,zero).ok:push_error("Singular matrix accepted");quit(1);return
- print("PASS: independent, asymmetric and singular matrix blocks agree with dense solver")
+ # Invalid imported netlists must fail with a meaningful error, not overwrite
+ # device branches or propagate non-finite values into the native MNA kernel.
+ var invalid_parts: Array=[
+  {"id":"same","kind":"R","a":"a","b":"b","value":100.0},
+  {"id":"same","kind":"V","a":"b","b":"a","value":5.0}
+ ]
+ var bad=Solver.new().solve(invalid_parts)
+ if bad.get("ok",true) or not str(bad.get("error","")).contains("Duplicate"):push_error("Duplicate component IDs were accepted");quit(1);return
+ bad=Solver.new().solve([{"id":"r","kind":"R","a":"a","b":"b","value":100.0}],[],-.01)
+ if bad.get("ok",true) or not str(bad.get("error","")).contains("timestep"):push_error("Negative timestep was accepted");quit(1);return
+ bad=Solver.new().solve([{"id":"r","kind":"R","a":"a","b":"b","value":100.0}],[],NAN)
+ if bad.get("ok",true) or not str(bad.get("error","")).contains("timestep"):push_error("Non-finite timestep was accepted");quit(1);return
+ bad=Solver.new().solve([{"id":"r","a":"a","b":"b","value":100.0}])
+ if bad.get("ok",true) or not str(bad.get("error","")).contains("Invalid"):push_error("Missing component kind was accepted");quit(1);return
+ print("PASS: independent, asymmetric and singular matrix blocks agree with dense solver; invalid netlists rejected")
  quit()

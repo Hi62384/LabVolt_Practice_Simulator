@@ -29,11 +29,17 @@ func reset() -> void:
 	if linear_kernel != null: linear_kernel.Reset()
 
 func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) -> Dictionary:
+	if not is_finite(dt) or dt<0.0:return {"ok":false,"error":"Circuit timestep must be finite and non-negative."}
 	if dt==0. and hold_transients:return preload("res://scripts/electronics_buses/held_state.gd").solve(self,parts,wires)
 	if parts.size()>96:return {"ok":false,"error":"Circuit exceeds 96-device solver limit."}
 	var devices := {};var nonlinear_parts: Array=[];var battery_parts: Array=[]
 	for part in parts:
-		devices[str(part.id)]=part
+		if not part is Dictionary or not part.has("id") or not part.has("kind"):
+			return {"ok":false,"error":"Invalid circuit component."}
+		var part_id: String=str(part.id)
+		if part_id.is_empty() or devices.has(part_id):
+			return {"ok":false,"error":"Duplicate or missing circuit component ID: "+part_id}
+		devices[part_id]=part
 		if part.kind in ["D","LED","E","current_source","supply"]:nonlinear_parts.append(part)
 		if part.kind=="V" and float(part.get("capacity_ah",0.0))>0.0:battery_parts.append(part)
 	var layout := _layout(parts,wires,dt>0.0)

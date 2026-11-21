@@ -44,6 +44,11 @@ var remove_target := ""
 var copies_prompt: ConfirmationDialog
 var copies_target := ""
 var validation_refresh: Callable = Callable()
+# Preserve PCB settings while filtering or changing the parts palette.
+var reference_cache: Dictionary={}
+var reference_kind := ""
+var pin_mapping_cache: Dictionary={}
+var pin_mapping_ref := ""
 
 func open_station(owner_game: Node) -> void:
 	game=owner_game;profile=game.electronics.profile
@@ -203,6 +208,11 @@ func _library() -> void:
 
 func _editor(message: String="") -> void:
 	validation_refresh=Callable()
+	# Opening another part starts from its saved settings, not a previous selection.
+	reference_cache.clear()
+	reference_kind=""
+	pin_mapping_cache.clear()
+	pin_mapping_ref=""
 	page="editor";_ui("EDIT INVENTION")
 	notice.text=message
 	var guide:=_label(body,"Choose a part, then click the grid or Add part. Select a part to edit it; Save and Test include any changes in the inspector.")
@@ -596,24 +606,51 @@ func _axis(parent: Node,label_text: String) -> SpinBox:
 	return axis
 
 func _reference_options() -> void:
-	part_ref.clear()
+	# Rebuilding the search palette must not silently switch an existing part
+	# to the first PCB/nested blueprint in the user's library.
+	if reference_kind in ["pcb","nested"] and part_ref.selected>=0:
+		reference_cache[reference_kind]=str(part_ref.get_item_metadata(part_ref.selected))
 	var kind:=str(part_kind.get_item_metadata(part_kind.selected)) if part_kind.selected>=0 else ""
+	var desired_ref: String=str(reference_cache.get(kind,""))
+	if desired_ref.is_empty() and selected_part>=0 and selected_part<draft.parts.size():
+		var selected: Dictionary=draft.parts[selected_part]
+		if str(selected.type)==kind:desired_ref=str(selected.get("ref",""))
+	part_ref.clear()
 	var library: Dictionary=profile.data.get("blueprints",{}) if kind=="pcb" else profile.data.get("inventions",{}) if kind=="nested" else {}
+	var desired_index: int=-1
 	for id in library:
 		if kind=="pcb" and str(library[id].get("package",""))!="PCB":continue
 		if kind=="nested" and str(id)==editing_id:continue
 		part_ref.add_item(str(library[id].get("name",id)));part_ref.set_item_metadata(part_ref.item_count-1,str(id))
+		if str(id)==desired_ref:desired_index=part_ref.item_count-1
+	if desired_index>=0:part_ref.select(desired_index)
 	part_ref.disabled=kind not in ["pcb","nested"]
+	reference_kind=kind
 	_pin_options()
 
 func _pin_options() -> void:
+	# Read staged selector values before destroying the widgets. In particular,
+	# typing in the part-search field must not reset a customized pin mapping.
+	if not pin_mapping_ref.is_empty() and pin_choices.size()==4:
+		var staged: Dictionary={}
+		for role in ["power","ground","A","B"]:
+			var old: OptionButton=pin_choices[role]
+			if is_instance_valid(old) and old.selected>=0:
+				staged[role]=int(old.get_item_metadata(old.selected))
+		if staged.size()==4:pin_mapping_cache[pin_mapping_ref]=staged
 	for child in pin_row.get_children():pin_row.remove_child(child);child.queue_free()
 	pin_choices.clear()
+	pin_mapping_ref=""
 	if part_kind.selected<0 or str(part_kind.get_item_metadata(part_kind.selected))!="pcb" or part_ref.item_count==0:return
 	_label(pin_row,"PCB PIN MAPPING")
 	var ref:=str(part_ref.get_item_metadata(part_ref.selected))
 	var bp: Dictionary=profile.data.get("blueprints",{}).get(ref,{})
 	if bp.is_empty():return
+	var wanted_map: Dictionary=pin_mapping_cache.get(ref,{})
+	if wanted_map.is_empty() and selected_part>=0 and selected_part<draft.parts.size():
+		var selected: Dictionary=draft.parts[selected_part]
+		if str(selected.type)=="pcb" and str(selected.get("ref",""))==ref:
+			wanted_map=selected.get("pin_map",{})
 	for role in ["power","ground","A","B"]:
 		_label(pin_row,{"power":"5 V pin","ground":"Ground pin","A":"Output A","B":"Output B"}[role])
 		var choice:=OptionButton.new()
@@ -628,9 +665,15 @@ func _pin_options() -> void:
 		var wanted: String={"power":"VCC","ground":"GND","A":"OUT_A","B":"OUT_B"}[role]
 		for index in bp.pins.size():
 			if str(bp.pins[index].get("name","")).to_upper()==wanted:choice.select(index+(1 if role in ["A","B"] else 0));break
+		if wanted_map.has(role):
+			for index in choice.item_count:
+				if int(choice.get_item_metadata(index))==int(wanted_map[role]):
+					choice.select(index)
+					break
 		# Rebuilt pin selectors must participate in the same live validation.
 		if validation_refresh.is_valid():
 			choice.item_selected.connect(func(_index: int):validation_refresh.call())
+	pin_mapping_ref=ref
 
 func _sync_fields() -> void:
 	draft.name=name_field.text.strip_edges()
