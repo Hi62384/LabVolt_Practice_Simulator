@@ -56,5 +56,46 @@ func _initialize() -> void:
  if bad.get("ok",true) or not str(bad.get("error","")).contains("timestep"):push_error("Non-finite timestep was accepted");quit(1);return
  bad=Solver.new().solve([{"id":"r","a":"a","b":"b","value":100.0}])
  if bad.get("ok",true) or not str(bad.get("error","")).contains("Invalid"):push_error("Missing component kind was accepted");quit(1);return
+ # Malformed imported components must return an error before any numerical
+ # stamp or held-transient conversion, including C# kernel input.
+ var bad_models: Array=[
+  [{"id":"bad","kind":"R","a":"a","b":"b","value":NAN},"value"],
+  [{"id":"bad","kind":"R","a":"a","b":"b","value":"100"},"value"],
+  [{"id":"bad","kind":"R","a":"a","b":"b","value":-4.0},"value"],
+  [{"id":"bad","kind":"R","a":"a","b":"b"},"value"],
+  [{"id":"bad","kind":"C","a":"a","b":"b","value":INF},"value"],
+  [{"id":"bad","kind":"C","a":"a","b":"b","value":-0.001},"value"],
+  [{"id":"bad","kind":"L","a":"a","b":"b","value":0.1,"mutual":NAN},"mutual"],
+  [{"id":"bad","kind":"D","a":"a","b":"b","ron":0.0},"ron"],
+  [{"id":"bad","kind":"D","a":"a","b":"b","ron":-2.0},"ron"],
+  [{"id":"bad","kind":"LED","a":"a","b":"b","vf":-0.1},"vf"],
+  [{"id":"bad","kind":"V","a":"a","b":"b","value":INF},"value"],
+  [{"id":"bad","kind":"V","a":"a","b":"b","value":5.0,"capacity_ah":NAN},"capacity_ah"],
+  [{"id":"bad","kind":"V","a":"a","b":"b","value":5.0,"resistance":-0.5},"resistance"],
+  [{"id":"bad","kind":"I","a":"a","b":"b"},"value"],
+  [{"id":"bad","kind":"supply","a":"a","b":"b","value":5.0,"limit":-1.0},"limit"],
+  [{"id":"bad","kind":"current_source","a":"a","b":"b","value":0.01,"compliance":5.0,"rout":0.0},"rout"],
+  [{"id":"bad","kind":"current_source","a":"a","b":"b","value":0.01},"compliance"],
+  [{"id":"bad","kind":"T","a":"a","b":"b","cp":"c","cn":"d"},"ratio"],
+  [{"id":"bad","kind":"T","a":"a","b":"b","cp":"c","cn":"d","ratio":0.0},"ratio"],
+  [{"id":"bad","kind":"E","a":"a","b":"b","cp":"c","cn":"d","high":"h"},"gain"],
+  [{"id":"bad","kind":"F","a":"a","b":"b","control":"diode","gain":NAN},"gain"]
+ ]
+ for case in bad_models:
+  var invalid: Dictionary=Solver.new().solve([case[0]])
+  if invalid.get("ok",true) or not str(invalid.get("error","")).contains(str(case[1])):
+   push_error("Invalid "+str(case[1])+" accepted or misreported: "+str(case[0])+" => "+str(invalid))
+   quit(1);return
+ var held_invalid=Solver.new().solve([{"id":"invalid_storage","kind":"C","a":"a","b":"b","value":NAN}],[],0.0,true)
+ if held_invalid.get("ok",true) or not str(held_invalid.get("error","")).contains("value"):
+  push_error("Held transient bypassed primitive validation");quit(1);return
+ var non_string_wire=Solver.new().solve([{"id":"r","kind":"R","a":"a","b":"b","value":100.0}],[[123,"b"]])
+ if non_string_wire.get("ok",true) or not str(non_string_wire.get("error","")).contains("wire"):
+  push_error("Wire with non-string endpoint was accepted");quit(1);return
+ var signed=Solver.new().solve([
+  {"id":"battery","kind":"V","a":"a","b":"b","value":-5.0,"resistance":0.0},
+  {"id":"load","kind":"R","a":"a","b":"b","value":100.0}])
+ if not signed.get("ok",false) or absf(float(signed.get("drop",{}).get("load",0.0))+5.0)>1e-8:
+  push_error("Valid negative-voltage source changed while guarding malformed ratings");quit(1);return
  print("PASS: independent, asymmetric and singular matrix blocks agree with dense solver; invalid netlists rejected")
  quit()

@@ -39,6 +39,17 @@ func _run() -> void:
 	game.add_child(window)
 	window.open_station(game)
 	var old_profile: Dictionary=game.electronics.profile.data.duplicate(true)
+	# Creating a new invention starts with a frame at (0,0,0); the
+	# editor should offer a free position instead of a failing Add part.
+	window.editing_id=""
+	window.draft=Model.empty("Fast assembly")
+	window.selected_part=-1
+	window._editor()
+	assert(window.part_x.value!=0.0 or window.part_y.value!=0.0 or window.part_z.value!=0.0,
+		"New invention defaults Add part to the occupied starter-frame cell")
+	window._add_part()
+	assert(window.draft.parts.size()==2,
+		"First Add part must work without manually correcting a collision")
 	# Check the same raycast normalization used by the interactive game.
 	var fake_invention:=StaticBody3D.new()
 	fake_invention.set_meta("role","invention")

@@ -32,6 +32,21 @@ func _run() -> void:
 	var runtime:=FakePCB.new()
 	window.test_pcb=runtime
 	window._test_pcb_controls(controls)
+	# A failing PCB must not disable an independent manual channel.
+	# Conversely, stale 5 V data from the failed PCB must not drive B.
+	window.draft={"drive":{"A":"manual","B":"pcb"}}
+	window.test_switches={"A":true,"B":false}
+	window.test_output={"ok":false,"error":"PCB solve failed","A":5.0,"B":5.0}
+	assert(window._test_channels()=={"A":true,"B":false},
+		"PCB failure disabled an independent manual switch or reused stale PCB voltage")
+	window.test_output={"ok":true,"error":"","A":0.0,"B":3.3}
+	assert(window._test_channels()=={"A":true,"B":true},
+		"Healthy PCB output failed to power its channel alongside an independent manual control")
+	window.draft.drive.A="both"
+	window.test_output.A=3.3
+	assert(window._test_channels().A,"Both drive must accept manual AND valid PCB power")
+	window.test_switches.A=false
+	assert(not window._test_channels().A,"Both drive must turn off when its manual switch releases")
 	var sliders: Array=window.find_children("*","HSlider",true,false)
 	assert(sliders.size()==5,"Preview must have touch X/Y, slider and joystick X/Y")
 	var touch_x: HSlider=sliders[0]

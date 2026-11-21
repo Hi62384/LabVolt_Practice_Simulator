@@ -321,6 +321,23 @@ func _editor(message: String="") -> void:
 			var forward:=Model.rotate_grid(Vector3i.FORWARD,int(part.get("turns",0)))
 			rotate.tooltip_text="Moving side: %+d X, %+d Z. Mount a frame or servo on the opposite side."%[forward.x,forward.z]
 		_button(inspector,"Delete selected",_remove_part.bind(selected_part))
+	# An untouched invention already contains its starter frame at (0,0,0).
+	# Suggest an available cell so the first Add part click actually adds a part.
+	if selected_part<0:
+		var occupied_cells: Dictionary={}
+		for item in draft.parts:
+			occupied_cells[Vector3i(item.x,item.y,item.z)]=true
+		var found_cell:=false
+		for y in 7:
+			for z in 7:
+				for x in range(1,7):
+					var candidate:=Vector3i(x,y,z)
+					if occupied_cells.has(candidate):continue
+					part_x.value=x;part_y.value=y;part_z.value=z
+					found_cell=true
+					break
+				if found_cell:break
+			if found_cell:break
 	part_y.value_changed.connect(func(value: float):preview.placement_height=int(value))
 	preview.cell_clicked.connect(_viewport_click)
 	var add:=_button(library,"Add part",_add_part)
@@ -516,6 +533,16 @@ func _test_joystick_toggled(pressed: bool,id: String,x: HSlider,y: HSlider) -> v
 		x.set_value_no_signal(.5)
 		y.set_value_no_signal(.5)
 
+# Match placed-world controls when a PCB fails: manual switches remain
+# independent, while a failed or stale PCB output cannot energize a motor.
+func _test_channels() -> Dictionary:
+	var channels: Dictionary={}
+	var pcb_ok: bool=bool(test_output.get("ok",true)) and str(test_output.get("error","")).is_empty()
+	for channel in ["A","B"]:
+		var voltage: float=float(test_output.get(channel,0.0)) if pcb_ok else 0.0
+		channels[channel]=Model.energized(str(draft.get("drive",{}).get(channel,"manual")),bool(test_switches.get(channel,false)),voltage)
+	return channels
+
 func _process(delta: float) -> void:
 	if page!="test" or not is_instance_valid(test_status):return
 	if is_instance_valid(test_pcb):
@@ -526,9 +553,7 @@ func _process(delta: float) -> void:
 			test_clock-=.05
 			steps+=1
 	var battery:=test_parts.any(func(part):return part.type=="battery")
-	var channels: Dictionary={}
-	for channel in ["A","B"]:
-		channels[channel]=String(test_output.get("error","")).is_empty() and Model.energized(draft.drive[channel],test_switches[channel],test_output[channel])
+	var channels: Dictionary=_test_channels()
 	test_view.preview_power(delta,channels,battery)
 	var active_motors:=test_parts.filter(func(part):return part.type=="wheel" and battery and channels.get(part.get("motor_control",""),false)).size()
 	active_motors+=test_view.joints.filter(func(joint):return joint.control!="" and battery and channels.get(joint.control,false)).size()
@@ -570,6 +595,7 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 		_editor()
 
 func _rotate_part(index: int) -> void:
+	if index<0 or index>=draft.parts.size():return
 	_sync_fields()
 	if not _commit_selected_changes():return
 	_track_edit()
@@ -766,6 +792,7 @@ func _commit_selected_changes(replace_type := false) -> bool:
 	return true
 
 func _remove_part(index: int) -> void:
+	if index<0 or index>=draft.parts.size():return
 	_sync_fields()
 	_track_edit()
 	draft.parts.remove_at(index)

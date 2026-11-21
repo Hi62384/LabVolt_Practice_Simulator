@@ -28,9 +28,39 @@ func reset() -> void:
 	last_native_solution.clear()
 	if linear_kernel != null: linear_kernel.Reset()
 
+# Reject damaged/imported primitive ratings before any GDScript casts,
+# native matrix stamps or zero-time capacitor/inductor conversions.
+static func _component_error(part: Dictionary) -> String:
+	var kind: String=str(part.kind)
+	if kind not in ["R","C","D","LED","F","T","E","I","current_source","V","L","supply"]:
+		return "Unsupported model: "+kind
+	if kind in ["R","C","L","I","V","supply","current_source"] and not part.has("value"):
+		return "Component "+str(part.id)+" is missing value."
+	if kind=="T" and not part.has("ratio"):
+		return "Component "+str(part.id)+" is missing ratio."
+	if kind=="E" and not part.has("gain"):
+		return "Component "+str(part.id)+" is missing gain."
+	if kind=="current_source" and not part.has("compliance"):
+		return "Component "+str(part.id)+" is missing compliance."
+	for field in ["value","vf","ron","gain","ratio","resistance","rout","compliance","limit","capacity_ah","mutual"]:
+		if not part.has(field):continue
+		var raw: Variant=part[field]
+		if not (raw is int or raw is float) or not is_finite(float(raw)):
+			return "Component "+str(part.id)+" has invalid "+field+"."
+	for field in ["vf","resistance","compliance","limit"]:
+		if part.has(field) and float(part[field])<0.0:
+			return "Component "+str(part.id)+" has negative "+field+"."
+	if kind in ["R","C","L"] and float(part.value)<0.0:
+		return "Component "+str(part.id)+" has negative value."
+	for field in ["ron","rout"]:
+		if part.has(field) and float(part[field])<=0.0:
+			return "Component "+str(part.id)+" requires positive "+field+"."
+	if kind=="T" and float(part.ratio)==0.0:
+		return "Component "+str(part.id)+" requires a nonzero transformer ratio."
+	return ""
+
 func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) -> Dictionary:
 	if not is_finite(dt) or dt<0.0:return {"ok":false,"error":"Circuit timestep must be finite and non-negative."}
-	if dt==0. and hold_transients:return preload("res://scripts/electronics_buses/held_state.gd").solve(self,parts,wires)
 	if parts.size()>96:return {"ok":false,"error":"Circuit exceeds 96-device solver limit."}
 	var devices := {};var nonlinear_parts: Array=[];var battery_parts: Array=[]
 	for part in parts:
@@ -39,9 +69,13 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 		var part_id: String=str(part.id)
 		if part_id.is_empty() or devices.has(part_id):
 			return {"ok":false,"error":"Duplicate or missing circuit component ID: "+part_id}
+		var model_error: String=_component_error(part)
+		if not model_error.is_empty():return {"ok":false,"error":model_error}
 		devices[part_id]=part
 		if part.kind in ["D","LED","E","current_source","supply"]:nonlinear_parts.append(part)
 		if part.kind=="V" and float(part.get("capacity_ah",0.0))>0.0:battery_parts.append(part)
+	if dt==0.0 and hold_transients:
+		return preload("res://scripts/electronics_buses/held_state.gd").solve(self,parts,wires)
 	var layout := _layout(parts,wires,dt>0.0)
 	if layout.has("error"): return {"ok":false,"error":layout.error}
 	var net: Dictionary=layout.net
@@ -216,7 +250,7 @@ func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
 	# Damaged/imported connections should fail with an error rather than
 	# indexing missing endpoints during the live circuit solve.
 	for wire in wires:
-		if not (wire is Array or wire is PackedStringArray) or wire.size() != 2 or str(wire[0]).is_empty() or str(wire[1]).is_empty():
+		if not (wire is Array or wire is PackedStringArray) or wire.size() != 2 or not wire[0] is String or not wire[1] is String or str(wire[0]).is_empty() or str(wire[1]).is_empty():
 			return {"error":"Invalid wire connection."}
 	# Only node names, device kinds and ideal leads determine matrix positions.
 	# All numerical stamps and history are still evaluated on each solve.
