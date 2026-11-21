@@ -38,6 +38,7 @@ var test_output: Dictionary={}
 var test_clock := 0.0
 var discard_prompt: ConfirmationDialog
 var remove_prompt: ConfirmationDialog
+var validation_refresh: Callable = Callable()
 
 func open_station(owner_game: Node) -> void:
 	game=owner_game;profile=game.electronics.profile
@@ -188,6 +189,7 @@ func _library() -> void:
 	if ids.is_empty():_label(body,"No inventions saved yet.")
 
 func _editor(message: String="") -> void:
+	validation_refresh=Callable()
 	page="editor";_ui("EDIT INVENTION")
 	notice.text=message
 	var guide:=_label(body,"Choose a part, then click the grid or Add part. Select a part to edit it; Save and Test include any changes in the inspector.")
@@ -310,7 +312,12 @@ func _editor(message: String="") -> void:
 		save.disabled=not error.is_empty()
 		test.disabled=save.disabled
 	name_field.text_changed.connect(func(_value: String):refresh.call())
-	for choice in [mode_a,mode_b,drive_a,drive_b]:
+	for choice in [mode_a,mode_b,drive_a,drive_b,part_kind,part_control,part_ref]:
+		choice.item_selected.connect(func(_index: int):refresh.call())
+	for field in [part_x,part_y,part_z]:
+		field.value_changed.connect(func(_value: float):refresh.call())
+	validation_refresh=refresh
+	for choice in pin_choices.values():
 		choice.item_selected.connect(func(_index: int):refresh.call())
 	refresh.call()
 
@@ -332,6 +339,10 @@ func _test_draft() -> void:
 	if page=="editor":
 		_sync_fields()
 		if not _commit_selected_changes():return
+		var validation_error:=_draft_error()
+		if not validation_error.is_empty():
+			notice.text=validation_error
+			return
 	# Older saved designs may have no explicit drive map. Validation treats
 	# those as manual; the live preview must use the same default.
 	if not draft.has("drive"):draft.drive={"A":"manual","B":"manual"}
@@ -568,6 +579,9 @@ func _pin_options() -> void:
 		var wanted: String={"power":"VCC","ground":"GND","A":"OUT_A","B":"OUT_B"}[role]
 		for index in bp.pins.size():
 			if str(bp.pins[index].get("name","")).to_upper()==wanted:choice.select(index+(1 if role in ["A","B"] else 0));break
+		# Rebuilt pin selectors must participate in the same live validation.
+		if validation_refresh.is_valid():
+			choice.item_selected.connect(func(_index: int):validation_refresh.call())
 
 func _sync_fields() -> void:
 	draft.name=name_field.text.strip_edges()
@@ -606,23 +620,21 @@ func _apply_selected() -> void:
 
 # Use the same inspector-to-model path for Apply, Save and Test. Previously
 # Save/Test could silently discard pending coordinates, controls and PCB pins.
-func _commit_selected_changes(replace_type := false) -> bool:
-	if selected_part<0 or selected_part>=draft.parts.size() or not is_instance_valid(part_kind) or part_kind.selected<0:return true
+# Evaluate the visible inspector as a non-mutating draft. Save/Test feedback
+# must agree with what the user sees before pressing Apply.
+func _preview_selected_part(replace_type := false) -> Dictionary:
+	if selected_part<0 or selected_part>=draft.parts.size() or not is_instance_valid(part_kind) or part_kind.selected<0:return {}
 	var changed: Dictionary=draft.parts[selected_part].duplicate(true)
 	var palette_kind:=str(part_kind.get_item_metadata(part_kind.selected))
-	# The left palette also selects which kind to place next. Browsing the
-	# palette must never silently replace an existing part on Save, Test,
-	# rotation or selection. A deliberate Apply is required for type changes.
 	if replace_type:changed.type=palette_kind
 	changed.x=int(part_x.value)
 	changed.y=int(part_y.value)
 	changed.z=int(part_z.value)
 	changed.control="" if part_control.selected==0 else "A" if part_control.selected==1 else "B"
+	# Browsing the placement palette alone must not replace a selected part.
 	if replace_type or palette_kind==str(changed.type):
 		if changed.type in ["pcb","nested"]:
-			if part_ref.selected<0:
-				notice.text="Choose a blueprint for the selected part."
-				return false
+			if part_ref.selected<0:return {"error":"Choose a blueprint for the selected part."}
 			changed.ref=str(part_ref.get_item_metadata(part_ref.selected))
 		else:changed.ref=""
 		if changed.type=="pcb":
@@ -630,8 +642,18 @@ func _commit_selected_changes(replace_type := false) -> bool:
 				changed.pin_map={}
 				for role in pin_choices:
 					var choice: OptionButton=pin_choices[role]
+					if choice.selected<0:return {"error":"Configure PCB supply and output pins."}
 					changed.pin_map[role]=int(choice.get_item_metadata(choice.selected))
 		else:changed.erase("pin_map")
+	return {"part":changed}
+
+func _commit_selected_changes(replace_type := false) -> bool:
+	var preview: Dictionary=_preview_selected_part(replace_type)
+	if preview.is_empty():return true
+	if preview.has("error"):
+		notice.text=str(preview.error)
+		return false
+	var changed: Dictionary=preview.part
 	if changed==draft.parts[selected_part]:return true
 	for index in draft.parts.size():
 		if index==selected_part:continue
@@ -656,6 +678,10 @@ func _draft_error() -> String:
 	candidate.name=name_field.text.strip_edges()
 	candidate.controls={"A":"toggle" if mode_a.selected==1 else "hold","B":"toggle" if mode_b.selected==1 else "hold"}
 	candidate.drive={"A":["manual","pcb","both"][drive_a.selected],"B":["manual","pcb","both"][drive_b.selected]}
+	if page=="editor":
+		var staged: Dictionary=_preview_selected_part()
+		if staged.has("error"):return str(staged.error)
+		if staged.has("part"):candidate.parts[selected_part]=staged.part
 	var frozen: Dictionary=Model.fabricated_dependencies(designs,profile.data.get("invention_copies",{}))
 	var revised: bool=not editing_id.is_empty() and frozen.has(editing_id) and designs.get(editing_id,{})!=candidate
 	var test_id: String="inv:draft" if editing_id.is_empty() or revised else editing_id

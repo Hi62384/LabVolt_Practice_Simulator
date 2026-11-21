@@ -90,6 +90,33 @@ func _run() -> void:
 	assert(window.draft.parts[4].x==4,"Undo must revert selection-committed coordinate changes")
 	window._history(window.redo_stack,window.undo_stack)
 	assert(window.draft.parts[4].x==5,"Redo must restore selection-committed coordinate changes")
+	# A valid draft must react to pending inspector edits immediately; neither
+	# Save nor Test should accept an unassigned actuator or overlapping cells.
+	window.selected_part=4
+	window._editor()
+	var save_button:=_button(window,"Save blueprint")
+	var test_button:=_button(window,"Test")
+	assert(not save_button.disabled and not test_button.disabled)
+	window.part_control.select(0)
+	window.part_control.item_selected.emit(0)
+	assert(save_button.disabled and test_button.disabled,
+		"Pending invalid actuator control left Save/Test enabled")
+	window._test_draft()
+	assert(window.page=="editor" and window.notice.text.contains("Assign each motor"),
+		"Test accepted a physically invalid staged invention")
+	window.part_control.select(2)
+	window.part_control.item_selected.emit(2)
+	assert(not save_button.disabled and not test_button.disabled,
+		"Correcting the control did not reenable Save/Test")
+	window.part_x.value=0
+	window.part_y.value=0
+	assert(save_button.disabled and test_button.disabled,
+		"Overlapping pending coordinates were not validated live")
+	window.part_x.value=5
+	window.part_y.value=1
+	assert(not save_button.disabled and not test_button.disabled,
+		"Correcting overlapping coordinates did not restore Save/Test")
+	window._apply_selected()
 	# Test uses pending inspector coordinates even without clicking Apply.
 	window.selected_part=4
 	window._editor()
