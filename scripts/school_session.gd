@@ -204,6 +204,11 @@ func _identify(peer: int,token: String) -> void:
 				for paper in papers.values():
 					if paper.get("identity","")==token and int(paper.get("class_round",0))==round_id:
 						paper.owner=peer
+						# Hidden after disconnect; make the reissued sheet visible
+						# on the student desk even if it was previously held.
+						paper.held=false
+						paper.stowed=false
+						paper.position=_desk(peer)
 						paper.revision+=1
 						restored_paper=true
 				if not restored_paper:_give(peer,project,false,true)

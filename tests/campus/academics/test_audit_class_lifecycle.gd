@@ -32,6 +32,7 @@ func _run() -> void:
 		var current: Vector3=session.poses[2].position
 		session.accept_pose(2,{"position":current+Vector3(.395,0,0),"pose_epoch":0})
 	assert(session.poses[2].position.distance_to(start_pose)<1.0,"Movement rate limit grants free distance per packet")
+	session.online=true
 	session.poses[2].position=Vector3(23,0,30)
 	session._travel(2,true)
 	assert(not session.shop_returns.has(2),"Remote peer entered shop from arbitrary location")
@@ -40,6 +41,12 @@ func _run() -> void:
 	assert(session.shop_returns.has(2) and session.poses[2].position==Vector3(26,0,3),"Legitimate menu shop entry was rejected")
 	session._travel(2,false)
 	assert(not session.shop_returns.has(2),"Legitimate shop exit was rejected")
+	session.online=false
+	# Offline menu shop may be launched from any saved player position.
+	session.poses[2].position=Vector3(23,0,30)
+	session._travel(2,true)
+	assert(session.shop_returns.has(2),"Offline menu shop refused an ordinary entry")
+	session._travel(2,false)
 
 	var school=game.school
 	var token: String=Crypto.new().generate_random_bytes(24).hex_encode()
@@ -57,14 +64,15 @@ func _run() -> void:
 	assert(paper_id>0)
 	school.papers[paper_id].class_round=701
 	school.papers[paper_id].answers["0"]="retained"
-	school.papers[paper_id].held=false
-	school.papers[paper_id].owner=0
-	school.identities.erase(2)
+	school.papers[paper_id].held=true
 	school.round_id=701
 	school.phase="assignment"
+	session.roster.erase(2)
+	school.roster_changed()
+	assert(school.papers[paper_id].owner==0 and bool(school.papers[paper_id].get("stowed",false)),"Disconnected held assessment was not preserved")
 	session.roster[3]={"name":"Returning guest"}
 	school._identify(3,token)
-	assert(school.papers[paper_id].owner==3 and school.papers[paper_id].answers["0"]=="retained","Reconnect discarded existing assessment answers")
+	assert(school.papers[paper_id].owner==3 and school.papers[paper_id].answers["0"]=="retained" and not school.papers[paper_id].get("stowed",false) and not school.papers[paper_id].held,"Reconnect lost answers or left the paper inaccessible")
 	# Restore the fixture to Freeplay so the main game timer cannot grade a
 	# synthetic active class during test teardown.
 	school.class_students.clear()

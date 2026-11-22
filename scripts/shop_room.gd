@@ -220,6 +220,11 @@ func near_components_store(point: Vector3) -> bool:
 	return false
 func enter() -> void:
 	if active:return
+	# Match the host's online proximity policy before changing any local
+	# gameplay state. Otherwise a denied teleport leaves the client desynced.
+	if game.session.online and game.session.campus_enabled and game.player.global_position.distance_to(Vector3(13,0,-18))>8.0:
+		game.ui.log_message("Visit the campus entrance before opening the menu shop in multiplayer.")
+		return
 	if not game.hotbar.stow():return
 	if game.player.inspecting:game.end_inspection()
 	game._stand_from_chair()

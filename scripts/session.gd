@@ -620,7 +620,7 @@ func _travel(peer: int,enter: bool) -> void:
 		if shop_returns.has(peer):return
 		# Menu shop entry is at the campus entrance; do not grant arbitrary
 		# client-requested teleports from elsewhere in the multiplayer world.
-		if campus_enabled and current_pose.distance_to(Vector3(13,0,-18))>8.0:return
+		if online and campus_enabled and current_pose.distance_to(Vector3(13,0,-18))>8.0:return
 		shop_returns[peer]=current_pose
 		poses[peer]={"position":Vector3(26,0,3),"yaw":0.,"pitch":0.}
 	else:
