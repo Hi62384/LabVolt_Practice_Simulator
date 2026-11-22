@@ -112,6 +112,16 @@ func _run() -> void:
 			and world.requests.back().reverse==(setting=="Frequency −"),
 			"Mounted source control did not forward its requested setting and direction")
 
+	# Switching to another mounted PCB frees this panel directly without
+	# pressing Close. It must not leave the first PCB contact pressed.
+	touch.button_pressed=true
+	assert(panel.held.has("board/touch:"),"The test needs an active held touch input")
+	var requests_before_free: int=world.requests.size()
+	panel.free()
+	assert(world.requests.size()==requests_before_free+1
+		and not world.requests.back().pressed and world.requests.back().command.get("op")=="release",
+		"Replacing a mounted PCB panel must release its held touch input")
+
 	var invention:=World.new()
 	var runtime:=CapturingRuntime.new()
 	invention.simulators["fixture"]={"runtime":runtime}
@@ -123,7 +133,6 @@ func _run() -> void:
 		and invention.pcb_holders.is_empty(),
 		"Expired host joystick leases must release and center rather than stick at their last coordinates")
 	invention.free()
-	panel.free()
 	game.free()
 	await process_frame
 	print("PCB_PANEL_INPUT PASS")

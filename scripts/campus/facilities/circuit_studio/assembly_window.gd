@@ -713,7 +713,7 @@ func _pin_options() -> void:
 	for child in pin_row.get_children():pin_row.remove_child(child);child.queue_free()
 	pin_choices.clear()
 	pin_mapping_ref=""
-	if part_kind.selected<0 or str(part_kind.get_item_metadata(part_kind.selected))!="pcb" or part_ref.item_count==0:return
+	if part_kind.selected<0 or str(part_kind.get_item_metadata(part_kind.selected))!="pcb" or part_ref.selected<0:return
 	_label(pin_row,"PCB PIN MAPPING")
 	var ref:=str(part_ref.get_item_metadata(part_ref.selected))
 	var bp: Dictionary=profile.data.get("blueprints",{}).get(ref,{})
@@ -758,7 +758,7 @@ func _sync_fields() -> void:
 func _add_part() -> void:
 	if part_kind.selected<0:return
 	var kind:=str(part_kind.get_item_metadata(part_kind.selected))
-	var ref: String=str(part_ref.get_item_metadata(part_ref.selected)) if kind in ["pcb","nested"] and part_ref.item_count>0 else ""
+	var ref: String=str(part_ref.get_item_metadata(part_ref.selected)) if kind in ["pcb","nested"] and part_ref.selected>=0 else ""
 	if kind in ["pcb","nested"] and ref.is_empty():
 		notice.text="Save a compatible blueprint first."
 		return

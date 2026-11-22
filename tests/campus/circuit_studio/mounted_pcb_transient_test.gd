@@ -49,8 +49,16 @@ func _initialize() -> void:
 	check(settled.get("ok",false) and float(settled.get("A",0.0))>4.95,
 		"RC output settles near 5 V rather than restarting every world tick")
 	check(absf(rt.station.solver.time-.1)<1e-7,"Consecutive mounted PCB ticks preserve solver time")
+	var catchup: Dictionary=rt.tick(.12)
+	check(catchup.get("ok",false) and float(catchup.get("A",0.0))>4.95,
+		"Multi-slice PCB tick preserves an already charged RC output")
+	check(absf(rt.station.solver.time-.22)<1e-7,
+		"A 120 ms PCB tick must integrate all 120 ms rather than only 50 ms")
 	var failure: Dictionary=rt.tick(-.5)
 	check(not failure.get("ok",true),"Negative time is rejected")
+	var old_time: float=rt.station.solver.time
+	check(not rt.tick(.21).get("ok",true) and is_equal_approx(rt.station.solver.time,old_time),
+		"Excessively long PCB ticks must reject atomically instead of silently skipping simulation time")
 
 	# Verify actual LV Micro firmware executes inside a mounted invention PCB;
 	# ordinary lab-only controller tests do not cover this nested route.

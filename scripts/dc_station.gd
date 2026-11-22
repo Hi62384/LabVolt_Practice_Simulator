@@ -445,6 +445,10 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			if firmware.has(id):firmware[id].reset()
 			else:return "Device is not running"
 		"input":
+			# Typed input commands cannot silently coerce strings or numbers into
+			# button state/direction, especially when received from other players.
+			if action.has("pressed") and not action.pressed is bool:return "Invalid input button state"
+			if action.has("reverse") and not action.reverse is bool:return "Invalid input direction"
 			var requested := str(action.get("id",""))
 			if not requested.begins_with("board/"):requested="board/"+requested
 			var found := false
@@ -459,11 +463,19 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 						control.pressed=bool(action.get("pressed",true))
 						if action.get("hold",false) or not control.pressed:button_releases.erase(requested)
 						else:button_releases[requested]=solver.time+.25
-					"toggle":control.pressed=not control.get("pressed",part.get("pressed",false))
+					"toggle":
+						# A release is not a second click. Repeated/untrusted releases
+						# must never flip the circuit switch back on or off.
+						if not bool(action.get("pressed",true)):return ""
+						control.pressed=not control.get("pressed",part.get("pressed",false))
 					"battery_adjustable","battery_generator","battery_generator_adjustable":
+						if not bool(action.get("pressed",true)):return ""
+						var settings: Array=["wave"] if input_type=="battery_generator" else ["voltage"] if input_type=="battery_adjustable" else ["voltage","frequency","wave"]
+						if action.get("source_adjust","") not in settings:return "Invalid source adjustment"
 						var source := preload("res://scripts/electronics_catalog.gd").simulation_entry(str(part.type))
 						preload("res://scripts/electronics/portable_sources.gd").adjust(source,control,action)
 					"pot10k","variable_cap","variable_inductor","photodiode","solar_panel":
+						if not bool(action.get("pressed",true)):return ""
 						var default_setting := .65 if input_type in ["photodiode","solar_panel"] else .5
 						control.setting=clampf(float(control.get("setting",part.get("setting",default_setting)))+(-.05 if bool(action.get("reverse",false)) else .05),0,1)
 					_:

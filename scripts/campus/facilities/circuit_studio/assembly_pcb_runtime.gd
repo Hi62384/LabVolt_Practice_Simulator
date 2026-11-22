@@ -8,6 +8,8 @@ const IO=preload("res://scripts/io_devices/controls.gd")
 # much finer integration to preserve their 0.5-1 ms component timings.
 const INTERNAL_STEP := 0.001
 const MAX_INTERNAL_STEPS := 50
+# Allow a bounded multi-slice call without silently losing simulation time.
+const MAX_TICK_SECONDS := 0.2
 var station: RefCounted
 var pin_map: Dictionary={}
 var inputs: Array=[]
@@ -42,15 +44,19 @@ func configure(id: String,definitions: Dictionary,mapping: Dictionary) -> bool:
 func tick(dt: float) -> Dictionary:
 	if not is_instance_valid(station):return {"A":0.0,"B":0.0,"ok":false}
 	if not is_finite(dt) or dt<=0.0:return {"A":0.0,"B":0.0,"ok":false,"error":"Invalid PCB simulation step."}
+	if dt>MAX_TICK_SECONDS:return {"A":0.0,"B":0.0,"ok":false,"error":"PCB simulation step exceeds 200 ms; split it into smaller steps."}
 	# A single 50 ms backward-Euler step badly underestimates RC charging and
 	# can skip switch edges, firmware updates and short pulses altogether.
-	# Preserve the world update budget while integrating each 50 ms slice in
-	# bounded 1 ms increments. The final published outputs are sampled at t+dt.
-	var duration: float=minf(dt,0.05)
+	# Keep the same <= 1 ms integrations while consuming the *entire* supplied
+	# timestep. Previously dt > 50 ms silently discarded elapsed simulation time.
+	var slices: int=clampi(ceili(dt/0.05),1,4)
+	var duration: float=dt/float(slices)
 	var steps: int=clampi(ceili(duration/INTERNAL_STEP),1,MAX_INTERNAL_STEPS)
 	var step_duration: float=duration/float(steps)
-	for index in steps:
-		station.step(step_duration)
+	for slice in slices:
+		for index in steps:
+			station.step(step_duration)
+			if not bool(station.result.get("ok",false)):break
 		if not bool(station.result.get("ok",false)):break
 	var result: Dictionary={"ok":bool(station.result.get("ok",false)),"error":str(station.result.get("error","")),"A":0.0,"B":0.0}
 	if not result.ok:return result

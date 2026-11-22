@@ -152,9 +152,18 @@ func _process(delta: float) -> void:
 		hold_clock=0.0
 		for entry in held.values():game.invention_world.request_pcb_input(key,str(entry.id),true,false,entry.command)
 
-func _close() -> void:
-	if is_instance_valid(game):
+func _release_held_inputs() -> void:
+	# A different PCB can replace this panel with queue_free() instead of Close.
+	# Release the old hardware inputs on either path, including teardown.
+	if is_instance_valid(game) and is_instance_valid(game.invention_world):
 		for entry in held.values():_end_hold(str(entry.id),entry.command)
+	held.clear()
+
+func _notification(what: int) -> void:
+	if what==NOTIFICATION_PREDELETE:_release_held_inputs()
+
+func _close() -> void:
+	_release_held_inputs()
 	hide();queue_free()
 	if is_instance_valid(game) and game.front.in_game:game.capture()
 

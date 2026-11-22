@@ -339,6 +339,14 @@ func _run() -> void:
 		default_pins[role]=int(selector.get_item_metadata(selector.selected))
 	assert(default_pins.power==0 and default_pins.ground==1 and Model.validate_pcb_pin_map(generic_bp,default_pins)=="",
 		"Generically named PCB pins must default to distinct, valid supply connectors")
+	# A cleared PCB reference must not make the inspector read metadata at -1.
+	var previous_count: int=window.draft.parts.size()
+	window.part_ref.select(-1)
+	window._pin_options()
+	assert(window.pin_choices.is_empty(),"Unselected PCB references must have no pin mapping controls")
+	window._add_part()
+	assert(window.draft.parts.size()==previous_count and window.notice.text.contains("blueprint"),
+		"Adding a PCB without a selected blueprint must fail safely with feedback")
 	# A nested child with no individual copies must still get a new revision
 	# when its parent was fabricated. The parent keeps referring to the old ID.
 	var child: Dictionary=Model.empty("Nested child")
