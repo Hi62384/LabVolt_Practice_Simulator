@@ -892,14 +892,39 @@ func _process(_delta: float) -> void:
 			preview_signature = ""
 			preview_clock = 0.0
 			return
-		var structural: Dictionary=canvas.board.duplicate(true);structural.erase("io_controls")
+		var structural: Dictionary=canvas.board.duplicate(true)
+		# Interactive controls are not topology edits. Retain stored capacitor,
+		# inductor, battery and firmware state while a switch or knob changes.
+		structural.erase("io_controls");structural.erase("controls")
+		for part in structural.get("parts",[]):
+			if part is Dictionary:
+				for field in ["pressed","setting","source_voltage","source_frequency","source_wave"]:
+					part.erase(field)
 		var signature := str(structural)
 		if signature!=preview_signature:
 			preview_signature=signature;canvas.capture.samples.clear();design_preview=preload("res://scripts/dc_station.gd").new();design_preview.apply({"op":"board","design":canvas.board.duplicate(true)})
-		preview_clock=minf(preview_clock+_delta,.02)
-		while preview_clock>=.0005:
+		else:
+			var inputs_changed: bool=design_preview.board.get("controls",{})!=canvas.board.get("controls",{}) or design_preview.board.get("io_controls",{})!=canvas.board.get("io_controls",{})
+			if inputs_changed:
+				design_preview.board.controls=canvas.board.get("controls",{}).duplicate(true)
+				design_preview.board.io_controls=canvas.board.get("io_controls",{}).duplicate(true)
+			for index in canvas.board.get("parts",[]).size():
+				var from_part: Dictionary=canvas.board.parts[index]
+				var to_part: Dictionary=design_preview.board.parts[index]
+				for field in ["pressed","setting","source_voltage","source_frequency","source_wave"]:
+					if from_part.get(field)!=to_part.get(field):
+						inputs_changed=true
+						if from_part.has(field):to_part[field]=from_part[field]
+						else:to_part.erase(field)
+			if inputs_changed:design_preview.revision+=1
+		# Preserve the backlog instead of losing electrical time on a slow frame.
+		# Bound integration work per rendered frame to keep the editor responsive.
+		preview_clock+=maxf(0.0,_delta)
+		var preview_steps:=0
+		while preview_clock+1e-10>=.0005 and preview_steps<200:
 			design_preview.step(.0005)
-			preview_clock-=.0005
+			preview_clock=maxf(0.0,preview_clock-.0005)
+			preview_steps+=1
 			if canvas.analyzer_enabled:canvas.accept_measurements(design_preview.result)
 		if not canvas.analyzer_enabled:canvas.accept_measurements(design_preview.result)
 		canvas.currents=design_preview.result.get("i",{});canvas.device_states=design_preview.firmware_states;canvas.queue_redraw()

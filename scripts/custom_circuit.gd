@@ -70,10 +70,12 @@ static func validate(id: String,definitions: Dictionary,ancestors: Array=[],budg
 			var error := validate(type,definitions,chain,budget)
 			if error!="":return error
 			if not part.get("nodes") is Array or part.nodes.size()!=definitions[type].pins.size():return "Custom IC pin count mismatch"
+			if part.nodes.any(func(pin):return not pin is String or pin.is_empty()):return "Custom IC has an invalid internal terminal"
 		else:
 			if not builtin_catalog.has(type):return "Unsupported internal component"
 			if not part.get("nodes",[part.get("a",""),part.get("b","")]) is Array:return "Invalid internal pin list"
 			if part.get("nodes",[part.get("a",""),part.get("b","")]).size()!=builtin_catalog[type].pins.size():return "Internal pin count mismatch"
+			if part.get("nodes",[part.get("a",""),part.get("b","")]).any(func(pin):return not pin is String or pin.is_empty()):return "Internal component has an invalid terminal"
 			budget.parts+=preload("res://scripts/device_models.gd").expand(builtin_catalog.get(type,{"kind":"R"}),str(part.id),part.get("nodes",[part.get("a",""),part.get("b","")]),part).size()
 			if budget.parts>64:return "Expanded custom circuit exceeds 64 components"
 			if not builtin_catalog.has(type) or str(part.get("a","")).is_empty() or str(part.get("b","")).is_empty():return "Unsupported internal component"

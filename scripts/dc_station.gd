@@ -48,6 +48,10 @@ var result := {}
 var meter := "—"
 var samples: Array = []
 var meter_samples: Array=[]
+# Keep decimated long-window data as well as the 2 kHz recent samples.
+# A 0.1 Hz input needs more than 20 s of history to show two periods.
+var meter_medium_samples: Array=[]
+var meter_slow_samples: Array=[]
 var meter_range := 0.0
 var passive_cache := {}
 const ScopeSettings = preload("res://scripts/dc_scope/settings.gd")
@@ -104,6 +108,8 @@ func _clear_measurement_history() -> void:
 	audio_ids.clear()
 	audio_samples.clear()
 	meter_samples.clear()
+	meter_medium_samples.clear()
+	meter_slow_samples.clear()
 	samples.clear()
 	result={}
 	meter="—"
@@ -359,8 +365,15 @@ func finish_step(reused := false) -> void:
 		fuse=true;revision+=1;meter="FUSE OPEN";return
 	var v := difference("VΩ","COM")
 	if sample_now:
-		meter_samples.append([solver.time,difference("S1","GND"),difference("S2","GND"),v,float(result.i.get("ammeter",0))])
+		var meter_row: Array=[solver.time,difference("S1","GND"),difference("S2","GND"),v,float(result.i.get("ammeter",0))]
+		meter_samples.append(meter_row)
 		if meter_samples.size()>512:meter_samples.pop_front()
+		if meter_medium_samples.is_empty() or solver.time-float(meter_medium_samples[-1][0])>=.005-1e-9:
+			meter_medium_samples.append(meter_row)
+			if meter_medium_samples.size()>512:meter_medium_samples.pop_front()
+		if meter_slow_samples.is_empty() or solver.time-float(meter_slow_samples[-1][0])>=.05-1e-9:
+			meter_slow_samples.append(meter_row)
+			if meter_slow_samples.size()>512:meter_slow_samples.pop_front()
 	match meter_mode:
 		"DC V":meter="OL" if meter_range>0 and absf(v)>meter_range else "%.4f V"%v
 		"DC A":meter="FUSE OPEN" if fuse else "OL" if meter_range>0 and absf(float(result.i.get("ammeter",0)))>meter_range else "%.6f A"%float(result.i.get("ammeter",0))
@@ -378,11 +391,12 @@ func finish_step(reused := false) -> void:
 			elif solver.time<meter_analysis_at or solver.time-meter_analysis_at>=.05:
 				meter_analysis_at=solver.time
 				var column := 3 if meter_mode!="AC A" else 4
+				var window: Array=measurement_window(meter_samples,meter_medium_samples,meter_slow_samples,column)
 				if meter_mode.begins_with("AC"):
-					var ac_rms: float=ac_rms_only(meter_samples,column)
+					var ac_rms: float=ac_rms_only(window,column)
 					meter="OL" if meter_range>0 and ac_rms>meter_range else "%.5f %s RMS"%[ac_rms,"V" if column==3 else "A"]
 				else:
-					var stats := statistics(meter_samples,column)
+					var stats := statistics(window,column)
 					if meter_mode=="Frequency":meter="%.3f Hz"%stats.frequency if stats.frequency>0 else "No periodic signal"
 					else:meter="%.2f %%"%stats.duty if stats.frequency>0 else "No periodic signal"
 
@@ -630,6 +644,18 @@ func snapshot() -> Dictionary:
 	var public_board := board.duplicate(true)
 	public_board.erase("component_runtime")
 	return {"current_sources":([current_source]+auxiliary_sources).duplicate(true),"current_source":current_source.duplicate(true),"board_epoch":board_epoch,"board_stowed":board_stowed,"board_held":board_held,"board_position":board_position,"board_rotation":board_rotation,"firmware":public_device_states(),"board":public_board,"board_owner":board_owner,"master":master,"channels":channels.duplicate(true),"generator":generator.duplicate(true),"meter_mode":meter_mode,"meter_range":meter_range,"fuse":fuse,"resistance":resistance.duplicate(),"capacitance":capacitance,"wires":wires.duplicate(true),"result":result.duplicate(true),"meter":meter,"samples":samples.duplicate(true),"scope":scope.duplicate(true),"scope_acquisition":scope_capture.status(),"scope_probe":preload("res://scripts/dc_scope/probe_connections.gd").describe(wires,linked),"revision":revision}
+
+static func measurement_window(fast: Array,medium: Array,slow: Array,column: int) -> Array:
+	# Prefer the most recent high-rate samples when they contain two periods.
+	# Otherwise use the 200 Hz or 20 Hz history. Avoid aliased slow samples
+	# when the 2 kHz history has already resolved a faster signal.
+	for window in [fast,medium,slow]:
+		if window.size()<8:continue
+		var stats: Dictionary=statistics(window,column)
+		if float(stats.frequency)<=0.0:continue
+		var interval: float=(float(window[-1][0])-float(window[0][0]))/float(window.size()-1)
+		if float(stats.frequency)*interval<=.25:return window
+	return fast
 
 static func ac_rms_only(data: Array,column: int) -> float:
 	var sum := 0.0;var square := 0.0

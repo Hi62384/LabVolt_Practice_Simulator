@@ -802,8 +802,10 @@ func _process(delta: float) -> void:
 			if save_error!="":game.ui.log_message(save_error)
 			_recall_departed_boards()
 		var simulation_span: int=trace.begin_span("dc_lab_simulation") if is_instance_valid(trace) else -1
-		accumulator=minf(accumulator+delta,.04)
-		var steps := mini(80,int(accumulator/.0005))
+		# Keep simulation debt across slow frames rather than silently dropping
+		# electrical time. Consume at most 100 ms of 0.5 ms steps per frame.
+		accumulator+=maxf(0.0,delta)
+		var steps := mini(200,int(accumulator/.0005))
 		var _step := 0
 		native_host.refresh(benches)
 		var coupled_stations: Array=benches+ac_bridges if not external_links.is_empty() else []
@@ -824,15 +826,18 @@ func _process(delta: float) -> void:
 				if idle_bench.master or idle_bench.generator.enabled or idle_bench.board_simulating():
 					active_groups.append(group)
 				elif not idle_bench.portable_slot:
-					idle_bench.step(maxf(.0005,delta))
+					idle_bench.step(maxf(.0005,float(steps)*.0005))
 			coupled_groups=active_groups
-		var simulation_deadline := Time.get_ticks_usec()+simulation_budget_usec
+		# Slower rendering frames may budget proportionally more catch-up work,
+		# while preserving a per-frame ceiling for input and rendering.
+		var frame_budget: int=mini(24000,roundi(float(simulation_budget_usec)*clampf(delta*60.0,1.0,6.0)))
+		var simulation_deadline := Time.get_ticks_usec()+frame_budget
 		# The idle path used to repeat 80 empty substeps per frame. Preserve the
 		# single idle update, then consume the same simulation-time remainder.
 		if steps>0 and solver_links.is_empty() and not native_host.active and not benches.any(func(bench):return bench.master or bench.generator.enabled or bench.board_simulating()):
 			for bench in benches:
 				bench.linked=false
-				if not bench.portable_slot:bench.step(maxf(.0005,delta))
+				if not bench.portable_slot:bench.step(maxf(.0005,float(steps)*.0005))
 			_step=steps
 		var linear_plan := {}
 		var checked_linear_plan := false
@@ -863,7 +868,7 @@ func _process(delta: float) -> void:
 				for bench in benches:
 					bench.linked=false
 					if bench.master or bench.generator.enabled or bench.board_simulating():bench.step(.0005)
-					elif _step==0 and not bench.portable_slot:bench.step(maxf(.0005,delta))
+					elif _step==0 and not bench.portable_slot:bench.step(maxf(.0005,float(steps)*.0005))
 			_step+=1
 		accumulator-=_step*.0005
 		if is_instance_valid(trace):trace.end_span(simulation_span)

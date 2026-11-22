@@ -58,7 +58,9 @@ static func expand(type: String, id: String, pins: Array, part: Dictionary, time
 			"SQUARE":voltage*=1 if phase<.5 else -1
 			"TRIANGLE":voltage*=1.0-4.0*absf(phase-.5)
 		return [{"id":id,"kind":"V","a":pins[0],"b":pins[1],"value":voltage,"resistance":.03}]
-	var input := {"id":id,"kind":"R","a":pins[0],"b":pins[1],"value":.01 if config.mode=="Amps" else 1e7}
+	var input := {"id":id,"kind":"R","a":pins[0],"b":pins[1],"value":.01 if config.mode=="Amps" else 1e12 if config.mode=="Ohms" else 1e7}
 	if config.mode=="Ohms":
-		return [input,{"id":id+"/test","kind":"I","a":pins[1],"b":pins[0],"value":.001}]
+		# A 1 uA stimulus keeps an open input inside the solver voltage bounds.
+		# The 1 TΩ meter load is negligible for the supported 100 MΩ range.
+		return [input,{"id":id+"/test","kind":"I","a":pins[1],"b":pins[0],"value":.000001}]
 	return [input]
