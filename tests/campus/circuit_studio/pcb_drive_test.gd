@@ -242,8 +242,11 @@ func _check_input_leases() -> void:
 	probe.accept=true
 	var contradictory: Dictionary=press.duplicate(true)
 	contradictory.command={"op":"press","pressed":false}
+	# The preceding intentionally rejected probe call was still recorded in
+	# InputProbe.calls; compare the delta, not an initially empty history.
+	var calls_before_contradiction: int=probe.calls.size()
 	world._apply(1,contradictory)
-	assert(probe.calls.is_empty() and world.pcb_holders.is_empty(),
+	assert(probe.calls.size()==calls_before_contradiction and world.pcb_holders.is_empty(),
 		"Released joystick hardware must not acquire an exclusive pressed lease")
 	world._apply(1,press)
 	assert(world.pcb_holders.has("fixture|board/joy:"),"Valid joystick press did not acquire a lease")
