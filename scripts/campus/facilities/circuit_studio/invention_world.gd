@@ -29,6 +29,8 @@ func build(owner_game: Node) -> void:
 	game.session.restarted.connect(func():
 		placed.clear()
 		local_hold.clear()
+		for simulator in simulators.values():
+			if simulator.runtime.has_method("close"):simulator.runtime.close()
 		simulators.clear()
 		pcb_holders.clear()
 		pending_motion.clear()
@@ -60,6 +62,7 @@ func _roster_changed() -> void:
 
 func _remove_placed(key: String) -> void:
 	placed.erase(key)
+	if simulators.has(key) and simulators[key].runtime.has_method("close"):simulators[key].runtime.close()
 	simulators.erase(key)
 	pending_motion.erase(key)
 	if visuals.has(key):
@@ -136,7 +139,9 @@ func _pose(peer: int) -> Vector3:
 	return game.player.global_position if peer==1 else game.session.poses.get(peer,{}).get("position",Vector3.ZERO)
 
 func _apply(peer: int,action: Dictionary) -> void:
-	if not game.session.roster.has(peer) or var_to_bytes(action).size()>512:return
+	if not game.session.roster.has(peer):return
+	var request_limit:=2048 if action.get("op","")=="pcb_input" else 512
+	if var_to_bytes(action).size()>request_limit:return
 	var op:=str(action.get("op",""))
 	if op=="place":
 		var id:=str(action.get("id",""))
@@ -171,7 +176,7 @@ func _apply(peer: int,action: Dictionary) -> void:
 			elif part.type=="switch":features["switch_"+str(part.control).to_lower()]=true
 		Model.connect_wheels(parts)
 		var key:=_key(peer,id,slot)
-		placed[key]={"owner":peer,"id":id,"name":str(designs[id].name),"parts":parts,"bounds":bounds,"features":features,"controls":designs[id].controls.duplicate(true),"drive":drive,"state":{"A":false,"B":false},"effective":{"A":false,"B":false},"pcb_voltage":{"A":0.0,"B":0.0},"pcb_error":"","pcb_inputs":pcb_runtime.inputs.duplicate(true) if wants_pcb else [],"expiry":{"A":0,"B":0},"holder":{"A":0,"B":0},"position":position,"yaw":0.0,"angle":0.0}
+		placed[key]={"owner":peer,"id":id,"name":str(designs[id].name),"parts":parts,"bounds":bounds,"features":features,"controls":designs[id].controls.duplicate(true),"drive":drive,"state":{"A":false,"B":false},"effective":{"A":false,"B":false},"pcb_voltage":{"A":0.0,"B":0.0},"pcb_error":"","pcb_inputs":pcb_runtime.inputs.duplicate(true) if wants_pcb else [],"pcb_controls":pcb_runtime.input_states() if wants_pcb else {},"expiry":{"A":0,"B":0},"holder":{"A":0,"B":0},"position":position,"yaw":0.0,"angle":0.0}
 		placed[key]["hinge_angles"]={}
 		visuals[key]=_create_view(key,placed[key])
 		if wants_pcb:simulators[key]={"runtime":pcb_runtime,"clock":0.0}
@@ -198,7 +203,9 @@ func _apply(peer: int,action: Dictionary) -> void:
 	if op=="pcb_input":
 		if not simulators.has(key) or not action.get("id") is String or not action.get("pressed") is bool or not action.get("reverse",false) is bool or not action.get("command",{}) is Dictionary or action.get("command",{}).size()>8:return
 		var input_id:=str(action.id)
-		if input_id.length()>96:return
+		# Nested legal PCB controls include the full parent path. Do not silently
+		# reject them at the old 96-character single-device UI boundary.
+		if input_id.length()>512:return
 		var input_record: Dictionary={}
 		for entry in item.pcb_inputs:
 			if entry.id==input_id:input_record=entry;break
@@ -226,6 +233,10 @@ func _apply(peer: int,action: Dictionary) -> void:
 		# circuit/input reducer rejected. Otherwise stale or invalid input can
 		# lock other players out without changing the device.
 		if not simulators[key].runtime.input(input_id,action.pressed,bool(action.get("reverse",false)),command_data):return
+		var current: Dictionary=simulators[key].runtime.input_states()
+		if item.get("pcb_controls",{})!=current:
+			item.pcb_controls=current
+			pending_motion[key]=true
 		if holdable:
 			if action.pressed:pcb_holders[holder_key]={"peer":peer,"expiry":Time.get_ticks_msec()+650,"key":key,"id":input_id,"command":command_data.duplicate(true)}
 			else:pcb_holders.erase(holder_key)
@@ -484,6 +495,12 @@ func _release_pcb(holder_key: String) -> void:
 		if str(release.get("op","")) in ["touch","press"]:release={"op":"release"}
 		elif release.has("pressed"):release.pressed=false
 		simulators[holder.key].runtime.input(str(holder.id),false,false,release)
+		if placed.has(holder.key):
+			var item: Dictionary=placed[holder.key]
+			var current: Dictionary=simulators[holder.key].runtime.input_states()
+			if item.get("pcb_controls",{})!=current:
+				item.pcb_controls=current
+				pending_motion[holder.key]=true
 	pcb_holders.erase(holder_key)
 
 func _physics_process(delta: float) -> void:
@@ -559,7 +576,7 @@ func _physics_process(delta: float) -> void:
 		var updates: Dictionary={}
 		for key in pending_motion:
 			var item: Dictionary=placed[key]
-			updates[key]={"position":item.position,"yaw":item.yaw,"angle":item.angle,"state":item.state,"effective":item.effective,"pcb_voltage":item.pcb_voltage,"pcb_error":item.pcb_error,"hinge_angles":item.hinge_angles}
+			updates[key]={"position":item.position,"yaw":item.yaw,"angle":item.angle,"state":item.state,"effective":item.effective,"pcb_voltage":item.pcb_voltage,"pcb_error":item.pcb_error,"pcb_controls":item.get("pcb_controls",{}),"hinge_angles":item.hinge_angles}
 		for peer in sent_structure:
 			var visible: Dictionary={}
 			for key in updates:

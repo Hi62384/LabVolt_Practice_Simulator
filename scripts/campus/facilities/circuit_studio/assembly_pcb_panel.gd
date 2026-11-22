@@ -3,6 +3,8 @@ const StudioTheme=preload("res://scripts/ui/design_system/theme.gd")
 var game: Node
 var key: String
 var held: Dictionary={}
+var control_widgets: Dictionary={}
+var pending_control_until: Dictionary={}
 var hold_clock:=0.0
 var voltage: Label
 
@@ -25,6 +27,7 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 		var row:=HBoxContainer.new();controls.add_child(row)
 		var label:=Label.new();label.text=str(entry.name);label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;row.add_child(label)
 		var id:=str(entry.id)
+		var widget: Dictionary={"kind":str(entry.kind)}
 		if entry.kind=="button":
 			var hold:=Button.new();hold.text="Hold";row.add_child(hold)
 			hold.button_down.connect(_begin_hold.bind(id,{}))
@@ -32,6 +35,7 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 		elif entry.kind=="toggle":
 			var toggle:=Button.new();toggle.text="Toggle";row.add_child(toggle)
 			toggle.pressed.connect(_submit.bind(id,{}))
+			widget.toggle=toggle
 		elif entry.kind=="io_encoder":
 			for steps in [-1,1]:
 				var turn:=Button.new();turn.text="−" if steps<0 else "+";row.add_child(turn)
@@ -39,7 +43,8 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 		elif entry.kind=="io_selector":
 			var select:=OptionButton.new();row.add_child(select)
 			for position in 3:select.add_item(str(position))
-			select.item_selected.connect(func(position: int):_submit(id,{"op":"select","position":position}))
+			select.item_selected.connect(_selector_changed.bind(id))
+			widget.selector=select
 		elif entry.kind=="io_keypad":
 			var keys:=HFlowContainer.new();controls.add_child(keys)
 			for number in 12:
@@ -50,6 +55,7 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 			var x_label:=Label.new();x_label.text="Level" if entry.kind=="io_slider" else "X";row.add_child(x_label)
 			var x:=HSlider.new();x.min_value=0;x.max_value=1;x.step=.05;x.value=.5;x.custom_minimum_size.x=130;row.add_child(x)
 			var y:=HSlider.new();y.min_value=0;y.max_value=1;y.step=.05;y.value=.5;y.custom_minimum_size.x=130
+			widget.x=x;widget.y=y
 			if entry.kind!="io_slider":
 				var y_label:=Label.new();y_label.text="Y";row.add_child(y_label)
 				row.add_child(y)
@@ -61,6 +67,7 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 				# A single pointer must be able to hold the push-button while moving
 				# both joystick axes. Release recenters the spring-loaded stick.
 				var press:=Button.new();press.text="Press on/off";press.toggle_mode=true;row.add_child(press)
+				widget.press=press
 				press.toggled.connect(func(pressed: bool):
 					if pressed:_begin_hold(id,{"op":"press","pressed":true})
 					else:
@@ -71,6 +78,7 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 				# A mouse cannot drag the coordinate sliders while holding a button.
 				# Toggle contact on/off so one pointer can perform touch gestures.
 				var touch:=Button.new();touch.text="Touch on/off";touch.toggle_mode=true;row.add_child(touch)
+				widget.press=touch
 				touch.toggled.connect(func(pressed: bool):
 					if pressed:_begin_hold(id,{"op":"touch","x":x.value,"y":y.value,"pressed":true})
 					else:_end_hold(id))
@@ -86,13 +94,17 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 					adjust.tooltip_text={"voltage":"Change output by 0.5 V","frequency":"Change frequency by 1 Hz","wave":"Cycle waveform"}[setting]
 					setting_row.add_child(adjust)
 					adjust.pressed.connect(_adjust.bind(id,reverse,setting))
+			var source_readout:=Label.new();source_readout.text="";controls.add_child(source_readout)
+			widget.readout=source_readout
 		else:
 			for reverse in [true,false]:
 				var adjust:=Button.new();adjust.text="−" if reverse else "+";row.add_child(adjust)
 				adjust.pressed.connect(_adjust.bind(id,reverse))
+		control_widgets[id]=widget
 	if item.get("pcb_inputs",[]).is_empty():
 		var label:=Label.new();label.text="This PCB has no manual inputs. Its circuit and firmware run while placed.";controls.add_child(label)
 	_update_voltage()
+	_sync_controls()
 	# Headless test fixtures can exercise real controls without creating
 	# a renderer-backed subwindow; normal gameplay always opens the window.
 	if show_window:popup_centered()
@@ -104,10 +116,46 @@ func _update_voltage() -> void:
 	if not str(item.get("pcb_error","")).is_empty():voltage.text="Circuit error: "+str(item.pcb_error).left(100);return
 	voltage.text="5 V supply · A %.2f V · B %.2f V"%[float(item.pcb_voltage.A),float(item.pcb_voltage.B)]
 
+func _mark_pending(id: String) -> void:
+	pending_control_until[id]=Time.get_ticks_msec()+350
+
+func _selector_changed(position: int,id: String) -> void:
+	_submit(id,{"op":"select","position":position})
+
+func _sync_controls() -> void:
+	if not is_instance_valid(game):return
+	var item: Dictionary=game.invention_world.placed.get(key,{})
+	var states: Dictionary=item.get("pcb_controls",{})
+	var now:=Time.get_ticks_msec()
+	for id in control_widgets:
+		if not states.get(id) is Dictionary or states[id].is_empty():continue
+		if now<int(pending_control_until.get(id,0)):continue
+		var state: Dictionary=states[id]
+		var widget: Dictionary=control_widgets[id]
+		if widget.has("selector"):
+			var select: OptionButton=widget.selector
+			var position:=clampi(int(state.get("position",0)),0,select.item_count-1)
+			if select.selected!=position:select.select(position)
+		if widget.has("x") and not held.has(str(id)+":"):
+			var slider: HSlider=widget.x
+			slider.set_value_no_signal(clampf(float(state.get("x",state.get("setting",.5))),0.0,1.0))
+			if widget.kind!="io_slider":
+				var vertical: HSlider=widget.y
+				vertical.set_value_no_signal(clampf(float(state.get("y",.5)),0.0,1.0))
+		if widget.has("press") and not held.has(str(id)+":"):
+			widget.press.set_pressed_no_signal(bool(state.get("pressed",false)))
+		if widget.has("toggle"):widget.toggle.text="On" if state.get("pressed",false) else "Off"
+		if widget.has("readout"):
+			var v: float=float(state.get("source_voltage",5.0))
+			var hz: float=float(state.get("source_frequency",60.0))
+			widget.readout.text="%.1f V · %.1f Hz · wave %d"%[v,hz,int(state.get("source_wave",0))] if widget.kind!="battery_adjustable" else "%.1f V DC"%v
+
 func _submit(id: String,command: Dictionary) -> void:
+	_mark_pending(id)
 	game.invention_world.request_pcb_input(key,id,true,false,command)
 
 func _adjust(id: String,reverse: bool,source_adjust: String="") -> void:
+	_mark_pending(id)
 	var command: Dictionary={"source_adjust":source_adjust} if not source_adjust.is_empty() else {}
 	game.invention_world.request_pcb_input(key,id,true,reverse,command)
 
@@ -115,6 +163,7 @@ func _begin_hold(id: String,command: Dictionary) -> void:
 	var token:=id+":"+str(command.get("key",""))
 	if held.has(token):return
 	held[token]={"id":id,"command":command.duplicate(true)}
+	_mark_pending(id)
 	hold_clock=0.0
 	game.invention_world.request_pcb_input(key,id,true,false,command)
 
@@ -141,11 +190,13 @@ func _end_hold(id: String,command: Dictionary={}) -> void:
 	if str(release.get("op","")) in ["touch","press"]:release={"op":"release"}
 	elif release.has("pressed"):release.pressed=false
 	game.invention_world.request_pcb_input(key,id,false,false,release)
+	_mark_pending(id)
 	held.erase(token)
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
 	_update_voltage()
+	_sync_controls()
 	if held.is_empty():return
 	hold_clock+=delta
 	if hold_clock>=.25:

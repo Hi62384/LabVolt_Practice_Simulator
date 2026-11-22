@@ -9,8 +9,10 @@ var checked_dependency := false
 var active := false
 var records := {}
 var fault := ""
+# A transient sidecar failure must not strand unchanged installed firmware.
+var retry_at_msec := 0
 func close() -> void:
- scheduler.close();signature="";records={};active=false
+ scheduler.close();signature="";records={};active=false;retry_at_msec=0
 func refresh(stations: Array) -> void:
  var found := {};var keys: Array=[]
  for index in stations.size():
@@ -27,8 +29,8 @@ func refresh(stations: Array) -> void:
  keys.sort();var next := "|".join(keys)
  if next==signature:
   records=found
-  return
- scheduler.close();signature=next;records=found;active=not found.is_empty();fault=""
+  if active or found.is_empty() or Time.get_ticks_msec()<retry_at_msec:return
+ scheduler.close();signature=next;records=found;active=not found.is_empty();fault="";retry_at_msec=0
  if not active:return
  if not checked_dependency:
   checked_dependency=true;node_path=preload("res://scripts/firmware_backends/native_host_config.gd").executable()
@@ -39,6 +41,10 @@ func refresh(stations: Array) -> void:
   if not scheduler.add(id,nodes,part.program,node_path,"",int(stations[int(record.station)].board_epoch)):fail(stations,scheduler.fault);return
 func fail(stations: Array,message: String) -> void:
  fault=message;scheduler.close();active=false
+ # Retry a failed backend after a short cooldown, including when Node.js was
+ # installed after the game opened. A changed device signature retries at once.
+ retry_at_msec=Time.get_ticks_msec()+3000
+ checked_dependency=false;node_path=""
  for record in records.values():stations[record.station].firmware_states[record.part.id]={"powered":false,"outputs":{},"status":message}
 func advance(stations: Array,links: Array,dt: float,refresh_devices := true) -> bool:
  if refresh_devices:refresh(stations)
