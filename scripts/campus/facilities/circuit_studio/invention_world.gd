@@ -462,10 +462,18 @@ func _hinge_clear(view: Node3D,joint: Dictionary,angle: float) -> bool:
 			query.shape=collider.shape
 			query.transform=solid.global_transform*next_transform
 			if not space.intersect_shape(query,1).is_empty():return false
+	# Hinge pivot boxes are intentionally articulation bearings. Their
+	# adjacent moving arm would otherwise clip the pivot's square corners
+	# after about ten degrees and lock every valid 65-degree hinge.
+	var bearings: Dictionary={}
+	for chain_index in joint.chain:
+		var part_index: int=int(joints[chain_index].part_index)
+		if part_index>=0 and part_index<solid.get_child_count():
+			bearings[solid.get_child(part_index).get_instance_id()]=true
 	for moving_part in moving.values():
 		for other in solid.get_children():
 			if not other is CollisionShape3D or not other.shape is BoxShape3D:continue
-			if moving.has(other.get_instance_id()):continue
+			if moving.has(other.get_instance_id()) or bearings.has(other.get_instance_id()):continue
 			if _box_overlap(moving_part.transform,moving_part.size,other.transform,other.shape.size):return false
 	return true
 

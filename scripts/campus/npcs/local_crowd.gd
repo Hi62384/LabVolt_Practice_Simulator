@@ -174,7 +174,7 @@ func advance(delta: float) -> void:
 			var simulated: Dictionary = _behavior.students[i]
 			item.node.position=simulated.position
 			moving_now=bool(simulated.moving)
-		var sitting:=item.route.is_empty() and i<_behavior.students.size() and bool(_behavior.students[i].get("seated",false))
+		var sitting: bool=item.route.is_empty() and i<_behavior.students.size() and bool(_behavior.students[i].get("seated",false))
 		if bool(item.get("seated",false))!=sitting:
 			item.seated=sitting
 			(item.node.material_override as ShaderMaterial).set_shader_parameter("sitting",1.0 if sitting else 0.0)

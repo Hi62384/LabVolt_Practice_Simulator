@@ -64,6 +64,12 @@ func open_station(owner_game: Node) -> void:
 		if page=="library":notice.text=message)
 	var authority=game.electronics_trade.authority
 	if is_instance_valid(authority):authority.operation_result.connect(_on_host_operation_result)
+	game.session.leaving.connect(func():
+		if not is_instance_valid(self) or pending_host_save.is_empty():return
+		pending_host_save=""
+		if page=="editor" and is_instance_valid(notice):
+			notice.text="Host disconnected before blueprint save confirmation; reconnect and retry."
+			if validation_refresh.is_valid():validation_refresh.call())
 	_library()
 	popup_centered()
 

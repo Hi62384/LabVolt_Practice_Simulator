@@ -77,7 +77,7 @@ func _tick() -> void:
 	if state.phase in ["open", "closing"]:
 		for peer in game.session.roster:
 			var point := _position(int(peer))
-			if _doorway(point, state.floor_id) and not _inside(point,state.floor_id): blocked = true
+			if _doorway(point, state.floor_id) and (not _inside(point,state.floor_id) or point.x<Geometry.DOOR_X+.38): blocked = true
 			if _inside(point, state.floor_id):
 				occupants[int(peer)] = point
 				if not _eligible(int(peer)): eligible = false

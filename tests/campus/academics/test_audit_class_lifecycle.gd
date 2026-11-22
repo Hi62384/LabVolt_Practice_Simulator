@@ -49,13 +49,29 @@ func _run() -> void:
 	school.identities[2]=token
 	school._fail_departing(token,2)
 	assert(not school.archive.has(token) or school.archive[token].is_empty(),"Disconnected guest was assigned an official zero")
+	# Use a real worksheet produced by the game; a partial synthetic
+	# dictionary would crash the unrelated SchoolWorld render/grade pipeline.
+	var project: Dictionary=school.course_bridge.generate("ETY155",1,"lecture",0,123)
+	assert(not project.is_empty() and not project.has("error"))
+	var paper_id: int=school._give(2,project,false,false)
+	assert(paper_id>0)
+	school.papers[paper_id].class_round=701
+	school.papers[paper_id].answers["0"]="retained"
+	school.papers[paper_id].held=false
+	school.papers[paper_id].owner=0
 	school.identities.erase(2)
 	school.round_id=701
 	school.phase="assignment"
-	school.papers[701]={"id":701,"identity":token,"owner":0,"class_round":701,"project":{},"answers":{"0":"retained"},"mark":{},"revision":0,"held":false}
 	session.roster[3]={"name":"Returning guest"}
 	school._identify(3,token)
-	assert(school.papers[701].owner==3 and school.papers[701].answers["0"]=="retained","Reconnect discarded existing assessment answers")
+	assert(school.papers[paper_id].owner==3 and school.papers[paper_id].answers["0"]=="retained","Reconnect discarded existing assessment answers")
+	# Restore the fixture to Freeplay so the main game timer cannot grade a
+	# synthetic active class during test teardown.
+	school.class_students.clear()
+	school.papers.clear()
+	school.identities.erase(3)
+	school.mode="Freeplay"
+	school.phase="freeplay"
 
 	var classes=game.lecture_classes
 	game.faculty.current["dc_lab"]="mr_phillips"
