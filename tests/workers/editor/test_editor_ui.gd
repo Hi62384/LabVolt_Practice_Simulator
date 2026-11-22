@@ -19,7 +19,10 @@ func run() -> void:
 	# The circuit designer edits a separate draft, not the equipped kit. Load
 	# the test circuit into that draft and explicitly begin its simulation.
 	ui.profile.data.circuit_draft=ui.profile.data.kits.starter.board.duplicate(true)
-	ui.open("design")
+	# Enter the editor itself, not the project browser (which hides the
+	# canvas until a saved circuit or a new project is selected).
+	ui.open("design",-1,false)
+	check(ui.canvas.is_visible_in_tree(),"designer circuit editor must be visible")
 	ui.workspace.simulation_button.button_pressed=true
 	check(ui.workspace.simulating,"designer simulation can be started")
 	check(ui.canvas.analyzer_enabled and not ui.profile.data.analyzer,"designer analyzer free without changing ownership")
