@@ -16,7 +16,12 @@ func run() -> void:
 	ui.canvas._gui_input(click);ui.canvas._gui_input(click)
 	check(ui.canvas.board.parts.is_empty() and ui.canvas.first=="","locked probe tool cannot place invalid components")
 	ui.profile.data.kits.starter.board.parts=[{"id":"battery","type":"battery","a":"A1","b":"F1"},{"id":"load","type":"r1000","a":"B1","b":"G1"}]
+	# The circuit designer edits a separate draft, not the equipped kit. Load
+	# the test circuit into that draft and explicitly begin its simulation.
+	ui.profile.data.circuit_draft=ui.profile.data.kits.starter.board.duplicate(true)
 	ui.open("design")
+	ui.workspace.simulation_button.button_pressed=true
+	check(ui.workspace.simulating,"designer simulation can be started")
 	check(ui.canvas.analyzer_enabled and not ui.profile.data.analyzer,"designer analyzer free without changing ownership")
 	ui.canvas.selected_type="probe+";click.position=ui.canvas.at("A1");ui.canvas._gui_input(click)
 	ui.canvas.selected_type="probe-";click.position=ui.canvas.at("F1");ui.canvas._gui_input(click)
