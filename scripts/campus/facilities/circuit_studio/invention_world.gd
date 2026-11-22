@@ -495,7 +495,7 @@ func _release_pcb(holder_key: String) -> void:
 		if str(release.get("op","")) in ["touch","press"]:release={"op":"release"}
 		elif release.has("pressed"):release.pressed=false
 		simulators[holder.key].runtime.input(str(holder.id),false,false,release)
-		if placed.has(holder.key):
+		if placed.has(holder.key) and simulators[holder.key].runtime.has_method("input_states"):
 			var item: Dictionary=placed[holder.key]
 			var current: Dictionary=simulators[holder.key].runtime.input_states()
 			if item.get("pcb_controls",{})!=current:
@@ -576,7 +576,8 @@ func _physics_process(delta: float) -> void:
 		var updates: Dictionary={}
 		for key in pending_motion:
 			var item: Dictionary=placed[key]
-			updates[key]={"position":item.position,"yaw":item.yaw,"angle":item.angle,"state":item.state,"effective":item.effective,"pcb_voltage":item.pcb_voltage,"pcb_error":item.pcb_error,"pcb_controls":item.get("pcb_controls",{}),"hinge_angles":item.hinge_angles}
+			updates[key]={"position":item.position,"yaw":item.yaw,"angle":item.angle,"state":item.state,"effective":item.effective,"pcb_voltage":item.pcb_voltage,"pcb_error":item.pcb_error,"hinge_angles":item.hinge_angles}
+			if item.has("pcb_controls"):updates[key].pcb_controls=item.pcb_controls
 		for peer in sent_structure:
 			var visible: Dictionary={}
 			for key in updates:

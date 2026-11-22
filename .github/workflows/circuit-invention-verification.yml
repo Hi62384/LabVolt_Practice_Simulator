@@ -60,6 +60,15 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Expose trusted CI Node path for native firmware integration
+        shell: pwsh
+        run: |
+          $node = (Get-Command node.exe).Source
+          if (!(Test-Path $node)) { throw 'Node executable not available' }
+          "LABVOLT_TEST_NODE=$node" >> $env:GITHUB_ENV
       - name: Set up Godot Mono
         shell: pwsh
         run: |
@@ -115,6 +124,7 @@ jobs:
             'tests/electronics/test_inputs.gd' = ''
             'tests/electronics/test_io_input_guard.gd' = ''
             'tests/electronics/test_meter_modes.gd' = ''
+            'tests/electronics/test_additional_electronics_regressions.gd' = 'ADDITIONAL_ELECTRONICS_REGRESSIONS PASS'
             'tests/electronics/test_normally_closed_button.gd' = ''
             'tests/electronics/test_public_device_state.gd' = ''
             'tests/electronics/test_current_source_scheduler.gd' = ''
@@ -141,6 +151,8 @@ jobs:
             'tests/campus/circuit_studio/invention_pcb_preview_input_test.gd' = 'INVENTION_PCB_PREVIEW_INPUT PASS'
             'tests/campus/circuit_studio/pcb_drive_test.gd' = 'CHAINED_HINGE_PASS'
             'tests/campus/circuit_studio/mounted_pcb_transient_test.gd' = 'MOUNTED_PCB_TRANSIENT PASS'
+            'tests/campus/circuit_studio/test_mounted_control_sync.gd' = 'MOUNTED_CONTROL_SYNC PASS'
+            'tests/campus/circuit_studio/test_mounted_native_firmware.gd' = 'MOUNTED_NATIVE_FIRMWARE PASS'
             'tests/campus/circuit_studio/invention_network_load.gd' = 'INVENTION_NETWORK_LOAD PASS'
             'tests/campus/circuit_studio/audit_regression_test.gd' = 'AUDIT_CIRCUIT_REGRESSIONS PASS'
             'tests/campus/academics/test_audit_class_lifecycle.gd' = 'AUDIT_CLASS_LIFECYCLE PASS'
