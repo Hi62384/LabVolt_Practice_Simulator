@@ -762,6 +762,14 @@ func _add_part() -> void:
 	if kind in ["pcb","nested"] and ref.is_empty():
 		notice.text="Save a compatible blueprint first."
 		return
+	# A cleared selector (or a deleted PCB pin) must never be turned into
+	# connector zero or passed to get_item_metadata(-1) when adding a part.
+	if kind=="pcb":
+		for role in ["power","ground","A","B"]:
+			var choice: OptionButton=pin_choices.get(role)
+			if not is_instance_valid(choice) or choice.selected<0:
+				notice.text="Configure PCB supply and output pins."
+				return
 	if draft.parts.size()>=Model.MAX_PARTS:
 		notice.text="A design holds at most 32 parts."
 		return

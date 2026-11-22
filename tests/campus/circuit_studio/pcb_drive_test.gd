@@ -262,6 +262,11 @@ func _check_world_clock() -> void:
 	world.set_physics_process(false)
 	world.game=game
 	world.placed["test"]={
+		# Clock tests call the full live-world physics loop. A placed invention
+		# must have the same structural fields as one fabricated by the host,
+		# even when this fixture intentionally has no moving parts.
+		"parts":[],"position":Vector3.ZERO,"yaw":0.0,"angle":0.0,
+		"hinge_angles":{},
 		"controls":{"A":"hold","B":"toggle"},
 		"state":{"A":false,"B":false},
 		"effective":{"A":false,"B":false},

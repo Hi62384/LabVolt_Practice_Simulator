@@ -13,6 +13,9 @@ func _initialize():
 	assert(not station.board.parts[1].pressed,"An invalid pressed value must not toggle the switch")
 	assert(station.apply({"op":"input","id":"t","reverse":"true"})!="")
 	assert(not station.board.parts[1].pressed,"An invalid direction must not toggle the switch")
+	assert(station.apply({"op":"input","id":"b","hold":"false"})!="")
+	assert(not station.board.parts[0].get("pressed",false),
+		"A text hold value must not press or latch a momentary button")
 	for i in 30:station.apply({"op":"input","id":"p"})
 	assert(station.board.parts[2].setting==1)
 	for i in 30:station.apply({"op":"input","id":"p","reverse":true})

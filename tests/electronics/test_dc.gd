@@ -41,6 +41,36 @@ func _initialize() -> void:
 	check(absf(stats.frequency-10)<.1,"scope frequency comes from solved signal")
 	print(stats);check(absf(stats.vpp-4.0*1000/1050)<.01,"generator 50 ohm loading changes waveform")
 	var other=load("res://scripts/dc_station.gd").new();other.step();check(not other.master and other.wires.is_empty(),"independent stations")
+	# Malformed network/editor commands must never coerce string indices,
+	# boolean strings, or text-number payloads into a different live setting.
+	var invalid_actions: Array=[
+		{"op":"channel","index":"0","key":"enabled","value":true},
+		{"op":"channel","index":0,"key":"enabled","value":"false"},
+		{"op":"channel","index":0,"key":"voltage","value":"12.0"},
+		{"op":"channel","index":1,"key":"limit","value":"0.2"},
+		{"op":"generator","key":"enabled","value":"false"},
+		{"op":"generator","key":"frequency","value":"20.0"},
+		{"op":"resistor","index":"0","value":470.0},
+		{"op":"resistor","index":0,"value":"470"},
+		{"op":"capacitor","value":"0.000001"},
+		{"op":"meter_range","value":"20"}
+	]
+	for invalid in invalid_actions:
+		var before: Array=[other.channels.duplicate(true),other.generator.duplicate(true),
+			other.resistance.duplicate(),other.capacitance,other.meter_range,other.revision]
+		var rejected: String=other.apply(invalid)
+		check(not rejected.is_empty() and other.channels==before[0] and other.generator==before[1]
+			and other.resistance==before[2] and other.capacitance==before[3]
+			and other.meter_range==before[4] and other.revision==before[5],
+			"malformed station command is rejected without changing hardware: "+str(invalid.op))
+	check(other.apply({"op":"channel","index":0,"key":"enabled","value":true})==""
+		and other.apply({"op":"channel","index":0,"key":"voltage","value":12.0})==""
+		and other.apply({"op":"generator","key":"enabled","value":true})==""
+		and other.apply({"op":"generator","key":"frequency","value":20.0})==""
+		and other.apply({"op":"resistor","index":0,"value":470.0})==""
+		and other.apply({"op":"capacitor","value":0.000001})==""
+		and other.apply({"op":"meter_range","value":20.0})=="",
+		"valid typed station commands still work")
 	print("DC FAILURES: ",failures);quit(failures)
 
 

@@ -339,6 +339,14 @@ func _run() -> void:
 		default_pins[role]=int(selector.get_item_metadata(selector.selected))
 	assert(default_pins.power==0 and default_pins.ground==1 and Model.validate_pcb_pin_map(generic_bp,default_pins)=="",
 		"Generically named PCB pins must default to distinct, valid supply connectors")
+	# A missing pin selection on a new PCB must not read item metadata at -1,
+	# silently default to pin zero, or add a partially mapped board.
+	var before_unmapped: int=window.draft.parts.size()
+	window.pin_choices.A.select(-1)
+	window._add_part()
+	assert(window.draft.parts.size()==before_unmapped and window.notice.text.contains("Configure PCB"),
+		"Adding a PCB with a missing pin selection must fail without changing the draft")
+	window._pin_options()
 	# A cleared PCB reference must not make the inspector read metadata at -1.
 	var previous_count: int=window.draft.parts.size()
 	window.part_ref.select(-1)

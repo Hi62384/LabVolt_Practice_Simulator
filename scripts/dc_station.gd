@@ -449,6 +449,7 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			# button state/direction, especially when received from other players.
 			if action.has("pressed") and not action.pressed is bool:return "Invalid input button state"
 			if action.has("reverse") and not action.reverse is bool:return "Invalid input direction"
+			if action.has("hold") and not action.hold is bool:return "Invalid input hold mode"
 			var requested := str(action.get("id",""))
 			if not requested.begins_with("board/"):requested="board/"+requested
 			var found := false
@@ -525,26 +526,35 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			_clear_measurement_history()
 		"master":master=not master
 		"channel":
-			var i := int(action.get("index",-1));var key := str(action.get("key",""))
-			if i<0 or i>2 or key not in ["voltage","limit","enabled"]:return "Invalid channel"
-			if key=="enabled":channels[i][key]=bool(action.get("value",false))
+			var raw_index: Variant=action.get("index",-1)
+			var key := str(action.get("key",""))
+			if not raw_index is int or raw_index<0 or raw_index>2 or key not in ["voltage","limit","enabled"]:return "Invalid channel"
+			var i: int=raw_index
+			var raw_value: Variant=action.get("value")
+			if key=="enabled":
+				if not raw_value is bool:return "Invalid channel switch"
+				channels[i][key]=raw_value
 			else:
-				var value := float(action.get("value",0))
-				if not is_finite(value):return "Invalid number"
+				if not (raw_value is int or raw_value is float) or not is_finite(float(raw_value)):return "Invalid number"
+				var value: float=float(raw_value)
 				channels[i][key]=clampf(value,0 if key=="voltage" else .001,30 if key=="voltage" else 1)
 		"generator":
-			var key := str(action.get("key",""));var value=action.get("value")
-			if key=="enabled":generator.enabled=bool(value)
-			elif key=="wave" and str(value) in ["Sine","Square","Triangle","Sawtooth","Pulse","DC"]:generator.wave=str(value)
+			var key := str(action.get("key",""));var value: Variant=action.get("value")
+			if key=="enabled":
+				if not value is bool:return "Invalid generator switch"
+				generator.enabled=value
+			elif key=="wave" and value is String and value in ["Sine","Square","Triangle","Sawtooth","Pulse","DC"]:generator.wave=value
 			elif key in ["frequency","amplitude","offset","phase","duty","resistance"]:
-				var number := float(value)
-				if not is_finite(number):return "Invalid number"
+				if not (value is int or value is float) or not is_finite(float(value)):return "Invalid number"
+				var number: float=float(value)
 				var bounds: Dictionary={"frequency":[.1,100.0],"amplitude":[0,10],"offset":[-10,10],"phase":[0,360],"duty":[.05,.95],"resistance":[1,1000]}
 				generator[key]=clampf(number,bounds[key][0],bounds[key][1])
 			else:return "Invalid generator control"
 		"meter_range":
-			var value := float(action.get("value",0))
-			if not is_finite(value) or value not in [0.0,.0002,.002,.02,.2,2.,20.,200.]:return "Invalid meter range"
+			var raw_value: Variant=action.get("value")
+			if not (raw_value is int or raw_value is float) or not is_finite(float(raw_value)):return "Invalid meter range"
+			var value: float=float(raw_value)
+			if value not in [0.0,.0002,.002,.02,.2,2.,20.,200.]:return "Invalid meter range"
 			meter_range=value
 		"meter":
 			if str(action.get("mode")) not in ["DC V","AC V","DC A","AC A","Resistance","Continuity","Diode","Capacitance","Frequency","Duty"]:return "Unsupported meter mode"
@@ -553,13 +563,14 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			if master or generator.enabled:return "Disable outputs before replacing fuse"
 			fuse=false
 		"resistor":
-			var index := int(action.get("index",-1));var value := float(action.get("value",0))
-			if index not in [0,1] or not is_finite(value):return "Invalid resistor"
-			resistance[index]=clampf(value,1,1e6)
+			var raw_index: Variant=action.get("index",-1)
+			var raw_value: Variant=action.get("value")
+			if not raw_index is int or raw_index not in [0,1] or not (raw_value is int or raw_value is float) or not is_finite(float(raw_value)):return "Invalid resistor"
+			resistance[raw_index]=clampf(float(raw_value),1,1e6)
 		"capacitor":
-			var value := float(action.get("value",0))
-			if not is_finite(value):return "Invalid capacitance"
-			capacitance=clampf(value,1e-9,.01)
+			var raw_value: Variant=action.get("value")
+			if not (raw_value is int or raw_value is float) or not is_finite(float(raw_value)):return "Invalid capacitance"
+			capacitance=clampf(float(raw_value),1e-9,.01)
 		"wire":
 			var a := str(action.get("a",""));var b := str(action.get("b",""))
 			if a not in PORTS or b not in PORTS or wires.size()>=48:return "Invalid lead"
