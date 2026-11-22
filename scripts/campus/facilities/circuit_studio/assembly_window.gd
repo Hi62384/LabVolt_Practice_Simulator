@@ -44,6 +44,8 @@ var remove_target := ""
 var copies_prompt: ConfirmationDialog
 var copies_target := ""
 var validation_refresh: Callable = Callable()
+var pending_host_save := ""
+var pending_host_revision := false
 # Preserve PCB settings while filtering or changing the parts palette.
 var reference_cache: Dictionary={}
 var reference_kind := ""
@@ -61,11 +63,22 @@ func open_station(owner_game: Node) -> void:
 	game.invention_world.placement_finished.connect(func(_blueprint_id: String,message: String):
 		if page=="library":notice.text=message)
 	var authority=game.electronics_trade.authority
-	if is_instance_valid(authority):
-		authority.operation_result.connect(func(_operation: String,_result: Dictionary):
-			if is_instance_valid(self) and page=="library":_library())
+	if is_instance_valid(authority):authority.operation_result.connect(_on_host_operation_result)
 	_library()
 	popup_centered()
+
+func _on_host_operation_result(operation: String,result: Dictionary) -> void:
+	if not is_instance_valid(self):return
+	if operation=="metadata" and not pending_host_save.is_empty() and str(result.get("request_id",""))==pending_host_save:
+		pending_host_save=""
+		if bool(result.get("ok",false)):
+			var revised:=pending_host_revision
+			_library()
+			notice.text="New revision saved. Existing copies keep their original design." if revised else "Blueprint saved. Fabricate a copy to place it."
+		else:
+			if validation_refresh.is_valid() and page=="editor":validation_refresh.call()
+			notice.text="Host rejected blueprint save: "+str(result.get("error","Save failed."))
+	elif page=="library":_library()
 
 func _close() -> void:
 	if _has_unsaved_changes():
@@ -197,6 +210,7 @@ func _library() -> void:
 		repeated_names[saved_name]=int(repeated_names.get(saved_name,0))+1
 	for id in ids:
 		var error: String=Model.validate(str(id),designs,profile.data.get("blueprints",{}))
+		var structure_error: String=Model.structure_error(str(id),designs,profile.data.get("blueprints",{})) if error.is_empty() else error
 		var cost: int=Model.price(str(id),designs,profile.data.get("blueprints",{})) if error.is_empty() else -1
 		var panel:=PanelContainer.new();body.add_child(panel)
 		var column:=VBoxContainer.new();panel.add_child(column)
@@ -204,6 +218,9 @@ func _library() -> void:
 		if int(repeated_names.get(display_name,0))>1:display_name+=" · "+str(id).right(8)
 		var heading:=_label(column,"%s · %d parts · %d copies · %s"%[display_name,designs[id].parts.size(),int(profile.data.get("invention_copies",{}).get(id,0)),"$%d per copy"%cost if cost>=0 else error])
 		heading.tooltip_text="Blueprint "+str(id)
+		if not structure_error.is_empty():
+			heading.text+="\n"+structure_error
+			heading.tooltip_text+=" · "+structure_error
 		var actions:=HFlowContainer.new()
 		column.add_child(actions)
 		_button(actions,"Edit",func():editing_id=str(id);draft=designs[id].duplicate(true);_editor())
@@ -214,10 +231,13 @@ func _library() -> void:
 			draft.name=(str(draft.name).left(34)+" copy")
 			_editor())
 		var fabricate:=_button(actions,"Fabricate",_fabricate.bind(str(id)))
-		fabricate.disabled=cost<0 or int(profile.data.get("invention_copies",{}).get(id,0))>=100
+		fabricate.disabled=cost<0 or not structure_error.is_empty() or int(profile.data.get("invention_copies",{}).get(id,0))>=100
 		if int(profile.data.get("invention_copies",{}).get(id,0))>=100:
 			fabricate.tooltip_text="Maximum 100 copies. Discard unused copies before fabricating more."
-		var place:=_button(actions,"Place copy",_place.bind(str(id)));place.disabled=cost<0 or int(profile.data.get("invention_copies",{}).get(id,0))<1
+		var place:=_button(actions,"Place copy",_place.bind(str(id)));place.disabled=cost<0 or not structure_error.is_empty() or int(profile.data.get("invention_copies",{}).get(id,0))<1
+		if not structure_error.is_empty():
+			fabricate.tooltip_text=structure_error
+			place.tooltip_text=structure_error
 		if int(profile.data.get("invention_copies",{}).get(id,0))>0 and not game.session.online:
 			_button(actions,"Discard copies",_discard_copies.bind(str(id)))
 		_button(actions,"Remove blueprint",_request_remove.bind(str(id)))
@@ -375,7 +395,7 @@ func _editor(message: String="") -> void:
 	var refresh:=func():
 		var error:=_draft_error()
 		validation.text=error
-		save.disabled=not error.is_empty()
+		save.disabled=not error.is_empty() or not pending_host_save.is_empty()
 		test.disabled=save.disabled
 		var staged: Dictionary=_staged_draft()
 		undo_button.disabled=undo_stack.is_empty() and (staged.has("error") or staged.draft==draft)
@@ -494,7 +514,7 @@ func _test_pcb_controls(parent: VBoxContainer) -> void:
 			selector.item_selected.connect(func(index: int):_test_input(id,true,false,{"op":"select","position":index}))
 		elif kind=="io_keypad":
 			for number in 12:
-				var button:=_button(row,str(number+1),func():pass)
+				var button:=_button(row,["1","2","3","4","5","6","7","8","9","*","0","#"][number],func():pass)
 				button.button_down.connect(func():_test_input(id,true,false,{"op":"key","key":number,"pressed":true}))
 				button.button_up.connect(func():_test_input(id,false,false,{"op":"key","key":number,"pressed":false}))
 		elif kind in ["io_slider","io_joystick","xpt2046"]:
@@ -895,17 +915,40 @@ func _draft_error() -> String:
 	var revised: bool=not editing_id.is_empty() and frozen.has(editing_id) and designs.get(editing_id,{})!=candidate
 	var test_id: String="inv:draft" if editing_id.is_empty() or revised else editing_id
 	designs[test_id]=candidate
+	# Drafts may be assembled and tested incrementally. Physical connectivity
+	# becomes mandatory when fabricating or placing the finished invention.
 	return Model.validate(test_id,designs,profile.data.get("blueprints",{}))
 
 func _save() -> void:
+	if not pending_host_save.is_empty():notice.text="Waiting for host blueprint confirmation.";return
 	if not _commit_selected_changes():return
 	var error:=_draft_error()
 	if error!="":notice.text=error;return
 	var revised: bool=editing_id!="" and Model.fabricated_dependencies(profile.data.get("inventions",{}),profile.data.get("invention_copies",{})).has(editing_id) and profile.data.get("inventions",{}).get(editing_id,{})!=draft
 	var id: String="inv:"+Crypto.new().generate_random_bytes(12).hex_encode() if editing_id=="" or revised else editing_id
 	var before: Dictionary=profile.data.duplicate(true)
-	if not profile.data.has("inventions"):profile.data.inventions={}
-	profile.data.inventions[id]=draft.duplicate(true)
+	var candidate: Dictionary=before.duplicate(true)
+	if not candidate.has("inventions"):candidate.inventions={}
+	candidate.inventions[id]=draft.duplicate(true)
+	if not preload("res://scripts/electronics_profile.gd").valid(candidate):notice.text="Invalid invention profile data";return
+	if game.session.online:
+		# Only host acknowledgement makes the new revision visible. Do not
+		# fabricate against an optimistic, possibly rejected, local blueprint.
+		# A local host processes a queued RPC synchronously. Install the
+		# receipt ID before dispatch so an immediate acknowledgement is not lost.
+		var operation_id:=Crypto.new().generate_random_bytes(16).hex_encode()
+		pending_host_save=operation_id
+		pending_host_revision=revised
+		var accepted: String=game.electronics_trade.authority.submit("metadata",[candidate],operation_id)
+		if accepted.is_empty():
+			if pending_host_save==operation_id:pending_host_save=""
+			notice.text="Could not queue blueprint save; retry after reconnecting."
+			return
+		if pending_host_save==operation_id:
+			notice.text="Saving blueprint on the host…"
+			if validation_refresh.is_valid():validation_refresh.call()
+		return
+	profile.data=candidate
 	if profile.save()!=OK:
 		profile.data=before;notice.text="Could not save blueprint";return
 	_library();notice.text="New revision saved. Existing copies keep their original design." if revised else "Blueprint saved. Fabricate a copy to place it."

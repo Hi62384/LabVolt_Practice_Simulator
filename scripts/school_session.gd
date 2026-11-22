@@ -161,7 +161,9 @@ func roster_changed() -> void:
 			for id in papers.keys():
 				var paper: Dictionary=papers[id]
 				if paper.owner!=peer:continue
-				if str(paper.get("room_class",""))!="":
+				# Preserve the active official sheet and written answers across a
+				# temporary network disconnect, just as room-class sheets are kept.
+				if str(paper.get("room_class",""))!="" or (mode=="Class" and int(paper.get("class_round",0))==round_id):
 					paper.owner=0
 					if paper.held:paper.stowed=true
 					paper.held=false
@@ -195,9 +197,16 @@ func _identify(peer: int,token: String) -> void:
 			if phase=="lesson":_record_attendance(peer)
 			if bool(class_students[token].get("done",false)):
 				_notice(peer,"Your previous class assignment is closed.")
-			elif phase=="assignment":
-				# Rejoining a departed class never restores or reissues its assessment.
-				_fail_departing(token,peer)
+			elif phase=="assignment" and not bool(class_students[token].get("done",false)):
+				# The authenticated identity, not the transient network peer ID,
+				# owns an unfinished sheet. Restore its original answers on reconnect.
+				var restored_paper:=false
+				for paper in papers.values():
+					if paper.get("identity","")==token and int(paper.get("class_round",0))==round_id:
+						paper.owner=peer
+						paper.revision+=1
+						restored_paper=true
+				if not restored_paper:_give(peer,project,false,true)
 		elif phase in ["travel","lesson"]:
 			class_students[token]={"done":false,"replay":_is_replay(token, project)}
 			class_start.arrive(token,Time.get_ticks_usec())
@@ -242,7 +251,11 @@ func _individual_project(token: String) -> Dictionary:
 		issued.merge(metadata, true)
 		return issued
 	var record: Dictionary=class_students[token]
-	if record.has("project"):return record.project
+	if record.has("project"):
+		# The generated questions were preflighted before any enrollment commit;
+		# add the durable attempt metadata after enrollment is written.
+		record.project.merge(metadata,true)
+		return record.project
 	# Persist this immutable version before teaching/test time; reconnect never regenerates.
 	var seed_value: int=(assessment_id+":"+token).sha256_text().substr(0,7).hex_to_int()
 	var generated: Dictionary=course_bridge.generate(str(activity.course_id),int(activity.week),"lecture",difficulty,seed_value)
@@ -1478,6 +1491,23 @@ func start_activity(config: Dictionary) -> Dictionary:
 		var capability: Dictionary=equipment_adapter.call("supports",assignment)
 		if not capability.get("ok",false):return capability
 	var next_assessment_id := Crypto.new().generate_random_bytes(16).hex_encode()
+	# Generate every individually-seeded math paper BEFORE committing enrollment
+	# or clearing an existing session. Failed generation must leave the old
+	# activity, papers and grade records completely untouched.
+	var preflight_math_projects: Dictionary={}
+	if selected=="Course" and course.begins_with("MTH"):
+		var student_profiles: Array=identities.values().duplicate()
+		if local_identity not in student_profiles:student_profiles.append(local_identity)
+		for token in student_profiles:
+			var seed_value: int=(next_assessment_id+":"+str(token)).sha256_text().substr(0,7).hex_to_int()
+			var generated: Dictionary=course_bridge.generate(course,week,"lecture",level,seed_value)
+			if generated.is_empty() or generated.has("error"):return {"ok":false,"error":"Individual assessment generation failed."}
+			generated.assessment_id=next_assessment_id
+			if not extra.is_empty():generated.title=extra.title
+			if not generated.has("assessment_policy"):generated.assessment_policy={}
+			for permission in ["formula_allowed","calculator_allowed"]:
+				generated.assessment_policy[permission]=config.get(permission,false) is bool and bool(config.get(permission,false))
+			preflight_math_projects[str(token)]=generated
 	if selected=="Course":
 		var enrollment: Array[Dictionary]=[]
 		var profiles: Array=identities.values().duplicate()
@@ -1519,7 +1549,9 @@ func start_activity(config: Dictionary) -> Dictionary:
 	if selected=="Course":
 		for token in identities.values():
 			class_students[token]={"done":false,"replay":_is_replay(token, project)}
-			if _individual_project(token).is_empty():return {"ok":false,"error":"Individual assessment generation failed."}
+			if preflight_math_projects.has(str(token)):
+				class_students[token].project=preflight_math_projects[str(token)].duplicate(true)
+			_individual_project(token)
 	allocation=Benches.allocate(class_students.keys()) if kind=="lab" else {}
 	if selected=="Course":
 		class_start.arm(assessment_id,Time.get_ticks_usec())
@@ -1675,7 +1707,9 @@ func abandon(peer: int) -> void:
 	broadcast();checkpoint()
 
 func _fail_departing(token: String, peer: int) -> void:
-	if not multiplayer.is_server() or mode!="Class" or phase not in ["travel","lesson","assignment"]:return
+	# Only intentional host departure is scored by the host-ending policy.
+	# A guest network disconnect must not become an irreversible official zero.
+	if peer!=1 or not multiplayer.is_server() or mode!="Class" or phase not in ["travel","lesson","assignment"]:return
 	if token.is_empty() or not class_students.has(token) or bool(class_students[token].get("done",false)):return
 	if bool(class_students[token].get("replay", false)):
 		class_students[token].done = true

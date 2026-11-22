@@ -13,6 +13,9 @@ const UsbTransfer = preload("res://scripts/campus/computers/usb_transfer.gd")
 const UsbDrive = preload("res://scripts/campus/computers/device_filesystem.gd")
 const Downloads = preload("res://scripts/campus/computers/browser_download.gd")
 const MAX_DOWNLOAD_NAMES := Files.MAX_FILES+1
+# Restore packets can include the full local document quota; ordinary actions
+# are much smaller. Bound total RPC payloads, not merely dictionary key count.
+const MAX_REQUEST_BYTES := Files.MAX_TOTAL_BYTES + 32768
 var game: Node
 var stations := {}
 var sessions := {}
@@ -32,6 +35,9 @@ var usb_uploads := {}
 var usb_writes := {}
 var download_uploads := {}
 var owner_copy_transfers := {}
+static func bounded_request(action: Dictionary) -> bool:
+	return action.size()<=9 and var_to_bytes(action).size()<=MAX_REQUEST_BYTES and not action.has("owner") and not action.has("profile") and not action.has("identity")
+
 func supports_operation(op: String) -> bool:
 	return op=="rename"
 func build(owner_game: Node) -> void:
@@ -143,7 +149,7 @@ func _receive_download(peer: int,action: Dictionary) -> Dictionary:
 func _request(action: Dictionary) -> void:
 	if multiplayer.is_server():_accept(multiplayer.get_remote_sender_id(),action)
 func _accept(peer: int, action: Dictionary) -> void:
-	if not game.session.roster.has(peer) or action.size()>9 or action.has("owner") or action.has("profile") or action.has("identity"):return
+	if not game.session.roster.has(peer) or not bounded_request(action):return
 	var op: String=str(action.get("op",""))
 	if op=="usb_port":
 		if game.session.online:_network_usb_port(peer,str(action.get("station","")),str(action.get("id","")));return

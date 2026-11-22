@@ -43,15 +43,15 @@ func reset() -> void:
 	game.electronics.profile.authority_submit=Callable()
 	game.electronics.profile.authority_revision=-1
 	if multiplayer.is_server() and healthy:healthy=ledger.reset_world()
-func submit(op: String,args: Array,request_id: String = "") -> void:
+func submit(op: String,args: Array,request_id: String = "") -> String:
 	var metadata: Dictionary=args[0] if op=="metadata" and args.size()==1 and args[0] is Dictionary else {}
 	if not game.session.online:
 		if not metadata.is_empty() and game.electronics.has_method("kit_names_submission_failed"):game.electronics.kit_names_submission_failed(metadata,"Inventory session is offline")
-		return
+		return ""
 	if pending.size()>=64:
 		game.ui.log_message("Inventory request queue is full")
 		if not metadata.is_empty() and game.electronics.has_method("kit_names_submission_failed"):game.electronics.kit_names_submission_failed(metadata,"Inventory request queue is full")
-		return
+		return ""
 	if op=="metadata" and args.size()==1 and args[0] is Dictionary:
 		args=args.duplicate(true);args[0].erase("authority_credentials")
 	var id := request_id if not request_id.is_empty() else Crypto.new().generate_random_bytes(16).hex_encode()
@@ -59,6 +59,7 @@ func submit(op: String,args: Array,request_id: String = "") -> void:
 	if not metadata.is_empty() and game.electronics.has_method("kit_names_submitted"):game.electronics.kit_names_submitted(str(pending.back().id),args[0])
 	if op in ["buy","buy_configured"] and is_instance_valid(game.electronics.shop_adapter):game.electronics.shop_adapter.submitted(str(pending.back().id),op)
 	flush()
+	return id
 func flush() -> void:
 	if not bound or pending.is_empty():return
 	if multiplayer.is_server():execute(1,pending[0])

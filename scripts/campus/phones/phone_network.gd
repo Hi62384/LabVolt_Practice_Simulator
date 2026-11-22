@@ -48,8 +48,11 @@ func end_local_call() -> void:
 func _request(op: String,target: int,text: String) -> void:
 	if multiplayer.is_server():_apply(multiplayer.get_remote_sender_id(),op,target,text)
 
+static func bounded_request(op: String,text: String) -> bool:
+	return op.length()<=16 and text.length()<=240 and text.to_utf8_buffer().size()<=1024
+
 func _apply(peer: int,op: String,target: int,text: String) -> void:
-	if not game.session.roster.has(peer):return
+	if not game.session.roster.has(peer) or not bounded_request(op,text):return
 	if op=="end":
 		_end(peer);return
 	if not _owns_phone(peer):return

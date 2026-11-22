@@ -27,8 +27,8 @@ var purchase_hotbar_limit := Callable()
 var reconciliation_backup := ""
 var kit_usage_cache := {}
 func queued(op: String,args: Array=[]) -> String:
-	authority_submit.call(op,args)
-	return "Request sent to laboratory host"
+	var receipt: Variant=authority_submit.call(op,args)
+	return "Inventory request could not be queued" if receipt is String and receipt.is_empty() else "Request sent to laboratory host"
 static func quantity(value: Variant,maximum: int=100000) -> bool:
 	return (value is int or value is float) and is_finite(float(value)) and float(value)>=0 and float(value)<=maximum and float(value)==floor(float(value))
 static func same(a: Variant,b: Variant) -> bool:
@@ -214,7 +214,9 @@ static func valid(value: Variant) -> bool:
 	return true
 func save() -> Error:
 	if not valid(data):return ERR_INVALID_DATA
-	if authority_submit.is_valid():queued("metadata",[data.duplicate(true)]);return OK
+	if authority_submit.is_valid():
+		var receipt: Variant=authority_submit.call("metadata",[data.duplicate(true)])
+		return ERR_BUSY if receipt is String and receipt.is_empty() else OK
 	if path.is_empty():return OK # Host ledger commits the complete transaction atomically.
 	var file := FileAccess.open(path+".tmp",FileAccess.WRITE)
 	if file==null:return FileAccess.get_open_error()
@@ -711,6 +713,8 @@ func fabricate_invention(id: String) -> String:
 	if authority_submit.is_valid():return queued("invention_fabricate",[id])
 	var designs: Dictionary=data.get("inventions",{})
 	var assembly=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd")
+	var structure_error: String=assembly.structure_error(id,designs,data.get("blueprints",{}))
+	if not structure_error.is_empty():return structure_error
 	var cost: int=assembly.price(id,designs,data.get("blueprints",{}))
 	if cost<0:return "Invalid invention blueprint"
 	var debit:=Economy.purchase_debit(data.dollars,cost,true)

@@ -54,7 +54,7 @@ func _text(value: String, point: Vector3, yaw: float, size: int = 28) -> Label3D
 
 static func control_position(floor_id: int, button: int) -> Vector3:
 	var y := floor_id * HEIGHT
-	return Vector3(15.82, y + 1.25, 60.35) if button < 0 else Vector3(16.43, y + 1.20 + button * 0.28, 60.45)
+	return Vector3(15.82, y + 1.25, 60.35) if button < 0 else Vector3(16.70, y + 1.20 + button * 0.28, 60.45)
 
 func _button(floor_id: int, button: int) -> void:
 	var point := control_position(floor_id, button)

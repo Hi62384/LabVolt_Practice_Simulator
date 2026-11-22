@@ -303,6 +303,19 @@ func _zoom_at(pointer: Vector2, factor: float, minimum: float, maximum: float) -
 	pan=pointer-anchor*zoom
 	queue_redraw()
 
+# Resolve one visible jumper segment, including wires crossing a hole.
+func _wire_at_pointer(point: Vector2) -> int:
+	var nearest := 10.0*zoom
+	var found := -1
+	for index in board.wires.size():
+		var wire: Array=board.wires[index]
+		if wire.size()!=2:continue
+		var distance:=Geometry2D.get_closest_point_to_segment(point,at(str(wire[0])),at(str(wire[1]))).distance_to(point)
+		if distance<nearest:
+			nearest=distance
+			found=index
+	return found
+
 func _gui_input(event: InputEvent) -> void:
 	if selected_type in ["probe+","probe-"] and not analyzer_enabled:return
 	if analyzer_enabled and event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT and selected_type in ["probe+","probe-"]:
@@ -327,7 +340,15 @@ func _gui_input(event: InputEvent) -> void:
 			_zoom_at(event.position,1.1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else 1.0/1.1,.6,2)
 			accept_event()
 			return
-		if event.pressed and event.button_index==MOUSE_BUTTON_RIGHT:first="";queue_redraw()
+		if event.pressed and event.button_index==MOUSE_BUTTON_RIGHT:
+			if first.is_empty() and selected_type in ["wire","remove","select"]:
+				var wire_index:=_wire_at_pointer(event.position)
+				if wire_index>=0:
+					commit();board.wires.remove_at(wire_index);design_changed.emit(board)
+			first=""
+			queue_redraw()
+			accept_event()
+			return
 		if event.button_index==MOUSE_BUTTON_LEFT:
 			if not event.pressed and moving:
 				moving=false
@@ -337,7 +358,7 @@ func _gui_input(event: InputEvent) -> void:
 			var hole := hole_at(event.position)
 			if selected_type=="select" and event.pressed:
 				for part in board.parts:
-					if (native_rect(part).has_point(event.position) if part.type in ["native_uno","native_pico","native_nano"] else (at(part.a)+at(part.b)).distance_to(event.position*2)<40*zoom):
+					if (native_rect(part).has_point(event.position) if part.type in ["native_uno","native_pico","native_nano"] else Geometry2D.get_closest_point_to_segment(event.position,at(str(part.a)),at(str(part.b))).distance_to(event.position)<20*zoom):
 						if event.shift_pressed:
 							if selected.has(part.id):selected.erase(part.id)
 							else:selected.append(part.id)
@@ -349,11 +370,19 @@ func _gui_input(event: InputEvent) -> void:
 			elif selected_type=="interact":return
 			elif event.pressed and hole!="":
 				if selected_type=="remove":
-					commit();board.parts=board.parts.filter(func(p):return hole not in preload("res://scripts/breadboard_model.gd").pins(p));board.wires=board.wires.filter(func(w):return hole not in w);design_changed.emit(board)
+					var wire_index:=_wire_at_pointer(event.position)
+					if wire_index>=0:
+						commit();board.wires.remove_at(wire_index);design_changed.emit(board)
+					else:
+						for part in board.parts:
+							if hole not in preload("res://scripts/breadboard_model.gd").pins(part):continue
+							commit();board.parts.erase(part);selected.erase(part.id);design_changed.emit(board)
+							break
 				elif first=="":first=hole
 				elif first!=hole:
-					commit()
-					if selected_type=="wire":board.wires.append([first,hole])
+					# A rejected footprint must not change the board or consume Undo.
+					var candidate: Dictionary=board.duplicate(true)
+					if selected_type=="wire":candidate.wires.append([first,hole])
 					else:
 						var part := {"id":str(Time.get_ticks_usec()),"type":selected_type,"a":first,"b":hole,"pressed":false}
 						var definition: Dictionary=board.get("definitions",{}).get(selected_type,{})
@@ -367,8 +396,12 @@ func _gui_input(event: InputEvent) -> void:
 							for pin in count:
 								var anchor: String=first if pin<(count+1)/2 else hole
 								part.pins.append(anchor.left(1)+str(int(anchor.substr(1))+pin%((count+1)/2)))
-						board.parts.append(part)
-					first="";design_changed.emit(board)
+						candidate.parts.append(part)
+					var placement_error: String=preload("res://scripts/breadboard_model.gd").validate(candidate,{},true)
+					if placement_error.is_empty():
+						commit();board=candidate;design_changed.emit(board)
+					else:tooltip_text=placement_error
+					first=""
 				queue_redraw()
 	elif event is InputEventMouseMotion:
 		if dragging:pan+=event.relative

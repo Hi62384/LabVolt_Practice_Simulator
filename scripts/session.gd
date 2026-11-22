@@ -404,17 +404,22 @@ func accept_pose(id: int,data: Dictionary) -> void:
 		return
 	if health_pose_guard.is_valid():pos=health_pose_guard.call(id,pos)
 	var now := Time.get_ticks_msec()
-	var elapsed := clampf((now-float(last_pose.get(id,now-100)))/1000.0,0.01,0.5)
+	var elapsed := clampf((now-float(last_pose.get(id,now-100)))/1000.0,0.0,0.5)
 	var old: Vector3 = poses.get(id,{}).get("position",(Vector3(13,0,-18) if campus_enabled else Vector3(0,0,1.75)))
 	if facility_translation_guard.is_valid():pos=facility_translation_guard.call(id,pos,old)
 	var displacement := pos-old
 	var carry_scale:=clampf(float(carry_speed_guard.call(id)),.2,1.0) if carry_speed_guard.is_valid() else 1.0
-	if displacement.length() > 6.0*elapsed+0.4:
-		pos = old + displacement.normalized()*(6.0*elapsed)
+	# A packet-rate-dependent slack distance allows arbitrary movement speed
+	# when a peer submits many tiny pose updates. Limit actual distance by elapsed
+	# host monotonic time; zero elapsed time grants no extra distance.
+	var maximum_distance := 6.0*elapsed
+	if displacement.length_squared()>maximum_distance*maximum_distance and not displacement.is_zero_approx():
+		pos=old+displacement.normalized()*maximum_distance
 	if carry_scale<1.0:
 		var horizontal:=Vector2(pos.x-old.x,pos.z-old.z)
-		if horizontal.length()>6.0*elapsed*carry_scale+0.4:
-			horizontal=horizontal.normalized()*(6.0*elapsed*carry_scale)
+		var maximum_horizontal:=maximum_distance*carry_scale
+		if horizontal.length_squared()>maximum_horizontal*maximum_horizontal and not horizontal.is_zero_approx():
+			horizontal=horizontal.normalized()*maximum_horizontal
 			pos.x=old.x+horizontal.x;pos.z=old.z+horizontal.y
 	if campus_enabled:
 		pos.x=clampf(pos.x,-9.6,35.6)
@@ -610,12 +615,17 @@ func _shop_travel(enter: bool) -> void:
 	if multiplayer.is_server():_travel(multiplayer.get_remote_sender_id(),enter)
 func _travel(peer: int,enter: bool) -> void:
 	if not roster.has(peer):return
+	var current_pose: Vector3=poses.get(peer,{}).get("position",Vector3.INF)
 	if enter:
 		if shop_returns.has(peer):return
-		shop_returns[peer]=poses.get(peer,{}).get("position",(Vector3(13,0,-18) if campus_enabled else Vector3(0,0,1.75)))
+		# Menu shop entry is at the campus entrance; do not grant arbitrary
+		# client-requested teleports from elsewhere in the multiplayer world.
+		if campus_enabled and current_pose.distance_to(Vector3(13,0,-18))>8.0:return
+		shop_returns[peer]=current_pose
 		poses[peer]={"position":Vector3(26,0,3),"yaw":0.,"pitch":0.}
 	else:
 		if not shop_returns.has(peer):return
+		if current_pose.distance_to(Vector3(26,0,3))>10.0:return
 		poses[peer]={"position":shop_returns[peer],"yaw":0.,"pitch":0.};shop_returns.erase(peer)
 	last_pose[peer]=Time.get_ticks_msec()
 

@@ -28,6 +28,14 @@ on:
       - 'tests/workers/**'
       - 'tests/electronics/**'
       - 'tests/campus/circuit_studio/**'
+      - 'tests/campus/academics/test_audit_class_lifecycle.gd'
+      - 'scripts/session.gd'
+      - 'scripts/school_session.gd'
+      - 'scripts/campus/academics/class_start/room_classes.gd'
+      - 'scripts/campus/computers/computer_sessions.gd'
+      - 'scripts/campus/phones/phone_network.gd'
+      - 'scripts/campus/npcs/**'
+      - 'scripts/campus/elevator/**'
       - 'tests/menu_startup/test_menu_routes.gd'
       - '.github/workflows/circuit-invention-verification.yml'
   workflow_dispatch:
@@ -134,6 +142,8 @@ jobs:
             'tests/campus/circuit_studio/pcb_drive_test.gd' = 'CHAINED_HINGE_PASS'
             'tests/campus/circuit_studio/mounted_pcb_transient_test.gd' = 'MOUNTED_PCB_TRANSIENT PASS'
             'tests/campus/circuit_studio/invention_network_load.gd' = 'INVENTION_NETWORK_LOAD PASS'
+            'tests/campus/circuit_studio/audit_regression_test.gd' = 'AUDIT_CIRCUIT_REGRESSIONS PASS'
+            'tests/campus/academics/test_audit_class_lifecycle.gd' = 'AUDIT_CLASS_LIFECYCLE PASS'
             'tests/menu_startup/test_menu_routes.gd' = 'MENU_ROUTES PASS'
           }
           $failed = @()

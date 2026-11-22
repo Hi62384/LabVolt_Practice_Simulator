@@ -52,6 +52,8 @@ func _make_student(index: int) -> Dictionary:
 		"remaining": _range_for(index, 0, MIN_WANDER_SECONDS, MAX_WANDER_SECONDS),
 		"cycle": 0,
 		"moving": false,
+		"seated": false,
+		"room_kind": "",
 	}
 	_set_wander_path(student)
 	return student
@@ -92,10 +94,12 @@ func _arrived(student: Dictionary) -> void:
 	match str(student.state):
 		"to_room":
 			student.state = "working"
+			student.seated = str(student.get("room_kind",""))=="lecture"
 			student.remaining = _range_for(int(student.id), int(student.cycle) + 17, MIN_WORK_SECONDS, MAX_WORK_SECONDS)
 			student.moving = false
 		"to_hall":
 			student.state = "wander"
+			student.seated = false
 			student.room_id = ""
 			student.remaining = _range_for(int(student.id), int(student.cycle) + 31, MIN_WANDER_SECONDS, MAX_WANDER_SECONDS)
 			_set_wander_path(student)
@@ -122,6 +126,8 @@ func _begin_room_trip(student: Dictionary) -> void:
 	path[path.size() - 1] = _work_point(room, int(student.id), cycle)
 	student.state = "to_room"
 	student.room_id = str(room.id)
+	student.room_kind = str(room.get("kind",""))
+	student.seated = false
 	student.path = path
 	student.target = 1
 	student.moving = true
@@ -137,6 +143,7 @@ func _begin_return(student: Dictionary) -> void:
 	var door := _point(room.get("door", []))
 	var hall := Vector3(12.15 + float(int(student.id) % 3) * 0.75, door.y, door.z)
 	student.state = "to_hall"
+	student.seated = false
 	student.path = PackedVector3Array([student.position, door, approach, hall])
 	student.target = 1
 	student.moving = true
@@ -152,6 +159,11 @@ func _set_wander_path(student: Dictionary) -> void:
 	student.moving = true
 
 func _work_point(room: Dictionary, id: int, cycle: int) -> Vector3:
+	# Match the existing lecture room desk/chair contract (two rows of four).
+	if str(room.get("kind",""))=="lecture":
+		var chair_index:=posmod(id+cycle,8)
+		var center:=_point(room.get("center",[]))
+		return Vector3(center.x+[-6.0,-2.0,2.0,6.0][chair_index%4],float(room.get("floor",0))*5.0,center.z+[-1.0,3.0][int(chair_index/4)])
 	var low := _point(room.get("bounds_min", []))
 	var high := _point(room.get("bounds_max", []))
 	var inset_x := 2.2 + float(_mix(id, cycle) % 5) * 1.1

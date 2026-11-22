@@ -259,8 +259,9 @@ func _check_students() -> void:
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
 	if multiplayer.is_server() and not classes.is_empty():
-		for activity in classes.values():
-			if activity.phase=="lesson" and activity.get("ai_waiting",false):activity.deadline+=delta
+		# Assessment generation starts when the lesson deadline is reached.
+		# Extending this deadline while ai_waiting was true prevented the
+		# generator from ever being called and softlocked every AI-taught class.
 		check_clock+=delta
 		publish_clock+=delta
 		if check_clock>=.2:
@@ -326,6 +327,7 @@ func _begin_assignment(room: String, activity: Dictionary) -> bool:
 		activity.enrollment_retry_at=_now()+2.0
 		return false
 	if is_instance_valid(classroom_events) and classroom_events.enabled:classroom_events.begin_assessment(room,str(activity.id),_now())
+	activity.ai_waiting=false
 	activity.phase="assignment"
 	activity.deadline=_now()+AssignmentSeconds
 	for identity in activity.students:

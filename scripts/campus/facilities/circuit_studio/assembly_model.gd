@@ -278,6 +278,34 @@ static func fabricated_dependencies(designs: Dictionary,copies: Dictionary) -> D
 					pending.append(str(part.get("ref","")))
 	return frozen
 
+## New constructions require real physical adjacency. Keep validate() tolerant
+## of older saved profiles so that upgrades do not make legacy saves unreadable.
+## Fabrication, placement and the editor call this stricter contract.
+static func structure_error(id: String,designs: Dictionary,pcbs: Dictionary) -> String:
+	var error:=validate(id,designs,pcbs)
+	if not error.is_empty():return error
+	var parts:=flattened(id,designs,pcbs)
+	if parts.is_empty():return "The assembly has no physical parts"
+	var occupied: Dictionary={}
+	var origin: Vector3i=Vector3i.ZERO
+	for part in parts:
+		var cell:=_cell(part)
+		occupied[cell]=true
+		if part.type in ["wood_frame","aluminum_frame","plastic_shell"]:origin=cell
+	var visited: Dictionary={origin:true}
+	var queue: Array[Vector3i]=[origin]
+	var cursor:=0
+	while cursor<queue.size():
+		var cell: Vector3i=queue[cursor]
+		cursor+=1
+		for offset in GRID_NEIGHBORS:
+			var neighbor: Vector3i=cell+offset
+			if occupied.has(neighbor) and not visited.has(neighbor):
+				visited[neighbor]=true
+				queue.append(neighbor)
+	if visited.size()!=parts.size():return "Connect all parts to a frame with adjacent grid cells; floating components cannot be fabricated."
+	return ""
+
 static func price(id: String,designs: Dictionary,pcbs: Dictionary) -> int:
 	if validate(id,designs,pcbs)!="":return -1
 	return _price(id,designs,pcbs)

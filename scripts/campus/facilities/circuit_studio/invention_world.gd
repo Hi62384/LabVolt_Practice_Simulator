@@ -144,7 +144,7 @@ func _apply(peer: int,action: Dictionary) -> void:
 		var designs: Dictionary=profile.get("inventions",{})
 		var copies:=int(profile.get("invention_copies",{}).get(id,0))
 		if copies<1 or copies>100:_placement_result(peer,"You have no fabricated copies available.");return
-		if Model.validate(id,designs,profile.get("blueprints",{}))!="":_placement_result(peer,"The host could not validate this blueprint.");return
+		if Model.structure_error(id,designs,profile.get("blueprints",{}))!="":_placement_result(peer,"The invention has disconnected parts or invalid geometry.");return
 		var slot:=0
 		while placed.has(_key(peer,id,slot)) and slot<copies:slot+=1
 		if slot>=copies:_placement_result(peer,"All fabricated copies of this invention are already placed.");return
@@ -413,6 +413,36 @@ func _apply_hinges(joints: Array) -> void:
 		var pose:=Model.hinge_pose(joints,joint.chain)
 		for binding in joint.bindings:binding.node.transform=pose*binding.rest
 
+# The physics query excludes our own rigid body, so explicitly test each
+# rotating part against the stationary parts of that SAME assembly.
+# Inventions rotate on the Y axis; four separating axes suffice for their boxes.
+static func _box_overlap(a: Transform3D,a_size: Vector3,b: Transform3D,b_size: Vector3) -> bool:
+	if absf(a.origin.y-b.origin.y)>=(a_size.y+b_size.y)*.5-0.002:return false
+	var axes_a: Array[Vector2]=[Vector2(a.basis.x.x,a.basis.x.z).normalized(),Vector2(a.basis.z.x,a.basis.z.z).normalized()]
+	var axes_b: Array[Vector2]=[Vector2(b.basis.x.x,b.basis.x.z).normalized(),Vector2(b.basis.z.x,b.basis.z.z).normalized()]
+	var between:=Vector2(b.origin.x-a.origin.x,b.origin.z-a.origin.z)
+	for axis in axes_a+axes_b:
+		var extent_a:=absf(axis.dot(axes_a[0]))*a_size.x*.5+absf(axis.dot(axes_a[1]))*a_size.z*.5
+		var extent_b:=absf(axis.dot(axes_b[0]))*b_size.x*.5+absf(axis.dot(axes_b[1]))*b_size.z*.5
+		if absf(axis.dot(between))>=extent_a+extent_b-0.002:return false
+	return true
+
+static func _shape_extents(basis: Basis,half: Vector3) -> Vector3:
+	return Vector3(absf(basis.x.x)*half.x+absf(basis.y.x)*half.y+absf(basis.z.x)*half.z,
+		absf(basis.x.y)*half.x+absf(basis.y.y)*half.y+absf(basis.z.y)*half.z,
+		absf(basis.x.z)*half.x+absf(basis.y.z)*half.y+absf(basis.z.z)*half.z)
+
+func _live_bounds(solid: StaticBody3D) -> Dictionary:
+	var low:=Vector3.INF
+	var high:=-Vector3.INF
+	for child in solid.get_children():
+		if not child is CollisionShape3D or not child.shape is BoxShape3D:continue
+		var half: Vector3=child.shape.size*.5
+		var extent:=_shape_extents(child.transform.basis,half)
+		low=low.min(child.position-extent)
+		high=high.max(child.position+extent)
+	return {"center":(low+high)*.5,"size":high-low}
+
 func _hinge_clear(view: Node3D,joint: Dictionary,angle: float) -> bool:
 	var solid: StaticBody3D=view.get_node("Solid")
 	var query:=PhysicsShapeQueryParameters3D.new()
@@ -420,15 +450,23 @@ func _hinge_clear(view: Node3D,joint: Dictionary,angle: float) -> bool:
 	query.exclude=[solid.get_rid()]
 	var space:=get_world_3d().direct_space_state
 	var joints: Array=view.get_meta("joints",[])
+	var moving: Dictionary={}
 	for affected in joints:
 		if joint.index not in affected.chain:continue
 		var pose:=Model.hinge_pose(joints,affected.chain,joint.index,angle)
 		for binding in affected.bindings:
 			var collider:=binding.node as CollisionShape3D
 			if collider==null or collider.get_parent()!=solid:continue
+			var next_transform: Transform3D=pose*binding.rest
+			moving[collider.get_instance_id()]={"transform":next_transform,"size":collider.shape.size}
 			query.shape=collider.shape
-			query.transform=solid.global_transform*pose*binding.rest
+			query.transform=solid.global_transform*next_transform
 			if not space.intersect_shape(query,1).is_empty():return false
+	for moving_part in moving.values():
+		for other in solid.get_children():
+			if not other is CollisionShape3D or not other.shape is BoxShape3D:continue
+			if moving.has(other.get_instance_id()):continue
+			if _box_overlap(moving_part.transform,moving_part.size,other.transform,other.shape.size):return false
 	return true
 
 func _release_pcb(holder_key: String) -> void:
@@ -488,13 +526,17 @@ func _physics_process(delta: float) -> void:
 					item.hinge_angles[joint.index]=angle
 					articulation_changed=true
 					changed=true
-			if articulation_changed:_apply_hinges(joints)
+			if articulation_changed:
+				_apply_hinges(joints)
+				item.bounds=_live_bounds(hinge_view.get_node("Solid"))
 		var drive_direction: Vector3=Model.wheel_drive(item.parts,item.effective,bool(item.features.battery))
 		if drive_direction!=Vector3.ZERO:
 			var view: StaticBody3D=visuals.get(key)
 			var solid: StaticBody3D=view.get_node("Solid") if is_instance_valid(view) else null
 			var next: Vector3=item.position+(drive_direction*delta*.5).rotated(Vector3.UP,float(item.yaw))
 			if is_instance_valid(solid) and game.campus.registry.locate(next)==game.campus.registry.locate(item.position):
+				# Moving geometry has a different envelope after a hinge swings.
+				item.bounds=_live_bounds(solid)
 				if _clear_space(next,item.bounds,[solid.get_rid()]):
 					item.position=next
 					view.position=next

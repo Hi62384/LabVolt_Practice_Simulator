@@ -56,6 +56,10 @@ func set_context(zone_id: String, viewer_position: Vector3) -> void:
 	if not viewer_position.is_finite():
 		return
 	_viewer = viewer_position
+	if _zone != zone_id:
+		for item in _pool:
+			item.route=PackedVector3Array()
+			item.target=1
 	_zone = zone_id
 	_apply_visibility()
 
@@ -155,13 +159,29 @@ func advance(delta: float) -> void:
 		var item: Dictionary = _pool[i]
 		if i >= desired:
 			continue
-		if i < _behavior.students.size():
+		var previous: Vector3=item.node.position
+		var moving_now:=false
+		var custom_routes: Array=_routes.get(_zone,[])
+		if not custom_routes.is_empty() and item.route.is_empty():_assign_route(item,i)
+		if not item.route.is_empty():
+			var destination: Vector3=item.route[int(item.target)%item.route.size()]
+			if item.node.position.distance_to(destination)<=0.12:
+				item.target=(int(item.target)+1)%item.route.size()
+			else:
+				item.node.position=item.node.position.move_toward(destination,1.15*delta)
+				moving_now=true
+		elif i < _behavior.students.size():
 			var simulated: Dictionary = _behavior.students[i]
-			var previous: Vector3 = item.node.position
-			item.node.position = simulated.position
-			if bool(simulated.moving) and previous.distance_squared_to(item.node.position) > 0.0001:
-				var travel: Vector3 = item.node.position - previous
-				item.node.rotation.y = atan2(travel.x, travel.z)
+			item.node.position=simulated.position
+			moving_now=bool(simulated.moving)
+		var sitting:=item.route.is_empty() and i<_behavior.students.size() and bool(_behavior.students[i].get("seated",false))
+		if bool(item.get("seated",false))!=sitting:
+			item.seated=sitting
+			(item.node.material_override as ShaderMaterial).set_shader_parameter("sitting",1.0 if sitting else 0.0)
+		item.moving=moving_now
+		if moving_now and previous.distance_squared_to(item.node.position)>0.0001:
+			var travel: Vector3=item.node.position-previous
+			item.node.rotation.y=atan2(travel.x,travel.z)
 		var distance: float = item.node.position.distance_to(_viewer)
 		_update_visual_visibility(item, i, distance, delta)
 		_update_appearance(item, i, distance)
@@ -181,7 +201,7 @@ func advance(delta: float) -> void:
 		_updates += 1
 		if lod == 2:
 			continue # Freeze distant animation and movement.
-		if i < _behavior.students.size() and bool(_behavior.students[i].moving):
+		if bool(item.get("moving",false)):
 			item.phase += elapsed * 5.0
 		# Nearby shared mesh also animates the original limbs in a vertex shader.
 		item.node.rotation.z = sin(item.phase) * 0.025 if lod == 0 else 0.0
@@ -212,17 +232,17 @@ func _create_visual() -> void:
 	visual.scale = Vector3(1.0, float(appearance.get("body", {}).get("height", 1.0)), 1.0)
 	# Geometry stays shared; one cheap tint material is cached per pooled identity.
 	add_child(visual)
-	_pool.append({"node": visual, "route": PackedVector3Array(), "target": 1, "clock": 0.0, "phase": float(identity), "lod": -1, "appearance_id": appearance.appearance_id, "avatar": null})
+	_pool.append({"node": visual, "route": PackedVector3Array(), "target": 1, "clock": 0.0, "phase": float(identity), "lod": -1, "appearance_id": appearance.appearance_id, "avatar": null, "moving": false, "seated": false})
 	_visibility.append({"inside": false, "alpha": 0.0})
 
 func _update_appearance(item: Dictionary, index: int, distance: float) -> void:
 	var avatar: Node3D = item.avatar
 	if is_instance_valid(avatar):
-		avatar.visible = item.node.visible and distance < near_distance + 2.0
+		avatar.visible = item.node.visible and not bool(item.get("seated",false)) and distance < near_distance + 2.0
 		item.node.mesh = null if avatar.visible else _meshes[mini(int(item.lod) if int(item.lod) >= 0 else 1, 1)]
 		_set_avatar_fade(avatar, item.node.transparency)
 		return
-	if distance >= near_distance or not item.node.visible or _detailed_count >= DETAILED_LIMIT:
+	if distance >= near_distance or not item.node.visible or bool(item.get("seated",false)) or _detailed_count >= DETAILED_LIMIT:
 		return
 	var state: Dictionary = _appearance.appearance_for_id(int(item.appearance_id))
 	var rendered: Node3D = _avatar_renderer.render_avatar(state, _appearance.catalog())

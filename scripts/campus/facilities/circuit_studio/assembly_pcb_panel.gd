@@ -43,7 +43,7 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 		elif entry.kind=="io_keypad":
 			var keys:=HFlowContainer.new();controls.add_child(keys)
 			for number in 12:
-				var key_button:=Button.new();key_button.text=str(number+1);keys.add_child(key_button)
+				var key_button:=Button.new();key_button.text=["1","2","3","4","5","6","7","8","9","*","0","#"][number];keys.add_child(key_button)
 				key_button.button_down.connect(_begin_hold.bind(id,{"op":"key","key":number,"pressed":true}))
 				key_button.button_up.connect(_end_hold.bind(id,{"key":number}))
 		elif entry.kind in ["io_slider","io_joystick","xpt2046"]:
