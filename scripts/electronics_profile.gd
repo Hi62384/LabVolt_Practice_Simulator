@@ -704,6 +704,10 @@ func obtain_ic(id: String,craft: bool) -> String:
 
 func fabricate_invention(id: String) -> String:
 	operation_succeeded=false
+	# Profile validation caps each fabricated design at 100 copies. Reject
+	# before spending and saving, rather than reporting a generic save error.
+	if int(data.get("invention_copies",{}).get(id,0))>=100:
+		return "Maximum 100 fabricated copies per invention. Discard unused copies before fabricating more."
 	if authority_submit.is_valid():return queued("invention_fabricate",[id])
 	var designs: Dictionary=data.get("inventions",{})
 	var assembly=preload("res://scripts/campus/facilities/circuit_studio/assembly_model.gd")

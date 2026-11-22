@@ -148,11 +148,76 @@ func _run() -> void:
 	for i in 80:runtime.tick(.05)
 	print("PCB_DRIVE_80_TICKS_MS ",(Time.get_ticks_usec()-start)/1000.0)
 	_check_world_clock()
+	_check_pcb_servo_integration(defs)
 	_check_input_leases()
 	_check_disconnect_releases()
 	await _check_hinge()
 	print("PCB_DRIVE_PASS")
 	quit()
+
+
+func _check_pcb_servo_integration(definitions: Dictionary) -> void:
+	# Exercise a real PCB's electrical toggle, a valid nested power mapping,
+	# the authoritative multiplayer input reducer, and the physical servo
+	# hinge through the same placed-world physics loop as actual gameplay.
+	var game:=MockGame.new()
+	root.add_child(game)
+	game.add_child(game.player)
+	game.player.position=Vector3(12,2,0)
+	var world:=World.new()
+	game.add_child(world)
+	world.game=game
+	world.set_process(false)
+	world.set_physics_process(false)
+	var design: Dictionary=Model.empty("PCB servo end-to-end")
+	design.parts=[
+		{"type":"servo","x":0,"y":0,"z":1,"control":"A","ref":""},
+		{"type":"hinge","x":0,"y":0,"z":0,"control":"","ref":""},
+		{"type":"wood_frame","x":0,"y":0,"z":-1,"control":"","ref":""},
+		{"type":"plastic_shell","x":0,"y":0,"z":-2,"control":"","ref":""},
+		{"type":"battery","x":2,"y":0,"z":0,"control":"","ref":""},
+		{"type":"pcb","x":3,"y":0,"z":0,"control":"","ref":"ic:drive_test",
+			"pin_map":{"power":0,"ground":1,"A":2,"B":-1}}
+	]
+	design.drive.A="pcb"
+	var designs: Dictionary={"inv:integrated":design}
+	assert(Model.validate("inv:integrated",designs,definitions)=="",
+		"PCB-controlled mechanical invention must validate before fabrication")
+	var parts: Array=Model.flattened("inv:integrated",designs,definitions)
+	var runtime:=Runtime.new()
+	assert(runtime.configure("ic:drive_test",definitions,{"power":0,"ground":1,"A":2,"B":-1}))
+	var item: Dictionary={
+		"owner":1,"id":"inv:integrated","name":design.name,"parts":parts,
+		"position":Vector3(12,2,0),"yaw":0.0,"angle":0.0,"hinge_angles":{},
+		"controls":design.controls.duplicate(true),"drive":design.drive.duplicate(true),
+		"state":{"A":false,"B":false},"effective":{"A":false,"B":false},
+		"pcb_voltage":{"A":0.0,"B":0.0},"pcb_error":"",
+		"pcb_inputs":runtime.inputs.duplicate(true),
+		"features":{"battery":true,"switch_a":false,"switch_b":false}
+	}
+	world.placed["integrated"]=item
+	world.visuals["integrated"]=world._create_view("integrated",item)
+	world.simulators["integrated"]={"runtime":runtime,"clock":0.0}
+	var joints: Array=world.visuals["integrated"].get_meta("joints",[])
+	assert(joints.size()==1 and joints[0].control=="A",
+		"The fabricated servo must connect to the moving hinge")
+	for step in 20:world._physics_process(.05)
+	assert(not item.effective.A and absf(float(item.hinge_angles.get(0,0)))<.01,
+		"The unpressed PCB switch must not move the hinge")
+	var press: Dictionary={"op":"pcb_input","key":"integrated",
+		"id":"board/pcb/gate","pressed":true}
+	world._apply(1,press)
+	for step in 20:world._physics_process(.05)
+	assert(item.effective.A and float(item.pcb_voltage.A)>2.5
+		and float(item.hinge_angles.get(0,0))>Model.HINGE_OPEN-.01,
+		"PCB output must actually open the placed invention's servo hinge")
+	world._apply(1,press)
+	for step in 20:world._physics_process(.05)
+	assert(not item.effective.A and float(item.pcb_voltage.A)<1.0
+		and absf(float(item.hinge_angles.get(0,0)))<.01,
+		"Switching the PCB off must close the placed invention's hinge")
+	game.free()
+	print("PCB_SERVO_INTEGRATION_PASS")
 
 func _check_input_leases() -> void:
 	var game:=MockGame.new()
@@ -175,6 +240,11 @@ func _check_input_leases() -> void:
 	world._apply(1,press)
 	assert(world.pcb_holders.is_empty(),"A rejected PCB input must not acquire an exclusive control lease")
 	probe.accept=true
+	var contradictory: Dictionary=press.duplicate(true)
+	contradictory.command={"op":"press","pressed":false}
+	world._apply(1,contradictory)
+	assert(probe.calls.is_empty() and world.pcb_holders.is_empty(),
+		"Released joystick hardware must not acquire an exclusive pressed lease")
 	world._apply(1,press)
 	assert(world.pcb_holders.has("fixture|board/joy:"),"Valid joystick press did not acquire a lease")
 	var move: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":true,
@@ -207,6 +277,11 @@ func _check_input_leases() -> void:
 		"command":{"op":"release"}})
 	assert(probe.calls.size()==before,"Remote keypad-wide release could clear another player's held keys")
 	world.placed["fixture"].pcb_inputs.append({"kind":"xpt2046","id":"board/touch"})
+	before=probe.calls.size()
+	world._apply(1,{"op":"pcb_input","key":"fixture","id":"board/touch","pressed":true,
+		"command":{"op":"touch","x":0.2,"y":0.4,"pressed":false}})
+	assert(probe.calls.size()==before and not world.pcb_holders.has("fixture|board/touch:"),
+		"A contradictory released touch must not lock another player out")
 	world._apply(1,{"op":"pcb_input","key":"fixture","id":"board/touch","pressed":true,
 		"command":{"op":"touch","x":0.2,"y":0.4,"pressed":true}})
 	assert(world.pcb_holders.has("fixture|board/touch:"))

@@ -213,7 +213,10 @@ func _library() -> void:
 			draft=designs[id].duplicate(true)
 			draft.name=(str(draft.name).left(34)+" copy")
 			_editor())
-		var fabricate:=_button(actions,"Fabricate",_fabricate.bind(str(id)));fabricate.disabled=cost<0
+		var fabricate:=_button(actions,"Fabricate",_fabricate.bind(str(id)))
+		fabricate.disabled=cost<0 or int(profile.data.get("invention_copies",{}).get(id,0))>=100
+		if int(profile.data.get("invention_copies",{}).get(id,0))>=100:
+			fabricate.tooltip_text="Maximum 100 copies. Discard unused copies before fabricating more."
 		var place:=_button(actions,"Place copy",_place.bind(str(id)));place.disabled=cost<0 or int(profile.data.get("invention_copies",{}).get(id,0))<1
 		if int(profile.data.get("invention_copies",{}).get(id,0))>0 and not game.session.online:
 			_button(actions,"Discard copies",_discard_copies.bind(str(id)))

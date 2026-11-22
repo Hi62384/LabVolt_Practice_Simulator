@@ -204,6 +204,11 @@ func _apply(peer: int,action: Dictionary) -> void:
 			if entry.id==input_id:input_record=entry;break
 		if input_record.is_empty():return
 		var command_data: Dictionary=action.get("command",{})
+		# An input cannot request an exclusive held lease while its underlying
+		# hardware command says released. Verify both booleans agree before
+		# forwarding anything to the circuit or changing control ownership.
+		if str(command_data.get("op","")) in ["press","touch","key"] and command_data.get("pressed") is bool:
+			if bool(command_data.pressed)!=bool(action.pressed):return
 		var holder_key:=key+"|"+input_id+":"+str(command_data.get("key",""))
 		var holdable: bool=input_record.kind=="button" or str(command_data.get("op","")) in ["key","press","touch"] or (not action.pressed and input_record.kind in ["xpt2046","io_joystick"])
 		var holder: Dictionary=pcb_holders.get(holder_key,{})

@@ -50,6 +50,12 @@ func _run() -> void:
 		"Same-named saved revisions are indistinguishable in the library")
 	assert(_button(window,"Remove blueprint").get_parent() is HFlowContainer,
 		"Blueprint buttons must wrap instead of being clipped on narrow windows")
+	game.electronics.profile.data.invention_copies={"inv:rev-one":100}
+	window._library()
+	var fabricate_buttons: Array=window.find_children("*","Button",true,false).filter(
+		func(button):return button.text=="Fabricate")
+	assert(fabricate_buttons.size()==2 and fabricate_buttons[0].disabled and not fabricate_buttons[1].disabled,
+		"Fabrication must be disabled only on designs already at the 100-copy limit")
 	game.electronics.profile.data=old_profile.duplicate(true)
 	window._library()
 	# Creating a new invention starts with a frame at (0,0,0); the

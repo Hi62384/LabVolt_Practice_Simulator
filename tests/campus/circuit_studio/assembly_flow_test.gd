@@ -63,6 +63,14 @@ func _run() -> void:
 	assert(p.data.invention_copies["inv:cart"]==1)
 	var reloaded:=Profile.new();reloaded.open(identity)
 	assert(reloaded.data.invention_copies["inv:cart"]==1)
+	# At the profile limit a fabrication request must fail explicitly before
+	# charging the player or attempting a save that validation would reject.
+	p.data.invention_copies["inv:cart"]=100
+	var dollars_before: float=float(p.data.dollars)
+	assert(p.fabricate_invention("inv:cart").contains("Maximum 100"),
+		"Copy-limit failure must explain how to recover instead of a save error")
+	assert(p.data.invention_copies["inv:cart"]==100 and is_equal_approx(float(p.data.dollars),dollars_before)
+		and not p.operation_succeeded,"Copy-limit rejection changed stock or money")
 	var ledger:=Ledger.new()
 	assert(ledger.open("user://invention_ledger_"+identity)==OK)
 	var host_seed: Dictionary=reloaded.data.duplicate(true)
