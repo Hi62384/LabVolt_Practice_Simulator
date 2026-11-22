@@ -150,7 +150,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		else:_close()
 	elif page=="editor":
 		if event.keycode==KEY_DELETE and selected_part>=0:_remove_part(selected_part)
-		elif event.ctrl_pressed and event.keycode==KEY_Z:_history(undo_stack,redo_stack)
+		elif event.ctrl_pressed and event.keycode==KEY_Z:
+			_history(redo_stack,undo_stack) if event.shift_pressed else _history(undo_stack,redo_stack)
 		elif event.ctrl_pressed and event.keycode==KEY_Y:_history(redo_stack,undo_stack)
 
 func _ui(title_text: String) -> void:
@@ -187,13 +188,21 @@ func _library() -> void:
 	_button(body,"New invention",func():editing_id="";draft=Model.empty();_editor())
 	var designs: Dictionary=profile.data.get("inventions",{})
 	var ids:=designs.keys();ids.sort()
+	var repeated_names: Dictionary={}
+	for saved_id in ids:
+		var saved_name: String=str(designs[saved_id].get("name",""))
+		repeated_names[saved_name]=int(repeated_names.get(saved_name,0))+1
 	for id in ids:
 		var error: String=Model.validate(str(id),designs,profile.data.get("blueprints",{}))
 		var cost: int=Model.price(str(id),designs,profile.data.get("blueprints",{})) if error.is_empty() else -1
 		var panel:=PanelContainer.new();body.add_child(panel)
 		var column:=VBoxContainer.new();panel.add_child(column)
-		_label(column,"%s · %d parts · %d copies · %s"%[designs[id].name,designs[id].parts.size(),int(profile.data.get("invention_copies",{}).get(id,0)),"$%d per copy"%cost if cost>=0 else error])
-		var actions:=_row(column)
+		var display_name: String=str(designs[id].name)
+		if int(repeated_names.get(display_name,0))>1:display_name+=" · "+str(id).right(8)
+		var heading:=_label(column,"%s · %d parts · %d copies · %s"%[display_name,designs[id].parts.size(),int(profile.data.get("invention_copies",{}).get(id,0)),"$%d per copy"%cost if cost>=0 else error])
+		heading.tooltip_text="Blueprint "+str(id)
+		var actions:=HFlowContainer.new()
+		column.add_child(actions)
 		_button(actions,"Edit",func():editing_id=str(id);draft=designs[id].duplicate(true);_editor())
 		_button(actions,"Test",func():editing_id=str(id);draft=designs[id].duplicate(true);_test_draft()).disabled=cost<0
 		_button(actions,"Duplicate",func():
@@ -245,7 +254,11 @@ func _editor(message: String="") -> void:
 	var inspector:=VBoxContainer.new()
 	inspector.custom_minimum_size.x=190
 	layout.add_child(inspector)
-	var tools:=_row(canvas)
+	# Wrap toolbar actions rather than clipping the Undo/Redo buttons on
+	# small screens, where the parts palette and inspector must also fit.
+	var tools:=HFlowContainer.new()
+	tools.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	canvas.add_child(tools)
 	var tool_group:=ButtonGroup.new()
 	for tool in ["select","place","move","rotate"]:
 		var button:=_button(tools,tool.capitalize(),func():viewport_tool=tool)

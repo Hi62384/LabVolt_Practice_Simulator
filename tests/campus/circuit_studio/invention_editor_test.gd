@@ -39,6 +39,19 @@ func _run() -> void:
 	game.add_child(window)
 	window.open_station(game)
 	var old_profile: Dictionary=game.electronics.profile.data.duplicate(true)
+	# Two saved revisions can have the same title; distinguish them in
+	# the library, and keep all per-blueprint actions accessible at low widths.
+	game.electronics.profile.data.inventions={"inv:rev-one":Model.empty("Same name"),"inv:rev-two":Model.empty("Same name")}
+	game.electronics.profile.data.invention_copies={}
+	window._library()
+	var revision_labels: Array=window.find_children("*","Label",true,false).filter(
+		func(label):return label.text.begins_with("Same name"))
+	assert(revision_labels.size()==2 and revision_labels[0].text!=revision_labels[1].text,
+		"Same-named saved revisions are indistinguishable in the library")
+	assert(_button(window,"Remove blueprint").get_parent() is HFlowContainer,
+		"Blueprint buttons must wrap instead of being clipped on narrow windows")
+	game.electronics.profile.data=old_profile.duplicate(true)
+	window._library()
 	# Creating a new invention starts with a frame at (0,0,0); the
 	# editor should offer a free position instead of a failing Add part.
 	window.editing_id=""
@@ -77,7 +90,12 @@ func _run() -> void:
 	window._history(window.undo_stack,window.redo_stack)
 	assert(window.draft.name=="History draft" and window.draft.controls.A=="hold" and window.draft.drive.A=="manual",
 		"Undo lost the baseline or skipped uncommitted name/drive settings")
-	window._history(window.redo_stack,window.undo_stack)
+	var redo_shortcut:=InputEventKey.new()
+	redo_shortcut.pressed=true
+	redo_shortcut.ctrl_pressed=true
+	redo_shortcut.shift_pressed=true
+	redo_shortcut.keycode=KEY_Z
+	window._unhandled_key_input(redo_shortcut)
 	assert(window.draft.name=="Edited title" and window.draft.controls.A=="toggle" and window.draft.drive.A=="pcb",
 		"Redo did not restore staged name, control and drive settings")
 	window._library()
@@ -87,6 +105,8 @@ func _run() -> void:
 	window.draft.parts.append({"type":"plastic_shell","x":1,"y":0,"z":0,"control":"","ref":""})
 	window.selected_part=1
 	window._editor()
+	assert(_button(window,"Undo").get_parent() is HFlowContainer,
+		"Editor toolbar must wrap Undo and Redo on smaller displays")
 	window.viewport_tool="place"
 	window._viewport_click(Vector3i(2,0,0),-1)
 	assert(window.draft.parts.size()==3 and window.draft.parts[1].x==1 and window.selected_part==-1,
