@@ -103,7 +103,7 @@ func _run() -> void:
 	switch_world.placed["dual"]=dual_item
 	var physical: StaticBody3D=switch_world._create_view("dual",dual_item)
 	switch_world.visuals["dual"]=physical
-	var buttons: Array=physical.find_children("ControlA*",true,false)
+	var buttons: Array=physical.find_children("ControlA*","",true,false)
 	assert(buttons.size()==2,"Second channel-A switch is invisible or cannot be clicked")
 	for button in buttons:
 		assert(button.get_meta("role")=="invention_control" and button.get_meta("control")=="A"

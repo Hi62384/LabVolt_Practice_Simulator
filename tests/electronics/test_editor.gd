@@ -18,7 +18,7 @@ func run() -> void:
 	# Equip requests require a live player, a carried kit and host authority.
 	# This menu-only fixture tests the downstream paper occupancy contract,
 	# rather than forging an impossible equip request during startup.
-	game.kit_world.kits[1]={"id":"starter","owner":1,"held":true}
+	game.kit_world.kits[1]={"id":"starter","owner":1,"name":"Starter kit","tier":"standard","held":true,"stowed":false,"open":false,"position":Vector3.ZERO}
 	assert(game.school._holding_kit(1),"Held kit must block paper-hand occupancy")
 	print("PASS: copy uses free holes, undo restores design, editor zoom/pan persists, held kits recognized by paper system")
 	quit()

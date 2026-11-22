@@ -387,7 +387,7 @@ func _process(delta: float) -> void:
 		root.rotation.y=float(item.yaw)
 		for control in ["A","B"]:
 			# Every physical switch wired to a logical channel shows its state.
-			for node in root.find_children("Control"+control+"*",true,false):
+			for node in root.find_children("Control"+control+"*","",true,false):
 				var button:=node as Node3D
 				if is_instance_valid(button):button.position.y=.10 if item.state[control] else .14
 		for shaft in root.get_meta("shafts",[]):
