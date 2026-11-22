@@ -56,11 +56,18 @@ func _initialize() -> void:
 	assert(buttons.apply({"op":"board","design":pressed_board})=="")
 	assert(buttons.apply({"op":"input","id":"board/trigger","pressed":true})=="")
 	assert(buttons.button_releases.has("board/trigger"))
-	var new_button: Dictionary=pressed_board.duplicate(true)
+	# Deliberately clone the LIVE board rather than the original design: a
+	# real editor can carry the old button's pressed=true and control map.
+	var new_button: Dictionary=buttons.board.duplicate(true)
 	new_button.instance_ids.trigger="button-2"
 	assert(buttons.apply({"op":"board","design":new_button})=="")
 	assert(not buttons.button_releases.has("board/trigger"),
 		"Old momentary timer would release a newly installed button")
+	assert(not bool(buttons.board.parts[0].get("pressed",false))
+		and not buttons.board.get("controls",{}).has("board/trigger"),
+		"New button inherited pressed state from the previous physical instance")
+	assert(new_button.get("controls",{}).has("board/trigger"),
+		"Sanitizing the board unexpectedly mutated the caller's design")
 	# With the same ID and battery rating, swapping physical batteries must not
 	# give the new pack the old one's discharge and depleted voltage.
 	var battery_station:=Station.new()

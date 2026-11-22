@@ -143,6 +143,15 @@ func _forget_replaced_board_state(next_board: Dictionary) -> void:
 		if not replaced:continue
 		forgotten=true
 		var prefix: String="board/"+id
+		# Board edits are often produced by copying the live board. Discard any
+		# inherited interactive state before the replacement is installed.
+		for field in ["controls","io_controls"]:
+			var states: Dictionary=next_board.get(field,{})
+			for state_id in states.keys():
+				if str(state_id)==prefix or str(state_id).begins_with(prefix+"/"):states.erase(state_id)
+		if not current.is_empty():
+			for field in ["pressed","setting","source_voltage","source_frequency","source_wave"]:
+				current.erase(field)
 		for key in solver.memory.keys():
 			if str(key)==prefix or str(key).begins_with(prefix+"/"):solver.memory.erase(key)
 		for key in solver.battery_discharge.keys():
@@ -475,10 +484,13 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			if error!="":return error
 			if not preserve_board_leads and (bool(board.get("standalone",false))!=bool(design.get("standalone",false)) or (design.get("standalone",false) and board.get("parts",[])!=design.get("parts",[]))):
 				_remove_board_leads()
-			_forget_replaced_board_state(design)
+			# Work on a private copy: replacing hardware must not mutate the
+			# caller's saved blueprint or its currently displayed controls.
+			var next_board: Dictionary=design.duplicate(true)
+			_forget_replaced_board_state(next_board)
 			var old_instances: Dictionary=board.get("instance_ids",{}).duplicate()
 			board_epoch+=1
-			board=design.duplicate(true)
+			board=next_board
 			var ids: Dictionary=board.get("instance_ids",{})
 			for id in firmware_states.keys():
 				if firmware_states[id].has("memory"):
