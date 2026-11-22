@@ -91,6 +91,27 @@ func board_simulating() -> bool:
 		passive_pcb=model.expand(board).parts.all(func(part):return part.kind in ["R","D","LED"])
 	return not passive_pcb
 
+# Resetting the station while an input is pressed must not strand its state
+# after solver.time returns to zero and invalidates the old release deadlines.
+func _release_pending_buttons() -> void:
+	for id in button_releases:
+		if board.get("controls",{}).has(id):board.controls[id].pressed=false
+		for part in board.get("parts",[]):
+			if "board/"+str(part.id)==id:part.pressed=false
+	button_releases.clear()
+
+func _clear_measurement_history() -> void:
+	audio_ids.clear()
+	audio_samples.clear()
+	meter_samples.clear()
+	samples.clear()
+	result={}
+	meter="—"
+	last_sample_time=-1.0
+	can_reuse_static_solution=false
+	scope_capture.reset()
+	scope_capture.configure(scope)
+
 func _remove_board_leads() -> void:
 	for index in range(wires.size()-1,-1,-1):
 		var wire: Array = wires[index]
@@ -472,10 +493,12 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 				if not firmware_states.has(id):firmware_states[id]=restored[id]
 		"recall":
 			firmware.clear();firmware_states.clear()
+			button_releases.clear()
 			board_epoch+=1
 			board={};board_owner=0;board_held=false;board_stowed=false;board_position=Vector3.ZERO;board_rotation=0
 			_remove_board_leads()
 			solver.reset()
+			_clear_measurement_history()
 		"master":master=not master
 		"channel":
 			var i := int(action.get("index",-1));var key := str(action.get("key",""))
@@ -529,7 +552,10 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			if i<0 or i>=wires.size():return "Lead no longer exists"
 			_remove_lead(i)
 		"clear":
-			master=false;generator.enabled=false;wires.clear();lead_colors.clear();solver.reset();samples.clear();scope_capture.reset();scope_capture.configure(scope)
+			_release_pending_buttons()
+			master=false;generator.enabled=false;wires.clear();lead_colors.clear()
+			solver.reset()
+			_clear_measurement_history()
 		"scope":
 			var controls: Array=[action]
 			if str(action.get("key",""))=="autoset":

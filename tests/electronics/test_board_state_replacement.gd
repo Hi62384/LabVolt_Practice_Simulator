@@ -85,5 +85,31 @@ func _initialize() -> void:
 	assert(battery_station.result.get("ok",false),str(battery_station.result))
 	assert(is_equal_approx(float(battery_station.result.charge.get("board/cell",0.0)),1.0),
 		"Newly installed battery did not begin at full capacity")
+	# Clearing leads leaves the physical board intact but cancels momentary
+	# presses and wipes the scope/meter rather than leaving previous readings.
+	var cleared:=Station.new()
+	assert(cleared.apply({"op":"board","design":pressed_board})=="")
+	assert(cleared.apply({"op":"input","id":"board/trigger","pressed":true})=="")
+	cleared.meter_samples=[[1.0,5.0]]
+	cleared.samples=[[1.0,5.0]]
+	cleared.audio_samples={"board/trigger":[[1.0,5.0]]}
+	cleared.result={"ok":true,"v":{"A1":5.0}}
+	cleared.meter="5 V"
+	assert(cleared.apply({"op":"clear"})=="")
+	assert(cleared.button_releases.is_empty() and not cleared.board.controls["board/trigger"].pressed,
+		"Clear retained an old momentary press or delayed release")
+	assert(cleared.meter_samples.is_empty() and cleared.samples.is_empty()
+		and cleared.audio_samples.is_empty() and cleared.result.is_empty() and cleared.meter=="—",
+		"Clear displayed stale measurements after resetting the circuit")
+	# Recall removes the board entirely; a pending timer must never release a
+	# new component installed under the same editor ID after time resets.
+	var recalled:=Station.new()
+	assert(recalled.apply({"op":"board","design":pressed_board})=="")
+	assert(recalled.apply({"op":"input","id":"board/trigger","pressed":true})=="")
+	assert(recalled.apply({"op":"recall"})=="")
+	assert(recalled.board.is_empty() and recalled.button_releases.is_empty(),
+		"Recall retained a button-release lease from a removed circuit")
+	assert(recalled.result.is_empty() and recalled.meter_samples.is_empty(),
+		"Recall kept readings from the removed board")
 	print("BOARD_STATE_REPLACEMENT PASS")
 	quit()
