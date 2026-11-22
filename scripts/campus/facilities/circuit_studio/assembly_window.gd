@@ -574,6 +574,15 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 			selected_part=index
 			_editor()
 		return
+	# Placement is a fresh-part action, not a move of the previously selected
+	# part. Deselect a clean selection before using the placement inspector.
+	# Refuse a dirty selection rather than silently losing staged edits.
+	if viewport_tool=="place" and selected_part>=0:
+		var staged: Dictionary=_staged_draft()
+		if staged.has("error") or staged.draft!=draft:
+			notice.text="Apply pending changes to the selected part before placing a new part."
+			return
+		selected_part=-1
 	if absi(cell.x)>6 or absi(cell.z)>6:return
 	for occupied_index in draft.parts.size():
 		var part: Dictionary=draft.parts[occupied_index]
@@ -771,12 +780,12 @@ func _add_part() -> void:
 	_editor()
 func _apply_selected() -> void:
 	if selected_part<0 or selected_part>=draft.parts.size() or part_kind.selected<0:return
-	var before: Dictionary=draft.parts[selected_part].duplicate(true)
+	var before: Dictionary=draft.duplicate(true)
 	if not _commit_selected_changes(true):return
-	if before==draft.parts[selected_part]:
+	if before==draft:
 		notice.text="Selected part already has those settings."
 		return
-	_editor("Selected part updated.")
+	_editor("Changes applied.")
 
 # Use the same inspector-to-model path for Apply, Save and Test. Previously
 # Save/Test could silently discard pending coordinates, controls and PCB pins.

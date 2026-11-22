@@ -81,6 +81,20 @@ func _run() -> void:
 	assert(window.draft.name=="Edited title" and window.draft.controls.A=="toggle" and window.draft.drive.A=="pcb",
 		"Redo did not restore staged name, control and drive settings")
 	window._library()
+	# Switching to Place from a clean selected part must not modify or move it,
+	# and consecutive canvas clicks must create consecutive new parts.
+	window.draft=Model.empty("Place tool test")
+	window.draft.parts.append({"type":"plastic_shell","x":1,"y":0,"z":0,"control":"","ref":""})
+	window.selected_part=1
+	window._editor()
+	window.viewport_tool="place"
+	window._viewport_click(Vector3i(2,0,0),-1)
+	assert(window.draft.parts.size()==3 and window.draft.parts[1].x==1 and window.selected_part==-1,
+		"Place modified the selected part instead of creating another")
+	window._viewport_click(Vector3i(3,0,0),-1)
+	assert(window.draft.parts.size()==4 and window.draft.parts[3].x==3,
+		"Consecutive Place clicks did not add separate parts")
+	window._library()
 	var draft: Dictionary=Model.empty("Editor checks")
 	draft.parts.append_array([
 		{"type":"battery","x":1,"y":0,"z":0,"control":"","ref":""},
