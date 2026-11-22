@@ -55,6 +55,10 @@ func mount(owner_ui: Node) -> Control:
 	panel_parent.add_child(panels)
 	panels.configure(workspace,{"profile":{} if host.designing else host.profile.data,"catalog":catalog,"limits":{} if host.designing else stock,"creative":host.designing or (host.creative and not physical),"analyzer_allowed":host.creative or host.designing or host.profile.data.get("analyzer",false)},{"record_instance":record_instance,"validate_property":validate_property,"apply_property":apply_property,"validate_port":validate_port,"apply_port":apply_port,"open_projects":func():host.open("kits",host.bench)})
 	workspace.set_meta("panels",panels)
+	# Circuit design offers a free analyzer without buying the lab tool.
+	# Activate its probe/measurement backend immediately on entering the
+	# designer; granting panel access alone leaves preview probes disabled.
+	if host.designing:host.canvas.analyzer_enabled=true
 	if physical:
 		panels.picker.lab_lead_chosen.connect(func(port): workspace._choose_mode("place");host.canvas.selected_lab_lead=port)
 		host.canvas.lab_lead_placed.connect(func(port,hole):host.game.dc_lab.request(host.bench,{"op":"kit_lead","port":port,"hole":hole}))

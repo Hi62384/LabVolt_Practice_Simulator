@@ -67,6 +67,9 @@ func _run() -> void:
 		{"type":"servo","x":0,"y":1,"z":0,"control":"A","ref":""}
 	])
 	assert(Model.validate("inv:test",{"inv:test":draft},old_profile.get("blueprints",{}))=="")
+	# This fixture replaces the first draft directly. Real users return via
+	# the Library, which clears the prior design's undo/redo stacks.
+	window._library()
 	window.draft=draft
 	window.selected_part=4
 	window._editor()
