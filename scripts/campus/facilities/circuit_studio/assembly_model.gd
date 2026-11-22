@@ -120,6 +120,18 @@ static func rotate_grid(point: Vector3i,turns: int) -> Vector3i:
 		3:return Vector3i(-point.z,point.y,point.x)
 	return point
 
+## Sum the powered wheels' requested travel vectors. One wheel must not
+## arbitrarily overrule a second motor trying to drive the opposite way.
+static func wheel_drive(parts: Array,channels: Dictionary,battery: bool) -> Vector3:
+	if not battery:return Vector3.ZERO
+	var direction:=Vector3.ZERO
+	for part in parts:
+		if part.get("type","")!="wheel":continue
+		var channel: String=str(part.get("motor_control",""))
+		if channel.is_empty() or not bool(channels.get(channel,false)):continue
+		direction+=Vector3(rotate_grid(Vector3i.FORWARD,int(part.get("turns",0))))
+	return direction.normalized() if direction.length_squared()>0.0 else Vector3.ZERO
+
 static func energized(drive: String, switch_on: bool, voltage: float) -> bool:
 	if drive=="manual":return switch_on
 	if drive=="pcb":return voltage>=2.5

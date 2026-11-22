@@ -102,6 +102,7 @@ jobs:
             'tests/electronics/test_linear_ac_board.gd' = 'LINEAR AC BOARD PASS'
             'tests/electronics/test_coupling.gd' = ''
             'tests/electronics/test_solver_battery.gd' = ''
+            'tests/electronics/test_board_state_replacement.gd' = 'BOARD_STATE_REPLACEMENT PASS'
             'tests/electronics/test_firmware.gd' = 'FIRMWARE FAILURES: 0'
             'tests/electronics/test_inputs.gd' = ''
             'tests/electronics/test_io_input_guard.gd' = ''

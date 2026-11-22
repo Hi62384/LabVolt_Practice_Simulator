@@ -103,6 +103,9 @@ func _has_unsaved_changes() -> bool:
 					part.pin_map={}
 					for role in pin_choices:
 						var choice: OptionButton=pin_choices[role]
+						# A missing/deleted PCB pin may leave an empty selector.
+						# Treat it as an unsaved invalid edit instead of indexing -1.
+						if choice.selected<0:return true
 						part.pin_map[role]=int(choice.get_item_metadata(choice.selected))
 	# Saved older inventions may omit drive, implicitly meaning manual.
 	if not stored.has("drive") and candidate.get("drive",{})=={"A":"manual","B":"manual"}:

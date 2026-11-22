@@ -484,12 +484,7 @@ func _physics_process(delta: float) -> void:
 					articulation_changed=true
 					changed=true
 			if articulation_changed:_apply_hinges(joints)
-		var drive_direction:=Vector3.ZERO
-		if item.features.battery:
-			for part in item.parts:
-				if part.type=="wheel" and item.effective.get(part.get("motor_control",""),false):
-					drive_direction=Vector3(Model.rotate_grid(Vector3i.FORWARD,int(part.get("turns",0))))
-					break
+		var drive_direction: Vector3=Model.wheel_drive(item.parts,item.effective,bool(item.features.battery))
 		if drive_direction!=Vector3.ZERO:
 			var view: StaticBody3D=visuals.get(key)
 			var solid: StaticBody3D=view.get_node("Solid") if is_instance_valid(view) else null

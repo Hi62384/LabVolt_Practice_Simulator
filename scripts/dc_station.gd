@@ -97,6 +97,48 @@ func _remove_board_leads() -> void:
 		if board_port(str(wire[0])) or board_port(str(wire[1])):
 			_remove_lead(index)
 
+# A board edit can keep the same local part ID while swapping the actual
+# physical component. Transient charge, battery usage and firmware are attached
+# to component instances, not IDs; never transfer them to a replacement.
+# Edits that keep the same component (for example, rewiring it) retain history.
+func _forget_replaced_board_state(next_board: Dictionary) -> void:
+	var upcoming: Dictionary={}
+	for part in next_board.get("parts",[]):
+		upcoming[str(part.id)]=part
+	var previous_instances: Dictionary=board.get("instance_ids",{})
+	var next_instances: Dictionary=next_board.get("instance_ids",{})
+	var previous_definitions: Dictionary=board.get("definitions",{})
+	var next_definitions: Dictionary=next_board.get("definitions",{})
+	var forgotten:=false
+	for previous in board.get("parts",[]):
+		var id: String=str(previous.id)
+		var current: Dictionary=upcoming.get(id,{})
+		var replaced: bool=current.is_empty() or str(current.get("type",""))!=str(previous.type)
+		if not replaced and (previous_instances.has(id) or next_instances.has(id)):
+			replaced=previous_instances.get(id,"")!=next_instances.get(id,"")
+		# A custom package with the same ID can contain an entirely new circuit.
+		if not replaced and str(previous.type).begins_with("ic:"):
+			replaced=previous_definitions.get(str(previous.type),{})!=next_definitions.get(str(previous.type),{})
+		if not replaced:continue
+		forgotten=true
+		var prefix: String="board/"+id
+		for key in solver.memory.keys():
+			if str(key)==prefix or str(key).begins_with(prefix+"/"):solver.memory.erase(key)
+		for key in solver.battery_discharge.keys():
+			if str(key).begins_with(prefix+"|") or str(key).begins_with(prefix+"/"):solver.battery_discharge.erase(key)
+		for key in button_releases.keys():
+			if str(key)==prefix or str(key).begins_with(prefix+"/"):button_releases.erase(key)
+		for key in firmware.keys():
+			if str(key)==prefix or str(key).begins_with(prefix+"/"):firmware.erase(key)
+		for key in firmware_states.keys():
+			if str(key)==prefix or str(key).begins_with(prefix+"/"):firmware_states.erase(key)
+	if forgotten:
+		# The old result must not provide initial voltages to a newly installed
+		# controller or qualify as the last solved state of the replacement.
+		result={}
+		solver.last={}
+		can_reuse_static_solution=false
+
 func _remove_lead(index: int) -> void:
 	wires.remove_at(index)
 	if index < lead_colors.size():
@@ -412,6 +454,7 @@ func apply(action: Dictionary, preserve_board_leads := false) -> String:
 			if error!="":return error
 			if not preserve_board_leads and (bool(board.get("standalone",false))!=bool(design.get("standalone",false)) or (design.get("standalone",false) and board.get("parts",[])!=design.get("parts",[]))):
 				_remove_board_leads()
+			_forget_replaced_board_state(design)
 			var old_instances: Dictionary=board.get("instance_ids",{}).duplicate()
 			board_epoch+=1
 			board=design.duplicate(true)

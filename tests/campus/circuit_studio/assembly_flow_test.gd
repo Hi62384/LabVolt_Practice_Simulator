@@ -19,6 +19,20 @@ func _run() -> void:
 	p.data.inventions={"inv:drive":drive,"inv:cart":shell}
 	assert(Model.validate("inv:cart",p.data.inventions,p.data.get("blueprints",{}))=="")
 	assert(Model.price("inv:cart",p.data.inventions,p.data.get("blueprints",{}))==73)
+	# Two opposing active motors cancel rather than allowing array order to
+	# decide where a manufactured invention drives. A lone wheel still moves.
+	var opposing: Array=[
+		{"type":"wheel","turns":0,"motor_control":"A"},
+		{"type":"wheel","turns":2,"motor_control":"B"}
+	]
+	assert(Model.wheel_drive(opposing,{"A":true,"B":true},true)==Vector3.ZERO,
+		"Opposing powered wheels should not cause arbitrary movement")
+	assert(Model.wheel_drive(opposing,{"A":true,"B":false},true)==Vector3.FORWARD,
+		"The active wheel should drive forward")
+	assert(Model.wheel_drive(opposing,{"A":false,"B":true},true)==Vector3.BACK,
+		"Reverse-facing wheel should drive backward")
+	assert(Model.wheel_drive(opposing,{"A":true,"B":true},false)==Vector3.ZERO,
+		"An invention without a battery cannot drive")
 	var module: Dictionary=Model.empty("Power module")
 	module.parts.append({"type":"battery","x":1,"y":0,"z":0,"control":"","ref":""})
 	module.parts.append({"type":"switch","x":2,"y":0,"z":0,"control":"A","ref":""})
