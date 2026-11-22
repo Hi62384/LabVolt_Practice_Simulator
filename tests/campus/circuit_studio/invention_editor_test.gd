@@ -240,6 +240,28 @@ func _run() -> void:
 	assert(window.draft.parts.back().pin_map.A==2 and window.draft.parts.back().pin_map.B==3,
 		"Committed PCB pins must match the selections after a palette search")
 	assert(Model.validate("inv:test",{"inv:test":window.draft},game.electronics.profile.data.blueprints)=="")
+	# Imported PCBs may have generic pin labels instead of VCC/GND.
+	# The first-time mapping should select distinct supply pins automatically.
+	var generic_bp: Dictionary=bp.duplicate(true)
+	for index in generic_bp.pins.size():generic_bp.pins[index].name="Pin "+str(index+1)
+	var generic_id: String="ic:generic_labels"
+	assert(Custom.validate(generic_id,{generic_id:generic_bp})=="")
+	game.electronics.profile.data.blueprints[generic_id]=generic_bp
+	window.selected_part=-1
+	window._editor()
+	for index in window.part_kind.item_count:
+		if window.part_kind.get_item_metadata(index)=="pcb":window.part_kind.select(index);break
+	window._reference_options()
+	for index in window.part_ref.item_count:
+		if window.part_ref.get_item_metadata(index)==generic_id:window.part_ref.select(index);break
+	window._pin_options()
+	var default_pins: Dictionary={}
+	for role in ["power","ground","A","B"]:
+		var selector: OptionButton=window.pin_choices[role]
+		assert(selector.selected>=0,"Default PCB pin selector is unconfigured")
+		default_pins[role]=int(selector.get_item_metadata(selector.selected))
+	assert(default_pins.power==0 and default_pins.ground==1 and Model.validate_pcb_pin_map(generic_bp,default_pins)=="",
+		"Generically named PCB pins must default to distinct, valid supply connectors")
 	# A nested child with no individual copies must still get a new revision
 	# when its parent was fabricated. The parent keeps referring to the old ID.
 	var child: Dictionary=Model.empty("Nested child")

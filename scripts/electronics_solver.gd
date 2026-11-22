@@ -47,7 +47,7 @@ static func _component_error(part: Dictionary) -> String:
 		var raw: Variant=part[field]
 		if not (raw is int or raw is float) or not is_finite(float(raw)):
 			return "Component "+str(part.id)+" has invalid "+field+"."
-	for field in ["vf","resistance","compliance","limit"]:
+	for field in ["vf","resistance","compliance","limit","capacity_ah"]:
 		if part.has(field) and float(part[field])<0.0:
 			return "Component "+str(part.id)+" has negative "+field+"."
 	if kind in ["R","C","L"] and float(part.value)<0.0:
@@ -246,6 +246,17 @@ func solve(parts: Array, wires: Array = [], dt := 0.0,hold_transients := false) 
 	last={"ok":true,"v":voltages,"i":currents,"winding_currents":winding_currents,"drop":drops,"mode":states,"charge":charge,"islands":islands.duplicate(),"time":time}
 	return last
 
+# A 0 F capacitor, 0 A ideal source or zero-gain current output is
+# an open connection. Do not combine otherwise independent voltage-reference
+# islands through an unstamped branch. This flag is part of the topology key
+# because editing a component across zero changes the number of island refs.
+static func _connects_islands(part: Dictionary, transient: bool) -> bool:
+	match str(part.kind):
+		"C":return transient and float(part.value)>0.0
+		"I":return float(part.value)!=0.0
+		"F":return float(part.get("gain",1.0))!=0.0
+	return true
+
 func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
 	# Damaged/imported connections should fail with an error rather than
 	# indexing missing endpoints during the live circuit solve.
@@ -264,7 +275,7 @@ func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
 			var pin := str(terminal)
 			if pin.is_empty(): return {"error":"Component %s has a missing terminal." % part.id}
 			parent[pin]=pin
-		pins.append([part.id,part.kind,terminals,part.get("control",""),part.get("coupled","")])
+		pins.append([part.id,part.kind,terminals,part.get("control",""),part.get("coupled",""),_connects_islands(part,transient)])
 	var key := [pins,wires,transient]
 	if key==topology_key:return topology
 	for w in wires:
@@ -275,7 +286,7 @@ func _layout(parts: Array, wires: Array, transient: bool) -> Dictionary:
 	var groups := {}
 	for n in net.values():groups[n]=n
 	for p in parts:
-		if str(p.kind)=="C" and not transient:continue
+		if not _connects_islands(p,transient):continue
 		groups[root(groups,net[str(p.a)])]=root(groups,net[str(p.b)])
 		if p.kind=="T":
 			# The ideal transformer couples differential voltage and current.

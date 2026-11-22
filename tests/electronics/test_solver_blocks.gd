@@ -71,6 +71,7 @@ func _initialize() -> void:
   [{"id":"bad","kind":"LED","a":"a","b":"b","vf":-0.1},"vf"],
   [{"id":"bad","kind":"V","a":"a","b":"b","value":INF},"value"],
   [{"id":"bad","kind":"V","a":"a","b":"b","value":5.0,"capacity_ah":NAN},"capacity_ah"],
+  [{"id":"bad","kind":"V","a":"a","b":"b","value":5.0,"capacity_ah":-1.0},"capacity_ah"],
   [{"id":"bad","kind":"V","a":"a","b":"b","value":5.0,"resistance":-0.5},"resistance"],
   [{"id":"bad","kind":"I","a":"a","b":"b"},"value"],
   [{"id":"bad","kind":"supply","a":"a","b":"b","value":5.0,"limit":-1.0},"limit"],
@@ -97,5 +98,29 @@ func _initialize() -> void:
   {"id":"load","kind":"R","a":"a","b":"b","value":100.0}])
  if not signed.get("ok",false) or absf(float(signed.get("drop",{}).get("load",0.0))+5.0)>1e-8:
   push_error("Valid negative-voltage source changed while guarding malformed ratings");quit(1);return
+ # Zero-storage and zero-output primitives must not join independent
+ # reference islands, and editing a capacitance across zero must invalidate
+ # the cached topology rather than reuse a singular matrix layout.
+ var floating_parts: Array=[
+  {"id":"left_source","kind":"V","a":"lp","b":"ln","value":5.0},
+  {"id":"left_load","kind":"R","a":"lp","b":"ln","value":1000.0},
+  {"id":"right_source","kind":"V","a":"rp","b":"rn","value":9.0},
+  {"id":"right_load","kind":"R","a":"rp","b":"rn","value":2000.0},
+  {"id":"open_cap","kind":"C","a":"ln","b":"rn","value":0.0},
+  {"id":"open_current","kind":"I","a":"lp","b":"rp","value":0.0},
+  {"id":"control_diode","kind":"D","a":"ln","b":"lp","vf":0.65,"ron":2.0},
+  {"id":"zero_gain","kind":"F","a":"ln","b":"rn","control":"control_diode","gain":0.0}
+ ]
+ var island_solver=Solver.new()
+ var open_result=island_solver.solve(floating_parts,[],.01)
+ if not open_result.get("ok",false) or absf(float(open_result.get("drop",{}).get("left_load",0.0))-5.0)>.001 or absf(float(open_result.get("drop",{}).get("right_load",0.0))-9.0)>.001:
+  push_error("Open storage/current and zero-gain output merged independent reference islands: "+str(open_result));quit(1);return
+ floating_parts[4].value=.000001
+ var bridged_result=island_solver.solve(floating_parts,[],.01)
+ if not bridged_result.get("ok",false):push_error("Connecting a real capacitor invalidated valid islands");quit(1);return
+ floating_parts[4].value=0.0
+ var reopened_result=island_solver.solve(floating_parts,[],.01)
+ if not reopened_result.get("ok",false) or absf(float(reopened_result.get("drop",{}).get("right_load",0.0))-9.0)>.001:
+  push_error("Opening capacitor failed to invalidate cached topology: "+str(reopened_result));quit(1);return
  print("PASS: independent, asymmetric and singular matrix blocks agree with dense solver; invalid netlists rejected")
  quit()

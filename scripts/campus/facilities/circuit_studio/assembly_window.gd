@@ -696,6 +696,9 @@ func _pin_options() -> void:
 		for index in bp.pins.size():
 			choice.add_item(str(bp.pins[index].get("name","Pin "+str(index+1))))
 			choice.set_item_metadata(choice.item_count-1,index)
+		# Generic connector labels have no VCC/GND names. Start with
+		# distinct supply pins instead of presenting a short-circuit map.
+		if role=="ground" and bp.pins.size()>1:choice.select(1)
 		var wanted: String={"power":"VCC","ground":"GND","A":"OUT_A","B":"OUT_B"}[role]
 		for index in bp.pins.size():
 			if str(bp.pins[index].get("name","")).to_upper()==wanted:choice.select(index+(1 if role in ["A","B"] else 0));break
