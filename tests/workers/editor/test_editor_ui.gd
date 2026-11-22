@@ -30,8 +30,10 @@ func run() -> void:
 	check(ui.canvas.capture.samples.size()>2,"preview captures actual solver steps")
 	ui.canvas.selected=["load"]
 	check(ui.canvas.inspection_text().contains("1000") and ui.canvas.inspection_text().contains("instantaneous"),"component inspector exposes model and measured pin values")
+	var original_canvas_minimum: float=ui.canvas.custom_minimum_size.y
 	ui.canvas.timing_visible=true
-	check(ui.canvas.custom_minimum_size.y==590,"trace reserves space below physical board")
+	check(ui.canvas.timing_visible and ui.canvas.custom_minimum_size.y==original_canvas_minimum,
+		"embedded circuit maker trace preserves its responsive editor layout")
 	ui.canvas.board.parts.append({"id":"m","type":"lv_mcu","a":"A5","b":"F7","pins":["A5","A6","A7","F5","F6","F7"]})
 	ui.canvas.selected=["m"];ui.canvas.device_states["board/m"]={"powered":true,"modes":{"D0":"out"},"outputs":{"D0":.5},"time":1.0,"status":"Waiting","line":4}
 	check(ui.canvas.inspection_text().contains("high impedance") and ui.canvas.inspection_text().contains("0.500"),"known LV drive mode and PWM command reported from backend state")
