@@ -50,6 +50,11 @@ func _run() -> void:
 	window._add_part()
 	assert(window.draft.parts.size()==2,
 		"First Add part must work without manually correcting a collision")
+	# The next Add/Place should propose a different empty cell without a
+	# forced deselect or overwriting the newly added part.
+	window._add_part()
+	assert(window.draft.parts.size()==3 and window.selected_part==-1,
+		"Adding successive parts requires unexpected manual deselection")
 	# Check the same raycast normalization used by the interactive game.
 	var fake_invention:=StaticBody3D.new()
 	fake_invention.set_meta("role","invention")
@@ -59,6 +64,23 @@ func _run() -> void:
 	game.add_child(fake_invention)
 	assert(game._resolve_invention_hit(fake_solid)==fake_invention,"Physical invention target lost the retrieve interaction")
 	fake_invention.queue_free()
+	# A new draft's name, control mode and drive mode are visible edits.
+	# Undo must revert them before an unrelated edit; Redo restores them.
+	window._library()
+	window.editing_id=""
+	window.draft=Model.empty("History draft")
+	window.selected_part=-1
+	window._editor()
+	window.name_field.text="Edited title"
+	window.mode_a.select(1)
+	window.drive_a.select(1)
+	window._history(window.undo_stack,window.redo_stack)
+	assert(window.draft.name=="History draft" and window.draft.controls.A=="hold" and window.draft.drive.A=="manual",
+		"Undo lost the baseline or skipped uncommitted name/drive settings")
+	window._history(window.redo_stack,window.undo_stack)
+	assert(window.draft.name=="Edited title" and window.draft.controls.A=="toggle" and window.draft.drive.A=="pcb",
+		"Redo did not restore staged name, control and drive settings")
+	window._library()
 	var draft: Dictionary=Model.empty("Editor checks")
 	draft.parts.append_array([
 		{"type":"battery","x":1,"y":0,"z":0,"control":"","ref":""},
@@ -83,6 +105,13 @@ func _run() -> void:
 	assert(Model.validate("inv:test",{"inv:test":window.draft},old_profile.get("blueprints",{}))=="")
 	assert(window.undo_stack.size()==1,"Editing an existing part must be undoable")
 	var part_count: int=window.draft.parts.size()
+	# Add must not discard an un-applied edit to the selected actuator.
+	window.part_x.value=5
+	window.part_control.select(1)
+	window._add_part()
+	assert(window.draft.parts.size()==part_count and window.draft.parts[4].control=="B" and window.notice.text.contains("Apply"),
+		"Add silently replaced an unapplied selected-part change")
+	window.part_control.select(2)
 	window.part_x.value=0
 	window.part_y.value=0
 	window.part_z.value=0
@@ -92,6 +121,17 @@ func _run() -> void:
 	assert(window.draft.parts[4].control=="A" and window.draft.parts[4].x==0,"Undo lost the original properties")
 	window._history(window.redo_stack,window.undo_stack)
 	assert(window.draft.parts[4].control=="B" and window.draft.parts[4].x==4,"Redo did not restore edited properties")
+	# Undo while an inspector coordinate is still staged must first undo
+	# that coordinate, rather than popping an older unrelated snapshot.
+	window.selected_part=4
+	window._editor()
+	window.part_x.value=5
+	window._history(window.undo_stack,window.redo_stack)
+	assert(window.draft.parts[4].x==4,"Undo skipped the currently visible uncommitted position")
+	window._history(window.redo_stack,window.undo_stack)
+	assert(window.draft.parts[4].x==5,"Redo lost the pending inspector position")
+	window._history(window.undo_stack,window.redo_stack)
+	assert(window.draft.parts[4].x==4)
 	window.selected_part=4
 	window._editor()
 	window.part_x.value=5

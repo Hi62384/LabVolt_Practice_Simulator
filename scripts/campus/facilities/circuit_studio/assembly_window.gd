@@ -142,7 +142,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:return
 	if event.keycode==KEY_ESCAPE:
 		if page=="editor" and viewport_tool!="select":
-			_sync_fields()
 			# Escape only leaves the active tool. Preserve the same pending
 			# inspector edits that Select, Save, and Test already commit.
 			if not _commit_selected_changes():return
@@ -253,8 +252,8 @@ func _editor(message: String="") -> void:
 		button.toggle_mode=true
 		button.button_group=tool_group
 		button.button_pressed=viewport_tool==tool
-	_button(tools,"Undo",_history.bind(undo_stack,redo_stack)).disabled=undo_stack.is_empty()
-	_button(tools,"Redo",_history.bind(redo_stack,undo_stack)).disabled=redo_stack.is_empty()
+	var undo_button:=_button(tools,"Undo",_history.bind(undo_stack,redo_stack))
+	var redo_button:=_button(tools,"Redo",_history.bind(redo_stack,undo_stack))
 	preview.custom_minimum_size=Vector2(250,275)
 	preview.tooltip_text="Right drag to orbit. Middle drag to pan. Scroll to zoom."
 	canvas.add_child(preview)
@@ -359,6 +358,9 @@ func _editor(message: String="") -> void:
 		validation.text=error
 		save.disabled=not error.is_empty()
 		test.disabled=save.disabled
+		var staged: Dictionary=_staged_draft()
+		undo_button.disabled=undo_stack.is_empty() and (staged.has("error") or staged.draft==draft)
+		redo_button.disabled=redo_stack.is_empty() or (not staged.has("error") and staged.draft!=draft)
 	name_field.text_changed.connect(func(_value: String):refresh.call())
 	for choice in [mode_a,mode_b,drive_a,drive_b,part_kind,part_control,part_ref]:
 		choice.item_selected.connect(func(_index: int):refresh.call())
@@ -385,7 +387,6 @@ func _test_draft() -> void:
 	# A part inspector is staged while the user types. Testing should always
 	# use those visible values, even when Apply has not been pressed separately.
 	if page=="editor":
-		_sync_fields()
 		if not _commit_selected_changes():return
 		var validation_error:=_draft_error()
 		if not validation_error.is_empty():
@@ -568,7 +569,6 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 	if viewport_tool=="select":
 		# Keep staged inspector edits when changing selection or clicking
 		# empty space. Leave invalid edits visible for correction.
-		_sync_fields()
 		if not _commit_selected_changes():return
 		if selected_part!=index:
 			selected_part=index
@@ -587,7 +587,6 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 	if viewport_tool=="place":
 		_add_part()
 	elif selected_part>=0 and selected_part<draft.parts.size():
-		_sync_fields()
 		# Moving an existing part must apply the rest of the staged inspector
 		# too (control and PCB pin mapping), just like selecting a new part.
 		# _commit_selected_changes records one undoable edit for the whole move.
@@ -596,7 +595,6 @@ func _viewport_click(cell: Vector3i,index: int) -> void:
 
 func _rotate_part(index: int) -> void:
 	if index<0 or index>=draft.parts.size():return
-	_sync_fields()
 	if not _commit_selected_changes():return
 	_track_edit()
 	var part: Dictionary=draft.parts[index]
@@ -612,13 +610,24 @@ func _track_edit() -> void:
 	redo_stack.clear()
 
 func _history(source: Array[Dictionary],target: Array[Dictionary]) -> void:
+	var requested_redo: bool=is_same(source,redo_stack)
+	if page=="editor":
+		var staged: Dictionary=_staged_draft()
+		if staged.has("error"):
+			notice.text=str(staged.error)
+			return
+		if staged.draft!=draft:
+			# Undo must first undo the actual visible edit, not skip straight
+			# over pending inspector, name, or drive-mode changes.
+			if not _commit_selected_changes():return
+			if requested_redo:
+				_editor("New edits replaced the redo history.")
+				return
 	if source.is_empty():return
-	_sync_fields()
 	target.append(draft.duplicate(true))
 	draft=source.pop_back()
 	selected_part=-1
 	_editor()
-
 func _mode(parent: Node,label_text: String,selected: String) -> OptionButton:
 	_label(parent,"Control "+label_text)
 	var choice:=OptionButton.new();parent.add_child(choice)
@@ -719,27 +728,45 @@ func _sync_fields() -> void:
 
 func _add_part() -> void:
 	if part_kind.selected<0:return
-	_sync_fields()
 	var kind:=str(part_kind.get_item_metadata(part_kind.selected))
 	var ref: String=str(part_ref.get_item_metadata(part_ref.selected)) if kind in ["pcb","nested"] and part_ref.item_count>0 else ""
-	if kind in ["pcb","nested"] and ref.is_empty():_editor("Save a compatible blueprint first.");return
-	if draft.parts.size()>=Model.MAX_PARTS:_editor("A design holds at most 32 parts.");return
+	if kind in ["pcb","nested"] and ref.is_empty():
+		notice.text="Save a compatible blueprint first."
+		return
+	if draft.parts.size()>=Model.MAX_PARTS:
+		notice.text="A design holds at most 32 parts."
+		return
 	for existing in draft.parts:
 		if int(existing.x)==int(part_x.value) and int(existing.y)==int(part_y.value) and int(existing.z)==int(part_z.value):
 			notice.text="Another part occupies that grid cell."
 			return
+	if selected_part>=0 and selected_part<draft.parts.size():
+		var pending: Dictionary=_preview_selected_part()
+		if pending.has("error"):
+			notice.text=str(pending.error)
+			return
+		if pending.has("part") and pending.part!=draft.parts[selected_part]:
+			# The part inspector doubles as the placement palette. Do not
+			# silently discard staged edits just because Add was pressed.
+			notice.text="Apply the selected part's changes first, or click empty grid space to deselect it before adding."
+			return
+	var staged: Dictionary=_staged_draft()
+	if staged.has("error"):
+		notice.text=str(staged.error)
+		return
 	var part: Dictionary={"type":kind,"x":int(part_x.value),"y":int(part_y.value),"z":int(part_z.value),"control":"" if part_control.selected==0 else "A" if part_control.selected==1 else "B","ref":ref}
 	if kind=="pcb" and pin_choices.size()==4:
 		part.pin_map={}
 		for role in pin_choices:part.pin_map[role]=int(pin_choices[role].get_item_metadata(pin_choices[role].selected))
 	_track_edit()
+	draft=staged.draft
 	draft.parts.append(part)
-	selected_part=draft.parts.size()-1
+	# Keep Place and Add Part usable for consecutive placements. The new part
+	# can still be inspected by selecting it on the canvas.
+	selected_part=-1
 	_editor()
-
 func _apply_selected() -> void:
 	if selected_part<0 or selected_part>=draft.parts.size() or part_kind.selected<0:return
-	_sync_fields()
 	var before: Dictionary=draft.parts[selected_part].duplicate(true)
 	if not _commit_selected_changes(true):return
 	if before==draft.parts[selected_part]:
@@ -776,28 +803,40 @@ func _preview_selected_part(replace_type := false) -> Dictionary:
 		else:changed.erase("pin_map")
 	return {"part":changed}
 
-func _commit_selected_changes(replace_type := false) -> bool:
+func _staged_draft(replace_type := false) -> Dictionary:
+	var candidate: Dictionary=draft.duplicate(true)
+	if page!="editor" or not is_instance_valid(name_field):return {"draft":candidate}
+	candidate.name=name_field.text.strip_edges()
+	candidate.controls={"A":"toggle" if mode_a.selected==1 else "hold","B":"toggle" if mode_b.selected==1 else "hold"}
+	candidate.drive={"A":["manual","pcb","both"][drive_a.selected],"B":["manual","pcb","both"][drive_b.selected]}
 	var preview: Dictionary=_preview_selected_part(replace_type)
-	if preview.is_empty():return true
-	if preview.has("error"):
-		notice.text=str(preview.error)
-		return false
-	var changed: Dictionary=preview.part
-	if changed==draft.parts[selected_part]:return true
-	for index in draft.parts.size():
-		if index==selected_part:continue
-		var other: Dictionary=draft.parts[index]
-		if int(other.x)==int(changed.x) and int(other.y)==int(changed.y) and int(other.z)==int(changed.z):
-			notice.text="Another part occupies that grid cell."
-			return false
-	_track_edit()
-	draft.parts[selected_part]=changed
-	return true
+	if preview.has("error"):return preview
+	if preview.has("part"):candidate.parts[selected_part]=preview.part
+	return {"draft":candidate}
 
+func _commit_selected_changes(replace_type := false) -> bool:
+	var staged: Dictionary=_staged_draft(replace_type)
+	if staged.has("error"):
+		notice.text=str(staged.error)
+		return false
+	var candidate: Dictionary=staged.draft
+	if candidate==draft:return true
+	if selected_part>=0 and selected_part<draft.parts.size():
+		var changed: Dictionary=candidate.parts[selected_part]
+		if changed!=draft.parts[selected_part]:
+			for index in draft.parts.size():
+				if index==selected_part:continue
+				var other: Dictionary=candidate.parts[index]
+				if int(other.x)==int(changed.x) and int(other.y)==int(changed.y) and int(other.z)==int(changed.z):
+					notice.text="Another part occupies that grid cell."
+					return false
+	_track_edit()
+	draft=candidate
+	return true
 func _remove_part(index: int) -> void:
 	if index<0 or index>=draft.parts.size():return
-	_sync_fields()
 	_track_edit()
+	_sync_fields()
 	draft.parts.remove_at(index)
 	selected_part=-1
 	_editor()
@@ -819,7 +858,6 @@ func _draft_error() -> String:
 	return Model.validate(test_id,designs,profile.data.get("blueprints",{}))
 
 func _save() -> void:
-	_sync_fields()
 	if not _commit_selected_changes():return
 	var error:=_draft_error()
 	if error!="":notice.text=error;return
