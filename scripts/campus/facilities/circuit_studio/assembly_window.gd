@@ -611,23 +611,27 @@ func _track_edit() -> void:
 
 func _history(source: Array[Dictionary],target: Array[Dictionary]) -> void:
 	var requested_redo: bool=is_same(source,redo_stack)
+	var discarded_invalid:=false
 	if page=="editor":
 		var staged: Dictionary=_staged_draft()
 		if staged.has("error"):
-			notice.text=str(staged.error)
-			return
-		if staged.draft!=draft:
-			# Undo must first undo the actual visible edit, not skip straight
-			# over pending inspector, name, or drive-mode changes.
-			if not _commit_selected_changes():return
-			if requested_redo:
+			discarded_invalid=true
+		elif staged.draft!=draft:
+			# Valid visible edits are one undoable transaction. An invalid
+			# staged coordinate (e.g. an occupied cell) was never applied:
+			# let Undo restore the previous successful action instead of
+			# blocking Undo behind an impossible inspector change.
+			if not _commit_selected_changes():discarded_invalid=true
+			elif requested_redo:
 				_editor("New edits replaced the redo history.")
 				return
-	if source.is_empty():return
+	if source.is_empty():
+		if discarded_invalid:_editor("Unapplied invalid inspector edits were discarded.")
+		return
 	target.append(draft.duplicate(true))
 	draft=source.pop_back()
 	selected_part=-1
-	_editor()
+	_editor("Unapplied invalid inspector edits were discarded." if discarded_invalid else "")
 func _mode(parent: Node,label_text: String,selected: String) -> OptionButton:
 	_label(parent,"Control "+label_text)
 	var choice:=OptionButton.new();parent.add_child(choice)
