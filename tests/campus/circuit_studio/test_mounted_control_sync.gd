@@ -1,6 +1,6 @@
 extends SceneTree
 ## Mounted PCB inputs should reflect authoritative settings without echo commands.
-const Panel=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_panel.gd")
+const MountedPanel=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_panel.gd")
 const World=preload("res://scripts/campus/facilities/circuit_studio/invention_world.gd")
 var failures:=0
 
@@ -61,7 +61,7 @@ func _run() -> void:
         "pcb_error":"",
         "pcb_voltage":{"A":0.0,"B":0.0}
     }}
-    var panel:=Panel.new()
+    var panel:=MountedPanel.new()
     panel.open_board(game,"fixture",false)
     var widgets: Dictionary=panel.control_widgets
     check(is_equal_approx(float(widgets["board/slider"].x.value),.8),

@@ -233,10 +233,13 @@ func _apply(peer: int,action: Dictionary) -> void:
 		# circuit/input reducer rejected. Otherwise stale or invalid input can
 		# lock other players out without changing the device.
 		if not simulators[key].runtime.input(input_id,action.pressed,bool(action.get("reverse",false)),command_data):return
-		var current: Dictionary=simulators[key].runtime.input_states()
-		if item.get("pcb_controls",{})!=current:
-			item.pcb_controls=current
-			pending_motion[key]=true
+		# A lightweight simulator/test double can acknowledge an input without
+		# exposing a public-state snapshot. The lease must still be committed.
+		if simulators[key].runtime.has_method("input_states"):
+			var current: Dictionary=simulators[key].runtime.input_states()
+			if item.get("pcb_controls",{})!=current:
+				item.pcb_controls=current
+				pending_motion[key]=true
 		if holdable:
 			if action.pressed:pcb_holders[holder_key]={"peer":peer,"expiry":Time.get_ticks_msec()+650,"key":key,"id":input_id,"command":command_data.duplicate(true)}
 			else:pcb_holders.erase(holder_key)

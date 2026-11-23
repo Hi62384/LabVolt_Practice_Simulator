@@ -76,7 +76,9 @@ func input_states() -> Dictionary:
 	return states
 
 func close() -> void:
-	native_host.close()
+	# RefCounted predelete can run after member references have been released.
+	# Closing an unconfigured/partially constructed PCB must be idempotent.
+	if is_instance_valid(native_host):native_host.close()
 	native_backlog=0.0
 
 func tick(dt: float) -> Dictionary:
