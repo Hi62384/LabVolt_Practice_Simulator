@@ -472,7 +472,8 @@ func accept(peer: int,index: int,action: Dictionary) -> void:
 	# distance/ownership/rate check returned without an error packet.
 	if not edit_id.is_empty() and edit_id.length()<=64:
 		var accepted: bool=index>=0 and index<benches.size() and int(benches[index].board_epoch)>before_epoch and int(benches[index].board_owner)==peer
-		var committed: Dictionary=benches[index].board.duplicate(true) if index>=0 and index<benches.size() else {}
+		# Do not disclose another player's circuit or firmware on a rejected edit.
+		var committed: Dictionary=benches[index].board.duplicate(true) if index>=0 and index<benches.size() and int(benches[index].board_owner)==peer else {}
 		if peer==1:board_edit_ack(index,edit_id,accepted,committed)
 		elif game.session.roster.has(peer):board_edit_ack.rpc_id(peer,index,edit_id,accepted,committed)
 	if index>=0 and index<benches.size() and game.session.roster.has(peer) and action.get("op")=="input" and action.get("command") is Dictionary and var_to_bytes(action).size()<=24000:

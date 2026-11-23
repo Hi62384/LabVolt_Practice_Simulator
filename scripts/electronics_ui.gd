@@ -65,10 +65,20 @@ func build(owner_game: Node) -> void:
 	load_view()
 	game.session.restarted.connect(func():
 		notebook_saved.clear();notebook_failed_save.clear();panel_generation+=1;notebook_pending=false
+		var interrupted_kit: String=""
+		for pending in pending_board_edits.values():
+			interrupted_kit=str(pending.get("kit",""))
+			break
 		pending_board_edits.clear()
 		_reset_kit_name_requests()
 		if is_instance_valid(canvas) and is_instance_valid(workspace) and workspace.maker:
-			canvas.read_only=false)
+			canvas.read_only=false
+			# A queued edit may never reach the old host after a restart.
+			# Restore its last confirmed kit instead of showing an optimistic board.
+			if not interrupted_kit.is_empty() and profile.data.get("kits",{}).has(interrupted_kit):
+				canvas.reset_interaction()
+				canvas.board=profile.data.kits[interrupted_kit].board.duplicate(true)
+				canvas.history.clear();canvas.future.clear();canvas.queue_redraw())
 	game.school.updated.connect(save_notebook)
 	game.characters.changed.connect(func():
 		if not game.front.in_game:
