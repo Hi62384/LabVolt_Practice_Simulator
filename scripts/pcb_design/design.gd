@@ -55,6 +55,8 @@ static func segment_inside(a: Vector2,b: Vector2,poly: PackedVector2Array,margin
 static func validate(bp: Dictionary,outline_preview: bool=false) -> String:
 	if not active(bp): return ""
 	if bp.get("package","")!="PCB" or not bp.pcb_design is Dictionary: return "Routing requires a PCB"
+	if not bp.get("footprint") is Dictionary or not bp.footprint.has("width") or not bp.footprint.has("height"):
+		return "Routing requires a valid PCB footprint"
 	var data: Dictionary=bp.pcb_design
 	if data.get("version")!=1: return "Unsupported PCB design version"
 	if not data.get("outline") is Array or data.outline.size()<3 or data.outline.size()>64: return "Outline needs 3–64 points"

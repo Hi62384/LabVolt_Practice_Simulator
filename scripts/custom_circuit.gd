@@ -31,7 +31,7 @@ static func validate(id: String,definitions: Dictionary,ancestors: Array=[],budg
 	if bp.parts.size()>48 or bp.wires.size()>96 or bp.pins.size()<1 or bp.pins.size()>Geometry.MAX_PINS:return "Custom circuit budget: 48 parts, 96 wires, 1–64 pins"
 	if bp.get("package","IC") not in ["IC","PCB"]:return "Unknown package type"
 	if bp.get("package","IC")=="PCB" or bp.has("footprint"):
-		if not bp.get("layout") is Dictionary or not bp.get("footprint") is Dictionary:return "PCB needs layout and footprint"
+		if not bp.get("layout") is Dictionary or not bp.get("footprint") is Dictionary or bp.footprint.is_empty():return "PCB needs layout and a nonempty footprint"
 		if not bp.layout.get("parts") is Array or not bp.layout.get("wires") is Array or bp.layout.parts.size()>48 or bp.layout.wires.size()>96:return "Invalid PCB layout"
 		var geometry_error := Geometry.validate(bp)
 		if geometry_error!="":return geometry_error
@@ -139,6 +139,27 @@ static func flatten(id: String,definitions: Dictionary,prefix: String,nodes: Arr
 			var nodes_in: Array=part.get("nodes",[part.get("a",""),part.get("b","")])
 			result.parts.append_array(preload("res://scripts/device_models.gd").expand(Catalog.simulation_entry(str(part.type)),prefix+str(part.id),nodes_in.map(func(n):return prefix+str(n)),part,voltages,runtime))
 	return result
+# Saved routing drafts are allowed, but physical manufacturing needs every
+# intended copper net fully joined. Inspect nested IC/PCB dependencies too.
+static func manufacturing_error(id: String, definitions: Dictionary) -> String:
+	var validated: String=validate(id,definitions)
+	if not validated.is_empty():return validated
+	return _manufacturing_error(id,definitions,{})
+
+static func _manufacturing_error(id: String,definitions: Dictionary,checked: Dictionary) -> String:
+	if checked.has(id):return ""
+	checked[id]=true
+	var bp: Dictionary=definitions[id]
+	if PCB.active(bp):
+		var missing: int=PCB.unrouted(bp)
+		if missing>0:return "PCB %s has %d unrouted copper connection(s); finish routing before manufacturing." % [str(bp.get("name",id)),missing]
+	for part in bp.parts:
+		var dependency: String=str(part.get("type",""))
+		if dependency.begins_with("ic:"):
+			var error: String=_manufacturing_error(dependency,definitions,checked)
+			if not error.is_empty():return error
+	return ""
+
 static func materials(id: String,definitions: Dictionary) -> Dictionary:
 	var result := {}
 	if validate(id,definitions)!="":return result
@@ -163,18 +184,20 @@ static func validate_layout(bp: Dictionary) -> String:
 	var identities := {}
 	for part in bp.parts:
 		if not part is Dictionary:return "Invalid PCB component"
-		identities[str(part.get("id",""))]=str(part.get("type",""))
+		identities[str(part.get("id",""))]={"type":str(part.get("type","")),"nodes":part.get("nodes",[part.get("a",""),part.get("b","")])}
 	var seen := {}
 	for part in layout.parts:
 		if not part is Dictionary:return "Invalid PCB layout component"
 		var id := str(part.get("id",""))
-		if seen.has(id) or not identities.has(id) or identities[id]!=str(part.get("type","")):return "PCB layout does not match its circuit"
+		if seen.has(id) or not identities.has(id) or identities[id].type!=str(part.get("type","")):return "PCB layout does not match its circuit"
 		seen[id]=true
 		if not layout_hole(part.get("a"),rows,expanded) or not layout_hole(part.get("b"),rows,expanded):return "Invalid PCB component position"
 		var pins=part.get("pins",[part.a,part.b])
-		if not pins is Array:return "Invalid PCB pin positions"
-		for pin in pins:
-			if not layout_hole(pin,rows,expanded):return "Invalid PCB pin position"
+		var logical: Variant=identities[id].nodes
+		if not pins is Array or not logical is Array or pins.size()!=logical.size():return "PCB layout pin count does not match its circuit"
+		for index in pins.size():
+			if not layout_hole(pins[index],rows,expanded):return "Invalid PCB pin position"
+			if Geometry.electrical_node(str(pins[index]),rows)!=str(logical[index]):return "PCB layout pins do not match the circuit connections"
 	for wire in layout.wires:
 		if not wire is Array or wire.size()!=2:return "Invalid PCB trace"
 		if not layout_hole(wire[0],rows,expanded) or not layout_hole(wire[1],rows,expanded):return "Invalid PCB trace position"

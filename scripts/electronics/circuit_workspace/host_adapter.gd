@@ -46,6 +46,7 @@ func mount(owner_ui: Node) -> Control:
 	else:
 		workspace.configure(kit.board,{"save":func():host.profile.save(),"deploy":host.deploy,"recall":recall,"carry":carry,"close":host.close})
 	host.canvas=workspace.canvas
+	if physical and not host.pending_board_edits.is_empty():host.canvas.read_only=true
 	host.canvas.live_manual_inputs=physical
 	host.wire_io_canvas(host.canvas)
 	workspace.design_changed.connect(accept_candidate)
@@ -145,9 +146,16 @@ func accept_candidate(candidate: Dictionary) -> Dictionary:
 	if host.designing:
 		previous=_project_board(host.profile.data.get("circuit_draft",Model.empty()))
 	else:
-		kit_id=str(candidate.get("authority_kit_id",host.profile.data.equipped)) if physical else str(host.profile.data.equipped)
+		kit_id=str(host.game.dc_lab.states[host.bench].get("board",{}).get("authority_kit_id",host.profile.data.equipped)) if physical else str(host.profile.data.equipped)
 		kit=host.profile.data.kits[kit_id]
-		previous=kit.board
+		previous=host.game.dc_lab.states[host.bench].board if physical else kit.board
+		if physical and not host.pending_board_edits.is_empty():
+			host.canvas.history=accepted_history.duplicate(true);host.canvas.future=accepted_future.duplicate(true)
+			host.canvas.reset_interaction();host.canvas.board=previous.duplicate(true)
+			host.canvas.read_only=true;host.canvas.queue_redraw()
+			workspace.notify("Waiting for the host to confirm the previous board edit.")
+			return {"ok":false,"error":"Board edit pending"}
+		if physical:candidate.authority_kit_id=kit_id
 	var error: String
 	if host.designing:
 		candidate.erase("instance_ids")
@@ -174,6 +182,23 @@ func accept_candidate(candidate: Dictionary) -> Dictionary:
 	if error!="":
 		host.canvas.history=accepted_history.duplicate(true);host.canvas.future=accepted_future.duplicate(true)
 		host.canvas.reset_interaction();host.canvas.board=previous.duplicate(true);host.canvas.queue_redraw();workspace.notify(error);return {"ok":false,"error":error}
+	# Do not commit an optimistic physical edit to the kit/profile. The
+	# authoritative DC station will acknowledge success or rejection before
+	# any local inventory save takes place.
+	if physical:
+		if not host.request_placed_board_edit(host.bench,kit_id,candidate):
+			host.canvas.history=accepted_history.duplicate(true);host.canvas.future=accepted_future.duplicate(true)
+			host.canvas.reset_interaction();host.canvas.board=previous.duplicate(true)
+			workspace.notify("Board edit could not be queued; try again after inventory synchronization.")
+			return {"ok":false,"error":"Board edit queue unavailable"}
+		host.canvas.reset_interaction()
+		# Offline hosts can acknowledge synchronously. Do not overwrite the
+		# authoritative board that the receipt has already installed.
+		var waiting: bool=not host.pending_board_edits.is_empty()
+		host.canvas.board=candidate.duplicate(true) if waiting else host.profile.data.kits[kit_id].board.duplicate(true)
+		host.canvas.read_only=waiting
+		host.canvas.queue_redraw()
+		return {"ok":true}
 	if not host.designing:kit.board=candidate.duplicate(true)
 	var saved: bool=_save_draft(candidate) if host.designing else host.profile.save()==OK
 	if not saved:
@@ -185,9 +210,7 @@ func accept_candidate(candidate: Dictionary) -> Dictionary:
 	if is_instance_valid(projects): projects.mark_dirty()
 	else: workspace.notify("Editing · saved")
 	accepted_history=host.canvas.history.duplicate(true);accepted_future=host.canvas.future.duplicate(true)
-	if physical:
-		host.game.electronics_trade.authority.request_world(host.bench,{"op":"board","design":candidate,"edit_placed_kit":true})
-	elif not host.designing and host.bench>=0 and host.game.dc_lab.states[host.bench].get("board_owner",0)==host.multiplayer.get_unique_id():host.deploy()
+	if not host.designing and host.bench>=0 and host.game.dc_lab.states[host.bench].get("board_owner",0)==host.multiplayer.get_unique_id():host.deploy()
 	return {"ok":true}
 
 func record_instance(type_id: String, instance_id: String) -> void:
@@ -226,6 +249,7 @@ func validate_property(part: Dictionary, key: String, raw: String) -> Dictionary
 	return {"ok":true,"value":checked.id}
 
 func apply_property(payload: Dictionary) -> Dictionary:
+	if host.canvas.read_only:return {"ok":false,"error":"Wait for the host to confirm the previous board edit."}
 	var candidate: Dictionary=host.canvas.board.duplicate(true)
 	for part in candidate.parts:
 		if str(part.id)==str(payload.id):

@@ -17,6 +17,16 @@ var browser: VBoxContainer
 var editor_opened := false
 var browser_status: Label
 
+# Keep damaged records in the original file for later recovery, but never
+# dereference them while constructing a project card or thumbnail.
+static func valid_record(id: Variant, record: Variant) -> bool:
+	if not id is String or id.is_empty() or id.length()>96 or not record is Dictionary:return false
+	if not record.get("name") is String or str(record.name).strip_edges().is_empty() or record.name.length()>40:return false
+	if not record.get("modified") is int or int(record.modified)<0:return false
+	if not record.get("board") is Dictionary:return false
+	if not preload("res://scripts/inventory_authority/validation.gd").board(record.board):return false
+	return Board.validate(record.board,{},true).is_empty()
+
 func setup(owner: Control, screen_root: Control, identity: String, load_board: Callable) -> void:
 	workspace = owner
 	screen = screen_root
@@ -74,7 +84,12 @@ func open_projects() -> void:
 	browser_status=Widgets.text("","MutedLabel")
 	browser_status.hide()
 	browser.add_child(browser_status)
-	if entries.is_empty():
+	var ids: Array=entries.keys().filter(func(id):return valid_record(id,entries[id]))
+	var discarded_count: int=entries.size()-ids.size()
+	if discarded_count>0:
+		browser_status.text="%d damaged saved circuit(s) were hidden; the original file was preserved." % discarded_count
+		browser_status.show()
+	if ids.is_empty():
 		var empty := CenterContainer.new()
 		empty.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		browser.add_child(empty)
@@ -102,7 +117,6 @@ func open_projects() -> void:
 	list.maximum_columns=3
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
-	var ids := entries.keys()
 	ids.sort_custom(func(a,b):return int(entries[a].modified)>int(entries[b].modified))
 	for id in ids:
 		var entry: Dictionary = entries[id]
@@ -143,6 +157,9 @@ func leave_browser() -> void:
 	if editor_opened:workspace.show()
 	else:workspace.invoke("close")
 
+func discard_board() -> Dictionary:
+	return entries[current_id].board.duplicate(true) if entries.has(current_id) and valid_record(current_id,entries[current_id]) else Board.empty()
+
 func _guard(next: Callable) -> void:
 	if not dirty:
 		next.call()
@@ -157,6 +174,15 @@ func _guard(next: Callable) -> void:
 	var keep := Widgets.action("Keep editing", "back", close_confirmation)
 	var discard := Widgets.action("Discard changes", "trash", func():
 		close_confirmation()
+		# The working draft is autosaved after every edit. Restore its last
+		# named-project snapshot before continuing, or discarded edits return.
+		var saved: Dictionary=discard_board()
+		var error: String=install.call(saved)
+		if not error.is_empty():
+			workspace.notify("Discard could not restore the saved circuit: "+error)
+			return
+		dirty=false
+		_update_title()
 		next.call())
 	discard.theme_type_variation = "DangerButton"
 	var save := Widgets.action("Save changes", "save", func():

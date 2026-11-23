@@ -29,7 +29,7 @@ static func empty() -> Dictionary:
 static func node(hole: String,rows := 30) -> String:
 	return preload("res://scripts/package_editor/package_geometry.gd").electrical_node(hole,rows)
 static func valid_hole(board: Dictionary,hole: String) -> bool:
-	return not hole.is_empty() and hole.left(1) in hole_letters(board) and not node(hole,int(board.rows)).is_empty()
+	return hole.length()>=2 and hole.left(1) in hole_letters(board) and not node(hole,int(board.rows)).is_empty()
 
 static func fit_external_ports(board: Dictionary, current_ports: Array, attached_ports: Array) -> String:
 	var defaults: Array = empty().ports
@@ -78,6 +78,9 @@ static func validate(board: Dictionary,available: Dictionary={},unlimited := fal
 	var catalog := catalog(board);var ids := {};var counts := {};var holes := {};var expanded_count := 0
 	for p in board.parts:
 		if not p is Dictionary:return "Invalid component"
+		if not p.get("a") is String or not p.get("b") is String or not valid_hole(board,str(p.a)) or not valid_hole(board,str(p.b)):
+			return "Component endpoints must be valid breadboard holes"
+		if not pins(p) is Array:return "Invalid component pins"
 		if not preload("res://scripts/inventory_authority/firmware_schema.gd").part(p):return "Invalid component firmware"
 		if p.has("surface_rotation") and (not (p.surface_rotation is int or p.surface_rotation is float) or not is_finite(float(p.surface_rotation))):return "Invalid surface rotation"
 		var type := str(p.get("type",""));var id := str(p.get("id",""))

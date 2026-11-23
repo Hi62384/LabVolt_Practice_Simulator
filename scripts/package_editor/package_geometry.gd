@@ -17,7 +17,7 @@ static func placement_rows(hole: String, terminal_pitch: bool) -> String:
 const CONNECTORS := ["male_header","female_header","through_hole","terminal_block","test_point"]
 const ROLES := ["unspecified","input","output","bidirectional","power","ground","analog","clock","no_connect"]
 static func electrical_node(hole: String, rows: int) -> String:
-	if hole.length()<2:return ""
+	if hole.length()<2 or not hole.substr(1).is_valid_int() or hole.substr(1)!=str(int(hole.substr(1))):return ""
 	var row := int(hole.substr(1))
 	if row<1 or row>rows:return ""
 	var column := hole.left(1)

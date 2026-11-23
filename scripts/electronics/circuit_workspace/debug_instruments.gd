@@ -47,6 +47,22 @@ static func valid(part: Dictionary) -> bool:
 		if not defaults.has(key) or not parse_field(key,config[key]).ok:return false
 	return true
 
+# An ohmmeter's own 1 uA stimulus must not be mistaken for a load
+# resistance while another independent source energizes the same island.
+# Expand the actual mounted/packaged circuit to include nested sources.
+static func ohms_on_live_circuit(board: Dictionary, meter: Dictionary, result: Dictionary) -> bool:
+	var model=load("res://scripts/breadboard_model.gd")
+	var islands: Dictionary=result.get("islands",{})
+	var meter_node: String="board/"+model.node(str(meter.a),int(board.rows))
+	var island: String=str(islands.get(meter_node,""))
+	if island.is_empty():return false
+	for source in model.expand(board).parts:
+		if str(source.get("id","")).ends_with("/test"):continue
+		if str(source.get("kind","")) not in ["V","supply","current_source","I"]:continue
+		if str(islands.get(str(source.get("a","")),""))==island or str(islands.get(str(source.get("b","")),""))==island:
+			return true
+	return false
+
 static func expand(type: String, id: String, pins: Array, part: Dictionary, time: float) -> Array:
 	var config := settings(type)
 	config.merge(part.get("debug",{}),true)

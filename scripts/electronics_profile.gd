@@ -231,6 +231,9 @@ func buy(type: String,quantity: int) -> String:
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var catalog := catalog()
 	if not catalog.has(type) or quantity<1 or quantity>100:return "Invalid purchase"
+	if type.begins_with("ic:"):
+		var routing_error: String=preload("res://scripts/custom_circuit.gd").manufacturing_error(type,data.get("blueprints",{}))
+		if not routing_error.is_empty():return routing_error
 	var unit_cost: int=preload("res://scripts/custom_circuit.gd").price(type,data.get("blueprints",{})) if type.begins_with("ic:") else int(catalog[type].price)
 	var cost: int=unit_cost*quantity
 	var debit := Economy.purchase_debit(data.dollars,cost,true)
@@ -681,7 +684,7 @@ func obtain_ic(id: String,craft: bool) -> String:
 	if authority_submit.is_valid():return queued("obtain",[id,craft])
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var Custom=preload("res://scripts/custom_circuit.gd");var definitions: Dictionary=data.get("blueprints",{})
-	var error: String=Custom.validate(id,definitions)
+	var error: String=Custom.manufacturing_error(id,definitions)
 	if error!="":return error
 	var counts: Dictionary=Custom.materials(id,definitions);var cost: int=Custom.price(id,definitions)
 	if craft:

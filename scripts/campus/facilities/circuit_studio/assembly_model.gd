@@ -286,6 +286,10 @@ static func structure_error(id: String,designs: Dictionary,pcbs: Dictionary) -> 
 	if not error.is_empty():return error
 	var parts:=flattened(id,designs,pcbs)
 	if parts.is_empty():return "The assembly has no physical parts"
+	for part in parts:
+		if str(part.type)=="pcb":
+			var routing_error: String=Custom.manufacturing_error(str(part.ref),pcbs)
+			if not routing_error.is_empty():return routing_error
 	var occupied: Dictionary={}
 	var origin: Vector3i=Vector3i.ZERO
 	for part in parts:

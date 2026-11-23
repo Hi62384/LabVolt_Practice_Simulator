@@ -463,8 +463,18 @@ func request(index: int,action: Dictionary) -> void:
 func command(index: int,action: Dictionary) -> void:
 	if multiplayer.is_server():accept(multiplayer.get_remote_sender_id(),index,action)
 func accept(peer: int,index: int,action: Dictionary) -> void:
-	if is_instance_valid(game.health) and game.health.locked(peer):return
-	_accept_checked(peer,index,action)
+	var edit_id: String=str(action.get("edit_request_id","")) if action.get("op")=="board" and action.get("edit_placed_kit",false)==true else ""
+	var before_epoch: int=int(benches[index].board_epoch) if index>=0 and index<benches.size() else -1
+	if not (is_instance_valid(game.health) and game.health.locked(peer)):
+		_accept_checked(peer,index,action)
+	# A physical board edit is complete only when the authoritative station
+	# actually advanced its board epoch. Report rejection even when an early
+	# distance/ownership/rate check returned without an error packet.
+	if not edit_id.is_empty() and edit_id.length()<=64:
+		var accepted: bool=index>=0 and index<benches.size() and int(benches[index].board_epoch)>before_epoch and int(benches[index].board_owner)==peer
+		var committed: Dictionary=benches[index].board.duplicate(true) if index>=0 and index<benches.size() else {}
+		if peer==1:board_edit_ack(index,edit_id,accepted,committed)
+		elif game.session.roster.has(peer):board_edit_ack.rpc_id(peer,index,edit_id,accepted,committed)
 	if index>=0 and index<benches.size() and game.session.roster.has(peer) and action.get("op")=="input" and action.get("command") is Dictionary and var_to_bytes(action).size()<=24000:
 		var id := str(action.get("id",""));var epoch := int(action.get("board_epoch",-1));var request_id := int(action.get("request_id",-1))
 		var control: Dictionary=benches[index].board.get("io_controls",{}).get(id,{}).duplicate(true)
@@ -479,6 +489,12 @@ func io_input_ack(index: int,id: String,epoch: int,request_id: int,control: Dict
 	io_pending.erase(key)
 	game.electronics.acknowledge_io_input(index,id,control,epoch,view)
 	if int(states[index].get("board_epoch",0))==epoch and physical_boards[index].has_method("acknowledge_io"):physical_boards[index].acknowledge_io(id,control,view)
+@rpc("authority","call_remote","reliable",7)
+func board_edit_ack(index: int,request_id: String,accepted: bool,board: Dictionary) -> void:
+	if index<0 or index>=benches.size() or request_id.length()>64 or var_to_bytes(board).size()>1048576:return
+	if is_instance_valid(game.electronics):
+		game.electronics.complete_placed_board_edit(index,request_id,accepted,board)
+
 func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 	if index<0 or (index>=benches.size() and index not in range(AC_OFFSET,AC_OFFSET+ac_bridges.size())) or not game.session.roster.has(peer) or var_to_bytes(action).size()>24000:return
 	if action.get("op") in ["counter_checkout", "counter_return"]:

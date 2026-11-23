@@ -55,11 +55,20 @@ var kit_name_saving := false
 var kit_name_field: LineEdit
 var kit_name_id := ""
 var kit_name_character := ""
+# Keep pending world edits outside the disposable workspace; the server may
+# acknowledge after the user closes the editor or switches inventory pages.
+var pending_board_edits: Dictionary={}
+
 func build(owner_game: Node) -> void:
 	game=owner_game;layer=45
 	profile.open(game.characters.selected)
 	load_view()
-	game.session.restarted.connect(func():notebook_saved.clear();notebook_failed_save.clear();panel_generation+=1;notebook_pending=false;_reset_kit_name_requests())
+	game.session.restarted.connect(func():
+		notebook_saved.clear();notebook_failed_save.clear();panel_generation+=1;notebook_pending=false
+		pending_board_edits.clear()
+		_reset_kit_name_requests()
+		if is_instance_valid(canvas) and is_instance_valid(workspace) and workspace.maker:
+			canvas.read_only=false)
 	game.school.updated.connect(save_notebook)
 	game.characters.changed.connect(func():
 		if not game.front.in_game:
@@ -81,6 +90,52 @@ func label(parent: Node,text: String) -> Label:
 	var l := Label.new();l.text=text
 	if parent==body:l.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(l);return l
+# The host queue can decline an edit when full/unbound; never show it as saved.
+# In offline play the DC station may acknowledge synchronously during this call.
+func request_placed_board_edit(index: int,kit_id: String,candidate: Dictionary) -> bool:
+	if not pending_board_edits.is_empty():return false
+	if game.session.online and not game.electronics_trade.authority.bound:return false
+	var request_id: String=Crypto.new().generate_random_bytes(16).hex_encode()
+	pending_board_edits[request_id]={"index":index,"kit":kit_id}
+	var action: Dictionary={"op":"board","design":candidate.duplicate(true),"edit_placed_kit":true,"edit_request_id":request_id}
+	if not game.electronics_trade.authority.request_world(index,action):
+		pending_board_edits.erase(request_id)
+		return false
+	return true
+
+func complete_placed_board_edit(index: int,request_id: String,accepted: bool,authoritative: Dictionary) -> void:
+	if not pending_board_edits.has(request_id):return
+	var request: Dictionary=pending_board_edits[request_id]
+	if int(request.index)!=index:return
+	pending_board_edits.erase(request_id)
+	var kit_id: String=str(request.kit)
+	var kit: Dictionary=profile.data.get("kits",{}).get(kit_id,{})
+	if kit.is_empty():return
+	var before: Dictionary=kit.board.duplicate(true)
+	var confirmed: bool=accepted and not authoritative.is_empty() and Board.validate(authoritative,kit.items,false).is_empty()
+	var shown: Dictionary=authoritative.duplicate(true) if not authoritative.is_empty() and Board.validate(authoritative,{},true).is_empty() else before.duplicate(true)
+	if confirmed:kit.board=authoritative.duplicate(true)
+	if active and current_page=="board" and bench==index and is_instance_valid(canvas):
+		if is_instance_valid(workspace) and workspace.maker:
+			canvas.reset_interaction()
+			canvas.board=shown.duplicate(true)
+			canvas.read_only=false
+			canvas.history.clear()
+			canvas.future.clear()
+			var adapter=workspace.get_meta("host_adapter",null)
+			if adapter!=null:
+				adapter.accepted_history.clear()
+				adapter.accepted_future.clear()
+			canvas.queue_redraw()
+			workspace.notify("Board edit accepted by host." if confirmed else "Host rejected the board edit; restored the deployed circuit.")
+		else:
+			canvas.read_only=false
+	if confirmed:
+		if profile.save()!=OK:
+			game.ui.log_message("The deployed circuit changed, but the kit save could not be queued. Save the kit again after reconnecting.")
+	elif is_instance_valid(game.ui):
+		game.ui.log_message("The host did not accept the breadboard edit.")
+
 func close() -> void:
 	clear_bundle_reveals()
 	remember_view()
@@ -898,7 +953,7 @@ func _process(_delta: float) -> void:
 		structural.erase("io_controls");structural.erase("controls")
 		for part in structural.get("parts",[]):
 			if part is Dictionary:
-				for field in ["pressed","setting","source_voltage","source_frequency","source_wave"]:
+				for field in ["pressed","setting","source_voltage","source_frequency","source_wave","debug"]:
 					part.erase(field)
 		var signature := str(structural)
 		if signature!=preview_signature:
@@ -916,6 +971,12 @@ func _process(_delta: float) -> void:
 						inputs_changed=true
 						if from_part.has(field):to_part[field]=from_part[field]
 						else:to_part.erase(field)
+				# Debug generator ratings and meter modes alter live stamps, not
+				# the physical board or its transient history.
+				if from_part.get("debug",{})!=to_part.get("debug",{}):
+					inputs_changed=true
+					if from_part.has("debug"):to_part.debug=from_part.debug.duplicate(true)
+					else:to_part.erase("debug")
 			if inputs_changed:design_preview.revision+=1
 		# Preserve the backlog instead of losing electrical time on a slow frame.
 		# Bound integration work per rendered frame to keep the editor responsive.
@@ -946,7 +1007,9 @@ func _process(_delta: float) -> void:
 	var io_now: Dictionary=state.get("board",{}).get("io_controls",{}).duplicate(true)
 	canvas.board.io_controls=io_now
 	var kit: Dictionary=profile.data.kits.get(canvas.board.get("authority_kit_id",profile.data.equipped),{}) if current_page=="board" else {}
-	if not kit.is_empty() and kit.board.get("io_controls",{})!=io_now:kit.board.io_controls=io_now.duplicate(true);profile.save()
+	if pending_board_edits.is_empty() and not kit.is_empty() and kit.board.get("io_controls",{})!=io_now:
+		kit.board.io_controls=io_now.duplicate(true)
+		profile.save()
 	canvas.device_states=state.get("firmware",{})
 	canvas.queue_redraw()
 	canvas.accept_measurements(state.get("result",{}))

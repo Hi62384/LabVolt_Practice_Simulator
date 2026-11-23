@@ -562,8 +562,11 @@ func _draw_part(part: Dictionary, entry: Dictionary, ghost: bool) -> void:
 				match mode:
 					"Amps": text = Units.format_value(float(currents.get("board/"+str(part.id),0)), "A")
 					"Ohms":
-						var ohms: float=absf(volts/.000001)
-						text = "OL" if ohms>100000000.0 else Units.format_value(ohms,"Ω")
+						if Board.Debug.ohms_on_live_circuit(board,part,measurements):
+							text = "LIVE · disconnect sources"
+						else:
+							var ohms: float=absf(volts/.000001)
+							text = "OL" if ohms>100000000.0 else Units.format_value(ohms,"Ω")
 					_: text = Units.format_value(volts, "V")
 			var font := get_theme_default_font()
 			var font_size := maxi(8,roundi(10*zoom))

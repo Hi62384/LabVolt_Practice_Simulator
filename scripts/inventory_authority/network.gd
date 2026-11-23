@@ -301,9 +301,20 @@ func receive_snapshot(result: Dictionary) -> void:
 		game.electronics.status.show()
 	if operation in ["remove_kit_board_components","kit_quantity","delete_kit"] and game.electronics.active and game.electronics.current_page=="kits":
 		game.electronics.status.text=str(result.get("message",result.get("error","")))
-func request_world(index: int,action: Dictionary) -> void:
-	if not game.session.online:game.dc_lab.request(index,action);return
-	if world_requests.size()<16:world_requests.append({"index":index,"action":action.duplicate(true)})
+# Return admission status: callers must never report a saved or deployed
+# design when the bounded host queue has silently discarded its request.
+# A pure queue admission helper also keeps overflow behavior testable without
+# a running multiplayer scene.
+static func enqueue_world_request(queue: Array,index: int,action: Dictionary) -> bool:
+	if queue.size()>=16:return false
+	queue.append({"index":index,"action":action.duplicate(true)})
+	return true
+
+func request_world(index: int,action: Dictionary) -> bool:
+	if not game.session.online:
+		game.dc_lab.request(index,action)
+		return true
+	return enqueue_world_request(world_requests,index,action)
 func request_kit(action: Dictionary) -> void:
 	if world_requests.size()<16:world_requests.append({"kind":"kit","action":action.duplicate(true)})
 func deployment(peer: int,slot: int,design: Dictionary) -> String:

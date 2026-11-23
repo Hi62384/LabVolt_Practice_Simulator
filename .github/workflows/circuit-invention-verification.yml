@@ -125,6 +125,7 @@ jobs:
             'tests/electronics/test_io_input_guard.gd' = ''
             'tests/electronics/test_meter_modes.gd' = ''
             'tests/electronics/test_additional_electronics_regressions.gd' = 'ADDITIONAL_ELECTRONICS_REGRESSIONS PASS'
+            'tests/electronics/test_audit_fixes_20261122.gd' = 'ELECTRONICS_AUDIT_FIXES PASS'
             'tests/electronics/test_normally_closed_button.gd' = ''
             'tests/electronics/test_public_device_state.gd' = ''
             'tests/electronics/test_current_source_scheduler.gd' = ''
