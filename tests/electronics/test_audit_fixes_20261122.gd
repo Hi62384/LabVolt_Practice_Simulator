@@ -132,6 +132,56 @@ func _meters() -> void:
 	var separate: Dictionary=Solver.new().solve(parts,Board.wires_only(board))
 	check(separate.get("ok",false) and not Debug.ohms_on_live_circuit(board,meter,separate),"Isolated source does not block a passive Ohms measurement")
 
+func _profile_reload_and_backup() -> void:
+	var identity: String="audit_reload_"+Crypto.new().generate_random_bytes(8).hex_encode()
+	var profile:=Profile.new()
+	profile.open(identity)
+	var board:=Board.empty()
+	board.parts=[{"id":"resistor","type":"r1000","a":"A1","b":"F1"}]
+	profile.data.kits.starter.board=board
+	var pins: Array=[
+		{"id":"pin_1","name":"IN","hole":"A1","position":{"x":0,"y":0},"role":"unspecified","connector":"male_header"},
+		{"id":"pin_2","name":"OUT","hole":"F1","position":{"x":1,"y":0},"role":"unspecified","connector":"male_header"}
+	]
+	var saved: String=profile.save_blueprint("Restart resistor",pins,"","IC",2,6)
+	check(saved.begins_with("Blueprint saved"),"Named physical package saves: "+saved)
+	if not saved.begins_with("Blueprint saved"):return
+	var id: String=str(profile.data.blueprints.keys()[0])
+	var expected: Array=profile.data.blueprints[id].pins.duplicate(true)
+	var obtained: String=profile.obtain_ic(id,true)
+	check(obtained=="Custom IC added to inventory","Crafted package saves: "+obtained)
+	if obtained!="Custom IC added to inventory":return
+	check(profile.save()==OK,"Second save establishes a complete known-good backup")
+	var original_path: String=profile.path
+	var backup: String=FileAccess.get_file_as_string(original_path+".bak")
+	check(Profile.valid(JSON.parse_string(backup)),"Backup contains a complete accepted profile")
+	var reloaded:=Profile.new()
+	reloaded.open(identity)
+	check(Profile.same(expected,reloaded.data.get("blueprints",{}).get(id,{}).get("pins",[]))
+		and int(reloaded.data.inventory.get(id,0))==1,"Restart preserves pin IDs, names, coordinates, ordering and crafted stock")
+	# An interrupted temporary write must not supersede the last commit.
+	var file:=FileAccess.open(original_path+".tmp",FileAccess.WRITE)
+	check(file!=null,"Create interrupted-save fixture")
+	if file==null:return
+	file.store_string("incomplete");file.close()
+	# Recover after a corrupt primary; using schema-invalid JSON avoids
+	# conflating parse diagnostics with a real backup recovery failure.
+	file=FileAccess.open(original_path,FileAccess.WRITE)
+	check(file!=null,"Create damaged-primary fixture")
+	if file==null:return
+	file.store_string('{"schema":0}');file.close()
+	var recovered:=Profile.new()
+	recovered.open(identity)
+	check(Profile.same(expected,recovered.data.get("blueprints",{}).get(id,{}).get("pins",[]))
+		and int(recovered.data.inventory.get(id,0))==1,"Corrupt primary recovers the complete crafted package from backup")
+	check(recovered.save()==OK,"Recovered profile can be saved again")
+	check(FileAccess.get_file_as_string(original_path+".bak")==backup,
+		"Recovery save never overwrites the only known-good backup with corrupt primary bytes")
+	var restored:=Profile.new()
+	restored.open(identity)
+	check(Profile.same(expected,restored.data.get("blueprints",{}).get(id,{}).get("pins",[]))
+		and int(restored.data.inventory.get(id,0))==1,"Repaired primary remains valid on the next restart")
+
 func _queue_and_receipts() -> void:
 	var queue: Array=[]
 	var origin: Dictionary={"op":"board","design":{"wires":[]}}
@@ -208,6 +258,7 @@ func _run() -> void:
 	_validation()
 	_routing()
 	_meters()
+	_profile_reload_and_backup()
 	_queue_and_receipts()
 	await _preview()
 	print("ELECTRONICS_AUDIT_FIXES ", "PASS" if failures==0 else "FAIL ",failures)

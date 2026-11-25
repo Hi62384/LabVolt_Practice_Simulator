@@ -13,6 +13,9 @@ const KIT_TIERS := {
 }
 var data := {}
 var path := ""
+# Digest of the last verified primary. A fallback load must not replace its
+# only good backup with the damaged primary on the next save.
+var primary_digest := ""
 # Explicit operation status for host transactions; legacy callers keep String messages.
 var operation_succeeded := false
 var last_bundle_receipt: Dictionary = {}
@@ -44,17 +47,25 @@ static func same(a: Variant,b: Variant) -> bool:
 			if not same(a[i],b[i]):return false
 		return true
 	return a==b
+static func _read_profile_file(file_path: String) -> Variant:
+	# JSON.parse_string reports a parser error for damaged files. Recoverable
+	# corruption is expected here; use the error-returning parser instead.
+	var parser:=JSON.new()
+	if parser.parse(FileAccess.get_file_as_string(file_path))!=OK:return null
+	return parser.data
+
 func open(identity: String) -> void:
-	authority_submit=Callable();authority_revision=-1
+	authority_submit=Callable();authority_revision=-1;primary_digest=""
 	path="user://electronics_"+identity.sha256_text().left(24)+".json"
 	data={"schema":1,"dollars":100,"inventory":{"r1000":8,"r220":4,"c1.0":2,"diode":2,"led":2,"button":2,"battery":1},"capacity":40,"equipped":"starter","kits":{"starter":{"name":"Starter kit","items":{"r1000":8,"r220":4,"c1.0":2,"diode":2,"led":2,"button":2,"battery":1},"board":Board.empty()}},"notebook":"","reward_ids":{},"analyzer":false}
 	for candidate in [path,path+".bak"]:
 		if not FileAccess.file_exists(candidate):continue
-		var parsed=JSON.parse_string(FileAccess.get_file_as_string(candidate))
+		var parsed: Variant=_read_profile_file(candidate)
 		if parsed is Dictionary and parsed.has("dorm") and not Dorm.valid(parsed.dorm,parsed.get("inventory",{}),parsed.get("component_instances",{})):
 			data=parsed;push_error("Corrupt dorm: original file retained; restore profile before playing");return
 		if valid(parsed):
 			data=parsed
+			if candidate==path:primary_digest=FileAccess.get_sha256(path)
 			_migrate_dorm(identity)
 			_recover_interrupted_usb()
 			return
@@ -218,13 +229,30 @@ func save() -> Error:
 		var receipt: Variant=authority_submit.call("metadata",[data.duplicate(true)])
 		return ERR_BUSY if receipt is String and receipt.is_empty() else OK
 	if path.is_empty():return OK # Host ledger commits the complete transaction atomically.
+	var serialized:=JSON.stringify(data)
 	var file := FileAccess.open(path+".tmp",FileAccess.WRITE)
 	if file==null:return FileAccess.get_open_error()
-	file.store_string(JSON.stringify(data));file.flush();file.close()
+	file.store_string(serialized);file.flush()
+	var write_error:=file.get_error()
+	file.close()
+	if write_error!=OK:return write_error
 	if FileAccess.file_exists(path):
-		var copy := DirAccess.copy_absolute(path,path+".bak")
-		if copy!=OK:return copy
-	return DirAccess.rename_absolute(path+".tmp",path)
+		var disk_digest:=FileAccess.get_sha256(path)
+		if disk_digest.is_empty():return ERR_FILE_CANT_READ
+		# Avoid revalidating large profiles on each autosave; if the file was
+		# externally changed or this instance recovered a backup, validate the
+		# actual bytes before rotating. Never back up a corrupt primary.
+		var can_backup: bool=(not primary_digest.is_empty() and disk_digest==primary_digest) or valid(_read_profile_file(path))
+		if can_backup:
+			# Stage separately so an interrupted copy cannot destroy the previous
+			# known-good backup while the primary is still being committed.
+			var copy:=DirAccess.copy_absolute(path,path+".bak.tmp")
+			if copy!=OK:return copy
+			var backup_result:=DirAccess.rename_absolute(path+".bak.tmp",path+".bak")
+			if backup_result!=OK:return backup_result
+	var result:=DirAccess.rename_absolute(path+".tmp",path)
+	if result==OK:primary_digest=serialized.sha256_text()
+	return result
 func buy(type: String,quantity: int) -> String:
 	operation_succeeded=false
 	if authority_submit.is_valid():return queued("buy",[type,quantity])
