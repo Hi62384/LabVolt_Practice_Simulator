@@ -25,6 +25,7 @@ var station_frames := {}
 var remote_frames := {}
 var screen_occupants := {}
 var sharing_last_tick := false
+var last_monitor_capture := -1000
 var power_states := {}
 var active := false
 var ui_was_open := false
@@ -66,7 +67,7 @@ func build(owner_game: Node, mounted_room: Node3D) -> bool:
 	game.computers.occupancy_changed.connect(_screen_occupancy)
 	game.computers.monitor_frame.connect(_receive_monitor_frame)
 	var mirror_timer := Timer.new()
-	mirror_timer.wait_time = .34
+	mirror_timer.wait_time = .05
 	mirror_timer.timeout.connect(_tick_monitor_mirror)
 	add_child(mirror_timer)
 	mirror_timer.start()
@@ -108,6 +109,7 @@ func register_station(id: String,station: Node3D,is_public: bool) -> bool:
 	chair.set_physics_process(false)
 	chair_stations[index]=str(id)
 	if not game.computers.register_station(str(id),index,station.interaction_anchor.global_position,is_public,true):return false
+	game.computers.stations[id].speaker_position=station.screen_anchor.global_position-Vector3.UP*.14
 	var target := StaticBody3D.new()
 	target.set_meta("role","computer")
 	target.set_meta("station",str(id))
@@ -308,6 +310,16 @@ func _tick_monitor_mirror() -> void:
 		sharing_last_tick = false
 		return
 	if DisplayServer.get_name() == "headless": return
+	var station: Dictionary=game.computers.stations.get(local_screen_station,{})
+	if station.is_empty():return
+	var interval:=0
+	for peer in game.session.poses:
+		if peer==multiplayer.get_unique_id():continue
+		var pose: Vector3=game.session.poses[peer].get("position",Vector3.INF)
+		var rate: int=game.computers.screen_preview_interval(pose,station.anchor)
+		if rate>0 and (interval==0 or rate<interval):interval=rate
+	if interval==0 or now-last_monitor_capture<interval:return
+	last_monitor_capture=now
 	var image := desktop_render.get_texture().get_image()
 	if image == null or image.is_empty(): return
 	image.resize(game.computers.SCREEN_SIZE.x, game.computers.SCREEN_SIZE.y, Image.INTERPOLATE_BILINEAR)
@@ -318,7 +330,8 @@ func _tick_monitor_mirror() -> void:
 func _receive_monitor_frame(id: String, sender: int, pixels: PackedByteArray) -> void:
 	if not indicators.has(id) or id == local_screen_station or int(screen_occupants.get(id, 0)) != sender:
 		return
-	if not bool(power_states.get(id, false)) or game.player.global_position.distance_squared_to(indicators[id].global_position) > 81.0: return
+	var station: Dictionary=game.computers.stations.get(id,{})
+	if not bool(power_states.get(id,false)) or station.is_empty() or game.computers.screen_preview_interval(game.player.global_position,station.anchor)==0:return
 	if pixels.is_empty():
 		remote_frames.erase(id)
 	else:

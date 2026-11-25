@@ -34,20 +34,28 @@ static func issue_for_course(course_id: String, provider: Object, seed_value: in
 		project.learning_objective="Predict, build, measure and explain the assigned "+course_id+" circuit."
 		project.practical_tasks=steps
 		var instructions := str(project.get("teaching",{}).get("equipment",project.get("equipment_text",steps)))
-		var pages: Array[String] = []
-		var chunk := ""
-		for paragraph in instructions.split("\n",false):
-			for word in paragraph.split(" ",false):
-				if chunk.length()+word.length()>820:
-					pages.append(chunk.strip_edges())
-					chunk=""
-				chunk+=word+" "
-			chunk+="\n\n"
-		if not chunk.strip_edges().is_empty():pages.append(chunk.strip_edges())
-		project.practice_instruction_pages=pages
+		project.practice_instruction_pages=instruction_pages(instructions)
 		project.observations="Record measured voltage/current and compare signed values, units and expected tolerances with your prediction."
 		project.verification="Use the generated question targets and the simulator's actual connected instrument readings; explain any difference."
 	return project
+
+static func instruction_pages(instructions: String) -> Array[String]:
+	const PAGE_CHARACTERS := 820
+	var pages: Array[String] = []
+	var chunk := ""
+	for line in instructions.split("\n",false):
+		var paragraph := line.strip_edges()
+		if not chunk.is_empty() and chunk.length()+paragraph.length()+2>PAGE_CHARACTERS:
+			pages.append(chunk)
+			chunk=""
+		for word in paragraph.split(" ",false):
+			if not chunk.is_empty() and chunk.length()+word.length()+1>PAGE_CHARACTERS:
+				pages.append(chunk.strip_edges())
+				chunk=""
+			chunk+=word+" "
+		chunk=chunk.strip_edges()+"\n\n"
+	if not chunk.strip_edges().is_empty():pages.append(chunk.strip_edges())
+	return pages
 
 static func issue_for_lecture(course_id: String,week: int,difficulty: int,provider: Object,seed_value: int) -> Dictionary:
 	if difficulty not in range(5) or week<1 or week>provider.weeks(course_id,"lecture").size():

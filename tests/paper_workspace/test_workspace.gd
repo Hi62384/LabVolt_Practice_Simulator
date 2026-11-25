@@ -2,6 +2,7 @@ extends SceneTree
 const Equations=preload("res://scripts/ui/paper_workspace/equations/test_equations.gd")
 const Layout=preload("res://scripts/ui/paper_workspace/equations/layout.gd")
 const Annotations=preload("res://scripts/paper_annotations.gd")
+const Worksheet=preload("res://scripts/worksheet_page.gd")
 const Ink=preload("res://scripts/paper_ink.gd")
 const PaperViewport=preload("res://scripts/ui/paper_workspace/workspace/viewport.gd")
 const Drawer=preload("res://scripts/ui/paper_workspace/calculator/drawer.gd")
@@ -39,6 +40,31 @@ func run() -> void:
 	annotation.inline_editor.text="(a/b)^2"
 	annotation.finish_inline_edit()
 	check(annotation.items[0].text=="(a/b)^2" and annotation.selection=="synthetic","inline equation commits and stays selected")
+	var item: Dictionary=annotation.items[0]
+	var extent := Annotations.measure(item.text,item.font_size,annotation._item_font(item),true)
+	var bounds: Vector2=annotation._bounds(item,extent)
+	var handle: Vector2=annotation._handles(bounds).rotate
+	var pivot: Vector2=item.position*annotation.size+handle.rotated(item.angle)
+	var press := InputEventMouseButton.new()
+	press.button_index=MOUSE_BUTTON_LEFT
+	press.pressed=true
+	press.position=pivot
+	annotation._gui_input(press)
+	var motion := InputEventMouseMotion.new()
+	motion.position=pivot+Vector2(65,15)
+	annotation._gui_input(motion)
+	check(not is_equal_approx(item.angle,.2) and pivot.is_equal_approx(item.position*annotation.size+handle.rotated(item.angle)),"rotation keeps the handle fixed")
+	press.pressed=false
+	annotation._gui_input(press)
+	press.pressed=true
+	var bottom: Vector2=annotation._handles(bounds).bottom
+	press.position=item.position*annotation.size+bottom.rotated(item.angle)
+	annotation._gui_input(press)
+	motion.position=press.position+Vector2(0,90).rotated(item.angle)
+	annotation._gui_input(motion)
+	check(is_equal_approx(float(item.get("box_height",0.0)),bounds.y+90),"bottom handle resizes a rotated annotation vertically")
+	press.pressed=false
+	annotation._gui_input(press)
 	annotation.update_selected("baked",true)
 	check(annotation.items[0].baked and annotation.items[0].text=="(a/b)^2","bake preserves source")
 	annotation.set_tool("answer");check(annotation.tool=="answer","tool deselection")
@@ -86,6 +112,15 @@ func run() -> void:
 	var drawer: Variant=Drawer.new();root.add_child(drawer);drawer.configure(Calculator.new());drawer.set_locked(true)
 	var state: Dictionary=drawer.snapshot_state();drawer.set_locked(false);drawer.restore_state(state)
 	check(drawer.locked and bool(drawer.snapshot_state().locked),"calculator pin state survives rebuild snapshot")
+	var sheet := Worksheet.new()
+	sheet.paper={"owner_name":"Student","lesson":true,"guide":true,"strokes":{},
+		"project":{"title":"Guide","difficulty":0,"source":"Fixture","course_id":"ELM253",
+			"guide_pages":[{"title":"Long lesson","text":"A long instruction with several words.\n".repeat(80)}]}}
+	root.add_child(sheet)
+	for i in 5:await process_frame
+	check(sheet.size==Worksheet.PAPER_SIZE,"long lesson uses the standard paper size")
+	var printed: MarginContainer=sheet.body.get_parent()
+	check(printed.scale.y<1.0,"long legacy instructions fit within the fixed sheet")
 	root.queue_free()
 	print("PAPER_WORKSPACE_RESULT failures=%d"%failures.size())
 	for failure in failures:push_error(failure)

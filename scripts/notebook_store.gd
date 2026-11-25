@@ -38,7 +38,7 @@ static func valid(data: Variant) -> bool:
 					for point in entry.points:
 						if not valid_point(point):return false
 				else:
-					if not valid_point(entry.get("position")):return false
+					if not valid_annotation_position(entry.get("position")):return false
 					if entry.get("kind") not in ["text","equation"] or entry.get("font") not in ["Sans","Serif","Mono"]:return false
 					if str(entry.get("text","")).length()>256 or str(entry.get("id","")).length()>40:return false
 					if not is_finite(float(entry.get("font_size",0))) or int(entry.get("font_size",0)) not in range(10,97):return false
@@ -46,6 +46,11 @@ static func valid(data: Variant) -> bool:
 					if str(entry.get("align","left")) not in ["left","center","right"]:return false
 					if not is_finite(float(entry.get("opacity",1.0))) or float(entry.get("opacity",1.0))<0.05 or float(entry.get("opacity",1.0))>1:return false
 					if not is_finite(float(entry.get("box_width",280.0))) or float(entry.get("box_width",280.0))<40 or float(entry.get("box_width",280.0))>720:return false
+					var box_height := float(entry.get("box_height",0.0))
+					if not is_finite(box_height) or box_height<0.0 or box_height>720.0:return false
 	return true
+static func valid_annotation_position(point: Variant) -> bool:
+	# Rotation about the handle can move the text origin across the page edge.
+	return point is Vector2 and point.is_finite() and Rect2(-4,-4,9,9).has_point(point)
 static func valid_point(point: Variant) -> bool:
 	return point is Vector2 and point.is_finite() and point.x>=0 and point.y>=0 and point.x<=1 and point.y<=1

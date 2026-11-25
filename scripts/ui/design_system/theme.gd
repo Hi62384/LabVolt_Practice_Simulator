@@ -18,6 +18,15 @@ static func create() -> Theme:
 			theme.set_constant(axis, type, T.SPACING)
 	theme.set_stylebox("panel", "PanelContainer", T.surface(T.SURFACE))
 	theme.set_stylebox("panel", "PopupMenu", T.surface(T.SURFACE))
+	theme.set_stylebox("hover", "PopupMenu", T.surface(T.RAISED, T.BORDER, 4))
+	var window_frame := T.surface(Color("12394b"), Color("4b7887"), 0)
+	window_frame.expand_margin_top=34
+	theme.set_stylebox("embedded_border","Window",window_frame)
+	theme.set_stylebox("embedded_unfocused_border","Window",window_frame)
+	theme.set_constant("title_height","Window",34)
+	theme.set_color("title_color","Window",T.INK)
+	theme.set_stylebox("panel","AcceptDialog",T.surface(Color("102b3b"),Color("4b7887"),16))
+	theme.set_constant("buttons_separation","AcceptDialog",10)
 	theme.set_type_variation("CardPanel", "PanelContainer")
 	theme.set_stylebox("panel", "CardPanel", T.card_style())
 	for type in ["Button", "OptionButton"]:

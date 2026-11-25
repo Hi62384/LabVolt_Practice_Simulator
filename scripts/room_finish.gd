@@ -1,6 +1,6 @@
 extends RefCounted
 static func build(game: Node3D) -> void:
-	for x in [-8,-5,5]:
+	for x in [-8,5]:
 		game._solid(Vector3(x,.87,9.45),Vector3(1.5,1.7,.65),Color("6b8580"))
 		for door in [-.37,.37]:
 			game._box(game,Vector3(x+door,.88,9.108),Vector3(.72,1.58,.04),Color("829893"))

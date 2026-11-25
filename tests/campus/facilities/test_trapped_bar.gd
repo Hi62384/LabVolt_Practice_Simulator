@@ -63,7 +63,7 @@ func run() -> void:
 			for i in 2:
 				now+=int(host.active[1].half_ms)
 				result=host.act(1,{"op":"lower" if i==0 else "beat","sequence":int(profiles["1"].last_sequence)+1})
-			check(not host.active.has(1),"deadlift failure should not trap the player")
+			check(host.active.get(1,{}).get("type")=="exercise","deadlift failure should leave the player in the set")
 		else:check(false,"could not start deadlift")
 	var panel=preload("res://scripts/campus/facilities/facility_panel.gd").new();root.add_child(panel)
 	panel.station_kind="benchpress";panel.station_id="gym/benchpress"

@@ -176,7 +176,8 @@ func _create(paper: Dictionary) -> void:
 	hit.shape=shape
 	root.add_child(hit)
 	var viewport := SubViewport.new()
-	viewport.size=Vector2i(800,240) if paper.has("classroom_board") else Vector2i(512,720)
+	viewport.size=Whiteboard.texture_size(paper) if supply=="whiteboard" else Vector2i(512,720)
+	if supply=="whiteboard":viewport.disable_3d=true
 	viewport.transparent_bg=false
 	root.add_child(viewport)
 	var mesh := MeshInstance3D.new()
@@ -343,12 +344,13 @@ func _page(visual: Dictionary,paper: Dictionary) -> void:
 		if notes is Array and not notes.is_empty():
 			var note_panel:=ColorRect.new()
 			note_panel.color=Color("d9e5e3")
-			note_panel.position=Vector2(24,158) if classroom else Vector2(24,520)
-			note_panel.size=Vector2(752,70) if classroom else Vector2(464,176)
+			var note_height:=70.0 if classroom else 118.0
+			note_panel.position=Vector2(24,canvas_size.y-note_height-12)
+			note_panel.size=Vector2(canvas_size.x-48,note_height)
 			face.add_child(note_panel)
 			var note_text:=Label.new()
 			note_text.position=Vector2(12,8)
-			note_text.size=Vector2(728,56) if classroom else Vector2(440,160)
+			note_text.size=note_panel.size-Vector2(24,16)
 			note_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			note_text.add_theme_color_override("font_color",Color("203b49"))
 			note_text.add_theme_font_size_override("font_size",28 if classroom else 21)
@@ -544,8 +546,7 @@ func open_board_workspace(target: StaticBody3D) -> bool:
 	if is_instance_valid(board_workspace):return true
 	var workspace := Whiteboard.new()
 	workspace.board_id=id
-	var board_size: Vector2=paper.get("board_size",Vector2(1.35,.78))
-	workspace.board_aspect=board_size.x/maxf(board_size.y,.1)
+	workspace.board_aspect=Whiteboard.aspect_for(paper)
 	board_workspace=workspace
 	add_child(workspace)
 	workspace.command_requested.connect(func(action: Dictionary):school.request(action))

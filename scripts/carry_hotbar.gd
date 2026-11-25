@@ -201,7 +201,7 @@ func add_item(item: Dictionary) -> int:
 	return -1
 func _process(_delta: float) -> void:
 	if not is_instance_valid(game):return
-	bar.visible=game.front.in_game and game.player.enabled
+	bar.visible=game.front.in_game and game.player.enabled and not game.workout_hides_carried_items()
 	if not game.front.in_game:
 		if is_instance_valid(food_model):food_model.hide()
 		return

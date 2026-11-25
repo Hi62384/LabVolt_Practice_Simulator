@@ -3,10 +3,13 @@ extends VBoxContainer
 ## closes its own tabs, renderer surfaces and attachment capability.
 const MAX_ATTACHMENT_BYTES:=8*1024*1024
 const MAX_TABS:=8
+const WHEEL_STEP:=12
 const HOME_URL:="https://www.google.com/"
 const Policy=preload("res://scripts/campus/ai/browser_assistant_policy.gd")
 const Downloads=preload("res://scripts/campus/computers/browser_download.gd")
 const WAV=preload("res://scripts/campus/academics/teacher_ai.gd")
+const Tokens=preload("res://scripts/ui/design_system/tokens.gd")
+const Widgets=preload("res://scripts/ui/design_system/widgets.gd")
 static var runtime: Node
 static var next_session_serial:=0
 var attachment_loader: Callable
@@ -15,6 +18,10 @@ var virtual_download_save: Callable
 var download_request: HTTPRequest
 var download_dialog: ConfirmationDialog
 var game: Node
+var speaker_world: Node3D
+var speaker_position := Vector3.ZERO
+var speaker_clock := 0.0
+var speaker_bus := ""
 var device_kind:=""
 var device_id:=""
 var lease:=""
@@ -50,6 +57,15 @@ var recording:=false
 
 var browser_poll := 0.0
 var inspect_pending := {}
+var context_pending := {}
+var inspector: VBoxContainer
+var element_tree: Tree
+var element_details: TextEdit
+var element_styles: TextEdit
+var inline_style: LineEdit
+var inspected_path: Array
+var inspected_browser: WeakRef
+var pdf_exports := {}
 var pending_pointer := Vector2i(-1,-1)
 var pointer_browser: WeakRef
 
@@ -57,6 +73,7 @@ func _ready() -> void:
  get_viewport().size_changed.connect(_resize_tabs)
 
 func _process(delta: float) -> void:
+ _update_speakers(delta)
  if not is_visible_in_tree():return
  if pointer_browser!=null:
   var browser: Variant=pointer_browser.get_ref()
@@ -70,6 +87,8 @@ func _process(delta: float) -> void:
  if not inspect_pending.is_empty() and Time.get_ticks_msec()>int(inspect_pending.until):
   inspect_pending.clear()
   status.text="No element inspection report was returned."
+ if not context_pending.is_empty() and Time.get_ticks_msec()>int(context_pending.until):
+  _finish_context_menu({})
  _assistant_check_title()
  _check_page_download()
  if not is_instance_valid(back) or not is_instance_valid(forward):return
@@ -118,15 +137,27 @@ func close_session() -> void:
  if is_instance_valid(download_dialog):download_dialog.queue_free()
  download_dialog=null
  virtual_download_save=Callable()
+ context_pending.clear()
+ inspect_pending.clear()
+ inspected_browser=null
  assistant_pending.clear();assistant_action.clear();assistant_response=""
  if is_instance_valid(game) and is_instance_valid(game.browser_assistant) and game.browser_assistant.reply_received.is_connected(_assistant_reply):game.browser_assistant.reply_received.disconnect(_assistant_reply)
  for tab in tabs:
   if is_instance_valid(tab.browser):tab.browser.close()
+  if is_instance_valid(tab.get("speaker")):
+   tab.speaker.stop()
+   tab.speaker.queue_free()
+ _release_speaker_bus()
  if not session_key.is_empty() and is_instance_valid(runtime) and runtime.has_method("release_context"):runtime.release_context(session_key)
  tabs.clear();active=0;device_kind="";device_id="";lease="";session_key="";candidates.clear();selected_attachment.clear();attachment_loader=Callable();assistant_virtual_save=Callable()
  for child in get_children():remove_child(child);child.queue_free()
 
 func _exit_tree() -> void:
+ for tab in tabs:
+  if is_instance_valid(tab.get("speaker")):
+   tab.speaker.stop()
+   tab.speaker.queue_free()
+ _release_speaker_bus()
  tabs.clear()
 
 func attachment_bytes() -> PackedByteArray:
@@ -161,8 +192,18 @@ func _build() -> void:
  attachment=Label.new();attachment.add_theme_font_size_override("font_size",12);chrome.add_child(attachment)
  var page_frame:=PanelContainer.new()
  page_frame.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("062434"),Color("326979"),9))
- page_frame.size_flags_vertical=Control.SIZE_EXPAND_FILL
- add_child(page_frame)
+ var split:=HSplitContainer.new()
+ split.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ add_child(split)
+ page_frame.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ split.add_child(page_frame)
+ inspector=VBoxContainer.new()
+ inspector.custom_minimum_size.x=235
+ inspector.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ inspector.size_flags_stretch_ratio=.58
+ split.add_child(inspector)
+ _build_inspector()
+ inspector.hide()
  holder=Control.new();holder.clip_contents=true;holder.custom_minimum_size.y=220 if device_kind=="phone" else 180;holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_EXPAND_FILL;page_frame.add_child(holder)
  home_screen=VBoxContainer.new();home_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);home_screen.alignment=BoxContainer.ALIGNMENT_CENTER;home_screen.add_theme_constant_override("separation",12);holder.add_child(home_screen)
  var home_title:=Label.new();home_title.text="Campus Browser";home_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;home_title.add_theme_font_size_override("font_size",30);home_screen.add_child(home_title)
@@ -194,13 +235,16 @@ func _build() -> void:
  _add_tab()
 
 func _runtime_ready() -> bool:
+ return ensure_runtime(get_tree())
+
+static func ensure_runtime(tree: SceneTree) -> bool:
  if is_instance_valid(runtime):return runtime.is_alive()
  if OS.get_name()!="Windows":return false
  var cef_class:="GdCEF"
  if not ClassDB.class_exists(cef_class):return false
  runtime=ClassDB.instantiate(cef_class) as Node
  if not is_instance_valid(runtime):return false
- runtime.name="LabVoltCEF";get_tree().root.add_child(runtime)
+ runtime.name="LabVoltCEF";tree.root.add_child(runtime)
  if not runtime.initialize({"incognito":true,"root_cache_path":ProjectSettings.globalize_path("user://cef_cache_root"),"remote_debugging_port":0,"enable_media_stream":false,"use_gpu":false,"command_line_switches":{"force-dark-mode":true},"log_file":ProjectSettings.globalize_path("user://cef.log"),"log_severity":"warning"}):
   runtime.queue_free();runtime=null;return false
  return true
@@ -211,6 +255,7 @@ func _add_tab() -> void:
  var browser: Variant=runtime.create_browser(HOME_URL if device_kind=="computer" else "about:blank",surface,{"allow_downloads":false,"javascript":true,"javascript_access_clipboard":false,"session_key":session_key,"frame_rate":45})
  if not is_instance_valid(browser):surface.queue_free();status.text="Browser tab failed: "+str(runtime.get_error());return
  browser.register_method(self,"_labvolt_element_report")
+ browser.register_method(self,"_labvolt_context_report")
  var native_download:=false
  if device_kind=="computer" and browser.has_method("enable_virtual_downloads"):
   var scratch:=ProjectSettings.globalize_path("user://cef_virtual_downloads")
@@ -220,7 +265,7 @@ func _add_tab() -> void:
    if native_download:
     browser.connect("virtual_download_progress",_native_download_progress.bind(session_key))
     browser.connect("virtual_download_finished",_native_download_finished.bind(session_key))
- tabs.append({"browser":browser,"surface":surface,"title":"New tab","native_download":native_download});active=tabs.size()-1
+ tabs.append({"browser":browser,"surface":surface,"title":"New tab","native_download":native_download,"speaker":_route_tab_audio(browser)});active=tabs.size()-1
  var browser_ref: WeakRef=weakref(browser)
  browser.connect("on_page_loaded",func(_view,_http_code):if browser_ref.get_ref()!=null:_loaded(browser_ref.get_ref()))
  browser.connect("on_page_failed_loading",func(_code,message,_view):if browser_ref.get_ref()==_browser():
@@ -229,6 +274,49 @@ func _add_tab() -> void:
  surface.gui_input.connect(func(event):if browser_ref.get_ref()!=null:_forward(browser_ref.get_ref(),surface,event))
  surface.resized.connect(func():if browser_ref.get_ref()!=null:_resize_browser(browser_ref.get_ref(),surface))
  _resize_browser(browser,surface);_refresh()
+
+func _route_tab_audio(browser: Node) -> AudioStreamPlayer3D:
+ if not is_instance_valid(speaker_world) or not browser.has_method("set_audio_stream"):return null
+ if speaker_bus.is_empty():
+  speaker_bus="Campus workstation %d"%get_instance_id()
+  var index:=AudioServer.bus_count
+  AudioServer.add_bus()
+  AudioServer.set_bus_name(index,speaker_bus)
+ var generator:=AudioStreamGenerator.new()
+ generator.mix_rate=AudioServer.get_mix_rate()
+ generator.buffer_length=.18
+ var speaker:=AudioStreamPlayer3D.new()
+ speaker.name="CampusComputerSpeaker"
+ speaker.stream=generator
+ speaker.bus=speaker_bus
+ speaker.attenuation_model=AudioStreamPlayer3D.ATTENUATION_DISABLED
+ speaker.max_distance=8.0
+ speaker_world.add_child(speaker)
+ speaker.global_position=speaker_position
+ speaker.play()
+ var playback:=speaker.get_stream_playback() as AudioStreamGeneratorPlayback
+ if playback!=null:browser.set_audio_stream(playback)
+ return speaker
+
+func _update_speakers(delta: float) -> void:
+ if not is_instance_valid(speaker_world) or tabs.is_empty():return
+ speaker_clock+=delta
+ if speaker_clock<.08:return
+ speaker_clock=0.0
+ var listener:=speaker_world.get_viewport().get_camera_3d()
+ if listener==null:return
+ var distance:=listener.global_position.distance_to(speaker_position)
+ var gain:=1.0-smoothstep(1.25,8.0,distance)
+ var bus_index:=AudioServer.get_bus_index(speaker_bus)
+ if bus_index>0:
+  AudioServer.set_bus_volume_db(bus_index,linear_to_db(maxf(gain*gain,.0001)))
+  AudioServer.set_bus_mute(bus_index,distance>=8.0)
+
+func _release_speaker_bus() -> void:
+ if speaker_bus.is_empty():return
+ var index:=AudioServer.get_bus_index(speaker_bus)
+ if index>0:AudioServer.remove_bus(index)
+ speaker_bus=""
 
 func _desktop_pixel_scale() -> Vector2:
  var desktop_viewport:=get_viewport() as SubViewport
@@ -275,6 +363,7 @@ func _browser() -> Variant:
 
 func _refresh() -> void:
  if not is_instance_valid(tab_row):return
+ if inspected_browser!=null and inspected_browser.get_ref()!=_browser():inspector.hide()
  for child in tab_row.get_children():tab_row.remove_child(child);child.queue_free()
  for i in tabs.size():
   var index:=i
@@ -317,6 +406,7 @@ func _close_tab_at(index: int) -> void:
  if tabs.size()<=1 or index<0 or index>=tabs.size():return
  var tab: Dictionary=tabs[index]
  if is_instance_valid(tab.browser):tab.browser.close()
+ if is_instance_valid(tab.get("speaker")):tab.speaker.queue_free()
  if is_instance_valid(tab.surface):tab.surface.queue_free()
  tabs.remove_at(index)
  if index<active:active-=1
@@ -366,6 +456,9 @@ func _history(direction: int) -> void:
  if direction>0 and browser.has_next_page():browser.next_page()
 
 func _loaded(browser: Variant) -> void:
+ if inspected_browser!=null and inspected_browser.get_ref()==browser:
+  inspected_browser=null
+  inspector.hide()
  for i in tabs.size():
   if tabs[i].browser!=browser:continue
   tabs[i].title=str(browser.get_title()) if not str(browser.get_title()).is_empty() else str(browser.get_url()).left(24)
@@ -407,7 +500,7 @@ func _check_page_download() -> void:
  if payload.has("error"):
   status.text=str(payload.error).left(120)
   return
- var extension: String=Downloads.EXTENSIONS.get(str(payload.get("mime","")),"")
+ var extension:=Downloads.extension_for(str(payload.get("name","")),str(payload.get("mime","")))
  var body:=Marshalls.base64_to_raw(str(payload.get("data","")))
  var origin:=str(tab.browser.get_url()).get_slice("://",0)+"://"+str(tab.browser.get_url()).get_slice("://",1).get_slice("/",0)
  _offer_download(str(payload.get("name","")),extension,body,origin.left(85))
@@ -421,13 +514,10 @@ func _native_download_finished(name: String,mime: String,body: PackedByteArray,e
  if not error.is_empty():
   status.text=error
   return
- var extension: String=Downloads.EXTENSIONS.get(mime.get_slice(";",0).strip_edges().to_lower(),"")
- if extension.is_empty() and mime in ["","application/octet-stream"]:
-  extension=name.get_extension().to_lower()
-  if extension=="jpeg":extension="jpg"
+ var extension:=Downloads.extension_for(name,mime)
  _offer_download(name,extension,body,"Chromium")
 
-func _offer_download(name: String,extension: String,body: PackedByteArray,source: String) -> void:
+func _offer_download(name: String,extension: String,body: PackedByteArray,_source: String) -> void:
  if not Downloads.valid(body,extension):
   status.text="The website offered an unsupported or invalid file."
   return
@@ -437,18 +527,93 @@ func _offer_download(name: String,extension: String,body: PackedByteArray,source
  var filename:=Downloads.filename(name.left(128),extension)
  var expected_session:=session_key
  download_dialog=ConfirmationDialog.new()
- download_dialog.title="Save website download"
- download_dialog.dialog_text="%s downloaded %s (%d bytes). Save it to virtual Downloads?"%[source,filename,body.size()]
+ download_dialog.title="Save to Campus Downloads"
+ download_dialog.theme=_download_theme()
  download_dialog.ok_button_text="Save"
+ var fields:=VBoxContainer.new()
+ fields.custom_minimum_size.x=330
+ fields.add_theme_constant_override("separation",9)
+ var destination:=PanelContainer.new()
+ destination.add_theme_stylebox_override("panel",Tokens.surface(Color("ecf5f7"),Color("cbdee3"),10))
+ fields.add_child(destination)
+ var summary:=HBoxContainer.new()
+ summary.add_theme_constant_override("separation",10)
+ destination.add_child(summary)
+ var icon:=TextureRect.new()
+ icon.texture=Widgets.icon("folder")
+ icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+ icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+ icon.custom_minimum_size=Vector2(26,26)
+ icon.modulate=Color("196879")
+ summary.add_child(icon)
+ var details:=VBoxContainer.new()
+ details.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ summary.add_child(details)
+ var folder_label:=Label.new()
+ folder_label.text="Downloads"
+ details.add_child(folder_label)
+ var metadata:=Label.new()
+ metadata.text="%s file · %s"%[extension.to_upper(),String.humanize_size(body.size())]
+ metadata.add_theme_color_override("font_color",Color("496574"))
+ metadata.add_theme_font_size_override("font_size",13)
+ details.add_child(metadata)
+ var name_label:=Label.new()
+ name_label.text="File name"
+ fields.add_child(name_label)
+ var name_field:=LineEdit.new()
+ name_field.text=filename
+ name_field.max_length=25
+ name_field.accessibility_name="File name"
+ name_field.custom_minimum_size.y=38
+ fields.add_child(name_field)
  add_child(download_dialog)
+ download_dialog.add_child(fields)
+ download_dialog.register_text_enter(name_field)
+ download_dialog.get_ok_button().theme_type_variation="DownloadSaveButton"
  download_dialog.confirmed.connect(func():
   if session_key==expected_session and virtual_download_save.is_valid():
    status.text="Saving to Downloads…"
-   virtual_download_save.call(filename,body)
+   var requested:=name_field.text.strip_edges()
+   if not requested.to_lower().ends_with("."+extension):requested+="."+extension
+   virtual_download_save.call(Downloads.filename(requested,extension),body)
  )
  download_dialog.confirmed.connect(download_dialog.queue_free)
+ download_dialog.canceled.connect(func():if session_key==expected_session:status.text="")
  download_dialog.canceled.connect(download_dialog.queue_free)
+ status.text=""
  download_dialog.popup_centered()
+ name_field.grab_focus()
+ name_field.select(0,filename.get_basename().length())
+
+func _download_theme() -> Theme:
+ var skin:=Theme.new()
+ var frame:=Tokens.surface(Color("123e50"),Color("377483"),1)
+ frame.expand_margin_top=36
+ skin.set_stylebox("embedded_border","Window",frame)
+ skin.set_stylebox("embedded_unfocused_border","Window",frame)
+ skin.set_color("title_color","Window",Color("edf6fa"))
+ skin.set_stylebox("panel","AcceptDialog",Tokens.surface(Color("f9fcfd"),Color("cbdee3"),16))
+ skin.set_color("font_color","Label",Color("183b4c"))
+ skin.set_color("font_color","LineEdit",Color("183b4c"))
+ skin.set_color("caret_color","LineEdit",Color("183b4c"))
+ skin.set_color("selection_color","LineEdit",Color("1a6e80"))
+ skin.set_stylebox("normal","LineEdit",Tokens.surface(Color.WHITE,Color("aac4cc"),8))
+ var focus:=StyleBoxFlat.new()
+ focus.draw_center=false
+ focus.border_color=Color("3e8898")
+ focus.set_border_width_all(2)
+ focus.set_corner_radius_all(Tokens.RADIUS)
+ skin.set_stylebox("focus","LineEdit",focus)
+ skin.set_stylebox("focus","Button",focus)
+ skin.set_type_variation("DownloadSaveButton","Button")
+ for state in ["normal","hover","pressed"]:
+  var shade:=Color("edf4f6") if state=="normal" else Color("dcebef")
+  skin.set_stylebox(state,"Button",Tokens.surface(shade,Color("b9cdd3"),8))
+  skin.set_stylebox(state,"DownloadSaveButton",Tokens.surface(Color("176778") if state=="normal" else Color("0b5060"),Color("176778"),8))
+ for state in ["font_color","font_hover_color","font_focus_color","font_pressed_color"]:
+  skin.set_color(state,"Button",Color("183b4c"))
+  skin.set_color(state,"DownloadSaveButton",Color.WHITE)
+ return skin
 
 func _finish_page_report(tab: Dictionary,transfer: Dictionary) -> void:
  # Block duplicate reads until CEF has acknowledged the report.
@@ -464,9 +629,11 @@ func _reset_page_report(tab: Dictionary,token: String) -> void:
  if tab.get("page_download",{}).get("token")==token:tab.page_download.index=0
 
 func _download_address() -> void:
+ _download_url(address.text.strip_edges())
+
+func _download_url(url: String) -> void:
  if not virtual_download_save.is_valid():status.text="This computer has no Downloads folder.";return
  if is_instance_valid(download_request):status.text="A download is already in progress.";return
- var url:=address.text.strip_edges()
  if not (url.begins_with("https://") or url.begins_with("http://")) or url.length()>2048:
   status.text="Enter a direct HTTP or HTTPS file address."
   return
@@ -497,13 +664,12 @@ func _download_finished(result: int,code: int,headers: PackedStringArray,body: P
  for header in headers:
   if header.get_slice(":",0).strip_edges().to_lower()=="content-type":
    mime=header.substr(header.find(":")+1).get_slice(";",0).strip_edges().to_lower()
- var extension: String=Downloads.EXTENSIONS.get(mime,"")
+ var name:=url.get_slice("?",0).get_slice("#",0).get_file().uri_decode()
+ var extension:=Downloads.extension_for(name,mime)
  if not Downloads.valid(body,extension):
-  status.text="Unsupported or invalid file. Text files are limited to 32 KB."
+  status.text="Unsupported or invalid file."
   return
- var filename:=Downloads.filename(url.get_slice("?",0).get_slice("#",0).uri_decode(),extension)
- status.text="Saving to Downloads…"
- virtual_download_save.call(filename,body)
+ _offer_download(name,extension,body,"Website")
 
 func _forward(browser: Variant,surface: TextureRect,event: InputEvent) -> void:
  if browser!=_browser() or not is_instance_valid(browser):return
@@ -523,8 +689,16 @@ func _forward(browser: Variant,surface: TextureRect,event: InputEvent) -> void:
   elif event.button_index==MOUSE_BUTTON_RIGHT:
    if not event.pressed:_page_context_menu(browser,point,surface.get_global_mouse_position())
    surface.accept_event()
-  elif event.button_index==MOUSE_BUTTON_WHEEL_UP and event.pressed:browser.set_mouse_wheel_vertical(1,event.shift_pressed,event.ctrl_pressed,event.alt_pressed)
-  elif event.button_index==MOUSE_BUTTON_WHEEL_DOWN and event.pressed:browser.set_mouse_wheel_vertical(-1,event.shift_pressed,event.ctrl_pressed,event.alt_pressed)
+  elif event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN,MOUSE_BUTTON_WHEEL_LEFT,MOUSE_BUTTON_WHEEL_RIGHT]:
+   if event.pressed:
+    var amount:=maxi(1,roundi(WHEEL_STEP*event.factor))
+    if event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
+     var direction:=1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else -1
+     browser.set_mouse_wheel_vertical(direction*amount,event.shift_pressed,event.ctrl_pressed,event.alt_pressed)
+    else:
+     var direction:=1 if event.button_index==MOUSE_BUTTON_WHEEL_LEFT else -1
+     browser.set_mouse_wheel_horizontal(direction*amount,event.shift_pressed,event.ctrl_pressed,event.alt_pressed)
+   surface.accept_event()
  elif event is InputEventKey:
   if event.keycode in [KEY_SHIFT,KEY_ALT,KEY_CTRL,KEY_META,KEY_CAPSLOCK,KEY_NUMLOCK,KEY_SCROLLLOCK]:return
   # Godot's keycode names letters in uppercase. Unicode is the character
@@ -539,12 +713,72 @@ func _browser_point(surface: TextureRect,position: Vector2) -> Vector2i:
  return Vector2i((position*pixels/surface.size.max(Vector2.ONE)).round())
 
 func _page_context_menu(browser: Variant,point: Vector2i,menu_position: Vector2) -> void:
+ var token:=Crypto.new().generate_random_bytes(12).hex_encode()
+ context_pending={"browser":weakref(browser),"point":point,"position":menu_position,"token":token,"until":Time.get_ticks_msec()+350}
+ browser.execute_javascript("""
+ (() => {
+   const el = document.elementFromPoint(%d / devicePixelRatio, %d / devicePixelRatio);
+   const image = el?.closest('img');
+   const link = el?.closest('a[href]');
+   window.godotMethods?.labvolt_context_report?.(JSON.stringify({
+     token:%s, image:(image?.currentSrc || image?.src || '').slice(0, 1048576),
+     link:(link?.href || '').slice(0, 2048)
+   }));
+ })();
+ """ % [point.x,point.y,JSON.stringify(token)])
+
+func _labvolt_context_report(raw: Variant) -> void:
+ if context_pending.is_empty() or not raw is String or raw.length()>1051000:return
+ var data: Variant=JSON.parse_string(raw)
+ if data is Dictionary and data.get("token","")==context_pending.token:_finish_context_menu.call_deferred(data)
+
+func _finish_context_menu(data: Dictionary) -> void:
+ if context_pending.is_empty() or (not data.is_empty() and data.get("token","")!=context_pending.token):return
+ var pending:=context_pending
+ context_pending={}
+ var browser: Variant=pending.browser.get_ref()
+ if not is_visible_in_tree() or not is_instance_valid(browser) or browser!=_browser():return
+ var point: Vector2i=pending.point
+ var link:=str(data.get("link",""))
+ var image:=str(data.get("image",""))
+ var has_link:=link.begins_with("https://") or link.begins_with("http://")
+ var has_image:=image.begins_with("https://") or image.begins_with("http://") or image.begins_with("data:image/")
+ var can_save:=virtual_download_save.is_valid()
  var popup:=PopupMenu.new()
+ var panel:=StyleBoxFlat.new()
+ panel.bg_color=Color("ffffff")
+ panel.border_color=Color("ccd5df")
+ panel.set_border_width_all(1)
+ panel.set_corner_radius_all(8)
+ panel.set_content_margin_all(7)
+ panel.shadow_color=Color(0,0,0,.2)
+ panel.shadow_size=6
+ var hover:=StyleBoxFlat.new()
+ hover.bg_color=Color("e5eff7")
+ hover.set_corner_radius_all(4)
+ var light:=Theme.new()
+ light.set_stylebox("panel","PopupMenu",panel)
+ light.set_stylebox("hover","PopupMenu",hover)
+ light.set_color("font_color","PopupMenu",Color("1d3343"))
+ light.set_color("font_hover_color","PopupMenu",Color("102433"))
+ light.set_color("font_disabled_color","PopupMenu",Color("768895"))
+ popup.theme=light
+ popup.hide_on_item_selection=true
+ if has_image:
+  popup.add_item("Open image in new tab",7)
+  popup.add_item("Copy image address",8)
+  if can_save:popup.add_item("Save image as…",9)
+ if has_link:
+  popup.add_item("Open link in new tab",10)
+  popup.add_item("Copy link address",11)
+  if can_save:popup.add_item("Save link as…",12)
+ if has_image or has_link:popup.add_separator()
  popup.add_item("Back",0)
- popup.set_item_disabled(0,not browser.has_previous_page())
+ popup.set_item_disabled(popup.get_item_index(0),not browser.has_previous_page())
  popup.add_item("Forward",1)
- popup.set_item_disabled(1,not browser.has_next_page())
+ popup.set_item_disabled(popup.get_item_index(1),not browser.has_next_page())
  popup.add_item("Reload",2)
+ if can_save and browser.has_method("save_page_as_pdf"):popup.add_item("Save page as PDF…",13)
  popup.add_separator()
  popup.add_item("Copy selection",5)
  popup.add_item("Paste",6)
@@ -563,56 +797,199 @@ func _page_context_menu(browser: Variant,point: Vector2i,menu_position: Vector2)
    4:_inspect_element(target,point)
    5:target.copy()
    6:target.paste()
+   7:_open_context_url(image)
+   8:DisplayServer.clipboard_set(image)
+   9:_save_context_url(target,image)
+   10:_open_context_url(link)
+   11:DisplayServer.clipboard_set(link)
+   12:_save_context_url(target,link)
+   13:_save_page_pdf(target)
  popup.id_pressed.connect(choose)
  popup.popup_hide.connect(popup.queue_free)
- popup.position=Vector2i(menu_position)
+ popup.position=Vector2i(pending.position)
  popup.popup()
 
-func _inspect_element(browser: Variant,point: Vector2i) -> void:
+func _open_context_url(url: String) -> void:
+ var previous_count:=tabs.size()
+ _add_tab()
+ if tabs.size()>previous_count:_browser().load_url(url)
+
+func _save_context_url(browser: Variant,url: String) -> void:
+ if url.begins_with("data:image/"):
+  var metadata:=url.get_slice(",",0)
+  if not metadata.ends_with(";base64") or not url.contains(","):
+   status.text="This embedded image format is unsupported."
+   return
+  var mime:=metadata.trim_prefix("data:").trim_suffix(";base64")
+  _offer_download("image",Downloads.EXTENSIONS.get(mime,""),Marshalls.base64_to_raw(url.get_slice(",",1)),"Embedded image")
+ elif bool(tabs[active].native_download) and browser.has_method("download_file"):
+  browser.download_file(url)
+  status.text="Downloading…"
+ else:
+  _download_url(url)
+
+func _save_page_pdf(browser: Variant) -> void:
+ var browser_id: int=browser.get_instance_id()
+ if pdf_exports.has(browser_id):return
+ var folder:=ProjectSettings.globalize_path("user://cef_virtual_downloads")
+ if DirAccess.make_dir_recursive_absolute(folder)!=OK:
+  status.text="Could not prepare the PDF."
+  return
+ var path:=folder.path_join(Crypto.new().generate_random_bytes(12).hex_encode()+".pdf")
+ var expected:=session_key
+ var title:=str(browser.get_title())
+ pdf_exports[browser_id]=path
+ browser.connect("on_pdf_saved",func(result: String,success: bool,_view: Variant):
+  pdf_exports.erase(browser_id)
+  if result!=path:return
+  var output:=FileAccess.open(path,FileAccess.READ) if success else null
+  var bytes:=output.get_buffer(output.get_length()) if output!=null and output.get_length()<=Downloads.MAX_BYTES else PackedByteArray()
+  if output!=null:output.close()
+  if FileAccess.file_exists(path):DirAccess.remove_absolute(path)
+  if expected!=session_key:return
+  if bytes.is_empty():status.text="Could not save this page as a PDF."
+  else:_offer_download(title,"pdf",bytes,"PDF")
+ ,CONNECT_ONE_SHOT)
+ browser.save_page_as_pdf(path)
+
+func _inspect_element(browser: Variant,point: Vector2i,path: Variant=null) -> void:
  var token:=Crypto.new().generate_random_bytes(12).hex_encode()
  inspect_pending={"browser":weakref(browser),"token":token,"until":Time.get_ticks_msec()+3500}
  browser.execute_javascript("""
  (() => {
-   const el = document.elementFromPoint(%d / devicePixelRatio, %d / devicePixelRatio);
+   const path = %s;
+   const el = path ? path.reduce((node, index) => node?.children[index], document.documentElement) :
+     document.elementFromPoint(%d / devicePixelRatio, %d / devicePixelRatio);
    if (!el) return;
+   const pathTo = node => {
+     const path = [];
+     while (node?.parentElement) {
+       path.unshift(Array.prototype.indexOf.call(node.parentElement.children, node));
+       node = node.parentElement;
+     }
+     return path;
+   };
+   const summary = node => node && ({
+     label: '<' + node.tagName.toLowerCase() + (node.id ? '#' + node.id.slice(0,40) : '') + '>',
+     path: pathTo(node)
+   });
    const bounds = el.getBoundingClientRect();
    const css = getComputedStyle(el);
    const report = {token:%s, tag:el.tagName.toLowerCase(), html:el.outerHTML.slice(0,2400),
      size:[Math.round(bounds.width),Math.round(bounds.height)],
-     styles:{display:css.display, color:css.color, background:css.backgroundColor, font:css.font}};
+     parent:summary(el.parentElement), element:summary(el),
+     children:Array.from(el.children).slice(0,12).map(summary),
+     inlineStyle:(el.getAttribute('style') || '').slice(0,800),
+     styles:{display:css.display, position:css.position, color:css.color, background:css.backgroundColor,
+       font:css.font, margin:css.margin, padding:css.padding, border:css.border}};
    window.godotMethods?.labvolt_element_report?.(JSON.stringify(report));
  })();
- """ % [point.x,point.y,JSON.stringify(token)])
+ """ % [JSON.stringify(path),point.x,point.y,JSON.stringify(token)])
 
 func _labvolt_element_report(raw: Variant) -> void:
- if inspect_pending.is_empty() or not raw is String or raw.length()>5000:return
+ if inspect_pending.is_empty() or not raw is String or raw.length()>12000:return
  var browser: Variant=inspect_pending.browser.get_ref()
  if not is_instance_valid(browser) or browser!=_browser() or Time.get_ticks_msec()>int(inspect_pending.until):return
  var data: Variant=JSON.parse_string(raw)
  if not data is Dictionary or data.get("token","")!=inspect_pending.token:return
  if not data.get("html") is String or not data.get("size") is Array or data.size.size()!=2:return
  inspect_pending.clear()
- _show_element_report.call_deferred(data)
+ _show_element_report.call_deferred(browser,data)
 
-func _show_element_report(data: Dictionary) -> void:
- if not is_visible_in_tree():return
- var inspector:=AcceptDialog.new()
- inspector.title="Inspect <%s> · %s × %s"%[str(data.get("tag","element")).left(40),str(data.size[0]).left(12),str(data.size[1]).left(12)]
- var source:=TextEdit.new()
- source.editable=false
- source.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY
- source.custom_minimum_size=Vector2(500,260)
- source.text=str(data.html)
+func _build_inspector() -> void:
+ var toolbar:=HBoxContainer.new()
+ inspector.add_child(toolbar)
+ var heading:=Label.new()
+ heading.text="Page inspector"
+ heading.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ toolbar.add_child(heading)
+ var close:=Button.new()
+ close.text="×"
+ close.accessibility_name="Close page inspector"
+ close.pressed.connect(inspector.hide)
+ toolbar.add_child(close)
+ var panes:=VSplitContainer.new()
+ panes.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ inspector.add_child(panes)
+ element_tree=Tree.new()
+ element_tree.hide_root=true
+ element_tree.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ panes.add_child(element_tree)
+ element_tree.item_activated.connect(func():
+  var browser: Variant=inspected_browser.get_ref() if inspected_browser!=null else null
+  var row:=element_tree.get_selected()
+  if is_instance_valid(browser) and browser==_browser() and row!=null:
+   _inspect_element(browser,Vector2i.ZERO,row.get_metadata(0)))
+ element_tree.tooltip_text="Double-click an element to inspect it"
+ var views:=TabContainer.new()
+ views.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ panes.add_child(views)
+ element_details=TextEdit.new()
+ element_details.name="Markup"
+ element_details.editable=false
+ element_details.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY
+ views.add_child(element_details)
+ var styles:=VBoxContainer.new()
+ styles.name="Styles"
+ views.add_child(styles)
+ var edit_row:=HBoxContainer.new()
+ styles.add_child(edit_row)
+ inline_style=LineEdit.new()
+ inline_style.placeholder_text="Inline CSS"
+ inline_style.accessibility_name="Inline CSS for the selected element"
+ inline_style.max_length=800
+ inline_style.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+ inline_style.text_submitted.connect(func(_value:String):_apply_inline_style())
+ edit_row.add_child(inline_style)
+ var apply:=Button.new()
+ apply.text="Apply"
+ apply.pressed.connect(_apply_inline_style)
+ edit_row.add_child(apply)
+ element_styles=TextEdit.new()
+ element_styles.editable=false
+ element_styles.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY
+ element_styles.size_flags_vertical=Control.SIZE_EXPAND_FILL
+ styles.add_child(element_styles)
+
+func _apply_inline_style() -> void:
+ var browser: Variant=inspected_browser.get_ref() if inspected_browser!=null else null
+ if not is_instance_valid(browser) or browser!=_browser():return
+ browser.execute_javascript("""
+ (() => {
+   const el = %s.reduce((node, index) => node?.children[index], document.documentElement);
+   if (el) el.setAttribute('style', %s);
+ })();
+ """ % [JSON.stringify(inspected_path),JSON.stringify(inline_style.text)])
+ _inspect_element(browser,Vector2i.ZERO,inspected_path)
+
+func _show_element_report(browser: Variant,data: Dictionary) -> void:
+ if not is_visible_in_tree() or not is_instance_valid(browser) or browser!=_browser():return
+ inspected_browser=weakref(browser)
+ element_tree.clear()
+ var root:=element_tree.create_item()
+ var parent_row:=_element_row(root,data.get("parent"))
+ var selected:=_element_row(parent_row if parent_row!=null else root,data.get("element"))
+ if selected!=null:
+  selected.select(0)
+  inspected_path=selected.get_metadata(0)
+  var children: Variant=data.get("children",[])
+  if children is Array:
+   for child in children.slice(0,12):_element_row(selected,child)
+ element_details.text="%s × %s\n\n%s"%[str(data.size[0]).left(12),str(data.size[1]).left(12),str(data.html)]
+ inline_style.text=str(data.get("inlineStyle","")).left(800)
+ element_styles.text=""
  var styles: Variant=data.get("styles")
  if styles is Dictionary:
-  source.text+="\n\nComputed styles"
-  for key in ["display","color","background","font"]:
-   source.text+="\n%s: %s"%[key,str(styles.get(key,"")).left(100)]
- inspector.add_child(source)
- add_child(inspector)
- inspector.confirmed.connect(inspector.queue_free)
- inspector.canceled.connect(inspector.queue_free)
- inspector.popup_centered()
+  for key in ["display","position","color","background","font","margin","padding","border"]:
+   element_styles.text+="%s: %s\n"%[key,str(styles.get(key,"")).left(160)]
+ inspector.show()
+
+func _element_row(parent: TreeItem,data: Variant) -> TreeItem:
+ if not data is Dictionary or not data.get("path") is Array:return null
+ var row:=element_tree.create_item(parent)
+ row.set_text(0,str(data.get("label","Element")).left(80))
+ row.set_metadata(0,data.path)
+ return row
 
 func _choose_attachment(browser: Variant=null) -> void:
  if not is_instance_valid(browser):browser=_browser()

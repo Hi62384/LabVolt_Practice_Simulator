@@ -298,7 +298,6 @@ func _give(peer: int,assignment: Dictionary,lesson: bool,class_copy: bool,supply
 	var destination := _practice_desk(peer, assignment) if assignment.get("practice_scope") == "ungraded" else _desk(peer)
 	papers[id]={"id":id,"document_uid":Crypto.new().generate_random_bytes(16).hex_encode(),"owner":peer,"identity":identities.get(peer,""),"owner_name":game.session.roster.get(peer,{}).get("name","Student"),"project":assignment.duplicate(true),"lesson":lesson,"class_round":round_id if class_copy else 0,"held":can_hold,"position":destination,"course_id":assignment.get("course_id","ELM253"),"kind":assignment.get("kind","lab"),"assessment_id":assessment_id if class_copy else "","procedure":{},"page":0,"answers":{},"strokes":{},"mark":{},"revision":0}
 	papers[id].replay = replay
-	_queue_practice_save(papers[id])
 	if str(assignment.get("course_id","")).begins_with("MTH"):
 		papers[id].math_policy=course_bridge.paper_policy(assignment,lesson or not class_copy)
 	if lesson:
@@ -309,6 +308,12 @@ func _give(peer: int,assignment: Dictionary,lesson: bool,class_copy: bool,supply
 		var teaching: Dictionary=course_bridge.lesson_for_assignment(assignment,420)
 		papers[id].project.teaching={"equipment":str(teaching.get("equipment_text",assignment.get("procedure",""))),"worked":str(teaching.get("worked",assignment.get("theory","")))}
 		if str(assignment.course_id).begins_with("MTH"):papers[id].project.lesson_stages=teaching.get("stages",[]).duplicate(true)
+	if lesson and not supply and not str(assignment.get("course_id","")).begins_with("MTH"):
+		var project_data: Dictionary=papers[id].project
+		var instructions := str(project_data.get("teaching",{}).get("equipment",""))
+		if not project_data.has("practice_instruction_pages") and instructions.length()>480:
+			project_data.practice_instruction_pages=preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd").instruction_pages(instructions)
+	_queue_practice_save(papers[id])
 	if not can_hold:_notice(peer,"Your new sheet is on a student desk. Look for your name on its cover.")
 	return id
 func _holding_cable(peer: int) -> bool:
@@ -489,7 +494,7 @@ func _mark_board_segment(peer: int, action: Dictionary, paper: Dictionary, lines
 		var raw_radius: Variant=action.get("radius",.045)
 		if not (raw_radius is float or raw_radius is int) or not is_finite(float(raw_radius)):return null
 		var radius := clampf(float(raw_radius),.0025,.12)
-		var aspect := float(paper.get("board_aspect",3.2))
+		var aspect := Whiteboard.aspect_for(paper)
 		var normalized: Array=[]
 		for line in lines:
 			var path := {"points":Array(Whiteboard.points(line))}
@@ -848,9 +853,9 @@ func apply(peer: int,a: Dictionary) -> void:
 			"annotation":
 				if not can_mark_paper(paper):return
 				var item=a.get("item",{})
-				if not item is Dictionary or item.size()>16:return
+				if not item is Dictionary or item.size()>17:return
 				var pos=item.get("position")
-				if not pos is Vector2 or not pos.is_finite() or pos.x<0 or pos.y<0 or pos.x>1 or pos.y>1:return
+				if not preload("res://scripts/notebook_store.gd").valid_annotation_position(pos):return
 				if str(item.get("id","")).length()>40 or str(item.get("id",""))=="":return
 				if item.get("kind") not in ["text","equation"] or item.get("font") not in ["Sans","Serif","Mono"]:return
 				if not Color.html_is_valid(str(item.get("color",""))):return
@@ -863,8 +868,10 @@ func apply(peer: int,a: Dictionary) -> void:
 				var alignment := str(item.get("align","left"))
 				if alignment not in ["left","center","right"]:return
 				var opacity := float(item.get("opacity",1.0));var box_width := float(item.get("box_width",280.0))
-				if not is_finite(opacity) or not is_finite(box_width):return
+				var box_height := float(item.get("box_height",0.0))
+				if not is_finite(opacity) or not is_finite(box_width) or not is_finite(box_height):return
 				var clean := {"id":str(item.id),"kind":item.kind,"text":str(item.get("text","")).left(256),"position":pos,"font":item.font,"font_size":int(clampf(float(font_size),10,96)),"angle":clampf(float(angle),-PI,PI),"color":item.color,"bold":bool(item.get("bold",false)),"italic":bool(item.get("italic",false)),"align":alignment,"opacity":clampf(opacity,0.05,1.0),"box_width":clampf(box_width,40.0,720.0),"baked":bool(item.get("baked",false))}
+				if item.has("box_height"):clean.box_height=clampf(box_height,0.0,720.0)
 				if not paper.has("annotations"):paper.annotations={}
 				var key := str(clampi(int(a.get("page",0)),0,page_count(paper)-1))
 				if not paper.annotations.has(key):paper.annotations[key]=[]

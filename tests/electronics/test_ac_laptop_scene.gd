@@ -1,12 +1,23 @@
 extends SceneTree
+const LaptopModel = preload("res://scripts/campus/ac_laptops/model.gd")
 func _initialize():call_deferred("run")
 func run():
  var game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
  for i in 4:await process_frame
- var svc=game.ac_laptops;game.player.global_position=Vector3(-2.5,0,8.6)
- var ray:=PhysicsRayQueryParameters3D.create(Vector3(-2.5,.85,8.3),Vector3(-2.5,.85,9.6),5)
+ var svc=game.ac_laptops
+ var cabinet_position := LaptopModel.CABINET
+ game.player.global_position=cabinet_position+Vector3(0,0,-1.4)
+ var ray:=PhysicsRayQueryParameters3D.create(cabinet_position+Vector3(0,.85,-1.3),cabinet_position+Vector3(0,.85,-.35),5)
  var hit: Dictionary=game.get_world_3d().direct_space_state.intersect_ray(ray)
- assert(not hit.is_empty() and hit.collider.get_meta("role","")=="ac_laptop_cabinet")
+ assert(not hit.is_empty() and hit.collider.get_meta("role","")=="ac_laptop_cabinet_door")
+ assert(svc.interact(hit.collider,false) and svc.state.cabinet_open)
+ await physics_frame
+ var opened_door: Node3D = svc.cabinet_doors.get_node("Left")
+ var door_point := opened_door.to_global(Vector3(.32,.85,0))
+ ray=PhysicsRayQueryParameters3D.create(door_point-Vector3(.6,0,0),door_point+Vector3(.06,0,0),5)
+ hit=game.get_world_3d().direct_space_state.intersect_ray(ray)
+ assert(not hit.is_empty() and hit.collider.get_parent()==opened_door)
+ assert(svc.interact(hit.collider,false) and not svc.state.cabinet_open)
  svc.request("cabinet");svc.request("take_laptop",0)
  assert(svc.state.laptops[0].where=="held")
  var usb: StaticBody3D
@@ -27,21 +38,28 @@ func run():
  assert(svc.state.laptops[0].where=="stowed")
  svc.request("equip_laptop",0)
  assert(svc.state.laptops[0].where=="held")
- game.player.global_position=Vector3(-6,0,-1)
+ var bench_point := Vector3(-7.8,.77,-2.5)
+ var bench_player := Vector3(bench_point.x,0,bench_point.z+.6)
+ game.player.global_position=bench_player
  svc.laptop_roots[0].rotation=Vector3(.5,.4,.3)
- svc.request("place_laptop",-1,Vector3(-6,.8,-1))
+ svc.request("place_laptop",-1,bench_point)
  assert(svc.laptop_roots[0].rotation.is_equal_approx(Vector3.ZERO))
  svc.request("open",0)
  assert(svc.state.laptops[0].open)
- game.player.global_position=Vector3(-2.5,0,8.6)
+ game.player.global_position=cabinet_position+Vector3(0,0,-1.4)
  svc.request("take_cable",0)
- game.player.global_position=Vector3(-6,0,-1)
+ game.player.global_position=bench_player
  svc.request("attach_laptop",0)
  # Host verifies the DAQ port rather than the client-supplied coordinate.
  var daq:Vector3=game.session.labs[1].positions.daq
  game.player.global_position=Vector3(daq.x,0,daq.z+.5)
  svc.request("attach_daq",-1,Vector3.ZERO,1)
  assert(svc.state.cables[0].where=="connected")
+ var daq_target: Node = game.stations[0].equipment.control_bodies.daq
+ assert(svc.hint(daq_target).begins_with("Right-click"))
+ assert(svc.interact(daq_target,true) and svc.state.cables[0].where=="partial")
+ assert(svc.state.cables[0].station==-1 and svc.state.cables[0].laptop==0)
+ assert(svc.interact(daq_target,false) and svc.state.cables[0].where=="connected")
  svc._open_view(0)
  assert("no low power" in svc.subtitle.text)
  var station=game.session.labs[1]
@@ -65,7 +83,7 @@ func run():
  svc.plot.mode="phasor";svc._refresh_view()
  assert(svc.plot.mode=="phasor" and svc.plot.connected[0].value==Vector2(120,0))
  svc._close_view(true)
- game.player.global_position=Vector3(-6,0,-1)
+ game.player.global_position=bench_player
  svc.request("close",0);svc.request("pickup",0)
  assert(svc.state.laptops[0].where=="held" and svc.cable_views.has(0))
  var cable_mesh: MeshInstance3D=svc.cable_views[0].mesh
@@ -73,7 +91,7 @@ func run():
  svc.laptop_roots[0].global_position+=Vector3(.08,0,0)
  svc._update_moving_cables()
  assert(svc.cable_views[0].mesh==cable_mesh and svc.cable_views[0].a.distance_to(previous)>.07)
- svc.request("place_laptop",-1,Vector3(-6,.8,-1))
+ svc.request("place_laptop",-1,bench_point)
  assert(game.control_bodies.frequency.get_meta("id")=="frequency")
  assert(game.session.lab.frequency==60.0)
  var pos:Vector3=game.session.lab.positions.frequency

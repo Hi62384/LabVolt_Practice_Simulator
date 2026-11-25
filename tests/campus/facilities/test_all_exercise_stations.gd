@@ -46,7 +46,7 @@ func _test_set(host: RefCounted,station: String,exercise: String,equipment: Stri
 	if definition.get("muscles",{}).is_empty():failures.append("Missing muscle mapping: "+exercise);return
 	var request:={"op":"start","station":station,"exercise":exercise,"sequence":int(saved.last_sequence)+1}
 	if not equipment.is_empty():request.equipment=equipment
-	if cable:request.weight=5
+	if cable:request.weight=10
 	now+=100
 	var result: Dictionary=host.act(1,request)
 	if not result.get("ok",false):
@@ -60,8 +60,15 @@ func _test_set(host: RefCounted,station: String,exercise: String,equipment: Stri
 		if host.active[1].get("grip_anchor")!=expected:failures.append("Missing station grip for "+exercise)
 	if station=="gym/pushup" and host.active[1].get("mat_position")!=Vector3(1,.08,2):
 		failures.append("Missing mat anchor for "+exercise)
+	if Host._can_pin(host.active[1]):
+		# This sweep checks station setup, independently of the live lift sequence.
+		host.active[1].phase=0
+		host.active[1].lift_progress=1.0
 	now+=100
 	result=host.act(1,{"op":"cancel","sequence":int(saved.last_sequence)+1})
+	if host.active.get(1,{}).get("type")=="exercise_exit":
+		now=int(host.active[1].until)+1
+		host.tick()
 	if not result.get("ok",false) or host.active.has(1):failures.append("Could not stop "+exercise)
 
 func _test_shared_selector() -> void:

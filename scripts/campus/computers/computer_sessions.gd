@@ -4,6 +4,7 @@ signal occupancy_changed(occupancy: Dictionary)
 signal power_changed(power: Dictionary)
 signal boot_changed(boot: Dictionary)
 signal operation_failed(message: String)
+signal file_opened(path: String, bytes: PackedByteArray)
 signal usb_write_prepared(station: String, token: String)
 signal usb_write_committed(station: String, token: String)
 const Files = preload("res://scripts/campus/computers/virtual_files.gd")
@@ -12,6 +13,7 @@ const UsbArchive = preload("res://scripts/campus/computers/usb_archive.gd")
 const UsbTransfer = preload("res://scripts/campus/computers/usb_transfer.gd")
 const UsbDrive = preload("res://scripts/campus/computers/device_filesystem.gd")
 const Downloads = preload("res://scripts/campus/computers/browser_download.gd")
+const FileOperations = preload("res://scripts/campus/computers/virtual_file_operations.gd")
 const MAX_DOWNLOAD_NAMES := Files.MAX_FILES+1
 # Restore packets can include the full local document quota; ordinary actions
 # are much smaller. Bound total RPC payloads, not merely dictionary key count.
@@ -35,11 +37,12 @@ var usb_uploads := {}
 var usb_writes := {}
 var download_uploads := {}
 var owner_copy_transfers := {}
+var file_read := {}
 static func bounded_request(action: Dictionary) -> bool:
 	return action.size()<=9 and var_to_bytes(action).size()<=MAX_REQUEST_BYTES and not action.has("owner") and not action.has("profile") and not action.has("identity")
 
 func supports_operation(op: String) -> bool:
-	return op=="rename"
+	return op in ["rename","copy","zip","extract","open_text","read_file"]
 func build(owner_game: Node) -> void:
 	game=owner_game
 	game.session.roster_changed.connect(_prune)
@@ -86,6 +89,8 @@ func _identity(peer: int) -> String:
 func _private_allowed(peer: int,entry: Dictionary) -> bool:
 	return not entry.has("private_owner") or (not str(entry.private_owner).is_empty() and _identity(peer)==entry.private_owner)
 func request(action: Dictionary) -> void:
+	if action.get("op")=="read_file":
+		file_read={"path":str(action.get("path","")),"lease":action.get("lease"),"bytes":PackedByteArray()}
 	if action.get("op","")=="usb_port" and game.session.online:
 		action=action.duplicate()
 		var slot: int=game.hotbar.active
@@ -149,7 +154,8 @@ func _receive_download(peer: int,action: Dictionary) -> Dictionary:
 func _request(action: Dictionary) -> void:
 	if multiplayer.is_server():_accept(multiplayer.get_remote_sender_id(),action)
 func _accept(peer: int, action: Dictionary) -> void:
-	if not game.session.roster.has(peer) or not bounded_request(action):return
+	var local_download: bool=peer==multiplayer.get_unique_id() and action.get("op")=="download" and action.get("bytes") is PackedByteArray and action.bytes.size()<=Downloads.MAX_BYTES
+	if not game.session.roster.has(peer) or (not local_download and not bounded_request(action)):return
 	var op: String=str(action.get("op",""))
 	if op=="usb_port":
 		if game.session.online:_network_usb_port(peer,str(action.get("station","")),str(action.get("id","")));return
@@ -249,7 +255,7 @@ func _accept(peer: int, action: Dictionary) -> void:
 	last_request[peer]=now
 	var workspace: Dictionary=workspaces[peer]
 	var file_device := bool(session.get("public_device", false))
-	var writes_usb: bool=file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename","copy_download"]
+	var writes_usb: bool=file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename","copy_download","copy","zip","extract"]
 	var usb_before: Dictionary=entry.power.usb.drive.entries.duplicate(true) if writes_usb else {}
 	var workspace_before: Dictionary=workspace.duplicate(true) if writes_usb else {}
 	if str(action.get("path","")).to_lower().begins_with(".recycle") or str(action.get("new_path","")).to_lower().begins_with(".recycle"):
@@ -289,10 +295,9 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if drive.entries.has(path) or workspace.files.has(path):
 				_error(peer,"No free filename in Downloads.");return
 			var files: Dictionary=workspace.files
-			if filename.get_extension() in Downloads.TEXT_EXTENSIONS and entry.power.usb.is_empty():
+			if Downloads.is_text(filename.get_extension()) and bytes.size()<=Files.MAX_FILE_BYTES and entry.power.usb.is_empty():
 				var result := Files.save(files,path,bytes.get_string_from_utf8(),0)
-				if result.has("error"):_error(peer,result.error);return
-				files=result.files
+				if result.has("files"):files=result.files
 			if not drive.entries.has("Downloads") and not drive.make_folder("Downloads"):
 				_error(peer,"Could not create Downloads.");return
 			if not drive.write_file(path,bytes):
@@ -311,10 +316,9 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if not Downloads.valid(bytes,path.get_extension()) or usb.entries.has(path) or workspace.files.has(path):
 				_error(peer,"Cannot copy that file. Use an unused filename.");return
 			var files: Dictionary=workspace.files
-			if path.get_extension() in Downloads.TEXT_EXTENSIONS:
+			if Downloads.is_text(path.get_extension()) and bytes.size()<=Files.MAX_FILE_BYTES:
 				var result := Files.save(files,path,bytes.get_string_from_utf8(),0)
-				if result.has("error"):_error(peer,result.error);return
-				files=result.files
+				if result.has("files"):files=result.files
 			if (not usb.entries.has("Downloads") and not usb.make_folder("Downloads")) or not usb.write_file(path,bytes):
 				usb.entries=usb_before
 				_error(peer,"Cannot copy that file. Check USB space.");return
@@ -359,6 +363,33 @@ func _accept(peer: int, action: Dictionary) -> void:
 				workspace.files[target].version+=1
 				workspace.files.erase(source)
 				if workspace.editor.get("path","")==source:workspace.editor.path=target
+		"copy","zip","extract":
+			var source:=str(action.get("path",""))
+			var target:=str(action.get("new_path",""))
+			if not file_device:
+				if op!="copy" or not FileOperations.valid(source) or not FileOperations.valid(target) or not workspace.files.has(source) or workspace.files.has(target):
+					_error(peer,"Choose an unused destination for this document.");return
+				var result:=Files.save(workspace.files,target,workspace.files[source].text,0)
+				if result.has("error"):_error(peer,result.error);return
+				workspace.files=result.files
+			else:
+				var error:=FileOperations.apply(entry.power.drive,op,source,target)
+				if not error.is_empty():_error(peer,error);return
+		"read_file","open_text":
+			var path:=str(action.get("path",""))
+			var file: Dictionary=entry.power.drive.entries.get(path,{}) if file_device and FileOperations.valid(path) else {}
+			if file.get("type","")!="file":_error(peer,"The file is unavailable.");return
+			var bytes: PackedByteArray=file.data
+			if op=="read_file":
+				if bytes.size()>Downloads.MAX_BYTES:_error(peer,"Preview supports files up to 8 MiB.");return
+				_deliver_file(peer,session.lease,path,bytes)
+				return
+			if bytes.size()>Files.MAX_FILE_BYTES or not Downloads.valid(bytes,path.get_extension()) or not Downloads.is_text(path.get_extension()):
+				_error(peer,"This file cannot be edited here. The editor supports UTF-8 documents up to 32 KiB.");return
+			if not workspace.files.has(path):
+				var result:=Files.save(workspace.files,path,bytes.get_string_from_utf8(),0)
+				if result.has("error"):_error(peer,result.error);return
+				workspace.files=result.files
 		"editor":
 			var path := Files.path(str(action.get("path","")))
 			if not workspace.files.has(path):return
@@ -384,6 +415,25 @@ func _accept(peer: int, action: Dictionary) -> void:
 		return
 	session.revision+=1
 	_reply(peer)
+
+func _deliver_file(peer: int, lease: int, path: String, bytes: PackedByteArray) -> void:
+	if peer==multiplayer.get_unique_id():
+		file_read.clear()
+		file_opened.emit(path,bytes)
+		return
+	for offset in range(0,maxi(1,bytes.size()),UsbTransfer.CHUNK_SIZE):
+		_receive_file_chunk.rpc_id(peer,lease,path,bytes.size(),offset,bytes.slice(offset,offset+UsbTransfer.CHUNK_SIZE))
+
+@rpc("authority","call_remote","reliable",6)
+func _receive_file_chunk(lease: int, path: String, total: int, offset: int, bytes: PackedByteArray) -> void:
+	if multiplayer.get_remote_sender_id()!=1 or local_snapshot.get("lease")!=lease or file_read.get("lease")!=lease or file_read.get("path")!=path:return
+	var received: PackedByteArray=file_read.bytes
+	if total<0 or total>Downloads.MAX_BYTES or bytes.size()>UsbTransfer.CHUNK_SIZE or offset!=received.size() or offset+bytes.size()>total:return
+	received.append_array(bytes)
+	if received.size()==total:
+		file_read.clear()
+		file_opened.emit(path,received)
+	else:file_read.bytes=received
 
 func _recycle_operation(workspace: Dictionary, drive: RefCounted, action: Dictionary) -> String:
 	var records: Dictionary=workspace.get_or_add("recycle",{})
@@ -442,7 +492,7 @@ func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries:
 	var operation:={"op":str(action.op),"path":str(action.get("path",""))}
 	if action.op=="save":operation.text=str(action.text)
 	if action.op=="copy_download":operation.bytes=action.bytes
-	if action.op=="rename":operation.new_path=str(action.get("new_path",""))
+	if action.op in ["rename","copy","zip","extract"]:operation.new_path=str(action.get("new_path",""))
 	usb_writes[station]={"token":token,"owner_peer":owner_peer,"actor":actor,"lease":sessions[actor].lease,"entries":old_entries,"workspace":old_workspace,"started":Time.get_ticks_msec()}
 	if owner_peer==multiplayer.get_unique_id():_apply_owner_usb_write(station,token,str(usb.id),int(usb.capacity_mb),operation)
 	elif action.op=="copy_download" and action.bytes.size()>UsbTransfer.CHUNK_SIZE:
@@ -516,6 +566,7 @@ func _apply_owner_usb_write(station: String,token: String,id: String,capacity: i
 				ok=Files.path(path)==path and path.begins_with("Downloads/") and path.count("/")==1 and bytes is PackedByteArray and Downloads.valid(bytes,path.get_extension()) and not drive.entries.has(path) and (drive.entries.has("Downloads") or drive.make_folder("Downloads")) and drive.write_file(path,bytes)
 			"delete":ok=drive.remove(path)
 			"rename":ok=drive.move(path,str(operation.get("new_path","")))
+			"copy","zip","extract":ok=FileOperations.apply(drive,str(operation.op),path,str(operation.get("new_path",""))).is_empty()
 			_:ok=false
 		if ok:
 			var profile=game.electronics.profile
@@ -801,6 +852,7 @@ func _private(packet: Dictionary) -> void:
 func _receive(packet: Dictionary) -> void:
 	local_snapshot=packet.duplicate(true)
 	if packet.is_empty():
+		file_read.clear()
 		local_restore_failure=""
 		desktop_changed.emit({});return
 	if not packet.get("restored",false):
@@ -845,11 +897,18 @@ func _failed(message: String) -> void:
 	if multiplayer.get_remote_sender_id()==1:operation_failed.emit(message)
 # Screen previews are presentation data. The host derives the station from the
 # sender's current lease and forwards only to nearby players.
-const SCREEN_SIZE := Vector2i(160, 90)
-const SCREEN_BYTES := 160 * 90 * 3
-const SCREEN_INTERVAL_MS := 250
+const SCREEN_SIZE := Vector2i(128,72)
+const SCREEN_BYTES := SCREEN_SIZE.x * SCREEN_SIZE.y * 3
+const SCREEN_INTERVAL_MS := 200
 var last_screen_frame := {}
+var last_screen_delivery := {}
 signal monitor_frame(station: String, sender: int, pixels: PackedByteArray)
+
+static func screen_preview_interval(position: Vector3, anchor: Vector3) -> int:
+	var distance:=position.distance_squared_to(anchor)
+	if distance<=1.25*1.25:return SCREEN_INTERVAL_MS
+	if distance<=2.25*2.25:return 500
+	return 0
 
 func submit_monitor_frame(lease: int, pixels: PackedByteArray) -> void:
 	if not game.session.online: return
@@ -873,10 +932,13 @@ func _forward_monitor_frame(peer: int, lease: int, pixels: PackedByteArray) -> v
 	var now := Time.get_ticks_msec()
 	if not pixels.is_empty() and now - int(last_screen_frame.get(peer, -SCREEN_INTERVAL_MS)) < SCREEN_INTERVAL_MS: return
 	last_screen_frame[peer] = now
+	var delivered: Dictionary=last_screen_delivery.get_or_add(peer,{})
 	for receiver in game.session.roster:
 		if receiver == peer: continue
 		var pose: Vector3 = game.session.poses.get(receiver, {}).get("position", Vector3.INF)
-		if pose.distance_squared_to(device.anchor) > 64.0: continue
+		var interval:=screen_preview_interval(pose,device.anchor)
+		if interval==0 or (not pixels.is_empty() and now-int(delivered.get(receiver,-1000))<interval):continue
+		delivered[receiver]=now
 		if receiver == multiplayer.get_unique_id():
 			monitor_frame.emit(station, peer, pixels)
 		elif game.session.peer_connected_now(int(receiver)):
@@ -920,6 +982,8 @@ func _close(peer: int, release: bool) -> void:
 	sessions.erase(peer)
 	download_uploads.erase(peer)
 	last_screen_frame.erase(peer)
+	last_screen_delivery.erase(peer)
+	for delivered: Dictionary in last_screen_delivery.values():delivered.erase(peer)
 	if was_public:workspaces.erase(peer);restored.erase(peer)
 	if release and not portable:
 		game._release_chair(peer)

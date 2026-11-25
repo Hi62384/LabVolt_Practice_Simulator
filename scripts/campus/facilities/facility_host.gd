@@ -251,12 +251,16 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	if p.is_empty():return fail("Profile unavailable")
 	if seq!=int(p.last_sequence)+1:return fail("Refresh facility state before retrying")
 	var current: Dictionary=active.get(peer,{})
+	if live_lifts and op in ["effort","cancel","stand","stop","finish"] and _bar_has_dropped(current,t) and activity_valid(c,current):
+		op="rep_fail"
 	# Cancellation remains available when class restrictions change.
 	if op in ["cancel","stand","stop"]:
 		if current.get("type","")=="trapped":return fail("Work the bar free, or ask for help")
+		if live_lifts and current.get("type","")=="exercise" and _can_pin(current) and int(current.phase)!=0:
+			return fail("Raise the bar all the way before ending the set")
 		var saved:=true
 		if current.get("type","")=="exercise_exit":return {"ok":true,"state":private_state(peer)}
-		if live_lifts and current.get("type","")=="exercise" and _progress_at(current,t)>.001:
+		if live_lifts and current.get("type","")=="exercise" and not _can_pin(current) and _progress_at(current,t)>.001:
 			if not current.get("quit_after_lower",false):
 				current.lower_from = _progress_at(current,t)
 				current.quit_after_lower = true
@@ -267,7 +271,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if current.get("type","")=="exercise":
 			var stopped:=p.duplicate(true)
 			if not stopped.has("gym"):stopped.gym=GymProgress.empty()
-			GymProgress.record_set(stopped.gym,current,"cancelled",t)
+			GymProgress.record_set(stopped.gym,current,"failure" if current.get("was_pinned",false) else "cancelled",t)
 			stopped.last_sequence=seq;stopped.revision=int(p.revision)+1
 			saved=valid_profile(stopped) and bool(commit_profile.call(str(c.identity),0,stopped))
 			if saved:pending_effort.erase(str(c.identity))
@@ -280,16 +284,11 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 	if not bool(c.get("allowed",false)) or not bool(c.get("grounded",false)):
 		clear_activity(peer,"interrupted")
 		return fail("Activity unavailable during class or while moving")
-	# Enforce exercise expiry at request time too; tick may not have run yet.
-	if current.get("type","")=="exercise" and (not activity_valid(c,current) or t-int(current.last_beat)>15000):
-		clear_activity(peer,"input_failure" if t-int(current.last_beat)>15000 else "interrupted")
+	if current.get("type","")=="exercise" and not activity_valid(c,current):
+		clear_activity(peer,"interrupted")
 		return fail("Exercise interrupted; start a new set")
 	if live_lifts and op == "effort":
-		var result := _lift_effort(peer,current,p.get("gym",GymProgress.empty()),str(c.identity))
-		if not result.get("failed", false):
-			return result
-		op = "rep_fail"
-		p=profile(c)
+		return _lift_effort(peer,current,p.get("gym",GymProgress.empty()),str(c.identity))
 	var next:=p.duplicate(true)
 	if not next.has("gym"):next.gym=GymProgress.empty()
 	var recovery_since: int=int(gym_recovery_clock.get(c.identity,t))
@@ -455,23 +454,18 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		if live_lifts:
 			if current.get("quit_after_lower",false) or int(current.phase) != 2 or t-int(current.last_beat) < int(current.half_ms):return fail("Wait until the weight is down")
 		elif int(current.phase)!=1:return fail("Lower the weight first")
-		var gap:=t-int(current.last_beat)
-		if gap>15000:
-			clear_activity(peer,"input_failure")
-			return fail("Rhythm missed; start a new set")
-		if int(current.reps)>=500:return fail("Set complete; finish to save")
 		next_active.last_beat=t
 		next_active.phase=0
 		if live_lifts:
-			next_active.reps+=1
+			if not _can_pin(current):next_active.reps+=1
 		else:
 			var effort: Dictionary=GymProgress.rep(next.gym,str(current.exercise),float(current.weight),float(current.get("body_mass",70.0)))
-			if effort.failure:
+			if not effort.failure:next_active.reps+=1
+			elif _can_pin(current):
 				GymProgress.record_set(next.gym,current,"failure",t)
-				next_active = _failed_lift(next_active, next.gym, t)
-				event = trap_event(next_active) if not next_active.is_empty() else {"activity":"idle"}
-				event.failure = true
-			else:next_active.reps+=1
+				next_active=_failed_lift(next_active,next.gym,t)
+				event=trap_event(next_active)
+				event.failure=true
 		if not next_active.is_empty() and next_active.type=="exercise":
 			next_active.half_ms=GymProgress.movement_ms(next.gym,str(current.exercise),float(current.weight),int(EXERCISES[current.exercise])/2,float(current.get("body_mass",70.0)))
 			if live_lifts:
@@ -479,14 +473,11 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			event=_exercise_event(next_active)
 	elif op=="rep_fail":
 		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.phase)!=1:return fail("No repetition to fail")
-		if live_lifts and not _effort_failed(current, t):return fail("The lift is still in progress")
-		GymProgress.record_set(next.gym,current,"failure",t)
-		if live_lifts and not _can_pin(current):
-			next_active=_exit_state(current,t)
-			event=_exit_event(next_active)
-		else:
-			next_active = _failed_lift(next_active, next.gym, t)
-			event = trap_event(next_active) if not next_active.is_empty() else {"activity":"idle"}
+		if live_lifts and not _bar_has_dropped(current,t):return fail("The lift is still in progress")
+		if not live_lifts:GymProgress.record_set(next.gym,current,"failure",t)
+		else:next_active.was_pinned=true
+		next_active = _failed_lift(next_active, next.gym, t)
+		event = trap_event(next_active) if not next_active.is_empty() else {"activity":"idle"}
 		event.failure = true
 	elif op=="wiggle":
 		if current.get("type","")!="trapped" or not activity_valid(c,current):return fail("No trapped bar to move")
@@ -498,7 +489,10 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		next_active.progress=minf(1.0,float(current.progress)+.14/difficulty)
 		next_active.last_wiggle=t;next_active.direction=-int(current.direction)
 		if next_active.progress>=1.0:
-			next_active={};event={"activity":"idle","escaped":true}
+			if live_lifts:
+				_raise_freed_bar(next_active,t)
+				event=_exercise_event(next_active)
+			else:next_active={};event={"activity":"idle","escaped":true}
 		else:event=trap_event(next_active)
 	elif op=="assist":
 		var target: Variant=request.get("target",0)
@@ -511,13 +505,16 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		rescue_target=target;rescue_gain=clampf(.42*helper_capacity/maxf(float(trapped.weight),1.0),.01,.55)
 		event={"activity":"assist","target":target}
 	elif op=="finish":
-		if current.get("type","")!="exercise" or not activity_valid(c,current) or int(current.reps)<1 or (int(current.phase)!=0 if not live_lifts else int(current.phase)!=1 or float(current.lift_progress)>0.0):return fail("Complete a repetition first")
+		if current.get("type","")!="exercise" or not activity_valid(c,current):return fail("No set to finish")
+		if live_lifts and _can_pin(current) and int(current.phase)!=0:return fail("Raise the bar all the way before ending the set")
+		var resting:=int(current.phase)==0 if not live_lifts or _can_pin(current) else int(current.phase)==1 and float(current.lift_progress)==0.0
+		if int(current.reps)<1 or not resting:return fail("Complete a repetition first")
 		var reps:=int(current.reps)
 		if t-int(current.started)<reps*120:return fail("Invalid exercise timing")
 		next.xp=mini(1000000000,int(p.xp)+reps*(5+int(current.get("weight",0))/20))
 		var old: Dictionary=p.records.get(current.exercise,{"reps":0})
 		if reps>int(old.reps):next.records[current.exercise]={"reps":reps}
-		GymProgress.record_set(next.gym,current,"voluntary",t)
+		GymProgress.record_set(next.gym,current,"failure" if current.get("was_pinned",false) else "voluntary",t)
 		for unlock in [[100,"cheer"],[300,"flex"],[600,"victory"]]:
 			if int(next.xp)>=int(unlock[0]) and not unlock[1] in next.unlocks:next.unlocks.append(unlock[1])
 		next_active=_exit_state(current,t) if live_lifts else {}
@@ -547,7 +544,12 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		last_assist[peer]=t
 		var trapped: Dictionary=active[rescue_target]
 		trapped.progress=minf(1.0,float(trapped.progress)+rescue_gain)
-		if trapped.progress>=1.0:clear_activity(rescue_target)
+		if trapped.progress>=1.0:
+			if live_lifts:
+				_raise_freed_bar(trapped,t)
+				public_event.emit(str(trapped.room_id),rescue_target,_exercise_event(trapped))
+				live_lift_result.emit(rescue_target,{"ok":true,"state":private_state(rescue_target)})
+			else:clear_activity(rescue_target)
 		else:public_event.emit(str(trapped.room_id),rescue_target,trap_event(trapped))
 	return {"ok":true,"state":private_state(peer),"muscular_failure":bool(event.get("failure",false)),"spot_saved":bool(event.get("spot_saved",false))}
 
@@ -557,8 +559,6 @@ func _prepare_raise(value: Dictionary, gym: Dictionary, t: int) -> void:
 	value.phase = 1
 	value.lift_progress = 0.0
 	value.lift_at = t
-	value.lift_peak=0.0
-	value.stalled_presses=0
 
 func _progress_at(value: Dictionary, t: int) -> float:
 	match int(value.phase):
@@ -572,18 +572,15 @@ func _progress_at(value: Dictionary, t: int) -> float:
 			var elapsed := maxf(0.0, (float(t-int(value.lift_at))-grace)/1000.0)
 			return GymProgress.drain_lift(float(value.lift_progress),settings.y,elapsed)
 
-func _effort_failed(value: Dictionary, t: int) -> bool:
-	var settings: Vector3 = value.lift_settings
-	if not _can_pin(value):
-		return settings.z>=.9 and int(value.get("stalled_presses",0))>=7
-	return settings.z>=.9 and float(value.lift_peak)>=.20 and (int(value.stalled_presses)>=7 or (float(value.lift_progress)>=.20 and _progress_at(value,t)<=.005))
+func _bar_has_dropped(value: Dictionary, t: int) -> bool:
+	# A controlled descent also starts the next raise at zero. Only pin when
+	# the bar had left the bottom and fell back there during that raise.
+	return value.get("type")=="exercise" and _can_pin(value) and int(value.phase)==1 and float(value.lift_progress)>0.0 and _progress_at(value,t)<=0.0
 
 func _lift_effort(peer: int,value: Dictionary,gym: Dictionary,identity: String) -> Dictionary:
 	if value.get("type") != "exercise" or int(value.phase) != 1:
 		return fail("Wait until the weight is ready to raise")
 	var t := now()
-	if _effort_failed(value,t):
-		return {"failed":true}
 	var settings: Vector3 = value.lift_settings
 	var before:=_progress_at(value,t)
 	var gain := lerpf(settings.x,minf(settings.x,settings.y*.065),smoothstep(1.12,1.65,settings.z))
@@ -595,21 +592,15 @@ func _lift_effort(peer: int,value: Dictionary,gym: Dictionary,identity: String) 
 	gym_recovery_clock[identity]=t
 	value.lift_settings=GymProgress.lift_parameters(GymProgress.capacity(gym,exercise),GymProgress.effective_load(exercise,float(value.weight),float(value.body_mass)))
 	value.lift_progress=progress
-	if progress>float(value.lift_peak)+.006:
-		value.lift_peak=progress
-		value.stalled_presses=0
-	else:
-		value.stalled_presses+=1
 	value.lift_at = t
 	value.last_beat = t
 	if value.lift_progress >= 1.0:
 		value.phase = 0
+		if _can_pin(value):value.reps+=1
 	public_event.emit(str(value.room_id), peer, _exercise_event(value))
-	if _effort_failed(value,t):
-		return {"failed":true}
-	return {"ok":true, "lift":{"phase":value.phase,"lift_progress":value.lift_progress}}
+	return {"ok":true, "lift":{"phase":value.phase,"lift_progress":value.lift_progress,"reps":value.reps}}
 
-func _can_pin(value: Dictionary) -> bool:
+static func _can_pin(value: Dictionary) -> bool:
 	return value.get("equipment","") != "dumbbell" and value.get("exercise","") in ["benchpress","incline_press","squat"] and value.get("station","") in ["gym/benchpress","gym/squat"]
 
 func _failed_lift(value: Dictionary, gym: Dictionary, t: int) -> Dictionary:
@@ -623,6 +614,13 @@ func _failed_lift(value: Dictionary, gym: Dictionary, t: int) -> Dictionary:
 	value.direction = -1
 	value.trap_load_ratio = clampf(float(value.weight) / maxf(capacity, 1.0), .5, 4.0)
 	return value
+
+func _raise_freed_bar(value: Dictionary,t: int) -> void:
+	value.type="exercise"
+	value.phase=0
+	value.lift_progress=1.0
+	value.last_beat=t
+	for key in ["progress","last_wiggle","direction","trapped_at","trap_load_ratio"]:value.erase(key)
 
 func trapped_damage_rate(peer: int) -> float:
 	var value: Dictionary = active.get(peer, {})
@@ -646,7 +644,7 @@ func _exercise_event(value: Dictionary) -> Dictionary:
 		var progress := _progress_at(value, now())
 		event.lift_progress = progress
 		event.phase = progress if str(value.station).begins_with("gym/cable_") else 1.0-progress
-	for key in ["equipment","bench_position","grip_anchor","mat_position","selector_weight"]:
+	for key in ["equipment","bench_position","grip_anchor","mat_position","selector_weight","workout_facing"]:
 		if value.has(key):event[key]=value[key]
 	return event
 
@@ -673,7 +671,8 @@ func activity_valid(c: Dictionary, a: Dictionary) -> bool:
 func clear_activity(peer: int,outcome: String="") -> void:
 	if not active.has(peer):return
 	var a: Dictionary=active[peer]
-	if a.get("type","")=="exercise" and outcome in ["input_failure","interrupted"]:
+	var unrecorded_set: bool=a.get("type")=="exercise" or (a.get("type")=="trapped" and a.get("was_pinned",false))
+	if unrecorded_set and outcome in ["input_failure","interrupted"]:
 		var context:=trusted(peer)
 		# Roster removal can precede peer_disconnected. The identity was captured by
 		# the host when this set began; the profile adapter still requires a binding.
@@ -682,7 +681,7 @@ func clear_activity(peer: int,outcome: String="") -> void:
 		var identity:=str(a.get("identity",context.get("identity","")))
 		if not identity.is_empty():
 			var queue: Array=pending_sets.get(identity,[])
-			queue.append({"active":a.duplicate(true),"outcome":outcome,"at":now()})
+			queue.append({"active":a.duplicate(true),"outcome":"failure" if a.get("was_pinned",false) else outcome,"at":now()})
 			pending_sets[identity]=queue
 			_flush_pending(identity)
 	if a.has("station"):seats.erase(a.station)
@@ -724,7 +723,7 @@ func tick() -> void:
 			var op := ""
 			if int(a.phase) == 2 and t-int(a.last_beat) >= int(a.half_ms):
 				op = "cancel" if a.get("quit_after_lower",false) else "beat"
-			elif int(a.phase) == 1 and _effort_failed(a, t):
+			elif _bar_has_dropped(a,t):
 				op = "rep_fail"
 			if not op.is_empty() and t-int(last_request.get(peer,-1000)) >= 80:
 				var current_profile := profile(c)
@@ -734,10 +733,12 @@ func tick() -> void:
 						live_lift_result.emit(int(peer), result)
 						continue
 			if int(a.phase) == 2 or (int(a.phase) == 1 and float(a.lift_progress) > 0.0):
-				public_event.emit(str(a.room_id), int(peer), _exercise_event(a))
-		if c.is_empty() or not activity_valid(c,a) or (a.get("type","")=="emote" and now()>=int(a.until)) or (a.get("type","")=="exercise" and now()-int(a.last_beat)>15000):
-			var outcome:="input_failure" if a.get("type","")=="exercise" and now()-int(a.last_beat)>15000 else "interrupted"
-			clear_activity(int(peer),outcome)
+				var progress:=_progress_at(a,t)
+				if progress!=float(a.get("last_visual_progress",-1.0)):
+					a.last_visual_progress=progress
+					public_event.emit(str(a.room_id), int(peer), _exercise_event(a))
+		if c.is_empty() or not activity_valid(c,a) or (a.get("type","")=="emote" and now()>=int(a.until)):
+			clear_activity(int(peer),"interrupted")
 
 func movement_locked(peer: int) -> bool:return active.has(peer)
 

@@ -9,6 +9,11 @@ var ink: Control
 var body: VBoxContainer
 const PAPER_SIZE := Vector2(780,1100)
 const INK := Color("263743")
+static func fit_printed_content(content: MarginContainer, column: VBoxContainer, sheet_height: float) -> void:
+	var required := column.get_combined_minimum_size().y + content.get_theme_constant("margin_top") + content.get_theme_constant("margin_bottom")
+	content.pivot_offset = Vector2(content.size.x * .5, 0.0)
+	content.scale = Vector2.ONE * minf(1.0, sheet_height / maxf(1.0, required))
+
 func _ready() -> void:
 	custom_minimum_size=PAPER_SIZE;size=PAPER_SIZE
 	var paper_theme := Theme.new();paper_theme.default_font_size=18
@@ -29,6 +34,9 @@ func _ready() -> void:
 	for edge in ["top","bottom"]:margin.add_theme_constant_override("margin_"+edge,35)
 	add_child(margin)
 	body=VBoxContainer.new();body.add_theme_constant_override("separation",13);margin.add_child(body)
+	var fit := func():fit_printed_content(margin,body,PAPER_SIZE.y)
+	body.minimum_size_changed.connect(func():fit.call_deferred())
+	fit.call_deferred()
 	var lesson: bool=paper.lesson
 	var p: Dictionary=paper.project
 	var course_id := str(p.get("course_id","ELM253"))
@@ -107,10 +115,6 @@ func _ready() -> void:
 	var total := int(p.get("guide_pages",[]).size()) if paper.get("guide",false) else 4+instruction_pages.size()
 	text("LAB / VOLT     •     "+("Practice — does not affect your average" if lesson else "Use each question's stated units and tolerance.")+"     •     %d / %d"%[page+1,total],12,Color("78817e"))
 	ink=preload("res://scripts/paper_ink.gd").new();ink.background=false;ink.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);ink.editable=writable;ink.strokes=paper.strokes.get(str(page),[]).duplicate(true);ink.stroke_finished.connect(func(stroke):stroke_added.emit(stroke));add_child(ink);set_drawing(false)
-func _process(_delta: float) -> void:
-	if not is_instance_valid(body):return
-	var height := maxf(PAPER_SIZE.y,body.get_combined_minimum_size().y+70)
-	if absf(size.y-height)>1:custom_minimum_size.y=height;size.y=height
 func text(value: String,font_size := 18,color := INK) -> Label:
 	var label := Label.new();label.text=value;label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.add_theme_font_size_override("font_size",font_size);label.add_theme_color_override("font_color",color);body.add_child(label);return label
 func set_drawing(enabled: bool) -> void:

@@ -8,5 +8,6 @@
   <ItemGroup>
     <Compile Include="scripts/electronics/**/*.cs" />
     <Compile Include="scripts/ui/paper_workspace/PaperStrokeCoverage.cs" />
+    <Compile Include="scripts/campus/computers/*.cs" />
   </ItemGroup>
 </Project>

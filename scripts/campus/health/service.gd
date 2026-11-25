@@ -121,7 +121,7 @@ func _voltage_at(peer: int) -> float:
  return result
 func _process(delta: float) -> void:
  if not is_instance_valid(game):return
- bar.visible=is_instance_valid(game.front) and game.front.in_game and game.player.enabled and not death_screen.visible
+ bar.visible=is_instance_valid(game.front) and game.front.in_game and game.player.enabled and not death_screen.visible and (bar.value<100.0 or not game.workout_hides_carried_items())
  health_caption.visible=bar.visible;health_value.visible=bar.visible
  if multiplayer.is_server():
   elapsed+=minf(delta,.25);send_clock+=delta

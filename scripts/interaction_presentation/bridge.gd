@@ -4,7 +4,8 @@ const Events = preload("res://scripts/interaction_presentation/accepted_event.gd
 const Actor = preload("res://scripts/interaction_presentation/actor.gd")
 const MatPose = preload("res://scripts/campus/facilities/gym_mat_pose.gd")
 const Bench = preload("res://scripts/campus/facilities/gym_bench.gd")
-var workout_bend = preload("res://scripts/campus/facilities/arm_bend.gd").new()
+const ArmBend = preload("res://scripts/campus/facilities/arm_bend.gd")
+var workout_bend = ArmBend.new()
 var game: Node
 var actors = {}
 var bindings = {}
@@ -272,7 +273,8 @@ func _process(delta: float) -> void:
 
 func preview_workout(progress: float) -> void:
 	if workout_state.get("activity") == "exercise":
-		workout_state.phase = 1.0-progress
+		if workout_state.has("lift_progress"):workout_state.lift_progress=progress
+		else:workout_state.phase=1.0-progress
 
 func _clear_workout() -> void:
 	workout_state.clear()
@@ -364,7 +366,7 @@ func _workout_camera(camera: Camera3D, exercise: String, bar: Node3D, machine: N
 	var head_look:=Vector2(clampf(wrapf(game.player.yaw_target-workout_look_origin.x,-PI,PI),-.28,.28),clampf(game.player.pitch_target-workout_look_origin.y,-.21,.21))
 	var aim:=Basis.looking_at((target-eye).normalized(),Vector3.UP)*Basis.from_euler(Vector3(head_look.y,head_look.x,0))
 	var desired:=Transform3D(aim,eye)
-	camera.global_transform=camera.global_transform.interpolate_with(desired,1.0 if game.player.reduced_motion else minf(delta*6.0,1.0))
+	camera.global_transform=camera.global_transform.interpolate_with(desired,1.0 if game.player.reduced_motion else 1.0-exp(-delta*8.0))
 
 func _frame_workout_weight(camera: Camera3D,grip: Vector3) -> Vector3:
 	var viewport_size:=camera.get_viewport().get_visible_rect().size
@@ -374,9 +376,10 @@ func _frame_workout_weight(camera: Camera3D,grip: Vector3) -> Vector3:
 	# Give the center of each weight room inside the vertical frustum.
 	# Preserve grip height and rep direction when the weight nears the edge.
 	var horizontal_depth:=absf(grip.x)/maxf(vertical_tangent*aspect*.78,.1)
-	var vertical_depth:=absf(grip.y)/maxf(vertical_tangent*.57,.1)
-	var depth:=maxf(.38,maxf(-grip.z,maxf(horizontal_depth,vertical_depth)))
-	return Vector3(grip.x,grip.y,-depth)
+	var vertical_depth:=absf(grip.y)/maxf(vertical_tangent*.76,.1)
+	var depth:=maxf(.46,maxf(-grip.z,maxf(horizontal_depth,minf(vertical_depth,1.22))))
+	var vertical_margin:=vertical_tangent*depth*.76
+	return Vector3(grip.x,clampf(grip.y,-vertical_margin,vertical_margin),-depth)
 
 func _cable_grip(movement: String, side: float, raised: float) -> Vector3:
 	var start:=Vector3(side*.24,-.28,-.54)
@@ -435,7 +438,7 @@ func _update_workout(delta: float) -> void:
 			var release := smoothstep(0.0,.75,progress)
 			arm.transform=start.translated(Vector3(0,-.6,.08)*release)
 		return
-	var active: bool = enabled and game.front.in_game and game.player.enabled and not game.health.death_screen.visible
+	var active: bool = game.front.in_game and game.player.enabled and not game.health.death_screen.visible
 	var exercise := str(workout_state.get("exercise",""))
 	var pinned: bool = workout_state.get("activity") == "trapped"
 	var target_phase := 1.0-float(workout_state.lift_progress) if workout_state.has("lift_progress") else float(workout_state.get("phase",0.0))
@@ -456,10 +459,15 @@ func _update_workout(delta: float) -> void:
 	var handheld_bar: Node3D = game.gym_barbells.bar_hand
 	var pair: Node3D = game.gym_weights.held_visual
 	var on_mat := active and exercise in ["pushup","pike_pushup"] and workout_state.get("mat_position") is Vector3
-	workout_bend.apply(.90*(1.0-raised) if on_mat else 0.0,0.0,.26*(1.0-raised) if on_mat else 0.0)
+	var flex:=0.0
+	if on_mat or exercise in ["benchpress","incline_press","overhead_press","dip","overhead_extension"]:
+		flex=.90*(1.0-raised)
+	elif exercise in ["curl","upright_row","bent_over_row","chest_supported_row","cable_row","lat_pulldown","pullup"]:
+		flex=.14+.92*raised
+	workout_bend.apply(snappedf(flex,.18) if enabled else 0.0,0.0,.26*(1.0-raised) if on_mat else 0.0)
 	for arm in workout_arms:
-		arm.visible = active and exercise not in ["crunch","leg_raise"]
-		if not arm.visible:
+		arm.visible = enabled and active and exercise not in ["crunch","leg_raise"]
+		if not active or exercise in ["crunch","leg_raise"]:
 			continue
 		var left := bool(arm.get_meta("workout_left",false))
 		var side := -1.0 if left else 1.0
@@ -596,15 +604,19 @@ func render_idle_gym_hold(bar: Node3D, dumbbells: Node3D) -> void:
 		if arm.visible:_pose_gym_arm(arm,Vector3(side*.34,-.46,-.15),grip)
 
 func _pose_gym_arm(arm: Node3D, shoulder: Vector3, grip: Vector3) -> void:
-	var hand := arm.find_child("Hand*",true,false) as Node3D
+	var hand := ArmBend.hand_for(arm)
 	if not is_instance_valid(hand):return
 	var reach := grip-shoulder
 	if reach.length_squared() < .001:return
-	var rotation := Basis(Quaternion(hand.position.normalized(), reach.normalized()))
+	var source_axis:=hand.position.normalized()
+	var rotation := Basis(Quaternion(source_axis, reach.normalized()))
 	var length_scale := clampf(reach.length()/maxf(hand.position.length(),.01), .72, 1.24)
-	rotation.x *= .82
-	rotation.y *= length_scale
-	rotation.z *= .82
+	# Scale along the shoulder-to-palm axis, including when the elbow is bent.
+	var thickness:=.78
+	var delta:=length_scale-thickness
+	rotation*=Basis(Vector3.RIGHT*thickness+source_axis*source_axis.x*delta,
+		Vector3.UP*thickness+source_axis*source_axis.y*delta,
+		Vector3.BACK*thickness+source_axis*source_axis.z*delta)
 	arm.transform = Transform3D(rotation,grip-rotation*hand.position)
 
 func _live_bindings() -> Dictionary:

@@ -17,9 +17,18 @@ var last_eraser_point := Vector2.ZERO
 var last_erase_ms := -1000
 var surface := Control.new()
 var toolbar := HBoxContainer.new()
+var board_cache: SubViewport
+var cached_ink: Control
 
 static func points(path: Variant) -> PackedVector2Array:
 	return PackedVector2Array(path.get("points",[]) if path is Dictionary else path)
+
+static func aspect_for(paper: Dictionary) -> float:
+	var board_size: Vector2=paper.get("board_size",Vector2(1.35,.78))
+	return board_size.x/maxf(board_size.y,.1)
+
+static func texture_size(paper: Dictionary) -> Vector2i:
+	return Vector2i(800,roundi(800.0/aspect_for(paper)))
 
 static func paint(canvas: Control, paths_to_draw: Array) -> void:
 	for path in paths_to_draw:
@@ -101,8 +110,10 @@ func _ready() -> void:
 	toolbar.add_child(size_field)
 	_button("Undo",func():command_requested.emit({"op":"board_edit","id":board_id,"edit":"undo"}))
 	var confirm := ConfirmationDialog.new()
+	confirm.theme=column.theme
 	confirm.title="Clear whiteboard"
 	confirm.dialog_text="Erase all drawing on this board?"
+	confirm.ok_button_text="Clear board"
 	confirm.confirmed.connect(func():command_requested.emit({"op":"board_edit","id":board_id,"edit":"clear"}))
 	add_child(confirm)
 	_button("Clear",func():confirm.popup_centered())
@@ -115,9 +126,25 @@ func _ready() -> void:
 	surface.clip_contents=true
 	surface.mouse_filter=Control.MOUSE_FILTER_STOP
 	surface.gui_input.connect(_draw_input)
+	board_cache=SubViewport.new()
+	board_cache.disable_3d=true
+	board_cache.render_target_update_mode=SubViewport.UPDATE_DISABLED
+	surface.add_child(board_cache)
+	cached_ink=Control.new()
+	board_cache.add_child(cached_ink)
+	cached_ink.draw.connect(func():
+		cached_ink.draw_rect(Rect2(Vector2.ZERO,cached_ink.size),Color("e9eee8"))
+		paint(cached_ink,paths))
+	var snapshot:=TextureRect.new()
+	snapshot.texture=board_cache.get_texture()
+	snapshot.expand_mode=TextureRect.EXPAND_IGNORE_SIZE
+	snapshot.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	snapshot.show_behind_parent=true
+	surface.add_child(snapshot)
+	snapshot.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	surface.resized.connect(_refresh_cache)
+	_refresh_cache.call_deferred()
 	surface.draw.connect(func():
-		surface.draw_rect(Rect2(Vector2.ZERO,surface.size),Color("e9eee8"))
-		paint(surface,paths)
 		if not current.is_empty():paint(surface,[{"points":current,"color":paint_color.to_html(false),"width":brush_size}]))
 
 func _button(label: String, action: Callable) -> void:
@@ -133,8 +160,18 @@ func _button(label: String, action: Callable) -> void:
 	toolbar.add_child(control)
 
 func refresh(paper: Dictionary) -> void:
-	paths=paper.get("board_lines",[]).duplicate()
-	surface.queue_redraw()
+	var updated: Array=paper.get("board_lines",[])
+	if updated==paths:return
+	paths=updated.duplicate()
+	_refresh_cache()
+
+func _refresh_cache() -> void:
+	if not is_instance_valid(board_cache) or surface.size.x<2 or surface.size.y<2:return
+	var resolution:=surface.size*minf(1.0,2048.0/surface.size.x)
+	board_cache.size=Vector2i(resolution).max(Vector2i(2,2))
+	cached_ink.size=Vector2(board_cache.size)
+	cached_ink.queue_redraw()
+	board_cache.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func _draw_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT]:

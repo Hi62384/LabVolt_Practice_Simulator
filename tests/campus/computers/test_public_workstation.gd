@@ -75,6 +75,7 @@ func run() -> void:
 	assert(root.disable_3d, "Campus OS should suspend rendering the covered world")
 	if not desktop.windows.is_empty() or "Course work" in desktop.app_names:
 		push_error("A fresh desktop opened an app or exposed Course work");quit(1);return
+	assert(not desktop.task_buttons.Files.visible and not desktop.task_buttons.Browser.visible)
 	if DisplayServer.get_name()!="headless":
 		var pixels: Vector2i=game.computer_room_adapter.desktop_render.size
 		var expected:=Vector2i((desktop.size*root.get_stretch_transform().get_scale()).round())
@@ -112,6 +113,7 @@ func run() -> void:
 	desktop._browser_save_download("manual.pdf",pdf)
 	if computers.local_snapshot.binary_files.get("Downloads/manual.pdf")!=pdf.size() or computers.stations[id].power.drive.entries["Downloads/manual.pdf"].data!=pdf:
 		push_error("Binary download did not reach the virtual drive");quit(1);return
+	if not await verify_sampler(desktop,computers):quit(1);return
 	var fixture_url:=OS.get_environment("LABVOLT_BROWSER_FIXTURE_URL")
 	if not fixture_url.is_empty() and not await verify_website_download(desktop,computers,id,fixture_url):
 		quit(1)
@@ -218,6 +220,55 @@ func run() -> void:
 	print("PUBLIC_WORKSTATION PASS")
 	game.front.leave_game();game.queue_free();await process_frame;quit()
 
+
+func verify_sampler(desktop: Control, computers: Node) -> bool:
+	const Sample = "res://tests/campus/computers/campus-file-sampler.zip"
+	var send:=func(action: Dictionary):
+		computers.last_request.erase(1)
+		desktop._send(action)
+	var archive:=FileAccess.get_file_as_bytes(Sample)
+	send.call({"op":"download","name":"campus-file-sampler.zip","bytes":archive})
+	send.call({"op":"extract","path":"Downloads/campus-file-sampler.zip","new_path":"Downloads/Sampler"})
+	var workspace: Dictionary=computers.local_snapshot
+	if not "Downloads/Sampler/audio" in workspace.folders or not workspace.binary_files.has("Downloads/Sampler/models/tetrahedron.glb"):
+		push_error("The file sampler did not extract to the workstation.")
+		return false
+	send.call({"op":"copy","path":"Downloads/Sampler","new_path":"Sample copy"})
+	send.call({"op":"zip","path":"Sample copy","new_path":"Sample copy.zip"})
+	if not computers.local_snapshot.binary_files.has("Sample copy.zip"):
+		push_error("Folder copy or ZIP creation failed.")
+		return false
+	computers.last_request.erase(1)
+	desktop._open_workspace_file("Downloads/Sampler/code/hello.py","Code editor")
+	await process_frame
+	await process_frame
+	if desktop.active_app!="Code editor" or not desktop.editor.text.contains("def greet"):
+		push_error("Extracted Python file did not open in Code editor.")
+		return false
+	computers.last_request.erase(1)
+	desktop._open_workspace_file("Downloads/Sampler/audio/tone.wav")
+	if not is_instance_valid(desktop.file_viewer) or desktop.file_viewer.audio==null:
+		push_error("WAV file did not open in the audio viewer.")
+		return false
+	desktop.file_viewer.queue_free()
+	await process_frame
+	computers.last_request.erase(1)
+	desktop._open_workspace_file("Downloads/Sampler/models/tetrahedron.glb")
+	if not is_instance_valid(desktop.file_viewer) or desktop.file_viewer.model_camera==null:
+		push_error("GLB file did not open in the model viewer.")
+		return false
+	desktop.file_viewer.queue_free()
+	await process_frame
+	computers.last_request.erase(1)
+	desktop._run_workspace_script("Downloads/Sampler/code/hello.campus")
+	await process_frame
+	await process_frame
+	var terminal: Variant=desktop.windows.get("Terminal",{}).get("terminal")
+	var output: PackedStringArray=str(terminal.lines.back()).split("\n",false) if is_instance_valid(terminal) else PackedStringArray()
+	if output.size()!=3 or not Array(output).all(func(line):return line.is_valid_float() and is_equal_approx(float(line),6.0)):
+		push_error("CampusScript did not run in the Terminal.")
+		return false
+	return true
 
 func verify_website_download(desktop: Control,computers: Node,id: String,url: String) -> bool:
 	desktop._switch_app("Browser")

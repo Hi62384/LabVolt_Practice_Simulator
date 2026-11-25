@@ -350,9 +350,11 @@ func _text_fields(selected: bool) -> void:
 	}
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size.y = 108
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	picker.add_child(scroll)
 	var grid := GridContainer.new()
-	grid.columns = 6
+	grid.columns = 5
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(grid)
 	for category in sets:
 		categories.add_item(category)
@@ -362,6 +364,7 @@ func _text_fields(selected: bool) -> void:
 			var key := Button.new()
 			key.text = symbol
 			key.custom_minimum_size = Vector2(28, 26)
+			key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			key.focus_mode = Control.FOCUS_NONE
 			grid.add_child(key)
 			key.pressed.connect(func(): text_action.emit("symbol:" + key.text))

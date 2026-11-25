@@ -24,6 +24,7 @@ func run() -> void:
 	assert(host.active[1].phase == 1 and last_event.lift_progress == 0.0)
 	assert(not _action(host,"lower").ok)
 	assert(not _action(host,"rep_fail").ok)
+	assert(not _action(host,"cancel").ok)
 	assert(_action(host,"effort").ok)
 	var first: float = last_event.lift_progress
 	assert(first > 0.0 and first < 1.0)
@@ -31,8 +32,15 @@ func run() -> void:
 	for press in 30:
 		if host.active[1].phase == 0:break
 		assert(_action(host,"effort").ok)
-	assert(host.active[1].phase == 0 and last_event.lift_progress == 1.0 and host.active[1].reps == 0)
+	assert(host.active[1].phase == 0 and last_event.lift_progress == 1.0 and host.active[1].reps == 1)
+	assert(_action(host,"finish").ok)
+	_finish_exit(host)
+	assert(_action(host,"start").ok)
+	for press in 30:
+		if host.active[1].phase==0:break
+		assert(_action(host,"effort").ok)
 	assert(_action(host,"lower").ok)
+	assert(not _action(host,"stand").ok)
 	assert(not _action(host,"effort").ok)
 	var duration: int = host.active[1].half_ms
 	now = int(host.active[1].last_beat) + int(duration * .5)
@@ -41,38 +49,27 @@ func run() -> void:
 	now = int(host.active[1].last_beat) + duration + 100
 	host.tick()
 	assert(host.active[1].phase == 1 and host.active[1].reps == 1 and last_event.lift_progress == 0.0)
-	assert(_action(host,"finish").ok)
-	_finish_exit(host)
-	load_kg = 200.0
-	assert(_action(host,"start").ok)
-	for press in 20:
-		assert(_action(host,"effort").ok)
-		assert(host.active[1].type=="exercise" and host.active[1].lift_progress<.12 and host.active[1].reps==0)
-	now+=1500
-	host.tick()
-	assert(host.active[1].type=="exercise" and host._progress_at(host.active[1],now)==0.0)
+	assert(not _action(host,"finish").ok)
 	assert(_action(host,"effort").ok)
-	assert(_action(host,"cancel").ok)
-	if host.active[1].type=="exercise":
-		now+=int(host.active[1].half_ms)+100
-		host.tick()
-	_finish_exit(host)
-	load_kg=Host.GymProgress.capacity(saved.gym,"benchpress")*.91
-	assert(_action(host,"start").ok)
-	for press in 4:assert(_action(host,"effort").ok)
-	assert(_action(host,"cancel").ok and host.active[1].quit_after_lower)
-	now+=1000+int(host.active[1].half_ms)
+	now+=18000
 	host.tick()
+	assert(host.active[1].type=="trapped" and last_event.activity=="trapped")
+	assert(not _action(host,"cancel").ok and not _action(host,"stop").ok)
+	for attempt in 32:
+		if host.active[1].type!="trapped":break
+		now+=700
+		assert(host.act(1,{"op":"wiggle","sequence":int(saved.last_sequence)+1,"direction":host.active[1].direction}).ok)
+	assert(host.active[1].type=="exercise" and host.active[1].phase==0 and last_event.lift_progress==1.0)
+	assert(_action(host,"finish").ok)
+	assert(saved.gym.history.size()==2 and saved.gym.history.back().outcome=="failure")
 	_finish_exit(host)
+	load_kg=200.0
 	assert(_action(host,"start").ok)
-	for press in 4:assert(_action(host,"effort").ok)
-	assert(host.active[1].lift_progress>=.2)
-	now+=1800
-	host.tick()
-	assert(host.active[1].type=="trapped" and host.trapped_damage_rate(1)==0.0)
+	assert(_action(host,"effort").ok)
+	now+=4500
+	assert(_action(host,"effort").ok and host.active[1].type=="trapped")
 	now+=4500
 	assert(host.trapped_damage_rate(1)>0.0)
-	assert(saved.gym.history.size()==4 and saved.gym.history.back().outcome=="failure")
 	host.clear_activity(1)
 	host.anchors["gym/cable_0"] = {"kind":"cable","position":Vector3.ZERO,"room_id":"gym"}
 	assert(not host.set_cable_weight(1,"gym/cable_0",22).ok)
@@ -108,13 +105,15 @@ func _check_drop_set() -> void:
 	assert(live.muscles.values().any(func(muscle):return muscle.fatigue>0.0 and muscle.stimulus>0.0))
 	var peak := 0.0
 	for press in 60:
-		if host.active[1].type!="exercise":break
 		assert(_action(host,"effort").ok)
-		if host.active[1].type=="exercise":
-			peak=maxf(peak,float(host.active[1].lift_progress))
-			assert(host.active[1].reps==0)
+		assert(host.active[1].type=="exercise" and host.active[1].reps==0)
+		peak=maxf(peak,float(host.active[1].lift_progress))
 	assert(peak>.3 and peak<.85)
-	assert(saved.gym.history.back().outcome=="failure")
+	assert(_action(host,"cancel").ok)
+	if host.active[1].type=="exercise":
+		now+=int(host.active[1].half_ms)+100
+		host.tick()
+	assert(saved.gym.history.back().outcome=="cancelled")
 	_finish_exit(host)
 	load_kg=fresh*.82
 	assert(_start_curl(host).ok)

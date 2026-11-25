@@ -2,6 +2,7 @@ extends Control
 ## Drop-in math branch for paper_ui; all legacy paper paths stay in worksheet_page.
 const Adapter = preload("res://scripts/math_ui/paper_adapter.gd")
 const View = preload("res://scripts/math_ui/expression_view.gd")
+const Worksheet = preload("res://scripts/worksheet_page.gd")
 signal answer_changed(key: String,value: String)
 signal stroke_added(stroke: Dictionary)
 var paper: Dictionary={}
@@ -12,7 +13,7 @@ var body: VBoxContainer
 var workspace: Control
 var answer_key := ""
 var last_shared_input := {}
-const PAPER_SIZE=Vector2(780,1100)
+const PAPER_SIZE=Worksheet.PAPER_SIZE
 var parser: Callable
 var parser_owner: RefCounted
 
@@ -111,8 +112,7 @@ func sync_math_inputs(states: Dictionary, pending: Dictionary) -> void:
 
 func _resize() -> void:
 	if not is_instance_valid(body):return
-	var height:=maxf(PAPER_SIZE.y,body.get_combined_minimum_size().y+70)
-	custom_minimum_size.y=height;size.y=height
+	Worksheet.fit_printed_content(body.get_parent(),body,PAPER_SIZE.y)
 
 func set_drawing(enabled: bool) -> void:
 	if is_instance_valid(ink):ink.mouse_filter=Control.MOUSE_FILTER_STOP if enabled and ink.editable else Control.MOUSE_FILTER_IGNORE

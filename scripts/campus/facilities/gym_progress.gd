@@ -166,9 +166,13 @@ static func effort(state: Dictionary,exercise: String,ratio: float,travel: float
   muscle.stimulus=clampf(float(muscle.stimulus)+dose*(.0007+.009*intensity*intensity)*(1.0-float(muscle.stimulus)),0.0,1.0)
 
 static func drain_lift(progress: float,rate: float,seconds: float) -> float:
- # Integrate dp/dt = -rate * (1 + 5*p²), independent of tick rate.
- const CURVE_ROOT := 2.2360679775
- return maxf(0.0,tan(maxf(0.0,atan(progress*CURVE_ROOT)-rate*CURVE_ROOT*seconds))/CURVE_ROOT)
+ # Integrate dp/dt = -rate * (1 + 1.05 * (2*p - p²)).
+ # The drain rises with progress, but its slope tapers to zero at lockout.
+ const SHAPE := 1.05
+ const SCALE := sqrt(SHAPE/(1.0+SHAPE))
+ const SPEED := sqrt(SHAPE*(1.0+SHAPE))
+ var deficit:=clampf(1.0-progress,0.0,1.0)
+ return maxf(0.0,1.0-tanh(atanh(deficit*SCALE)+rate*SPEED*seconds)/SCALE)
 
 static func lift_parameters(available: float, required: float) -> Vector3:
  var ratio := required / maxf(available, .001)

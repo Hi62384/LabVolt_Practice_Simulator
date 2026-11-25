@@ -25,13 +25,12 @@ var inline_item_id := ""
 func _ready() -> void:
 	for family in ["Sans","Serif","Mono"]:
 		var font := SystemFont.new();font.font_names=[{"Sans":"Arial","Serif":"Georgia","Mono":"Consolas"}[family]];fonts[family]=font
-func _bounds(item: Dictionary) -> Vector2:
-	var extent := measure(item.text,int(item.font_size),fonts.get(item.font,ThemeDB.fallback_font),item.kind=="equation")
-	return Vector2(maxf(extent.x,float(item.get("box_width",extent.x))),extent.y)
+func _bounds(item: Dictionary, extent: Vector2) -> Vector2:
+	return extent.max(Vector2(float(item.get("box_width",0.0)),float(item.get("box_height",0.0))))
 
 func _handles(bounds: Vector2) -> Dictionary:
 	return {"left":Vector2(-4,bounds.y*.5),"right":Vector2(bounds.x+4,bounds.y*.5),
-		"rotate":Vector2(bounds.x*.5,-28)}
+		"bottom":Vector2(bounds.x*.5,bounds.y+4),"rotate":Vector2(bounds.x*.5,-28)}
 
 func set_tool(value: String) -> void:
 	tool=value;mouse_filter=Control.MOUSE_FILTER_STOP if writable and tool in ["text","equation","eraser"] else Control.MOUSE_FILTER_IGNORE
@@ -50,20 +49,21 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		var active := find_item(selection)
 		if tool in ["text","equation"] and not active.is_empty() and not active.get("baked",false):
-			var bounds := _bounds(active)
+			var extent := measure(active.text,int(active.font_size),_item_font(active),active.kind=="equation")
+			var bounds := _bounds(active,extent)
 			var point: Vector2 = (event.position-Vector2(active.position)*size).rotated(-float(active.angle))
 			var handles := _handles(bounds)
 			for handle in handles:
 				if point.distance_to(handles[handle])<=11:
 					transform_drag=handle
-					drag_start={"position":active.position,"angle":active.angle,"width":bounds.x,"pointer":event.position}
+					drag_start={"position":active.position,"angle":active.angle,"bounds":bounds,
+						"minimum":extent,"pointer":event.position}
 					accept_event()
 					return
 		for i in range(items.size()-1,-1,-1):
 			var item: Dictionary=items[i]
 			var local: Vector2=(event.position-item.position*size).rotated(-float(item.angle))
-			var box: Vector2=measure(item.text,int(item.font_size),fonts.get(item.font,ThemeDB.fallback_font),item.kind=="equation")
-			box.x=maxf(box.x,float(item.get("box_width",box.x)))
+			var box := _bounds(item,measure(item.text,int(item.font_size),_item_font(item),item.kind=="equation"))
 			if Rect2(Vector2(-6,-6),box+Vector2(12,12)).has_point(local):
 				if tool=="eraser":break
 				if item.get("baked",false):continue
@@ -84,15 +84,23 @@ func _gui_input(event: InputEvent) -> void:
 		if item.is_empty():return
 		var angle := float(drag_start.angle)
 		var origin: Vector2=Vector2(drag_start.position)*size
-		var offset: Vector2 = (event.position-Vector2(drag_start.pointer)).rotated(-angle)
+		var delta: Vector2 = event.position-Vector2(drag_start.pointer)
+		var bounds: Vector2 = drag_start.bounds
 		if transform_drag=="rotate":
-			var from: Vector2=Vector2(drag_start.pointer)-origin
-			item.angle=wrapf(angle+from.angle_to(event.position-origin),-PI,PI)
+			var handle: Vector2 = _handles(bounds).rotate
+			# Track the pointer against the box center while keeping the handle fixed on the page.
+			var arm := (handle-bounds*.5).rotated(angle)
+			if (arm+delta).length_squared()>1.0:
+				item.angle=wrapf(angle+arm.angle_to(arm+delta),-PI,PI)
+				item.position=(origin+handle.rotated(angle)-handle.rotated(item.angle))/size
+		elif transform_drag=="bottom":
+			var height := bounds.y+delta.rotated(-angle).y
+			item.box_height=clampf(height,minf(float(drag_start.minimum.y),720.0),720.0)
 		else:
 			var left := transform_drag=="left"
-			var width := clampf(float(drag_start.width)+offset.x*(-1 if left else 1),40,720)
+			var width := clampf(bounds.x+delta.rotated(-angle).x*(-1 if left else 1),clampf(float(drag_start.minimum.x),40,720),720)
 			item.box_width=width
-			if left:item.position=((origin+Vector2(float(drag_start.width)-width,0).rotated(angle))/size).clamp(Vector2.ZERO,Vector2.ONE)
+			if left:item.position=(origin+Vector2(bounds.x-maxf(width,float(drag_start.minimum.x)),0).rotated(angle))/size
 		queue_redraw()
 		accept_event()
 	elif event is InputEventMouseMotion and dragging:
@@ -174,7 +182,7 @@ func _layout_inline_editor() -> void:
 		var bounds := maxf(measured.x, float(item.get("box_width", measured.x)))
 		math.rotation = float(item.angle)
 		math.position = Vector2(item.position)*size + Vector2(_alignment_offset(item,bounds,measured.x),0).rotated(math.rotation)
-		math.size = Vector2(maxf(48.0, measured.x + 12.0), measured.y + 8.0)
+		math.size = Vector2(maxf(48.0, measured.x + 12.0),_bounds(item,measured).y + 8.0)
 		return
 	inline_editor.add_theme_font_override("font",font)
 	inline_editor.add_theme_font_size_override("font_size",font_size)
@@ -188,7 +196,7 @@ func _layout_inline_editor() -> void:
 	var offset := Vector2(_alignment_offset(item,width,extent.x),0)
 	inline_editor.rotation=float(item.angle)
 	inline_editor.position=Vector2(item.position)*size+offset.rotated(inline_editor.rotation)
-	inline_editor.size=Vector2(maxf(48,width-offset.x)+16,extent.y+font.get_height(font_size))
+	inline_editor.size=Vector2(maxf(48,width-offset.x)+16,maxf(_bounds(item,extent).y,extent.y+font.get_height(font_size)))
 
 func finish_inline_edit(save := true) -> void:
 	if not is_instance_valid(inline_editor):return
@@ -293,14 +301,14 @@ func _draw() -> void:
 		draw_set_transform(item.position*size,float(item.angle))
 		var color := Color(str(item.color));color.a*=clampf(float(item.get("opacity",1.0)),0.05,1.0)
 		var extent := measure(item.text,int(item.font_size),font,item.kind=="equation")
-		var box_width := maxf(extent.x,float(item.get("box_width",extent.x)))
-		var origin := Vector2(_alignment_offset(item,box_width,extent.x),0)
+		var bounds := _bounds(item,extent)
+		var origin := Vector2(_alignment_offset(item,bounds.x,extent.x),0)
 		paint(item.text,origin,int(item.font_size),font,color,item.kind=="equation")
 		if writable and item.id==selection and not item.get("baked",false) and tool in ["text","equation"]:
 			var outline := Color("3a8ca0")
-			var handles := _handles(Vector2(box_width,extent.y))
-			draw_rect(Rect2(Vector2(-4,-4),Vector2(box_width,extent.y)+Vector2(8,8)),outline,false,1.5)
-			draw_line(Vector2(box_width*.5,-4),handles.rotate,outline,2,true)
+			var handles := _handles(bounds)
+			draw_rect(Rect2(Vector2(-4,-4),bounds+Vector2(8,8)),outline,false,1.5)
+			draw_line(Vector2(bounds.x*.5,-4),handles.rotate,outline,2,true)
 			draw_circle(handles.rotate,5,outline,true,-1,true)
-			for handle in ["left","right"]:draw_rect(Rect2(handles[handle]-Vector2(5,5),Vector2(10,10)),outline)
+			for handle in ["left","right","bottom"]:draw_rect(Rect2(handles[handle]-Vector2(5,5),Vector2(10,10)),outline)
 	draw_set_transform(Vector2.ZERO)

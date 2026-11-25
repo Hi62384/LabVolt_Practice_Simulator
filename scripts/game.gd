@@ -923,7 +923,7 @@ func _physics_process(delta: float) -> void:
 		if held_hint.text.is_empty():held_hint.text=drop_hint
 		elif not "place" in held_hint.text.to_lower():held_hint.text+="  •  "+drop_hint
 	held_item_name.text=hotbar.held_title()
-	held_item_name.visible=front.in_game and player.enabled and not player.resting and not held_item_name.text.is_empty()
+	held_item_name.visible=front.in_game and player.enabled and not player.resting and not workout_hides_carried_items() and not held_item_name.text.is_empty()
 	held_hint.visible=front.in_game and player.enabled and client_preferences.values.prompts and not held_hint.text.is_empty()
 	ui.prompt.text = ""
 	if current_target:

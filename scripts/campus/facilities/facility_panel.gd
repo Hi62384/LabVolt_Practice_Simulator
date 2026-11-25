@@ -107,7 +107,11 @@ func _end_workout(active: Dictionary) -> void:
 	if active.get("quit_after_lower",false):return
 	var resting := int(active.get("phase", 0)) == 0
 	if active.has("lift_settings"):
-		resting = int(active.phase) == 1 and float(active.lift_progress) == 0.0
+		if Rules._can_pin(active):
+			if not resting:
+				workout_exit_pending=false
+				return
+		else:resting = int(active.phase) == 1 and float(active.lift_progress) == 0.0
 	var op := "finish" if int(active.get("reps", 0)) > 0 and resting else "cancel"
 	request_direct({"op":op})
 
@@ -293,7 +297,9 @@ func redraw() -> void:
 
 func _position_panel() -> void:
 	var viewport := get_viewport_rect().size
-	if is_instance_valid(rep_control) or is_instance_valid(trap_content):
+	if is_instance_valid(rep_control):
+		position = Vector2(20,24)
+	elif is_instance_valid(trap_content):
 		position = Vector2((viewport.x-size.x)*.5, viewport.y-size.y-144)
 	elif station_kind.begins_with("counter:"):
 		size=Vector2(724,555).min(viewport-Vector2(24,24))
@@ -305,12 +311,13 @@ func _position_panel() -> void:
 
 func _fit_workout_hud() -> void:
 	if is_instance_valid(rep_control) or is_instance_valid(trap_content):
-		size = Vector2(410,112).max(get_combined_minimum_size())
+		size = (Vector2(246,76) if is_instance_valid(rep_control) else Vector2(410,112)).max(get_combined_minimum_size())
 		_position_panel()
 
 func _show_exercise_hud(active: Dictionary) -> void:
 	menu_layout.hide()
-	custom_minimum_size=Vector2(410,112)
+	custom_minimum_size=Vector2(246,76)
+	add_theme_stylebox_override("panel",StyleBoxEmpty.new())
 	size=custom_minimum_size
 	var identity := "%s/%s" % [active.station, active.get("started", 0)]
 	var phase := int(active.phase)
@@ -324,7 +331,6 @@ func _show_exercise_hud(active: Dictionary) -> void:
 		rep_control.lower_requested.connect(func():request_direct({"op":"lower"}))
 		rep_control.effort_requested.connect(func():request_direct({"op":"effort"}))
 		rep_control.rep_requested.connect(func():request_direct({"op":"beat"}))
-		rep_control.failed.connect(func():request_direct({"op":"rep_fail"}))
 		rep_control.finish_requested.connect(close_or_end_workout)
 		rep_control.motion_changed.connect(func(progress: float):
 			if preview_workout.is_valid():preview_workout.call(progress)
@@ -336,7 +342,7 @@ func _show_exercise_hud(active: Dictionary) -> void:
 		var gym: Dictionary=state.profile.get("gym",{"muscles":{}})
 		var capacity: float=Rules.GymProgress.capacity(gym,str(active.exercise))
 		var load: float=Rules.GymProgress.effective_load(str(active.exercise),float(active.weight),float(active.get("body_mass",70.0)))
-		rep_control.configure(capacity,load,phase,int(active.reps),float(active.get("lift_progress",-1.0)))
+		rep_control.configure(capacity,load,phase,int(active.reps),float(active.get("lift_progress",-1.0)),Rules._can_pin(active))
 		workout_identity = identity
 		workout_phase = phase
 	_fit_workout_hud.call_deferred()

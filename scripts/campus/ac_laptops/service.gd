@@ -67,8 +67,11 @@ func _build_cabinet() -> void:
   var hinge:=Node3D.new();hinge.name="Left" if side<0 else "Right";hinge.position=Vector3(side*.62,0,-.34);cabinet_doors.add_child(hinge)
   _box(hinge,Vector3(-side*.31,.85,0),Vector3(.60,1.62,.06),Color("647e83"))
   _box(hinge,Vector3(-side*.51,.85,-.04),Vector3(.025,.22,.025),Color("cfddd1"))
- cabinet_front=_target(cabinet,"ac_laptop_cabinet",-1,Vector3(0,.85,-.4),Vector3(1.3,1.7,.14))
- _target(cabinet,"ac_laptop_cabinet",-1,Vector3(-.68,.85,-.2),Vector3(.12,1.7,.5))
+  _target(hinge,"ac_laptop_cabinet_door",-1,Vector3(-side*.31,.85,-.02),Vector3(.60,1.62,.10))
+ cabinet_front=_target(cabinet,"ac_laptop_cabinet_door",-1,Vector3(0,.85,-.4),Vector3(1.3,1.7,.14))
+ for side in [-1,1]:
+  _target(cabinet,"ac_laptop_cabinet",-1,Vector3(side*.62,.85,0),Vector3(.07,1.7,.65))
+ _target(cabinet,"ac_laptop_cabinet",-1,Vector3(0,1.67,0),Vector3(1.3,.06,.65))
  cabinet_items=Node3D.new();cabinet.add_child(cabinet_items)
  for i in Model.COUNT:
   var x:float=-.43+(i%3)*.43;var shelf:float=.06+int(i/3)*.80
@@ -122,8 +125,9 @@ func _peer_left(peer: int) -> void:
 func _actor_position(peer: int) -> Vector3:
  return game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
 func request(op: String,id := -1,point := Vector3.ZERO,station := -1) -> void:
- if op in ["take_laptop","take_cable","pickup","pickup_cable","disconnect"]:
+ if op in ["take_laptop","take_cable","pickup","pickup_cable","detach_daq"] or (op=="disconnect" and _held("cables")!=id):
   game.hotbar._sync_dorm_items()
+  game.hotbar._sync_ac_items()
   if game.hotbar.slots.count({})==0:
    game.ui.log_message("Free a hotbar slot first.");return
  if game.session.online and not multiplayer.is_server():_request.rpc_id(1,op,id,point,station)
@@ -133,7 +137,8 @@ func _request(op: String,id: int,point: Vector3,station: int) -> void:
  if multiplayer.is_server():_apply(multiplayer.get_remote_sender_id(),op,id,point,station)
 func _apply(peer: int,op: String,id: int,point: Vector3,station: int) -> void:
  if not game.session.roster.has(peer):return
- if op in ["take_laptop","take_cable","pickup","pickup_cable"] and not game.dc_lab._can_hold_lead(peer):
+ var takes_item := op in ["take_laptop","take_cable","pickup","pickup_cable","detach_daq"] or (op=="disconnect" and model.held_cable(peer)!=id)
+ if takes_item and not game.dc_lab._can_hold_lead(peer):
   if peer==multiplayer.get_unique_id():game.ui.log_message("Put down the item you are holding first.")
   else:_notice.rpc_id(peer,"Put down the item you are holding first.")
   return
@@ -153,7 +158,7 @@ func _apply(peer: int,op: String,id: int,point: Vector3,station: int) -> void:
     if peer==multiplayer.get_unique_id():game.ui.log_message("The USB cable cannot reach that far.")
     else:_notice.rpc_id(peer,"The USB cable cannot reach that far.")
     return
- if op=="attach_daq":
+ if op in ["attach_daq","detach_daq"]:
   if station not in range(game.session.labs.size()):return
   point=game.session.labs[station].positions.get("daq",Vector3.INF)
  if op=="drop_cable":
@@ -196,7 +201,7 @@ func _render() -> void:
  for child in cabinet_items.get_children():
   var role:=str(child.get_meta("role",""));var id:=int(child.get_meta("laptop_id",-1))
   if id>=0:child.visible=state.laptops[id].where=="cabinet" if role=="ac_laptop_stored" else state.cables[id].where=="cabinet"
-  if child is CollisionObject3D:child.collision_layer=4 if child.visible else 0
+  if child is CollisionObject3D:child.collision_layer=4 if state.cabinet_open and child.visible else 0
  for i in Model.COUNT:
   var info: Dictionary=state.laptops[i];var root: Node3D=laptop_roots[i]
   var was_visible:bool=root.visible
@@ -257,11 +262,13 @@ func _draw_cables() -> void:
    continue
   if cable_views.has(i):continue
   var a:Vector3=endpoints[0];var b:Vector3=endpoints[1]
-  var mesh:=CableMesh.build(a,b,Color("343f48"),game.cable_obstacles);group.add_child(mesh)
+  var mesh:=MeshInstance3D.new()
+  mesh.material_override=CableMesh.jacket_material(Color("343f48"))
+  group.add_child(mesh)
   var plug_a:=_box(group,a,Vector3(.045,.025,.075),Color("202d34"))
   var plug_b:=_box(group,b,Vector3(.045,.025,.075),Color("202d34"))
   if a.distance_squared_to(b)>.000001:plug_a.look_at(b,Vector3.UP);plug_b.look_at(a,Vector3.UP)
-  cable_views[i]={"mesh":mesh,"plug_a":plug_a,"plug_b":plug_b,"a":a,"b":b}
+  cable_views[i]={"mesh":mesh,"plug_a":plug_a,"plug_b":plug_b,"a":Vector3.INF,"b":Vector3.INF}
  _update_moving_cables()
 
 func _update_moving_cables() -> void:
@@ -271,11 +278,14 @@ func _update_moving_cables() -> void:
   if endpoints.is_empty():continue
   var a:Vector3=endpoints[0];var b:Vector3=endpoints[1]
   var view:Dictionary=cable_views[i]
-  if a.distance_squared_to(view.a)<.00000001 and b.distance_squared_to(view.b)<.00000001:continue
-  view.mesh.mesh=CableMesh.geometry(a,b,game.cable_obstacles)
+  if view.get("where")==cable.where and a.distance_squared_to(view.a)<.00000001 and b.distance_squared_to(view.b)<.00000001:continue
+  if cable.where=="partial":
+   view.mesh.mesh=CableMesh.held_geometry(a,b,Basis.IDENTITY,true)
+  else:
+   view.mesh.mesh=CableMesh.geometry(a,b,game.cable_obstacles)
   view.plug_a.position=a;view.plug_b.position=b
   if a.distance_squared_to(b)>.000001:view.plug_a.look_at(b,Vector3.UP);view.plug_b.look_at(a,Vector3.UP)
-  view.a=a;view.b=b
+  view.a=a;view.b=b;view.where=cable.where
 func _process(delta: float) -> void:
  if not is_instance_valid(game):return
  for i in Model.COUNT:
@@ -289,7 +299,8 @@ func _process(delta: float) -> void:
     var target_yaw:float=float(game.session.poses.get(int(state.laptops[i].owner),{}).get("yaw",0.0))
     laptop_roots[i].rotation.y=lerp_angle(laptop_roots[i].rotation.y,target_yaw,1.0-exp(-14.0*delta))
  _update_moving_cables()
- held_cable_visual.visible=_held("cables")>=0 and game.player.enabled
+ var held_cable:=_held("cables")
+ held_cable_visual.visible=held_cable>=0 and state.cables[held_cable].where=="held" and game.player.enabled
  if is_instance_valid(panel) and panel.visible:
   refresh_clock+=delta
   if refresh_clock>=.1:refresh_clock=0;_refresh_view()
@@ -299,21 +310,29 @@ func place_held(point: Vector3) -> bool:
 func interact(target: Node, right: bool) -> bool:
  if not is_instance_valid(target):return false
  var role:=str(target.get_meta("role",""));var id:=int(target.get_meta("laptop_id",-1))
+ if role=="ac_laptop_cabinet_door":
+  request("cabinet")
+  return true
  if role=="ac_laptop_cabinet":
-  if _held("laptops")>=0:request("store_laptop")
-  elif _held("cables")>=0:request("store_cable")
+  var cable:=_held("cables")
+  if not right and _held("laptops")>=0:request("store_laptop")
+  elif not right and state.cabinet_open and cable>=0 and state.cables[cable].where=="held":request("store_cable")
   else:request("cabinet")
   return true
  if role=="ac_laptop_stored":request("take_laptop",id);return true
  if role=="ac_usb_stored":request("take_cable",id);return true
  if role=="ac_usb_floor":request("pickup_cable",id);return true
  if role=="ac_laptop_usb" and not right:
-  if _held("cables")>=0:request("attach_laptop",id)
-  elif _attached(id)>=0:request("disconnect",_attached(id))
+  if _attached(id)>=0:request("disconnect",_attached(id))
+  elif _held("cables")>=0:request("attach_laptop",id)
   else:game.ui.log_message("Take a USB cable from the cabinet first.")
   return true
- if role=="ac_daq_usb" and not right:
-  request("attach_daq",-1,Vector3.ZERO,int(target.get_meta("station",0)));return true
+ if role=="ac_daq_usb":
+  var station:=int(target.get_meta("station",0))
+  var connected:=Model.connected_to_daq(state.cables,station)>=0
+  if right and connected:request("detach_daq",-1,Vector3.ZERO,station)
+  elif not right and not connected:request("attach_daq",-1,Vector3.ZERO,station)
+  return true
  if role=="ac_laptop":
   if right:
    if state.laptops[id].open:_open_view(id)
@@ -326,12 +345,18 @@ func hint(target: Node) -> String:
  if not is_instance_valid(target):return ""
  var role:=str(target.get_meta("role",""));var id:=int(target.get_meta("laptop_id",-1))
  match role:
-  "ac_laptop_cabinet":return "Click: return laptop or USB cable" if _held("laptops")>=0 or _held("cables")>=0 else "Click: open / close cabinet"
+  "ac_laptop_cabinet_door":return "Click: close cabinet" if state.cabinet_open else "Click: open cabinet"
+  "ac_laptop_cabinet":
+   var cable:=_held("cables")
+   if _held("laptops")>=0 or (state.cabinet_open and cable>=0 and state.cables[cable].where=="held"):return "Click: return item"
+   return "Click: close cabinet" if state.cabinet_open else "Click: open cabinet"
   "ac_laptop_stored":return "Click: take laptop"
   "ac_usb_stored":return "Click: take USB cable"
   "ac_usb_floor":return "Click: pick up USB cable"
   "ac_laptop_usb":return "Click: connect or disconnect laptop cable"
-  "ac_daq_usb":return "Click: connect laptop cable to DAQ"
+  "ac_daq_usb":
+   var station:=int(target.get_meta("station",0))
+   return "Right-click: unplug USB from DAQ" if Model.connected_to_daq(state.cables,station)>=0 else "Click: connect laptop cable to DAQ"
   "ac_laptop":return "Right-click: view - Left-click: close" if state.laptops[id].open else "Right-click: open - Left-click: pick up"
  return ""
 func _open_view(id: int) -> void:

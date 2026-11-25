@@ -63,6 +63,7 @@ func _run() -> void:
   var upload_deadline:=Time.get_ticks_msec()+5000
   while not str(browser.get_title()).begins_with("upload:") and Time.get_ticks_msec()<upload_deadline:await process_frame
   if browser.get_title()!="upload:notes.txt:5":failures.append("Virtual document was not attached to the HTML file input")
+ await _check_context_save_and_scroll(surface,browser)
  if OS.get_environment("LABVOLT_BROWSER_TEST_HTTPS")=="1":
   browser.load_url("https://example.com/")
   if not await _wait_title(browser,"Example Domain",12000):failures.append("Public HTTPS page did not load")
@@ -75,6 +76,9 @@ func _run() -> void:
    surface._download_address()
    var download_deadline:=Time.get_ticks_msec()+5000
    while is_instance_valid(surface.download_request) and Time.get_ticks_msec()<download_deadline:await process_frame
+   if is_instance_valid(surface.download_dialog):
+    surface.download_dialog.confirmed.emit()
+    await process_frame
   if virtual_downloads.size()!=2 or virtual_downloads.get("notes.txt",PackedByteArray()).get_string_from_utf8()!="Campus lab notes" or not virtual_downloads.has("manual.pdf"):
    failures.append("Browser did not save validated virtual downloads or reject invalid images")
   surface.address.text=base+"/login"
@@ -153,8 +157,11 @@ func _check_context_inspector(surface: Control,browser: Variant) -> void:
  click.button_index=MOUSE_BUTTON_RIGHT
  surface._forward(browser,surface.tabs[0].surface,click)
  var menu: PopupMenu
- for child in surface.get_children():
-  if child is PopupMenu and child.visible:menu=child
+ var menu_deadline:=Time.get_ticks_msec()+2500
+ while menu==null and Time.get_ticks_msec()<menu_deadline:
+  for child in surface.get_children():
+   if child is PopupMenu and child.visible:menu=child
+  if menu==null:await process_frame
  if menu==null:
   failures.append("Right-click did not open the browser menu")
   return
@@ -162,13 +169,63 @@ func _check_context_inspector(surface: Control,browser: Variant) -> void:
  menu.hide()
  var deadline:=Time.get_ticks_msec()+3500
  while Time.get_ticks_msec()<deadline:
-  for child in surface.get_children():
-   if child is AcceptDialog and child.title.begins_with("Inspect <input>"):
-    child.hide()
-    child.queue_free()
-    return
+  if surface.inspector.visible and surface.element_details.text.contains("<input"):
+   surface.inspector.hide()
+   return
   await process_frame
  failures.append("Inspect element did not report the clicked input")
+
+func _check_context_save_and_scroll(surface: Control,browser: Variant) -> void:
+ browser.load_data_uri("<html><head><title>Save fixture</title></head><body style='min-height:2500px'><img style='position:fixed;left:0;top:0;width:160px;height:140px' src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII='></body></html>","text/html")
+ if not await _wait_title(browser,"Save fixture",4000):
+  failures.append("Save fixture did not load")
+  return
+ await create_timer(.3).timeout
+ var saved:={}
+ surface.virtual_download_save=func(name: String,data: PackedByteArray):saved[name]=data
+ var click:=InputEventMouseButton.new()
+ click.position=Vector2(40,22)
+ click.button_index=MOUSE_BUTTON_RIGHT
+ surface._forward(browser,surface.tabs[0].surface,click)
+ var menu: PopupMenu
+ var deadline:=Time.get_ticks_msec()+2500
+ while menu==null and Time.get_ticks_msec()<deadline:
+  for child in surface.get_children():
+   if child is PopupMenu and child.visible:menu=child
+  if menu==null:await process_frame
+ if menu==null or menu.get_item_index(9)<0:
+  failures.append("Image right-click did not expose Save image as")
+ else:
+  menu.id_pressed.emit(9)
+  menu.hide()
+  if not is_instance_valid(surface.download_dialog):
+   failures.append("Save image as did not open the filename dialog")
+  else:
+   for child in surface.download_dialog.find_children("*","LineEdit",true,false):child.text="test_image.png"
+   surface.download_dialog.confirmed.emit()
+   if not saved.has("test_image.png"):failures.append("Image did not save under the chosen name")
+ await process_frame
+ surface._save_page_pdf(browser)
+ deadline=Time.get_ticks_msec()+7000
+ while not is_instance_valid(surface.download_dialog) and Time.get_ticks_msec()<deadline:await process_frame
+ if not is_instance_valid(surface.download_dialog):
+  failures.append("Page PDF did not reach Save As")
+ else:
+  for child in surface.download_dialog.find_children("*","LineEdit",true,false):child.text="test_page.pdf"
+  surface.download_dialog.confirmed.emit()
+  if not saved.get("test_page.pdf",PackedByteArray()).slice(0,5)=="%PDF-".to_ascii_buffer():
+   failures.append("Page PDF did not save as a valid PDF")
+ await process_frame
+ var wheel:=InputEventMouseButton.new()
+ wheel.button_index=MOUSE_BUTTON_WHEEL_DOWN
+ wheel.position=Vector2(200,110)
+ wheel.factor=1.0
+ wheel.pressed=true
+ surface._forward(browser,surface.tabs[0].surface,wheel)
+ await create_timer(.3).timeout
+ browser.execute_javascript("document.title=scrollY >= 40 ? 'wheel-ok' : 'wheel-slow'; window.scrollTo(0,0);")
+ if not await _wait_title(browser,"wheel-ok",2000):failures.append("One wheel step scrolled fewer than 40 browser pixels")
+ surface.virtual_download_save=Callable()
 
 func _wait_title(browser: Variant,title: String,timeout_ms: int) -> bool:
  var deadline:=Time.get_ticks_msec()+timeout_ms

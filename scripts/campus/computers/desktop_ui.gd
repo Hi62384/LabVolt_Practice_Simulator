@@ -55,7 +55,7 @@ var windows := {}
 var clock_label: Label
 var desktop_status: Label
 var app_names := ["Files","Text editor","Calculator","Browser","Code editor","Terminal","Settings","Recycle Bin"]
-var pinned_apps := ["Files","Browser"]
+var pinned_apps := []
 var selected_shortcut := ""
 var shortcuts_by_name := {}
 var start_search: LineEdit
@@ -65,9 +65,18 @@ var recent_files: Array[String]=[]
 var wallpaper_panel: TextureRect
 var style_choice := 0
 var pending_open_path := ""
+var pending_open_editor := ""
+var pending_preview := ""
+var pending_run_path := ""
+var file_clipboard := {}
+var file_menu: PopupMenu
+var file_viewer: AcceptDialog
 var _covered_viewport: Viewport
 var _covered_viewport_disabled_3d := false
 const Icon = preload("res://scripts/ui/design_system/widgets.gd")
+const FileTypes = preload("res://scripts/campus/computers/browser_download.gd")
+const VirtualFiles = preload("res://scripts/campus/computers/virtual_files.gd")
+const Viewer = preload("res://scripts/campus/computers/file_viewer.gd")
 const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Recycle Bin":"trash"}
 
 func build(source: Node, owner_game: Node = null) -> void:
@@ -89,6 +98,7 @@ func build(source: Node, owner_game: Node = null) -> void:
 		session.desktop_changed.connect(_on_desktop_changed)
 	if not session.operation_failed.is_connected(_on_operation_failed):
 		session.operation_failed.connect(_on_operation_failed)
+	if session.has_signal("file_opened"):session.file_opened.connect(_show_file_preview)
 	autosave_timer=Timer.new()
 	autosave_timer.one_shot=true
 	autosave_timer.wait_time=.55
@@ -615,6 +625,10 @@ func _switch_app(name: String) -> void:
 	elif name == "Browser":
 		browser_surface=preload("res://scripts/campus/computers/browser_surface.gd").new()
 		browser_surface.game=game
+		var station: Dictionary=session.get("stations").get(str(snapshot.get("station","")),{}) if is_instance_valid(game) and session.get("stations") is Dictionary else {}
+		if game is Node3D and station.has("anchor") and not station.get("portable",false):
+			browser_surface.speaker_world=game
+			browser_surface.speaker_position=station.get("speaker_position",station.anchor+Vector3.UP*1.15)
 		browser_surface.size_flags_vertical=Control.SIZE_EXPAND_FILL;content.add_child(browser_surface)
 		var files: Array=[]
 		for row in _file_rows():
@@ -629,6 +643,7 @@ func _switch_app(name: String) -> void:
 		status_label.text="Embedded browser unavailable on this device." if status_label.visible else ""
 	elif name=="Terminal":
 		var terminal:=preload("res://scripts/campus/computers/virtual_terminal.gd").new()
+		state.terminal=terminal
 		terminal.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		content.add_child(terminal)
 		terminal.build(self)
@@ -809,24 +824,28 @@ func _build_recycle_bin() -> void:
 		purge.disabled = false)
 	update.call()
 
-func _confirm_action(message: String, action: Callable) -> void:
+func _confirm_action(message: String, action: Callable, title := "Confirm action", button := "Confirm") -> void:
 	var dialog:=ConfirmationDialog.new()
+	dialog.title=title
+	dialog.ok_button_text=button
 	dialog.dialog_text=message
 	add_child(dialog)
+	dialog.get_ok_button().theme_type_variation="DangerButton"
 	dialog.confirmed.connect(func():dialog.hide();action.call();dialog.queue_free())
 	dialog.canceled.connect(dialog.queue_free)
 	dialog.popup_centered()
 
-func _name_dialog(heading: String, initial: String, submitted: Callable) -> void:
+func _name_dialog(heading: String, initial: String, submitted: Callable, button := "Save") -> void:
 	var dialog:=ConfirmationDialog.new()
 	dialog.title=heading
-	dialog.ok_button_text="Save"
+	dialog.ok_button_text=button
 	var field:=LineEdit.new()
 	field.text=initial
 	field.max_length=96
 	field.custom_minimum_size=Vector2(310,34)
 	dialog.add_child(field)
 	add_child(dialog)
+	dialog.get_ok_button().theme_type_variation="PrimaryButton"
 	var confirm:=func():
 		dialog.hide()
 		submitted.call(field.text.strip_edges())
@@ -853,6 +872,7 @@ func _os_prefs_path() -> String:
 func _save_os_preferences() -> void:
 	var cfg:=ConfigFile.new()
 	cfg.set_value("desktop","pinned",pinned_apps)
+	cfg.set_value("desktop","pins_configured",true)
 	cfg.set_value("desktop","style",style_choice)
 	var error:=cfg.save(_os_prefs_path())
 	if error!=OK:desktop_status.text="Desktop preferences could not be saved."
@@ -860,8 +880,9 @@ func _save_os_preferences() -> void:
 func _load_os_preferences() -> void:
 	var cfg:=ConfigFile.new()
 	if cfg.load(_os_prefs_path())==OK:
-		var saved: Variant=cfg.get_value("desktop","pinned",["Files","Browser"])
-		pinned_apps=saved.filter(func(name):return name in app_names) if saved is Array else ["Files","Browser"]
+		var saved: Variant=cfg.get_value("desktop","pinned",[])
+		var old_defaults: bool=not cfg.get_value("desktop","pins_configured",false) and saved==["Files","Browser"]
+		pinned_apps=saved.filter(func(name):return name in app_names) if saved is Array and not old_defaults else []
 		style_choice=clampi(int(cfg.get_value("desktop","style",0)),0,2)
 	for name in app_names:task_buttons[name].visible=name in pinned_apps or windows.has(name)
 	_apply_wallpaper()
@@ -974,7 +995,7 @@ func _build_files(name: String) -> void:
 		_name_dialog("New virtual file","untitled"+extension,func(filename):
 			if filename.is_empty() or filename.contains("/"):return
 			var destination: String=filename if folder_path.is_empty() else folder_path+"/"+filename
-			if not _valid_path(destination) or not _file(destination).is_empty():
+			if not _valid_path(destination) or _virtual_path_exists(destination):
 				desktop_status.text="Choose an unused virtual filename."
 				return
 			pending_open_path=destination
@@ -1140,6 +1161,7 @@ func _build_files(name: String) -> void:
 	file_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	file_list.add_theme_constant_override("v_separation", 7)
 	file_list.item_activated.connect(func(): _open_selected(true))
+	file_list.gui_input.connect(_file_list_input)
 	split.add_child(file_list)
 	file_list.visible = name == "Files"
 	project_tree = null
@@ -1340,6 +1362,128 @@ func _file_drop_data(point: Vector2,data: Variant) -> void:
 func _virtual_path_exists(path: String) -> bool:
 	return path in snapshot.get("folders",[]) or snapshot.get("binary_files",{}).has(path) or not _file(path).is_empty()
 
+func _file_list_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or event.button_index!=MOUSE_BUTTON_RIGHT or not event.pressed:return
+	var row:=file_list.get_item_at_position(event.position)
+	var entry: Variant=row.get_metadata(0) if row!=null else null
+	if entry is Dictionary:row.select(0)
+	_show_file_menu(entry if entry is Dictionary else {},file_list.get_global_mouse_position())
+	file_list.accept_event()
+
+func _show_file_menu(entry: Dictionary, pointer: Vector2) -> void:
+	if is_instance_valid(file_menu):file_menu.queue_free()
+	file_menu=PopupMenu.new()
+	var menu:=file_menu
+	var actions: Array[Callable]=[]
+	var add:=func(label: String, action: Callable, icon := ""):
+		var id:=actions.size()
+		actions.append(action)
+		if icon.is_empty():menu.add_item(label,id)
+		else:menu.add_icon_item(Icon.icon(icon),label,id)
+	var path:=str(entry.get("path",""))
+	var folder:=bool(entry.get("folder",false))
+	var public_device:=bool(snapshot.get("public_device",false))
+	var directory:=path if folder else folder_path
+	if not path.is_empty():
+		var ext:=path.get_extension().to_lower()
+		add.call("Open",func():_open_workspace_file(path),"folder" if folder else "course")
+		if not folder and (FileTypes.is_text(ext) or not _file(path).is_empty()):
+			add.call("Open in Text editor",func():_open_workspace_file(path,"Text editor"))
+			add.call("Open in Code editor",func():_open_workspace_file(path,"Code editor"))
+			if ext=="campus":add.call("Run in Terminal",func():_run_workspace_script(path),"play")
+		if ext=="zip" and not folder and public_device:
+			add.call("Extract ZIP…",func():_archive_entry(path,"extract"),"download")
+		menu.add_separator()
+		add.call("Cut",func():file_clipboard={"path":path,"cut":true})
+		add.call("Copy",func():file_clipboard={"path":path,"cut":false})
+	if not file_clipboard.is_empty() and (entry.is_empty() or folder):
+		add.call("Paste",func():_paste_entry(directory))
+	if path.is_empty() and public_device:
+		add.call("New folder…",func():_name_dialog("New folder","",func(name_value):
+			var destination:=_join_virtual(directory,name_value)
+			if _valid_path(destination) and not name_value.contains("/"):_send({"op":"mkdir","path":destination})
+		,"Create"),"folder")
+	elif not path.is_empty():
+		add.call("Rename…",func():_rename_entry(path))
+		if public_device:
+			add.call("Compress to ZIP…",func():_archive_entry(path,"zip"))
+			add.call("Delete…",func():_delete_path(path),"trash")
+		add.call("Properties",func():_entry_properties(path,folder),"info")
+	if actions.is_empty():menu.queue_free();return
+	add_child(menu)
+	menu.id_pressed.connect(func(id: int):
+		if id in range(actions.size()):actions[id].call())
+	menu.popup_hide.connect(menu.queue_free)
+	menu.position=Vector2i(pointer)
+	menu.popup()
+
+func _join_virtual(directory: String, filename: String) -> String:
+	return filename if directory.is_empty() else directory+"/"+filename
+
+func _rename_entry(source: String) -> void:
+	_name_dialog("Rename "+source.get_file(),source.get_file(),func(filename):
+		var target:=_join_virtual(_parent_folder(source),filename)
+		if filename.contains("/") or not _valid_path(target) or _virtual_path_exists(target):
+			status_label.text="Choose an unused name."
+			return
+		_capture_draft()
+		pending_folder_source=source
+		pending_folder_target=target
+		_send({"op":"rename","path":source,"new_path":target})
+	,"Rename")
+
+func _paste_entry(directory: String) -> void:
+	var source:=str(file_clipboard.get("path",""))
+	if not _virtual_path_exists(source):file_clipboard.clear();return
+	var cut:=bool(file_clipboard.get("cut",false))
+	var name:=source.get_file()
+	var target:=_join_virtual(directory,name)
+	if not cut and _virtual_path_exists(target):
+		var extension:=name.get_extension()
+		if source in snapshot.get("folders",[]):extension=""
+		var stem:=name if extension.is_empty() else name.get_basename()
+		for index in range(1,100):
+			var suffix:=" copy%s"%("" if index==1 else " "+str(index))
+			target=_join_virtual(directory,stem.left(32-suffix.length()-(extension.length()+1 if not extension.is_empty() else 0))+suffix+("."+extension if not extension.is_empty() else ""))
+			if not _virtual_path_exists(target):break
+	if not _valid_path(target) or _virtual_path_exists(target) or target.begins_with(source+"/"):
+		status_label.text="Choose an unused destination outside the source folder."
+		return
+	if cut:
+		_capture_draft()
+		pending_folder_source=source
+		pending_folder_target=target
+	_send({"op":"rename" if cut else "copy","path":source,"new_path":target})
+
+func _archive_entry(source: String, operation: String) -> void:
+	var extracting:=operation=="extract"
+	var name:=source.get_file()
+	var suggested:=name.get_basename() if extracting else name.left(28)+".zip"
+	if extracting and _virtual_path_exists(_join_virtual(folder_path,suggested)):suggested=suggested.left(22)+" extracted"
+	_name_dialog("Extract ZIP" if extracting else "Compress to ZIP",suggested,func(filename):
+		if filename.contains("/"):return
+		if not extracting and not filename.to_lower().ends_with(".zip"):filename+=".zip"
+		var target:=_join_virtual(_parent_folder(source),filename)
+		if _valid_path(target):_send({"op":operation,"path":source,"new_path":target})
+	,"Extract" if extracting else "Compress")
+
+func _entry_properties(path: String, folder: bool) -> void:
+	var location:=_parent_folder(path)
+	var size: int=snapshot.get("binary_files",{}).get(path,str(_file(path).get("text","")).to_utf8_buffer().size())
+	var detail:="Folder" if folder else String.humanize_size(size)
+	_message(path.get_file(),"%s\nLocation  /%s\nModified  %s"%[detail,location,_modified_label(path)])
+
+func _run_workspace_script(path: String) -> void:
+	var file:=_file(path)
+	if file.is_empty():
+		if snapshot.get("binary_files",{}).has(path):
+			pending_run_path=path
+			_send({"op":"open_text","path":path})
+		return
+	_switch_app("Terminal")
+	var terminal: Variant=windows.get("Terminal",{}).get("terminal")
+	if is_instance_valid(terminal):terminal.run_program(path,str(file.text))
+
 func _move_destination(data: Variant,directory: String) -> String:
 	if not _supports_rename() or not data is Dictionary:return ""
 	var source:=str(data.get("campus_virtual_path",""))
@@ -1479,7 +1623,9 @@ func _new_folder() -> void:
 func _delete_selected() -> void:
 	var selected:=_selected_entry()
 	if selected.is_empty():status_label.text="Select a file or folder to delete.";return
-	var path:=str(selected.path)
+	_delete_path(str(selected.path))
+
+func _delete_path(path: String) -> void:
 	_capture_draft()
 	for draft in drafts:
 		if str(draft)==path or str(draft).begins_with(path+"/"):
@@ -1488,7 +1634,7 @@ func _delete_selected() -> void:
 	_confirm_action(("Move %s to Recycle Bin?" if recoverable else "Delete %s permanently from this drive?") % path.get_file(),func():
 		_send({"op":"trash" if recoverable else "delete","path":path})
 		if current_path==path or current_path.begins_with(path+"/"):
-			current_path="";_load_editor())
+			current_path="";_load_editor(),"Recycle item" if recoverable else "Delete item","Move to Recycle Bin" if recoverable else "Delete")
 
 func _load_editor() -> void:
 	if editor == null or active_app=="Files":
@@ -1553,15 +1699,41 @@ func _open_selected(open_in_editor := false) -> void:
 	if selected.get("folder",false):
 		_navigate_folder(str(selected.path))
 		return
-	if selected.get("binary",false):
-		status_label.text="This file is stored on the virtual drive."
-		return
-	_open_path(str(selected.path))
+	_open_workspace_file(str(selected.path))
 
-func _open_path(path: String, remember := true) -> void:
+func _open_workspace_file(path: String, preferred := "") -> void:
+	if not _file(path).is_empty():_open_path(path,true,preferred);return
+	if path in snapshot.get("folders",[]):_navigate_folder(path);return
+	var size: int=snapshot.get("binary_files",{}).get(path,-1)
+	if size<0:return
+	if FileTypes.is_text(path.get_extension().to_lower()) and size<=VirtualFiles.MAX_FILE_BYTES:
+		pending_open_path=path
+		pending_open_editor=preferred
+		_send({"op":"open_text","path":path})
+	else:_preview_path(path)
+
+func _preview_path(path: String) -> void:
+	if not _file(path).is_empty():
+		pending_preview=path
+		_show_file_preview(path,str(_file(path).text).to_utf8_buffer())
+		return
+	if not snapshot.get("binary_files",{}).has(path):return
+	pending_preview=path
+	_send({"op":"read_file","path":path})
+
+func _show_file_preview(path: String, bytes: PackedByteArray) -> void:
+	if not is_visible_in_tree() or pending_preview!=path:return
+	pending_preview=""
+	if is_instance_valid(file_viewer):file_viewer.queue_free()
+	file_viewer=Viewer.new()
+	add_child(file_viewer)
+	file_viewer.show_file(path,bytes)
+
+func _open_path(path: String, remember := true, preferred := "") -> void:
 	if _file(path).is_empty():return
-	var code_file:=path.get_extension().to_lower() in ["campus","gd","lua","py","js","ts","cs","c","cpp","json"]
-	_switch_app("Code editor" if code_file else "Text editor")
+	var extension:=path.get_extension().to_lower()
+	var code_file:=extension in FileTypes.CODE_EXTENSIONS or extension in ["json","jsonl","html","xml","css","yaml","yml","toml","md","svg"]
+	_switch_app(preferred if preferred in ["Code editor","Text editor"] else "Code editor" if code_file else "Text editor")
 	current_path=path
 	folder_path=_parent_folder(path)
 	pending_new=false
@@ -1662,6 +1834,9 @@ func _on_operation_failed(message: String) -> void:
 	saving_path=""
 	pending_paper_id=0
 	pending_open_path=""
+	pending_open_editor=""
+	pending_preview=""
+	pending_run_path=""
 	if is_instance_valid(file_list) and file_list.has_meta("pending_location"):file_list.remove_meta("pending_location")
 	if is_instance_valid(status_label):
 		status_label.text=message
@@ -1783,6 +1958,10 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		if is_instance_valid(browser_surface):browser_surface.status.text="Saved to "+str(value.download_path)
 		pending_browser_download=false
 	if value.is_empty():
+		file_clipboard.clear()
+		pending_preview=""
+		pending_run_path=""
+		if is_instance_valid(file_viewer):file_viewer.queue_free()
 		pending_browser_download=false
 		share_monitor = false
 		monitor_share.set_pressed_no_signal(false)
@@ -1869,8 +2048,14 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		if not drafts.is_empty():_autosave.call_deferred()
 	if not pending_open_path.is_empty() and not _file(pending_open_path).is_empty():
 		var new_path:=pending_open_path
+		var preferred:=pending_open_editor
 		pending_open_path=""
-		_open_path.call_deferred(new_path,false)
+		pending_open_editor=""
+		_open_path.call_deferred(new_path,false,preferred)
+	if not pending_run_path.is_empty() and not _file(pending_run_path).is_empty():
+		var path:=pending_run_path
+		pending_run_path=""
+		_run_workspace_script.call_deferred(path)
 	if snapshot.has("local_error"):status_label.text=str(snapshot.local_error)
 
 func _resize_input(event: InputEvent) -> bool:
@@ -1938,6 +2123,21 @@ func _input(event: InputEvent) -> void:
 				break
 			hovered=hovered.get_parent_control()
 	if not event is InputEventKey or not event.pressed or event.echo:return
+	var focused:=get_viewport().gui_get_focus_owner()
+	if active_app=="Files" and is_instance_valid(file_list) and focused==file_list:
+		var selected:=_selected_entry()
+		if event.ctrl_pressed and event.keycode in [KEY_X,KEY_C] and not selected.is_empty():
+			file_clipboard={"path":selected.path,"cut":event.keycode==KEY_X}
+			get_viewport().set_input_as_handled()
+			return
+		if event.ctrl_pressed and event.keycode==KEY_V:
+			_paste_entry(folder_path)
+			get_viewport().set_input_as_handled()
+			return
+		if event.keycode==KEY_DELETE and snapshot.get("public_device",false) and not selected.is_empty():
+			_delete_path(str(selected.path))
+			get_viewport().set_input_as_handled()
+			return
 	if event.keycode==KEY_ENTER and is_instance_valid(get_viewport().gui_get_focus_owner()) and get_viewport().gui_get_focus_owner() in shortcuts_by_name.values() and not selected_shortcut.is_empty():
 		_switch_app(selected_shortcut)
 		get_viewport().set_input_as_handled()

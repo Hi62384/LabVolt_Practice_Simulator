@@ -29,6 +29,10 @@ func attached_to_laptop(id: int) -> int:
  for i in COUNT:
   if cables[i].where in ["partial","connected"] and cables[i].laptop == id:return i
  return -1
+static func connected_to_daq(entries: Array, station: int) -> int:
+ for i in entries.size():
+  if entries[i].where=="connected" and entries[i].station==station:return i
+ return -1
 func apply(peer: int, position: Vector3, op: String, id: int = -1, point: Vector3 = Vector3.ZERO, station: int = -1) -> String:
  if peer < 1 or not position.is_finite():return "Invalid player position."
  var near_cabinet := position.distance_to(CABINET + Vector3(0,1,0)) < 3.0
@@ -97,11 +101,19 @@ func apply(peer: int, position: Vector3, op: String, id: int = -1, point: Vector
  elif op=="attach_daq":
   var cable:=held_cable(peer)
   if cable<0 or cables[cable].where!="partial" or station not in range(3):return "Connect the cable to a laptop first."
+  if connected_to_daq(cables,station)>=0:return "This DAQ already has a USB cable."
   if not point.is_finite() or position.distance_to(point)>3.0 or point.distance_to(laptops[cables[cable].laptop].position)>5.0:return "Move the laptop closer to the DAQ."
   cables[cable].where="connected";cables[cable].owner=0;cables[cable].station=station
- elif op=="disconnect":
-  if id not in range(COUNT) or cables[id].where!="connected":return "No USB cable connected."
+ elif op=="detach_daq":
+  var cable:=connected_to_daq(cables,station)
+  if cable<0:return "No USB cable connected."
   if held_cable(peer)>=0 or held_laptop(peer)>=0:return "Put down the item you are carrying first."
+  if not point.is_finite() or position.distance_to(point)>3.0:return "Move closer to the DAQ."
+  cables[cable].where="partial";cables[cable].owner=peer;cables[cable].station=-1
+ elif op=="disconnect":
+  if id not in range(COUNT) or cables[id].where not in ["connected","partial"]:return "No USB cable connected."
+  if cables[id].where=="partial" and cables[id].owner!=peer:return "Another player is holding this USB cable."
+  if held_cable(peer) not in [-1,id] or held_laptop(peer)>=0:return "Put down the item you are carrying first."
   if position.distance_to(laptops[cables[id].laptop].position)>3.0:return "Move closer to the laptop."
   cables[id].where="held";cables[id].owner=peer;cables[id].laptop=-1;cables[id].station=-1
  else:return "Unsupported laptop action."
