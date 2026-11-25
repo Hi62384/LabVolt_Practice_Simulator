@@ -101,6 +101,9 @@ func _refresh_cosmetic_mesh(id: String) -> void:
 var editor_layer: CanvasLayer
 var editor_studio: Control
 var editor_from_game := false
+var _covered_viewport: Viewport
+var _covered_viewport_disable_3d := false
+
 func is_editing() -> bool:
 	return is_instance_valid(editor_layer)
 func edit(create_new: bool, from_game := false) -> String:
@@ -112,14 +115,23 @@ func edit(create_new: bool, from_game := false) -> String:
 	if not create_new and selected!="":
 		var saved=JSON.parse_string(FileAccess.get_file_as_string(ROOT.path_join(selected).path_join("character.json")))
 		if saved is Dictionary:config=preload("res://scripts/toon_character.gd").sanitize(saved)
-	editor_layer=CanvasLayer.new();editor_layer.layer=100;add_child(editor_layer)
 	var game := get_parent()
-	if not is_instance_valid(game.electronics):editor_layer.free();editor_layer=null;return "Character profile is unavailable."
+	if not is_instance_valid(game.electronics):return "Character profile is unavailable."
+	if from_game:
+		# The opaque studio has its own 3D world. Keep the dorm simulation
+		# running without drawing the campus behind the editor.
+		_covered_viewport=game.get_viewport()
+		_covered_viewport_disable_3d=_covered_viewport.disable_3d
+		_covered_viewport.disable_3d=true
+	editor_layer=CanvasLayer.new();editor_layer.layer=100;add_child(editor_layer)
 	editor_studio=preload("res://scripts/avatar_cosmetics/core/editor_host.gd").new()
 	editor_layer.add_child(editor_studio)
 	editor_studio.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var opened: Dictionary=editor_studio.open_profile({} if create_new else game.electronics.profile.data,config)
-	if not opened.get("ok",false):editor_layer.free();editor_layer=null;editor_studio=null;return "Cosmetic editor could not open."
+	if not opened.get("ok",false):
+		editor_layer.free();editor_layer=null;editor_studio=null
+		_restore_covered_viewport()
+		return "Cosmetic editor could not open."
 	editor_from_game=from_game
 	if editor_from_game:game.release_mouse()
 	else:Input.mouse_mode=Input.MOUSE_MODE_VISIBLE
@@ -184,12 +196,24 @@ func _create_from_studio(intent: Dictionary, config: Dictionary) -> void:
 	_editor_closed(true)
 
 func _editor_closed(saved: bool) -> void:
+	if not is_editing():return
+	editor_layer.visible=false
 	editor_layer.queue_free();editor_layer=null;editor_studio=null
+	_restore_covered_viewport()
 	refresh()
 	if saved:select_profile(editing)
 	if editor_from_game:
 		editor_from_game=false
 		get_parent().capture()
+
+func _restore_covered_viewport() -> void:
+	if is_instance_valid(_covered_viewport):
+		_covered_viewport.disable_3d=_covered_viewport_disable_3d
+	_covered_viewport=null
+
+func _exit_tree() -> void:
+	_restore_covered_viewport()
+
 func save_character(id: String,config: Dictionary,appearance: Dictionary = {},catalog: Dictionary = {}) -> String:
 	if id.is_empty() or id.contains("/") or id.contains("\\") or id.contains(".."):return "Invalid profile."
 	var directory := ProjectSettings.globalize_path(ROOT.path_join(id))

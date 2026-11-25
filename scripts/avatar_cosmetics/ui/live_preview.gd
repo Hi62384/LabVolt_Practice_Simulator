@@ -13,12 +13,16 @@ var _rest_rotations: Dictionary = {}
 const POSE_JOINTS := ["Body/ArmL", "Body/ArmR", "Body/Head", "LegL", "LegR"]
 
 func _ready() -> void:
-	stretch = true
+	# The TextureRect presents this viewport at native resolution. Keep it out
+	# of the container's automatic viewport sizing from the moment it enters.
+	var render_root := Node.new()
+	add_child(render_root)
 	viewport = SubViewport.new()
-	viewport.size = Vector2i(720, 720)
+	viewport.size = Vector2i(2, 2)
 	viewport.own_world_3d = true
 	viewport.msaa_3d = Viewport.MSAA_4X
-	add_child(viewport)
+	viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	render_root.add_child(viewport)
 	stage = Node3D.new()
 	viewport.add_child(stage)
 	var environment := WorldEnvironment.new()
@@ -93,14 +97,11 @@ func use_native_resolution() -> void:
 	display.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(display)
 	display.set_anchors_and_offsets_preset(PRESET_FULL_RECT)
-	var render_root := Node.new()
-	add_child(render_root)
-	viewport.reparent(render_root)
 	display.texture = viewport.get_texture()
-	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	resized.connect(_resize_native_viewport)
 	get_viewport().size_changed.connect(_resize_native_viewport)
 	_resize_native_viewport()
+	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 
 func _resize_native_viewport() -> void:
 	var pixels := size * get_screen_transform().get_scale().abs()
