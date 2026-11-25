@@ -23,6 +23,8 @@ var token := ""
 var documents := {}
 var language_overrides := {}
 var pending := []
+var project_sources: Dictionary = {}
+var sent_project_sources: Dictionary = {}
 var initialized := false
 var started := 0
 
@@ -58,15 +60,19 @@ func _process(_delta: float) -> void:
 	elif Time.get_ticks_msec()-started>10000:
 		set_process(false)
 
-func show_source(path: String, value: String) -> void:
+func show_source(path: String, value: String, sources: Dictionary = {}) -> void:
 	var id:=path.sha256_text().left(24)
 	documents[id]=path
 	pending=[id,path,language_overrides.get(path,LANGUAGES.get(path.get_extension().to_lower(),"plaintext")),value,token]
+	project_sources=sources
 	_show_source()
 
 func _show_source() -> void:
 	if initialized and not pending.is_empty():
 		browser.execute_javascript("window.campusSource(...%s)"%JSON.stringify(pending))
+		if project_sources!=sent_project_sources:
+			sent_project_sources=project_sources
+			browser.execute_javascript("window.campusProjectSources(%s)"%JSON.stringify(project_sources))
 
 func action(name: String) -> void:
 	if initialized:browser.execute_javascript("window.campusEditorAction(%s)"%JSON.stringify(name))

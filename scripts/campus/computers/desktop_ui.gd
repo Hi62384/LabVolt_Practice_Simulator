@@ -2238,7 +2238,16 @@ func _load_editor() -> void:
 	if active_app in ["Text editor","Code editor"]:
 		var window: Dictionary=windows[active_app]
 		if window.has("monaco"):
-			window.monaco.show_source(current_path,next_text)
+			var project_sources:={}
+			var extension:=current_path.get_extension().to_lower()
+			if extension in ["js","jsx","mjs","cjs","ts","tsx"]:
+				var folder:=current_path.get_base_dir()
+				var files: Dictionary=snapshot.get("files",{})
+				for path: String in files:
+					if path==current_path or path.get_extension().to_lower() not in ["js","jsx","mjs","cjs","ts","tsx"]:continue
+					if (folder.is_empty() and path.contains("/")) or (not folder.is_empty() and not path.begins_with(folder+"/")):continue
+					project_sources[path]=str(drafts.get(path,files[path].get("text","")))
+			window.monaco.show_source(current_path,next_text,project_sources)
 			window.syntax.select(window.syntax_modes.find(window.monaco.language_overrides.get(current_path,""))+1)
 		if window.has("saved_location"):
 			var location: String=_display_workspace_path(current_path) if not current_path.is_empty() else "Unsaved file"

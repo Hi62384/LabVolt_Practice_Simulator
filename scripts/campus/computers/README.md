@@ -16,11 +16,13 @@ To enable remote execution on the game host, set `LABVOLT_JUDGE0_URL` to an HTTP
 
 | Source | Editing | Execution |
 | --- | --- | --- |
-| HTML, CSS, JavaScript | Monaco language services include contextual suggestions and diagnostics | Offline preview in a separate Campus OS window |
-| TypeScript | Monaco language services include contextual suggestions and diagnostics | Requires a compatible Judge0 runtime |
+| HTML, CSS, JavaScript | Monaco language services include contextual suggestions and diagnostics. The JavaScript worker resolves imports from available workspace sources in the current folder and its subfolders. | Offline preview in a separate Campus OS window |
+| TypeScript | Monaco checks types across imports from available workspace sources in the current folder and its subfolders. | Requires a compatible Judge0 runtime |
 | JSON | Monaco schema-aware editing and diagnostics where a schema is available | Local validation |
 | Python, C, C++, C#, Java, Go, Rust, Ruby, Lua, PHP, Kotlin and other mapped extensions | Monaco syntax support where available and word-based completion | The selected Judge0 deployment determines the available runtimes |
 | Other files | Plain text or the available Monaco language mode | A compatible provider runtime may be selected explicitly |
+
+The opt-in live test at `tests/campus/computers/test_ide_live.gd` submits original Python, C, C++, C#, and Java fixtures to the configured Judge0 endpoint. It uses no workspace files. The graphical test at `tests/campus/computers/test_ide_project_symbols.gd` verifies that Monaco resolves an imported TypeScript symbol and reports its type mismatch.
 
 ## Application packages and Windows files
 
@@ -35,3 +37,5 @@ Web previews resolve assets from the selected file's folder in the virtual drive
 Each app runs in a separate Chromium context at `https://campus-app.invalid/`. Only its packaged resources are served. Fetch `/__campus__/state.json` to read its saved JSON object, or PUT a replacement JSON object up to 4 KiB. The desktop submits changes to the active virtual drive through the same session authority used for file saves. No host filesystem paths are passed to the app. The runtime disables outgoing requests, privileged game bindings, external navigation, and downloads in app windows. The bundled Windows gdCEF build runs without Chromium's OS-level subprocess sandbox.
 
 Windows downloads can be stored and transferred in the virtual filesystem. Native execution requires a process broker that can demonstrate adequate AppContainer or LPAC, filesystem, registry and IPC isolation with a controlled Windows fixture before exposing player binaries. Windows installers can require services or privileges outside that boundary. The firmware toolchain's existing isolated compiler process does not provide an integrated graphical app runtime.
+
+From Visual Studio x64 Developer PowerShell, run `tests/campus/computers/native_windows/test_window_capture.ps1 -VerifyGpuAndInput` to verify the controlled executable. The fixture checks the AppContainer token, denies a private file read and machine registry write, and writes to its scoped directory. The optional mode sends F9 to the verified fixture window, reads back a Direct3D hardware render target inside the guest, and captures the new color after the guest paints it. Native swap-chain capture, audio, and player-supplied executables are outside this fixture.

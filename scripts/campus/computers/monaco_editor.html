@@ -12,7 +12,7 @@ html, body, #code { width: 100%; height: 100%; margin: 0; overflow: hidden; back
 <div id="code" aria-label="Source code"></div>
 <script>
 require.config({ paths: { vs: "./vs" } });
-require(["vs/editor/editor.main"], function () {
+require(["vs/editor/editor.main", "vs/language/typescript/monaco.contribution"], function (_editorApi, typescript) {
     const models = new Map();
     let update;
     let dirty = false;
@@ -78,6 +78,23 @@ require(["vs/editor/editor.main"], function () {
         dirty = false;
         send(JSON.stringify({ token: wireToken, id: documentId, kind, text: bytesToBase64(source) }));
     }
+    function projectUri(path) {
+        return monaco.Uri.from({ scheme: "file", path: "/campus-workspace/" + path });
+    }
+    const projectDefaults = [typescript.typescriptDefaults, typescript.javascriptDefaults];
+    for (const defaults of projectDefaults) {
+        defaults.setCompilerOptions({
+            ...defaults.getCompilerOptions(),
+            allowJs: true,
+            moduleResolution: typescript.ModuleResolutionKind.NodeJs
+        });
+    }
+    window.campusProjectSources = sources => {
+        const extra = Object.entries(sources).map(([path, content]) => ({
+            filePath: projectUri(path).toString(), content
+        }));
+        for (const defaults of projectDefaults) defaults.setExtraLibs(extra);
+    };
     window.campusSource = (id, path, language, value, token) => {
         if (dirty && editor.getModel()) publish("edit");
         clearTimeout(update);
@@ -91,7 +108,7 @@ require(["vs/editor/editor.main"], function () {
                 models.get(oldest).model.dispose();
                 models.delete(oldest);
             }
-            const uri = monaco.Uri.from({ scheme: "campus", path: "/" + (path || "untitled.txt") });
+            const uri = projectUri(path || "untitled.txt");
             const model = monaco.editor.getModel(uri) || monaco.editor.createModel(value, language, uri);
             model.updateOptions({ tabSize: 4, insertSpaces: true });
             record = { model, state: null };
