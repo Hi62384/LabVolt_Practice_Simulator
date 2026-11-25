@@ -22,7 +22,7 @@ func batch_static_props() -> void:
 
 func build_room() -> void:
 	_floor()
-	for z in [-3.824, 9.824]:
+	for z in [-3.738, 9.824]:
 		_box(self, Vector3(26, 1.18, z), Vector3(19.7, .05, .04), "728da0")
 		_box(self, Vector3(26, 3.78, z), Vector3(19.7, .06, .04), FRAME)
 	_service_bench()

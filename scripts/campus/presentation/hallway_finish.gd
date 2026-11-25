@@ -26,16 +26,26 @@ static func apply(world: Node3D) -> void:
 		var door_z: float = float(room.door[2])
 		if room.id in ["tim_hortons", "subway"]: continue
 		if room.id not in world.WINDOW_ROOMS:
-			_add_wall_run(world, face_x, center.y, z0, door_z - half)
-			_add_wall_run(world, face_x, center.y, door_z + half, z1)
+			if room.id!="lost_found":_add_wall_run(world, face_x, center.y, z0, door_z - half)
+			if room.id!="washroom_1":_add_wall_run(world, face_x, center.y, door_z + half, z1)
 		_add_frame(world, face_x, center.y, door_z, half)
 	# Gap closures exist where rooms do not supply their own wall.
 	for closure in HallwayGeometry.edge_closures():
 		var x: float = float(closure.position.x)
+		if x==10.0 and int(closure.floor)==0 and float(closure.z_min)==53.0:continue
 		var face_x: float = x + (0.09 if x == 10.0 else -0.09)
 		_add_wall_run(world, face_x, float(closure.floor) * 5.0, float(closure.z_min), float(closure.z_max))
 	for x in [10.09, 15.91]:
 		_add_wall_run(world, x, 0.0, -11.0, -4.0)
+	# Match the stairwell and elevator walls that sit between room shells.
+	var washroom: Dictionary=world.registry.get_room("washroom_1")
+	var lost_found: Dictionary=world.registry.get_room("lost_found")
+	_add_wall_run(world,10.09,0.0,float(washroom.door[2])+float(washroom.door_width)*.5,float(lost_found.door[2])-float(lost_found.door_width)*.5)
+	_add_wall_run(world, 10.09, 5.0, 58.0, 68.0)
+	for floor in [0,1]:
+		var base := float(floor)*5.0
+		_add_wall_run(world, 15.91, base, 54.0, 58.0)
+		_add_wall_run(world, 15.91, base, 60.0, 68.0 if floor==0 else 62.0)
 	_add_floor_tiles(world, 0, -11.0, 68.0)
 	_add_floor_tiles(world, 1, -4.0, 50.0)
 	_add_floor_tiles(world, 1, 50.0, float(world.registry.data.corridor.upper_z_max))
@@ -110,7 +120,8 @@ static func _add_fixtures(world: Node3D) -> void:
 		for z in range(first, 68, 5):
 			if floor == 0 and z >= 50: continue
 			var fixture := Node3D.new()
-			fixture.position = Vector3(13.0, floor * 5.0 + 3.947, z)
+			var x := 14.5 if floor==1 and z>=50 and z<62 else 13.0
+			fixture.position = Vector3(x, floor * 5.0 + 3.947, z)
 			world.add_child(fixture)
 			world.box(fixture, Vector3.ZERO, Vector3(1.79, .085, .76), FRAME, false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			world.box(fixture, Vector3(0, -.047, 0), Vector3(1.68, .027, .64), "fff0d8", false)
@@ -133,7 +144,7 @@ static func _add_fixtures(world: Node3D) -> void:
 		world.box(world,position-Vector3.UP*.04,Vector3(1.24,.025,.38),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		Fixtures.ceiling_omni(world,position-Vector3.UP*.06,1.5,6.7).distance_fade_shadow=9.0
 		Fixtures.ceiling_spill(world,position-Vector3.UP*.18)
-	for z in [53.5,58.5,63.0]:
+	for z in [53.5,58.5]:
 		var position := Vector3(11.5,8.92,z)
 		world.box(world,position,Vector3(1.4,.045,.44),"fff0d8",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		Fixtures.ceiling_omni(world,position,1.45,9.0).distance_fade_shadow=11.0
@@ -160,12 +171,12 @@ static func _add_stair_finish(world: Node3D) -> void:
 	# Existing convex ramp collision and tread geometry are untouched.
 	for i in range(30):
 		var top: float = (i + 1.0) * 5.0 / 30.0
-		world.box(world, Vector3(11.5, top + 0.009, 50.0 + (i + 0.5) * 0.4), Vector3(2.96, 0.015, 0.375), FLOOR_A if i % 2 == 0 else FLOOR_B, false)
+		world.box(world, Vector3(11.5, top + 0.009, 50.0 + (i + 0.5) * 0.4), Vector3(2.96, 0.015, 0.375), FLOOR_A, false)
 	for x in [10.13, 12.87]:
 		for index in range(7):
-			var z: float = 50.0 + index * 2.0
-			var y: float = 0.75 + index * (5.0 / 6.0)
-			world.box(world, Vector3(x, y, z), Vector3(0.055, 1.45, 0.055), FRAME, false)
+			var z := lerpf(50.16,61.84,index/6.0)
+			var rise := (z-50.0)*5.0/12.0
+			world.box(world, Vector3(x, rise+.50, z), Vector3(.055,.96,.055), FRAME, false)
 
 static func _add_instances(world: Node3D, transforms: Array[Transform3D], color: String, range_end: float) -> void:
 	var sections := {}

@@ -85,7 +85,8 @@ func build() -> void:
 	for index in diffusers.size():diffusers[index] -= Vector3(0,.029,0)
 	tiles(diffusers,Vector3(1.08,.018,1.08),"fff1db")
 	for z in [-5.75,5.75]:
-		for x in [-8.0, -4.25, 4.25, 8.0]:
+		var sconce_positions := [-8.4,-1.55,4.25,8.0] if z>0 else [-8.0,-4.25,4.25,8.0]
+		for x in sconce_positions:
 			var wall := Vector3(x,2.69,z)
 			panel(wall,Vector3(.23,.21,.17),"344f59")
 			panel(wall-Vector3(0,.115,0),Vector3(.18,.022,.12),"fff1db")
