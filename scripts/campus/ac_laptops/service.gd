@@ -108,6 +108,7 @@ func _build_laptop(root: Node3D,id: int) -> void:
  var keys:=MultiMeshInstance3D.new();keys.multimesh=keyboard_instances;keys.material_override=keyboard_material;keys.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;body.add_child(keys)
  _box(body,Vector3(0,.028,.108),Vector3(.13,.004,.065),Color("91a5a9"))
  var lid:=Node3D.new();lid.name="Lid";lid.position=Vector3(0,.06,-.15);root.add_child(lid)
+ _target(lid,"ac_laptop",id,Vector3(0,.13,.008),Vector3(.46,.26,.034))
  _box(lid,Vector3(0,.13,0),Vector3(.46,.26,.025),Color("718892"))
  _box(lid,Vector3(0,.13,.014),Vector3(.42,.225,.006),Color("182b36"))
  _box(lid,Vector3(0,.13,.018),Vector3(.385,.188,.003),Color("315e70"))

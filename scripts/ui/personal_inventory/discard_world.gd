@@ -63,6 +63,13 @@ func _discard(peer: int,source: Dictionary,point: Vector3,allow_held_kit := fals
 	if not profile.has("dorm") or not profile.get("pending_trade",{}).is_empty():
 		_notice(peer,"Inventory is unavailable.");return
 	var item: Dictionary = source.item
+	if item.get("kind")=="usb":
+		_discard_usb(peer,identity,profile,source,floor_point)
+		return
+	var carry_key:=str(item.get("id","")) if item.get("kind")=="supply" else "%s:%s"%[item.get("kind",""),item.get("id","")]
+	if game.personal_placement.is_placed(peer,carry_key) or (item.get("kind")=="laptop" and game.portable_laptops.placed.has(item.get("id",""))):
+		_notice(peer,"Pick up the item before discarding it.")
+		return
 	var parcel: Dictionary
 	var label: String
 	if item.get("kind")=="paper":
@@ -117,6 +124,31 @@ func _discard(peer: int,source: Dictionary,point: Vector3,allow_held_kit := fals
 			game.school.broadcast()
 	var token := track_ground(peer,parcel,label)
 	drops[next_id]={"position":floor_point,"expires":Time.get_ticks_msec()+Lifetime,"label":label,"parcel":parcel,"owner":peer,"token":token}
+	next_id+=1
+	_publish()
+	_notice(peer,"Discarded "+label+".",true)
+
+func _discard_usb(peer: int,identity: String,profile: Dictionary,source: Dictionary,point: Vector3) -> void:
+	var id:=str(source.item.get("id",""))
+	var next:=profile.duplicate(true)
+	var dorm: Dictionary=next.dorm
+	var drive: Dictionary=dorm.get("usb_drives",{}).get(id,{})
+	var key:="usb:"+id
+	if source.get("location")!="hotbar" or drive.get("location")!="hotbar" or key not in dorm.get("carry_items",[]) or game.personal_placement.is_placed(peer,key):
+		_notice(peer,"The USB drive must be in your hotbar.")
+		return
+	dorm.carry_items.erase(key)
+	drive.location="lost"
+	dorm.revision+=1
+	var saved: Dictionary=game.dorm_interactions._commit_world_inventory(peer,identity,next)
+	if not saved.ok:
+		_notice(peer,str(saved.error))
+		return
+	var label: String=drive.name
+	var parcel: Dictionary={"usb":{"id":id,"owner":identity,"name":label,"capacity_mb":int(drive.capacity_mb)}}
+	if peer==multiplayer.get_unique_id():cache_ground(id,parcel,label)
+	else:cache_ground.rpc_id(peer,id,parcel,label)
+	drops[next_id]={"position":point,"expires":Time.get_ticks_msec()+Lifetime,"label":label,"parcel":parcel,"owner":peer,"token":id}
 	next_id+=1
 	_publish()
 	_notice(peer,"Discarded "+label+".",true)
@@ -483,6 +515,7 @@ func _title(parcel: Dictionary,profile: Dictionary) -> String:
 		"kit":return str(parcel.kits[item.id].name)
 		"bag":return str(Transfer.Dorm.Backpacks.SIZES[parcel.bags[item.id].size].name)
 		"supply":return Transfer.Dorm.supply_title(str(item.id))
+		"laptop":return str(Transfer.Laptops.TIERS[parcel.laptop.tier].name)
 	var catalog := Transfer.Board.catalog({"definitions":profile.get("blueprints",{}),"parts":[item]})
 	return str(catalog.get(item.get("type",""),{}).get("name","Component"))
 
@@ -634,11 +667,22 @@ func _make_view(id: int,drop: Dictionary) -> StaticBody3D:
 		material.albedo_color=Color("6c9a8b")
 		ring.material_override=material
 		root.add_child(ring)
-	var kind := _visual_kind(drop)
+	_add_item_visual(root,_visual_kind(drop),drop)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size=Vector3(.27,.16,.21)
+	collision.shape=shape
+	collision.position.y=.08
+	root.add_child(collision)
+	return root
+
+func _add_item_visual(root: Node3D,kind: String,drop: Dictionary) -> void:
 	var prop := Node3D.new();root.add_child(prop)
 	if kind=="usb":
 		game._box(prop,Vector3(0,.014,0),Vector3(.105,.022,.038),Color("315363"))
 		game._box(prop,Vector3(.061,.014,0),Vector3(.025,.012,.027),Color("bdccca"))
+	elif kind=="laptop":
+		game.ac_laptops._closed_laptop(prop)
 	elif kind in ["flashlight","lab_goggles","marker"]:
 		game.school_world._build_supply_prop(prop,kind)
 		prop.position.y=.05
@@ -693,13 +737,6 @@ func _make_view(id: int,drop: Dictionary) -> StaticBody3D:
 		else:game._box(prop,Vector3(0,.015,0),Vector3(.07,.025,.05),Color("273a41"))
 	else:
 		game._box(prop,Vector3.UP*.018,Vector3(.22,.035,.16),Color("e8e1d2"))
-	var collision := CollisionShape3D.new()
-	var shape := BoxShape3D.new()
-	shape.size=Vector3(.27,.16,.21)
-	collision.shape=shape
-	collision.position.y=.08
-	root.add_child(collision)
-	return root
 
 # The player's own checksummed store travels with their client, never the host.
 func _open_store() -> bool:
@@ -882,6 +919,9 @@ func _valid_entry(token: String,entry: Variant) -> bool:
 	if parcel.has("food"):return parcel.food is Dictionary and parcel.food.get("item") is String
 	if parcel.has("paper"):return parcel.paper is Dictionary and not game.school._class_assessment(parcel.paper)
 	if not parcel.get("item") is Dictionary:return false
+	if parcel.item.get("kind")=="laptop":
+		var id: String=str(parcel.item.get("id",""))
+		if id.length()!=32 or not id.is_valid_hex_number() or not parcel.get("laptop") is Dictionary or not Transfer.Laptops.TIERS.has(parcel.laptop.get("tier","")):return false
 	for key in ["kits","tiers","bags","stock","instances","supplies","definitions","carried_stock"]:
 		if not parcel.get(key) is Dictionary:return false
 	return parcel.get("carried_instances") is Array and (not parcel.has("pcb") or parcel.pcb is Dictionary)

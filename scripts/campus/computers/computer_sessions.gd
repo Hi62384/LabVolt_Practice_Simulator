@@ -2,6 +2,8 @@ extends Node
 signal desktop_changed(snapshot: Dictionary)
 signal occupancy_changed(occupancy: Dictionary)
 signal power_changed(power: Dictionary)
+signal connected_usb_changed(ports: Dictionary)
+var connected_usb_ports: Dictionary = {}
 signal boot_changed(boot: Dictionary)
 signal operation_failed(message: String)
 signal file_opened(path: String, bytes: PackedByteArray)
@@ -10,6 +12,8 @@ signal usb_write_committed(station: String, token: String)
 const Files = preload("res://scripts/campus/computers/virtual_files.gd")
 const Documents = preload("res://scripts/campus/computers/local_documents.gd")
 const UsbArchive = preload("res://scripts/campus/computers/usb_archive.gd")
+const Preferences = preload("res://scripts/campus/computers/desktop_preferences.gd")
+const Apps = preload("res://scripts/campus/computers/application_registry.gd")
 const UsbTransfer = preload("res://scripts/campus/computers/usb_transfer.gd")
 const UsbDrive = preload("res://scripts/campus/computers/device_filesystem.gd")
 const Downloads = preload("res://scripts/campus/computers/browser_download.gd")
@@ -69,12 +73,19 @@ func register_portable(id: String,anchor: Vector3,owner: String,tier: String) ->
 	return true
 
 func unregister_portable(id: String) -> bool:
-	if not stations.has(id) or not stations[id].get("portable",false) or stations[id].power.powered or not stations[id].power.usb.is_empty() or sessions.values().any(func(session):return session.station==id):return false
+	if not stations.has(id) or not stations[id].get("portable",false) or not stations[id].power.usb.is_empty() or usb_writes.has(id) or usb_uploads.values().any(func(upload):return upload.station==id):return false
+	if stations[id].power.powered:_power_off(id)
 	stations.erase(id);public_workspaces.erase(id);station_users.erase(id);return true
 
 func _has_access(peer: int,entry: Dictionary) -> bool:
-	if entry.get("portable",false):return game.session.poses.get(peer,{}).get("position",Vector3.INF).distance_to(entry.anchor)<=3
-	return int(entry.chair)>=0 and game.chairs[entry.chair].occupant==peer
+	if not entry.get("portable",false):
+		var seated_peer: int=game.chairs[entry.chair].occupant
+		if seated_peer==peer:return true
+		if seated_peer!=0 and game.session.roster.has(seated_peer):return false
+	return _workstation_distance(peer,entry.anchor)<=3
+func _workstation_distance(peer: int, anchor: Vector3) -> float:
+	var position: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
+	return position.distance_to(anchor)
 func set_private_owner(id: String,owner: String) -> bool:
 	if not stations.has(id):return false
 	if stations[id].get("private_owner",null)==owner:return true
@@ -89,7 +100,7 @@ func _identity(peer: int) -> String:
 func _private_allowed(peer: int,entry: Dictionary) -> bool:
 	return not entry.has("private_owner") or (not str(entry.private_owner).is_empty() and _identity(peer)==entry.private_owner)
 func request(action: Dictionary) -> void:
-	if action.get("op")=="read_file":
+	if action.get("op") in ["read_file","read_project"]:
 		file_read={"path":str(action.get("path","")),"lease":action.get("lease"),"bytes":PackedByteArray()}
 	if action.get("op","")=="usb_port" and game.session.online:
 		action=action.duplicate()
@@ -164,11 +175,15 @@ func _accept(peer: int, action: Dictionary) -> void:
 	if op=="power":
 		var id:=str(action.get("station",""))
 		if not stations.has(id) or not stations[id].has("power") or not _private_allowed(peer,stations[id]):return
-		if game.session.poses.get(peer,{}).get("position",Vector3.INF).distance_to(stations[id].anchor)>3:return
+		if _workstation_distance(peer,stations[id].anchor)>3:
+			_error(peer,"Move closer to the power button.")
+			return
 		var device=stations[id].power
 		if usb_writes.has(id):_error(peer,"Wait for the USB save to finish.");return
 		if device.powered:_power_off(id)
 		else:
+			if stations[id].get("portable",false) and is_instance_valid(game.device_charging) and not game.device_charging.can_power_laptop(peer,id,str(stations[id].tier)):
+				_error(peer,"Laptop battery is empty. Connect it to a charger in M110.");return
 			device.turn_on(Time.get_ticks_msec())
 			power_cycle+=1
 			stations[id].cycle=power_cycle
@@ -188,14 +203,10 @@ func _accept(peer: int, action: Dictionary) -> void:
 		if Time.get_ticks_msec()<int(entry.get("ready_at",0)):_error(peer,"Campus OS is starting.");return
 		if entry.has("power") and not entry.power.usb.is_empty() and str(entry.power.usb.get("owner",""))!=_identity(peer):
 			_error(peer,"This workstation has another player's USB drive connected.");return
-		var position: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
-		if position.distance_to(entry.anchor)>3:return
-		if not entry.get("portable",false):
-			var chair = game.chairs[entry.chair]
-			if chair.occupant!=0 and not game.session.roster.has(chair.occupant):
-				game._release_chair(chair.occupant)
-			if chair.occupant==0:game._claim_chair(peer,entry.chair)
-			if chair.occupant!=peer:return
+		if not _has_access(peer,entry):return
+		for current: Dictionary in sessions.values():
+			if current.station==id:
+				_error(peer,"This computer is in use.");return
 		serial+=1
 		var identity := _identity(peer)
 		if workspace_identities.get(peer,"__unbound__")!=identity:
@@ -217,10 +228,10 @@ func _accept(peer: int, action: Dictionary) -> void:
 				if not entry.power.usb.is_empty():
 					for path in entry.power.usb.drive.entries:
 						var file: Dictionary=entry.power.usb.drive.entries[path]
-						if file.type=="file" and Files.path(path)==path:
+						if file.type=="file" and Files.path(path)==path and Downloads.is_text(path.get_extension()):
 							var bytes: PackedByteArray=file.data
-							var text:=bytes.get_string_from_utf8()
-							if text.to_utf8_buffer()==bytes:profiles[owner_key].workspace.files[path]={"text":text,"version":1}
+							if bytes.size()<=Files.MAX_FILE_BYTES and Downloads.valid(bytes,path.get_extension()):
+								profiles[owner_key].workspace.files[path]={"text":bytes.get_string_from_utf8(),"version":1}
 			public_workspaces[id]=profiles[owner_key].workspace
 			entry.power.drive=profiles[owner_key].drive if entry.power.usb.is_empty() else entry.power.usb.drive
 			workspaces[peer]=public_workspaces[id]
@@ -255,12 +266,26 @@ func _accept(peer: int, action: Dictionary) -> void:
 	last_request[peer]=now
 	var workspace: Dictionary=workspaces[peer]
 	var file_device := bool(session.get("public_device", false))
-	var writes_usb: bool=file_device and not entry.power.usb.is_empty() and op in ["save","mkdir","delete","rename","copy_download","copy","zip","extract"]
+	var writes_usb: bool=file_device and not entry.power.usb.is_empty() and (op in ["save","mkdir","delete","rename","download","copy_download","copy","zip","extract","save_preferences"] or op in Apps.OPERATIONS)
+	var download_path: String=""
 	var usb_before: Dictionary=entry.power.usb.drive.entries.duplicate(true) if writes_usb else {}
 	var workspace_before: Dictionary=workspace.duplicate(true) if writes_usb else {}
-	if str(action.get("path","")).to_lower().begins_with(".recycle") or str(action.get("new_path","")).to_lower().begins_with(".recycle"):
-		_error(peer,"That path is reserved.");return
+	for key in ["path","new_path"]:
+		var path:=str(action.get(key,"")).to_lower()
+		if path.begins_with(".recycle") or path==Preferences.PATH:
+			_error(peer,"That path is reserved.");return
+		if Apps.managed(path) and (op!="read_file" or not path.begins_with("program files/") or not path.ends_with("/application.campusapp")):
+			_error(peer,"Use Installed Apps to manage Program Files.");return
 	match op:
+		"install_app","uninstall_app","save_app_state":
+			if not file_device:_error(peer,"Installation requires a virtual drive.");return
+			var app_error:=Apps.apply(entry.power.drive,action)
+			if not app_error.is_empty():_error(peer,app_error);return
+		"save_preferences":
+			var settings:=Preferences.clean(action.get("settings"))
+			if not writes_usb or settings.is_empty() or not entry.power.usb.drive.write_file(Preferences.PATH,JSON.stringify(settings).to_utf8_buffer()):
+				_error(peer,"Could not save Campus OS settings to this USB drive.");return
+			action={"op":op,"settings":settings}
 		"restore":
 			if restored.has(peer):_error(peer,"This connection has already restored its files.");return
 			var files = action.get("files",{})
@@ -285,7 +310,7 @@ func _accept(peer: int, action: Dictionary) -> void:
 			var bytes: Variant=action.get("bytes")
 			if not filename is String or not bytes is PackedByteArray or filename.length()>25 or Files.path(filename)!=filename or filename.contains("/") or filename.begins_with(".") or not Downloads.valid(bytes,filename.get_extension()):
 				_error(peer,"Invalid download.");return
-			var drive: Variant=_workstation_drive(session.station,peer)
+			var drive: Variant=entry.power.drive
 			if drive==null:
 				_error(peer,"This workstation drive is unavailable.");return
 			var path: String="Downloads/"+filename
@@ -295,15 +320,17 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if drive.entries.has(path) or workspace.files.has(path):
 				_error(peer,"No free filename in Downloads.");return
 			var files: Dictionary=workspace.files
-			if Downloads.is_text(filename.get_extension()) and bytes.size()<=Files.MAX_FILE_BYTES and entry.power.usb.is_empty():
+			if Downloads.is_text(filename.get_extension()) and bytes.size()<=Files.MAX_FILE_BYTES:
 				var result := Files.save(files,path,bytes.get_string_from_utf8(),0)
 				if result.has("files"):files=result.files
 			if not drive.entries.has("Downloads") and not drive.make_folder("Downloads"):
 				_error(peer,"Could not create Downloads.");return
 			if not drive.write_file(path,bytes):
+				if writes_usb:drive.entries=usb_before
 				_error(peer,"Could not save to Downloads. Check the available space.");return
 			workspace.files=files
-			session.download_path=path
+			download_path=path
+			if writes_usb:action={"op":"copy_download","path":path,"bytes":bytes}
 		"copy_download":
 			if not writes_usb:
 				_error(peer,"Attach a USB drive to copy a download.");return
@@ -375,6 +402,28 @@ func _accept(peer: int, action: Dictionary) -> void:
 			else:
 				var error:=FileOperations.apply(entry.power.drive,op,source,target)
 				if not error.is_empty():_error(peer,error);return
+		"read_project":
+			var project_path:=str(action.get("path",""))
+			if not file_device or not FileOperations.valid(project_path) or not (entry.power.drive.entries.has(project_path) or workspace.files.has(project_path)):
+				_error(peer,"The project entry is unavailable.");return
+			var assets:={}
+			var folder:=project_path.get_base_dir()
+			var prefix:=folder+"/" if not folder.is_empty() else ""
+			var bytes_total:=0
+			for file_path: String in entry.power.drive.entries:
+				if not file_path.begins_with(prefix) or Apps.managed(file_path) or file_path.to_lower().begins_with(".recycle"):continue
+				var relative:=file_path.trim_prefix(prefix)
+				if prefix.is_empty() and relative.contains("/"):continue
+				var asset: Dictionary=entry.power.drive.entries[file_path]
+				if asset.get("type")!="file" or relative.get_extension().to_lower() not in Apps.Packages.CONTENT:continue
+				bytes_total+=asset.data.size()
+				if assets.size()>=128 or bytes_total>Apps.Packages.MAX_EXPANDED:
+					_error(peer,"Web preview supports up to 128 assets and 16 MiB of project files.");return
+				assets[relative]=asset.data
+			var archive: PackedByteArray=Apps.Packages.Zip.new().Pack(assets)
+			if archive.is_empty():_error(peer,"The project archive exceeds the 8 MiB preview transfer limit.");return
+			_deliver_file(peer,session.lease,project_path,archive)
+			return
 		"read_file","open_text":
 			var path:=str(action.get("path",""))
 			var file: Dictionary=entry.power.drive.entries.get(path,{}) if file_device and FileOperations.valid(path) else {}
@@ -406,13 +455,14 @@ func _accept(peer: int, action: Dictionary) -> void:
 		_:
 			return
 	if not workspace_before.is_empty() and entry.power.usb.get("remote",false):
-		_begin_usb_write(peer,session.station,action,usb_before,workspace_before)
+		_begin_usb_write(peer,session.station,action,usb_before,workspace_before,download_path)
 		return
 	if not workspace_before.is_empty() and entry.power.save_local_usb()!=OK:
 		entry.power.usb.drive.entries=usb_before
 		workspace.clear();workspace.merge(workspace_before,true)
 		_error(peer,"USB save failed; the change was not applied.")
 		return
+	if not download_path.is_empty():session.download_path=download_path
 	session.revision+=1
 	_reply(peer)
 
@@ -479,7 +529,7 @@ func _recycle_operation(workspace: Dictionary, drive: RefCounted, action: Dictio
 	else:records.erase(id)
 	return ""
 
-func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries: Dictionary,old_workspace: Dictionary) -> void:
+func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries: Dictionary,old_workspace: Dictionary,download_path := "") -> void:
 	var usb: Dictionary=stations[station].power.usb
 	var owner_peer:=0
 	for peer in game.session.roster:
@@ -492,8 +542,20 @@ func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries:
 	var operation:={"op":str(action.op),"path":str(action.get("path",""))}
 	if action.op=="save":operation.text=str(action.text)
 	if action.op=="copy_download":operation.bytes=action.bytes
+	if action.op=="save_preferences":operation.settings=action.settings
+	if action.op=="install_app":
+		operation.sha256=str(action.get("sha256",""))
+		operation.folder=str(action.get("folder",""))
+		operation.replace=action.get("replace",false)==true
+		operation.shortcut=action.get("shortcut",true)==true
+	if action.op in ["uninstall_app","save_app_state"]:operation.app_id=str(action.get("app_id",""))
+	if action.op=="uninstall_app":operation.keep_data=action.get("keep_data",false)==true
+	if action.op=="save_app_state":
+		operation.sha256=action.sha256
+		operation.state=action.state
 	if action.op in ["rename","copy","zip","extract"]:operation.new_path=str(action.get("new_path",""))
 	usb_writes[station]={"token":token,"owner_peer":owner_peer,"actor":actor,"lease":sessions[actor].lease,"entries":old_entries,"workspace":old_workspace,"started":Time.get_ticks_msec()}
+	if not download_path.is_empty():usb_writes[station].download_path=download_path
 	if owner_peer==multiplayer.get_unique_id():_apply_owner_usb_write(station,token,str(usb.id),int(usb.capacity_mb),operation)
 	elif action.op=="copy_download" and action.bytes.size()>UsbTransfer.CHUNK_SIZE:
 		_send_owner_download(owner_peer,station,token,str(usb.id),int(usb.capacity_mb),operation)
@@ -559,6 +621,10 @@ func _apply_owner_usb_write(station: String,token: String,id: String,capacity: i
 		var drive=loaded.drive
 		var path:=str(operation.get("path",""))
 		match str(operation.get("op","")):
+			"install_app","uninstall_app","save_app_state":ok=Apps.apply(drive,operation).is_empty()
+			"save_preferences":
+				var settings:=Preferences.clean(operation.get("settings"))
+				ok=not settings.is_empty() and drive.write_file(Preferences.PATH,JSON.stringify(settings).to_utf8_buffer())
 			"save":ok=operation.get("text") is String and drive.write_file(path,str(operation.text).to_utf8_buffer())
 			"mkdir":ok=drive.make_folder(path)
 			"copy_download":
@@ -649,12 +715,15 @@ func _finish_usb_commit(peer: int,station: String,token: String,ok: bool) -> voi
 	usb_writes.erase(station)
 	var actor: int=pending.actor
 	if sessions.has(actor) and sessions[actor].lease==pending.lease:
+		if pending.has("download_path"):sessions[actor].download_path=pending.download_path
 		sessions[actor].revision+=1
 		_reply(actor)
 
 func _network_usb_port(peer: int,id: String,usb_id: String) -> void:
 	if not stations.has(id) or not (stations[id].get("public_device",false) or stations[id].get("portable",false)) or not _private_allowed(peer,stations[id]):return
-	if game.session.poses.get(peer,{}).get("position",Vector3.INF).distance_to(stations[id].anchor)>3:return
+	if _workstation_distance(peer,stations[id].anchor)>3:
+		_error(peer,"Move closer to the USB port.")
+		return
 	var device=stations[id].power
 	var identity:=_identity(peer)
 	var profile: Dictionary=game.dorm_interactions._profile(identity).duplicate(true)
@@ -670,9 +739,10 @@ func _network_usb_port(peer: int,id: String,usb_id: String) -> void:
 		carried.append("usb:"+drive_id);dorm.carry_items=carried;item.location="hotbar";dorm.revision+=1
 		var saved: Dictionary=game.dorm_interactions._commit_world_inventory(peer,identity,profile)
 		if not saved.ok:_error(peer,str(saved.error));return
-		device.usb={};_error(peer,"USB drive removed.");return
+		device.usb={};_publish_usb_ports();_error(peer,"USB drive removed.");return
 	if usb_uploads.size()>=4 or usb_uploads.has(peer) or usb_uploads.values().any(func(record):return record.station==id):_error(peer,"A USB transfer is already in progress.");return
 	var item: Dictionary=dorm.get("usb_drives",{}).get(usb_id,{})
+	if game.personal_placement.is_placed(peer,"usb:"+usb_id):_error(peer,"Pick up the USB drive first.");return
 	if item.get("location","")!="hotbar" or "usb:"+usb_id not in dorm.get("carry_items",[]):_error(peer,"Hold your USB drive to connect it.");return
 	var token:=Crypto.new().generate_random_bytes(16).hex_encode()
 	usb_uploads[peer]={"station":id,"id":usb_id,"identity":identity,"capacity":int(item.capacity_mb),"name":str(item.name),"token":token,"receiver":UsbTransfer.new(),"started":Time.get_ticks_msec()}
@@ -740,6 +810,7 @@ func _usb_finish(peer: int,token: String) -> void:
 	if not saved.ok:_usb_cancel(peer,token);return
 	var drive=UsbDrive.new(int(record.capacity)*1024*1024);drive.entries=decoded
 	device.usb={"owner":record.identity,"id":record.id,"capacity_mb":record.capacity,"name":item.name,"drive":drive,"remote":true}
+	_publish_usb_ports()
 	usb_uploads.erase(peer)
 	_error(peer,"USB drive connected.")
 
@@ -751,7 +822,9 @@ func _usb_cancel(peer: int,token: String) -> void:
 
 func _local_usb_port(peer: int,id: String) -> void:
 	if peer!=multiplayer.get_unique_id() or not stations.has(id) or not (stations[id].get("public_device",false) or stations[id].get("portable",false)):return
-	if game.session.poses.get(peer,{}).get("position",Vector3.INF).distance_to(stations[id].anchor)>3:return
+	if _workstation_distance(peer,stations[id].anchor)>3:
+		_error(peer,"Move closer to the USB port.")
+		return
 	var device=stations[id].power
 	var profile=game.electronics.profile
 	var dorm: Dictionary=profile.data.get("dorm",{})
@@ -765,7 +838,7 @@ func _local_usb_port(peer: int,id: String) -> void:
 		if device.save_local_usb()!=OK:_error(peer,"USB data could not be saved.");return
 		carried.append("usb:"+usb_id);dorm.carry_items=carried;dorm.usb_drives[usb_id].location="hotbar";dorm.revision+=1
 		if profile.save()!=OK:profile.data=before;_error(peer,"USB removal could not be saved.");return
-		device.usb={};_error(peer,"USB drive removed.");return
+		device.usb={};_publish_usb_ports();_error(peer,"USB drive removed.");return
 	if device.powered:_error(peer,"Turn off the computer before connecting a USB drive.");return
 	var active: int=game.hotbar.active
 	if active not in range(game.hotbar.slots.size()) or game.hotbar.slots[active].get("kind","")!="usb":_error(peer,"Hold a USB drive to connect it.");return
@@ -777,6 +850,7 @@ func _local_usb_port(peer: int,id: String) -> void:
 	device.usb.name=str(metadata.name)
 	dorm.carry_items.erase("usb:"+usb_id);metadata.location="connected";dorm.revision+=1
 	if profile.save()!=OK:profile.data=before;device.usb={};_error(peer,"USB connection could not be saved.");return
+	_publish_usb_ports()
 	_error(peer,"USB drive connected.")
 func _assignment(peer: int, action: Dictionary) -> bool:
 	var id := int(action.get("paper",0))
@@ -802,11 +876,16 @@ func _reply(peer: int) -> void:
 	if packet.get("public_device",false):
 		packet.folders=[]
 		packet.binary_files={}
+		packet.executable_icons={}
 		packet.modified={}
 		packet.copyable_downloads=[]
 		var device=stations[packet.station].power
 		var drive=device.drive
+		packet.installed_apps=Apps.installed(drive)
+		packet.app_volume="" if device.usb.is_empty() else (str(device.usb.owner)+":"+str(device.usb.id)).sha256_text()
 		if not device.usb.is_empty():
+			packet.usb_storage={"name":str(device.usb.name),"used":drive.used_bytes(),"capacity":drive.capacity}
+			packet.usb_preferences=Preferences.read(drive)
 			var local: Variant=_workstation_drive(packet.station,peer)
 			if local!=null:
 				for path: String in local.entries:
@@ -823,12 +902,18 @@ func _reply(peer: int) -> void:
 				packet.recycle.append(item)
 		for path in packet.files.keys():
 			if str(path).begins_with(".Recycle/"):packet.files.erase(path)
-		for name in drive.entries:
-			if str(name)==".Recycle" or str(name).begins_with(".Recycle/"):continue
+		var icon_bytes:=0
+		for name: String in drive.entries:
+			if name==".Recycle" or name.begins_with(".Recycle/") or name.to_lower()==Preferences.PATH or name==Apps.DATA_ROOT or name.begins_with(Apps.DATA_ROOT+"/"):continue
 			if drive.entries[name].has("modified"):packet.modified[name]=drive.entries[name].modified
 			if drive.entries[name].type=="folder":packet.folders.append(name)
 			elif not packet.files.has(name) and Files.path(name)==name:
 				packet.binary_files[name]=drive.entries[name].data.size()
+				if icon_bytes<65536 and name.get_extension().to_lower() in ["exe","dll"]:
+					var icon: PackedByteArray=drive.executable_icon(name)
+					if not icon.is_empty():
+						packet.executable_icons[name]=icon
+						icon_bytes+=icon.size()
 	packet.restored=restored.has(peer)
 	packet.assignments=[]
 	for paper in game.school.papers.values():
@@ -899,16 +984,22 @@ func _failed(message: String) -> void:
 # sender's current lease and forwards only to nearby players.
 const SCREEN_SIZE := Vector2i(128,72)
 const SCREEN_BYTES := SCREEN_SIZE.x * SCREEN_SIZE.y * 3
-const SCREEN_INTERVAL_MS := 200
+const SCREEN_INTERVAL_MS := 100
 var last_screen_frame := {}
 var last_screen_delivery := {}
 signal monitor_frame(station: String, sender: int, pixels: PackedByteArray)
 
 static func screen_preview_interval(position: Vector3, anchor: Vector3) -> int:
-	var distance:=position.distance_squared_to(anchor)
-	if distance<=1.25*1.25:return SCREEN_INTERVAL_MS
-	if distance<=2.25*2.25:return 500
-	return 0
+	var distance:=position.distance_to(anchor)
+	if distance>2.0:return 0
+	return roundi(lerpf(float(SCREEN_INTERVAL_MS),700.0,smoothstep(.65,2.0,distance)))
+
+static func local_screen_interval(distance: float, settings: Dictionary) -> int:
+	var cutoff:=float(settings.distance)
+	if cutoff<=0.0 or distance>cutoff:return 0
+	var near_fps:=float(settings.near_fps)
+	var edge_fps:=minf(near_fps,float(settings.edge_fps))
+	return roundi(lerpf(1000.0/near_fps,1000.0/edge_fps,smoothstep(cutoff*.325,cutoff,distance)))
 
 func submit_monitor_frame(lease: int, pixels: PackedByteArray) -> void:
 	if not game.session.online: return
@@ -936,7 +1027,7 @@ func _forward_monitor_frame(peer: int, lease: int, pixels: PackedByteArray) -> v
 	for receiver in game.session.roster:
 		if receiver == peer: continue
 		var pose: Vector3 = game.session.poses.get(receiver, {}).get("position", Vector3.INF)
-		var interval:=screen_preview_interval(pose,device.anchor)
+		var interval:=screen_preview_interval(pose+Vector3.UP*1.4,device.get("preview_position",device.anchor))
 		if interval==0 or (not pixels.is_empty() and now-int(delivered.get(receiver,-1000))<interval):continue
 		delivered[receiver]=now
 		if receiver == multiplayer.get_unique_id():
@@ -959,6 +1050,7 @@ func _publish() -> void:
 		if stations[id].has("power"):power[id]=stations[id].power.powered
 	power_changed.emit(power)
 	if game.session.online:_power_state.rpc(power)
+	_publish_usb_ports()
 	var boot := {}
 	for id in stations:
 		var remaining := int(stations[id].get("ready_at",0))-Time.get_ticks_msec()
@@ -975,17 +1067,33 @@ func _occupancy(public: Dictionary) -> void:
 @rpc("authority","call_remote","reliable",6)
 func _power_state(power: Dictionary) -> void:
 	if multiplayer.get_remote_sender_id()==1:power_changed.emit(power)
+
+func _publish_usb_ports() -> void:
+	var ports:={}
+	for id in stations:
+		if stations[id].has("power") and not stations[id].power.usb.is_empty():ports[id]=true
+	_set_usb_ports(ports)
+	if game.session.online and multiplayer.is_server():_usb_port_state.rpc(ports)
+
+@rpc("authority","call_remote","reliable",6)
+func _usb_port_state(ports: Dictionary) -> void:
+	if multiplayer.get_remote_sender_id()==1:_set_usb_ports(ports)
+
+func _set_usb_ports(ports: Dictionary) -> void:
+	if ports==connected_usb_ports:return
+	connected_usb_ports=ports.duplicate()
+	connected_usb_changed.emit(connected_usb_ports)
 func _close(peer: int, release: bool) -> void:
 	if not sessions.has(peer):return
 	var was_public: bool=bool(sessions[peer].get("public_device",false))
-	var portable: bool=stations[sessions[peer].station].get("portable",false)
+	var chair_index:=int(stations[sessions[peer].station].get("chair",-1))
 	sessions.erase(peer)
 	download_uploads.erase(peer)
 	last_screen_frame.erase(peer)
 	last_screen_delivery.erase(peer)
 	for delivered: Dictionary in last_screen_delivery.values():delivered.erase(peer)
 	if was_public:workspaces.erase(peer);restored.erase(peer)
-	if release and not portable:
+	if release and chair_index>=0 and game.chairs[chair_index].occupant==peer:
 		game._release_chair(peer)
 		game._send_chairs()
 		if peer==multiplayer.get_unique_id() and game.player.seated!=null:game.player.stand_up()
@@ -1108,5 +1216,6 @@ func _reset() -> void:
 	desktop_changed.emit({})
 	occupancy_changed.emit({})
 	power_changed.emit({})
+	_set_usb_ports({})
 	set_meta("resetting",false)
 

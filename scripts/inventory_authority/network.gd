@@ -179,6 +179,8 @@ func execute(peer: int,action: Dictionary) -> void:
 			result = ledger.failure("Pick up and stow the kit before transferring it")
 		elif action.get("op") == "dorm" and action.args.size() == 1 and action.args[0] is Dictionary and game.portable_laptops.blocks_dorm_transfer(peer,action.args[0]):
 			result = ledger.failure("Pick up the laptop before storing it")
+		elif action.get("op") == "dorm" and action.args.size() == 1 and action.args[0] is Dictionary and game.personal_placement.is_placed(peer,str(action.args[0].get("item",""))):
+			result = ledger.failure("Pick up the item before storing it")
 		elif not _accessory_change_allowed(peer,action):
 			result = ledger.failure("Remove an accessory to free a slot")
 		else:

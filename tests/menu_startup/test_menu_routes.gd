@@ -66,6 +66,11 @@ func _run() -> void:
 		var indicator := game.terminal_bodies.DAQ_POWER_A.get_parent().get_node_or_null("DaqPowerIndicator") as MeshInstance3D
 		_check(is_instance_valid(indicator) and not indicator.material_override.emission_enabled, "DAQ indicator must start off")
 	if not is_instance_valid(front) or not is_instance_valid(front.body):_finish();return
+	var practice_store=preload("res://scripts/campus/academics/open_lab/practice/practice_sheet_store.gd")
+	var identity: String=game.school.local_identity
+	var stale_practice: Dictionary={"identity":identity,"project":{"title":"Old session sheet","practice_scope":"ungraded"},"answers":{"old":"work"},"strokes":{}}
+	_check(practice_store.write(identity,{1:stale_practice})==OK,"Could not seed a worksheet from an old session")
+	var old_practice_digest:=FileAccess.get_sha256(practice_store._path(identity))
 	var viewport_rect := root.get_viewport().get_visible_rect()
 	for label in ["Host Game", "Singleplayer", "View Courses", "Join Game", "Character Customizer", "Settings"]:
 		_usable(_button(front.body, label), viewport_rect, label)
@@ -76,6 +81,37 @@ func _run() -> void:
 		route_button.pressed.emit()
 		await process_frame
 		_check(front.page == ("singleplayer" if offline else "host"), label + " did not open Play options")
+		var ai_settings := _button(front.body,"OpenAI Settings")
+		_usable(ai_settings, viewport_rect, label + " OpenAI Settings")
+		if is_instance_valid(ai_settings):
+			ai_settings.pressed.emit()
+			await process_frame
+			_check(front.page=="openai", label + " did not open OpenAI Settings")
+			_check(is_instance_valid(_button(front.body,"Connect API Key")), label + " OpenAI key control missing")
+			if not game.host_openai.configured():
+				_check(not is_instance_valid(_button(front.body,"Accept")), label + " showed Accept without an API key")
+			_button(front.body,"Cancel").pressed.emit()
+			await process_frame
+			_check(front.page==("singleplayer" if offline else "host"), label + " OpenAI Cancel returned to the wrong screen")
+			if OS.get_environment("LABVOLT_TEST_OPENAI_FIXTURE")=="1":
+				game.host_openai.set_local_test_endpoint("http://127.0.0.1:28768/v1")
+				_button(front.body,"OpenAI Settings").pressed.emit()
+				await process_frame
+				var controls: VBoxContainer=front.body.get_child(-1)
+				controls.key_field.text="sk-test-12345678901234567890"
+				_button(front.body,"Connect API Key").pressed.emit()
+				var deadline:=Time.get_ticks_msec()+5000
+				while (controls.fetching_models or controls.model.item_count<7) and Time.get_ticks_msec()<deadline:await process_frame
+				_check(controls.model.item_count==7, label + " did not show the API model list")
+				_check(is_instance_valid(_button(front.body,"Test Connection")), label + " OpenAI connection control missing")
+				_check(controls.effort_row.visible and "Compact" in controls.model.text and "tokens" in controls.model.text, label + " model details or thinking control missing")
+				controls.output.select(3)
+				var save := _button(front.body,"Accept")
+				if is_instance_valid(save) and not save.disabled:save.pressed.emit()
+				else:_button(front.body,"Cancel").pressed.emit()
+				_check(game.host_openai.max_output_tokens==128 and game.host_openai.enabled, label + " did not accept OpenAI settings")
+				await process_frame
+				_check(front.page==("singleplayer" if offline else "host"), label + " OpenAI Accept returned to the wrong screen")
 		var play := _button(front.body, "Play")
 		if not offline and Session.relay_endpoint().is_empty():
 			_usable(_button(front.body, "Relay account · Not connected"), viewport_rect, "Relay account setup")
@@ -102,8 +138,7 @@ func _run() -> void:
 					host_server.pressed.emit()
 					await process_frame
 					_usable(_button(front.screen, "Copy Room Code"), viewport_rect, "Copy Room Code")
-					_check(is_instance_valid(_button(front.screen, "Use Key")), "Host OpenAI key control missing")
-					_check(is_instance_valid(_button(front.screen, "Test Connection")), "Host OpenAI connection control missing")
+					_check(not is_instance_valid(_button(front.screen, "Use Key")), "OpenAI key field still appears in general settings")
 				front.pause_menu()
 				var resume := _button(front.body, "Resume")
 				if is_instance_valid(resume): resume.pressed.emit()
@@ -111,7 +146,10 @@ func _run() -> void:
 			_check(front.in_game and not front.screen.visible and game.player.enabled,
 				"%s Play failed to enter gameplay (%s)" % [label, front.status.text])
 			_check(game.session.online == not offline, label + " started the wrong session type")
+			_check(not game.school.papers.values().any(func(sheet):return sheet.get("project",{}).get("practice_scope","")=="ungraded"),label + " restored an old practice worksheet")
 			if offline and front.in_game:
+				var paper_id: int=game.school._give(1,{"title":"This session","practice_scope":"ungraded","questions":[],"difficulty":0,"topic":0,"theory":"","data":"","procedure":"","source":"Smoke test"},true,false)
+				_check(paper_id>0,"Current-session practice sheet would not spawn")
 				await _check_singleplayer_pause(game)
 				await _check_invention_world(game)
 		if front.in_game or game.session.online:
@@ -119,6 +157,7 @@ func _run() -> void:
 		else:
 			front.home()
 		await process_frame
+	_check(FileAccess.get_sha256(practice_store._path(identity))==old_practice_digest,"A fresh practice session changed the old worksheet archive")
 	for route in [{"label":"View Courses","page":"view_courses"},{"label":"Character Customizer","page":"characters"},{"label":"Settings","page":"settings"}]:
 		var action := _button(front.body, route.label)
 		if not is_instance_valid(action):continue

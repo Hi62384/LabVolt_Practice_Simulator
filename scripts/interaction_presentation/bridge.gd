@@ -508,7 +508,8 @@ func _update_workout(delta: float) -> void:
 						var elbow:=Vector3(side*.28,-.51,-.34)
 						var arc:=lerpf(.20,2.15,raised)
 						grip=elbow+Vector3(0,-cos(arc),-sin(arc))*.30
-						weight.rotation=Vector3(arc-PI*.5,PI*.5,0)
+						# The grip runs across the body as the elbow bends.
+						weight.rotation=Vector3(0,PI*.5,0)
 					"lateral_raise":
 						var arc:=lerpf(.15,PI*.48,raised)
 						grip=Vector3(side*(.30+.41*sin(arc)),-.25-.56*cos(arc),lerpf(-.34,-.66,raised))

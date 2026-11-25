@@ -118,8 +118,7 @@ func _host_server_controls() -> void:
 	_slider("Movement updates per second", 5, 20, 1, prefs.values.relay_pose_rate,
 		func(value: float): _preference(int(value), "relay_pose_rate"), "%.0f", 1)
 	_toggle("Skip unchanged movement updates", prefs.values.relay_skip_idle, _preference.bind("relay_skip_idle"))
-	_label(body,"OpenAI API",18)
-	_openai_controls()
+	if game.front.in_game and game.host_openai.host_allowed():_instructor_controls()
 
 func _reflow() -> void:
 	layout.vertical = size.x < 760
@@ -172,64 +171,7 @@ func _select(category: String) -> void:
 			_toggle("Analyzer polarity symbols", prefs.values.analyzer_shapes, _preference.bind("analyzer_shapes"))
 			_toggle("Reduced motion", prefs.values.reduced_motion, _preference.bind("reduced_motion"))
 
-func _openai_controls() -> void:
-	var service: Node=game.host_openai
-	if not service.host_allowed():
-		_label(body,"Only the game host can configure or use the OpenAI connection.",15)
-		return
-	var note:=_label(body,"The host's API key stays in this game process. It is never saved in game settings or sent to other players. You can also set OPENAI_API_KEY before starting the host.",14)
-	note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	var classroom_note:=_label(body,"When enabled, classroom lesson context and student questions are sent from the host to OpenAI. Recording a question also sends up to six seconds of audio for transcription. These requests use the host's paid API account.",14)
-	classroom_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	_label(body,"Connection: "+service.credential_source(),15,T.ACCENT)
-	var key_row:=_row("API key for this run")
-	var key_field:=LineEdit.new()
-	key_field.secret=true
-	key_field.placeholder_text="Paste an OpenAI API key"
-	key_field.size_flags_horizontal=SIZE_EXPAND_FILL
-	key_row.add_child(key_field)
-	var key_actions:=HBoxContainer.new();body.add_child(key_actions)
-	_button(key_actions,"Use Key","check",func():
-		if service.set_session_key(key_field.text):
-			key_field.clear()
-			_notice("API key is ready for this host session. It was not saved to disk.")
-		else:_notice("Enter a valid OpenAI API key. The key was not saved."))
-	_button(key_actions,"Forget Session Key","close",func():
-		service.clear_session_key()
-		key_field.clear()
-		_notice("Session key removed. Environment key, if set, remains available."))
-	var model_row:=_row("Model ID")
-	var model_field:=LineEdit.new()
-	model_field.text=service.model
-	model_field.max_length=64
-	model_field.size_flags_horizontal=SIZE_EXPAND_FILL
-	model_row.add_child(model_field)
-	var output:=_openai_spin("Maximum output tokens",16,2048,service.max_output_tokens)
-	var minute:=_openai_spin("Requests per minute",1,10,service.requests_per_minute)
-	var daily:=_openai_spin("Requests per day",1,200,service.requests_per_day)
-	var enabled_check:=CheckButton.new()
-	enabled_check.text="Allow host OpenAI requests"
-	enabled_check.button_pressed=service.enabled
-	body.add_child(enabled_check)
-	_button(body,"Save OpenAI Settings","check",func():
-		var error: Error=service.configure(model_field.text.strip_edges(),int(output.value),int(minute.value),int(daily.value),enabled_check.button_pressed)
-		_notice("OpenAI settings saved." if error==OK else "Could not save OpenAI settings. Check the model ID."))
-	var test_button:=_button(body,"Test Connection","network",func():
-		_notice("Checking OpenAI connection…")
-		var result: Dictionary=await service.verify_class_connection()
-		if is_inside_tree() and active=="Host Server":_notice(str(result.get("message",result.get("error","Connection failed.")))))
-	var prompt_row:=_row("Try a prompt")
-	var prompt_field:=LineEdit.new()
-	prompt_field.placeholder_text="Ask a short question"
-	prompt_field.max_length=4000
-	prompt_field.size_flags_horizontal=SIZE_EXPAND_FILL
-	prompt_row.add_child(prompt_field)
-	var answer:=_label(body,"",14,T.ACCENT)
-	answer.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	_button(body,"Send Prompt","play",func():
-		answer.text="Waiting for OpenAI…"
-		var result: Dictionary=await service.respond(prompt_field.text)
-		if is_instance_valid(answer):answer.text=str(result.get("text",result.get("error","No response."))))
+func _instructor_controls() -> void:
 	_label(body,"Create a fictional instructor",18)
 	var course_row:=_row("Course")
 	var course_choice:=OptionButton.new()
@@ -242,17 +184,6 @@ func _openai_controls() -> void:
 		_notice("Creating instructor…")
 		var created: Dictionary=await game.faculty.generate_teacher(course_choice.get_item_text(course_choice.selected),style_field.text)
 		if is_inside_tree() and active=="Host Server":_notice("%s can now teach that course this session."%str(created.get("name","")) if created.get("ok",false) else str(created.get("error","Could not create instructor."))))
-	var limits:=_label(body,"Requests use the host's OpenAI account. The daily count includes connection checks and failed requests: %d of %d used today."%[service.used_today,service.requests_per_day],13)
-	limits.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	test_button.disabled=service.busy
-
-func _openai_spin(title: String,low: int,high: int,value: int) -> SpinBox:
-	var row:=_row(title)
-	var spin:=SpinBox.new()
-	spin.min_value=low;spin.max_value=high;spin.step=1;spin.value=value
-	spin.size_flags_horizontal=SIZE_EXPAND_FILL
-	row.add_child(spin)
-	return spin
 
 func _display_controls() -> void:
 	_choice("Display mode", ["Windowed","Borderless Fullscreen","Exclusive Fullscreen","Maximized"], pending_mode, func(index):
@@ -288,6 +219,14 @@ func _display_controls() -> void:
 	_quality_choice("Texture filtering", "texture", [0,1,2], ["Nearest mipmaps","Filtered 4×","Filtered 16×"])
 	_quality_choice("View distance", "view_distance", [30.0,60.0,100.0,120.0,180.0,240.0,360.0,500.0,750.0,1000.0], ["30 m","60 m","100 m","120 m","180 m","240 m","360 m","500 m","750 m","1,000 m"])
 	_quality_choice("Ambient campus crowd", "npc_density", ["Off","Low","Medium","High"], ["Off","Low","Medium","High"])
+	_label(body, "Computer and phone screens", 18)
+	var screens: Dictionary=graphics.screen_previews
+	_slider("Preview cutoff (0 disables)",0,5,.25,screens.distance,func(value):graphics.set_screen_preview_option("distance",value),"%.2f m")
+	_slider("Up-close preview rate",1,20,1,screens.near_fps,func(value):graphics.set_screen_preview_option("near_fps",value),"%.0f FPS")
+	_slider("Preview rate near cutoff",.5,5,.5,screens.edge_fps,func(value):graphics.set_screen_preview_option("edge_fps",value),"%.1f FPS")
+	var preview_scales:=[.5,1.0,1.5,2.0]
+	_choice("Computer preview resolution",["192 × 108","384 × 216","576 × 324","768 × 432"],preview_scales.find(screens.computer_scale),func(index):graphics.set_screen_preview_option("computer_scale",preview_scales[index]))
+	_choice("Phone preview resolution",["64 × 112","128 × 224","192 × 336","256 × 448"],preview_scales.find(screens.phone_scale),func(index):graphics.set_screen_preview_option("phone_scale",preview_scales[index]))
 	_label(body, "Lighting & shadows", 18)
 	_slider("Brightness",.70,1.30,.01,graphics.options.brightness,_quality.bind("brightness"),"%.0f%%",100)
 	_slider("Indoor light intensity",.60,1.40,.01,graphics.options.indoor_intensity,_quality.bind("indoor_intensity"),"%.0f%%",100)

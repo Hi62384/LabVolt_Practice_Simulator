@@ -164,7 +164,7 @@ func _build_workshop() -> void:
 			downlight.set_meta("ultra_shadow_fixture", x==26.0 and z==0.0)
 			downlight.basis=Basis.looking_at(Vector3(0,-1,signf(z-3.0)*.30),Vector3.BACK)
 			lights.ceiling_spill(fixture,panel.position-Vector3.UP*.12)
-	for z in [-3.87, 9.87]:
+	for z in [-3.755, 9.87]:
 		game._box(self, Vector3(26,.58,z), Vector3(19.70,1.15,.034), Color("55728a"))
 		game._box(self, Vector3(26,.085,z), Vector3(19.70,.15,.062), Color("344c62"))
 	game._box(self, Vector3(35.87,.58,3), Vector3(.034,1.15,13.72), Color("55728a"))

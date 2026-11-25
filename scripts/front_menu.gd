@@ -14,6 +14,7 @@ var campus_tick := 0.0
 var game: Node
 var screen: Control
 var body: VBoxContainer
+var openai_offline := true
 var title: Label
 var status: Label
 var in_game := false
@@ -153,9 +154,10 @@ func _layout_menu() -> void:
 	panel.custom_minimum_size=Vector2.ZERO
 	var target_width := 440
 	if page in ["join","host","singleplayer"]:
-		panel.size = Vector2(minf(456.0, available.x - 32), minf(448.0, available.y - 16))
+		panel.size = Vector2(minf(456.0, available.x - 32), minf(448.0 if page=="join" else 490.0, available.y - 16))
 		panel.position.y = maxf(16, (screen.size.y - panel.size.y) * .5)
 		return
+	if page=="openai":target_width=620
 	var target_height := minf(620, available.y-16)
 	panel.size=Vector2(maxf(1,minf(target_width,available.x-32)),maxf(1,target_height))
 func _action_icon(value: String) -> String:
@@ -279,8 +281,22 @@ func _build_play(offline: bool) -> void:
 		var connected := relay_account.connected()
 		var caption := "Relay account · Connected" if connected else "Relay account · Not connected"
 		fields.add_child(MenuWidgets.action(caption, "settings", relay_account_page))
+	fields.add_child(MenuWidgets.action("OpenAI Settings","settings",_openai_page.bind(offline)))
 	var actions := _session_actions("Play", "play", _start_play.bind(offline))
 	actions.get_child(1).disabled = not offline and not relay_account.connected() and Session.relay_endpoint().is_empty()
+
+func _openai_page(offline: bool) -> void:
+	openai_offline=offline
+	clear("openai","OpenAI Settings")
+	_host_button("Back",body,_back_from_openai)
+	var controls:=preload("res://scripts/campus/ui/openai_settings.gd").new()
+	controls.add_theme_constant_override("separation",8)
+	body.add_child(controls)
+	controls.build(game,func(value: String):status.text=value,_back_from_openai)
+
+func _back_from_openai() -> void:
+	if openai_offline:singleplayer_page()
+	else:network_page(false)
 
 func relay_account_page() -> void:
 	clear("relay_account", "RELAY ACCOUNT")
@@ -627,6 +643,7 @@ func _input(event: InputEvent) -> void:
 
 func escape() -> void:
 	if screen.visible:
+		if page=="openai":_back_from_openai();return
 		if page not in ["home","pause"]:
 			if in_game:pause_menu()
 			else:home()
@@ -657,7 +674,8 @@ func _process(delta: float) -> void:
 	if is_instance_valid(campus_hud):
 		var computer_open: bool=is_instance_valid(game.computer_room_adapter) and is_instance_valid(game.computer_room_adapter.desktop) and game.computer_room_adapter.desktop.visible
 		var paper_open: bool=is_instance_valid(game.paper_ui) and game.paper_ui.screen.visible
-		campus_hud.visible=in_game and not screen.visible and not computer_open and not paper_open and game.client_preferences.values.hud
+		var phone_open: bool=is_instance_valid(game.smartphones) and is_instance_valid(game.smartphones.panel) and game.smartphones.panel.visible
+		campus_hud.visible=in_game and not screen.visible and not computer_open and not paper_open and not phone_open and game.client_preferences.values.hud
 		if in_game and campus_tick>=0.25 and is_instance_valid(campus_adapter) and is_instance_valid(campus_adapter.registry):
 			campus_tick=0.0
 			var registry: Object=campus_adapter.registry

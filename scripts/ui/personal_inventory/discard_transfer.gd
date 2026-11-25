@@ -3,6 +3,7 @@ extends RefCounted
 const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Board = preload("res://scripts/breadboard_model.gd")
 const Profile = preload("res://scripts/electronics_profile.gd")
+const Laptops = preload("res://scripts/campus/computers/laptop_inventory.gd")
 
 static func take(profile: Dictionary, source: Dictionary, deployment: Dictionary) -> Dictionary:
 	var next := profile.duplicate(true)
@@ -91,6 +92,11 @@ static func _collect(profile: Dictionary,item: Dictionary,parcel: Dictionary,dep
 			parcel.bags[id]=bag
 			for child in bag.items:
 				if not _collect(profile,child,parcel,depth+1):return false
+		"laptop":
+			var laptop: Dictionary=profile.dorm.get("portable_laptops",{}).get(id,{})
+			if laptop.get("location","")!="hotbar" or not Laptops.TIERS.has(laptop.get("tier","")):return false
+			parcel.laptop={"tier":laptop.tier}
+			profile.dorm.portable_laptops.erase(id)
 		_:return false
 	return true
 
@@ -125,6 +131,14 @@ static func give(profile: Dictionary, parcel: Dictionary, hotbar_limit: int) -> 
 			if not bag_id.is_empty() and d.backpacks[bag_id].items.size()<int(Dorm.Backpacks.SIZES[d.backpacks[bag_id].size].capacity):
 				d.backpacks[bag_id].items.append(item.duplicate(true))
 				destination="backpack"
+	elif kind=="laptop":
+		if d.get("portable_laptops",{}).has(id) or d.get("carry_items",[]).size()+d.get("carried_components",[]).size()>=hotbar_limit:
+			return Dorm.fail("Free a hotbar slot for the laptop.")
+		if not parcel.get("laptop") is Dictionary or not Laptops.TIERS.has(parcel.laptop.get("tier","")):
+			return Dorm.fail("Invalid laptop.")
+		d.get_or_add("portable_laptops",{})[id]={"location":"hotbar","tier":parcel.laptop.tier}
+		d.carry_items=d.get("carry_items",[])+["laptop:"+id]
+		destination="hotbar"
 	else:destination=Dorm.receive_purchase(d,kind,id,hotbar_limit)
 	if destination in ["","dorm cabinet"]:return Dorm.fail("Free space in your hotbar or backpack first.")
 	if not next.has("kit_tiers"):next.kit_tiers={}

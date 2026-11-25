@@ -56,7 +56,7 @@ func _ready() -> void:
 	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));result.clip_text=true;lines.add_child(result)
 	if campus_style:result.add_theme_font_size_override("font_size",34)
 	var grid := GridContainer.new();grid.columns=4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
-	if basic or financial:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	if basic or financial or campus_style:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	var keys := keypad_keys(model)
 	if financial:
 		finance_help=Label.new()
@@ -67,7 +67,7 @@ func _ready() -> void:
 		body.move_child(finance_help,2)
 	for key in keys:
 		var button := Button.new();button.text=key;button.custom_minimum_size=Vector2(44,32 if show_close else 40);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",15);button.tooltip_text={"DEG":"Toggle degrees / radians","AC":"Clear expression","DEL":"Delete previous character","=":"Evaluate expression","MR":"Recall memory","MC":"Clear memory"}.get(key,key)
-		if basic or financial:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
+		if basic or financial or campus_style:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		if financial and Finance.ARGUMENTS.has(key):button.tooltip_text=Finance.ARGUMENTS[key]
 		var style := StyleBoxFlat.new();style.bg_color=(Color("2e5267") if campus_style else Color("647781")) if key.is_valid_int() or key=="." else (Color("103c55") if campus_style else Color("3e4b59"))
 		if key=="=":style.bg_color=Color("068f84") if campus_style else Color("408873")

@@ -214,10 +214,7 @@ func test_large_download(service: Node,drive_id: String) -> bool:
 	var path:="Downloads/network.pdf"
 	await create_timer(.15).timeout
 	service.request({"op":"download","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"name":"network.pdf","bytes":payload})
-	if not await until(func():return path in service.local_snapshot.get("copyable_downloads",[]),"large download saved on host"):return false
-	await create_timer(.15).timeout
-	service.request({"op":"copy_download","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"path":path})
-	if not await until(func():return service.local_snapshot.get("binary_files",{}).get(path,0)==payload.size(),"large download copied to remote USB"):return false
+	if not await until(func():return service.local_snapshot.get("binary_files",{}).get(path,0)==payload.size(),"large download saved to remote USB"):return false
 	var saved: Dictionary=Archive.load(game.school.local_identity,drive_id,8)
 	if saved.has("error") or saved.drive.entries.get(path,{}).get("data")!=payload:
 		push_error("Remote USB did not preserve the large download");quit(1);return false

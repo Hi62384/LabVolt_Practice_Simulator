@@ -7,6 +7,8 @@ signal changed(options: Dictionary)
 const SAVE := "user://campus_graphics.cfg"
 const DEFAULTS := {"render_scale":1.0,"texture":1,"shadows":true,"detail_shadows":false,"lights":true,"reflections":true,"sdfgi":false,"aa":1,"npc_density":"Off","view_distance":120.0,"effects":true,"bloom":true,"lighting_quality":1,"shadow_quality":2,"bloom_quality":1,"brightness":1.0,"indoor_intensity":1.0,"lighting_tone":"Neutral","interaction_hands":true}
 const PRESETS := ["Low", "Medium", "High", "Ultra", "Custom"]
+const SCREEN_DEFAULTS := {"distance":2.0,"near_fps":10,"edge_fps":1.5,"computer_scale":1.0,"phone_scale":1.0}
+var screen_previews := SCREEN_DEFAULTS.duplicate()
 const MAX_FOG_DENSITY := 0.00299
 const INDOOR_SUN_SHADOW_DISTANCE := 22.0
 const BAKED_OUTDOOR_SUN_SHADOW_DISTANCE := 12.0
@@ -50,6 +52,8 @@ func load_settings(path := SAVE) -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(path)!=OK: return
 	var saved := str(cfg.get_value("graphics", "preset", ""))
+	for key in SCREEN_DEFAULTS:
+		_read_screen_option(key,cfg.get_value("device_screens",key,SCREEN_DEFAULTS[key]))
 	for key in DEFAULTS:
 		_validate(key,cfg.get_value("graphics",key,true if key=="sdfgi" and saved=="Ultra" else DEFAULTS[key]))
 	for key in ENVIRONMENT_CONTROLS:
@@ -76,7 +80,22 @@ func save_settings(path := SAVE) -> Error:
 	var cfg := ConfigFile.new()
 	for key in options: cfg.set_value("graphics",key,options[key])
 	cfg.set_value("graphics", "preset", quality_preset)
+	for key in screen_previews:cfg.set_value("device_screens",key,screen_previews[key])
 	return cfg.save(path)
+
+func _read_screen_option(key: String, value: Variant) -> bool:
+	if not SCREEN_DEFAULTS.has(key) or not (value is int or value is float) or not is_finite(float(value)):return false
+	match key:
+		"distance":screen_previews[key]=clampf(float(value),0.0,5.0)
+		"near_fps":screen_previews[key]=clampi(roundi(float(value)),1,20)
+		"edge_fps":screen_previews[key]=clampf(float(value),.5,5.0)
+		_:screen_previews[key]=clampf(float(value),.5,2.0)
+	return true
+
+func set_screen_preview_option(key: String,value: Variant) -> void:
+	if not _read_screen_option(key,value):return
+	save_error=save_settings()
+	changed.emit(options.duplicate())
 func _validate(key: String, value: Variant) -> bool:
 	if ENVIRONMENT_CONTROLS.has(key):
 		if not (value is float or value is int) or not is_finite(float(value)):

@@ -6,17 +6,18 @@ const API_BASE := "https://api.openai.com/v1"
 const DEFAULT_MODEL := "gpt-5.4-mini"
 const MAX_INPUT_CHARS := 4000
 const MAX_RESPONSE_BYTES := 262144
+const TRANSCRIPTION_MODEL := "gpt-4o-mini-transcribe"
+const Models = preload("res://scripts/campus/ai/openai_models.gd")
 
 var enabled := false
 var model := DEFAULT_MODEL
 var max_output_tokens := 384
-var requests_per_minute := 8
-var requests_per_day := 20
-var used_today := 0
-var usage_day := ""
+var reasoning_effort := ""
+var model_usage: Dictionary = {}
 var busy := false
 var _session_key := ""
-var _minute_calls: Array[int] = []
+var _model_cache_key := ""
+var _model_cache: Array[String] = []
 var _test_base := ""
 var _verified_signature := ""
 var verification_error := ""
@@ -36,13 +37,16 @@ func configured() -> bool:
 	return not _credential().is_empty()
 
 func set_session_key(value: String) -> bool:
-	if not host_allowed():return false
 	var clean := value.strip_edges()
+	if not host_allowed() or not _valid_key(clean):return false
+	_session_key=clean
+	return true
+
+func _valid_key(clean: String) -> bool:
 	if clean.length()<20 or clean.length()>256 or not clean.begins_with("sk-"):
 		return false
 	for character in clean:
 		if character in " \t\r\n":return false
-	_session_key=clean
 	return true
 
 func clear_session_key() -> void:
@@ -50,33 +54,77 @@ func clear_session_key() -> void:
 		_session_key=""
 		_verified_signature=""
 
-func configure(next_model: String, output_limit: int, minute_limit: int, day_limit: int, next_enabled: bool) -> Error:
-	if not host_allowed() or not _valid_model(next_model):return ERR_INVALID_PARAMETER
+func configure(next_model: String, output_limit: int, next_effort: String, next_enabled: bool) -> Error:
+	if not host_allowed() or not Models.valid_id(next_model) or Models.endpoint(next_model).is_empty():return ERR_INVALID_PARAMETER
+	if next_effort!=Models.normalize_effort(next_model,next_effort):return ERR_INVALID_PARAMETER
+	var previous: Array=[model,max_output_tokens,reasoning_effort,enabled]
 	model=next_model
-	max_output_tokens=clampi(output_limit,16,2048)
-	requests_per_minute=clampi(minute_limit,1,10)
-	requests_per_day=clampi(day_limit,1,200)
+	max_output_tokens=clampi(output_limit,16,32768)
+	reasoning_effort=next_effort
 	enabled=next_enabled
-	return _save()
+	var error:=_save()
+	if error!=OK:
+		model=previous[0];max_output_tokens=previous[1];reasoning_effort=previous[2];enabled=previous[3]
+	return error
 
 func test_connection() -> Dictionary:
-	return await _call(HTTPClient.METHOD_GET,"/models/"+model,{},false)
+	return await _call(HTTPClient.METHOD_GET,"/models/"+model.uri_encode(),{},false)
+
+func list_models(key: String="", refresh:=false) -> Dictionary:
+	key=key.strip_edges()
+	if not host_allowed():return {"ok":false,"error":"Only the host can use the OpenAI connection."}
+	if not key.is_empty() and not _valid_key(key):return {"ok":false,"error":"Enter a valid OpenAI API key."}
+	if key.is_empty():key=_credential()
+	var cache_key: String=(key+"\n"+_test_base).sha256_text()
+	if not refresh and cache_key==_model_cache_key:return {"ok":true,"models":_model_cache.duplicate()}
+	var result:=await _call(HTTPClient.METHOD_GET,"/models",{},false,{"key":key})
+	if result.get("ok",false):
+		_model_cache_key=cache_key
+		_model_cache.assign(result.models)
+	return result
+
+func preview_setup_prompt(prompt: String, draft: Dictionary) -> Dictionary:
+	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS:
+		return {"ok":false,"error":"Enter a prompt of 1 to 4,000 characters."}
+	var choice:=str(draft.model)
+	var key:=str(draft.key) if not str(draft.key).is_empty() else _credential()
+	var effort:=str(draft.get("effort",""))
+	var output:=int(draft.output)
+	var signature:=_signature(key,choice,effort,output)
+	var result:=await _request_text(prompt,choice,output,effort,false,draft)
+	if result.get("ok",false):result.signature=signature
+	return result
+
+func accept_setup(draft: Dictionary, signature: String) -> Error:
+	var key:=str(draft.key)
+	if not host_allowed() or (key.is_empty() and not configured()) or (not key.is_empty() and not _valid_key(key)):
+		return ERR_INVALID_PARAMETER
+	var error:=configure(str(draft.model),int(draft.output),str(draft.get("effort","")),true)
+	if error!=OK:return error
+	if not key.is_empty():set_session_key(key)
+	if signature==_connection_signature():
+		_verified_signature=signature
+		verification_error=""
+	return OK
 
 func _connection_signature() -> String:
-	return (_credential()+"\n"+model+"\n"+_test_base).sha256_text()
+	return _signature(_credential(),model,reasoning_effort,max_output_tokens)
+
+func _signature(key: String, choice: String, effort: String, output: int) -> String:
+	return JSON.stringify([key,choice,effort,output,_test_base]).sha256_text()
 
 func verified_for_class() -> bool:
 	return enabled and configured() and _verified_signature==_connection_signature()
 
 func class_connection_status() -> String:
 	if verified_for_class():return "Connected — AI teaching available"
-	if not enabled or not configured():return "Not connected — Enable OpenAI and add a key in Host Server settings."
+	if not enabled or not configured():return "Not connected — Add your API key in OpenAI Settings before starting the game."
 	if not verification_error.is_empty():return "Connection failed — "+verification_error
 	return "Not verified — Test the host's OpenAI connection to start classes."
 
 func verify_class_connection() -> Dictionary:
 	var signature:=_connection_signature()
-	var result:=await _call(HTTPClient.METHOD_POST,"/responses",{"model":model,"input":"Reply with the single word Ready.","max_output_tokens":64,"store":false},true)
+	var result:=await respond("Reply with the single word Ready.")
 	if signature!=_connection_signature():return {"ok":false,"error":"The selected connection changed. Test it again."}
 	if result.get("ok",false):
 		_verified_signature=signature
@@ -90,14 +138,30 @@ func verify_class_connection() -> Dictionary:
 func respond(prompt: String) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS:
 		return {"ok":false,"error":"Enter a prompt of 1 to 4,000 characters."}
-	var payload := {"model":model,"input":prompt,"max_output_tokens":max_output_tokens,"store":false}
-	return await _call(HTTPClient.METHOD_POST,"/responses",payload,true)
+	return await _request_text(prompt,model,max_output_tokens,reasoning_effort,true)
 
 func respond_with_image(prompt: String,jpeg: PackedByteArray) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
 	var content: Array=[{"type":"input_text","text":prompt},{"type":"input_image","image_url":"data:image/jpeg;base64,"+Marshalls.raw_to_base64(jpeg),"detail":"low"}]
-	var payload:={"model":model,"input":[{"role":"user","content":content}],"max_output_tokens":max_output_tokens,"store":false}
-	return await _call(HTTPClient.METHOD_POST,"/responses",payload,true)
+	return await _request_text(content,model,max_output_tokens,reasoning_effort,true)
+
+func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}) -> Dictionary:
+	var path:=Models.endpoint(choice)
+	if path.is_empty():return {"ok":false,"error":"This model uses a specialized API. Choose a text model for classroom prompts."}
+	if effort!=Models.normalize_effort(choice,effort):return {"ok":false,"error":"This model does not support that thinking effort."}
+	var payload: Dictionary={"model":choice}
+	if path=="/chat/completions":
+		var content: Variant=input
+		if input is Array:
+			content=[{"type":"text","text":input[0].text},{"type":"image_url","image_url":{"url":input[1].image_url,"detail":"low"}}]
+		payload.messages=[{"role":"user","content":content}]
+		payload.max_completion_tokens=output
+	else:
+		payload.input=input if input is String else [{"role":"user","content":input}]
+		payload.max_output_tokens=output
+		payload.store=false
+		if not effort.is_empty():payload.reasoning={"effort":effort}
+	return await _call(HTTPClient.METHOD_POST,path,payload,needs_enabled,draft)
 
 func moderate(input: String) -> Dictionary:
 	if input.strip_edges().is_empty() or input.length()>1000:return {"ok":false,"error":"The message is too long."}
@@ -109,16 +173,9 @@ func transcribe_wav(wav: PackedByteArray) -> Dictionary:
 	if not host_allowed() or not enabled or not configured():return {"ok":false,"error":"The host AI connection is unavailable."}
 	if busy:return {"ok":false,"error":"An AI request is already running."}
 	var now:=Time.get_ticks_msec()
-	_minute_calls=_minute_calls.filter(func(t: int):return now-t<60000)
-	var today:=Time.get_date_string_from_system(true)
-	if usage_day!=today:usage_day=today;used_today=0
-	if _minute_calls.size()>=requests_per_minute or used_today>=requests_per_day:return {"ok":false,"error":"The host's OpenAI request limit has been reached."}
-	used_today+=1
-	if _save()!=OK:used_today-=1;return {"ok":false,"error":"Could not save the OpenAI request count."}
-	_minute_calls.append(now)
 	busy=true
 	var boundary:="LabVoltVoice"+str(now)
-	var head:=("--%s\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-4o-mini-transcribe\r\n--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"question.wav\"\r\nContent-Type: audio/wav\r\n\r\n"%[boundary,boundary]).to_utf8_buffer()
+	var head:=("--%s\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n%s\r\n--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"question.wav\"\r\nContent-Type: audio/wav\r\n\r\n"%[boundary,TRANSCRIPTION_MODEL,boundary]).to_utf8_buffer()
 	var body:=head+wav+("\r\n--%s--\r\n"%boundary).to_utf8_buffer()
 	var request:=HTTPRequest.new();request.timeout=20.0;request.body_size_limit=32768;add_child(request)
 	var headers:=PackedStringArray(["Authorization: Bearer "+_credential(),"Content-Type: multipart/form-data; boundary="+boundary])
@@ -132,6 +189,7 @@ func transcribe_wav(wav: PackedByteArray) -> Dictionary:
 	if code<200 or code>=300:return {"ok":false,"error":"Speech transcription failed (HTTP %d)."%code}
 	var parsed: Variant=JSON.parse_string((completed[3] as PackedByteArray).get_string_from_utf8())
 	if not parsed is Dictionary:return {"ok":false,"error":"Speech transcription was unreadable."}
+	_record_usage(TRANSCRIPTION_MODEL,parsed)
 	var words:=str(parsed.get("text","")).strip_edges().left(500)
 	return {"ok":true,"text":words} if not words.is_empty() else {"ok":false,"error":"No speech was recognized."}
 
@@ -142,29 +200,21 @@ func set_local_test_endpoint(value: String) -> bool:
 	_test_base=value
 	return true
 
-func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enabled: bool) -> Dictionary:
+func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enabled: bool,draft := {}) -> Dictionary:
 	if not host_allowed():return {"ok":false,"error":"Only the host can use the OpenAI connection."}
-	if needs_enabled and not enabled:return {"ok":false,"error":"Turn on the OpenAI connection in Host Server settings."}
-	if not configured():return {"ok":false,"error":"Add an OpenAI API key in Host Server settings or set OPENAI_API_KEY for the host process."}
+	if needs_enabled and not enabled:return {"ok":false,"error":"Accept the OpenAI settings before starting the game."}
+	var key:=str(draft.get("key",""))
+	if key.is_empty():key=_credential()
+	if key.is_empty():return {"ok":false,"error":"Add an API key in OpenAI Settings or set OPENAI_API_KEY for the host process."}
 	if busy:return {"ok":false,"error":"An OpenAI request is already running."}
-	if not _valid_model(model):return {"ok":false,"error":"Choose a valid model ID in Host Server settings."}
-	var now := Time.get_ticks_msec()
-	_minute_calls=_minute_calls.filter(func(t: int):return now-t<60000)
-	var today := Time.get_date_string_from_system(true)
-	if usage_day!=today:usage_day=today;used_today=0
-	if _minute_calls.size()>=requests_per_minute:return {"ok":false,"error":"The host's per-minute OpenAI request limit has been reached."}
-	if used_today>=requests_per_day:return {"ok":false,"error":"The host's daily OpenAI request limit has been reached."}
-	used_today+=1
-	if _save()!=OK:
-		used_today-=1
-		return {"ok":false,"error":"Could not save the OpenAI request count. No request was sent."}
-	_minute_calls.append(now)
+	var request_model:=str(payload.get("model",model))
+	if not Models.valid_id(request_model):return {"ok":false,"error":"Choose a valid model ID in OpenAI Settings."}
 	busy=true
 	var request := HTTPRequest.new()
-	request.timeout=15.0
-	request.body_size_limit=MAX_RESPONSE_BYTES
+	request.timeout=180.0 if path=="/responses" else 30.0
+	request.body_size_limit=2097152 if path=="/models" else MAX_RESPONSE_BYTES
 	add_child(request)
-	var headers := PackedStringArray(["Authorization: Bearer "+_credential(),"Content-Type: application/json"])
+	var headers := PackedStringArray(["Authorization: Bearer "+key,"Content-Type: application/json"])
 	var base := _test_base if not _test_base.is_empty() else API_BASE
 	var error := request.request(base+path,headers,method,JSON.stringify(payload) if method==HTTPClient.METHOD_POST else "")
 	if error!=OK:
@@ -174,13 +224,13 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var completed: Array=await request.request_completed
 	request.queue_free()
 	busy=false
-	var response:=_read_response(int(completed[0]),int(completed[1]),completed[3],method)
-	if int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
+	var response:=_read_response(int(completed[0]),int(completed[1]),completed[3],path,request_model)
+	if draft.is_empty() and int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
 		_verified_signature=""
 		verification_error=str(response.get("error","Connection verification is required."))
 	return response
 
-func _read_response(result: int,code: int,body: PackedByteArray,method: HTTPClient.Method) -> Dictionary:
+func _read_response(result: int,code: int,body: PackedByteArray,path: String,request_model: String) -> Dictionary:
 	if result!=HTTPRequest.RESULT_SUCCESS:return {"ok":false,"error":"OpenAI could not be reached or timed out."}
 	if code==401:return {"ok":false,"error":"OpenAI rejected the API key."}
 	if code==403:return {"ok":false,"error":"This API key cannot access the selected model."}
@@ -190,48 +240,79 @@ func _read_response(result: int,code: int,body: PackedByteArray,method: HTTPClie
 	if code<200 or code>=300:return {"ok":false,"error":"OpenAI rejected the request (HTTP %d)."%code}
 	var parsed: Variant=JSON.parse_string(body.get_string_from_utf8())
 	if not parsed is Dictionary:return {"ok":false,"error":"OpenAI returned an unreadable response."}
-	if method==HTTPClient.METHOD_GET:
-		return {"ok":true,"message":"Connected to OpenAI. Model is available."} if str(parsed.get("id",""))==model else {"ok":false,"error":"OpenAI did not confirm the selected model."}
+	if path=="/models":
+		if not parsed.get("data") is Array:return {"ok":false,"error":"OpenAI did not return a model list."}
+		var unique: Dictionary={}
+		for entry in parsed.data:
+			if entry is Dictionary and entry.get("id") is String and Models.valid_id(entry.id):unique[entry.id]=true
+		var ids:=unique.keys()
+		ids.sort()
+		return {"ok":true,"models":ids}
+	if path.begins_with("/models/"):
+		return {"ok":true,"message":"Connected to OpenAI. Model is available."} if str(parsed.get("id",""))==request_model else {"ok":false,"error":"OpenAI did not confirm the selected model."}
+	_record_usage(request_model,parsed)
 	if parsed.has("results"):
 		var results: Array=parsed.get("results",[])
 		return {"ok":true,"flagged":bool(results[0].get("flagged",false))} if not results.is_empty() and results[0] is Dictionary else {"ok":false,"error":"OpenAI returned no moderation result."}
-	if parsed.get("status","")!="completed":return {"ok":false,"error":"OpenAI did not complete the response."}
+	if path=="/chat/completions":
+		var choices: Array=parsed.get("choices",[])
+		if choices.is_empty():return {"ok":false,"error":"OpenAI returned no text."}
+		return _text_result(str(choices[0].get("message",{}).get("content","")))
+	if parsed.get("status","")!="completed":
+		var incomplete: Variant=parsed.get("incomplete_details")
+		if incomplete is Dictionary and incomplete.get("reason","")=="max_output_tokens":
+			return {"ok":false,"error":"The response reached the output token limit. Raise the limit or lower thinking effort."}
+		return {"ok":false,"error":"OpenAI did not complete the response."}
 	var parts: Array[String]=[]
 	for item in parsed.get("output",[]):
 		if not item is Dictionary or item.get("type","")!="message":continue
 		for content in item.get("content",[]):
 			if content is Dictionary and content.get("type","")=="output_text":parts.append(str(content.get("text","")))
-	var answer := "\n".join(parts).strip_edges().left(16000)
+	return _text_result("\n".join(parts))
+
+func _text_result(value: String) -> Dictionary:
+	var answer:=value.strip_edges().left(16000)
 	return {"ok":true,"text":answer} if not answer.is_empty() else {"ok":false,"error":"OpenAI returned no text."}
+
+func _record_usage(id: String, response: Dictionary) -> void:
+	var raw: Variant=response.get("usage",{})
+	var usage: Dictionary=raw if raw is Dictionary else {}
+	var details: Variant=usage.get("output_tokens_details",usage.get("completion_tokens_details",{}))
+	var totals: Dictionary=model_usage.get_or_add(id,{"requests":0,"input":0,"output":0,"reasoning":0,"seconds":0.0})
+	totals.requests+=1
+	totals.input+=_token_count(usage.get("input_tokens",usage.get("prompt_tokens",0)))
+	totals.output+=_token_count(usage.get("output_tokens",usage.get("completion_tokens",0)))
+	if details is Dictionary:totals.reasoning+=_token_count(details.get("reasoning_tokens",0))
+	var seconds: Variant=usage.get("seconds",0)
+	if (seconds is int or seconds is float) and is_finite(float(seconds)) and seconds>0:totals.seconds+=float(seconds)
+	_save()
+
+func _token_count(value: Variant) -> int:
+	return clampi(int(value),0,2000000000) if (value is int or value is float) and is_finite(float(value)) else 0
 
 func _credential() -> String:
 	return _session_key if not _session_key.is_empty() else OS.get_environment("OPENAI_API_KEY").strip_edges()
-
-func _valid_model(value: String) -> bool:
-	if value.is_empty() or value.length()>64:return false
-	for character in value:
-		if not character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-":return false
-	return true
 
 func _load() -> void:
 	var config := ConfigFile.new()
 	if config.load(SETTINGS_PATH)!=OK:return
 	var saved_model := str(config.get_value("openai","model",DEFAULT_MODEL))
-	model=saved_model if _valid_model(saved_model) else DEFAULT_MODEL
-	max_output_tokens=clampi(int(config.get_value("openai","max_output_tokens",384)),16,2048)
-	requests_per_minute=clampi(int(config.get_value("openai","requests_per_minute",4)),1,10)
-	requests_per_day=clampi(int(config.get_value("openai","requests_per_day",20)),1,200)
+	model=saved_model if Models.valid_id(saved_model) and not Models.endpoint(saved_model).is_empty() else DEFAULT_MODEL
+	max_output_tokens=clampi(int(config.get_value("openai","max_output_tokens",384)),16,32768)
+	reasoning_effort=Models.normalize_effort(model,str(config.get_value("openai","reasoning_effort","")))
 	enabled=bool(config.get_value("openai","enabled",false))
-	usage_day=str(config.get_value("usage","day",""))
-	used_today=maxi(0,int(config.get_value("usage","count",0)))
+	var usage: Variant=config.get_value("usage","models",{})
+	if usage is Dictionary:
+		for id in usage:
+			var totals: Variant=usage[id]
+			if not id is String or not Models.valid_id(id) or not totals is Dictionary:continue
+			model_usage[id]={"requests":_token_count(totals.get("requests",0)),"input":_token_count(totals.get("input",0)),"output":_token_count(totals.get("output",0)),"reasoning":_token_count(totals.get("reasoning",0)),"seconds":maxf(0,float(totals.get("seconds",0)))}
 
 func _save() -> Error:
 	var config := ConfigFile.new()
 	config.set_value("openai","model",model)
 	config.set_value("openai","max_output_tokens",max_output_tokens)
-	config.set_value("openai","requests_per_minute",requests_per_minute)
-	config.set_value("openai","requests_per_day",requests_per_day)
+	config.set_value("openai","reasoning_effort",reasoning_effort)
 	config.set_value("openai","enabled",enabled)
-	config.set_value("usage","day",usage_day)
-	config.set_value("usage","count",used_today)
+	config.set_value("usage","models",model_usage)
 	return config.save(SETTINGS_PATH)

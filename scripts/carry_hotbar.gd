@@ -162,13 +162,19 @@ func _sync_dorm_items() -> void:
 	if is_instance_valid(game.kit_world):
 		for key in carried.duplicate():
 			if key.begins_with("kit:") and game.kit_world.is_placed(multiplayer.get_unique_id(),key.trim_prefix("kit:")):carried.erase(key)
+	if is_instance_valid(game.portable_laptops):
+		carried=carried.filter(func(key):return not key.begins_with("laptop:") or not game.portable_laptops.placed.has(key.trim_prefix("laptop:")))
+	if is_instance_valid(game.personal_placement) and not game.personal_placement.placed.is_empty():
+		var peer:=multiplayer.get_unique_id()
+		carried=carried.filter(func(key):return not game.personal_placement.is_placed(peer,key))
 	var components: Array = []
 	var quantities := {}
 	for part in dorm.get("carried_components",[]):
 		var key := str(part.type)+"/"+str(part.instance)
 		var ordinal := int(quantities.get(key,0))
 		quantities[key]=ordinal+1
-		components.append({"kind":"component","type":part.type,"instance":part.instance,"ordinal":ordinal})
+		if not is_instance_valid(game.personal_placement) or not game.personal_placement.is_placed(multiplayer.get_unique_id(),"part:%s:%s:%d"%[part.type,part.instance,ordinal]):
+			components.append({"kind":"component","type":part.type,"instance":part.instance,"ordinal":ordinal})
 	for index in range(slots.size()):
 		var key := str(slots[index].get("dorm_item",""))
 		var stored_kit: bool = slots[index].get("kind")=="kit" and slots[index].get("id") in dorm.get("stored_kits",[])
@@ -468,20 +474,6 @@ func select_slot(index: int) -> void:
 	if active==index:active=-1;switching=false;return
 	active=index;var item: Dictionary=slots[index]
 	match item.get("kind",""):
-		"component":
-			var dialog := ConfirmationDialog.new()
-			dialog.title=title(item)
-			dialog.dialog_text="Move this component to your available inventory for kit and board builds?"
-			dialog.ok_button_text="Move to inventory"
-			dialog.confirmed.connect(func():
-				active=-1
-				game.dorm_interactions.component_transfer(str(item.type),str(item.instance),"release_component")
-				dialog.queue_free()
-				game.capture())
-			dialog.canceled.connect(func():active=-1;dialog.queue_free();game.capture())
-			game.ui.add_child(dialog)
-			game.release_mouse()
-			dialog.popup_centered()
 		"notebook", "calculator", "pencil_case", "lab_goggles", "backpack", "flashlight", "marker", "whiteboard":
 			var kind := str(item.get("dorm_item",item.get("type",item.kind)))
 			for document in game.school.papers.values():
@@ -542,6 +534,8 @@ func manager(parent: Node) -> void:
 		tile.set_drag_forwarding(_drag_hotbar_slot.bind(tile,index),_can_drop_hotbar_slot.bind(index),_drop_hotbar_slot.bind(index))
 		var discard_entry := _pack_entry(item)
 		if item.get("kind","") in ["paper","wire","dc_wire","food","board"]:discard_entry=item.duplicate()
+		if item.get("kind","") in ["usb","portable_laptop"]:
+			discard_entry={"kind":"usb" if item.kind=="usb" else "laptop","id":item.id}
 		if not discard_entry.is_empty():
 			tile.tooltip_text+="\nRight click for options"
 			var equip := _equip_inventory_slot.bind(index,item)
@@ -710,9 +704,11 @@ func _item_menu(event: InputEvent, tile: Button, item: Dictionary, source: Dicti
 	var menu := PopupMenu.new()
 	tile.add_child(menu)
 	if equip.is_valid():menu.add_item("Equip",0)
+	if source.get("location")=="hotbar" and item.get("kind")=="component":menu.add_item("Move to inventory",2)
 	menu.add_item("Discard",1)
 	menu.id_pressed.connect(func(id: int):
 		if id==0:equip.call()
+		elif id==2:game.dorm_interactions.component_transfer(str(item.type),str(item.instance),"release_component")
 		else:_confirm_discard(title(item),source))
 	menu.popup_hide.connect(menu.queue_free)
 	menu.position=Vector2i(get_viewport().get_mouse_position())
