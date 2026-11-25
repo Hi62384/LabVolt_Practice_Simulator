@@ -20,7 +20,7 @@ func mount(campus: Node3D, registry: Object) -> bool:
 	var high: Array=room.get("bounds_max",[])
 	if low.size()!=3 or high.size()!=3: return false
 	if absf(float(low[0])+10.0)>.01 or absf(float(high[0])-10.0)>.01 or absf(float(low[2])-13.0)>.01 or absf(float(high[2])-25.0)>.01: return false
-	root=Node3D.new();root.name="M103RoomFinish";campus.add_child(root)
+	root=Node3D.new();root.name="M103RoomFinish";root.set_meta("stable_fixture_shadows",true);campus.add_child(root)
 	# The finish supplies the visible tile tops above the solid room shell.
 	var groups: Array = []
 	for variant in range(2):

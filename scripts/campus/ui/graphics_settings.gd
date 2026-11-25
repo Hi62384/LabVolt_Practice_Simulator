@@ -259,7 +259,10 @@ func register_node(node: Node, recursive := true) -> void:
 				node.light_energy *= visuals.fixture_energy
 				node.light_color *= visuals.fixture_tint
 			node.light_specular=float(saved.specular)*([.7,1.0,1.12,1.18][lighting] if options.reflections else 0.0)
-		if not node is DirectionalLight3D:
+		var stable_fixture_shadows: bool=node.get_meta("stable_fixture_shadows",false)
+		if stable_fixture_shadows:
+			node.distance_fade_enabled=false
+		elif not node is DirectionalLight3D:
 			# Keep fixture lighting visible at its authored distance, while
 			# avoiding shadow-map work for fixtures farther down the corridor.
 			node.distance_fade_enabled=bool(saved.fade) or node.get_meta("ultra_distance_fade",false) or node.shadow_enabled
@@ -278,7 +281,7 @@ func register_node(node: Node, recursive := true) -> void:
 			if visuals != null:
 				node.shadow_opacity *= visuals.shadow_opacity
 				node.shadow_blur *= visuals.shadow_softness
-		if node is SpotLight3D and node.get_meta("room_fixture", false) and node.shadow_enabled:
+		if node is SpotLight3D and node.get_meta("room_fixture", false) and node.shadow_enabled and not stable_fixture_shadows:
 			_fixture_shadow_opacity[id] = node.shadow_opacity
 		else:
 			_fixture_shadow_opacity.erase(id)
