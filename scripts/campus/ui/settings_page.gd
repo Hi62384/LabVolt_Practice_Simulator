@@ -286,7 +286,7 @@ func _display_controls() -> void:
 	_quality_choice("Render scale", "render_scale", [.5,.65,.75,.85,1.0], ["50%","65%","75%","85%","100%"])
 	_quality_choice("Anti-aliasing", "aa", [0,1,2,3], ["Off","MSAA 2×","MSAA 4×","MSAA 8×"])
 	_quality_choice("Texture filtering", "texture", [0,1,2], ["Nearest mipmaps","Filtered 4×","Filtered 16×"])
-	_quality_choice("View distance", "view_distance", [30.0,60.0,100.0,120.0,180.0,240.0], ["30 m","60 m","100 m","120 m","180 m","240 m"])
+	_quality_choice("View distance", "view_distance", [30.0,60.0,100.0,120.0,180.0,240.0,360.0,500.0,750.0,1000.0], ["30 m","60 m","100 m","120 m","180 m","240 m","360 m","500 m","750 m","1,000 m"])
 	_quality_choice("Ambient campus crowd", "npc_density", ["Off","Low","Medium","High"], ["Off","Low","Medium","High"])
 	_label(body, "Lighting & shadows", 18)
 	_slider("Brightness",.70,1.30,.01,graphics.options.brightness,_quality.bind("brightness"),"%.0f%%",100)

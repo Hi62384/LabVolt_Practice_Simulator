@@ -100,7 +100,7 @@ func _validate(key: String, value: Variant) -> bool:
 			if value not in ["Cool","Neutral","Warm"]:return false
 			options[key]=value
 		"render_scale": options[key]=clampf(float(value),0.5,1.0)
-		"view_distance": options[key]=clampf(float(value),30.0,240.0)
+		"view_distance": options[key]=clampf(float(value),30.0,1000.0)
 		"texture": options[key]=clampi(int(value),0,2)
 		"aa","lighting_quality","shadow_quality","bloom_quality": options[key]=clampi(int(value),0,3)
 		"npc_density":
