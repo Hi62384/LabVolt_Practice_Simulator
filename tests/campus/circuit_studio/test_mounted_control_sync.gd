@@ -40,6 +40,8 @@ func _run() -> void:
     var game:=FakeGame.new()
     var world:=FakeWorld.new()
     game.invention_world=world
+    game.add_child(game.session)
+    game.add_child(game.player)
     root.add_child(game)
     game.add_child(world)
     var control_states: Dictionary={
@@ -99,15 +101,23 @@ func _run() -> void:
     root.add_child(fake_game)
     fake_game.add_child(actual)
     actual.game=fake_game
+    # The lightweight runtime probes only commands; use a full live world
+    # record for the visual loop and disable only the unrelated physics tick.
+    actual.set_physics_process(false)
     var runtime:=LongInputRuntime.new()
-    actual.placed["fixture"]={"position":Vector3.ZERO,"pcb_inputs":[{"id":id,"kind":"button"}],
-        "pcb_controls":{}}
+    actual.placed["fixture"]={"name":"Nested control fixture","position":Vector3.ZERO,
+        "parts":[],"yaw":0.0,"angle":0.0,"hinge_angles":{},"features":{"battery":false},
+        "state":{"A":false,"B":false},"effective":{"A":false,"B":false},
+        "controls":{"A":"hold","B":"toggle"},"drive":{"A":"manual","B":"manual"},
+        "pcb_inputs":[{"id":id,"kind":"button"}],"pcb_controls":{}}
     actual.simulators["fixture"]={"runtime":runtime}
     actual._apply(1,{"op":"pcb_input","key":"fixture","id":id,"pressed":true,"reverse":false,"command":{}})
     check(runtime.current.has(id) and bool(runtime.current[id].pressed),
         "Host accepts valid deeply nested PCB input IDs")
     check(actual.placed.fixture.pcb_controls.has(id) and actual.pending_motion.has("fixture"),
         "Host publishes the new input state after a nested control command")
+    actual._process(0.0)
+    check(is_instance_valid(actual.visuals.get("fixture")),"Complete nested-control record creates its world view")
     fake_game.queue_free()
     await process_frame
     print("MOUNTED_CONTROL_SYNC ", "PASS" if failures==0 else "FAIL ",failures)

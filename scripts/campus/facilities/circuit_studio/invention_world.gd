@@ -29,9 +29,7 @@ func build(owner_game: Node) -> void:
 	game.session.restarted.connect(func():
 		placed.clear()
 		local_hold.clear()
-		for simulator in simulators.values():
-			if simulator.runtime.has_method("close"):simulator.runtime.close()
-		simulators.clear()
+		_close_simulators()
 		pcb_holders.clear()
 		pending_motion.clear()
 		sent_structure.clear()
@@ -40,6 +38,18 @@ func build(owner_game: Node) -> void:
 		pending_blueprint=""
 		_clear_visuals())
 	game.session.roster_changed.connect(_roster_changed)
+
+func _close_simulators() -> void:
+	for simulator in simulators.values():
+		if is_instance_valid(simulator.runtime) and simulator.runtime.has_method("close"):
+			simulator.runtime.close()
+	simulators.clear()
+
+func _exit_tree() -> void:
+	# Explicitly stop native workers and break scheduler callback references
+	# before RefCounted members are destroyed or the session disappears.
+	_close_simulators()
+	pcb_holders.clear()
 
 func _roster_changed() -> void:
 	if not multiplayer.is_server():return
@@ -62,13 +72,15 @@ func _roster_changed() -> void:
 
 func _remove_placed(key: String) -> void:
 	placed.erase(key)
-	if simulators.has(key) and simulators[key].runtime.has_method("close"):simulators[key].runtime.close()
+	if simulators.has(key) and is_instance_valid(simulators[key].runtime) and simulators[key].runtime.has_method("close"):
+		simulators[key].runtime.close()
 	simulators.erase(key)
 	pending_motion.erase(key)
 	if visuals.has(key):
 		var view: Node3D=visuals[key]
-		remove_child(view)
-		view.queue_free()
+		if is_instance_valid(view):
+			remove_child(view)
+			view.queue_free()
 		visuals.erase(key)
 	for holder_key in pcb_holders.keys():
 		if pcb_holders[holder_key].key==key:pcb_holders.erase(holder_key)
@@ -105,7 +117,10 @@ func interact(target: Node,right: bool=false) -> bool:
 		else:game.ui.log_message("Only the owner can retrieve this invention.")
 		return true
 	if target.get_meta("role")=="invention_pcb":
-		if is_instance_valid(pcb_panel):pcb_panel.queue_free()
+		if is_instance_valid(pcb_panel):
+			pcb_panel._release_held_inputs()
+			pcb_panel.hide()
+			pcb_panel.queue_free()
 		pcb_panel=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_panel.gd").new()
 		add_child(pcb_panel);pcb_panel.open_board(game,key)
 		return true
@@ -167,7 +182,10 @@ func _apply(peer: int,action: Dictionary) -> void:
 		var bounds:=_bounds(parts)
 		var pose:=_pose(peer)
 		var position:=_placement(pose,peer,bounds)
-		if position==Vector3.INF:_placement_result(peer,"Not enough clear space to place this invention.");return
+		if position==Vector3.INF:
+			if is_instance_valid(pcb_runtime):pcb_runtime.close()
+			_placement_result(peer,"Not enough clear space to place this invention.")
+			return
 		var features:={"battery":false,"wheel":false,"motor_a":false,"motor_b":false,"switch_a":false,"switch_b":false}
 		for part in parts:
 			if part.type=="battery":features.battery=true
@@ -216,16 +234,22 @@ func _apply(peer: int,action: Dictionary) -> void:
 		# forwarding anything to the circuit or changing control ownership.
 		if str(command_data.get("op","")) in ["press","touch","key"] and command_data.get("pressed") is bool:
 			if bool(command_data.pressed)!=bool(action.pressed):return
-		var holder_key:=key+"|"+input_id+":"+str(command_data.get("key",""))
+		# Only keypad inputs have independent per-key leases. A client-supplied
+		# key on a joystick, touch input or button must not create a second lease.
+		var suffix: String=""
+		if input_record.kind=="io_keypad":
+			var button_key: Variant=command_data.get("key")
+			if command_data.get("op","")!="key" or not button_key is int or button_key<0 or button_key>=12:return
+			suffix=str(button_key)
+		elif command_data.has("key"):return
+		if command_data.get("op","")=="release" and action.pressed:return
+		var holder_key:=key+"|"+input_id+":"+suffix
 		var holdable: bool=input_record.kind=="button" or str(command_data.get("op","")) in ["key","press","touch"] or (not action.pressed and input_record.kind in ["xpt2046","io_joystick"])
 		var holder: Dictionary=pcb_holders.get(holder_key,{})
 		# A held joystick or touchscreen belongs to one player for every input
 		# command, not just press/move. A malformed release must not bypass it.
 		if input_record.kind in ["io_joystick","xpt2046"]:
 			if int(holder.get("peer",0)) not in [0,peer] and Time.get_ticks_msec()<=int(holder.get("expiry",0)):return
-		# A keypad-wide release would clear keys held by other players; the
-		# public UI only submits per-key releases. Host lease expiry is separate.
-		if input_record.kind=="io_keypad" and str(command_data.get("op",""))=="release":return
 		if holdable:
 			if action.pressed and int(holder.get("peer",0)) not in [0,peer] and Time.get_ticks_msec()<=int(holder.get("expiry",0)):return
 			if not action.pressed and int(holder.get("peer",0))!=peer:return
@@ -400,8 +424,11 @@ func _process(delta: float) -> void:
 		if not placed.has(key):visuals[key].queue_free();visuals.erase(key)
 	for key in placed:
 		var item: Dictionary=placed[key]
-		if not visuals.has(key):visuals[key]=_create_view(key,item)
+		if not is_instance_valid(visuals.get(key)):visuals[key]=_create_view(key,item)
 		var root: Node3D=visuals[key]
+		if not is_instance_valid(root):
+			visuals.erase(key)
+			continue
 		root.position=item.position if multiplayer.is_server() else root.position.lerp(item.position,1.0-exp(-delta*18.0))
 		root.rotation.y=float(item.yaw)
 		for control in ["A","B"]:

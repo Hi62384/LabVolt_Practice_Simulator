@@ -255,6 +255,11 @@ func _check_input_leases() -> void:
 	var before: int=probe.calls.size()
 	world._apply(2,move)
 	assert(probe.calls.size()==before,"A second player moved another player's held joystick")
+	var alias: Dictionary=move.duplicate(true)
+	alias.command.key=1
+	world._apply(2,alias)
+	assert(probe.calls.size()==before and world.pcb_holders.size()==1,
+		"A forged per-key joystick suffix must not bypass its existing lease")
 	world._apply(1,move)
 	assert(probe.calls.size()==before+1,"The joystick's holder could not move its own axes")
 	var forged_release: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":true,
@@ -263,6 +268,9 @@ func _check_input_leases() -> void:
 	world._apply(2,forged_release)
 	assert(probe.calls.size()==before and world.pcb_holders.has("fixture|board/joy:"),
 		"A forged release bypassed another player's joystick lease")
+	world._apply(1,forged_release)
+	assert(probe.calls.size()==before and world.pcb_holders.has("fixture|board/joy:"),
+		"Contradictory release from the current holder must not re-acquire the lease")
 	var release: Dictionary={"op":"pcb_input","key":"fixture","id":"board/joy","pressed":false,
 		"command":{"op":"release"}}
 	probe.accept=false

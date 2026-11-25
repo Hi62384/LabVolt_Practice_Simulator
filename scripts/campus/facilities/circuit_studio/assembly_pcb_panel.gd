@@ -54,9 +54,13 @@ func open_board(owner_game: Node,invention_key: String,show_window: bool=true) -
 		elif entry.kind in ["io_slider","io_joystick","xpt2046"]:
 			var x_label:=Label.new();x_label.text="Level" if entry.kind=="io_slider" else "X";row.add_child(x_label)
 			var x:=HSlider.new();x.min_value=0;x.max_value=1;x.step=.05;x.value=.5;x.custom_minimum_size.x=130;row.add_child(x)
-			var y:=HSlider.new();y.min_value=0;y.max_value=1;y.step=.05;y.value=.5;y.custom_minimum_size.x=130
-			widget.x=x;widget.y=y
+			# A one-axis slider must not allocate an unparented second Control.
+			# Nodes are not RefCounted and would leak on every panel opening.
+			var y: HSlider=null
+			widget.x=x
 			if entry.kind!="io_slider":
+				y=HSlider.new();y.min_value=0;y.max_value=1;y.step=.05;y.value=.5;y.custom_minimum_size.x=130
+				widget.y=y
 				var y_label:=Label.new();y_label.text="Y";row.add_child(y_label)
 				row.add_child(y)
 			# Bind each row's device and sliders explicitly. Loop-local closures

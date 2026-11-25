@@ -3,6 +3,7 @@ extends SceneTree
 const Board=preload("res://scripts/breadboard_model.gd")
 const Custom=preload("res://scripts/custom_circuit.gd")
 const Runtime=preload("res://scripts/campus/facilities/circuit_studio/assembly_pcb_runtime.gd")
+const World=preload("res://scripts/campus/facilities/circuit_studio/invention_world.gd")
 const HostConfig=preload("res://scripts/firmware_backends/native_host_config.gd")
 var failures:=0
 
@@ -57,6 +58,21 @@ func _run() -> void:
             break
         await create_timer(.01).timeout
     check(active,"Actual Uno D13 output drives mounted PCB's external output above 2.5 V")
+    # The real world's exit must stop the running firmware, not merely drop
+    # its last RefCounted reference. Retain the runtime to verify closure.
+    var world:=World.new()
+    root.add_child(world)
+    world.set_process(false)
+    world.set_physics_process(false)
+    world.simulators["native"]={"runtime":runtime,"clock":0.0}
+    world.free()
+    check(not runtime.native_host.active and runtime.native_host.scheduler.bridge.process.is_empty(),
+        "World exit closes the native firmware process and scheduler")
+    check(not runtime.tick(.05).get("ok",false) and runtime.input_states().is_empty(),
+        "A closed PCB cannot simulate or expose stale input state")
+    runtime.close()
+    check(runtime.configure("ic:invention_avr",defs,{"power":0,"ground":1,"A":2,"B":-1}),
+        "An explicitly closed PCB can be configured again")
     runtime.close()
     print("MOUNTED_NATIVE_FIRMWARE ", "PASS" if failures==0 else "FAIL ",failures)
     quit(failures)

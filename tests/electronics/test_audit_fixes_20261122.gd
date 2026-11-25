@@ -141,6 +141,7 @@ func _queue_and_receipts() -> void:
 	origin.design.wires.append(["A1","A2"])
 	check(queue[0].action.design.wires.is_empty(),"Queued actions retain independent data snapshots")
 	var game:=FakeGame.new()
+	game.add_child(game.ui)
 	root.add_child(game)
 	var ui:=Electronics.new()
 	game.add_child(ui)
@@ -171,6 +172,7 @@ func _queue_and_receipts() -> void:
 		ui.complete_placed_board_edit(index,str(action.edit_request_id),true,next)
 	check(ui.request_placed_board_edit(0,"starter",next) and ui.pending_board_edits.is_empty(),"Synchronous host acknowledgements cannot be lost")
 	check(ui.profile.data.kits.starter.board.wires==next.wires,"Synchronous receipt commits the accepted circuit")
+	game.electronics_trade.authority.reply=Callable()
 	game.queue_free()
 
 func _preview() -> void:

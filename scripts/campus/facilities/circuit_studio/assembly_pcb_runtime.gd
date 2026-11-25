@@ -20,11 +20,7 @@ var native_backlog:=0.0
 func configure(id: String,definitions: Dictionary,mapping: Dictionary) -> bool:
 	# A rejected reconfiguration must not leave the previous powered circuit
 	# or its input controls available under a stale pin map.
-	native_host.close()
-	native_backlog=0.0
-	station=null
-	pin_map.clear()
-	inputs.clear()
+	close()
 	var board: Dictionary=Board.standalone(id,definitions)
 	if board.is_empty():return false
 	# Do not let a malformed mapping crash the station or short its supply.
@@ -76,10 +72,13 @@ func input_states() -> Dictionary:
 	return states
 
 func close() -> void:
-	# RefCounted predelete can run after member references have been released.
-	# Closing an unconfigured/partially constructed PCB must be idempotent.
-	if is_instance_valid(native_host):native_host.close()
+	# Called explicitly by the owning world while the script instance is alive.
+	# A closed PCB must not accept input or restart simulation on its next tick.
+	native_host.close()
 	native_backlog=0.0
+	station=null
+	pin_map.clear()
+	inputs.clear()
 
 func tick(dt: float) -> Dictionary:
 	if not is_instance_valid(station):return {"A":0.0,"B":0.0,"ok":false}
@@ -145,5 +144,5 @@ func input(id: String,pressed: bool,reverse: bool=false,command: Dictionary={}) 
 		action.command=submitted
 	return station.apply(action)==""
 
-func _notification(what: int) -> void:
-	if what==NOTIFICATION_PREDELETE:close()
+# Do not invoke script methods from RefCounted PREDELETE: Godot may already
+# have detached the script instance. NativeBridge owns the child PID fallback.

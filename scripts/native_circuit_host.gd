@@ -12,7 +12,7 @@ var fault := ""
 # A transient sidecar failure must not strand unchanged installed firmware.
 var retry_at_msec := 0
 func close() -> void:
- scheduler.close();signature="";records={};active=false;retry_at_msec=0
+ scheduler.close();signature="";records={};active=false;retry_at_msec=0;fault=""
 func refresh(stations: Array) -> void:
  var found := {};var keys: Array=[]
  for index in stations.size():
