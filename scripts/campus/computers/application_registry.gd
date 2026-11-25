@@ -46,7 +46,8 @@ static func _read_record(drive: RefCounted,path: String) -> Variant:
 	var state: String=stored.get_string_from_utf8() if stored is PackedByteArray and stored.size()<=MAX_STATE_BYTES else "{}"
 	return {"id":value.id,"name":value.name,"publisher":value.publisher,"version":value.version,
 		"sha256":value.sha256,"archive":archive,"bytes":drive.entries[archive].data.size(),
-		"shortcut":value.get("shortcut",true)==true,"state":state if valid_state(state) else "{}"}
+		"shortcut":value.get("shortcut",true)==true,"desktop_shortcut":value.get("desktop_shortcut",false)==true,
+		"state":state if valid_state(state) else "{}"}
 
 static func apply(drive: RefCounted,action: Dictionary) -> String:
 	var list:=installed(drive)
@@ -100,7 +101,7 @@ static func apply(drive: RefCounted,action: Dictionary) -> String:
 	if not staging.entries.has(ROOT) and not staging.make_folder(ROOT):return "Could not create Program Files."
 	if not staging.entries.has(target) and not staging.make_folder(target):return "Could not create the installation folder."
 	var record:={"id":manifest.id,"name":manifest.name,"publisher":manifest.publisher,"version":manifest.version,
-		"sha256":digest,"shortcut":action.get("shortcut",true)==true}
+		"sha256":digest,"shortcut":action.get("shortcut",true)==true,"desktop_shortcut":action.get("desktop_shortcut",false)==true}
 	if not staging.write_file(target+"/"+ARCHIVE,file.data) or not staging.write_file(target+"/"+RECORD,JSON.stringify(record).to_utf8_buffer()):
 		return "There is insufficient space to install this package."
 	drive.entries=staging.entries

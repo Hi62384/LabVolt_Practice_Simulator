@@ -548,6 +548,7 @@ func _begin_usb_write(actor: int,station: String,action: Dictionary,old_entries:
 		operation.folder=str(action.get("folder",""))
 		operation.replace=action.get("replace",false)==true
 		operation.shortcut=action.get("shortcut",true)==true
+		operation.desktop_shortcut=action.get("desktop_shortcut",false)==true
 	if action.op in ["uninstall_app","save_app_state"]:operation.app_id=str(action.get("app_id",""))
 	if action.op=="uninstall_app":operation.keep_data=action.get("keep_data",false)==true
 	if action.op=="save_app_state":

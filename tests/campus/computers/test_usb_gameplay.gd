@@ -72,14 +72,17 @@ func run() -> void:
 	install_button.pressed.emit()
 	for setup: Node in desktop.get_children():
 		if setup is ConfirmationDialog and setup.title=="Install USB App":
+			for option: CheckBox in setup.find_children("*","CheckBox",true,false):
+				if option.text=="Create desktop shortcut":option.button_pressed=true
 			service.last_request.erase(1)
 			setup.confirmed.emit()
 			break
 	var installed: Dictionary=service.local_snapshot.get("installed_apps",{}).get("example.usb",{})
-	assert(not installed.is_empty())
+	assert(installed.get("desktop_shortcut",false))
+	assert(desktop.installed_shortcuts.get_child_count()==1)
 	if DisplayServer.get_name()!="headless":
 		service.last_request.erase(1)
-		desktop._preview_path(str(installed.archive))
+		desktop.installed_shortcuts.get_child(0).pressed.emit()
 		assert(desktop.windows.has("app:example.usb"))
 		var app_view: Control=desktop.windows["app:example.usb"].viewer
 		for frame in 60:

@@ -98,6 +98,8 @@ const Apps = preload("res://scripts/campus/computers/application_registry.gd")
 const WebSurface = preload("res://scripts/campus/computers/offline_web_surface.gd")
 var installed_apps_view: VBoxContainer
 var displayed_apps: Dictionary = {}
+var installed_shortcuts: GridContainer
+var displayed_shortcuts: Dictionary = {}
 var execution: Node
 const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Recycle Bin":"trash"}
 
@@ -258,6 +260,20 @@ void fragment() {
 	shortcuts.add_theme_constant_override("h_separation", 12)
 	shortcuts.add_theme_constant_override("v_separation", 6)
 	workspace.add_child(shortcuts)
+	var app_shortcut_scroll:=ScrollContainer.new()
+	app_shortcut_scroll.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
+	app_shortcut_scroll.offset_left=250
+	app_shortcut_scroll.offset_right=480
+	app_shortcut_scroll.offset_top=8
+	app_shortcut_scroll.offset_bottom=-8
+	app_shortcut_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	app_shortcut_scroll.hide()
+	workspace.add_child(app_shortcut_scroll)
+	installed_shortcuts=GridContainer.new()
+	installed_shortcuts.columns=2
+	installed_shortcuts.add_theme_constant_override("h_separation",8)
+	installed_shortcuts.add_theme_constant_override("v_separation",6)
+	app_shortcut_scroll.add_child(installed_shortcuts)
 	for name in app_names:
 		var shortcut := Button.new()
 		shortcut.text=name
@@ -2381,6 +2397,10 @@ func _install_app(path: String, bytes: PackedByteArray) -> void:
 	shortcut.text="Show in Start menu"
 	shortcut.button_pressed=app.get("shortcut",true)
 	body.add_child(shortcut)
+	var desktop_shortcut:=CheckBox.new()
+	desktop_shortcut.text="Create desktop shortcut"
+	desktop_shortcut.button_pressed=app.get("desktop_shortcut",false)
+	body.add_child(desktop_shortcut)
 	var separation:=HSeparator.new()
 	body.add_child(separation)
 	add_child(setup)
@@ -2388,10 +2408,33 @@ func _install_app(path: String, bytes: PackedByteArray) -> void:
 	setup.confirmed.connect(func():
 		if lease==snapshot.get("lease"):
 			_send({"op":"install_app","path":path,"sha256":Apps.sha256(bytes),"folder":folder.text,
-				"replace":not app.is_empty(),"shortcut":shortcut.button_pressed})
+				"replace":not app.is_empty(),"shortcut":shortcut.button_pressed,"desktop_shortcut":desktop_shortcut.button_pressed})
 		setup.queue_free())
 	setup.canceled.connect(setup.queue_free)
 	setup.popup_centered()
+
+func _refresh_desktop_app_shortcuts() -> void:
+	if not is_instance_valid(installed_shortcuts):return
+	var links:={}
+	for app: Dictionary in snapshot.get("installed_apps",{}).values():
+		if app.get("desktop_shortcut",false):links[app.archive]=app.name
+	if links==displayed_shortcuts:return
+	displayed_shortcuts=links
+	for child in installed_shortcuts.get_children():
+		installed_shortcuts.remove_child(child)
+		child.queue_free()
+	installed_shortcuts.get_parent().visible=not links.is_empty()
+	for path: String in links:
+		var launch:=_button(str(links[path]),_preview_path.bind(path))
+		launch.icon=Icon.icon("component")
+		launch.flat=true
+		launch.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
+		launch.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
+		launch.add_theme_constant_override("icon_max_width",48)
+		launch.custom_minimum_size=Vector2(104,70)
+		launch.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+		launch.tooltip_text=launch.text
+		installed_shortcuts.add_child(launch)
 
 func _refresh_installed_apps() -> void:
 	if not is_instance_valid(installed_apps_view):return
@@ -2778,6 +2821,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	if prior_lease!=value.get("lease") and not resumed:_reset_windows()
 	var save_acked := not saving_path.is_empty() and int(value.get("revision",-1))>int(snapshot.get("revision",-1))
 	snapshot = value.duplicate(true)
+	_refresh_desktop_app_shortcuts()
 	for key: String in windows.keys():
 		var window: Dictionary=windows[key]
 		if not window.has("app_record"):continue
