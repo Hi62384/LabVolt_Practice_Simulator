@@ -268,7 +268,7 @@ func _process(delta: float) -> void:
 			elif kind in ["deadlift","romanian_deadlift"]:arm.node.rotation.x=-phase*.5
 			elif kind=="shrug":arm.node.position.y+=raised*.08
 			elif kind=="wrist_curl":arm.node.rotation.x=-.9 if on_bench else 0.0
-			if state.get("activity","")=="trapped":arm.node.rotation.x=-.7+sin(elapsed*7.0)*.12
+			if state.get("activity","")=="trapped":arm.node.rotation.x+=sin(elapsed*7.0)*.08
 		for leg in legs.values():
 			leg.node.transform=leg.transform
 			if on_bench:

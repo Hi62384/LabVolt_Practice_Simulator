@@ -357,7 +357,9 @@ func _room_event(peer: int,event: Dictionary) -> void:
 	elif event.get("activity","") in ["idle","trapped","seat","emote"]:bar_activities.erase(peer)
 	for station in trapped.keys():
 		if int(trapped[station])==peer:trapped.erase(station)
-	if event.get("activity","")=="trapped" and POSITIONS.has(str(event.get("station",""))):trapped[str(event.station)]=peer
+	if event.get("activity","")=="trapped":
+		var bar_id:=held_bar(peer) if event.get("equipment","")=="barbell" else str(event.get("station",""))
+		if POSITIONS.has(bar_id):trapped[bar_id]=peer
 
 func _refresh() -> void:
 	for child in list.get_children():list.remove_child(child);child.queue_free()
@@ -1003,11 +1005,22 @@ func _sync_rescue_targets() -> void:
 		return
 	for station in rescue_targets:
 		var target: StaticBody3D = rescue_targets[station]
-		if trapped.has(station) and motion.bars.has(station):
-			target.global_transform = motion.bars[station].global_transform
-			target.collision_layer = 4
-		else:
-			target.collision_layer = 0
+		var peer:=int(trapped.get(station,0))
+		target.collision_layer=0
+		if peer<=0:continue
+		var activity: Dictionary=bar_activities.get(peer,{})
+		var visual: Node3D=motion.bars.get(station)
+		if activity.get("equipment","")=="barbell":
+			visual=bench_models.get(peer,{}).get("visual")
+			if not is_instance_valid(visual):
+				visual=bar_hand if peer==multiplayer.get_unique_id() else carried_models.get(peer,{}).get("visual")
+		if is_instance_valid(visual):
+			target.global_transform=visual.global_transform.orthonormalized()
+			target.collision_layer=4
+		elif activity.get("workout_position") is Vector3:
+			target.global_position=activity.workout_position+Vector3.UP
+			target.rotation.y=float(activity.get("workout_facing",0))
+			target.collision_layer=4
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
