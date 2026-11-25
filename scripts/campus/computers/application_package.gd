@@ -8,10 +8,21 @@ const CONTENT := ["html","htm","css","js","mjs","json","png","jpg","jpeg","webp"
 	"woff","woff2","ttf","otf","wasm","mp3","ogg","wav","mp4","webm","txt","md"]
 
 static func inspect(bytes: PackedByteArray) -> Dictionary:
+	var result:=open_package(bytes)
+	result.erase("assets")
+	return result
+
+static func open_package(bytes: PackedByteArray) -> Dictionary:
 	if bytes.is_empty() or bytes.size()>8*1024*1024:return {"error":"The package exceeds the 8 MiB download limit."}
 	var extracted: Dictionary=Zip.new().Unpack(bytes,MAX_EXPANDED)
 	if extracted.has("error"):return extracted
-	return validate(extracted.files)
+	var result:=validate(extracted.files)
+	if not result.has("error"):
+		var files: Dictionary=extracted.files
+		for path: String in files.keys():
+			if path.ends_with("/"):files.erase(path)
+		result.assets=files
+	return result
 
 static func validate(entries: Dictionary) -> Dictionary:
 	var manifest_bytes: Variant=entries.get("manifest.json")
@@ -51,6 +62,7 @@ static func validate(entries: Dictionary) -> Dictionary:
 		var path:=name.trim_suffix("/")
 		var folder:=name.ends_with("/")
 		var key:=path.to_lower()
+		if key=="__campus__" or key.begins_with("__campus__/"):return {"error":"The package uses a reserved runtime path."}
 		if not Files.valid_path(path) or seen.has(key):return {"error":"The package contains an invalid or conflicting path."}
 		seen[key]=folder
 		if folder:continue
