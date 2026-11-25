@@ -12,6 +12,8 @@ To rebuild, check out gdCEF commit `d3d58fc9f37dfc3f951f7ac6caa67ecf7a267539`, a
 
 The project loads the rebuilt extension from `windows/libgdcef_projects.dll`. When rebuilding, copy the generated `libgdcef.dll` to that filename. This extension adds offline project contexts with in-memory assets, blocked external requests, and package-scoped JSON state. The bundled runtime has Chromium's OS sandbox disabled.
 
+On Windows, CEF 156 requires its sandbox bootstrap to start the CEF browser and renderer processes through the same executable. The project currently loads gdCEF into the Godot 4.5 executable and starts a separate CEF subprocess executable. Enabling the sandbox requires changing that launch architecture. See the [CEF sandbox setup](https://github.com/chromiumembedded/cef/blob/master/docs/sandbox_setup.md#windows).
+
 After exporting the Windows preset, run `cef_artifacts/package_windows.ps1 -ExportDirectory <folder-containing-LabVolt.exe>` to copy the CEF subprocess, resources, and locales beside the executable. Godot exports the extension DLL and `libcef.dll` but not all CEF sidecars.
 
 The isolated browser fixture in `tests/campus/computers/test_browser_runtime.gd` passed in a normal Windows run, including public HTTPS, address and history controls, a loopback login through forwarded mouse input, same-device tab login sharing, new-device cookie separation, virtual-file and phone-photo uploads, an iframe host-picker block, and close/reopen. It also passed against the exported Windows executable and PCK. The fixture's loopback server is `browser_fixture_server.py`.

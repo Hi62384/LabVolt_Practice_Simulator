@@ -1,4 +1,4 @@
-param([string]$FixtureRoot)
+param([string]$FixtureRoot, [switch]$VerifyGpuAndInput)
 
 $ErrorActionPreference = 'Stop'
 $project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
@@ -12,7 +12,9 @@ if ($FixtureRoot) {
         $sandbox.GrantDirectory($payload, $true)
         $title = Split-Path $FixtureRoot -Leaf
         $privateFile = Join-Path $FixtureRoot 'private.txt'
-        exit $sandbox.Run((Join-Path $payload 'window.exe'), [string[]]@($privateFile, $title), $payload,
+        $guestArguments = [string[]]@($privateFile, $title)
+        if ($VerifyGpuAndInput) { $guestArguments += 'verify-gpu-and-input' }
+        exit $sandbox.Run((Join-Path $payload 'window.exe'), $guestArguments, $payload,
             (Join-Path $FixtureRoot 'fixture.log'), (Join-Path $FixtureRoot 'no-cancel'), 15000)
     } finally {
         $sandbox.Dispose()
@@ -30,7 +32,7 @@ Set-Content -LiteralPath (Join-Path $root 'private.txt') -Value 'Synthetic host 
 $source = Join-Path $PSScriptRoot 'window_fixture.c'
 Push-Location $root
 try {
-    & cl.exe /nologo /W4 /MT $source /link advapi32.lib user32.lib gdi32.lib "/OUT:$payload/window.exe"
+    & cl.exe /nologo /W4 /MT $source /link advapi32.lib user32.lib gdi32.lib d3d11.lib "/OUT:$payload/window.exe"
     if ($LASTEXITCODE -ne 0) { throw 'Could not build the window fixture.' }
 } finally {
     Pop-Location
@@ -47,15 +49,19 @@ public static class CampusFixtureCapture {
     public static extern bool PrintWindow(IntPtr window, IntPtr graphics, uint flags);
     [DllImport("user32.dll")]
     public static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool PostMessage(IntPtr window, uint message, IntPtr key, IntPtr state);
 }
 '@
 
 $arguments = @('-NoProfile', '-File', ('"{0}"' -f $PSCommandPath), '-FixtureRoot', ('"{0}"' -f $root))
+if ($VerifyGpuAndInput) { $arguments += '-VerifyGpuAndInput' }
 $fixtureLog = Join-Path $root 'fixture.log'
 $brokerErrors = Join-Path $root 'broker-errors.log'
 $process = Start-Process -FilePath powershell.exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardError $brokerErrors
 $deadline = [DateTime]::UtcNow.AddSeconds(16)
 $captured = $false
+$sentInput = $false
 while (-not $process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
     if (Test-Path -LiteralPath $fixtureLog) {
         $result = Get-Content -LiteralPath $fixtureLog -Raw
@@ -76,13 +82,27 @@ while (-not $process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
                         $graphics.ReleaseHdc($context)
                     }
                     $pixel = $bitmap.GetPixel(140, 100)
-                    $captured = $drawn -and $pixel.R -eq 19 -and $pixel.G -eq 134 -and $pixel.B -eq 217
-                    if ($captured) { $bitmap.Save((Join-Path $root 'capture.png')) }
+                    if ($sentInput) {
+                        $captured = $drawn -and $pixel.R -eq 208 -and $pixel.G -eq 81 -and $pixel.B -eq 38
+                        if ($captured) { $bitmap.Save((Join-Path $root 'capture-after-input.png')) }
+                    } else {
+                        $captured = $drawn -and $pixel.R -eq 19 -and $pixel.G -eq 134 -and $pixel.B -eq 217
+                        if ($captured) {
+                            $bitmap.Save((Join-Path $root 'capture.png'))
+                            if ($VerifyGpuAndInput) {
+                                if (-not [CampusFixtureCapture]::PostMessage($window, 0x100, [IntPtr]0x78, [IntPtr]1)) {
+                                    throw 'Could not send F9 to the owned fixture window.'
+                                }
+                                $sentInput = $true
+                                $captured = $false
+                            }
+                        }
+                    }
                 } finally {
                     $graphics.Dispose()
                     $bitmap.Dispose()
                 }
-                break
+                if ($captured) { break }
             }
         }
     }
@@ -95,6 +115,8 @@ if (-not $process.WaitForExit(18000)) {
 }
 if (-not $captured -or $process.ExitCode -ne 0) {
     Get-Content -LiteralPath $brokerErrors
+    if (Test-Path -LiteralPath $fixtureLog) { Get-Content -LiteralPath $fixtureLog }
     throw "AppContainer graphical capture failed with broker exit $($process.ExitCode). See $root."
 }
 Write-Output "NATIVE_APPCONTAINER_WINDOW_CAPTURE PASS ($root)"
+if ($VerifyGpuAndInput) { Write-Output 'NATIVE_APPCONTAINER_GPU_INPUT PASS' }

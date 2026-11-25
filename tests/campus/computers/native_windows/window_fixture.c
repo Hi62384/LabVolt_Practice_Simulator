@@ -1,6 +1,56 @@
 #define WIN32_LEAN_AND_MEAN
+#define COBJMACROS
 #include <windows.h>
+#include <d3d11.h>
 #include <stdio.h>
+
+static BOOL render_color_on_gpu(COLORREF *color)
+{
+    ID3D11Device *device = NULL;
+    ID3D11DeviceContext *context = NULL;
+    ID3D11Texture2D *target = NULL;
+    ID3D11Texture2D *readback = NULL;
+    ID3D11RenderTargetView *view = NULL;
+    HRESULT result = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0,
+        NULL, 0, D3D11_SDK_VERSION, &device, NULL, &context);
+    if (FAILED(result)) goto done;
+    D3D11_TEXTURE2D_DESC desc = {0};
+    desc.Width = desc.Height = 8;
+    desc.MipLevels = desc.ArraySize = desc.SampleDesc.Count = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.BindFlags = D3D11_BIND_RENDER_TARGET;
+    result = ID3D11Device_CreateTexture2D(device, &desc, NULL, &target);
+    if (FAILED(result)) goto done;
+    result = ID3D11Device_CreateRenderTargetView(device, (ID3D11Resource *)target, NULL, &view);
+    if (FAILED(result)) goto done;
+    desc.BindFlags = 0;
+    desc.Usage = D3D11_USAGE_STAGING;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    result = ID3D11Device_CreateTexture2D(device, &desc, NULL, &readback);
+    if (FAILED(result)) goto done;
+    const FLOAT clear[] = {208.0f / 255, 81.0f / 255, 38.0f / 255, 1.0f};
+    ID3D11DeviceContext_ClearRenderTargetView(context, view, clear);
+    ID3D11DeviceContext_CopyResource(context, (ID3D11Resource *)readback, (ID3D11Resource *)target);
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    result = ID3D11DeviceContext_Map(context, (ID3D11Resource *)readback, 0, D3D11_MAP_READ, 0, &mapped);
+    if (SUCCEEDED(result)) {
+        const BYTE *pixel = (const BYTE *)mapped.pData;
+        *color = RGB(pixel[0], pixel[1], pixel[2]);
+        ID3D11DeviceContext_Unmap(context, (ID3D11Resource *)readback, 0);
+    }
+done:
+    if (view) ID3D11RenderTargetView_Release(view);
+    if (readback) ID3D11Texture2D_Release(readback);
+    if (target) ID3D11Texture2D_Release(target);
+    if (context) ID3D11DeviceContext_Release(context);
+    if (device) ID3D11Device_Release(device);
+    if (FAILED(result)) printf("Direct3D hardware render failed: 0x%08lx\n", (unsigned long)result);
+    return SUCCEEDED(result);
+}
+
+static COLORREF window_color = RGB(19, 134, 217);
+static BOOL verify_gpu;
+static BOOL gpu_passed;
 
 static LRESULT CALLBACK FixtureWindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lparam)
 {
@@ -9,10 +59,16 @@ static LRESULT CALLBACK FixtureWindowProc(HWND window, UINT message, WPARAM wpar
         HDC dc = BeginPaint(window, &paint);
         RECT client;
         GetClientRect(window, &client);
-        HBRUSH color = CreateSolidBrush(RGB(19, 134, 217));
+        HBRUSH color = CreateSolidBrush(window_color);
         FillRect(dc, &client, color);
         DeleteObject(color);
         EndPaint(window, &paint);
+        return 0;
+    }
+    if (message == WM_KEYDOWN && wparam == VK_F9 && verify_gpu) {
+        gpu_passed = render_color_on_gpu(&window_color);
+        InvalidateRect(window, NULL, FALSE);
+        fflush(stdout);
         return 0;
     }
     if (message == WM_TIMER) {
@@ -28,7 +84,8 @@ static LRESULT CALLBACK FixtureWindowProc(HWND window, UINT message, WPARAM wpar
 
 int wmain(int argc, wchar_t **argv)
 {
-    if (argc != 3) return 20;
+    if (argc != 3 && argc != 4) return 20;
+    verify_gpu = argc == 4;
 
     HANDLE token;
     DWORD isolated = 0;
@@ -69,5 +126,5 @@ int wmain(int argc, wchar_t **argv)
     MSG event;
     while (GetMessageW(&event, NULL, 0, 0) > 0)
         DispatchMessageW(&event);
-    return 0;
+    return !verify_gpu || gpu_passed ? 0 : 29;
 }
