@@ -1023,7 +1023,7 @@ func _physics_process(delta: float) -> void:
 		elif role=="table":
 			hint="%s: place board" % OS.get_keycode_string(player.keys.place_item) if dc_lab.held_board()>=0 else ""
 		elif role=="chair":
-			hint="%s - Sit" % key_name
+			hint="%s - Sit" % key_name if player.seated==null else ""
 		elif role=="display":
 			hint="Centre station: circuit experiments"
 		elif role=="drawer":
@@ -1676,7 +1676,7 @@ func _stand_from_chair() -> void:
 	standing_chair_index=chairs.find(player.seated)
 	player.stand_up()
 	if player.seated!=null:
-		ui.log_message("No clear floor beside the chair." if player.seated.fixed_seat else "Move the chair clear of the table before standing.")
+		ui.log_message("No clear floor beside the chair.")
 		return
 	standing_pending=session.online and not multiplayer.is_server()
 	if standing_pending:
