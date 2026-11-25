@@ -19,6 +19,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._authorized():
             return self._reply(401, {"error": {"message": "secret details must stay private"}})
+        if self.path == "/v1/models":
+            identifiers = ["gpt-5.4-mini", "gpt-6.2-astra", "gpt-4.1",
+                           "gpt-3.5-turbo", "ft:gpt-4.1-mini-2025-04-14:local:custom:id",
+                           "text-embedding-3-small", "fixture-future-model"]
+            return self._reply(200, {"object": "list", "data": [
+                {"id": identifier, "object": "model"} for identifier in identifiers
+            ]})
         if self.path == "/v1/models/rate-limited":
             return self._reply(429, {"error": {"message": "rate limited"}})
         if self.path == "/v1/models/gpt-5.4-mini":
@@ -37,6 +44,11 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
         except (ValueError, TypeError):
             return self._reply(400, {"error": {"message": "bad JSON"}})
+        if self.path == "/v1/chat/completions" and body.get("model") == "gpt-3.5-turbo":
+            if body.get("messages") != [{"role": "user", "content": "test prompt"}]:
+                return self._reply(400, {"error": {"message": "wrong chat request"}})
+            return self._reply(200, {"choices": [{"message": {"content": "legacy answer"}}],
+                                     "usage": {"prompt_tokens": 5, "completion_tokens": 3}})
         if self.path == "/v1/moderations":
             if body.get("model") != "omni-moderation-latest":
                 return self._reply(400, {"error": {"message": "bad moderation model"}})
@@ -62,7 +74,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": '{"answer":"Image answer"}'}]}]})
         if self.path != "/v1/responses" or body.get("store") is not False or body.get("max_output_tokens") != 64 or body.get("input") != "test prompt":
             return self._reply(400, {"error": {"message": "request shape was wrong"}})
-        self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "fixture answer"}]}]})
+        if body.get("model") == "gpt-6.2-astra" and body.get("reasoning") != {"effort": "max"}:
+            return self._reply(400, {"error": {"message": "wrong thinking effort"}})
+        self._reply(200, {"status": "completed",
+                          "usage": {"input_tokens": 10, "output_tokens": 20,
+                                    "output_tokens_details": {"reasoning_tokens": 8}},
+                          "output": [{"type": "message", "content": [{"type": "output_text", "text": "fixture answer"}]}]})
 
     def log_message(self, *_args):
         pass

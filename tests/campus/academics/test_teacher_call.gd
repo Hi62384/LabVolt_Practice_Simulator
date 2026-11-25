@@ -47,7 +47,7 @@ func run() -> void:
   var client: Node=game.host_openai
   assert(client.set_local_test_endpoint("http://127.0.0.1:28768/v1"))
   assert(client.set_session_key("sk-test-12345678901234567890"))
-  assert(client.configure("gpt-5.4-mini",128,10,20,true)==OK)
+  assert(client.configure("gpt-5.4-mini",128,"",true)==OK)
   var result: Dictionary=await client.verify_class_connection()
   assert(result.ok and client.verified_for_class())
   game.player.global_position=classes.signs.dc_lab.desk
