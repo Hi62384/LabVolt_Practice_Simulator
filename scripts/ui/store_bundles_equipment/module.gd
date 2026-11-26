@@ -43,10 +43,8 @@ static func equipment_products() -> Array:
 		var laptop: Dictionary=laptops[tier]
 		var summary: String={"basic":"Entry-level performance","standard":"Faster performance","premium":"Full-speed performance"}[tier]
 		result.append({"kind":"portable_laptop","tier":tier,"name":laptop.name,"price":laptop.price,"rarity":{"basic":"Uncommon","standard":"Rare","premium":"Epic"}[tier],"summary":summary,"description":"Portable computer with %s. Select it and press F to place it; right-click to open and use it. Connect a USB drive to keep files after power-off."%summary.to_lower()})
-	var phones: Dictionary=preload("res://scripts/campus/phones/phone_tiers.gd").TIERS
-	for tier in ["basic","standard","premium"]:
-		var phone: Dictionary=phones[tier]
-		result.append({"kind":"smartphone","tier":tier,"name":phone.name,"price":phone.price,"rarity":{"basic":"Uncommon","standard":"Rare","premium":"Epic"}[tier],"summary":"%d MB photo storage"%int(phone.storage_bytes/1048576),"description":"Right-click to open your phone. Press P while holding it to take an in-game photo. Web browsing is not available yet."})
+	var phone: Dictionary=preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.basic
+	result.append({"kind":"smartphone","name":"Smartphone","price":phone.price,"rarity":"Uncommon","summary":"Configurable","description":"Set the phone’s hardware and finish before purchase. Right-click to open the phone."})
 	return result
 
 static func populate(parent: Node, profile: Variant, refresh: Callable, status: Label, section: String, reveal := Callable(), product_kinds: Array = []) -> void:
@@ -126,6 +124,15 @@ static func details(parent: Node, profile: Variant, product: Dictionary, refresh
 		parent.add_child(description)
 		parent.add_child(UI.text("Goes to your hotbar or dorm cabinet." if kind in ["usb","portable_laptop","smartphone"] else "Goes to your hotbar, equipped backpack, or dorm cabinet, in that order.","MutedLabel"))
 	var buy := UI.action("Buy for $%d"%product.price,"cart",Callable())
+	if kind=="smartphone":
+		buy.text="Configure from $%d"%product.price
+		buy.pressed.connect(func():
+			var configurator:=preload("res://scripts/ui/store_bundles_equipment/phone_configurator.gd").new()
+			parent.add_child(configurator)
+			configurator.build(profile,refresh)
+			configurator.popup_centered())
+		parent.add_child(buy)
+		return
 	buy.pressed.connect(func():
 		if buy.disabled:return
 		buy.disabled=true
@@ -137,7 +144,6 @@ static func details(parent: Node, profile: Variant, product: Dictionary, refresh
 			"kit": message=profile.create_kit(product.tier)
 			"usb": message=profile.buy_usb(int(product.capacity_mb))
 			"portable_laptop": message=profile.buy_portable_laptop(str(product.tier))
-			"smartphone": message=profile.buy_smartphone(str(product.tier))
 		var items: Dictionary = profile.last_bundle_receipt if kind in ["guaranteed", "random"] else {}
 		refresh.call(message)
 		if reveal.is_valid() and not items.is_empty():

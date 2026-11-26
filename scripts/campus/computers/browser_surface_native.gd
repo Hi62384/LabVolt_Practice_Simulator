@@ -25,6 +25,7 @@ var speaker_clock := 0.0
 var speaker_bus := ""
 var speaker_volume := 35
 var phone_suspended := false
+var phone_display_scale := 1.0
 var device_kind:=""
 var device_id:=""
 var lease:=""
@@ -381,7 +382,7 @@ func _resize_tabs() -> void:
 func _resize_browser(browser: Variant,surface: TextureRect) -> void:
  if get_viewport().get_meta("parked_preview",false):return
  if surface.size.x<2 or surface.size.y<2:return
- var desired:=surface.size*_desktop_pixel_scale()
+ var desired:=surface.size*_desktop_pixel_scale()*phone_display_scale
  var factor:=minf(1.0,minf(1440.0/desired.x,900.0/desired.y))
  var pixels:=(desired*factor).round()
  if pixels==surface.get_meta("cef_pixels",Vector2.ZERO):return

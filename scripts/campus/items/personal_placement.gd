@@ -2,6 +2,8 @@ extends Node3D
 
 const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Phones=preload("res://scripts/campus/phones/phone_tiers.gd")
+const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
+const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
 var game: Node
 var placed: Dictionary={}
 var models: Dictionary={}
@@ -66,6 +68,9 @@ func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
 	elif key.begins_with("bag:"):visual="bag_"+str(dorm.get("backpacks",{}).get(key.trim_prefix("bag:"),{}).get("size","backpack_small"))
 	elif Dorm.is_notebook(key):visual="notebook"
 	placed[key_for(peer,key)]={"key":key,"peer":peer,"position":resting,"yaw":yaw,"label":label,"visual":visual}
+	if key.begins_with("phone:"):
+		var appearance:=Configuration.phone_appearance(dorm.smartphones[key.trim_prefix("phone:")])
+		if not appearance.is_empty():placed[key_for(peer,key)].appearance=appearance
 	_sync_models()
 	_publish()
 
@@ -159,18 +164,14 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 	body.add_child(hit)
 	var key: String=entry.key
 	if key.begins_with("phone:"):
-		game._box(body,Vector3(0,.007,0),Vector3(.105,.014,.195),Color("243943"))
-		var screen:=MeshInstance3D.new()
-		var quad:=QuadMesh.new()
-		quad.size=Vector2(.095,.170)
-		screen.mesh=quad
-		screen.rotation.x=-PI/2
-		screen.position.y=.015
-		var material:=StandardMaterial3D.new()
-		material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-		material.albedo_texture=game.smartphones.idle_preview()
-		screen.material_override=material
-		body.add_child(screen)
+		var handset:=Node3D.new()
+		handset.position.y=.007
+		handset.rotation.x=-PI/2
+		body.add_child(handset)
+		var screen:=Handset.build(handset)
+		Handset.apply_appearance(handset,entry.get("appearance",{}))
+		if entry.peer==multiplayer.get_unique_id() and game.smartphones.is_powered(key.trim_prefix("phone:")):
+			game.smartphones._paint_screen(screen,game.smartphones.idle_preview())
 		body.set_meta("phone_screen",screen)
 	elif key.begins_with("usb:"):
 		shape.size=Vector3(.16,.05,.08)

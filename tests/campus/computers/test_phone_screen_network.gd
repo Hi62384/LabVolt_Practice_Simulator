@@ -1,5 +1,6 @@
 extends SceneTree
 ## Run two graphical processes with separate APPDATA directories and the same local port.
+const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
 var game: Node
 var deadline: int
 const POSITION := Vector3(13,0,-18)
@@ -47,7 +48,9 @@ func run() -> void:
 		await _broadcast(profile)
 
 func _broadcast(profile: RefCounted) -> void:
-	profile.buy_smartphone("standard")
+	var configuration:=Configuration.defaults(Configuration.PHONE)
+	configuration.appearance.shell=2
+	profile.buy_smartphone("basic",6,"",configuration)
 	if not await _until(func():return not profile.data.dorm.get("smartphones",{}).is_empty(),"phone purchase"):return
 	var id: String=profile.data.dorm.smartphones.keys()[0]
 	print("HANDSET_SOURCE_READY")
@@ -86,6 +89,10 @@ func _observe() -> void:
 	if not await _until(func():return not phone.remote_phone_models.is_empty(),"remote handset model"):return
 	print("HANDSET_MODEL_READY")
 	var peer: int=phone.remote_phone_models.keys()[0]
+	var handset: Node3D=phone.remote_phone_models[peer].model
+	if not handset.get_meta("phone_shell").material_override.albedo_color.is_equal_approx(Color("27745e")):
+		_fail("The viewer did not receive the purchased case finish.")
+		return
 	var camera:=Camera3D.new()
 	game.add_child(camera)
 	# The gameplay camera controls the observer's frame and distance checks.

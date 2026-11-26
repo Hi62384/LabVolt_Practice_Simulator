@@ -274,7 +274,7 @@ func receive_snapshot(result: Dictionary) -> void:
 			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
 			if profile.save()!=OK:profile.data=before
 			profile.authority_submit=callback
-		if operation=="buy_smartphone" and not result.get("ok",false) and pending[0].args.size()==3:
+		if operation=="buy_smartphone" and not result.get("ok",false) and pending[0].args.size() in [3,4]:
 			var profile=game.electronics.profile
 			var before: Dictionary=profile.data.duplicate(true)
 			profile.data.get("phone_purchase_pending",{}).erase(str(pending[0].args[2]))

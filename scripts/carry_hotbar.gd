@@ -85,6 +85,7 @@ func title(item: Dictionary) -> String:
 		"ac_usb":return "Laptop USB cable"
 		"smartphone":
 			var phone: Dictionary=game.electronics.profile.data.get("dorm",{}).get("smartphones",{}).get(item.get("id",""),{})
+			if phone.has("configuration"):return "Custom smartphone"
 			return str(preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.get(phone.get("tier",""),{}).get("name","Smartphone"))
 		"usb":
 			var drive: Dictionary=game.electronics.profile.data.get("dorm",{}).get("usb_drives",{}).get(item.get("id",""),{})

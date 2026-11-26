@@ -1,6 +1,7 @@
 extends Node3D
 
 const Room := "charging_room"
+const Configuration = preload("res://scripts/campus/items/equipment_configuration.gd")
 const PHONE_RUNTIME := {"basic":1200.0,"standard":1950.0,"premium":2900.0}
 const LAPTOP_RUNTIME := {"basic":900.0,"standard":1500.0,"premium":2300.0}
 const RECHARGE_TIME := {"basic":120.0,"standard":82.0,"premium":55.0}
@@ -85,7 +86,7 @@ func _note_phone(peer: int,id: String) -> void:
 	var item: Dictionary=dorm.get("smartphones",{}).get(id,{})
 	if item.get("location")!="hotbar" or "phone:"+id not in dorm.get("carry_items",[]) or str(dorm.get("teacher_phone_custody",{}).get("id",""))==id:return
 	var tier:=str(item.get("tier",""))
-	if PHONE_RUNTIME.has(tier):_device(peer,"phone",id,tier).active_until=now+3200
+	if PHONE_RUNTIME.has(tier):_phone_device(peer,id,item).active_until=now+3200
 
 func interact(target: Object) -> bool:
 	if not is_instance_valid(target) or target.get_meta("role","")!="device_charger":return false
@@ -132,7 +133,7 @@ func _toggle(peer: int,slot: int) -> void:
 	if chosen.is_empty():
 		game.discarded_items._notice(peer,"Place your phone or laptop on this charging bench first.")
 		return
-	var record:=_device(peer,chosen.kind,chosen.id,chosen.tier)
+	var record:=_device(peer,chosen.kind,chosen.id,chosen.tier) if chosen.kind=="laptop" else _phone_device(peer,chosen.id,dorm.smartphones[chosen.id])
 	record.socket=slot
 	_report(chosen.kind+":"+chosen.id,record)
 
@@ -143,6 +144,12 @@ func _device(peer: int,kind: String,id: String,tier: String) -> Dictionary:
 	var key:=kind+":"+id
 	var record: Dictionary=devices.get_or_add(key,{"peer":peer,"id":id,"kind":kind,"tier":tier,"charge":1.0,"socket":-1,"active_until":0,"reported":100})
 	record.peer=peer
+	return record
+
+func _phone_device(peer: int,id: String,item: Dictionary) -> Dictionary:
+	var record:=_device(peer,"phone",id,item.tier)
+	record.runtime_seconds=Configuration.phone_value(item,"battery",PHONE_RUNTIME[item.tier])
+	record.recharge_seconds=Configuration.phone_value(item,"charging",RECHARGE_TIME[item.tier])
 	return record
 
 func _tick() -> void:
@@ -162,10 +169,10 @@ func _tick() -> void:
 		var was_connected: bool=record.socket>=0
 		if was_connected and (entry.is_empty() or entry.peer!=record.peer or not _on_bay(entry.position,record.socket)):record.socket=-1
 		if record.socket>=0:
-			record.charge=minf(1.0,float(record.charge)+1.0/float(RECHARGE_TIME.get(record.tier,120.0)))
+			record.charge=minf(1.0,float(record.charge)+1.0/float(record.get("recharge_seconds",RECHARGE_TIME.get(record.tier,120.0))))
 		elif active:
 			var times:=LAPTOP_RUNTIME if laptop else PHONE_RUNTIME
-			record.charge=maxf(0.0,float(record.charge)-1.0/float(times.get(record.tier,900.0)))
+			record.charge=maxf(0.0,float(record.charge)-1.0/float(record.get("runtime_seconds",times.get(record.tier,900.0))))
 		if record.charge<=0.0 and active and laptop:game.computers._power_off(record.id)
 		if record.reported!=roundi(record.charge*100.0) or was_connected!=(record.socket>=0):_report(key,record)
 

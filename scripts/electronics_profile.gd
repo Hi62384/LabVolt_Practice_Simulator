@@ -5,6 +5,7 @@ const Economy=preload("res://scripts/economy/temporary_playtest/policy.gd")
 const Persistent=preload("res://scripts/inventory_authority/component_persistence.gd")
 const Shape=preload("res://scripts/inventory_authority/validation.gd")
 const Board=preload("res://scripts/breadboard_model.gd")
+const EquipmentConfiguration=preload("res://scripts/campus/items/equipment_configuration.gd")
 const KIT_TIERS := {
 	"compact":{"name":"Compact kit","capacity":20,"price":12,"rarity":"Common"},
 	"standard":{"name":"Standard kit","capacity":40,"price":25,"rarity":"Uncommon"},
@@ -152,7 +153,9 @@ static func valid(value: Variant) -> bool:
 	if not phone_pending is Dictionary or phone_pending.size()>16:return false
 	for phone_id in phone_pending:
 		var pending: Variant=phone_pending[phone_id]
-		if not phone_id is String or phone_id.length()!=32 or not phone_id.is_valid_hex_number() or phone_id!=phone_id.to_lower() or not pending is Dictionary or pending.size()!=2 or not preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.has(pending.get("tier","")) or not pending.get("host") is String or pending.host.is_empty() or pending.host.length()>96:return false
+		if not phone_id is String or phone_id.length()!=32 or not phone_id.is_valid_hex_number() or phone_id!=phone_id.to_lower() or not pending is Dictionary or not preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.has(pending.get("tier","")) or not pending.get("host") is String or pending.host.is_empty() or pending.host.length()>96:return false
+		if pending.size()!=2+int(pending.has("configuration")):return false
+		if pending.has("configuration") and EquipmentConfiguration.quote(EquipmentConfiguration.PHONE,0,pending.configuration).is_empty():return false
 	var phone_resolved: Variant=value.get("phone_purchase_resolved",{})
 	if not phone_resolved is Dictionary or phone_resolved.size()>1024:return false
 	for phone_id in phone_resolved:
@@ -442,11 +445,20 @@ func buy_portable_laptop(tier: String, hotbar_limit := 6, requested_id := "") ->
 	operation_succeeded=true
 	return "%s added to your %s" % [laptops.TIERS[tier].name,"hotbar" if hotbar else "dorm cabinet"]
 
-func buy_smartphone(tier: String,hotbar_limit := 6,requested_id := "") -> String:
+func buy_smartphone(tier: String,hotbar_limit := 6,requested_id := "",configuration: Variant = {}) -> String:
 	operation_succeeded=false
 	if purchase_hotbar_limit.is_valid():hotbar_limit=mini(hotbar_limit,purchase_hotbar_limit.call())
 	var tiers: Dictionary=preload("res://scripts/campus/phones/phone_tiers.gd").TIERS
 	if not tiers.has(tier) or not data.has("dorm"):return "Phone unavailable"
+	if not configuration is Dictionary:return "Invalid phone configuration"
+	var price:=int(tiers[tier].price)
+	var selected := {}
+	if not configuration.is_empty():
+		if tier!="basic":return "Configured phones use the standard chassis"
+		var quote:=EquipmentConfiguration.quote(EquipmentConfiguration.PHONE,price,configuration)
+		if quote.is_empty():return "Invalid phone configuration"
+		price=int(quote.price)
+		selected=quote.configuration
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var dorm: Dictionary=data.dorm
 	var id:=requested_id if not requested_id.is_empty() else Crypto.new().generate_random_bytes(16).hex_encode()
@@ -459,24 +471,26 @@ func buy_smartphone(tier: String,hotbar_limit := 6,requested_id := "") -> String
 		var original: Dictionary=data.duplicate(true)
 		if not data.has("phone_purchase_pending"):data.phone_purchase_pending={}
 		data.phone_purchase_pending[id]={"tier":tier,"host":host}
+		if not selected.is_empty():data.phone_purchase_pending[id].configuration=selected
 		var callback:=authority_submit;authority_submit=Callable()
 		var error:=save();authority_submit=callback
 		if error!=OK:data=original;return "Could not save the pending phone purchase"
-		return queued("buy_smartphone",[tier,hotbar_limit,id])
+		return queued("buy_smartphone",[tier,hotbar_limit,id] if selected.is_empty() else [tier,hotbar_limit,id,selected])
 	if dorm.get("smartphones",{}).size()>=64:return "Phone limit reached"
 	var carried: Array=dorm.get("carry_items",[])
 	var hotbar: bool=carried.size()+dorm.get("carried_components",[]).size()<hotbar_limit
 	if not hotbar and Dorm.storage_used(dorm)>=Dorm.CAPACITY:return "No room in your hotbar or dorm cabinet"
-	var debit:=Economy.purchase_debit(int(data.dollars),int(tiers[tier].price),true)
+	var debit:=Economy.purchase_debit(int(data.dollars),price,true)
 	if not debit.ok:return debit.error
 	var before:=data.duplicate(true)
 	if not dorm.has("smartphones"):dorm.smartphones={}
 	dorm.smartphones[id]={"tier":tier,"location":"hotbar" if hotbar else "cabinet"}
+	if not selected.is_empty():dorm.smartphones[id].configuration=selected
 	if hotbar:dorm.carry_items=carried+["phone:"+id]
 	dorm.revision=int(dorm.revision)+1;data.dollars=debit.next_balance
 	if save()!=OK:data=before;return "Phone purchase could not be saved"
 	operation_succeeded=true
-	return "%s added to your %s"%[tiers[tier].name,"hotbar" if hotbar else "dorm cabinet"]
+	return "%s added to your %s"%[tiers[tier].name if selected.is_empty() else "Custom smartphone","hotbar" if hotbar else "dorm cabinet"]
 
 func kit_capacity(id: String) -> int:
 	var tier := str(data.get("kit_tiers",{}).get(id,""))

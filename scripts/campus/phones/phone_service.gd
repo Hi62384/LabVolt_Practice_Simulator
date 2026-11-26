@@ -1,6 +1,9 @@
 extends Node3D
 const Photos=preload("res://scripts/campus/phones/photo_library.gd")
 const Tiers=preload("res://scripts/campus/phones/phone_tiers.gd")
+const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
+const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
+var visible_phone_id := ""
 const Icons=preload("res://scripts/ui/design_system/widgets.gd")
 const Tokens=preload("res://scripts/ui/design_system/tokens.gd")
 const HELD_PHONE_RENDER_LAYER:=19
@@ -206,45 +209,8 @@ func _layout_phone() -> void:
 		side_power.position=Vector2(panel.position.x+panel.size.x-1,panel.position.y+52)
 		side_power.size=Vector2(11,55)
 
-func _box(parent: Node3D,at: Vector3,size: Vector3,color: Color,first_person := true) -> void:
-	var mesh:=BoxMesh.new();mesh.size=size
-	var instance:=MeshInstance3D.new();instance.mesh=mesh;instance.position=at
-	instance.set_layer_mask_value(1,not first_person)
-	instance.set_layer_mask_value(HELD_PHONE_RENDER_LAYER,first_person)
-	instance.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var material:=StandardMaterial3D.new();material.albedo_color=color;material.roughness=.45;instance.material_override=material;parent.add_child(instance)
-
-func _build_handset(parent: Node3D,first_person: bool) -> MeshInstance3D:
-	_box(parent,Vector3.ZERO,Vector3(.105,.195,.012),Color("243943"),first_person)
-	_box(parent,Vector3(0,.088,.007),Vector3(.024,.003,.002),Color("95aab3"),first_person)
-	_box(parent,Vector3(.053,.046,0),Vector3(.004,.024,.004),Color("638797"),first_person)
-	var screen:=MeshInstance3D.new()
-	var quad:=QuadMesh.new()
-	quad.size=Vector2(.094,.156)
-	screen.mesh=quad
-	screen.position=Vector3(0,.004,.007)
-	screen.set_layer_mask_value(1,not first_person)
-	screen.set_layer_mask_value(HELD_PHONE_RENDER_LAYER,first_person)
-	screen.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var glass:=StandardMaterial3D.new()
-	glass.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-	screen.material_override=glass
-	parent.add_child(screen)
-	var home:=MeshInstance3D.new()
-	var button:=CylinderMesh.new()
-	button.top_radius=.005
-	button.bottom_radius=.005
-	button.height=.001
-	home.mesh=button
-	home.rotation.x=PI/2
-	home.position=Vector3(0,-.087,.007)
-	home.set_layer_mask_value(1,not first_person)
-	home.set_layer_mask_value(HELD_PHONE_RENDER_LAYER,first_person)
-	var trim:=StandardMaterial3D.new()
-	trim.albedo_color=Color("7597a3")
-	home.material_override=trim
-	parent.add_child(home)
-	return screen
+func _build_handset(parent: Node3D, first_person: bool) -> MeshInstance3D:
+	return Handset.build(parent,1 << (HELD_PHONE_RENDER_LAYER - 1) if first_person else 1)
 
 func is_powered(id: String) -> bool:
 	return powered_on.has(id) and (not is_instance_valid(game.device_charging) or game.device_charging.percent("phone",id)>0)
@@ -322,6 +288,10 @@ func _phone_record(id: String) -> Dictionary:
 	if phone.get("location","")!="hotbar" or "phone:"+id not in dorm.get("carry_items",[]) or not Tiers.TIERS.has(phone.get("tier","")):return {}
 	return phone
 
+func _photo_storage(phone: Dictionary) -> int:
+	var legacy_storage: int=Tiers.TIERS[phone.tier].storage_bytes
+	return int(Configuration.phone_value(phone,"storage",legacy_storage / 1048576.0)) * 1048576
+
 func _current_phone_open() -> bool:
 	return is_instance_valid(panel) and panel.visible and is_powered(current_id) and _phone_in_reach(current_id)
 
@@ -338,6 +308,9 @@ func _phone_in_reach(id: String) -> bool:
 
 func _process(_delta: float) -> void:
 	var id:=selected()
+	if visible_phone_id!=id:
+		visible_phone_id=id
+		Handset.apply_appearance(held,Configuration.phone_appearance(_phone_record(id)))
 	held.visible=not id.is_empty() and game.front.in_game and game.player.enabled and not panel.visible
 	if camera_phone_id!="" and (camera_phone_id!=id or not game.front.in_game or not game.player.enabled or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED):
 		_leave_camera()
@@ -609,7 +582,7 @@ func capture() -> void:
 	view.queue_free()
 	capturing=false
 	if capture_generation!=generation or selected()!=id or not game.front.in_game or str(game.electronics.profile.data.get("dorm",{}).get("owner",""))!=owner:return
-	var result:=Photos.capture(owner,id,image,int(Tiers.TIERS[phone.tier].storage_bytes))
+	var result:=Photos.capture(owner,id,image,_photo_storage(phone))
 	game.ui.log_message(str(result.get("error","Photo saved.")))
 	if not result.has("error"):
 		if is_instance_valid(flash_tween):flash_tween.kill()
@@ -644,7 +617,7 @@ func _switch(app: String) -> void:
 		_home_screen()
 		rendered_phone_id=current_id
 		return
-	var delay: int=int(Tiers.TIERS[phone.tier].delay_ms)
+	var delay:=int(Configuration.phone_value(phone,"processor",Tiers.TIERS[phone.tier].delay_ms))
 	if delay>0:
 		status.text="Opening %s…"%app
 		status.show()
@@ -674,6 +647,7 @@ func _switch(app: String) -> void:
 		browser_host.add_child(browser_surface)
 		browser_surface.game=game
 		browser_phone_id=current_id
+		browser_surface.phone_display_scale=float(Configuration.phone_value(phone,"display",1.0))
 		browser_surface.speaker_world=game
 		update_placed_speaker()
 		browser_surface.configure("phone",current_id,current_id,choices)
@@ -734,7 +708,8 @@ func _update_phone_preview() -> void:
 	if source==null:return
 	var frame:=source.get_image()
 	if frame==null or frame.is_empty():return
-	var pixels:=Vector2i(Vector2(128,224)*float(screens.phone_scale))
+	var scale:=float(Configuration.phone_value(_phone_record(browser_phone_id),"display",1.0))
+	var pixels:=Vector2i(Vector2(128,224)*float(screens.phone_scale)*scale)
 	frame.resize(pixels.x,pixels.y,Image.INTERPOLATE_BILINEAR)
 	if placed_preview==null or placed_preview.get_size()!=Vector2(pixels):placed_preview=ImageTexture.create_from_image(frame)
 	else:placed_preview.update(frame)
@@ -774,21 +749,24 @@ func _forward_handset(peer: int,id: String,powered: bool,pixels: PackedByteArray
 	var now:=Time.get_ticks_msec()
 	if now-int(phone_frame_at.get(peer,-1000))<175 or id.length()!=32 or not id.is_valid_hex_number() or pixels.size()>PHONE_WIRE_BYTES:return
 	phone_frame_at[peer]=now
-	if not game.session.roster.has(peer) or not _valid_classroom_phone(peer,id,game.dorm_interactions.authenticated_identity(peer)):return
+	var identity: String=game.dorm_interactions.authenticated_identity(peer)
+	if not game.session.roster.has(peer) or not _valid_classroom_phone(peer,id,identity):return
 	if game.personal_placement.is_placed(peer,"phone:"+id):return
+	var item: Dictionary=game.dorm_interactions._profile(identity).get("dorm",{}).get("smartphones",{}).get(id,{})
+	var appearance:=Configuration.phone_appearance(item)
 	var origin: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
 	for target in game.session.roster:
 		if target==peer:continue
 		var at: Vector3=game.session.poses.get(target,{}).get("position",Vector3.INF)
 		if at.distance_squared_to(origin)>25.0:continue
-		if target==multiplayer.get_unique_id():_show_remote_handset(peer,powered,pixels)
-		elif game.session.peer_connected_now(target):_receive_handset.rpc_id(target,peer,powered,pixels)
+		if target==multiplayer.get_unique_id():_show_remote_handset(peer,powered,pixels,appearance)
+		elif game.session.peer_connected_now(target):_receive_handset.rpc_id(target,peer,powered,pixels,appearance)
 
 @rpc("authority","call_remote","unreliable",6)
-func _receive_handset(peer: int,powered: bool,pixels: PackedByteArray) -> void:
-	if multiplayer.get_remote_sender_id()==1:_show_remote_handset(peer,powered,pixels)
+func _receive_handset(peer: int,powered: bool,pixels: PackedByteArray,appearance: Dictionary) -> void:
+	if multiplayer.get_remote_sender_id()==1:_show_remote_handset(peer,powered,pixels,appearance)
 
-func _show_remote_handset(peer: int,powered: bool,pixels: PackedByteArray) -> void:
+func _show_remote_handset(peer: int,powered: bool,pixels: PackedByteArray,appearance: Dictionary) -> void:
 	if not game.avatars.has(peer):return
 	var avatar: Node3D=game.avatars[peer]
 	var record: Dictionary=remote_phone_models.get(peer,{})
@@ -800,6 +778,9 @@ func _show_remote_handset(peer: int,powered: bool,pixels: PackedByteArray) -> vo
 		record={"model":model,"screen":_build_handset(model,false)}
 		remote_phone_models[peer]=record
 	record.at=Time.get_ticks_msec()
+	if record.get("appearance")!=appearance:
+		Handset.apply_appearance(record.model,appearance)
+		record.appearance=appearance
 	if not powered:
 		_paint_screen(record.screen,null)
 		return
@@ -958,7 +939,7 @@ func _gallery(phone: Dictionary) -> void:
 	var count: int=result.photos.size()
 	var pages: int=maxi(1,ceili(float(count)/PHOTOS_PER_PAGE))
 	photo_page=clampi(photo_page,0,pages-1)
-	status.text="%d %s  ·  %.1f / %.0f MB"%[count,"photo" if count==1 else "photos",float(result.bytes)/1048576.0,float(Tiers.TIERS[phone.tier].storage_bytes)/1048576.0]
+	status.text="%d %s  ·  %.1f / %.0f MB"%[count,"photo" if count==1 else "photos",float(result.bytes)/1048576.0,float(_photo_storage(phone))/1048576.0]
 	status.show()
 	var take:=_button("Open camera",_open_camera)
 	take.icon=Icons.icon("scope")
@@ -1015,7 +996,7 @@ func _import_photo() -> void:
 			var image:=Image.new()
 			if source!=null and source.get_length()<=16*1024*1024 and image.load(path)==OK:
 				var phone:=_phone_record(id)
-				var result:=Photos.capture(owner,id,image,int(Tiers.TIERS[phone.tier].storage_bytes))
+				var result:=Photos.capture(owner,id,image,_photo_storage(phone))
 				if not result.has("error"):photo_page=0;_switch("Photos")
 				else:status.text=str(result.error);status.show()
 			else:status.text="Choose a readable image under 16 MiB.";status.show()

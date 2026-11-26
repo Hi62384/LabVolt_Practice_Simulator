@@ -94,7 +94,8 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 					if not imported.has("phone_purchase_resolved"):imported.phone_purchase_resolved={}
 					imported.phone_purchase_resolved[phone_id]=true
 					continue
-				if not previous_phones.has(phone_id) or imported.phone_purchase_pending[phone_id].tier!=purchase.item.tier or (incoming_phones.has(phone_id) and not adopted_host_dorm):return failure("Pending phone purchase conflicts with host record")
+				var pending: Dictionary=imported.phone_purchase_pending[phone_id]
+				if not previous_phones.has(phone_id) or pending.tier!=purchase.item.tier or not Profile.EquipmentConfiguration.same_phone_configuration(pending.get("configuration",{}),purchase.item.get("configuration",{})) or (incoming_phones.has(phone_id) and not adopted_host_dorm):return failure("Pending phone purchase conflicts with host record")
 				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending phone purchase")
 				imported.dollars-=int(purchase.debit)
 				if adopted_host_dorm:
@@ -334,10 +335,10 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 			message=p.buy_portable_laptop(args[0],args[1],args[2])
 			if not p.operation_succeeded:return failure(message)
 		"buy_smartphone":
-			if args.size()!=3 or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid phone purchase")
+			if args.size() not in [3,4] or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid phone purchase")
 			for account_data in state.accounts.values():
 				if account_data.profile.get("dorm",{}).get("smartphones",{}).has(args[2]):return failure("Phone identity already exists")
-			message=p.buy_smartphone(args[0],args[1],args[2])
+			message=p.buy_smartphone(args[0],args[1],args[2],args[3] if args.size()==4 else {})
 			if not p.operation_succeeded:return failure(message)
 		"dorm":
 			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid dorm intent")

@@ -1,5 +1,6 @@
 extends RefCounted
 const Tiers=preload("res://scripts/campus/phones/phone_tiers.gd")
+const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
 const MAX_PHONES:=64
 static func valid(dorm: Dictionary) -> bool:
 	var phones: Variant=dorm.get("smartphones",{})
@@ -17,7 +18,9 @@ static func valid(dorm: Dictionary) -> bool:
 	for id in phones:
 		if not id is String or id.length()!=32 or not id.is_valid_hex_number() or id!=id.to_lower():return false
 		var item: Variant=phones[id]
-		if not item is Dictionary or item.size()!=2 or not Tiers.TIERS.has(item.get("tier","")) or item.get("location","") not in ["hotbar","cabinet","packed"]:return false
+		if not item is Dictionary or not Tiers.TIERS.has(item.get("tier","")) or item.get("location","") not in ["hotbar","cabinet","packed"]:return false
+		if item.size()!=2+int(item.has("configuration")):return false
+		if item.has("configuration") and (item.tier!="basic" or Configuration.quote(Configuration.PHONE,0,item.configuration).is_empty()):return false
 		if (item.location=="hotbar") != ("phone:"+id in carried):return false
 		if (item.location=="packed") != packed.has(id):return false
 	for key in carried:
