@@ -36,6 +36,7 @@ func run() -> void:
 	print("HANDSET_BOUND ",args[0])
 	game.front.screen.hide()
 	game.front.in_game=true
+	game.menu_campus.enter_game()
 	game.session.campus_enabled=true
 	game.player.enabled=false
 	game.player.global_position=POSITION+Vector3(0,0,1 if host else 0)
@@ -52,6 +53,7 @@ func _broadcast(profile: RefCounted) -> void:
 	print("HANDSET_SOURCE_READY")
 	var phone: Node=game.smartphones
 	phone.set_process(false)
+	phone.powered_on[id]=true
 	var live_view:=SubViewport.new()
 	live_view.size=Vector2i(96,168)
 	live_view.disable_3d=true
@@ -63,12 +65,12 @@ func _broadcast(profile: RefCounted) -> void:
 	for color in [FIRST,SECOND]:
 		swatch.color=color
 		await RenderingServer.frame_post_draw
-		var until:=Time.get_ticks_msec()+3500
+		var until:=Time.get_ticks_msec()+7000
 		while Time.get_ticks_msec()<until:
 			game.session.send_pose({"position":POSITION})
 			phone._publish_handset(id,live_view.get_texture())
 			await create_timer(.15).timeout
-	phone.powered_off[id]=true
+	phone.powered_on.erase(id)
 	while Time.get_ticks_msec()<deadline and game.session.roster.size()==2:
 		game.session.send_pose({"position":POSITION})
 		phone._publish_handset(id,live_view.get_texture())
@@ -84,17 +86,22 @@ func _observe() -> void:
 	if not await _until(func():return not phone.remote_phone_models.is_empty(),"remote handset model"):return
 	print("HANDSET_MODEL_READY")
 	var peer: int=phone.remote_phone_models.keys()[0]
-	var screen: MeshInstance3D=phone.remote_phone_models[peer].screen
 	var camera:=Camera3D.new()
 	game.add_child(camera)
-	camera.global_position=screen.global_position+screen.global_basis.z.normalized()*.29+Vector3.RIGHT*.18
-	camera.look_at(screen.global_position)
 	# The gameplay camera controls the observer's frame and distance checks.
 	game.camera=camera
 	camera.make_current()
 	for color in [FIRST,SECOND]:
-		if not await _until(func():return _received_color(screen).is_equal_approx(color),"live screen color "+color.to_html()):return
+		if not await _until(func():
+			var live_screen: MeshInstance3D=phone.remote_phone_models.get(peer,{}).get("screen")
+			if not is_instance_valid(live_screen):return false
+			camera.global_position=live_screen.global_position+live_screen.global_basis.z.normalized()*.29+Vector3.RIGHT*.18
+			camera.look_at(live_screen.global_position)
+			return _received_color(live_screen).is_equal_approx(color)
+		,"live screen color "+color.to_html()):return
 		await RenderingServer.frame_post_draw
+		var screen: MeshInstance3D=phone.remote_phone_models.get(peer,{}).get("screen")
+		if not is_instance_valid(screen):_fail("Handset disappeared before rendering");return
 		var frame:=root.get_texture().get_image()
 		var relative:=camera.unproject_position(screen.global_position)/camera.get_viewport().get_visible_rect().size
 		var point:=Vector2i(relative*Vector2(frame.get_size()))
@@ -106,7 +113,10 @@ func _observe() -> void:
 			frame.save_png("user://phone-screen-failure.png")
 			_fail("The received screen color did not appear in the game viewport. Pixel "+pixel.to_html())
 			return
-	if not await _until(func():return (screen.material_override as StandardMaterial3D).albedo_texture==null,"remote power-off"):return
+	if not await _until(func():
+		var live_screen: MeshInstance3D=phone.remote_phone_models.get(peer,{}).get("screen")
+		return is_instance_valid(live_screen) and (live_screen.material_override as StandardMaterial3D).albedo_texture==null
+	,"remote power-off"):return
 	print("HANDSET_HOST PASS")
 	game.session.leave()
 	await create_timer(.4).timeout

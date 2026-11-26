@@ -1,5 +1,5 @@
 diff --git a/gdcef/browser/src/gdbrowser.cpp b/gdcef/browser/src/gdbrowser.cpp
-index f5b3dcd..b0dc570 100644
+index f5b3dcd..6f294e7 100644
 --- a/gdcef/browser/src/gdbrowser.cpp
 +++ b/gdcef/browser/src/gdbrowser.cpp
 @@ -31,6 +31,8 @@
@@ -38,7 +38,12 @@ index f5b3dcd..b0dc570 100644
      ClassDB::bind_method(D_METHOD("download_file"),
                           &GdBrowserView::downloadFile);
      ClassDB::bind_method(D_METHOD("allow_downloads"),
-@@ -341,6 +349,7 @@ void GdBrowserView::_bind_methods()
+@@ -338,9 +346,12 @@ void GdBrowserView::_bind_methods()
+     ClassDB::bind_method(D_METHOD("set_touch_cancel", "id"),
+                          &GdBrowserView::touchCancel);
+     ClassDB::bind_method(D_METHOD("set_muted"), &GdBrowserView::mute);
++    ClassDB::bind_method(D_METHOD("set_page_suspended", "suspended"),
++                         &GdBrowserView::set_page_suspended);
      ClassDB::bind_method(D_METHOD("is_muted"), &GdBrowserView::muted);
      ClassDB::bind_method(D_METHOD("set_audio_stream", "audio"),
                           &GdBrowserView::setAudioStreamer);
@@ -46,7 +51,7 @@ index f5b3dcd..b0dc570 100644
      ClassDB::bind_method(D_METHOD("get_audio_stream"),
                           &GdBrowserView::getAudioStreamer);
      ClassDB::bind_method(D_METHOD("get_pixel_color", "x", "y"),
-@@ -384,6 +393,14 @@ void GdBrowserView::_bind_methods()
+@@ -384,6 +395,14 @@ void GdBrowserView::_bind_methods()
                           &GdBrowserView::endDragging);
  
      // Signals
@@ -61,7 +66,7 @@ index f5b3dcd..b0dc570 100644
      ADD_SIGNAL(MethodInfo("on_download_updated",
                            PropertyInfo(Variant::STRING, "file"),
                            PropertyInfo(Variant::INT, "percentage"),
-@@ -463,7 +480,9 @@ godot::String GdBrowserView::getError()
+@@ -463,7 +482,9 @@ godot::String GdBrowserView::getError()
  //------------------------------------------------------------------------------
  int GdBrowserView::init(godot::String const& url,
                          CefBrowserSettings const& settings,
@@ -72,7 +77,7 @@ index f5b3dcd..b0dc570 100644
  {
      // Allocate the CEF client and the Godot rendering resources here instead of
      // in the constructor: Godot also builds throw-away instances of registered
-@@ -471,7 +490,7 @@ int GdBrowserView::init(godot::String const& url,
+@@ -471,7 +492,7 @@ int GdBrowserView::init(godot::String const& url,
      // the class documentation) and none of this is needed for them.
      if (m_impl == nullptr)
      {
@@ -81,7 +86,7 @@ index f5b3dcd..b0dc570 100644
          if (m_impl == nullptr)
          {
              BROWSER_ERROR("Failed allocating GdBrowserView::Impl");
-@@ -491,7 +510,7 @@ int GdBrowserView::init(godot::String const& url,
+@@ -491,7 +512,7 @@ int GdBrowserView::init(godot::String const& url,
      // passed to CefRenderProcessHandler::OnBrowserCreated() in the render
      // process.
      m_browser = CefBrowserHost::CreateBrowserSync(
@@ -90,7 +95,7 @@ index f5b3dcd..b0dc570 100644
  
      if ((m_browser == nullptr) || (m_browser->GetHost() == nullptr))
      {
-@@ -1206,6 +1225,14 @@ bool GdBrowserView::isValid() const
+@@ -1206,6 +1227,14 @@ bool GdBrowserView::isValid() const
  //------------------------------------------------------------------------------
  void GdBrowserView::close()
  {
@@ -105,33 +110,49 @@ index f5b3dcd..b0dc570 100644
      // CEF closes the browser asynchronously and keeps calling m_impl until it
      // is really closed, while this node may be freed meanwhile: m_impl shall
      // no longer reach it.
-@@ -1253,44 +1280,44 @@ bool GdBrowserView::muted()
+@@ -1252,45 +1281,59 @@ bool GdBrowserView::muted()
+     return m_browser->GetHost()->IsAudioMuted();
  }
  
- //------------------------------------------------------------------------------
+-//------------------------------------------------------------------------------
 -void GdBrowserView::onAudioStreamStarted(CefRefPtr<CefBrowser> browser,
 -                                         const CefAudioParameters& params,
 -                                         int channels)
-+void GdBrowserView::Impl::push_audio_packet(const float** data, int frames)
++void GdBrowserView::set_page_suspended(bool suspended)
  {
 -    if (m_impl == nullptr)
-+    std::lock_guard lock(m_audio.mutex);
-+    if (m_audio.streamer.is_null() || data == nullptr || frames <= 0 ||
-+        m_audio.channels <= 0)
++    CEF_REQUIRE_UI_THREAD();
++    if (!m_browser)
          return;
- 
+-
 -    // Note: params.channel_layout is an enum and not a number of channels.
 -    m_impl->m_audio.channels = channels;
--}
--
--//------------------------------------------------------------------------------
++    auto host = m_browser->GetHost();
++    host->WasHidden(suspended);
++    auto parameters = CefDictionaryValue::Create();
++    parameters->SetString("state", suspended ? "frozen" : "active");
++    host->ExecuteDevToolsMethod(0, "Page.setWebLifecycleState", parameters);
++    if (!suspended)
++        host->Invalidate(PET_VIEW);
+ }
+ 
+ //------------------------------------------------------------------------------
 -void GdBrowserView::onAudioStreamPacket(CefRefPtr<CefBrowser> browser,
 -                                        const float** data,
 -                                        int frames,
 -                                        int64_t pts)
--{
++void GdBrowserView::Impl::push_audio_packet(const float** data, int frames)
+ {
 -    if ((m_impl == nullptr) || (m_impl->m_audio.streamer == nullptr))
 -    {
++    std::lock_guard lock(m_audio.mutex);
++    if (m_audio.streamer.is_null() || data == nullptr || frames <= 0 ||
++        m_audio.channels <= 0)
+         return;
+-    }
+ 
+-    int const channels = m_impl->m_audio.channels;
+-    if ((data == nullptr) || (frames <= 0) || (channels <= 0))
 +    auto& streamer = *m_audio.streamer.ptr();
 +    const int available = streamer.get_frames_available();
 +    m_audio.capacity = std::max(m_audio.capacity, available);
@@ -144,11 +165,6 @@ index f5b3dcd..b0dc570 100644
 +    const int first = m_audio.primed ? 0 : samples.size();
 +    if (first + frames > available)
          return;
--    }
--
--    int const channels = m_impl->m_audio.channels;
--    if ((data == nullptr) || (frames <= 0) || (channels <= 0))
--        return;
 -
 -    // data[c] holds the samples of the channel c. Godot plays stereo frames:
 -    // a mono stream is played on both sides and extra channels are dropped.
@@ -182,7 +198,7 @@ index f5b3dcd..b0dc570 100644
      }
  }
  
-@@ -1355,68 +1382,132 @@ void GdBrowserView::downloadFile(godot::String url)
+@@ -1355,68 +1398,132 @@ void GdBrowserView::downloadFile(godot::String url)
  }
  
  //------------------------------------------------------------------------------
@@ -353,7 +369,7 @@ index f5b3dcd..b0dc570 100644
      BROWSER_DEBUG("Registering gdscript method "
                    << method_name.utf8().get_data());
  
-@@ -1441,6 +1532,99 @@ bool GdBrowserView::registerGodotMethod(godot::Object* object,
+@@ -1441,6 +1548,99 @@ bool GdBrowserView::registerGodotMethod(godot::Object* object,
      return true;
  }
  
@@ -454,7 +470,7 @@ index f5b3dcd..b0dc570 100644
  // Recursive method to convert JSON data to native Godot types
  godot::Variant GdBrowserView::JsonToGodot(const godot::Dictionary& json)
 diff --git a/gdcef/browser/src/gdbrowser.hpp b/gdcef/browser/src/gdbrowser.hpp
-index a49e880..f0a68f6 100644
+index a49e880..9796090 100644
 --- a/gdcef/browser/src/gdbrowser.hpp
 +++ b/gdcef/browser/src/gdbrowser.hpp
 @@ -63,14 +63,17 @@
@@ -705,7 +721,15 @@ index a49e880..f0a68f6 100644
      void downloadFile(godot::String url);
  
      // -------------------------------------------------------------------------
-@@ -991,17 +1086,31 @@ public:
+@@ -976,6 +1071,7 @@ public:
+     //! \return true if the audio has been muted.
+     //--------------------------------------------------------------------------
+     bool mute(bool state);
++    void set_page_suspended(bool suspended);
+ 
+     //--------------------------------------------------------------------------
+     //! \brief Return if the browser has its audio muted.
+@@ -991,17 +1087,31 @@ public:
      {
          if (m_impl != nullptr)
          {
@@ -738,7 +762,7 @@ index a49e880..f0a68f6 100644
          return m_impl->m_audio.streamer;
      }
  
-@@ -1193,7 +1302,12 @@ private:
+@@ -1193,7 +1303,12 @@ private:
      // -------------------------------------------------------------------------
      int init(godot::String const& url,
               CefBrowserSettings const& cef_settings,
@@ -752,7 +776,7 @@ index a49e880..f0a68f6 100644
  
      // -------------------------------------------------------------------------
      //! \brief Called by GdBrowserView::Impl::GetViewRect
-@@ -1260,31 +1374,6 @@ private:
+@@ -1260,31 +1375,6 @@ private:
                       const int errCode,
                       const CefString& errorText);
  
@@ -784,7 +808,7 @@ index a49e880..f0a68f6 100644
  
      // -------------------------------------------------------------------------
      //! \brief Called to prevent opening page on new windows.
-@@ -1409,6 +1498,7 @@ private:
+@@ -1409,6 +1499,7 @@ private:
      //! \brief One to one CEF browser. The GdCEF is the class containing the
      //! whole browsers.
      CefRefPtr<CefBrowser> m_browser = nullptr;
@@ -792,7 +816,7 @@ index a49e880..f0a68f6 100644
  
      //! \brief Godot's texture holding the page content (CEF => Godot)
      godot::Ref<godot::ImageTexture> m_texture;
-@@ -1471,6 +1561,13 @@ private:
+@@ -1471,6 +1562,13 @@ private:
      mutable std::stringstream m_error;
  
      //! \brief Allow downloads (configured from Browser config)

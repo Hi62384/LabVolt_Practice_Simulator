@@ -1,16 +1,25 @@
 extends Node
 ## Host-only OpenAI transport. No credential is written to Godot user data.
+signal usage_changed
 
 const SETTINGS_PATH := "user://host_openai.cfg"
 const API_BASE := "https://api.openai.com/v1"
 const DEFAULT_MODEL := "gpt-5.4-mini"
 const MAX_INPUT_CHARS := 4000
 const MAX_RESPONSE_BYTES := 262144
+const MAX_IMAGE_RESPONSE_BYTES := 8 * 1024 * 1024
 const TRANSCRIPTION_MODEL := "gpt-4o-mini-transcribe"
+const SPEECH_MODEL := "gpt-4o-mini-tts"
 const Models = preload("res://scripts/campus/ai/openai_models.gd")
 
 var enabled := false
 var model := DEFAULT_MODEL
+var image_model := ""
+var image_generation_model := ""
+var stt_model := TRANSCRIPTION_MODEL
+var tts_model := SPEECH_MODEL
+var stt_enabled := false
+var tts_enabled := false
 var max_output_tokens := 384
 var reasoning_effort := ""
 var model_usage: Dictionary = {}
@@ -99,8 +108,22 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	var key:=str(draft.key)
 	if not host_allowed() or (key.is_empty() and not configured()) or (not key.is_empty() and not _valid_key(key)):
 		return ERR_INVALID_PARAMETER
+	var choices: Dictionary=draft.get("modalities",{})
+	for purpose in ["image","image_generation","stt","tts"]:
+		var id:=str(choices.get(purpose,""))
+		if not id.is_empty() and not Models.supports(id,purpose):return ERR_INVALID_PARAMETER
+	var previous: Array=[image_model,stt_model,tts_model,stt_enabled,tts_enabled,image_generation_model]
+	image_model=str(choices.get("image",image_model))
+	image_generation_model=str(choices.get("image_generation",image_generation_model))
+	stt_model=str(choices.get("stt",stt_model))
+	tts_model=str(choices.get("tts",tts_model))
+	stt_enabled=bool(draft.get("stt_enabled",stt_enabled)) and not stt_model.is_empty()
+	tts_enabled=bool(draft.get("tts_enabled",tts_enabled)) and not tts_model.is_empty()
 	var error:=configure(str(draft.model),int(draft.output),str(draft.get("effort","")),true)
-	if error!=OK:return error
+	if error!=OK:
+		image_model=previous[0];stt_model=previous[1];tts_model=previous[2];stt_enabled=previous[3];tts_enabled=previous[4]
+		image_generation_model=previous[5]
+		return error
 	if not key.is_empty():set_session_key(key)
 	if signature==_connection_signature():
 		_verified_signature=signature
@@ -143,7 +166,26 @@ func respond(prompt: String) -> Dictionary:
 func respond_with_image(prompt: String,jpeg: PackedByteArray) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
 	var content: Array=[{"type":"input_text","text":prompt},{"type":"input_image","image_url":"data:image/jpeg;base64,"+Marshalls.raw_to_base64(jpeg),"detail":"low"}]
-	return await _request_text(content,model,max_output_tokens,reasoning_effort,true)
+	var choice:=image_model if not image_model.is_empty() else model
+	if not Models.supports(choice,"image"):return {"ok":false,"error":"Choose an image analysis model in OpenAI Settings."}
+	return await _request_text(content,choice,max_output_tokens,Models.normalize_effort(choice,reasoning_effort),true)
+
+func speak(text: String, draft: Dictionary={}) -> Dictionary:
+	var choice:=str(draft.get("modalities",{}).get("tts",tts_model))
+	if not bool(draft.get("tts_enabled",tts_enabled)) or not Models.supports(choice,"tts"):
+		return {"ok":false,"error":"Enable text-to-speech and choose a voice model in OpenAI Settings."}
+	if text.strip_edges().is_empty() or text.length()>350:return {"ok":false,"error":"Enter up to 350 characters to read aloud."}
+	return await _call(HTTPClient.METHOD_POST,"/audio/speech",{"model":choice,"input":text,"voice":"alloy","response_format":"wav"},draft.is_empty(),draft)
+
+func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
+	var choice:=str(draft.get("modalities",{}).get("image_generation",image_generation_model))
+	if not Models.supports(choice,"image_generation"):
+		return {"ok":false,"error":"Choose an image generation model."}
+	prompt=prompt.strip_edges()
+	if prompt.is_empty() or prompt.length()>MAX_INPUT_CHARS:
+		return {"ok":false,"error":"Enter an image prompt of up to %d characters."%MAX_INPUT_CHARS}
+	var payload:={"model":choice,"prompt":prompt,"size":"1024x1024","output_format":"png","quality":"low","n":1}
+	return await _call(HTTPClient.METHOD_POST,"/images/generations",payload,draft.is_empty(),draft)
 
 func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}) -> Dictionary:
 	var path:=Models.endpoint(choice)
@@ -171,13 +213,15 @@ func moderate(input: String) -> Dictionary:
 func transcribe_wav(wav: PackedByteArray) -> Dictionary:
 	if wav.size()<32044 or wav.size()>192044 or wav.slice(0,4).get_string_from_ascii()!="RIFF" or wav.slice(8,12).get_string_from_ascii()!="WAVE" or wav.slice(12,16).get_string_from_ascii()!="fmt " or wav.decode_u16(20)!=1 or wav.decode_u16(22)!=1 or wav.decode_u32(24)!=16000 or wav.decode_u16(34)!=16 or wav.slice(36,40).get_string_from_ascii()!="data" or wav.decode_u32(40)!=wav.size()-44:return {"ok":false,"error":"Record between one and six seconds of speech."}
 	if not host_allowed() or not enabled or not configured():return {"ok":false,"error":"The host AI connection is unavailable."}
+	if not stt_enabled or not Models.supports(stt_model,"stt"):return {"ok":false,"error":"Speech-to-text is disabled in the host's OpenAI settings."}
 	if busy:return {"ok":false,"error":"An AI request is already running."}
 	var now:=Time.get_ticks_msec()
 	busy=true
 	var boundary:="LabVoltVoice"+str(now)
-	var head:=("--%s\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n%s\r\n--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"question.wav\"\r\nContent-Type: audio/wav\r\n\r\n"%[boundary,TRANSCRIPTION_MODEL,boundary]).to_utf8_buffer()
+	var choice:=stt_model
+	var head:=("--%s\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\n%s\r\n--%s\r\nContent-Disposition: form-data; name=\"file\"; filename=\"question.wav\"\r\nContent-Type: audio/wav\r\n\r\n"%[boundary,choice,boundary]).to_utf8_buffer()
 	var body:=head+wav+("\r\n--%s--\r\n"%boundary).to_utf8_buffer()
-	var request:=HTTPRequest.new();request.timeout=20.0;request.body_size_limit=32768;add_child(request)
+	var request:=HTTPRequest.new();request.timeout=20.0;request.body_size_limit=32768;request.max_redirects=0;add_child(request)
 	var headers:=PackedStringArray(["Authorization: Bearer "+_credential(),"Content-Type: multipart/form-data; boundary="+boundary])
 	var base:=_test_base if not _test_base.is_empty() else API_BASE
 	var error:=request.request_raw(base+"/audio/transcriptions",headers,HTTPClient.METHOD_POST,body)
@@ -189,7 +233,7 @@ func transcribe_wav(wav: PackedByteArray) -> Dictionary:
 	if code<200 or code>=300:return {"ok":false,"error":"Speech transcription failed (HTTP %d)."%code}
 	var parsed: Variant=JSON.parse_string((completed[3] as PackedByteArray).get_string_from_utf8())
 	if not parsed is Dictionary:return {"ok":false,"error":"Speech transcription was unreadable."}
-	_record_usage(TRANSCRIPTION_MODEL,parsed)
+	_record_usage(choice,parsed)
 	var words:=str(parsed.get("text","")).strip_edges().left(500)
 	return {"ok":true,"text":words} if not words.is_empty() else {"ok":false,"error":"No speech was recognized."}
 
@@ -211,8 +255,10 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	if not Models.valid_id(request_model):return {"ok":false,"error":"Choose a valid model ID in OpenAI Settings."}
 	busy=true
 	var request := HTTPRequest.new()
-	request.timeout=180.0 if path=="/responses" else 30.0
-	request.body_size_limit=2097152 if path=="/models" else MAX_RESPONSE_BYTES
+	request.timeout=180.0 if path in ["/responses","/images/generations"] else 30.0
+	request.body_size_limit=2097152 if path in ["/models","/audio/speech"] else MAX_RESPONSE_BYTES
+	if path=="/images/generations":request.body_size_limit=MAX_IMAGE_RESPONSE_BYTES
+	request.max_redirects=0
 	add_child(request)
 	var headers := PackedStringArray(["Authorization: Bearer "+key,"Content-Type: application/json"])
 	var base := _test_base if not _test_base.is_empty() else API_BASE
@@ -238,6 +284,13 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 	if code==429:return {"ok":false,"error":"OpenAI is rate limiting this key. Try again later."}
 	if code>=500:return {"ok":false,"error":"OpenAI is temporarily unavailable."}
 	if code<200 or code>=300:return {"ok":false,"error":"OpenAI rejected the request (HTTP %d)."%code}
+	if path=="/audio/speech":
+		if body.size()<44 or body.slice(0,4).get_string_from_ascii()!="RIFF" or body.slice(8,12).get_string_from_ascii()!="WAVE":
+			return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
+		var stream:=AudioStreamWAV.load_from_buffer(body)
+		if stream==null or stream.data.is_empty():return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
+		_record_usage(request_model,{})
+		return {"ok":true,"stream":stream}
 	var parsed: Variant=JSON.parse_string(body.get_string_from_utf8())
 	if not parsed is Dictionary:return {"ok":false,"error":"OpenAI returned an unreadable response."}
 	if path=="/models":
@@ -251,6 +304,21 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 	if path.begins_with("/models/"):
 		return {"ok":true,"message":"Connected to OpenAI. Model is available."} if str(parsed.get("id",""))==request_model else {"ok":false,"error":"OpenAI did not confirm the selected model."}
 	_record_usage(request_model,parsed)
+	if path=="/images/generations":
+		var items: Variant=parsed.get("data")
+		if not items is Array or items.size()!=1 or not items[0] is Dictionary:
+			return {"ok":false,"error":"OpenAI returned no image."}
+		var png:=Marshalls.base64_to_raw(str(items[0].get("b64_json","")))
+		# Check the PNG signature and dimensions before decoding the image.
+		if png.size()<33 or png.slice(0,8)!=PackedByteArray([137,80,78,71,13,10,26,10]) or png.slice(12,16).get_string_from_ascii()!="IHDR":
+			return {"ok":false,"error":"OpenAI returned an unreadable image."}
+		var width:=int(png[18])*256+int(png[19])
+		var height:=int(png[22])*256+int(png[23])
+		if png[16]!=0 or png[17]!=0 or png[20]!=0 or png[21]!=0 or width<1 or width>1024 or height<1 or height>1024:
+			return {"ok":false,"error":"The generated image exceeded the preview dimensions."}
+		var image:=Image.new()
+		if image.load_png_from_buffer(png)!=OK:return {"ok":false,"error":"OpenAI returned an unreadable image."}
+		return {"ok":true,"image":image}
 	if parsed.has("results"):
 		var results: Array=parsed.get("results",[])
 		return {"ok":true,"flagged":bool(results[0].get("flagged",false))} if not results.is_empty() and results[0] is Dictionary else {"ok":false,"error":"OpenAI returned no moderation result."}
@@ -286,6 +354,7 @@ func _record_usage(id: String, response: Dictionary) -> void:
 	var seconds: Variant=usage.get("seconds",0)
 	if (seconds is int or seconds is float) and is_finite(float(seconds)) and seconds>0:totals.seconds+=float(seconds)
 	_save()
+	usage_changed.emit()
 
 func _token_count(value: Variant) -> int:
 	return clampi(int(value),0,2000000000) if (value is int or value is float) and is_finite(float(value)) else 0
@@ -301,6 +370,12 @@ func _load() -> void:
 	max_output_tokens=clampi(int(config.get_value("openai","max_output_tokens",384)),16,32768)
 	reasoning_effort=Models.normalize_effort(model,str(config.get_value("openai","reasoning_effort","")))
 	enabled=bool(config.get_value("openai","enabled",false))
+	image_model=str(config.get_value("openai","image_model",""))
+	image_generation_model=str(config.get_value("openai","image_generation_model",""))
+	stt_model=str(config.get_value("openai","stt_model",TRANSCRIPTION_MODEL))
+	tts_model=str(config.get_value("openai","tts_model",SPEECH_MODEL))
+	stt_enabled=bool(config.get_value("openai","stt_enabled",enabled))
+	tts_enabled=bool(config.get_value("openai","tts_enabled",false))
 	var usage: Variant=config.get_value("usage","models",{})
 	if usage is Dictionary:
 		for id in usage:
@@ -314,5 +389,11 @@ func _save() -> Error:
 	config.set_value("openai","max_output_tokens",max_output_tokens)
 	config.set_value("openai","reasoning_effort",reasoning_effort)
 	config.set_value("openai","enabled",enabled)
+	config.set_value("openai","image_model",image_model)
+	config.set_value("openai","image_generation_model",image_generation_model)
+	config.set_value("openai","stt_model",stt_model)
+	config.set_value("openai","tts_model",tts_model)
+	config.set_value("openai","stt_enabled",stt_enabled)
+	config.set_value("openai","tts_enabled",tts_enabled)
 	config.set_value("usage","models",model_usage)
 	return config.save(SETTINGS_PATH)

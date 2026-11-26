@@ -935,7 +935,7 @@ func _physics_process(delta: float) -> void:
 	elif is_instance_valid(ac_laptops) and ac_laptops._held("cables")>=0:
 		held_hint.text="Click laptop USB, then DAQ Computer I/O  •  Return cable to cabinet"
 	elif is_instance_valid(smartphones) and not smartphones.selected().is_empty():
-		held_hint.text=("Left-click: photo  •  Right-click: open  •  O: power off" if smartphones.is_powered(smartphones.selected()) else "O: power on")+"  •  %s: place  •  %s"%[OS.get_keycode_string(player.keys.place_item),device_charging.label("phone",smartphones.selected())]
+		held_hint.text=("Left-click: photo  •  Right-click: open  •  O: power off" if smartphones.is_powered(smartphones.selected()) else "Right-click: open phone  •  O: power on")+"  •  %s: place"%OS.get_keycode_string(player.keys.place_item)
 	elif hotbar.active in range(hotbar.slots.size()) and hotbar.slots[hotbar.active].get("kind","") in ["usb","component","portable_laptop"]:
 		held_hint.text="%s: place on a flat surface"%OS.get_keycode_string(player.keys.place_item)
 	elif (is_instance_valid(school) and school.held(multiplayer.get_unique_id())!=0) or kit_world.held() or dc_lab.held_board()>=0 or not hotbar.selected_food().is_empty():

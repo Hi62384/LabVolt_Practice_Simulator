@@ -42,6 +42,7 @@ func _run() -> void:
 	reloaded.set_local_test_endpoint("http://127.0.0.1:28768/v1")
 	reloaded.configure("gpt-5.4-mini",64,"",false)
 	var draft: Dictionary={"key":"sk-test-12345678901234567890","model":"gpt-6.2-astra","output":64,"effort":"max"}
+	draft.modalities={"image_generation":"gpt-image-2.6-sunburst"}
 	var key_check: Dictionary=await reloaded.list_models(draft.key)
 	if not key_check.get("ok",false) or reloaded.enabled or reloaded.configured():failures.append("Model discovery changed the live host settings")
 	var models: Array=key_check.get("models",[])
@@ -51,6 +52,10 @@ func _run() -> void:
 	if preview.get("text","")!="fixture answer" or reloaded.enabled:failures.append("Draft prompt could not run before accepting settings")
 	if reloaded.accept_setup(draft,str(preview.get("signature","")))!=OK or not reloaded.verified_for_class():failures.append("Accept did not activate the verified settings")
 	if reloaded.reasoning_effort!="max":failures.append("Accept lost the thinking effort")
+	var generated: Dictionary=await reloaded.generate_image("Draw a blue dot")
+	if not generated.get("ok",false) or generated.image.get_size()!=Vector2i.ONE:failures.append("Image generation could not display the fixture")
+	var image_usage: Dictionary=reloaded.model_usage.get("gpt-image-2.6-sunburst",{})
+	if image_usage.get("output")!=12:failures.append("Image generation usage did not update the selected model")
 	if reloaded.configure("gpt-6.2-astra",64,"none",true)!=ERR_INVALID_PARAMETER:failures.append("Unsupported thinking effort was accepted")
 	if reloaded.configure("gpt-3.5-turbo",64,"",true)!=OK:failures.append("Legacy chat model could not be selected")
 	var legacy_response: Dictionary=await reloaded.respond("test prompt")

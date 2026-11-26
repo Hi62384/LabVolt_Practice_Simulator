@@ -9,6 +9,15 @@ func run() -> void:
 	for frame in 5:await physics_frame
 	game.session.roster[1]={}
 	var chair: CharacterBody3D=game.chairs[0]
+	for direction in [Vector3.RIGHT,Vector3.BACK,Vector3.LEFT]:
+		for frame in 30:chair._roll_casters(chair.basis*direction*.03,1.0/60.0)
+		for caster in chair.wheels:
+			assert(caster.basis.z.dot(direction)>.999,"Caster did not turn toward travel")
+			var wheel: MeshInstance3D=caster.get_child(0)
+			assert(absf(wheel.basis.y.dot(Vector3.RIGHT))>.999,"Wheel tilted off its axle")
+	var stopped_spin: float=chair.wheel_spin
+	chair._roll_casters(Vector3.ZERO,1.0/60.0)
+	assert(chair.wheel_spin==stopped_spin,"Stationary wheels should not roll")
 	var point:=Vector3(13,5.05,77.0)
 	chair.global_position=point
 	game.player.global_position=point+Vector3(0,0,1.15)

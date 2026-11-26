@@ -183,4 +183,4 @@ func _receive(key: String,level: int,connected: bool) -> void:
 	own_charge[key]=level
 	own_connected[key]=connected
 	if key.begins_with("phone:") and level<=0:
-		game.smartphones.powered_off[key.trim_prefix("phone:")]=true
+		game.smartphones.powered_on.erase(key.trim_prefix("phone:"))

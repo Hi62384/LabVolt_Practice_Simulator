@@ -81,6 +81,14 @@ func _run() -> void:
 		route_button.pressed.emit()
 		await process_frame
 		_check(front.page == ("singleplayer" if offline else "host"), label + " did not open Play options")
+		var programming := _button(front.body,"Programming Setup")
+		_usable(programming, viewport_rect, label + " Programming Setup")
+		if is_instance_valid(programming):
+			programming.pressed.emit()
+			await process_frame
+			_check(front.page=="programming" and is_instance_valid(_button(front.body,"Use public Judge0")), label+" compiler setup is missing")
+			_button(front.body,"Cancel").pressed.emit()
+			await process_frame
 		var ai_settings := _button(front.body,"OpenAI Settings")
 		_usable(ai_settings, viewport_rect, label + " OpenAI Settings")
 		if is_instance_valid(ai_settings):
@@ -101,10 +109,23 @@ func _run() -> void:
 				controls.key_field.text="sk-test-12345678901234567890"
 				_button(front.body,"Connect API Key").pressed.emit()
 				var deadline:=Time.get_ticks_msec()+5000
-				while (controls.fetching_models or controls.model.item_count<7) and Time.get_ticks_msec()<deadline:await process_frame
-				_check(controls.model.item_count==7, label + " did not show the API model list")
+				while (controls.fetching_models or controls.model_ids.size()<8) and Time.get_ticks_msec()<deadline:await process_frame
+				_check(controls.model_ids.size()==8, label + " did not load the API model list")
+				controls.model.pressed.emit()
+				var row: TreeItem=controls.model_tree.get_root().get_first_child()
+				var selected_row: TreeItem
+				var excludes_embeddings:=true
+				while row!=null:
+					if row.get_text(0)=="gpt-5.4-mini":selected_row=row
+					if row.get_text(0) in ["text-embedding-3-small","gpt-image-2.6-sunburst"]:excludes_embeddings=false
+					row=row.get_next()
+				_check(excludes_embeddings and selected_row!=null and selected_row.get_text(1)=="Compact", label + " text picker showed an incorrect model or capability")
+				_check(selected_row!=null and selected_row.get_text(2)=="No game usage yet", label + " text picker misreported unused model usage")
+				controls.model_buttons.image_generation.pressed.emit()
+				var image_row: TreeItem=controls.model_tree.get_root().get_first_child()
+				_check(image_row!=null and image_row.get_text(0)=="gpt-image-2.6-sunburst" and image_row.get_next()==null, label + " image generation picker mixed model types")
 				_check(is_instance_valid(_button(front.body,"Test Connection")), label + " OpenAI connection control missing")
-				_check(controls.effort_row.visible and "Compact" in controls.model.text and "tokens" in controls.model.text, label + " model details or thinking control missing")
+				_check(controls.effort_row.visible and controls.model.text.begins_with("gpt-5.4-mini"), label + " model selection or thinking control missing")
 				controls.output.select(3)
 				var save := _button(front.body,"Accept")
 				if is_instance_valid(save) and not save.disabled:save.pressed.emit()

@@ -24,6 +24,7 @@ var download_destination: Callable
 var speaker_clock := 0.0
 var speaker_bus := ""
 var speaker_volume := 35
+var phone_suspended := false
 var device_kind:=""
 var device_id:=""
 var lease:=""
@@ -76,6 +77,7 @@ func _ready() -> void:
  get_viewport().size_changed.connect(_resize_tabs)
 
 func _process(delta: float) -> void:
+ if phone_suspended:return
  _update_speakers(delta)
  if not is_visible_in_tree():return
  if pointer_browser!=null:
@@ -326,7 +328,24 @@ func set_speaker_volume(value: int) -> void:
    tab.browser.set_audio_drive(_speaker_drive())
  _update_speakers(.08)
 
+func set_phone_suspended(suspended: bool) -> void:
+ if device_kind!="phone" or phone_suspended==suspended:return
+ phone_suspended=suspended
+ for tab in tabs:
+  if is_instance_valid(tab.browser) and tab.browser.has_method("set_page_suspended"):
+   tab.browser.set_page_suspended(suspended)
+  if is_instance_valid(tab.speaker):
+   if suspended:
+    if is_instance_valid(tab.browser):tab.browser.set_audio_stream(null)
+    tab.speaker.stop()
+   else:
+    tab.speaker.play()
+    var playback:=tab.speaker.get_stream_playback() as AudioStreamGeneratorPlayback
+    if playback!=null and is_instance_valid(tab.browser):tab.browser.set_audio_stream(playback)
+ if not suspended:_update_speakers(.08)
+
 func _update_speakers(delta: float) -> void:
+ if phone_suspended:return
  if not is_instance_valid(speaker_world) or tabs.is_empty():return
  speaker_clock+=delta
  if speaker_clock<.08:return

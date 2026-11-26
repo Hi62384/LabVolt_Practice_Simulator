@@ -24,13 +24,18 @@ func run() -> void:
 	for i in game.hotbar.slots.size():
 		if game.hotbar.slots[i].get("id","")==id:game.hotbar.active=i
 	game.capture();await process_frame
+	var click:=InputEventMouseButton.new();click.button_index=MOUSE_BUTTON_RIGHT;click.pressed=true;game._input(click)
+	if not game.smartphones.panel.visible or game.smartphones.phone_shell.visible:fail("Phone should open with its display off");return
+	game.smartphones.side_power.pressed.emit()
+	if not game.smartphones.is_powered(id):fail("The side power button did not start the phone");return
+	game.smartphones.close()
 	var shutter:=InputEventMouseButton.new();shutter.button_index=MOUSE_BUTTON_LEFT;shutter.pressed=true;game._input(shutter)
 	await process_frame
 	if not game.smartphones.held.visible:fail("Held phone disappeared during capture");return
 	for i in 4:await process_frame
 	var state: Dictionary=Photos.list(game.school.local_identity,id)
 	if state.has("error") or state.photos.size()!=1:fail("In-game capture failed");return
-	var click:=InputEventMouseButton.new();click.button_index=MOUSE_BUTTON_RIGHT;click.pressed=true;game._input(click)
+	game._input(click)
 	for i in 4:await process_frame
 	if not game.smartphones.panel.visible:fail("Phone screen did not open");return
 	if button(game.smartphones.panel,"Camera")==null:fail("Camera launcher missing");return
@@ -54,6 +59,13 @@ func run() -> void:
 	thumbnails[0].pressed.emit();await process_frame
 	var remove:=button(game.smartphones.panel,"Delete photo")
 	if remove==null:fail("Photo detail missing delete action");return
+	game.smartphones.close()
+	var phone_slot: int=game.hotbar.active
+	game.hotbar.active=-1
+	await process_frame
+	game.hotbar.active=phone_slot
+	game.smartphones.open()
+	if button(game.smartphones.panel,"Delete photo")!=remove:fail("Re-equipping lost the open photo");return
 	remove.pressed.emit();await process_frame
 	var dialog: ConfirmationDialog
 	for node in game.smartphones.panel.find_children("*","ConfirmationDialog",true,false):dialog=node;break
@@ -98,7 +110,24 @@ func run() -> void:
 		if browser.tabs.size()!=2 or not str(browser._browser().get_url()).contains("google.com"):fail("New tab did not open Google");return
 		if browser.holder.size.y<game.smartphones.panel.size.y*.55:fail("Browser page too short");return
 		var active_browser: Node=browser._browser()
+		active_browser.load_data_uri("<script>let ticks=0;setInterval(()=>document.title='tick:'+ ++ticks,50)</script>","text/html")
+		until=Time.get_ticks_msec()+3000
+		while not str(active_browser.get_title()).begins_with("tick:") and Time.get_ticks_msec()<until:await process_frame
+		if not str(active_browser.get_title()).begins_with("tick:"):fail("Browser timer fixture did not load");return
 		game.smartphones.close()
+		game.hotbar.active=-1
+		for frame in 3:await process_frame
+		if not active_browser.has_method("set_page_suspended") or not browser.phone_suspended:fail("Unequipping did not suspend the browser");return
+		await create_timer(.35).timeout
+		var suspended_title: String=active_browser.get_title()
+		await create_timer(1.3).timeout
+		if active_browser.get_title()!=suspended_title:fail("The page timer ran while the phone was stowed");return
+		game.hotbar.active=phone_slot
+		for frame in 3:await process_frame
+		if browser.phone_suspended:fail("Re-equipping did not resume the browser");return
+		until=Time.get_ticks_msec()+2500
+		while active_browser.get_title()==suspended_title and Time.get_ticks_msec()<until:await process_frame
+		if active_browser.get_title()==suspended_title:fail("The page timer did not resume");return
 		game.smartphones.open()
 		if not is_same(game.smartphones.browser_surface,browser) or not is_same(browser._browser(),active_browser):
 			fail("Reopening the phone replaced its browser session");return

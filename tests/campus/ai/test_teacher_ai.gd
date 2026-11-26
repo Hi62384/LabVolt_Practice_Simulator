@@ -26,6 +26,10 @@ func _run() -> void:
  var samples:=PackedByteArray();samples.resize(32000)
  var wav:=TeacherAI.wav_16k(samples)
  if wav.size()!=32044 or wav.slice(8,12).get_string_from_ascii()!="WAVE":failures.append("WAV encoding failed")
+ var disabled: Dictionary=await client.transcribe_wav(wav)
+ if disabled.get("ok",true):failures.append("Speech transcription was enabled by default")
+ client.stt_enabled=true
+ client.stt_model="gpt-4o-mini-transcribe"
  var transcribed: Dictionary=await client.transcribe_wav(wav)
  if transcribed.get("text","")!="What does the board show?":failures.append("Speech transcription failed: "+str(transcribed.get("error","")))
  var invalid: Dictionary=await client.transcribe_wav(PackedByteArray())

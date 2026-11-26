@@ -3,8 +3,8 @@ entry_symbol = "gdcef_library_init"
 compatibility_minimum = 4.2
 
 [libraries]
-windows.x86_64.debug = "res://cef_artifacts/windows/libgdcef_projects.dll"
-windows.x86_64.release = "res://cef_artifacts/windows/libgdcef_projects.dll"
+windows.x86_64.debug = "res://cef_artifacts/windows/libgdcef_phone.dll"
+windows.x86_64.release = "res://cef_artifacts/windows/libgdcef_phone.dll"
 
 [dependencies]
 windows.x86_64 = {"res://cef_artifacts/windows/libcef.dll": ""}

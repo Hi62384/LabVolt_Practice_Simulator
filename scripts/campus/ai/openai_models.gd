@@ -67,11 +67,28 @@ static func family(id: String) -> String:
 
 static func endpoint(id: String) -> String:
 	var base:=family(id)
-	for marker in ["embedding","moderation","realtime","transcribe","whisper","tts","dall-e","gpt-image","chatgpt-image","sora","deep-research","computer-use","gpt-live"]:
+	for marker in ["embedding","moderation","realtime","transcribe","whisper","tts","dall-e","gpt-image","chatgpt-image","sora","deep-research","computer-use","gpt-live","-audio","-search","instruct"]:
 		if marker in base:return ""
 	if base.begins_with("gpt-3.5-turbo") or base in ["gpt-4","gpt-4-0314","gpt-4-0613","gpt-4-32k"] or "-audio" in base or "-search-preview" in base:
 		return "/chat/completions"
 	return "/responses"
+
+static func supports(id: String, purpose: String) -> bool:
+	if not valid_id(id):return false
+	var base:=family(id)
+	match purpose:
+		"text":
+			return not endpoint(id).is_empty() and (base.begins_with("gpt-") or base.begins_with("chat-") or base.begins_with("chatgpt-") or MODELS.has(base) or id.begins_with("ft:"))
+		"image":
+			# These model families accept image input for the game's screenshot assistant.
+			return supports(id,"text") and (base.begins_with("gpt-4o") or base.begins_with("gpt-4.1") or base.begins_with("gpt-5") or base.begins_with("gpt-6") or base in ["o3","o3-pro","o4-mini"])
+		"image_generation":
+			return base in ["gpt-image-1-mini","gpt-image-1.5","gpt-image-2","gpt-image-2.5-flare","gpt-image-2.5-sunburst","gpt-image-2.6-flare","gpt-image-2.6-sunburst","chatgpt-image-latest"]
+		"tts":
+			return base in ["tts-1","tts-1-hd","gpt-4o-mini-tts"]
+		"stt":
+			return base in ["gpt-transcribe","gpt-4o-transcribe","gpt-4o-mini-transcribe","gpt-4o-transcribe-diarize","whisper-1"]
+	return false
 
 static func tier(id: String) -> String:
 	var base:=family(id)

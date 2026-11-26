@@ -1365,12 +1365,24 @@ func _show_reaction(room: String,id: String,text: String,point: Vector3,serial: 
   reaction_labels[room]=label;reaction_until[room]=Time.get_ticks_msec()+7000
  if serial>0 and is_instance_valid(speech_player):
   speech_player.configure(bool(game.client_preferences.values.teacher_speech),bool(game.client_preferences.values.teacher_subtitles))
+  var local_room: String=game.campus.registry.locate(game.player.global_position)
+  var use_openai: bool=multiplayer.is_server() and local_room==room and is_instance_valid(game.host_openai) and game.host_openai.tts_enabled
   var key:=speech_cache_key(id,text)
+  if use_openai:key+=":openai:"+str(game.host_openai.tts_model)
   var stream: AudioStreamWAV=speech_player.stream_for(key)
   speech_player.accept(room,str(Roster.entry(id).name),serial,text,priority,root,stream)
   if stream==null and speech_player.speech_enabled and is_instance_valid(speech_synth):
-   var local_room: String=game.campus.registry.locate(game.player.global_position)
-   speech_synth.request(room,serial,id,text,key,priority+(10 if local_room==room else 0))
+   _request_reaction_audio(room,serial,id,text,key,priority+(10 if local_room==room else 0),use_openai)
+
+func _request_reaction_audio(room: String,serial: int,id: String,text: String,key: String,priority: int,use_openai: bool) -> void:
+ if use_openai:
+  var result: Dictionary=await game.host_openai.speak(text.left(350))
+  if not is_instance_valid(speech_player) or serial!=int(speech_player.last_serial.get(room,0)):return
+  if result.get("ok",false):
+   _speech_completed(room,serial,key,result.stream,"ok")
+   return
+ if is_instance_valid(speech_synth):
+  speech_synth.request(room,serial,id,text,speech_cache_key(id,text),priority)
 
 func _speech_completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String) -> void:
  if status!="ok" or stream==null or not is_instance_valid(speech_player):return

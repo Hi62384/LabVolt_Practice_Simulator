@@ -22,7 +22,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/v1/models":
             identifiers = ["gpt-5.4-mini", "gpt-6.2-astra", "gpt-4.1",
                            "gpt-3.5-turbo", "ft:gpt-4.1-mini-2025-04-14:local:custom:id",
-                           "text-embedding-3-small", "fixture-future-model"]
+                           "text-embedding-3-small", "fixture-future-model", "gpt-image-2.6-sunburst"]
             return self._reply(200, {"object": "list", "data": [
                 {"id": identifier, "object": "model"} for identifier in identifiers
             ]})
@@ -44,6 +44,12 @@ class Handler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", "0"))))
         except (ValueError, TypeError):
             return self._reply(400, {"error": {"message": "bad JSON"}})
+        if self.path == "/v1/images/generations":
+            if body != {"model": "gpt-image-2.6-sunburst", "prompt": "Draw a blue dot", "size": "1024x1024",
+                        "output_format": "png", "quality": "low", "n": 1}:
+                return self._reply(400, {"error": {"message": "wrong image request"}})
+            png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYPgPAAEDAQAIicLsAAAAAElFTkSuQmCC"
+            return self._reply(200, {"data": [{"b64_json": png}], "usage": {"input_tokens": 4, "output_tokens": 12}})
         if self.path == "/v1/chat/completions" and body.get("model") == "gpt-3.5-turbo":
             if body.get("messages") != [{"role": "user", "content": "test prompt"}]:
                 return self._reply(400, {"error": {"message": "wrong chat request"}})

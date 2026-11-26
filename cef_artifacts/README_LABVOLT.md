@@ -10,7 +10,7 @@ This build supports the in-game campus PCs, laptops, and phones on Windows x64. 
 
 To rebuild, check out gdCEF commit `d3d58fc9f37dfc3f951f7ac6caa67ecf7a267539`, apply `labvolt_gdcef_0_21.patch`, set `GODOT_VERSION = "4.5"` in its `build.py`, install its `requirements.txt`, and run `build.py` from a Visual Studio x64 Developer Command Prompt. Copy only its `cef_artifacts/windows` runtime, `VERSION`, and `LICENSE` into this folder. The patch was checked against that commit.
 
-The project loads the rebuilt extension from `windows/libgdcef_projects.dll`. When rebuilding, copy the generated `libgdcef.dll` to that filename. This extension adds offline project contexts with in-memory assets, blocked external requests, and package-scoped JSON state. The bundled runtime has Chromium's OS sandbox disabled.
+The project loads the rebuilt extension from `windows/libgdcef_phone.dll`. When rebuilding, copy the generated `libgdcef.dll` to that filename. This extension adds offline project contexts and lets equipped phones resume embedded pages after stowing. The bundled runtime has Chromium's OS sandbox disabled.
 
 On Windows, CEF 156 requires its sandbox bootstrap to start the CEF browser and renderer processes through the same executable. The project currently loads gdCEF into the Godot 4.5 executable and starts a separate CEF subprocess executable. Enabling the sandbox requires changing that launch architecture. See the [CEF sandbox setup](https://github.com/chromiumembedded/cef/blob/master/docs/sandbox_setup.md#windows).
 

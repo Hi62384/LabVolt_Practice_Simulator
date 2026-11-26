@@ -7,7 +7,9 @@ const HELD_PHONE_RENDER_LAYER:=19
 var game: Node
 var held: Node3D
 var held_screen: MeshInstance3D
-var powered_off := {}
+var powered_on := {}
+var phone_shell: VBoxContainer
+var side_power: Button
 var browser_bookmarks := {}
 var remote_phone_models := {}
 var phone_frame_at := {}
@@ -23,7 +25,7 @@ var flash: ColorRect
 var flash_tween: Tween
 var app_title: Label
 var phone_clock: Label
-var battery_label: Label
+var battery_label: HBoxContainer
 var next_battery_note := 0
 var volume_row: HBoxContainer
 var volume_slider: HSlider
@@ -43,6 +45,7 @@ var placed_preview: ImageTexture
 var next_preview_ms: int=0
 var phone_volumes: Dictionary={}
 var last_apps: Dictionary={}
+var rendered_phone_id := ""
 var idle_view: SubViewport
 var contact:=0
 var message_draft:=""
@@ -65,7 +68,7 @@ func build(owner: Node) -> void:
 	comm=preload("res://scripts/campus/phones/phone_network.gd").new();comm.name="PhoneNetwork";add_child(comm);comm.build(game);comm.changed.connect(_communications_changed)
 	call_notice=Label.new();call_notice.position=Vector2(16,280);call_notice.add_theme_font_size_override("font_size",18);call_notice.add_theme_color_override("font_color",Color("a5e9d7"));call_notice.add_theme_constant_override("outline_size",5);layer.add_child(call_notice);call_notice.hide()
 	_build_phone_ui()
-	game.session.leaving.connect(close.bind(false))
+	game.session.leaving.connect(func():close(false);powered_on.clear())
 	game.session.restarted.connect(close.bind(false))
 	game.session.roster_changed.connect(_prune_classroom_open)
 	game.session.roster_changed.connect(_prune_teacher_handoffs)
@@ -90,6 +93,7 @@ func _build_phone_ui() -> void:
 	layer.add_child(panel)
 	panel.hide()
 	var shell:=VBoxContainer.new()
+	phone_shell=shell
 	shell.add_theme_constant_override("separation",6)
 	panel.add_child(shell)
 	var top:=HBoxContainer.new()
@@ -103,8 +107,7 @@ func _build_phone_ui() -> void:
 	app_title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	app_title.add_theme_color_override("font_color",Tokens.MUTED)
 	top.add_child(app_title)
-	battery_label=Label.new()
-	battery_label.add_theme_font_size_override("font_size",13)
+	battery_label=preload("res://scripts/ui/design_system/device_battery.gd").new()
 	top.add_child(battery_label)
 	var audio:=_button("",func():volume_row.visible=not volume_row.visible)
 	audio.icon=Icons.icon("volume")
@@ -120,11 +123,14 @@ func _build_phone_ui() -> void:
 	off.tooltip_text="Close phone"
 	off.accessibility_name="Close phone"
 	top.add_child(off)
-	var power:=_button("⏻",func():_toggle_power(current_id))
-	power.tooltip_text="Turn phone off"
-	power.accessibility_name="Turn phone off"
-	power.custom_minimum_size=Vector2(36,30)
-	top.add_child(power)
+	side_power=_button("",func():_toggle_power(current_id))
+	side_power.theme=panel.theme
+	for state in ["normal","hover","pressed","focus"]:
+		var edge:=Tokens.surface(Color("355569") if state=="normal" else Color("58889c"),Color("7295a6"),0)
+		edge.set_corner_radius_all(5)
+		side_power.add_theme_stylebox_override(state,edge)
+	layer.add_child(side_power)
+	side_power.hide()
 	volume_row=HBoxContainer.new()
 	volume_row.hide()
 	shell.add_child(volume_row)
@@ -196,6 +202,9 @@ func _layout_phone() -> void:
 	var target:=Vector2(minf(620 if current_app=="Browser" else 400,bounds.x-28),minf(700,bounds.y-24))
 	panel.size=target
 	panel.position=(bounds-target)*.5
+	if is_instance_valid(side_power):
+		side_power.position=Vector2(panel.position.x+panel.size.x-1,panel.position.y+52)
+		side_power.size=Vector2(11,55)
 
 func _box(parent: Node3D,at: Vector3,size: Vector3,color: Color,first_person := true) -> void:
 	var mesh:=BoxMesh.new();mesh.size=size
@@ -238,27 +247,50 @@ func _build_handset(parent: Node3D,first_person: bool) -> MeshInstance3D:
 	return screen
 
 func is_powered(id: String) -> bool:
-	return not id.is_empty() and not powered_off.has(id) and (not is_instance_valid(game.device_charging) or game.device_charging.percent("phone",id)>0)
+	return powered_on.has(id) and (not is_instance_valid(game.device_charging) or game.device_charging.percent("phone",id)>0)
 
 func _toggle_power(id: String) -> void:
 	if id.is_empty():return
 	if game.device_charging.percent("phone",id)<=0:
 		game.ui.log_message("Phone battery is empty. Connect it to a charger in M110.")
 		return
-	if powered_off.has(id):
-		powered_off.erase(id)
+	if not powered_on.has(id):
+		powered_on[id]=true
 		var model:=_placed_model(id)
 		if is_instance_valid(model):_paint_screen(model.get_meta("phone_screen"),idle_preview())
 		game.ui.log_message("Phone on.")
+		if panel.visible and current_id==id:_show_phone_display()
 	else:
-		powered_off[id]=true
+		powered_on.erase(id)
 		if browser_phone_id==id:_close_browser()
 		browser_bookmarks.erase(id)
 		last_apps.erase(id)
+		if rendered_phone_id==id:rendered_phone_id=""
 		var model:=_placed_model(id)
 		if is_instance_valid(model):_paint_screen(model.get_meta("phone_screen"),null)
-		if panel.visible:close()
+		if panel.visible and current_id==id:
+			_report_classroom_open(false,"")
+			_show_phone_display()
+		_leave_camera()
 		game.ui.log_message("Phone off.")
+
+func _show_phone_display() -> void:
+	var active:=is_powered(current_id)
+	phone_shell.visible=active
+	side_power.tooltip_text="Turn phone off" if active else "Turn phone on"
+	side_power.accessibility_name=side_power.tooltip_text
+	if active:
+		if rendered_phone_id!=current_id:
+			_switch(str(last_apps.get(current_id,"Home")))
+		else:
+			phone_clock.text=Time.get_time_string_from_system().left(5)
+			_layout_phone()
+		phone_report_clock=0.0
+		_report_classroom_open(true,current_id)
+	else:
+		rendered_phone_id=""
+		current_app="Home"
+		_layout_phone()
 
 func _paint_screen(screen: MeshInstance3D, texture: Texture2D) -> void:
 	var glass: StandardMaterial3D=screen.material_override
@@ -291,7 +323,7 @@ func _phone_record(id: String) -> Dictionary:
 	return phone
 
 func _current_phone_open() -> bool:
-	return is_instance_valid(panel) and panel.visible and _phone_in_reach(current_id)
+	return is_instance_valid(panel) and panel.visible and is_powered(current_id) and _phone_in_reach(current_id)
 
 func _placed_model(id: String) -> Node3D:
 	if id.is_empty() or not is_instance_valid(game.personal_placement):return null
@@ -310,18 +342,20 @@ func _process(_delta: float) -> void:
 	if camera_phone_id!="" and (camera_phone_id!=id or not game.front.in_game or not game.player.enabled or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED):
 		_leave_camera()
 	if panel.visible and (not _phone_in_reach(current_id) or not game.front.in_game):close()
+	var browser_active := false
 	if is_instance_valid(browser_surface):
-		if (id!=browser_phone_id and not is_instance_valid(_placed_model(browser_phone_id))) or not is_powered(browser_phone_id):
-			browser_bookmarks[browser_phone_id]=browser_surface.parked_tabs()
+		if not is_powered(browser_phone_id):
 			_close_browser()
-	if is_instance_valid(browser_surface) and not panel.visible:
+		else:
+			browser_active=game.front.in_game and (id==browser_phone_id or is_instance_valid(_placed_model(browser_phone_id)))
+			browser_surface.set_phone_suspended(not browser_active)
+	if browser_active and not panel.visible:
 		_update_phone_preview()
 	if panel.visible:
-		if not is_powered(current_id):close()
-		else:
-			battery_label.text="%d%%"%game.device_charging.percent("phone",current_id)
-			battery_label.tooltip_text=game.device_charging.label("phone",current_id)
-	var active_id:=id if not id.is_empty() else current_id if panel.visible else browser_phone_id
+		if phone_shell.visible and not is_powered(current_id):_show_phone_display()
+		if is_powered(current_id):
+			battery_label.update_charge(game.device_charging.percent("phone",current_id))
+	var active_id:=id if not id.is_empty() else current_id if panel.visible else browser_phone_id if browser_active else ""
 	var now:=Time.get_ticks_msec()
 	if is_powered(active_id) and game.front.in_game and now>=next_battery_note:
 		next_battery_note=now+1500
@@ -351,20 +385,21 @@ func _process(_delta: float) -> void:
 func route(event: InputEvent) -> bool:
 	if panel.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_ESCAPE:close();return true
+		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_O:_toggle_power(current_id);return true
 		return event is InputEventKey or event is InputEventMouse
 	if selected().is_empty() or not game.front.in_game or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED:return false
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_O:
 		_toggle_power(selected())
 		return true
-	if not is_powered(selected()):return false
 	if camera_phone_id.is_empty() and event is InputEventMouseButton and is_instance_valid(game.current_target) and game.current_target.get_meta("role","")=="placed_personal_item":return false
+	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT:open();return true
+	if not is_powered(selected()):return false
 	if camera_phone_id==selected() and event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_ESCAPE:
 		open();return true
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_P:
 		capture();return true
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index==MOUSE_BUTTON_LEFT:capture();return true
-		if event.button_index==MOUSE_BUTTON_RIGHT:open();return true
 	return false
 
 func open() -> void:
@@ -376,18 +411,15 @@ func open_placed(id: String) -> void:
 
 func _open_phone(id: String) -> void:
 	if id.is_empty():return
-	if not is_powered(id):_toggle_power(id)
-	if not is_powered(id):return
 	current_id=id
 	_leave_camera()
-	photo_page=0
+	if rendered_phone_id!=id:
+		contact=0;message_draft="";photo_page=0
 	volume_row.hide()
 	volume_slider.set_value_no_signal(_phone_volume(id))
 	volume_value.text="%d%%"%_phone_volume(id)
-	backdrop.show();panel.show();game.release_mouse()
-	_switch(str(last_apps.get(id,"Home")))
-	phone_report_clock=0.0
-	_report_classroom_open(true,current_id)
+	backdrop.show();panel.show();side_power.show();game.release_mouse()
+	_show_phone_display()
 
 func close(keep_browser := true) -> void:
 	_leave_camera()
@@ -395,16 +427,18 @@ func close(keep_browser := true) -> void:
 	if not keep_browser or not game.front.in_game:
 		_close_browser()
 		last_apps.clear()
+		rendered_phone_id=""
+		browser_bookmarks.clear()
 	var previously_open: bool=is_instance_valid(panel) and panel.visible and not current_id.is_empty()
 	var was_visible:=panel.visible if is_instance_valid(panel) else false
 	if is_instance_valid(panel):
 		for child in panel.get_children():
-			if child is ConfirmationDialog:child.hide();child.queue_free()
+			if child is ConfirmationDialog or child is FileDialog:child.hide();child.queue_free()
 		panel.hide()
 		backdrop.hide()
+		side_power.hide()
 	current_id=""
 	if previously_open:_report_classroom_open(false,"")
-	contact=0;message_draft="";photo_page=0
 	if was_visible and is_instance_valid(game.front) and game.front.in_game:game.capture()
 
 ## Only the authenticated sender can report their own local UI state. The
@@ -589,12 +623,15 @@ func capture() -> void:
 func _switch(app: String) -> void:
 	if not is_instance_valid(panel) or not panel.visible:return
 	generation+=1;var request:=generation
+	rendered_phone_id=""
 	current_app=app
 	last_apps[current_id]=app
 	var phone: Dictionary=_phone_record(current_id)
 	if phone.is_empty():close();return
 	var resume_browser:=app=="Browser" and is_instance_valid(browser_surface) and browser_phone_id==current_id
-	if not resume_browser:_close_browser()
+	if not resume_browser and is_instance_valid(browser_surface):
+		if browser_phone_id!=current_id:browser_bookmarks[browser_phone_id]=browser_surface.parked_tabs()
+		_close_browser()
 	_clear_app()
 	browser_host.hide()
 	app_scroll.show()
@@ -603,13 +640,17 @@ func _switch(app: String) -> void:
 	status.text=""
 	status.hide()
 	_layout_phone()
-	if app=="Home":_home_screen();return
+	if app=="Home":
+		_home_screen()
+		rendered_phone_id=current_id
+		return
 	var delay: int=int(Tiers.TIERS[phone.tier].delay_ms)
 	if delay>0:
 		status.text="Opening %s…"%app
 		status.show()
 		await get_tree().create_timer(float(delay)/1000.0).timeout
 	if request!=generation or not _current_phone_open():return
+	rendered_phone_id=current_id
 	status.hide()
 	if app=="Calculator":
 		var calculator:=preload("res://scripts/scientific_calculator.gd").new()
@@ -922,6 +963,7 @@ func _gallery(phone: Dictionary) -> void:
 	var take:=_button("Open camera",_open_camera)
 	take.icon=Icons.icon("scope")
 	content.add_child(take)
+	content.add_child(_button("Import image…",_import_photo))
 	if result.photos.is_empty():
 		var empty:=Label.new();empty.text="No photos yet. Aim in the world and left-click with the phone equipped.";empty.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;content.add_child(empty)
 		return
@@ -956,6 +998,30 @@ func _gallery(phone: Dictionary) -> void:
 			preview.tooltip_text=preview.accessibility_name
 			preview.pressed.connect(_show_photo.bind(str(photo.id)))
 			grid.add_child(preview)
+
+func _import_photo() -> void:
+	var picker:=FileDialog.new()
+	picker.title="Import a photo"
+	picker.use_native_dialog=true
+	picker.access=FileDialog.ACCESS_FILESYSTEM
+	picker.file_mode=FileDialog.FILE_MODE_OPEN_FILE
+	picker.filters=PackedStringArray(["*.png,*.jpg,*.jpeg,*.webp,*.bmp ; Images"])
+	panel.add_child(picker)
+	var id:=current_id
+	var owner:=str(game.electronics.profile.data.dorm.owner)
+	picker.file_selected.connect(func(path: String):
+		if current_id==id and current_app=="Photos" and _current_phone_open() and owner==str(game.electronics.profile.data.dorm.owner):
+			var source:=FileAccess.open(path,FileAccess.READ)
+			var image:=Image.new()
+			if source!=null and source.get_length()<=16*1024*1024 and image.load(path)==OK:
+				var phone:=_phone_record(id)
+				var result:=Photos.capture(owner,id,image,int(Tiers.TIERS[phone.tier].storage_bytes))
+				if not result.has("error"):photo_page=0;_switch("Photos")
+				else:status.text=str(result.error);status.show()
+			else:status.text="Choose a readable image under 16 MiB.";status.show()
+		picker.queue_free())
+	picker.canceled.connect(picker.queue_free)
+	picker.popup_centered(Vector2i(650,440))
 
 func _show_photo(photo_id: String) -> void:
 	if not _current_phone_open():return

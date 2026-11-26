@@ -165,12 +165,11 @@ func hint(target: Object, key: String) -> String:
 	var id:=str(target.get_meta("portable_id",""))
 	var entry: Dictionary=placed.get(id,{})
 	if entry.is_empty():return ""
-	var charge: String=game.device_charging.label("laptop",id)
 	if entry.open:
 		if not game.computer_room_adapter.power_states.get(entry.station,false):
-			return "Click laptop power button to turn it on  •  Left-click: close lid  •  "+charge
-		return "%s / Right-click: use laptop  •  Left-click: close lid  •  %s"%[key,charge]
-	return "%s / Right-click: open laptop  •  Left-click: pick up  •  %s"%[key,charge]
+			return "Click laptop power button to turn it on  •  Left-click: close lid"
+		return "%s / Right-click: use laptop  •  Left-click: close lid"%key
+	return "%s / Right-click: open laptop  •  Left-click: pick up"%key
 
 func _request_change(id: String,op: String) -> void:
 	if op=="pickup" and not game.hotbar.slots.has({}):

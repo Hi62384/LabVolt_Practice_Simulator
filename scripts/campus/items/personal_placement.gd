@@ -105,7 +105,7 @@ func hint(target: Object,interact_key: String) -> String:
 	var entry: Dictionary=placed.get(str(target.get_meta("placement_id","")),{})
 	if entry.is_empty():return ""
 	if int(entry.peer)!=multiplayer.get_unique_id():return str(entry.label)
-	if str(entry.key).begins_with("phone:"):return "%s / Right-click: use phone  •  Left-click: pick up  •  %s"%[interact_key,game.device_charging.label("phone",str(entry.key).trim_prefix("phone:"))]
+	if str(entry.key).begins_with("phone:"):return "%s / Right-click: use phone  •  Left-click: pick up"%interact_key
 	return "%s / Click: pick up %s"%[interact_key,entry.label]
 
 @rpc("any_peer","call_remote","reliable")
