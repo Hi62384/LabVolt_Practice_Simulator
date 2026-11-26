@@ -50,6 +50,9 @@ func run() -> void:
 func _broadcast(profile: RefCounted) -> void:
 	var configuration:=Configuration.defaults(Configuration.PHONE)
 	configuration.appearance.shell=2
+	var stamp:=Configuration.Decoration.layer("text")
+	stamp.data="Campus"
+	configuration.decoration=[stamp]
 	profile.buy_smartphone("basic",6,"",configuration)
 	if not await _until(func():return not profile.data.dorm.get("smartphones",{}).is_empty(),"phone purchase"):return
 	var id: String=profile.data.dorm.smartphones.keys()[0]
@@ -90,6 +93,7 @@ func _observe() -> void:
 	print("HANDSET_MODEL_READY")
 	var peer: int=phone.remote_phone_models.keys()[0]
 	var handset: Node3D=phone.remote_phone_models[peer].model
+	if not await _until(func():return handset.has_node("DecorationSurface"),"remote decoration"):return
 	if not handset.get_meta("phone_shell").material_override.albedo_color.is_equal_approx(Color("27745e")):
 		_fail("The viewer did not receive the purchased case finish.")
 		return
