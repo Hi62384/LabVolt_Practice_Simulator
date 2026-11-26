@@ -5,7 +5,8 @@ const PRICING_URL := "https://developers.openai.com/api/docs/pricing"
 # Standard short-context USD per million tokens, checked 2026-11-25.
 const TEXT_RATES := {
 	"gpt-6.2-astra":[8.0,40.0],"gpt-6.2-sol":[2.0,10.0],"gpt-6-astra":[10.0,50.0],"gpt-6.1-sol":[2.0,10.0],
-	"chat-latest":[5.0,30.0],"gpt-5.4":[2.5,15.0],"gpt-5.4-mini":[.75,4.5],"gpt-5.4-nano":[.20,1.25],
+	"gpt-6.1-terra":[1.0,5.0],"gpt-6-luna":[.10,.50],"gpt-5.6-sol":[4.0,20.0],
+	"gpt-5.5":[5.0,30.0],"gpt-5.5-pro":[30.0,180.0],"gpt-5.4-pro":[30.0,180.0],"chat-latest":[5.0,30.0],"gpt-5.4":[2.5,15.0],"gpt-5.4-mini":[.75,4.5],"gpt-5.4-nano":[.20,1.25],
 	"gpt-5.3-codex":[1.75,14.0],"gpt-5.2":[1.75,14.0],"gpt-5.2-pro":[21.0,168.0],
 	"gpt-5.1":[1.25,10.0],"gpt-5":[1.25,10.0],"gpt-5-mini":[.25,2.0],"gpt-5-nano":[.05,.40],
 	"gpt-4.1":[2.0,8.0],"gpt-4.1-mini":[.40,1.60],"gpt-4.1-nano":[.10,.40],"gpt-4o":[2.5,10.0],"gpt-4o-mini":[.15,.60],
@@ -27,8 +28,9 @@ const STT_RATES := {"gpt-4o-transcribe":.006,"gpt-4o-mini-transcribe":.003,"gpt-
 # https://openai.com/index/introducing-gpt-4-1/
 # https://openai.com/index/gpt-6-astra/
 # https://openai.com/index/gpt-5-6/
+# https://deploymentsafety.openai.com/gpt-6-2-astra-sol/respecting-auto-review
 const GPQA := {
-	"gpt-6-astra":96.0,"gpt-5.6-sol":94.6,"gpt-5.6-terra":92.9,"gpt-5.6-luna":92.3,"gpt-5.5":93.6,
+	"gpt-6.2-astra":97.0,"gpt-6.2-sol":96.0,"gpt-6-astra":96.0,"gpt-5.6-sol":94.6,"gpt-5.6-terra":92.9,"gpt-5.6-luna":92.3,"gpt-5.5":93.6,
 	"gpt-5.4":93.0,"gpt-5.4-pro":94.4,"gpt-5.4-mini":88.0,"gpt-5.4-nano":82.8,"gpt-5.3-codex":92.6,
 	"gpt-5.2":92.4,"gpt-5.2-pro":93.2,"gpt-5.1":88.1,"gpt-5":85.7,"gpt-5-mini":81.6,"gpt-5-nano":71.2,
 	"gpt-4.1":66.3,"gpt-4.1-mini":65.0,"gpt-4.1-nano":50.3,"gpt-4o":46.0,"gpt-4o-mini":40.2,"o1":75.7,"o3":83.3,"o3-mini":77.2,"o4-mini":81.4

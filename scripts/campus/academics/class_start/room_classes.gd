@@ -111,10 +111,14 @@ func _apply(peer: int,op: String,room: String,config: Dictionary) -> void:
 	if _inside(peer,room) and signs.has(room) and _position(peer).distance_to(signs[room].desk)<=3.6:
 		if op=="start":
 			if peer!=1:error="Only the host can start a class."
+			elif student_has_class(peer) or classes.values().any(func(activity):return activity.get("host",0)==peer):
+				error="Finish your current class before starting another."
 			elif not game.host_openai.verified_for_class():error=game.host_openai.class_connection_status()
 			else:
 				error=_start(room,config)
-				if error.is_empty():classes[room]["ai_teaching"]=true
+				if error.is_empty():
+					classes[room]["ai_teaching"]=true
+					classes[room].host=peer
 		elif op=="practice":error=_issue_practice(peer,room,config)
 		elif op=="sign":error=_sign(peer,room)
 		else:return
@@ -177,13 +181,26 @@ func _start(room: String,config: Dictionary) -> String:
 		if lesson.practical.get("blocked",false):return str(lesson.practical.get("reason","Required practical equipment is unavailable."))
 		var capability: Dictionary=school.equipment_adapter.call("supports",lesson)
 		if not capability.get("ok",false):return str(capability.get("error","Practical grading is unavailable."))
-	var teacher: String=game.faculty.current.get(room,"") if kind=="lab" else ""
-	if teacher.is_empty() or course not in preload("res://scripts/campus/academics/faculty_roster.gd").entry(teacher).get("courses",[]):teacher=game.faculty.pick_lecture(course)
-	if teacher.is_empty():return "No eligible teacher is available right now."
-	if course not in preload("res://scripts/campus/academics/faculty_roster.gd").entry(teacher).courses:return "The current lab instructor does not teach that course."
+	const Faculty=preload("res://scripts/campus/academics/faculty_roster.gd")
+	var teacher:=str(config.get("teacher_override",""))
+	if not teacher.is_empty() and not Faculty.has(teacher):return "Choose an existing teacher."
+	if teacher.is_empty():
+		teacher=game.faculty.current.get(room,"") if kind=="lab" else ""
+		if course not in Faculty.entry(teacher).get("courses",[]):teacher=game.faculty.pick_lecture(course)
+		if teacher.is_empty():return "No eligible teacher is available right now."
 	var teaching: Dictionary=school.course_bridge.lesson_for_assignment(lesson,LessonSeconds)
 	classes[room]={"id":Crypto.new().generate_random_bytes(16).hex_encode(),"room":room_info,"course":course,"kind":kind,"teacher":teacher,"week":week,"difficulty":level,"extra":extra,"title":str(extra.get("title",lesson.get("title",course))),"phase":"arrival","deadline":_now()+ArrivalSeconds,"teaching":teaching,"students":{}}
 	return ""
+
+func student_has_class(peer: int, except_room := "") -> bool:
+	var identity:=str(school.identities.get(peer,""))
+	if identity.is_empty():return false
+	if school.formal_active() and school.class_students.has(identity) and not school.class_students[identity].get("done",false):return true
+	for room: String in classes:
+		if room==except_room:continue
+		var enrolled: Dictionary=classes[room].students.get(identity,{})
+		if not enrolled.is_empty() and not enrolled.get("done",false):return true
+	return false
 
 func _sign(peer: int,room: String) -> String:
 	var activity: Dictionary=classes.get(room,{})
@@ -192,9 +209,7 @@ func _sign(peer: int,room: String) -> String:
 	var identity := str(school.identities.get(peer,""))
 	if identity.is_empty():return "Your student profile is still loading."
 	if activity.students.has(identity):return "You already signed attendance."
-	for other in classes.values():
-		var enrolled: Dictionary=other.students.get(identity,{})
-		if not enrolled.is_empty() and not enrolled.get("done",false):return "You are already attending another class."
+	if student_has_class(peer,room):return "You are already attending another class."
 	var assignment: Dictionary=school.course_bridge.generate(activity.course,activity.week,str(activity.get("kind","lecture")),activity.difficulty,school.random.randi())
 	if assignment.is_empty() or assignment.has("error"):return "Could not prepare your assessment."
 	if str(activity.get("kind","lecture"))=="lab" and not assignment.get("practical",{}).is_empty():
@@ -350,11 +365,7 @@ func _prepare_ai_assessments(room: String, activity: Dictionary) -> bool:
 	for identity in activity.students:
 		if activity.students[identity].project.has("assessment_focus"):continue
 		var generated: Dictionary=school.compile_ai_assessment(activity.students[identity].project,plan,identity)
-		if generated.is_empty():
-			AssessmentPlan.retry(state)
-			activity.ai_status=state.status
-			return false
-		prepared[identity]=generated
+		prepared[identity]=generated if not generated.is_empty() else activity.students[identity].project
 	for identity in prepared:activity.students[identity].project=prepared[identity]
 	return true
 

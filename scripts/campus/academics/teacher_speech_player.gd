@@ -81,8 +81,9 @@ func _start(room: String,item: Dictionary) -> void:
 	player.name="TeacherSpeech"
 	player.stream=stream
 	player.attenuation_model=AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
-	player.unit_size=2.8
-	player.max_distance=26.0
+	player.unit_size=12.0
+	player.max_distance=34.0
+	player.max_db=0.0
 	anchor.add_child(player)
 	var head := anchor.find_child("Head", true, false) as Node3D
 	if is_instance_valid(head):
@@ -185,7 +186,7 @@ func _stop(room: String) -> void:
 	active.erase(room)
 
 func _show_subtitle(room: String,item: Dictionary) -> void:
-	_clear_subtitle(room)
+	for previous in subtitles.keys():_clear_subtitle(previous)
 	var label:=Label.new();label.text=str(item.teacher)+": "+str(item.text)
 	label.add_theme_color_override("font_color",Color("f3faf5"))
 	label.add_theme_color_override("font_shadow_color",Color("071923"))

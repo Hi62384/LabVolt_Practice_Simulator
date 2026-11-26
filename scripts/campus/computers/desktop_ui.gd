@@ -762,6 +762,7 @@ func _switch_app(name: String) -> void:
 		state.merge({"file_list":file_list,"project_tree":project_tree,"breadcrumbs":breadcrumbs,"editor":editor,"path_field":path_field,"folder_button":folder_button,"delete_button":delete_button},true)
 	elif name == "Calculator":
 		var calculator := preload("res://scripts/scientific_calculator.gd").new()
+		calculator.advanced_app=true
 		calculator.campus_style = true
 		calculator.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		calculator.size_flags_vertical=Control.SIZE_EXPAND_FILL

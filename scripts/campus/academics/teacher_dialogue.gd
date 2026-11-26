@@ -5,7 +5,11 @@ static var _config: Dictionary={}
 static func personalities() -> Dictionary:
  if _config.is_empty():
   var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
-  if parsed is Dictionary and parsed.get("version",0)==1:_config=parsed.get("teachers",{})
+  if parsed is Dictionary and parsed.get("version",0)==1:
+   _config=parsed.get("teachers",{})
+   for personality in _config.values():
+    for trait_name in ["teaching","focus","difficulty","talkativeness"]:
+     if personality.get(trait_name)==null:personality[trait_name]=.5
  return _config
 
 ## Deliberately limited keyword recognition, not a claim to understand free speech.

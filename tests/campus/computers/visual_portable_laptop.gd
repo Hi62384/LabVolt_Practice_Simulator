@@ -24,12 +24,12 @@ func run() -> void:
 	var laptop_configuration: Dictionary={}
 	var usb_configuration: Dictionary={}
 	if configured:
-		laptop_configuration=Config.defaults(Config.LAPTOP)
+		laptop_configuration=Config.defaults(Config.LAPTOP,1)
 		laptop_configuration.hardware.processor=2
 		laptop_configuration.hardware.display=1
 		laptop_configuration.hardware.battery=1
 		laptop_configuration.appearance.shell=2
-		usb_configuration=Config.defaults(Config.USB)
+		usb_configuration=Config.defaults(Config.USB,1)
 		usb_configuration.hardware.storage=2
 		usb_configuration.hardware.read=1
 		usb_configuration.appearance.shell=3

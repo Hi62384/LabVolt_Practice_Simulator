@@ -2,7 +2,7 @@ extends CharacterBody3D
 const SafeRecovery = preload("res://scripts/campus/presentation/navigation_safety/safe_recovery.gd")
 const DEFAULT_KEYS := {"forward": KEY_W, "back": KEY_S, "left": KEY_A, "right": KEY_D,
 	"sprint": KEY_SHIFT, "crouch": KEY_CTRL, "jump": KEY_SPACE, "interact": KEY_E,
-	"inventory": KEY_TAB, "kits": KEY_K, "read_sheet": KEY_N, "place_item": KEY_F, "inspect": KEY_I, "emotes": KEY_H, "call_teacher": KEY_T, "throw_paper": KEY_G,
+	"inventory": KEY_TAB, "kits": KEY_K, "read_sheet": KEY_N, "place_item": KEY_F, "inspect": KEY_I, "emotes": KEY_H, "call_teacher": KEY_T, "throw_item": KEY_G,
 	"voice": KEY_V, "slot_1": KEY_1, "slot_2": KEY_2, "slot_3": KEY_3, "slot_4": KEY_4, "slot_5": KEY_5, "slot_6": KEY_6}
 var safe_recovery = SafeRecovery.new(Vector3(13,0.05,-18))
 var workout_camera_override := false
@@ -153,6 +153,8 @@ func load_settings() -> void:
 	invert_horizontal = bool(cfg.get_value("controls","invert_horizontal",false))
 	for action in keys:
 		var key: Variant = cfg.get_value("keys",action,keys[action])
+		if action=="throw_item" and not cfg.has_section_key("keys",action):
+			key=cfg.get_value("keys","throw_paper",keys[action])
 		if action == "place_item" and not cfg.has_section_key("keys",action):
 			key = cfg.get_value("keys","drop_lead",keys[action])
 			if key == KEY_G:key = KEY_F

@@ -31,6 +31,7 @@ var carry_load: Node
 var lecture_classes: Node3D
 var faculty: Node3D
 var classroom_projectiles: Node3D
+var item_throw: Node3D
 var campus_services: Node
 var campus: Node3D
 var shop_room: Node3D
@@ -289,6 +290,8 @@ func _ready() -> void:
 	faculty.name="Faculty";add_child(faculty);faculty.build(self)
 	classroom_projectiles=preload("res://scripts/campus/academics/classroom_projectiles.gd").new()
 	classroom_projectiles.name="ClassroomProjectiles";add_child(classroom_projectiles);classroom_projectiles.build(self)
+	item_throw=preload("res://scripts/campus/items/item_throw.gd").new()
+	item_throw.name="ItemThrow";add_child(item_throw);item_throw.build(self)
 	preload("res://scripts/room_finish.gd").build(self)
 	campus_services=preload("res://scripts/campus_integration.gd").new()
 	campus_services.name="CampusServices";add_child(campus_services);campus_services.build(self)
@@ -577,11 +580,10 @@ func _input(event: InputEvent) -> void:
 		return
 	var incapacitated: bool=is_instance_valid(health) and health.locked(multiplayer.get_unique_id())
 	if incapacitated:return
+	if is_instance_valid(item_throw) and item_throw.route(event):
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED:
-		if event.physical_keycode==player.keys.throw_paper and front.in_game and player.enabled and not player.inspecting:
-			classroom_projectiles.request_throw()
-			get_viewport().set_input_as_handled()
-			return
 		var placement_action: String=preload("res://scripts/campus/items/placement_input.gd").action(event,player.keys,true,front.in_game,player.enabled,player.inspecting,false)
 		if placement_action=="inspect":
 			get_viewport().set_input_as_handled()
@@ -703,11 +705,11 @@ func _placement_surface() -> Dictionary:
 	var hit: Dictionary=portable_laptops._placement_hit(ray)
 	return preload("res://scripts/campus/items/placement_target.gd").choose(hit,player.global_position,func(point):return school.ground_drop_position(point,peer))
 
-func _place_held_item() -> void:
-	if is_instance_valid(ac_laptops) and ac_laptops._held("laptops")>=0 and is_instance_valid(current_target) and current_target.get_meta("role","")=="ac_laptop_cabinet":
+func _place_held_item(landing: Dictionary={}) -> void:
+	if landing.is_empty() and is_instance_valid(ac_laptops) and ac_laptops._held("laptops")>=0 and is_instance_valid(current_target) and current_target.get_meta("role","")=="ac_laptop_cabinet":
 		ac_laptops.request("store_laptop")
 		return
-	var surface := _placement_surface()
+	var surface:=_placement_surface() if landing.is_empty() else landing
 	var gym_point: Vector3=surface.position if not surface.is_empty() else player.global_position
 	if is_instance_valid(gym_barbells):
 		var belt: int=gym_barbells.held_belt(multiplayer.get_unique_id())
@@ -734,10 +736,10 @@ func _place_held_item() -> void:
 	var holding_food: bool=not hotbar.selected_food().is_empty()
 	var holding_lead: bool=school._holding_cable(peer)
 	if paper_id==0 and board<0 and not holding_kit and not holding_food and not holding_lead:
-		if portable_laptops.place_selected():return
+		if portable_laptops.place_selected(landing):return
 		personal_placement.place_selected(surface)
 		return
-	if paper_id!=0 and school.papers.get(paper_id,{}).get("supply_id","")=="whiteboard":
+	if landing.is_empty() and paper_id!=0 and school.papers.get(paper_id,{}).get("supply_id","")=="whiteboard":
 		var wall_ray := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3.0,1)
 		var wall_hit: Dictionary=get_world_3d().direct_space_state.intersect_ray(wall_ray)
 		if not wall_hit.is_empty() and absf(wall_hit.normal.y)<.15:

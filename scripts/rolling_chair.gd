@@ -14,6 +14,7 @@ var network_yaw := 0.0
 var network_ready := false
 var rider: CharacterBody3D
 var rider_collision: CollisionShape3D
+var backrest_collision: CollisionShape3D
 var swivel: Node3D
 var spin := 0.0
 var spin_goal := 0.0
@@ -49,6 +50,12 @@ func build(game: Node3D) -> void:
 	rider_collision.position.y=.82
 	rider_collision.disabled=true
 	add_child(rider_collision)
+	backrest_collision=CollisionShape3D.new()
+	var backrest:=BoxShape3D.new()
+	backrest.size=Vector3(.52,.51,.09)
+	backrest_collision.shape=backrest
+	backrest_collision.position=Vector3(0,.83,.23)
+	add_child(backrest_collision)
 	game._cylinder(self,Vector3(0,.27,0),.045,.42,Color("b6bcc0"),.85)
 	for i in range(5):
 		var angle := TAU*i/5
@@ -140,6 +147,7 @@ func _physics_process(delta: float) -> void:
 		if absf(spin_goal)<0.002:spin_goal=0.0
 		if absf(spin)<0.002:spin=0.0
 	swivel.rotation.y+=spin*delta
+	backrest_collision.transform=swivel.transform*Transform3D(Basis.IDENTITY,Vector3(0,.83,.23))
 	var horizontal := Vector2(velocity.x,velocity.z).move_toward(Vector2.ZERO,.20*delta)
 	velocity.x=horizontal.x
 	velocity.z=horizontal.y

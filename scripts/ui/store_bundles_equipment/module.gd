@@ -34,7 +34,7 @@ static func equipment_products() -> Array:
 	var usb_price: int=preload("res://scripts/campus/computers/usb_inventory.gd").PRICES[8]
 	result.append({"kind":"usb","name":"USB drive","price":usb_price,"rarity":"Common","summary":"Configurable","description":"Choose capacity, transfer speeds and appearance for removable storage."})
 	var laptop: Dictionary=preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS.basic
-	result.append({"kind":"portable_laptop","name":"Laptop","price":laptop.price,"rarity":"Uncommon","summary":"Configurable","description":"Choose boot time, display quality, battery and finish. Save files to USB to keep them after power-off."})
+	result.append({"kind":"portable_laptop","name":"Laptop","price":laptop.price,"rarity":"Uncommon","summary":"Configurable","description":"Choose display quality, screen speed, battery and finish. Save files to USB to keep them after power-off."})
 	var phone: Dictionary=preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.basic
 	result.append({"kind":"smartphone","name":"Smartphone","price":phone.price,"rarity":"Uncommon","summary":"Configurable","description":"Set the phone’s hardware and finish before purchase. Right-click to open the phone."})
 	return result

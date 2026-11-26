@@ -5,6 +5,8 @@ const ThemeFactory = preload("res://scripts/ui/design_system/theme.gd")
 const T = preload("res://scripts/ui/design_system/tokens.gd")
 const Widgets = preload("res://scripts/ui/design_system/widgets.gd")
 const Source = preload("res://scripts/campus/ui/gradebook_source.gd")
+const Faculty=preload("res://scripts/campus/academics/faculty_roster.gd")
+const Dialogue=preload("res://scripts/campus/academics/teacher_dialogue.gd")
 const GREEN := Color("a3edaa")
 
 var game: Node
@@ -26,6 +28,8 @@ var week_cards: VBoxContainer
 var class_split: BoxContainer
 var class_box: VBoxContainer
 var difficulty: OptionButton
+var teacher: OptionButton
+var personality: Label
 var start: Button
 var replay_note: Label
 var notice: Label
@@ -84,6 +88,26 @@ func build(owner_game: Node) -> void:
 	for title in ["Beginner", "Easy", "Normal", "Hard", "Expert"]:
 		difficulty.add_item(title)
 	difficulty.select(2)
+	_label(class_footer,"Teacher for this class",14,T.MUTED,false)
+	teacher=OptionButton.new()
+	teacher.size_flags_horizontal=SIZE_EXPAND_FILL
+	class_footer.add_child(teacher)
+	teacher.add_item("Assigned teacher")
+	teacher.set_item_metadata(0,"")
+	var roster:=Faculty.all_people()
+	var ids:=roster.keys()
+	ids.sort_custom(func(a,b):return str(roster[a].name).nocasecmp_to(str(roster[b].name))<0)
+	for id: String in ids:
+		teacher.add_item(str(roster[id].name))
+		teacher.set_item_metadata(teacher.item_count-1,id)
+	personality=_label(class_box,"",14,T.MUTED)
+	personality.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	personality.hide()
+	teacher.item_selected.connect(func(_index: int):
+		var id:=str(teacher.get_selected_metadata())
+		personality.visible=not id.is_empty()
+		if not id.is_empty():
+			personality.text=str(Faculty.entry(id).get("style",Dialogue.personalities().get(id,{}).get("description","Calm and clear."))).capitalize())
 
 	notice = _label(page, "", 14, T.ERROR)
 	notice.hide()
@@ -252,7 +276,7 @@ func _launch() -> void:
 	if start.disabled or not class_requested.is_valid():
 		return
 	start.disabled=true
-	class_requested.call({"course_id":selected_course,"kind":selected_kind,"week":selected_week.week,"gradebook_assessment_id":selected_week.id,"difficulty":difficulty.selected})
+	class_requested.call({"course_id":selected_course,"kind":selected_kind,"week":selected_week.week,"gradebook_assessment_id":selected_week.id,"difficulty":difficulty.selected,"teacher_override":teacher.get_selected_metadata()})
 
 func _error(value: String) -> void:
 	notice.text = value

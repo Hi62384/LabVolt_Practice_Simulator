@@ -24,7 +24,7 @@ func _initialize() -> void:
 
 func _configured_transfer(profile: RefCounted) -> bool:
 	const Transfer = preload("res://scripts/ui/personal_inventory/discard_transfer.gd")
-	var configuration:=Laptops.Config.defaults(Laptops.Config.LAPTOP)
+	var configuration:=Laptops.Config.defaults(Laptops.Config.LAPTOP,1)
 	configuration.hardware.battery=2
 	configuration.appearance.shell=1
 	profile.buy_portable_laptop("basic",6,"",configuration)

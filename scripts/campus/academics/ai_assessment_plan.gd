@@ -35,32 +35,32 @@ static func parse(text: String) -> Dictionary:
 static func plan(client: Node, state: Dictionary, project: Dictionary, board: Dictionary, current: Callable) -> Dictionary:
 	var accepted: Dictionary=state.get("approved",{})
 	if not accepted.is_empty():return accepted
-	if not is_instance_valid(client) or not client.verified_for_class():
-		state.status="Assessment paused · Verify the host connection"
-		return {}
-	if state.get("pending",false) or client.busy or Time.get_ticks_msec()<int(state.get("retry_at",0)):
-		return {}
-	state.pending=true
+	var now:=Time.get_ticks_msec()
+	var started: int=state.get_or_add("started_at",now)
+	if not is_instance_valid(client) or not client.verified_for_class() or now-started>=22000:
+		return _approve(state,_standard_plan(project))
+	if state.get("pending",false):return {}
 	state.status="Preparing the assessment…"
-	_request(client,state,project,board,current)
+	if not client.busy:
+		state.pending=true
+		_request(client,state,project,board,current)
 	return {}
 
 static func _request(client: Node, state: Dictionary, project: Dictionary, board: Dictionary, current: Callable) -> void:
-	var result: Dictionary=await client.respond(prompt(project,board))
-	if not current.is_valid() or not current.call():return
-	state.pending=false
-	var accepted:=parse(str(result.get("text",""))) if result.get("ok",false) and client.verified_for_class() else {}
-	if accepted.is_empty():
-		retry(state,60000 if "limit" in str(result.get("error","")).to_lower() else 15000)
-		return
+	var result: Dictionary=await client.respond(prompt(project,board),18.0)
+	if not current.is_valid() or not current.call() or not state.get("pending",false):return
+	var accepted:=parse(str(result.get("text",""))) if result.get("ok",false) else {}
+	_approve(state,_standard_plan(project) if accepted.is_empty() else accepted)
+
+static func _standard_plan(project: Dictionary) -> Dictionary:
+	return {"focus":"evidence" if project.get("kind","")=="lab" else "method","scenarios":[37,526,1044]}
+
+static func _approve(state: Dictionary,accepted: Dictionary) -> Dictionary:
 	accepted.salt=Crypto.new().generate_random_bytes(16).hex_encode()
 	state.approved=accepted
+	state.pending=false
 	state.status=""
-
-static func retry(state: Dictionary, delay_ms: int=15000) -> void:
-	state.erase("approved")
-	state.retry_at=Time.get_ticks_msec()+delay_ms
-	state.status="Assessment paused · Retrying preparation"
+	return accepted
 
 static func compile(provider: Object, original: Dictionary, plan: Dictionary, salt: String) -> Dictionary:
 	for scenario in plan.scenarios:

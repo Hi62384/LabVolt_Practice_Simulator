@@ -40,7 +40,7 @@ func place_selected(surface: Dictionary) -> bool:
 		game.ui.log_message("Aim at a clear table or floor.")
 		return true
 	var yaw: float=game.player.global_rotation.y
-	if multiplayer.is_server():_place(multiplayer.get_unique_id(),key,surface.position,yaw)
+	if multiplayer.is_server():_place(multiplayer.get_unique_id(),key,surface.position,yaw,float(surface.get("throw_range",3.0)))
 	else:_place_request.rpc_id(1,key,surface.position,yaw)
 	return true
 
@@ -48,10 +48,10 @@ func place_selected(surface: Dictionary) -> bool:
 func _place_request(key: String, point: Vector3, yaw: float) -> void:
 	if multiplayer.is_server():_place(multiplayer.get_remote_sender_id(),key,point,yaw)
 
-func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
+func _place(peer: int,key: String,point: Vector3,yaw: float,reach:=3.0) -> void:
 	if not game.session.roster.has(peer) or key.length()>160 or placed.size()>=48 or is_placed(peer,key) or not point.is_finite() or not is_finite(yaw):return
 	var actor: Vector3=_actor(peer)
-	if actor.distance_to(point)>3.0:return
+	if actor.distance_to(point)>reach:return
 	var identity: String=game.dorm_interactions.authenticated_identity(peer)
 	if identity.is_empty():return
 	var profile: Dictionary=game.dorm_interactions._profile(identity)

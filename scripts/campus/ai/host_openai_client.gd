@@ -173,10 +173,10 @@ func verify_class_connection() -> Dictionary:
 		verification_error=str(result.get("error","OpenAI did not return a response."))
 	return result
 
-func respond(prompt: String) -> Dictionary:
+func respond(prompt: String,timeout := 180.0) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS:
 		return {"ok":false,"error":"Enter a prompt of 1 to 4,000 characters."}
-	return await _request_text(prompt,model,max_output_tokens,reasoning_effort,true)
+	return await _request_text(prompt,model,max_output_tokens,reasoning_effort,true,{},timeout)
 
 func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
@@ -205,7 +205,7 @@ func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	var payload:={"model":choice,"prompt":prompt,"size":"1024x1024","output_format":"png","quality":"low","n":1}
 	return await _call(HTTPClient.METHOD_POST,"/images/generations",payload,draft.is_empty(),draft)
 
-func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}) -> Dictionary:
+func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}, timeout := 180.0) -> Dictionary:
 	var path:=Models.endpoint(choice)
 	if path.is_empty():return {"ok":false,"error":"This model uses a specialized API. Choose a text model for classroom prompts."}
 	if effort!=Models.normalize_effort(choice,effort):return {"ok":false,"error":"This model does not support that thinking effort."}
@@ -221,7 +221,7 @@ func _request_text(input: Variant, choice: String, output: int, effort: String, 
 		payload.max_output_tokens=output
 		payload.store=false
 		if not effort.is_empty():payload.reasoning={"effort":effort}
-	return await _call(HTTPClient.METHOD_POST,path,payload,needs_enabled,draft)
+	return await _call(HTTPClient.METHOD_POST,path,payload,needs_enabled,draft,timeout)
 
 func moderate(input: String) -> Dictionary:
 	if input.strip_edges().is_empty() or input.length()>1000:return {"ok":false,"error":"The message is too long."}
@@ -264,7 +264,7 @@ func set_local_test_endpoint(value: String) -> bool:
 	_test_base=value
 	return true
 
-func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enabled: bool,draft := {}) -> Dictionary:
+func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enabled: bool,draft := {},timeout := 180.0) -> Dictionary:
 	if not host_allowed():return {"ok":false,"error":"Only the host can use the OpenAI connection."}
 	if needs_enabled and not enabled:return {"ok":false,"error":"Accept the OpenAI settings before starting the game."}
 	var key:=str(draft.get("key",""))
@@ -275,7 +275,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	if not Models.valid_id(request_model):return {"ok":false,"error":"Choose a valid model ID in OpenAI Settings."}
 	busy=true
 	var request := HTTPRequest.new()
-	request.timeout=180.0 if path in ["/responses","/images/generations"] else 30.0
+	request.timeout=timeout if path in ["/responses","/images/generations","/chat/completions"] else 20.0
 	request.body_size_limit=2097152 if path in ["/models","/audio/speech"] else MAX_RESPONSE_BYTES
 	if path=="/images/generations":request.body_size_limit=MAX_IMAGE_RESPONSE_BYTES
 	request.max_redirects=0

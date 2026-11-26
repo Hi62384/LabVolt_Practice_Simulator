@@ -99,7 +99,8 @@ func _run() -> void:
 			ai_settings.pressed.emit()
 			await process_frame
 			_check(front.page=="openai", label + " did not open OpenAI Settings")
-			_check(is_instance_valid(_button(front.body,"Connect API Key")), label + " OpenAI key control missing")
+			var key_caption := "Remove connected API key" if game.host_openai.configured() else "Connect API Key"
+			_check(is_instance_valid(_button(front.body,key_caption)), label + " OpenAI key control missing")
 			if not game.host_openai.configured():
 				_check(not is_instance_valid(_button(front.body,"Accept")), label + " showed Accept without an API key")
 			_button(front.body,"Cancel").pressed.emit()
@@ -110,8 +111,13 @@ func _run() -> void:
 				_button(front.body,"OpenAI Settings").pressed.emit()
 				await process_frame
 				var controls: VBoxContainer=front.body.get_child(-1)
+				if controls.remove_key.visible:
+					var key_deadline:=Time.get_ticks_msec()+5000
+					while controls.fetching_models and Time.get_ticks_msec()<key_deadline:await process_frame
+					controls.remove_key.pressed.emit()
+					_check(not game.host_openai.configured() and controls.key_row.visible,label+" did not remove the API key")
 				controls.key_field.text="sk-test-12345678901234567890"
-				_button(front.body,"Connect API Key").pressed.emit()
+				controls.connect_button.pressed.emit()
 				var deadline:=Time.get_ticks_msec()+5000
 				while (controls.fetching_models or controls.model_ids.size()<11) and Time.get_ticks_msec()<deadline:await process_frame
 				_check(controls.model_ids.size()==11, label + " did not load the API model list")

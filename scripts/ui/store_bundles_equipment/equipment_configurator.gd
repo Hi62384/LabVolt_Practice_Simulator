@@ -24,6 +24,7 @@ var keypad_panel: VBoxContainer
 var keypad_grid: GridContainer
 var optional_keys: HFlowContainer
 var screen_demo: ShaderMaterial
+var notebook_cover_view:=false
 var feature_selectors: Dictionary={}
 var fields_scroll: ScrollContainer
 var preview_builder: Callable
@@ -219,7 +220,11 @@ func _set_decoration(design: Array) -> void:
 func _show_decoration_surface() -> void:
 	match kind:
 		Config.PHONE,Config.LAPTOP,Config.CALCULATOR,Config.KIT:_view(Vector3(.07,PI,0))
-		Config.USB,Config.NOTEBOOK,Config.POWER_BANK:_view(Vector3(1.18,-.14,0))
+		Config.NOTEBOOK:
+			notebook_cover_view=true
+			preload("res://scripts/campus/items/notebook_model.gd").update(rendered_product,configuration)
+			_view(Vector3(1.18,-.14,0))
+		Config.USB,Config.POWER_BANK:_view(Vector3(1.18,-.14,0))
 		_:_view(Vector3.ZERO)
 
 func _select(index: int, group: String, key: String) -> void:
@@ -300,7 +305,7 @@ func _update_quote() -> void:
 		screen_demo.set_shader_parameter("grain",Config.screen_noise(kind,configuration))
 		screen_demo.set_shader_parameter("fps",float(Config.phone_or_laptop_fps(kind,configuration)))
 	if kind==Config.PHONE:Handset.apply_appearance(phone,Config.phone_appearance({"configuration":configuration}))
-	elif kind==Config.NOTEBOOK:preload("res://scripts/campus/items/notebook_model.gd").update(rendered_product,configuration,stage!=1)
+	elif kind==Config.NOTEBOOK:preload("res://scripts/campus/items/notebook_model.gd").update(rendered_product,configuration,not notebook_cover_view)
 	elif kind==Config.BACKPACK:
 		var model: String=Config.value(kind,configuration,"hardware","size","backpack_small")
 		preload("res://scripts/campus/items/backpack_model.gd").update(rendered_product,model,configuration)
@@ -314,6 +319,7 @@ func _update_quote() -> void:
 
 func _show_stage(index: int) -> void:
 	stage=clampi(index,0 if editing_key.is_empty() else 1,2)
+	notebook_cover_view=false
 	headings.text=["Specifications","Appearance","Review purchase"][stage]
 	ok_button_text=["Continue to appearance","Review purchase","Buy equipment"][stage]
 	back.visible=stage>(0 if editing_key.is_empty() else 1)
@@ -326,7 +332,7 @@ func _show_stage(index: int) -> void:
 	review.visible=stage==2
 	if is_instance_valid(fields_scroll):fields_scroll.set_deferred("scroll_vertical",0)
 	if kind==Config.NOTEBOOK and is_instance_valid(rendered_product):
-		preload("res://scripts/campus/items/notebook_model.gd").update(rendered_product,configuration,stage!=1)
+		preload("res://scripts/campus/items/notebook_model.gd").update(rendered_product,configuration,not notebook_cover_view)
 		_refresh_preview()
 	if stage==2:
 		var lines:=PackedStringArray()

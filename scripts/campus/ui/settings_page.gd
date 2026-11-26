@@ -275,7 +275,7 @@ func _input_controls() -> void:
 	_toggle("Head bob", game.player.head_bob, _control.bind("head_bob"))
 	_label(body, "Keyboard bindings", 18)
 	for action in game.player.keys:
-		var names := {"voice":"Push to talk","forward":"Move forward","back":"Move backward","left":"Strafe left","right":"Strafe right","read_sheet":"Read held worksheet","place_item":"Place held item","inspect":"Inspect device","emotes":"Open emotes","call_teacher":"Call lab instructor","throw_paper":"Throw paper ball in classroom"}
+		var names := {"voice":"Push to talk","forward":"Move forward","back":"Move backward","left":"Strafe left","right":"Strafe right","read_sheet":"Read held worksheet","place_item":"Place held item","inspect":"Inspect device","emotes":"Open emotes","call_teacher":"Call lab instructor","throw_item":"Charge and throw held item"}
 		var row := _row(names.get(action, str(action).replace("_"," ").capitalize()))
 		binding_buttons[action] = _button(row, OS.get_keycode_string(game.player.keys[action]), "keyboard", _start_binding.bind(action))
 		binding_buttons[action].custom_minimum_size.x = 120

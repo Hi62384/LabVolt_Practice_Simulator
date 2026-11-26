@@ -7,17 +7,30 @@ func run():
  var svc=game.ac_laptops
  var cabinet_position := LaptopModel.CABINET
  game.player.global_position=cabinet_position+Vector3(0,0,-1.4)
+ var side_ray:=PhysicsRayQueryParameters3D.create(cabinet_position+Vector3(1,.55,0),cabinet_position+Vector3(.4,.55,0),1)
+ var side_hit:=game.get_world_3d().direct_space_state.intersect_ray(side_ray) as Dictionary
+ assert(not side_hit.is_empty() and side_hit.collider.get_meta("role","")=="ac_laptop_cabinet")
+ var blocked_ray:=PhysicsRayQueryParameters3D.create(cabinet_position+Vector3(.3,1,-.9),cabinet_position+Vector3(.3,1,-.2),1)
+ var blocked_hit:=game.get_world_3d().direct_space_state.intersect_ray(blocked_ray) as Dictionary
+ assert(not blocked_hit.is_empty() and blocked_hit.collider.get_meta("role","")=="ac_laptop_cabinet_door")
  var ray:=PhysicsRayQueryParameters3D.create(cabinet_position+Vector3(0,.85,-1.3),cabinet_position+Vector3(0,.85,-.35),5)
  var hit: Dictionary=game.get_world_3d().direct_space_state.intersect_ray(ray)
  assert(not hit.is_empty() and hit.collider.get_meta("role","")=="ac_laptop_cabinet_door")
  assert(svc.interact(hit.collider,false) and svc.state.cabinet_open)
- await physics_frame
  var opened_door: Node3D = svc.cabinet_doors.get_node("Left")
+ assert(is_zero_approx(opened_door.rotation.y))
+ await create_timer(svc.CABINET_SWING_SECONDS*.5,false,true).timeout
+ assert(opened_door.rotation.y>0.0 and opened_door.rotation.y<PI/2)
+ await svc.cabinet_motion.finished
+ await physics_frame
  var door_point := opened_door.to_global(Vector3(.32,.85,0))
- ray=PhysicsRayQueryParameters3D.create(door_point-Vector3(.6,0,0),door_point+Vector3(.06,0,0),5)
+ ray=PhysicsRayQueryParameters3D.create(door_point-Vector3(.6,0,0),door_point+Vector3(.06,0,0),1)
  hit=game.get_world_3d().direct_space_state.intersect_ray(ray)
  assert(not hit.is_empty() and hit.collider.get_parent()==opened_door)
  assert(svc.interact(hit.collider,false) and not svc.state.cabinet_open)
+ assert(is_equal_approx(opened_door.rotation.y,PI/2))
+ await svc.cabinet_motion.finished
+ assert(is_zero_approx(opened_door.rotation.y))
  svc.request("cabinet");svc.request("take_laptop",0)
  assert(svc.state.laptops[0].where=="held")
  var usb: StaticBody3D

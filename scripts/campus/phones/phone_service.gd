@@ -676,6 +676,7 @@ func _switch(app: String) -> void:
 	if app=="Calculator":
 		var calculator:=preload("res://scripts/scientific_calculator.gd").new()
 		calculator.campus_style=true
+		calculator.advanced_app=true
 		content.add_child(calculator)
 	elif app=="Messages":_messages()
 	elif app=="Browser":

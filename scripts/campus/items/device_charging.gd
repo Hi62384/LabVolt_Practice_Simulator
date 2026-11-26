@@ -73,6 +73,9 @@ func build(owner: Node) -> void:
 	game.session.leaving.connect(_clear)
 	game.session.restarted.connect(_clear)
 
+func _notification(what: int) -> void:
+	if what==NOTIFICATION_WM_CLOSE_REQUEST and is_instance_valid(game):_save_charge()
+
 func _clear() -> void:
 	_save_charge()
 	held_plug.hide()

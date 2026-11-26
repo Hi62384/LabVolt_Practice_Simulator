@@ -14,7 +14,7 @@ func run():
  assert(styles.compact<styles.standard and styles.standard<styles.extended and styles.extended<styles.large)
  var profile=game.electronics.profile
  const Config=preload("res://scripts/campus/items/equipment_configuration.gd")
- var options:=Config.defaults(Config.KIT)
+ var options:=Config.defaults(Config.KIT,1)
  options.hardware.tray=2
  options.appearance.lid=3
  profile.data.dollars=10000

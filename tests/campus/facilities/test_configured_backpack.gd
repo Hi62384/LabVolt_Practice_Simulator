@@ -25,7 +25,7 @@ func _check_configured_backpack(game: Node) -> void:
 	const Bags = preload("res://scripts/campus/dorms/authority/backpack_inventory.gd")
 	const Mass = preload("res://scripts/campus/facilities/carry_mass.gd")
 	var profile = game.electronics.profile
-	var options := Config.defaults(Config.BACKPACK)
+	var options := Config.defaults(Config.BACKPACK,1)
 	options.hardware.merge({"size":1,"pockets":2,"straps":1},true)
 	options.appearance.shell=3
 	var count: int=profile.data.dorm.get("backpacks",{}).size()

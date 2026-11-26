@@ -3,6 +3,24 @@ signal close_requested
 const Supplies = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Finance = preload("res://scripts/financial_calculator.gd")
 const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
+const MathEngine=preload("res://scripts/campus/computers/CalculatorMath.cs")
+const Equation=preload("res://scripts/campus/items/calculator_equation_view.gd")
+const Parser=preload("res://scripts/ui/paper_workspace/equations/parser.gd")
+const Graph=preload("res://scripts/campus/items/calculator_graph_view.gd")
+var math_engine: RefCounted
+var advanced_app:=false
+var equation_enabled:=false
+var algebra_enabled:=false
+var complex_enabled:=false
+var graph_level:=0
+var configured:=false
+var display_equation: Control
+var result_equation: Control
+var graph: Control
+var functions: VBoxContainer
+var operation: OptionButton
+var pending_number:=0.0
+var pending_operator:=""
 var finance_help: Label
 var model := "calculator"
 var equipment_options: Dictionary={}
@@ -19,6 +37,12 @@ var memory := 0.0
 var memory_label: Label
 func _ready() -> void:
 	theme=preload("res://scripts/ui/design_system/theme.gd").create()
+	configured=equipment_options.has("body")
+	equation_enabled=advanced_app or bool(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","equation",false))
+	algebra_enabled=advanced_app or bool(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","algebra",false))
+	complex_enabled=advanced_app or bool(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","complex",false))
+	graph_level=2 if advanced_app else int(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","graph",0))
+	if equation_enabled or algebra_enabled:math_engine=MathEngine.new()
 	var basic := model=="calculator_basic"
 	var financial := model=="calculator_financial"
 	custom_minimum_size.x=260 if basic else 280
@@ -63,6 +87,30 @@ func _ready() -> void:
 	display=LineEdit.new();display.placeholder_text="0";display.max_length=180;display.add_theme_font_size_override("font_size",18);display.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));display.add_theme_color_override("font_placeholder_color",Color("8cbcc8") if campus_style else Color("617367"));display.add_theme_stylebox_override("normal",StyleBoxEmpty.new());display.add_theme_stylebox_override("focus",StyleBoxEmpty.new());display.text_submitted.connect(func(_text):evaluate());lines.add_child(display)
 	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));result.clip_text=true;lines.add_child(result)
 	if campus_style:result.add_theme_font_size_override("font_size",34)
+	if equation_enabled:
+		display_equation=Equation.new()
+		result_equation=Equation.new()
+		for view in [display_equation,result_equation]:
+			view.ink=Color("ddf7ff") if campus_style else Color("162c24")
+			lines.add_child(view)
+			view.hide()
+		display.text_changed.connect(func(_text):_refresh_equation())
+		display.placeholder_text="Enter an expression"
+	if algebra_enabled or complex_enabled:
+		var tools:=HBoxContainer.new()
+		body.add_child(tools)
+		operation=OptionButton.new()
+		operation.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		tools.add_child(operation)
+		var operations: Dictionary={"evaluate":"Evaluate"}
+		if algebra_enabled:operations.merge({"solve":"Solve for x","expand":"Expand","simplify":"Simplify","isolate":"Isolate x","differentiate":"Differentiate","integrate":"Integrate symbolically"})
+		if complex_enabled:operations.merge({"polar":"Convert to polar","rectangular":"Polar to rectangular"})
+		for id in operations:
+			operation.add_item(operations[id])
+			operation.set_item_metadata(operation.item_count-1,id)
+		tools.add_child(_action("Run",func():evaluate()))
+		if graph_level>0:tools.add_child(_action("Graph",func():functions.visible=not functions.visible))
+	if graph_level>0:_build_graph(body)
 	var grid := GridContainer.new();grid.columns=4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
 	grid.columns=Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","columns",grid.columns)
 	if basic or financial or campus_style:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
@@ -97,15 +145,22 @@ static func keypad_keys(model_id: String) -> Array:
 	return Equipment.Keypad.keys(model_id)
 
 func press(key: String) -> void:
-	if model=="calculator_financial" and Finance.ARGUMENTS.has(key):
+	if configured and not equation_enabled and not algebra_enabled and key in ["+","−","-","×","÷"]:
+		if not evaluate():return
+		pending_number=answer
+		pending_operator=key
+		display.clear()
+		return
+	if (model=="calculator_financial" or configured) and Finance.ARGUMENTS.has(key):
 		display.text=key+"("
 		display.caret_column=display.text.length()
-		finance_help.text=key+" · "+Finance.ARGUMENTS[key]
-		finance_help.tooltip_text=finance_help.text
+		if is_instance_valid(finance_help):
+			finance_help.text=key+" · "+Finance.ARGUMENTS[key]
+			finance_help.tooltip_text=finance_help.text
 		return
 	match key:
 		"=":evaluate()
-		"AC":display.text="";result.text="0"
+		"AC":display.text="";result.text="0";pending_operator=""
 		"DEL":
 			var caret := display.caret_column
 			if caret>0:display.text=display.text.left(caret-1)+display.text.substr(caret);display.caret_column=caret-1
@@ -121,18 +176,72 @@ func press(key: String) -> void:
 		"x²":_insert("^2")
 		"xʸ":_insert("^")
 		"1/x":display.text="1/("+display.text+")";display.caret_column=display.text.length()
+		"%":_insert("/100") if equation_enabled else _divide_percent()
 		_:_insert({"×":"*","÷":"/","−":"-","π":"pi"}.get(key,key))
 	memory_label.text=angle_mode.to_upper()+("   M" if memory!=0 else "")
+	_refresh_equation()
 func _insert(value: String) -> void:
 	display.insert_text_at_caret(value)
+func _divide_percent() -> void:
+	if display.text.is_valid_float():display.text=str(float(display.text)*.01)
+
+func _refresh_equation() -> void:
+	if not is_instance_valid(display_equation):return
+	var text:=close_parentheses(display.text)
+	display_equation.visible=not text.is_empty()
+	display_equation.set_expression(text)
+
+func _display_calculation(outcome: Dictionary) -> bool:
+	var message:=str(outcome.get("text",outcome.get("error","Math error")))
+	var successful:=not outcome.has("error")
+	result.text=message
+	result.tooltip_text=message
+	result.theme_type_variation="Label" if successful else "ErrorLabel"
+	if outcome.has("real"):answer=float(outcome.real)
+	if is_instance_valid(result_equation):
+		var show_formula:=successful and ("^" in message or "/" in message or "=" in message)
+		result.visible=not show_formula
+		result_equation.visible=show_formula
+		if show_formula:result_equation.set_expression(message)
+	return successful
+
 func evaluate() -> bool:
 	display.text=close_parentheses(display.text)
 	display.caret_column=display.text.length()
-	var value := calculate(display.text,degrees,angle_mode) if model=="calculator" else _limited_calculate(display.text)
-	if not value.ok:
-		result.text=value.error;result.tooltip_text=str(value.error);display.theme_type_variation="ErrorLineEdit";return false
+	_refresh_equation()
+	if (configured or advanced_app) and Finance.ARGUMENTS.has(display.text.get_slice("(",0).to_upper()):
+		var operation_name:=display.text.get_slice("(",0).to_upper()
+		var financial_result:=Finance.evaluate(operation_name,display.text.substr(display.text.find("(")+1).trim_suffix(")"))
+		if financial_result.get("ok",false):return _display_calculation({"real":financial_result.value,"text":str(financial_result.value)})
+		return _display_calculation({"error":financial_result.get("error","Math error")})
+	if equation_enabled or algebra_enabled:
+		var selected:=str(operation.get_selected_metadata()) if is_instance_valid(operation) else "evaluate"
+		if selected=="rectangular":
+			var pair:=display.text.replace("∠",",").split(",",false)
+			if pair.size()!=2 or not pair[0].strip_edges().is_valid_float() or not pair[1].strip_edges().is_valid_float():
+				return _display_calculation({"error":"Enter radius, angle in the selected angle units."})
+			var angle:=float(pair[1])* (PI/180.0 if angle_mode=="deg" else PI/200.0 if angle_mode=="grad" else 1.0)
+			var radius:=float(pair[0])
+			return _display_calculation({"text":"%s %s %si"%[snappedf(radius*cos(angle),1e-8),"-" if sin(angle)<0 else "+",snappedf(absf(radius*sin(angle)),1e-8)]})
+		var expression: Dictionary=Parser.new().parse(display.text)
+		return _display_calculation(math_engine.Calculate(expression.tree,selected,complex_enabled,angle_mode) if expression.ok else {"error":expression.error})
+	if configured:
+		if not display.text.is_valid_float():return _display_calculation({"error":"Enter one number at a time."})
+		var value:=float(display.text)
+		match pending_operator:
+			"+":value=pending_number+value
+			"−","-":value=pending_number-value
+			"×":value=pending_number*value
+			"÷":
+				if is_zero_approx(value):return _display_calculation({"error":"Cannot divide by zero."})
+				value=pending_number/value
+		pending_operator=""
+		return _display_calculation({"text":str(value),"real":value})
+	var legacy := calculate(display.text,degrees,angle_mode) if model=="calculator" else _limited_calculate(display.text)
+	if not legacy.ok:
+		result.text=legacy.error;result.tooltip_text=str(legacy.error);display.theme_type_variation="ErrorLineEdit";return false
 	display.theme_type_variation="LineEdit";result.tooltip_text="Calculated result"
-	answer=value.value;result.text=str(snappedf(answer,.000000001))
+	answer=legacy.value;result.text=str(snappedf(answer,.000000001))
 	return true
 
 func _limited_calculate(input: String) -> Dictionary:
@@ -145,6 +254,78 @@ func _limited_calculate(input: String) -> Dictionary:
 		if character not in allowed:return {"ok":false,"error":"Use +, −, × or ÷"}
 	if text.contains("**"):return {"ok":false,"error":"Use +, −, × or ÷"}
 	return calculate(text)
+func _action(title: String,callback: Callable) -> Button:
+	var button:=Button.new()
+	button.text=title
+	button.pressed.connect(callback)
+	return button
+
+func _build_graph(body: VBoxContainer) -> void:
+	functions=VBoxContainer.new()
+	body.add_child(functions)
+	functions.hide()
+	var mode_choice:=OptionButton.new()
+	for name_text in ["2D grid","Polar grid","3D graph"].slice(0,3 if graph_level==2 else 2):mode_choice.add_item(name_text)
+	functions.add_child(mode_choice)
+	var expressions:=TextEdit.new()
+	expressions.placeholder_text="Enter one equation per line, up to six."
+	expressions.custom_minimum_size.y=64
+	functions.add_child(expressions)
+	graph=Graph.new()
+	functions.add_child(graph)
+	var measurements:=HBoxContainer.new()
+	functions.add_child(measurements)
+	var a:=SpinBox.new()
+	var b:=SpinBox.new()
+	for value in [a,b]:
+		value.min_value=-100
+		value.max_value=100
+		value.step=.01
+		value.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		measurements.add_child(value)
+	a.prefix="From x "
+	b.prefix="To x "
+	b.value=1.0
+	var selected_curve:=OptionButton.new()
+	selected_curve.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	functions.add_child(selected_curve)
+	var feedback:=Label.new()
+	feedback.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var trees: Array[Dictionary]=[]
+	var plot:=func():
+		trees.clear()
+		selected_curve.clear()
+		graph.kind=mode_choice.selected
+		graph.data.clear()
+		feedback.text=""
+		for line in expressions.text.split("\n",false).slice(0,6):
+			var parsed: Dictionary=Parser.new().parse(line)
+			if not parsed.ok:
+				feedback.text=parsed.error
+				continue
+			var points: PackedVector3Array=math_engine.Curve(parsed.tree,graph.kind,angle_mode,graph.extent)
+			if points.is_empty() or not Array(points).any(func(point: Vector3):return point.is_finite()):
+				feedback.text="No real values to plot for "+line
+				continue
+			trees.append(parsed.tree)
+			selected_curve.add_item(line)
+			graph.data.append(points)
+		graph.queue_redraw()
+	mode_choice.item_selected.connect(func(_index):plot.call())
+	var actions:=HBoxContainer.new()
+	functions.add_child(actions)
+	actions.add_child(_action("Plot",plot))
+	for measure in ["Slope at x","Area over range"]:
+		var slope: bool=measure.begins_with("Slope")
+		actions.add_child(_action(measure,func():
+			if selected_curve.selected not in range(trees.size()):return
+			if graph.kind!=0:
+				feedback.text="Slope and area use a curve on the 2D grid."
+				return
+			var value: Dictionary=math_engine.Measure(trees[selected_curve.selected],a.value,b.value,angle_mode,slope)
+			feedback.text=str(value.get("text",value.get("error","Calculation failed.")))))
+	functions.add_child(feedback)
+
 func _set_angle_mode(value: String) -> void:
 	angle_mode=value
 	degrees=value=="deg"

@@ -17,7 +17,7 @@ func run() -> void:
 	_press(game.front.body,"Play")
 	await process_frame
 	var profile: RefCounted=game.electronics.profile
-	var options:=Config.defaults(Config.POWER_BANK)
+	var options:=Config.defaults(Config.POWER_BANK,1)
 	options.hardware.merge({"capacity":1,"connector":1,"output":1,"ports":1,"efficiency":1},true)
 	profile.data.dollars=10000
 	var message: String=profile.buy_study_tool(Config.POWER_BANK,6,options)

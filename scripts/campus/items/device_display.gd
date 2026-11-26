@@ -24,7 +24,7 @@ void fragment() {
 	float band = max(0.0, 1.0 - abs(uv.y - .66 - sin(uv.x * 9.0 + t * 4.0) * .09) * 66.0);
 	ink += band * vec3(.19, .86, .77);
 	float distance_to_ball = distance(position, center);
-	ink = mix(ink, vec3(1., .74, .22), smoothstep(.084, .068, distance_to_ball));
+	ink = mix(ink, vec3(1., .74, .22), (1.0 - smoothstep(.068, .084, distance_to_ball)));
 	ink *= 1.0 - grain * .58 * step(.5, fract(UV.y * pixels.y));
 	ink += grain * (noise(uv * pixels + vec2(t * 17.0)) - .47);
 	ALBEDO = ink;

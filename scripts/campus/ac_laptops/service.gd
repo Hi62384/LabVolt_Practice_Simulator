@@ -1,6 +1,7 @@
 extends Node3D
 const Model = preload("res://scripts/campus/ac_laptops/model.gd")
 const CableMesh = preload("res://scripts/cable_mesh.gd")
+const CABINET_SWING_SECONDS := 0.4
 var game: Node
 var model = Model.new()
 var state: Dictionary = {}
@@ -8,6 +9,8 @@ var visuals: Node3D
 var cabinet_doors: Node3D
 var cabinet_items: Node3D
 var cabinet_front: StaticBody3D
+var cabinet_open := false
+var cabinet_motion: Tween
 var laptop_roots: Array = []
 var floor_cables: Array = []
 var panel: CanvasLayer
@@ -51,27 +54,27 @@ func _material(color: Color) -> StandardMaterial3D:
 func _box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> MeshInstance3D:
  var mesh:=BoxMesh.new();mesh.size=size
  var item:=MeshInstance3D.new();item.mesh=mesh;item.position=pos;item.material_override=_material(color);parent.add_child(item);return item
-func _target(parent: Node3D, role: String, id: int, pos: Vector3, size: Vector3) -> StaticBody3D:
- var body:=StaticBody3D.new();body.position=pos;body.collision_layer=4;body.collision_mask=0
+func _target(parent: Node3D, role: String, id: int, pos: Vector3, size: Vector3, layer := 4) -> StaticBody3D:
+ var body:=StaticBody3D.new();body.position=pos;body.collision_layer=layer;body.collision_mask=0
  body.set_meta("role",role);body.set_meta("laptop_id",id);parent.add_child(body)
  var shape:=BoxShape3D.new();shape.size=size
  var hit:=CollisionShape3D.new();hit.shape=shape;body.add_child(hit)
  return body
 func _build_cabinet() -> void:
  var cabinet:=Node3D.new();cabinet.name="LaptopCabinet";cabinet.position=Model.CABINET;add_child(cabinet)
- _box(cabinet,Vector3(0,.85,.31),Vector3(1.3,1.7,.06),Color("415b68"))
- for x in [-.62,.62]:_box(cabinet,Vector3(x,.85,0),Vector3(.06,1.7,.65),Color("536f79"))
- for y in [.03,.83,1.67]:_box(cabinet,Vector3(0,y,0),Vector3(1.3,.06,.65),Color("536f79"))
+ _cabinet_panel(cabinet,Vector3(0,.85,.31),Vector3(1.3,1.7,.06),Color("415b68"))
+ for x in [-.62,.62]:
+  _cabinet_panel(cabinet,Vector3(x,.85,0),Vector3(.06,1.7,.65),Color("536f79"))
+ for y in [.03,.83,1.67]:
+  _cabinet_panel(cabinet,Vector3(0,y,0),Vector3(1.3,.06,.65),Color("536f79"))
  cabinet_doors=Node3D.new();cabinet.add_child(cabinet_doors)
  for side in [-1,1]:
   var hinge:=Node3D.new();hinge.name="Left" if side<0 else "Right";hinge.position=Vector3(side*.62,0,-.34);cabinet_doors.add_child(hinge)
-  _box(hinge,Vector3(-side*.31,.85,0),Vector3(.60,1.62,.06),Color("647e83"))
-  _box(hinge,Vector3(-side*.51,.85,-.04),Vector3(.025,.22,.025),Color("cfddd1"))
-  _target(hinge,"ac_laptop_cabinet_door",-1,Vector3(-side*.31,.85,-.02),Vector3(.60,1.62,.10))
- cabinet_front=_target(cabinet,"ac_laptop_cabinet_door",-1,Vector3(0,.85,-.4),Vector3(1.3,1.7,.14))
- for side in [-1,1]:
-  _target(cabinet,"ac_laptop_cabinet",-1,Vector3(side*.62,.85,0),Vector3(.07,1.7,.65))
- _target(cabinet,"ac_laptop_cabinet",-1,Vector3(0,1.67,0),Vector3(1.3,.06,.65))
+  var leaf:=_target(hinge,"ac_laptop_cabinet_door",-1,Vector3(-side*.31,.85,0),Vector3(.60,1.62,.06),5)
+  _box(leaf,Vector3.ZERO,Vector3(.60,1.62,.06),Color("647e83"))
+  _box(leaf,Vector3(-side*.20,0,-.04),Vector3(.025,.22,.025),Color("cfddd1"))
+ # The narrow interaction target makes the seam between the closed leaves clickable.
+ cabinet_front=_target(cabinet,"ac_laptop_cabinet_door",-1,Vector3(0,.85,-.34),Vector3(.025,1.62,.06))
  cabinet_items=Node3D.new();cabinet.add_child(cabinet_items)
  for i in Model.COUNT:
   var x:float=-.43+(i%3)*.43;var shelf:float=.06+int(i/3)*.80
@@ -79,6 +82,23 @@ func _build_cabinet() -> void:
   _closed_laptop(body)
   var cable:=_target(cabinet_items,"ac_usb_stored",i,Vector3(x,shelf+.025,.18),Vector3(.30,.05,.22))
   _coiled_cable(cable)
+func _cabinet_panel(cabinet: Node3D, pos: Vector3, size: Vector3, color: Color) -> void:
+ var panel_body:=_target(cabinet,"ac_laptop_cabinet",-1,pos,size,5)
+ _box(panel_body,Vector3.ZERO,size,color)
+
+func _animate_cabinet(opened: bool) -> void:
+ if cabinet_open==opened:return
+ cabinet_open=opened
+ if is_instance_valid(cabinet_motion):cabinet_motion.kill()
+ cabinet_front.collision_layer=0
+ cabinet_motion=create_tween().set_process_mode(Tween.TWEEN_PROCESS_PHYSICS)
+ cabinet_motion.set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+ var angle:=PI/2 if opened else 0.0
+ cabinet_motion.tween_property(cabinet_doors.get_node("Left"),"rotation:y",angle,CABINET_SWING_SECONDS)
+ cabinet_motion.tween_property(cabinet_doors.get_node("Right"),"rotation:y",-angle,CABINET_SWING_SECONDS)
+ if not opened:
+  cabinet_motion.chain().tween_callback(func():cabinet_front.collision_layer=4)
+
 func _closed_laptop(parent: Node3D) -> void:
  var base:=_box(parent,Vector3(0,-.012,0),Vector3(.35,.025,.25),Color("273a47"))
  var lid:=_box(parent,Vector3(0,.012,0),Vector3(.35,.025,.25),Color("718892"))
@@ -201,10 +221,7 @@ func _attached(id: int) -> int:
  return -1
 func _render() -> void:
  if not is_instance_valid(visuals):return
- cabinet_doors.get_node("Left").rotation.y=PI/2 if state.cabinet_open else 0.0
- cabinet_doors.get_node("Right").rotation.y=-PI/2 if state.cabinet_open else 0.0
- cabinet_front.collision_layer=0 if state.cabinet_open else 4
- cabinet_items.visible=state.cabinet_open
+ _animate_cabinet(state.cabinet_open)
  for child in cabinet_items.get_children():
   var role:=str(child.get_meta("role",""));var id:=int(child.get_meta("laptop_id",-1))
   if id>=0:child.visible=state.laptops[id].where=="cabinet" if role=="ac_laptop_stored" else state.cables[id].where=="cabinet"

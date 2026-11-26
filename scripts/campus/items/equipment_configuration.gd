@@ -177,17 +177,17 @@ static func body_size(configuration: Dictionary) -> Vector3:
 static func kit_capacity(configuration: Dictionary, fallback: int) -> int:
 	return int(value(KIT,configuration,"hardware","capacity",fallback))
 
-static func defaults(kind: String) -> Dictionary:
-	var definition:=definitions(kind)
+static func defaults(kind: String,version: int=VERSION) -> Dictionary:
+	var definition:=definitions(kind,version)
 	if definition.is_empty():return {}
-	var result := {"version": VERSION}
+	var result := {"version": version}
 	for group in definition:
 		var choices := {}
 		for property in definition[group]:choices[property] = 0
 		result[group] = choices
 	if kind==CALCULATOR:
-		result.keypad=[]
-		result.body=BODY_DEFAULT.duplicate()
+		result.keypad=[] if version==VERSION else Keypad.keys("calculator_basic")
+		if version==VERSION:result.body=BODY_DEFAULT.duplicate()
 	return result
 
 static func quote(kind: String, base_price: int, selection: Variant) -> Dictionary:

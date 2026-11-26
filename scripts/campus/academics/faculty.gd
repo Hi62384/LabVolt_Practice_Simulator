@@ -53,9 +53,9 @@ var record_phase:=0.0
 var conversation_room:=""
 var last_dialogue:={}
 var ai_busy:={}
+var questions: Array[Dictionary]=[]
 var dialogue_memory: Dictionary={}
 var ai_stage:={}
-var ai_retry_at:={}
 var lesson_feedback:={}
 var brain=preload("res://scripts/campus/academics/teacher_brain.gd").new()
 var reaction_labels:={}
@@ -100,12 +100,11 @@ func _clear_speech() -> void:
  _cancel_recording()
  dialogue_memory.clear()
  ai_stage.clear()
- ai_retry_at.clear()
  lesson_feedback.clear()
  for room in ["ac_lab","dc_lab"]:_hide_lab(room)
  lab_routes.clear();lab_entries.clear()
  Roster.GENERATED.clear()
- ai_busy.clear();ai_stage.clear()
+ ai_busy.clear();questions.clear();ai_stage.clear()
  if is_instance_valid(speech_player):speech_player.clear_session()
  if is_instance_valid(speech_synth):speech_synth.clear_session()
  speech_serial.clear()
@@ -323,6 +322,7 @@ func _process(delta: float) -> void:
  _sync_lab_teachers()
  _step_lab_routes(delta)
  if multiplayer.is_server():
+  _next_question()
   memory_clock+=delta
   if memory_clock>=10.0:memory_clock=0;_save_memory()
   for room in ["ac_lab","dc_lab"]:
@@ -518,10 +518,12 @@ func _queue_ai_lesson(room: String,activity: Dictionary,state: Dictionary,board:
  if str(ai_stage.get(room,""))==key:return
  state.ai_waiting=true
  var client: Node=game.host_openai
- if not is_instance_valid(client) or not client.verified_for_class():
-  state.ai_status="AI teaching paused · Check the host connection"
+ var waiting_since: int=state.get_or_add("ai_wait_started",Time.get_ticks_msec())
+ if not is_instance_valid(client) or not client.verified_for_class() or (client.busy and Time.get_ticks_msec()-waiting_since>7500):
+  ai_stage[room]=key
+  _finish_lesson_cue(room,activity,state,key,board,formal,"")
   return
- if client.busy or Time.get_ticks_msec()<int(ai_retry_at.get(key,0)):return
+ if client.busy:return
  ai_stage[room]=key
  state.ai_status="Waiting for the instructor…"
  _generate_ai_lesson(room,activity,state,key,board,formal)
@@ -529,20 +531,22 @@ func _queue_ai_lesson(room: String,activity: Dictionary,state: Dictionary,board:
 func _generate_ai_lesson(room: String,activity: Dictionary,state: Dictionary,key: String,board: Dictionary,formal: bool) -> void:
  var id:=str(activity.get("teacher",""))
  var class_id:=str(activity.get("id",""))
- var result: Dictionary=await game.host_openai.respond(TeacherAI.lesson_prompt(activity,id,board))
+ var result: Dictionary=await game.host_openai.respond(TeacherAI.lesson_prompt(activity,id,board),18.0)
  var latest:=_ai_activity(room)
  if str(latest.get("id",""))!=class_id or latest.get("phase","")!="lesson" or str(ai_stage.get(room,""))!=key:return
  var text_value:=TeacherAI.safe_reply(str(result.get("text",""))) if result.get("ok",false) else ""
  var checked: Dictionary=await game.host_openai.moderate(text_value) if not text_value.is_empty() else {}
  latest=_ai_activity(room)
  if str(latest.get("id",""))!=class_id or latest.get("phase","")!="lesson" or str(ai_stage.get(room,""))!=key:return
- if not checked.get("ok",false) or checked.get("flagged",false):
-  ai_stage.erase(room)
-  var failure:=str(result.get("error",checked.get("error","")))
-  ai_retry_at[key]=Time.get_ticks_msec()+(60000 if "limit" in failure.to_lower() else 15000)
-  state.ai_status="AI teaching paused · Retrying connection"
-  return
- ai_retry_at.erase(key)
+ if not checked.get("ok",false) or checked.get("flagged",false):text_value=""
+ _finish_lesson_cue(room,activity,state,key,board,formal,text_value)
+
+func _finish_lesson_cue(room: String,activity: Dictionary,state: Dictionary,key: String,board: Dictionary,formal: bool,text_value: String) -> void:
+ var id:=str(activity.get("teacher",""))
+ if text_value.is_empty():
+  var now: float=game.lecture_classes._now()
+  text_value=str(LectureDirector.cue(activity,board,now,Dialogue.personalities().get(id,{})).text).left(220)
+ state.erase("ai_wait_started")
  state.ai_waiting=false
  state.ai_status=""
  if formal:
@@ -773,11 +777,11 @@ func open_conversation(room: String) -> void:
  for intent in ["ready","clarify"]:
   conversation_actions[intent].visible=activity.get("ai_teaching",false) and activity.get("phase","")=="lesson"
  conversation_text.text="What would you like to talk about?"
- conversation.show();game.release_mouse()
+ conversation.show();speech_player.subtitle_layer.hide();game.release_mouse()
 func close_conversation() -> bool:
  if not is_instance_valid(conversation) or not conversation.visible:return false
  _cancel_recording()
- conversation.hide();conversation_room=""
+ conversation.hide();speech_player.subtitle_layer.show();conversation_room=""
  if game.front.in_game:game.capture()
  return true
 func interact(target: Node) -> bool:
@@ -835,7 +839,7 @@ func _submit_question() -> void:
  var question:=conversation_input.text.strip_edges()
  if conversation_room.is_empty() or question.is_empty():return
  conversation_input.clear()
- conversation_text.text="You: "+question
+ conversation_text.text="You: "+question+"\n\nWaiting for the teacher’s reply…"
  conversation_scroll.set_deferred("scroll_vertical", 100000)
  if multiplayer.is_server():_question_request(multiplayer.get_unique_id(),conversation_room,question)
  elif game.session.online:_ask_question.rpc_id(1,conversation_room,question)
@@ -888,57 +892,85 @@ func _ai_activity(room: String) -> Dictionary:
  var activities: Dictionary=game.lecture_classes.classes if multiplayer.is_server() else game.lecture_classes.public_classes
  return activities.get(room,_formal_activity(room))
 func _speech_question_request(peer: int,room: String,wav: PackedByteArray) -> void:
- if not multiplayer.is_server() or wav.size()<32044 or wav.size()>192044 or ai_busy.has(peer) or not game.session.roster.has(peer):return
- var activity: Dictionary=_ai_activity(room)
- if activity.is_empty():return
- var id:=str(activity.get("teacher",""))
- var point:=_teacher_position(room)
- var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
- if not Roster.has(id) or not point.is_finite() or not pos.is_finite() or pos.distance_to(point)>4.0 or not game.lecture_classes._inside(peer,room):return
- ai_busy[peer]=true
- _transcribe_question(peer,room,id,str(activity.get("id","")),wav,pos)
+ if wav.size()<32044 or wav.size()>192044:return
+ _queue_question(peer,room,wav)
+
 func _transcribe_question(peer: int,room: String,id: String,class_id: String,wav: PackedByteArray,pos: Vector3) -> void:
  var result: Dictionary=await game.host_openai.transcribe_wav(wav)
- ai_busy.erase(peer)
- if not result.get("ok",false):
-  var error:=str(result.get("error","Speech was not recognized."))
-  if peer==multiplayer.get_unique_id():_dialogue_reply(room,id,error)
-  elif game.session.online and game.session.peer_connected_now(peer):_dialogue_reply.rpc_id(peer,room,id,error)
+ if str(_ai_activity(room).get("id",""))!=class_id:
+  ai_busy.erase(peer)
   return
- var current_class: Dictionary=game.lecture_classes.classes.get(room,{})
- if str(_ai_activity(room).get("id",""))!=class_id:return
- _question_request(peer,room,str(result.get("text","")))
+ if not result.get("ok",false):
+  ai_busy.erase(peer)
+  _question_status(peer,room,id,str(result.get("error","Speech was not recognized.")))
+  return
+ await _answer_question(peer,room,id,class_id,str(result.get("text","")),pos)
+
 @rpc("any_peer","call_remote","reliable")
 func _ask_question(room: String,question: String) -> void:
  if multiplayer.is_server():_question_request(multiplayer.get_remote_sender_id(),room,question)
+
 func _question_request(peer: int,room: String,question: String) -> void:
- if not multiplayer.is_server() or question.is_empty() or question.length()>500 or ai_busy.has(peer):return
- if not game.session.roster.has(peer):return
+ if question.is_empty() or question.length()>500:return
+ _queue_question(peer,room,question)
+
+func _queue_question(peer: int,room: String,content: Variant) -> void:
+ if not multiplayer.is_server() or not game.session.roster.has(peer):return
  var activity: Dictionary=_ai_activity(room)
- if activity.is_empty():return
- var id:=str(activity.get("teacher",""))
- if not Roster.has(id):return
- var point:=_teacher_position(room)
- var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
- if not point.is_finite() or not pos.is_finite() or pos.distance_to(point)>4.0 or not game.lecture_classes._inside(peer,room):return
+ var teacher:=str(activity.get("teacher",""))
+ if not Roster.has(teacher):return
+ if not game.lecture_classes._inside(peer,room):
+  _question_status(peer,room,teacher,"Please stay in the classroom to ask a question.")
+  return
+ var count:=0
+ for entry in questions:
+  if int(entry.peer)==peer:count+=1
+ if questions.size()>=32 or count>=4:
+  _question_status(peer,room,teacher,"The question queue is full. Let the teacher answer a queued question first.")
+  return
+ questions.append({"peer":peer,"room":room,"teacher":teacher,"class":str(activity.get("id","")),"content":content})
+ if game.host_openai.busy or not ai_busy.is_empty() or questions.size()>1:
+  _question_status(peer,room,teacher,"Question queued. Position %d."%questions.size())
+ _next_question()
+
+func _question_status(peer: int,room: String,teacher: String,message: String) -> void:
+ if peer==multiplayer.get_unique_id():_dialogue_reply(room,teacher,message)
+ elif game.session.online and game.session.peer_connected_now(peer):_dialogue_reply.rpc_id(peer,room,teacher,message)
+
+func _next_question() -> void:
+ if questions.is_empty() or not ai_busy.is_empty() or game.host_openai.busy:return
+ var entry: Dictionary=questions.pop_front()
+ var peer: int=entry.peer
+ var room: String=entry.room
+ var teacher: String=entry.teacher
+ if not game.session.roster.has(peer):return
+ var activity:=_ai_activity(room)
+ if str(activity.get("id",""))!=entry.class or str(activity.get("teacher",""))!=teacher or not game.lecture_classes._inside(peer,room):
+  _question_status(peer,room,teacher,"The conversation ended before the teacher could answer.")
+  return
+ var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.ZERO)
  ai_busy[peer]=true
- _answer_question(peer,room,id,str(activity.get("id","")),question,pos)
+ _question_status(peer,room,teacher,"The teacher is answering…")
+ if entry.content is PackedByteArray:_transcribe_question(peer,room,teacher,entry.class,entry.content,pos)
+ else:_answer_question(peer,room,teacher,entry.class,entry.content,pos)
+
 func _answer_question(peer: int,room: String,id: String,class_id: String,question: String,pos: Vector3) -> void:
  var activity_context := _ai_activity(room)
  var current_stage: Dictionary = {}
  if activity_context.get("phase","")=="lesson":
   current_stage=game.lecture_classes._stage(activity_context) if activity_context.has("teaching") else game.school.teaching_stage()
- var reply := "The host's AI connection is unavailable right now."
+ var fallback:=LectureDirector.answer(question,current_stage)
+ var reply:=fallback
  var identity:=str(game.school.identities.get(peer,""))
  var memory_key:=id+":"+identity
  var history: Array=dialogue_memory.get(memory_key,[])
  var client: Node=game.host_openai
- if is_instance_valid(client) and client.enabled and client.configured():
+ if is_instance_valid(client) and client.enabled and client.configured() and not client.busy:
   var checked: Dictionary=await client.moderate(question)
   if checked.get("ok",false) and not checked.get("flagged",false):
    var activity: Dictionary=_ai_activity(room)
    if str(activity.get("id",""))==class_id:
-    var result: Dictionary=await client.respond(TeacherAI.question_prompt(activity,id,current_stage,question,history))
+    var result: Dictionary=await client.respond(TeacherAI.question_prompt(activity,id,current_stage,question,history),18.0)
     if result.get("ok",false):
      var candidate:=TeacherAI.safe_reply(str(result.get("text","")))
      var output_check: Dictionary=await client.moderate(candidate)
@@ -950,14 +982,13 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
        while history.size()>3:history.pop_front()
        dialogue_memory[memory_key]=history
      else:reply="I can't answer that classroom question right now."
-    else:reply=str(result.get("error",reply))
+    else:reply=fallback
   elif checked.get("flagged",false):reply="Let's keep the classroom question appropriate."
-  else:reply=str(checked.get("error",reply))
+  else:reply=fallback
  ai_busy.erase(peer)
  var current_class: Dictionary=_ai_activity(room)
  if str(current_class.get("id",""))!=class_id or str(current_class.get("teacher",""))!=id:return
- if peer==multiplayer.get_unique_id():_dialogue_reply(room,id,reply)
- elif game.session.online and game.session.peer_connected_now(peer):_dialogue_reply.rpc_id(peer,room,id,reply)
+ _question_status(peer,room,id,reply)
  if reply.length()<=220 and not reply.begins_with("OpenAI"):
   _publish_attention(room,id,pos)
   if current_class.get("phase","")=="lesson":present_class_reaction(room,id,reply,3)

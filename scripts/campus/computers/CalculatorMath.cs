@@ -1,8 +1,9 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Numerics;
+using Complex = System.Numerics.Complex;
 using Godot;
 using Ast = Godot.Collections.Dictionary;
 

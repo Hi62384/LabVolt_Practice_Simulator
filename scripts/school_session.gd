@@ -1223,16 +1223,9 @@ func _prepare_formal_ai_assessments() -> bool:
 	if not generated.is_empty() and str(activity.get("course_id","")) in ["MTH147","MTH255"]:
 		for token in class_students:
 			var individual:=compile_ai_assessment(_individual_project(token),plan,token)
-			if individual.is_empty():
-				generated={}
-				break
-			prepared[token]=individual
-	if generated.is_empty():
-		AssessmentPlan.retry(formal_assessment_plan)
-		activity.assessment_status=formal_assessment_plan.status
-		return false
+			if not individual.is_empty():prepared[token]=individual
 	for token in prepared:class_students[token].project=prepared[token]
-	project=generated
+	if not generated.is_empty():project=generated
 	activity.erase("assessment_status")
 	return true
 
@@ -1427,6 +1420,12 @@ func start_activity(config: Dictionary) -> Dictionary:
 	if not multiplayer.is_server():return {"ok":false,"error":"Only the host chooses the activity."}
 	if game.front.in_game and not can_choose_next_activity():return {"ok":false,"error":"The next activity is available to the host in Freeplay or after class ends."}
 	var selected := str(config.get("mode","Freeplay"))
+	if selected=="Course" and is_instance_valid(game.lecture_classes):
+		for peer in identities:
+			if game.lecture_classes.student_has_class(int(peer)):
+				return {"ok":false,"error":"Finish the active classroom session before starting another class."}
+		if game.lecture_classes.classes.values().any(func(value):return value.get("host",0)==1):
+			return {"ok":false,"error":"Finish your current class before starting another."}
 	var course := str(config.get("course_id","ELM253"))
 	var kind := str(config.get("kind","lecture"))
 	if selected=="Open Lab":kind="lab"
