@@ -3,6 +3,7 @@ const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const InventoryTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
 const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+const Ownership = preload("res://scripts/campus/items/equipment_ownership.gd")
 const AccessoryLayout = preload("res://scripts/campus/facilities/accessory_layout.gd")
 const SUPPLY_RARITY := {
 	"calculator":"Rare", "calculator_financial":"Uncommon", "flashlight":"Uncommon",
@@ -27,6 +28,7 @@ var accessory_positions := {}
 var accessory_catalog := {}
 func build(owner_game: Node) -> void:
 	game=owner_game;layer=11
+	portraits.model_builder=game.electronics._equipment_preview
 	var preferences:=ConfigFile.new()
 	if preferences.load("user://accessory_layout.cfg")==OK:
 		var saved: Variant=preferences.get_value("layout","positions",{})
@@ -712,15 +714,20 @@ func _item_menu(event: InputEvent, tile: Button, item: Dictionary, source: Dicti
 	var menu := PopupMenu.new()
 	tile.add_child(menu)
 	if equip.is_valid():menu.add_item("Equip",0)
+	if not Ownership.slot(game.electronics.profile.data,str(item.get("kind","")),Ownership.key(item)).is_empty():menu.add_item("Decorate",3)
 	if source.get("location")=="hotbar" and item.get("kind")=="component":menu.add_item("Move to inventory",2)
 	menu.add_item("Discard",1)
 	menu.id_pressed.connect(func(id: int):
 		if id==0:equip.call()
 		elif id==2:game.dorm_interactions.component_transfer(str(item.type),str(item.instance),"release_component")
+		elif id==3:game.electronics.decorate_owned(item)
 		else:_confirm_discard(title(item),source))
 	menu.popup_hide.connect(menu.queue_free)
 	menu.position=Vector2i(get_viewport().get_mouse_position())
 	menu.popup()
+
+func refresh_portraits() -> void:
+	painted_slots.fill(null)
 
 func _confirm_discard(item_title: String, source: Dictionary) -> void:
 	var dialog := ConfirmationDialog.new()

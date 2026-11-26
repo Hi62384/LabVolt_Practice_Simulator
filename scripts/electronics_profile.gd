@@ -6,6 +6,7 @@ const Persistent=preload("res://scripts/inventory_authority/component_persistenc
 const Shape=preload("res://scripts/inventory_authority/validation.gd")
 const Board=preload("res://scripts/breadboard_model.gd")
 const EquipmentConfiguration=preload("res://scripts/campus/items/equipment_configuration.gd")
+const EquipmentOwnership=preload("res://scripts/campus/items/equipment_ownership.gd")
 const KIT_TIERS := {
 	"compact":{"name":"Compact kit","capacity":20,"price":12,"rarity":"Common"},
 	"standard":{"name":"Standard kit","capacity":40,"price":25,"rarity":"Uncommon"},
@@ -561,6 +562,30 @@ func buy_smartphone(tier: String,hotbar_limit := 6,requested_id := "",configurat
 func kit_capacity(id: String) -> int:
 	var tier := str(data.get("kit_tiers",{}).get(id,""))
 	return int(KIT_TIERS[tier].capacity) if KIT_TIERS.has(tier) else int(data.capacity)
+
+func decorate_equipment(kind: String,key: String,replacement: Variant,original: Variant) -> String:
+	if authority_submit.is_valid():return queued("decorate_equipment",[kind,key,replacement,original])
+	operation_succeeded=false
+	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
+	var slot:=EquipmentOwnership.slot(data,kind,key)
+	if slot.is_empty():return "This equipment cannot be edited here"
+	var current:=EquipmentConfiguration.quote(kind,0,slot.configuration)
+	var expected:=EquipmentConfiguration.quote(kind,0,original)
+	var edited:=EquipmentConfiguration.quote(kind,0,replacement)
+	if current.is_empty() or current!=expected:return "The design changed. Reopen the editor."
+	if edited.is_empty() or edited.configuration.hardware!=current.configuration.hardware or edited.configuration.get("keypad",[])!=current.configuration.get("keypad",[]):
+		return "The saved hardware and keypad must match this item"
+	var debit:=Economy.purchase_debit(int(data.dollars),maxi(0,int(edited.price)-int(current.price)),true)
+	if not debit.ok:return debit.error
+	var before:=data.duplicate(true)
+	slot.record[slot.property]=edited.configuration
+	data.dollars=debit.next_balance
+	if data.has("dorm"):data.dorm.revision=int(data.dorm.revision)+1
+	if save()!=OK:
+		data=before
+		return "Could not save the decoration"
+	operation_succeeded=true
+	return "Decoration saved"
 
 func kit_used(id: String) -> int:
 	var items: Dictionary = data.kits.get(id,{}).get("items",{})

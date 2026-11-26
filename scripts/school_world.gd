@@ -269,6 +269,7 @@ func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, op
 		if round_keys:Toon.ellipsoid(prop,at,Vector3(step.x*.43,step.y*.395,.0035),Toon.material(tint.to_html(false)),key+" key")
 		else:game._box(prop,at,Vector3(step.x*.86,step.y*.79,.007 if basic else .004),tint)
 		_calculator_mark(prop,key,at+Vector3(0,0,.004),.00032 if basic else .00022,Color("1a2631") if tint.get_luminance()>.45 else Color("f2f5ef"))
+	preload("res://scripts/campus/items/decoration_surface.gd").attach(prop,options.get("decoration",[]),Vector3(0,0,-face-.0005),Vector3(0,PI,0),Vector2(width*.83,length*.86))
 
 func _calculator_mark(parent: Node3D, value: String, at: Vector3, pixel: float, tint: Color) -> void:
 	var mark := Label3D.new()

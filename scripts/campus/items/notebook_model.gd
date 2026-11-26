@@ -35,6 +35,7 @@ static func update(book: Node3D, configuration: Dictionary) -> void:
 	_box(book,Vector3(0,cover+block_height*.5,0),Vector3(width-.008,block_height,length-.008),shade,"")
 	_box(book,Vector3(0,cover*1.5+block_height,0),Vector3(width,cover,length),Color("416b78"),"shell")
 	_box(book,Vector3(-width*.5+.008,cover+block_height*.5,0),Vector3(.02,2*cover+block_height,length+.001),Color("254854"),"trim")
+	book.set_meta("decoration_anchor",{"part":book,"position":Vector3(.008,size.y+.0006,0),"rotation":Vector3(-PI/2,0,0),"area":Vector2(width-.044,length-.025)})
 	Finish.apply_finish(book,Config.NOTEBOOK,configuration)
 
 static func _box(parent: Node3D, center: Vector3, dimensions: Vector3, tint: Color, part: String) -> void:

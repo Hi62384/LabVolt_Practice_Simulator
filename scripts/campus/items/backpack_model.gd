@@ -34,3 +34,4 @@ static func update(bag: Node3D, model: String, options: Dictionary) -> void:
 		Toon.line(bag,[Vector3(x,.118,-.059),Vector3(x,.063,-.112),Vector3(x,-.074,-.113),Vector3(x,-.141,-.057)],.014 if strap_factor==1.0 else .022,edging)
 		if pocket_slots==4 or (pocket_slots==2 and side<0):
 			Toon.ellipsoid(bag,Vector3(side*.124,-.091,.012),Vector3(.029,.061,.059),edging,"Component pocket")
+	preload("res://scripts/campus/items/decoration_surface.gd").attach(bag,options.get("decoration",[]),Vector3(0,-.091,.1125),Vector3.ZERO,Vector2(.110,.049))

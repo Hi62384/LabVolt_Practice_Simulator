@@ -85,6 +85,7 @@ func _closed_laptop(parent: Node3D) -> void:
  var badge:=_box(parent,Vector3(0,.026,0),Vector3(.09,.002,.014),Color("c1d4d2"))
  parent.set_meta("equipment_shell",[base,lid])
  parent.set_meta("equipment_trim",[badge])
+ parent.set_meta("decoration_anchor",{"part":lid,"position":Vector3(0,.013,-.049),"rotation":Vector3(-PI/2,0,0),"area":Vector2(.28,.115)})
  _box(parent,Vector3(0,-.025,-.10),Vector3(.27,.012,.015),Color("101d24"))
 func _coiled_cable(parent: Node3D) -> void:
  var points: Array[Vector3]=[]
@@ -117,6 +118,7 @@ func _build_laptop(root: Node3D,id: int) -> void:
  var badge:=_box(lid,Vector3(0,.13,-.014),Vector3(.08,.012,.003),Color("c1d4d2"))
  root.set_meta("equipment_shell",[chassis,lid_case])
  root.set_meta("equipment_trim",[trackpad,badge])
+ root.set_meta("decoration_anchor",{"part":lid,"position":Vector3(0,.190,-.0135),"rotation":Vector3(0,PI,0),"area":Vector2(.35,.101)})
  var port:=_target(root,"ac_laptop_usb",id,Vector3(.23,.045,0),Vector3(.055,.08,.12))
  _box(port,Vector3(.002,0,0),Vector3(.002,.014,.055),Color("10151b"))
 

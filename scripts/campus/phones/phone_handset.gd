@@ -30,6 +30,7 @@ static func apply_appearance(parent: Node3D, appearance: Dictionary) -> void:
 	var trim:=Color(Configuration.value(Configuration.PHONE,config,"appearance","trim","7597a3"))
 	for part in parent.get_meta("phone_trim"):
 		part.material_override.albedo_color=trim
+	preload("res://scripts/campus/items/decoration_surface.gd").attach(parent,appearance.get("decoration",[]),Vector3(0,-.019,-.0064),Vector3(0,PI,0),Vector2(.087,.131),shell.layers)
 
 static func _box(parent: Node3D, offset: Vector3, size: Vector3, color: Color, layers: int) -> MeshInstance3D:
 	var mesh:=BoxMesh.new()

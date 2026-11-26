@@ -196,6 +196,7 @@ func _create_kit_view(peer: int,kit: Dictionary,parent: Node3D = null) -> Static
 		for side in [-1.0,1.0]:
 			game._box(root,Vector3(side*(grip_width*.5-.014),h*.5,d*.5+reach*.5),Vector3(.03,grip_height,reach),trim)
 	var lid:=_case_piece(root,Vector3(0,h+.018,0),Vector3(w+.02,.036,d+.02),lid_color,surface);lid.name="Lid"
+	preload("res://scripts/campus/items/decoration_surface.gd").attach(lid,options.get("decoration",[]),Vector3(0,.019,0),Vector3(-PI/2,0,0),Vector2(w*.55,d*.78))
 	if not options.is_empty():game._box(lid,Vector3(0,-.020,0),Vector3(w-.05,.007,d-.05),interior)
 	root.set_meta("lid_closed",Vector3(0,h+.018,0));root.set_meta("lid_open",Vector3(0,h+d*.46,-d*.45))
 	for x in [-w*.32,w*.32]:game._box(root,Vector3(x,h*.65,-d*.505),Vector3(.035,.075,.018),trim)

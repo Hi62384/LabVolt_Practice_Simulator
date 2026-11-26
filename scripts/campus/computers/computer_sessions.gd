@@ -1115,6 +1115,7 @@ func _publish_usb_ports() -> void:
 		if usb.is_empty():continue
 		var configuration: Dictionary=usb.get("configuration",{})
 		ports[id]=true if configuration.is_empty() else {"appearance":configuration.appearance}
+		if configuration.has("decoration"):ports[id].decoration=configuration.decoration
 		mounts_by_owner.get_or_add(usb.owner,{})[id]={"id":usb.id,"capacity":usb.capacity_mb}
 	_set_usb_ports(ports)
 	if game.session.online and multiplayer.is_server():

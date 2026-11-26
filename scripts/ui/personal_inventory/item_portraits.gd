@@ -2,17 +2,14 @@ extends RefCounted
 
 const Components = preload("res://scripts/electronics/component_shop_ui/component_art.gd")
 const Configuration = preload("res://scripts/campus/items/equipment_configuration.gd")
-const Handset = preload("res://scripts/campus/phones/phone_handset.gd")
-static var configured_phone_portraits := {}
+const Ownership = preload("res://scripts/campus/items/equipment_ownership.gd")
+const EquipmentPortraits = preload("res://scripts/ui/personal_inventory/equipment_portraits.gd")
 var cache: Dictionary = {}
+var model_builder: Callable
 
 func texture(item: Dictionary, profile: RefCounted) -> Texture2D:
 	var kind := str(item.get("kind",""))
 	if kind.is_empty():return null
-	if kind=="smartphone":
-		var phone: Dictionary=profile.data.get("dorm",{}).get("smartphones",{}).get(item.get("id",""),{})
-		var appearance:=Configuration.phone_appearance(phone)
-		if not appearance.is_empty():return _configured_phone(appearance)
 	var type := str(item.get("type",""))
 	if kind == "kit":
 		type = str(item.get("tier",profile.data.get("kit_tiers",{}).get(item.get("id",""),"standard")))
@@ -29,49 +26,11 @@ func texture(item: Dictionary, profile: RefCounted) -> Texture2D:
 			var image := Image.new()
 			if image.load_svg_from_string(svg)!=OK:return null
 			cache[key]=ImageTexture.create_from_image(image)
+	if model_builder.is_valid() and Configuration.DEFINITIONS.has(kind):
+		var slot:=Ownership.slot(profile.data,kind,Ownership.key(item))
+		if slot.has("configuration") or Ownership.key(item).is_empty():
+			return EquipmentPortraits.texture(kind,slot.get("configuration",Configuration.defaults(kind)),model_builder,cache[key])
 	return cache[key]
-
-func _configured_phone(appearance: Dictionary) -> Texture2D:
-	var key := "%d/%d/%d"%[int(appearance.shell),int(appearance.trim),int(appearance.finish)]
-	if configured_phone_portraits.has(key):return configured_phone_portraits[key]
-	var config := {"appearance":appearance}
-	var shell: String=Configuration.value(Configuration.PHONE,config,"appearance","shell","243943")
-	var trim: String=Configuration.value(Configuration.PHONE,config,"appearance","trim","7597a3")
-	var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="128" height="96" viewBox="0 0 128 96">'
-	svg += _draw("smartphone",0,"").replace("182b36",shell).replace("9ab4b7",trim)+"</svg>"
-	var image:=Image.new()
-	if image.load_svg_from_string(svg)!=OK:return null
-	var thumbnail:=ImageTexture.create_from_image(image)
-	configured_phone_portraits[key]=thumbnail
-	var tree:=Engine.get_main_loop() as SceneTree
-	if tree==null or DisplayServer.get_name()=="headless":return thumbnail
-	var viewport:=SubViewport.new()
-	viewport.size=Vector2i(128,96)
-	viewport.own_world_3d=true
-	viewport.transparent_bg=true
-	viewport.msaa_3d=Viewport.MSAA_2X
-	var model:=Node3D.new()
-	model.rotation=Vector3(-.15,-.44,-.15)
-	viewport.add_child(model)
-	Handset.build(model)
-	Handset.apply_appearance(model,appearance)
-	var camera:=Camera3D.new()
-	camera.position.z=.35
-	camera.fov=40
-	viewport.add_child(camera)
-	for setup in [[Vector3(-35,-24,0),1.6],[Vector3(11,54,0),1.05]]:
-		var light:=DirectionalLight3D.new()
-		light.rotation_degrees=setup[0]
-		light.light_energy=setup[1]
-		viewport.add_child(light)
-	viewport.ready.connect(func():
-		viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
-		await RenderingServer.frame_post_draw
-		var frame:=viewport.get_texture().get_image()
-		if frame!=null and not frame.is_empty():thumbnail.set_image(frame)
-		viewport.queue_free(),CONNECT_ONE_SHOT)
-	tree.root.add_child.call_deferred(viewport)
-	return thumbnail
 
 func _draw(kind: String, color_index: int, type: String) -> String:
 	match kind:

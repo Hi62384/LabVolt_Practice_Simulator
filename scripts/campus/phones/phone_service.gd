@@ -16,6 +16,8 @@ var side_power: Button
 var browser_bookmarks := {}
 var remote_phone_models := {}
 var phone_frame_at := {}
+var published_handset_styles := {}
+var received_handset_designs := {}
 var last_phone_frame := 0
 const PHONE_WIRE_SIZE := Vector2i(48,84)
 const PHONE_WIRE_BYTES := PHONE_WIRE_SIZE.x*PHONE_WIRE_SIZE.y*3
@@ -78,6 +80,8 @@ func build(owner: Node) -> void:
 	game.session.restarted.connect(_clear_classroom_open)
 	game.session.leaving.connect(_clear_handoff_local)
 	game.session.restarted.connect(_clear_handoff_local)
+	game.session.restarted.connect(_clear_handset_designs)
+	game.session.leaving.connect(_clear_handset_designs)
 
 func _build_phone_ui() -> void:
 	backdrop=ColorRect.new()
@@ -754,17 +758,42 @@ func _forward_handset(peer: int,id: String,powered: bool,pixels: PackedByteArray
 	if game.personal_placement.is_placed(peer,"phone:"+id):return
 	var item: Dictionary=game.dorm_interactions._profile(identity).get("dorm",{}).get("smartphones",{}).get(id,{})
 	var appearance:=Configuration.phone_appearance(item)
+	var decoration: Array=appearance.get("decoration",[])
 	var origin: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
 	for target in game.session.roster:
 		if target==peer:continue
 		var at: Vector3=game.session.poses.get(target,{}).get("position",Vector3.INF)
 		if at.distance_squared_to(origin)>25.0:continue
 		if target==multiplayer.get_unique_id():_show_remote_handset(peer,powered,pixels,appearance)
-		elif game.session.peer_connected_now(target):_receive_handset.rpc_id(target,peer,powered,pixels,appearance)
+		elif game.session.peer_connected_now(target):
+			var sent: Dictionary=published_handset_styles.get_or_add(target,{})
+			if sent.get(peer,[])!=decoration:
+				sent[peer]=decoration
+				_receive_handset_design.rpc_id(target,peer,decoration)
+			var palette:=appearance.duplicate()
+			palette.erase("decoration")
+			_receive_handset.rpc_id(target,peer,powered,pixels,palette)
+
+@rpc("authority","call_remote","reliable")
+func _receive_handset_design(peer: int,design: Array) -> void:
+	if multiplayer.get_remote_sender_id()!=1:return
+	received_handset_designs[peer]=design
+	var handset: Dictionary=remote_phone_models.get(peer,{})
+	if not handset.is_empty() and is_instance_valid(handset.model):
+		var appearance: Dictionary=handset.get("appearance",{}).duplicate()
+		appearance.decoration=design
+		Handset.apply_appearance(handset.model,appearance)
+		handset.appearance=appearance
+
+func _clear_handset_designs() -> void:
+	published_handset_styles.clear()
+	received_handset_designs.clear()
 
 @rpc("authority","call_remote","unreliable",6)
 func _receive_handset(peer: int,powered: bool,pixels: PackedByteArray,appearance: Dictionary) -> void:
-	if multiplayer.get_remote_sender_id()==1:_show_remote_handset(peer,powered,pixels,appearance)
+	if multiplayer.get_remote_sender_id()!=1:return
+	if received_handset_designs.has(peer):appearance.decoration=received_handset_designs[peer]
+	_show_remote_handset(peer,powered,pixels,appearance)
 
 func _show_remote_handset(peer: int,powered: bool,pixels: PackedByteArray,appearance: Dictionary) -> void:
 	if not game.avatars.has(peer):return

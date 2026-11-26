@@ -285,6 +285,7 @@ func receive_snapshot(result: Dictionary) -> void:
 		operation_result.emit(str(pending[0].get("op","")),result)
 		pending.pop_front()
 	if result.get("message","")!="":game.ui.log_message(str(result.message))
+	if operation=="decorate_equipment" and result.get("ok",false):game.hotbar.refresh_portraits()
 	if result.get("ok",false) and game.front.in_game and operation in ["avatar_cosmetic","cosmetic_purchase"]:
 		var profile: RefCounted = game.electronics.profile
 		if previous_profile.get("avatar_cosmetics",{}) != profile.data.get("avatar_cosmetics",{}):

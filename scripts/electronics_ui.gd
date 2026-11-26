@@ -352,8 +352,20 @@ func study_supplies() -> void:
 
 func _equipment_preview(kind: String,parent: Node3D,options: Dictionary = {}) -> Node3D:
 	const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
-	if kind=="usb":return game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))
-	if kind=="notebook":return preload("res://scripts/campus/items/notebook_model.gd").build(parent)
+	const Finish = preload("res://scripts/campus/items/equipment_finish.gd")
+	if kind=="usb":
+		var usb: Node3D=game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))
+		Finish.apply_finish(usb,kind,options)
+		return usb
+	if kind=="smartphone":
+		const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
+		Handset.build(parent)
+		Handset.apply_appearance(parent,Config.phone_appearance({"configuration":options}))
+		return parent
+	if kind=="notebook":return preload("res://scripts/campus/items/notebook_model.gd").build(parent,options)
+	if kind=="backpack":
+		var model: String=Config.value(kind,options,"hardware","size","backpack_small")
+		return preload("res://scripts/campus/items/backpack_model.gd").build(parent,model,options)
 	if kind=="power_bank":return preload("res://scripts/campus/items/power_bank_model.gd").build(parent,options,60)
 	if kind=="calculator":
 		var dimensions: Vector3=Config.value(kind,options,"hardware","size",Vector3(.135,.026,.215))
@@ -372,7 +384,24 @@ func _equipment_preview(kind: String,parent: Node3D,options: Dictionary = {}) ->
 	model.position=Vector3(0,-.15,.05)
 	parent.add_child(model)
 	game.ac_laptops._build_laptop(model,-1)
+	Finish.apply_finish(model,kind,options)
 	return model
+
+func decorate_owned(item: Dictionary) -> void:
+	const Ownership=preload("res://scripts/campus/items/equipment_ownership.gd")
+	var kind:=str(item.get("kind",""))
+	var key:=Ownership.key(item)
+	var slot:=Ownership.slot(profile.data,kind,key)
+	if slot.is_empty():return
+	var dialog:=preload("res://scripts/ui/store_bundles_equipment/equipment_configurator.gd").new()
+	screen.add_child(dialog)
+	var page:=current_page
+	var station:=bench
+	dialog.build(profile,func(message: String):
+		game.hotbar.refresh_portraits()
+		open(page,station)
+		status.text=message,{"kind":kind,"price":0,"name":game.hotbar.title(item)},_equipment_preview,slot.configuration,key)
+	dialog.popup_centered()
 
 func _study_supply_card(parent: Control, id: String) -> void:
 	const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
@@ -524,6 +553,8 @@ func _kit_library() -> void:
 		contents.add_child(actions)
 		actions.add_child(KitUI.action("Edit","edit",_open_kit.bind(kit_id,false),true))
 		actions.add_child(KitUI.action("Rename","edit",_open_kit.bind(kit_id,true)))
+		if profile.data.kits[kit_id].has("configuration"):
+			actions.add_child(KitUI.action("Decorate","",decorate_owned.bind({"kind":"kit","id":kit_id})))
 
 	if grid.get_child_count()==0:label(body,"Bring a kit from your dorm cabinet in the hotbar or your equipped backpack.")
 

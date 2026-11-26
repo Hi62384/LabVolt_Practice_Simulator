@@ -16,6 +16,7 @@ static func build(parent: Node3D, options: Dictionary, percent: int) -> Node3D:
 	var face := _box(bank,Vector3(0,size.y,-.001),Vector3(size.x*.9,.003,size.z*.90),Color("b7c2ca"))
 	bank.set_meta("equipment_shell",[side])
 	bank.set_meta("equipment_trim",[face])
+	bank.set_meta("decoration_anchor",{"part":bank,"position":Vector3(0,size.y+.002,size.z*.19),"rotation":Vector3(-PI/2,0,0),"area":Vector2(size.x*.77,size.z*.40)})
 	Finish.apply_finish(bank,Config.POWER_BANK,options)
 	var ports: int=Config.value(Config.POWER_BANK,options,"hardware","ports",1)
 	for index in ports:

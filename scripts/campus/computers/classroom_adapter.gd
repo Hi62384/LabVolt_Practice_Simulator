@@ -239,6 +239,7 @@ func _build_usb_visual(parent: Node3D, at: Vector3) -> Node3D:
 		drive.add_child(piece)
 	drive.set_meta("equipment_shell",[drive.get_child(1)])
 	drive.set_meta("equipment_trim",[drive.get_child(2)])
+	drive.set_meta("decoration_anchor",{"part":drive,"position":Vector3(0,.0081,.012),"rotation":Vector3(-PI/2,0,0),"area":Vector2(.026,.015)})
 	return drive
 
 func mount_usb_visual(port: Node3D, id: String, at: Vector3, yaw: float) -> void:

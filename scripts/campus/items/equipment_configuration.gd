@@ -11,6 +11,7 @@ const CALCULATOR := "calculator"
 const KIT := "kit"
 const POWER_BANK := "power_bank"
 const Keypad = preload("res://scripts/campus/items/calculator_layout.gd")
+const Decoration = preload("res://scripts/campus/items/decoration_document.gd")
 const CASE_OPTIONS := {"label":"Case","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,18,18,18]}
 const TRIM_OPTIONS := {"label":"Trim","labels":["Silver","Copper","Black"],"values":["b7c2ca","b6764b","222831"],"prices":[0,12,12]}
 const FINISH_OPTIONS := {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,35]}
@@ -132,7 +133,7 @@ static func defaults(kind: String) -> Dictionary:
 
 static func quote(kind: String, base_price: int, selection: Variant) -> Dictionary:
 	var definition: Dictionary = DEFINITIONS.get(kind, {})
-	if definition.is_empty() or not selection is Dictionary or selection.size() != definition.size() + 1 + int(kind==CALCULATOR) or selection.get("version") != VERSION:
+	if definition.is_empty() or not selection is Dictionary or selection.size() != definition.size() + 1 + int(kind==CALCULATOR) + int(selection.has("decoration")) or selection.get("version") != VERSION:
 		return {}
 	var price := base_price
 	var normalized := {"version":VERSION}
@@ -151,6 +152,12 @@ static func quote(kind: String, base_price: int, selection: Variant) -> Dictiona
 		var model: String=value(CALCULATOR,normalized,"hardware","model","")
 		if not Keypad.valid(model,selection.get("keypad")):return {}
 		normalized.keypad=selection.keypad.duplicate()
+	if selection.has("decoration"):
+		var design: Variant=Decoration.clean(selection.decoration)
+		if design==null:return {}
+		if not design.is_empty():
+			normalized.decoration=design
+			price+=3*design.size()
 	return {"price": price, "configuration": normalized}
 
 static func value(kind: String, configuration: Dictionary, group: String, key: String, fallback: Variant) -> Variant:
@@ -168,7 +175,10 @@ static func phone_value(item: Dictionary, key: String, fallback: Variant) -> Var
 	return value(PHONE, item.get("configuration", {}), "hardware", key, fallback)
 
 static func phone_appearance(item: Dictionary) -> Dictionary:
-	return item.get("configuration", {}).get("appearance", {})
+	var configuration: Dictionary=item.get("configuration",{})
+	var appearance: Dictionary=configuration.get("appearance",{}).duplicate()
+	if configuration.has("decoration"):appearance.decoration=configuration.decoration
+	return appearance
 
 static func same_phone_configuration(left: Dictionary, right: Dictionary) -> bool:
 	return same_configuration(PHONE,left,right)
