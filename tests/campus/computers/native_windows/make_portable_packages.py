@@ -19,17 +19,28 @@ def png(size):
             + chunk(b"IDAT", zlib.compress(row * size)) + chunk(b"IEND", b""))
 
 
-def make_msi(path, executable, scratch):
+def make_msi(path, executable, dll, scratch):
     msi = c.WinDLL("msi")
 
     def check(code):
         if code:
             raise OSError(f"Windows Installer database error {code}")
 
-    raw = scratch / "ClickExe"
-    raw.write_bytes(executable.read_bytes())
+    payload = {
+        "ClickExe": ("Click.exe", "RootApp", executable.read_bytes()),
+        "BoardDll": ("board.dll", "RootApp", dll.read_bytes()),
+        "Settings": ("settings.txt", "AppAssets", b"color-board-v1"),
+    }
     cab = scratch / "payload.cab"
-    subprocess.run(["makecab.exe", str(raw), str(cab)], check=True, stdout=subprocess.DEVNULL)
+    ddf = scratch / "payload.ddf"
+    instructions = ['.Set CabinetNameTemplate=payload.cab', f'.Set DiskDirectoryTemplate="{scratch}"',
+                    '.Set Cabinet=on', '.Set Compress=on']
+    for file_id, (_, _, data) in payload.items():
+        source = scratch / file_id
+        source.write_bytes(data)
+        instructions.append(f'"{source}" {file_id}')
+    ddf.write_text("\n".join(instructions), encoding="ascii")
+    subprocess.run(["makecab.exe", "/F", str(ddf)], cwd=scratch, check=True, stdout=subprocess.DEVNULL)
     msi.MsiOpenDatabaseW.argtypes = [c.c_wchar_p, c.c_void_p, c.POINTER(c.c_uint)]
     database = c.c_uint()
     check(msi.MsiOpenDatabaseW(str(path), 3, c.byref(database)))
@@ -54,9 +65,12 @@ def make_msi(path, executable, scratch):
             sql(f"CREATE TABLE `{table}` ({fields})")
         sql("INSERT INTO `Property` (`Property`,`Value`) VALUES ('ProductName','Campus Click Test MSI')")
         sql("INSERT INTO `Directory` (`Directory`,`DefaultDir`) VALUES ('TARGETDIR','SourceDir')")
-        sql("INSERT INTO `Component` (`Component`,`Directory_`,`Attributes`,`KeyPath`) VALUES ('App','TARGETDIR',0,'ClickExe')")
-        sql(f"INSERT INTO `File` (`File`,`Component_`,`FileName`,`FileSize`,`Attributes`,`Sequence`) VALUES ('ClickExe','App','CLICK.EXE|Campus Click Test.exe',{raw.stat().st_size},16384,1)")
-        sql("INSERT INTO `Media` (`DiskId`,`LastSequence`,`Cabinet`) VALUES (1,1,'#payload.cab')")
+        sql("INSERT INTO `Directory` (`Directory`,`Directory_Parent`,`DefaultDir`) VALUES ('Assets','TARGETDIR','assets')")
+        sql("INSERT INTO `Component` (`Component`,`Directory_`,`Attributes`,`KeyPath`) VALUES ('RootApp','TARGETDIR',0,'ClickExe')")
+        sql("INSERT INTO `Component` (`Component`,`Directory_`,`Attributes`,`KeyPath`) VALUES ('AppAssets','Assets',0,'Settings')")
+        for sequence, (file_id, (filename, component, data)) in enumerate(payload.items(), 1):
+            sql(f"INSERT INTO `File` (`File`,`Component_`,`FileName`,`FileSize`,`Attributes`,`Sequence`) VALUES ('{file_id}','{component}','{filename}',{len(data)},16384,{sequence})")
+        sql(f"INSERT INTO `Media` (`DiskId`,`LastSequence`,`Cabinet`) VALUES (1,{len(payload)},'#payload.cab')")
         record = msi.MsiCreateRecord(2)
         try:
             check(msi.MsiRecordSetStringW(record, 1, c.c_wchar_p("payload.cab")))
@@ -69,10 +83,13 @@ def make_msi(path, executable, scratch):
         msi.MsiCloseHandle(database)
 
 
-def make_msix(path, executable, scratch, makeappx):
+def make_msix(path, executable, dll, scratch, makeappx):
     package = scratch / "appx"
     package.mkdir()
     shutil.copyfile(executable, package / "Click.exe")
+    shutil.copyfile(dll, package / "board.dll")
+    (package / "assets").mkdir()
+    (package / "assets/settings.txt").write_bytes(b"color-board-v1")
     for size in (44, 50, 150):
         (package / f"Logo{size}.png").write_bytes(png(size))
     (package / "AppxManifest.xml").write_text("""<?xml version="1.0" encoding="utf-8"?>
@@ -96,6 +113,7 @@ def make_msix(path, executable, scratch, makeappx):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("executable", type=Path)
+    parser.add_argument("dll", type=Path)
     parser.add_argument("destination", type=Path)
     options = parser.parse_args()
     if os.name != "nt":
@@ -106,7 +124,9 @@ if __name__ == "__main__":
         parser.error("Install the Windows SDK to build MSIX fixtures.")
     output = options.destination.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    if (output / "Campus Click Package.msi").exists():
+        parser.error("Use a fresh output directory.")
     with tempfile.TemporaryDirectory(prefix="campus-packages-") as tmp:
         scratch = Path(tmp)
-        make_msi(output / "Campus Click Package.msi", options.executable.resolve(), scratch)
-        make_msix(output / "Campus Click Package.msix", options.executable.resolve(), scratch, makeappx)
+        make_msi(output / "Campus Click Package.msi", options.executable.resolve(), options.dll.resolve(), scratch)
+        make_msix(output / "Campus Click Package.msix", options.executable.resolve(), options.dll.resolve(), scratch, makeappx)

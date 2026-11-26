@@ -47,7 +47,9 @@ var download_uploads := {}
 var owner_copy_transfers := {}
 var file_read := {}
 static func bounded_request(action: Dictionary) -> bool:
-	return action.size()<=9 and var_to_bytes(action).size()<=MAX_REQUEST_BYTES and not action.has("owner") and not action.has("profile") and not action.has("identity")
+	var entry: Variant=action.get("entry")
+	var install_entry: bool=action.get("op")=="install_app" and entry is String and entry.length()<=180
+	return action.size()<=9+int(install_entry) and var_to_bytes(action).size()<=MAX_REQUEST_BYTES and not action.has("owner") and not action.has("profile") and not action.has("identity")
 
 func supports_operation(op: String) -> bool:
 	return op in ["rename","copy","zip","extract","open_text","read_file"]
@@ -289,7 +291,8 @@ func _accept(peer: int, action: Dictionary) -> void:
 		var path:=str(action.get(key,"")).to_lower()
 		if path.begins_with(".recycle") or path==Preferences.PATH:
 			_error(peer,"That path is reserved.");return
-		if Apps.managed(path) and (op!="read_file" or not path.begins_with("program files/") or not (path.ends_with("/application.campusapp") or path.ends_with("/application.exe"))):
+		var native_bundle: bool=not game.session.online and path.ends_with("/"+Apps.NATIVE_BUNDLE.to_lower())
+		if Apps.managed(path) and (op!="read_file" or not path.begins_with("program files/") or not (path.ends_with("/application.campusapp") or path.ends_with("/application.exe") or native_bundle)):
 			_error(peer,"Use Installed Apps to manage Program Files.");return
 	match op:
 		"install_app","uninstall_app","save_app_state":
@@ -458,7 +461,9 @@ func _accept(peer: int, action: Dictionary) -> void:
 			if file.get("type","")!="file":_error(peer,"The file is unavailable.");return
 			var bytes: PackedByteArray=file.data
 			if op=="read_file":
-				if bytes.size()>Downloads.MAX_BYTES:_error(peer,"Preview supports files up to 8 MiB.");return
+				var native_bundle: bool=not game.session.online and Apps.managed(path) and path.ends_with("/"+Apps.NATIVE_BUNDLE)
+				if bytes.size()>(Apps.MAX_NATIVE_BUNDLE if native_bundle else Downloads.MAX_BYTES):
+					_error(peer,"The file exceeds the supported size for this operation.");return
 				_deliver_file(peer,session.lease,path,bytes)
 				return
 			if bytes.size()>Files.MAX_FILE_BYTES or not Downloads.valid(bytes,path.get_extension()) or not Downloads.is_text(path.get_extension()):

@@ -13,33 +13,42 @@ using Result = Godot.Collections.Dictionary;
 
 public partial class WindowsPortablePackage : RefCounted
 {
-    private const int Limit = 8 * 1024 * 1024;
     private static readonly SemaphoreSlim MsiReader = new(1);
-    private static readonly HashSet<string> MsiUnsupported = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "CustomAction", "ServiceInstall", "ServiceControl", "Registry", "RemoveRegistry", "Environment",
-        "SelfReg", "TypeLib", "Class", "AppId", "ProgId", "Extension", "Verb", "MoveFile", "DuplicateFile",
-        "ODBCDataSource", "ODBCDriver", "IniFile", "RemoveIniFile", "MsiAssembly", "LockPermissions", "MsiLockPermissionsEx"
-    };
 
-    public Result Read(string format, byte[] bytes)
+    private const int ImportLimit = 8 * 1024 * 1024;
+
+    public Result Read(string format, byte[] bytes, string requestedEntry, bool pack)
     {
-        if (bytes.Length is < 64 or > Limit) return Error("The package is outside the 8 MiB import limit.");
+        if (bytes.Length is < 64 or > ImportLimit) return Error("The package is outside the 8 MiB import limit.");
         try
         {
-            byte[] executable = format switch
+            string declaredEntry = "";
+            var layout = format switch
             {
-                "msix" => ReadMsix(bytes),
+                "msix" => ReadMsix(bytes, out declaredEntry),
                 "msi" when OperatingSystem.IsWindows() => ReadMsi(bytes),
                 "msi" => throw new InvalidDataException("Reading MSI packages requires Windows."),
                 _ => throw new InvalidDataException("This package format has no portable install path.")
             };
-            var metadata = new WindowsExecutableInspector().Inspect(executable);
-            if (metadata.ContainsKey("error") || metadata["kind"].AsString() != "Desktop application" ||
-                metadata["runtime"].AsString() != "Native entry point" ||
-                metadata["architecture"].AsString() is not ("x64" or "x86"))
-                return Error("The package must contain a standalone x86 or x64 native desktop executable.");
-            return new Result { ["image"] = executable, ["architecture"] = metadata["architecture"] };
+            var inspector = new WindowsExecutableInspector();
+            var entries = new Godot.Collections.Array<string>();
+            foreach (var pair in layout.Files.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                if (!pair.Key.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                    (declaredEntry.Length != 0 && pair.Key != declaredEntry)) continue;
+                var metadata = inspector.Inspect(pair.Value);
+                if (!metadata.ContainsKey("error") && metadata["kind"].AsString() == "Desktop application" &&
+                    metadata["runtime"].AsString() == "Native entry point" &&
+                    metadata["architecture"].AsString() is "x64" or "x86")
+                    entries.Add(pair.Key);
+            }
+            if (entries.Count == 0) return Error("The package has no compatible x86 or x64 native desktop executable.");
+            string entry = requestedEntry.Length == 0 ? entries[0] : requestedEntry;
+            if (!entries.Contains(entry)) return Error("Choose an executable from this package.");
+            var result = new Result { ["entries"] = entries, ["file_count"] = layout.Files.Count,
+                ["entry"] = entry, ["image"] = layout.Files[entry] };
+            if (pack) result["bundle"] = CampusWindowsBundle.Pack(entry, layout);
+            return result;
         }
         catch (InvalidDataException e) { return Error(e.Message); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or XmlException or NotSupportedException or ArgumentException)
@@ -48,66 +57,66 @@ public partial class WindowsPortablePackage : RefCounted
         }
     }
 
-    private static byte[] ReadMsix(byte[] bytes)
+    private static CampusWindowsBundle.Layout ReadMsix(byte[] bytes, out string entry)
     {
         using var input = new MemoryStream(bytes, writable: false);
         using var archive = new ZipArchive(input, ZipArchiveMode.Read);
-        if (archive.Entries.Count is < 2 or > 64) throw new InvalidDataException("The MSIX has an unsupported file layout.");
+        if (archive.Entries.Count is < 2 or > CampusWindowsBundle.FileLimit + 32)
+            throw new InvalidDataException("The MSIX has an unsupported file count.");
         var files = new Dictionary<string, ZipArchiveEntry>(StringComparer.OrdinalIgnoreCase);
-        int size = 0;
         foreach (var file in archive.Entries)
         {
             var name = file.FullName.TrimEnd('/');
-            if (!SafePath(name) || file.Length < 0 || file.Length > Limit - size || !files.TryAdd(name, file))
-                throw new InvalidDataException("The MSIX contains an invalid path or exceeds the expanded-size limit.");
-            size += (int)file.Length;
+            if (!CampusWindowsBundle.SafePath(name) || file.Length < 0 || !files.TryAdd(name, file))
+                throw new InvalidDataException("The MSIX contains an invalid or duplicate path.");
         }
         if (!files.TryGetValue("AppxManifest.xml", out var manifest) || manifest.Length is < 1 or > 65536)
             throw new InvalidDataException("The MSIX needs a readable AppxManifest.xml.");
-        using var xml = XmlReader.Create(manifest.Open(), new XmlReaderSettings
+        using var manifestStream = manifest.Open();
+        using var xml = XmlReader.Create(manifestStream, new XmlReaderSettings
         {
-            DtdProcessing = DtdProcessing.Prohibit,
-            XmlResolver = null,
-            MaxCharactersInDocument = 65536
+            DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 65536
         });
         var package = XDocument.Load(xml).Root;
         if (package == null || package.Name.LocalName != "Package" ||
             package.Descendants().Any(e => e.Name.LocalName is "PackageDependency" or "HostRuntimeDependency" or
-                "MainPackageDependency" or "Extension" or "ExternalLocation"))
-            throw new InvalidDataException("This MSIX needs Windows package dependencies or registration.");
+                "MainPackageDependency" or "OptionalPackage" or "ExternalLocation"))
+            throw new InvalidDataException("This MSIX requires other Windows packages or external files.");
         var apps = package.Elements().Where(e => e.Name.LocalName == "Applications")
             .SelectMany(e => e.Elements().Where(a => a.Name.LocalName == "Application")).ToArray();
-        if (apps.Length != 1) throw new InvalidDataException("A portable MSIX must declare exactly one desktop application.");
-        string entry = ((string?)apps[0].Attribute("Executable") ?? "").Replace((char)92, '/');
+        if (apps.Length != 1) throw new InvalidDataException("An MSIX must declare one desktop application.");
+        entry = ((string?)apps[0].Attribute("Executable") ?? "").Replace((char)92, '/');
         string kind = (string?)apps[0].Attribute("EntryPoint") ?? "";
-        if (!SafePath(entry) || !entry.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+        if (!CampusWindowsBundle.SafePath(entry) || !entry.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
             (kind.Length != 0 && kind != "Windows.FullTrustApplication") ||
+            apps[0].Attributes().Any(a => a.Name.LocalName == "RuntimeBehavior" && a.Value == "windowsApp") ||
             !files.TryGetValue(entry, out var program) || program.Length < 64)
-            throw new InvalidDataException("This MSIX has no compatible standalone desktop entry point.");
-        var branding = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            throw new InvalidDataException("This MSIX has no compatible desktop entry point.");
+        entry = program.FullName;
+        var metadata = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            entry, "AppxManifest.xml", "AppxBlockMap.xml", "AppxSignature.p7x", "[Content_Types].xml", "AppxMetadata/CodeIntegrity.cat"
+            "AppxManifest.xml", "AppxBlockMap.xml", "AppxSignature.p7x", "[Content_Types].xml", "AppxMetadata/CodeIntegrity.cat"
         };
-        foreach (var attr in package.Descendants().SelectMany(e => e.Attributes()))
-            if (attr.Name.LocalName.EndsWith("Logo", StringComparison.Ordinal))
-                branding.Add(attr.Value.Replace((char)92, '/'));
-        foreach (var element in package.Descendants().Where(e => e.Name.LocalName == "Logo"))
-            branding.Add(element.Value.Replace((char)92, '/'));
-        if (files.Any(pair => !pair.Value.FullName.EndsWith('/') && !branding.Contains(pair.Key)))
-            throw new InvalidDataException("This MSIX needs extra packaged files. The current runtime installs single-file apps.");
-        using var stream = program.Open();
-        var payload = new byte[(int)program.Length];
-        stream.ReadExactly(payload);
-        if (stream.ReadByte() != -1) throw new InvalidDataException("The MSIX entry size does not match its header.");
-        return payload;
+        var layout = new CampusWindowsBundle.Layout();
+        int remaining = CampusWindowsBundle.PayloadLimit;
+        foreach (var file in files.Values)
+        {
+            if (metadata.Contains(file.FullName) || file.FullName.EndsWith('/')) continue;
+            if (file.Length > remaining) throw new InvalidDataException("The MSIX expands beyond 32 MiB.");
+            using var stream = file.Open();
+            var payload = new byte[(int)file.Length];
+            stream.ReadExactly(payload);
+            if (stream.ReadByte() != -1) throw new InvalidDataException("The MSIX file size does not match its header.");
+            layout.Add(file.FullName, payload);
+            remaining -= payload.Length;
+        }
+        return layout;
     }
 
-    private static bool SafePath(string path) => path.Length is > 0 and <= 180 &&
-        path.Split('/').All(part => part.Length is > 0 and <= 64 && part is not ("." or "..") &&
-            part == part.Trim() && !part.EndsWith('.') &&
-            part.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.' or ' ' or '[' or ']'));
+    private sealed record MsiFile(string Id, string Path, int Length, int Sequence);
+    private sealed record MsiDirectory(string Parent, string Name);
 
-    private static byte[] ReadMsi(byte[] input)
+    private static CampusWindowsBundle.Layout ReadMsi(byte[] input)
     {
         if (!MsiReader.Wait(0)) throw new InvalidDataException("Another MSI package is being read.");
         DirectoryInfo? directory = null;
@@ -117,53 +126,7 @@ public partial class WindowsPortablePackage : RefCounted
             var source = Path.Combine(directory.FullName, "package.msi");
             File.WriteAllBytes(source, input);
             Require(MsiOpenDatabase(source, IntPtr.Zero, out uint db));
-            try
-            {
-                using (var tables = new MsiQuery(db, "SELECT `Name` FROM `_Tables`"))
-                    for (uint row = tables.Next(); row != 0; row = tables.Next())
-                        if (MsiUnsupported.Contains(Text(row, 1)))
-                            throw new InvalidDataException("This MSI includes Windows installation actions. Only files-only packages are supported.");
-
-                string id;
-                int length, sequence;
-                using (var files = new MsiQuery(db, "SELECT `File`, `FileName`, `FileSize`, `Sequence` FROM `File`"))
-                {
-                    uint row = files.Next();
-                    if (row == 0) throw new InvalidDataException("The MSI has no application payload.");
-                    id = Text(row, 1);
-                    string path = Text(row, 2).Split('|').Last();
-                    length = MsiRecordGetInteger(row, 3);
-                    sequence = MsiRecordGetInteger(row, 4);
-                    if (files.Next() != 0 || !SafePath(id) || id.Contains('/') || !SafePath(path) || path.Contains('/') ||
-                        !path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) || length is < 64 or > Limit || sequence < 1)
-                        throw new InvalidDataException("The MSI must contain exactly one standalone executable.");
-                }
-
-                string cabinet;
-                using (var media = new MsiQuery(db, "SELECT `Cabinet`, `LastSequence` FROM `Media`"))
-                {
-                    uint row = media.Next();
-                    if (row == 0) throw new InvalidDataException("The MSI does not have embedded installation media.");
-                    cabinet = Text(row, 1);
-                    if (MsiRecordGetInteger(row, 2) != sequence || media.Next() != 0 ||
-                        !cabinet.StartsWith('#') || !SafePath(cabinet[1..]) || cabinet.Contains('/'))
-                        throw new InvalidDataException("The MSI must use one embedded cabinet.");
-                }
-
-                var cabPath = Path.Combine(directory.FullName, "payload.cab");
-                using (var stream = new MsiQuery(db, "SELECT `Data` FROM `_Streams` WHERE `Name` = '" + cabinet[1..] + "'"))
-                {
-                    uint row = stream.Next();
-                    if (row == 0) throw new InvalidDataException("The embedded MSI cabinet is missing.");
-                    var data = new byte[Limit];
-                    uint size = (uint)data.Length;
-                    Require(MsiRecordReadStream(row, 1, data, ref size));
-                    if (size < 36 || stream.Next() != 0) throw new InvalidDataException("The embedded MSI cabinet is invalid.");
-                    using var target = File.Create(cabPath);
-                    target.Write(data, 0, (int)size);
-                }
-                return ExtractSingleCab(cabPath, Path.Combine(directory.FullName, "program.exe"), id, length);
-            }
+            try { return ReadMsiLayout(db, directory.FullName); }
             finally { MsiCloseHandle(db); }
         }
         finally
@@ -173,29 +136,135 @@ public partial class WindowsPortablePackage : RefCounted
         }
     }
 
-    private static byte[] ExtractSingleCab(string cabinet, string destination, string expected, int expectedSize)
+    private static CampusWindowsBundle.Layout ReadMsiLayout(uint db, string scratch)
     {
-        if (destination.Length >= 260) throw new InvalidDataException("The Windows temporary path is too long to read MSI packages.");
-        int found = 0;
+        var directories = new Dictionary<string, MsiDirectory>(StringComparer.Ordinal);
+        using (var query = new MsiQuery(db, "SELECT `Directory`, `Directory_Parent`, `DefaultDir` FROM `Directory`"))
+            for (uint row = query.Next(); row != 0; row = query.Next())
+            {
+                if (directories.Count >= 512 || !directories.TryAdd(Text(row, 1), new MsiDirectory(Text(row, 2), Text(row, 3))))
+                    throw new InvalidDataException("The MSI has an unsupported directory table.");
+            }
+        var components = new Dictionary<string, string>(StringComparer.Ordinal);
+        using (var query = new MsiQuery(db, "SELECT `Component`, `Directory_` FROM `Component`"))
+            for (uint row = query.Next(); row != 0; row = query.Next())
+            {
+                if (components.Count >= 512 || !components.TryAdd(Text(row, 1), Text(row, 2)))
+                    throw new InvalidDataException("The MSI has an unsupported component table.");
+            }
+        var files = new List<MsiFile>();
+        var sequences = new HashSet<int>();
+        int remaining = CampusWindowsBundle.PayloadLimit;
+        using (var query = new MsiQuery(db, "SELECT `File`, `Component_`, `FileName`, `FileSize`, `Sequence`, `Attributes` FROM `File`"))
+            for (uint row = query.Next(); row != 0; row = query.Next())
+            {
+                string id = Text(row, 1);
+                string name = Text(row, 3).Split('|').Last();
+                int length = MsiRecordGetInteger(row, 4), sequence = MsiRecordGetInteger(row, 5);
+                int attributes = MsiRecordGetInteger(row, 6);
+                if (files.Count >= CampusWindowsBundle.FileLimit || length < 0 || length > remaining || sequence < 1 ||
+                    !sequences.Add(sequence) || !CampusWindowsBundle.SafePath(id) || id.Contains('/') || name.Contains('/') ||
+                    !CampusWindowsBundle.SafePath(name) || !components.TryGetValue(Text(row, 2), out var folder) ||
+                    (attributes != int.MinValue && (attributes & 8192) != 0))
+                    throw new InvalidDataException("The MSI has an invalid file or references external installation media.");
+                string parent = MsiFolder(folder, directories);
+                files.Add(new MsiFile(id, parent.Length == 0 ? name : parent + "/" + name, length, sequence));
+                remaining -= length;
+            }
+        if (files.Count == 0) throw new InvalidDataException("The MSI has no application files.");
+
+        var layout = new CampusWindowsBundle.Layout();
+        int previous = 0;
+        using (var media = new MsiQuery(db, "SELECT `Cabinet`, `LastSequence` FROM `Media` ORDER BY `DiskId`"))
+            for (uint row = media.Next(); row != 0; row = media.Next())
+            {
+                string cabinet = Text(row, 1);
+                int last = MsiRecordGetInteger(row, 2);
+                if (last <= previous) throw new InvalidDataException("The MSI media sequence is invalid.");
+                var expected = files.Where(file => file.Sequence > previous && file.Sequence <= last)
+                    .ToDictionary(file => file.Id, StringComparer.Ordinal);
+                previous = last;
+                if (expected.Count == 0) continue;
+                if (!cabinet.StartsWith('#') || cabinet.Length is < 2 or > 73 ||
+                    !cabinet.Skip(1).All(c => char.IsAsciiLetterOrDigit(c) || c is '.' or '_' or '-'))
+                    throw new InvalidDataException("The MSI requires an external or unsupported cabinet.");
+                var cabPath = Path.Combine(scratch, "payload.cab");
+                using (var stream = new MsiQuery(db, "SELECT `Data` FROM `_Streams` WHERE `Name` = '" + cabinet[1..] + "'"))
+                {
+                    uint item = stream.Next();
+                    if (item == 0) throw new InvalidDataException("An embedded MSI cabinet is missing.");
+                    var data = new byte[ImportLimit];
+                    uint size = (uint)data.Length;
+                    Require(MsiRecordReadStream(item, 1, data, ref size));
+                    if (size < 36 || stream.Next() != 0) throw new InvalidDataException("An embedded MSI cabinet is invalid.");
+                    using var target = File.Create(cabPath);
+                    target.Write(data, 0, (int)size);
+                }
+                ExtractCab(cabPath, scratch, expected, layout);
+            }
+        if (layout.Files.Count != files.Count) throw new InvalidDataException("The MSI package has missing files.");
+        return layout;
+    }
+
+    private static string MsiFolder(string id, Dictionary<string, MsiDirectory> directories)
+    {
+        var names = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        while (id.Length != 0)
+        {
+            if (seen.Count >= 24 || !seen.Add(id) || !directories.TryGetValue(id, out var directory))
+                throw new InvalidDataException("The MSI directory tree is invalid.");
+            if (id == "TARGETDIR") break;
+            if (id is not ("ProgramFilesFolder" or "ProgramFiles64Folder"))
+            {
+                string name = directory.Name.Split(':')[0].Split('|').Last();
+                if (name != ".")
+                {
+                    if (name.Contains('/') || !CampusWindowsBundle.SafePath(name))
+                        throw new InvalidDataException("The MSI directory names are not portable.");
+                    names.Add(name);
+                }
+            }
+            id = directory.Parent;
+        }
+        names.Reverse();
+        return string.Join("/", names);
+    }
+
+    private static void ExtractCab(string cabinet, string scratch, Dictionary<string, MsiFile> expected,
+        CampusWindowsBundle.Layout layout)
+    {
+        var found = new Dictionary<string, string>(StringComparer.Ordinal);
         bool reject = false;
         uint Callback(IntPtr _, uint notice, IntPtr param, IntPtr unused)
         {
             if (notice == 0x12) { reject = true; return 13; }
             if (notice != 0x11) return 0;
             var file = Marshal.PtrToStructure<CabEntry>(param);
-            if (++found != 1 || file.Size != expectedSize || Marshal.PtrToStringUni(file.Name) != expected)
+            var name = Marshal.PtrToStringUni(file.Name);
+            if (name == null || !expected.TryGetValue(name, out var declared) ||
+                file.Size != declared.Length || found.ContainsKey(name))
             {
                 reject = true;
                 return 0;
             }
+            var destination = Path.Combine(scratch, "part-" + found.Count);
+            if (destination.Length >= 260) { reject = true; return 0; }
+            found.Add(name, destination);
             file.Target = destination;
             Marshal.StructureToPtr(file, param, false);
             return 1;
         }
-        if (!SetupIterateCabinet(cabinet, 0, Callback, IntPtr.Zero) || reject || found != 1 ||
-            !File.Exists(destination) || new FileInfo(destination).Length != expectedSize)
-            throw new InvalidDataException("The cabinet must contain only the application declared by the MSI.");
-        return File.ReadAllBytes(destination);
+        if (!SetupIterateCabinet(cabinet, 0, Callback, IntPtr.Zero) || reject || found.Count != expected.Count)
+            throw new InvalidDataException("The cabinet contents differ from the MSI file table.");
+        foreach (var pair in found)
+        {
+            var declared = expected[pair.Key];
+            if (new FileInfo(pair.Value).Length != declared.Length)
+                throw new InvalidDataException("An extracted MSI file has the wrong size.");
+            layout.Add(declared.Path, File.ReadAllBytes(pair.Value));
+            File.Delete(pair.Value);
+        }
     }
 
     private sealed class MsiQuery : IDisposable

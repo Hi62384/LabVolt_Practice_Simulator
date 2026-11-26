@@ -11,6 +11,8 @@ const DATA_ROOT:="App Data"
 const RECORD:="install.json"
 const ARCHIVE:="Application.campusapp"
 const NATIVE_IMAGE:="Application.exe"
+const NATIVE_BUNDLE:="Application.campuswin"
+const MAX_NATIVE_BUNDLE:=33*1024*1024
 const OPERATIONS:=["install_app","uninstall_app","save_app_state"]
 const MAX_APPS:=24
 const MAX_STATE_BYTES:=4096
@@ -45,12 +47,14 @@ static func _read_record(drive: RefCounted,path: String) -> Variant:
 		if not value.get(field) is String or str(value[field]).is_empty() or str(value[field]).length()>80:return null
 	if str(value.sha256).length()!=64 or not str(value.sha256).is_valid_hex_number():return null
 	var native: bool=value.get("runtime","web")=="windows"
-	var archive:=path.get_base_dir()+"/"+(NATIVE_IMAGE if native else ARCHIVE)
+	var entry: String=value.get("entry","") if value.get("entry") is String else ""
+	var archive:=path.get_base_dir()+"/"+(NATIVE_BUNDLE if not entry.is_empty() and native else NATIVE_IMAGE if native else ARCHIVE)
 	if drive.entries.get(archive,{}).get("type")!="file":return null
 	var stored: Variant=drive.entries.get(state_path(str(value.id)),{}).get("data")
 	var state: String=stored.get_string_from_utf8() if stored is PackedByteArray and stored.size()<=MAX_STATE_BYTES else "{}"
 	return {"id":value.id,"name":value.name,"publisher":value.publisher,"version":value.version,
 		"sha256":value.sha256,"archive":archive,"bytes":drive.entries[archive].data.size(),"runtime":"windows" if native else "web",
+		"entry":entry,
 		"shortcut":value.get("shortcut",true)==true,"desktop_shortcut":value.get("desktop_shortcut",false)==true,
 		"state":state if valid_state(state) else "{}"}
 
@@ -89,10 +93,13 @@ static func apply(drive: RefCounted,action: Dictionary) -> String:
 	if digest!=action.get("sha256",""):return "The package changed. Reopen it to review the new contents."
 	var manifest: Dictionary
 	var installed_bytes: PackedByteArray=file.data
+	var entry:=""
 	if native:
-		var payload:=windows_image(format, file.data)
+		var payload:=windows_image(format,file.data,str(action.get("entry","")),format!="exe")
 		if payload.has("error"):return str(payload.error)
-		installed_bytes=payload.image
+		if format!="exe":
+			entry=payload.entry
+			installed_bytes=payload.bundle
 		manifest={"id":"windows."+digest.left(32),"name":path.get_file().get_basename().left(64),
 			"version":"1.0.0","publisher":"Windows "+format.to_upper()+" application"}
 	else:
@@ -118,13 +125,15 @@ static func apply(drive: RefCounted,action: Dictionary) -> String:
 	if not staging.entries.has(target) and not staging.make_folder(target):return "Could not create the installation folder."
 	var record:={"id":manifest.id,"name":manifest.name,"publisher":manifest.publisher,"version":manifest.version,
 		"sha256":sha256(installed_bytes) if native else digest,"runtime":"windows" if native else "web","shortcut":action.get("shortcut",true)==true,"desktop_shortcut":action.get("desktop_shortcut",false)==true}
-	if not staging.write_file(target+"/"+(NATIVE_IMAGE if native else ARCHIVE),installed_bytes) or not staging.write_file(target+"/"+RECORD,JSON.stringify(record).to_utf8_buffer()):
+	if not entry.is_empty():record.entry=entry
+	if not staging.write_file(target+"/"+(NATIVE_BUNDLE if not entry.is_empty() else NATIVE_IMAGE if native else ARCHIVE),installed_bytes) or not staging.write_file(target+"/"+RECORD,JSON.stringify(record).to_utf8_buffer()):
 		return "There is insufficient space to install this package."
+	if not entry.is_empty() and staging.entries.has(target+"/"+NATIVE_IMAGE):staging.remove(target+"/"+NATIVE_IMAGE)
 	drive.entries=staging.entries
 	return ""
 
-static func windows_image(format: String, bytes: PackedByteArray) -> Dictionary:
-	if format in ["msi","msix"]:return WindowsPackage.new().Read(format,bytes)
+static func windows_image(format: String,bytes: PackedByteArray,entry := "",pack := false) -> Dictionary:
+	if format in ["msi","msix"]:return WindowsPackage.new().Read(format,bytes,entry,pack)
 	if format=="exe" and _supported_windows(Inspector.new().Inspect(bytes)):return {"image":bytes}
 	return {"error":"This file does not contain a supported native Windows desktop application."}
 

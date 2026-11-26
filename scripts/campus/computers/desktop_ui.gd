@@ -2473,27 +2473,28 @@ func _show_file_preview(path: String, bytes: PackedByteArray) -> void:
 func _native_allowed() -> bool:
 	return is_instance_valid(game) and not game.session.online and snapshot.has("lease") and NativeClient.new().Available()
 
-func _confirm_windows_run(title: String, bytes: PackedByteArray, storage_key: String="", setup := false) -> void:
+func _confirm_windows_run(title: String, bytes: PackedByteArray, storage_key: String="", setup := false, entry := "") -> void:
 	if not _native_allowed():
 		_message("Windows app unavailable","The isolated Windows runtime requires a local Campus OS session.")
 		return
-	var info: Dictionary=preload("res://scripts/campus/computers/WindowsExecutableInspector.cs").new().Inspect(bytes)
-	if not Apps._supported_windows(info):
-		_message("Unsupported Windows app","Use a compatible standalone Windows desktop executable.")
-		return
+	if entry.is_empty():
+		var info: Dictionary=preload("res://scripts/campus/computers/WindowsExecutableInspector.cs").new().Inspect(bytes)
+		if not Apps._supported_windows(info):
+			_message("Unsupported Windows app","Use a compatible Windows desktop executable.")
+			return
 	var lease: Variant=snapshot.lease
-	var digest: String=info.sha256
 	var details: String=" On success, import standalone executables written to its working folder." if setup else ""
-	_confirm_action("Run "+title+" on this PC?\nThe app uses a private Windows desktop with limited file access."+details+"\nSHA-256 "+digest,func():
-		if lease==snapshot.get("lease") and is_visible_in_tree() and _native_allowed():_open_windows_runtime(title,bytes,storage_key,setup))
+	if not entry.is_empty():details+="\nLaunch file "+entry
+	_confirm_action("Run "+title+" on this PC?\nThe app uses a private Windows desktop with limited file access."+details+"\nSHA-256 "+Apps.sha256(bytes),func():
+		if lease==snapshot.get("lease") and is_visible_in_tree() and _native_allowed():_open_windows_runtime(title,bytes,storage_key,setup,not entry.is_empty()))
 
-func _open_windows_runtime(title: String, bytes: PackedByteArray, storage_key: String, setup: bool) -> void:
+func _open_windows_runtime(title: String, bytes: PackedByteArray, storage_key: String, setup: bool,bundle := false) -> void:
 	const key:="native:windows"
 	if windows.has(key):
 		_focus_window(key)
 		return
 	var surface:=NativeWindow.new()
-	if not surface.start(bytes,storage_key,setup):
+	if not surface.start(bytes,storage_key,setup,bundle):
 		surface.free()
 		_message("Windows app unavailable","An isolated runtime is already in use or unavailable.")
 		return
@@ -2528,12 +2529,32 @@ func _confirm_portable_install(path: String, bytes: PackedByteArray) -> void:
 	var digest:=Apps.sha256(bytes)
 	var record: Dictionary=snapshot.get("installed_apps",{}).get("windows."+digest.left(32),{})
 	var lease: Variant=snapshot.lease
-	var description: String="Install "+path.get_file()+" into Campus OS Program Files?"
-	if format!="exe":description+="\nCampus OS extracts the app without registering the package in Windows."
-	_confirm_action(description,func():
+	var install:=func(entry: String):
 		if lease==snapshot.get("lease") and _native_allowed():
 			_send({"op":"install_app","path":path,"sha256":digest,"folder":"win-"+digest.left(17),
-				"replace":not record.is_empty(),"shortcut":true,"desktop_shortcut":true}))
+				"entry":entry,"replace":not record.is_empty(),"shortcut":true,"desktop_shortcut":true})
+	var description: String="Install "+path.get_file()+" into Campus OS Program Files?"
+	if format=="exe":
+		_confirm_action(description,install.bind(""))
+		return
+	var dialog:=ConfirmationDialog.new()
+	dialog.title="Install Windows package"
+	dialog.ok_button_text="Install"
+	dialog.dialog_text="%s\n%d files will be installed together. Windows setup actions and registration are skipped."%[description,package.file_count]
+	var choices:=OptionButton.new()
+	choices.custom_minimum_size.x=320
+	choices.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+	choices.tooltip_text="Choose which program Campus OS should open from the shortcut."
+	var selected:=0
+	for item: String in package.entries:
+		choices.add_item(item)
+		if item==record.get("entry",""):selected=choices.item_count-1
+	choices.select(selected)
+	dialog.add_child(choices)
+	add_child(dialog)
+	dialog.confirmed.connect(func():install.call(choices.get_item_text(choices.selected));dialog.queue_free())
+	dialog.canceled.connect(dialog.queue_free)
+	dialog.popup_centered()
 
 func _install_app(path: String, bytes: PackedByteArray) -> void:
 	var info:=Apps.Packages.inspect(bytes)
@@ -2655,7 +2676,7 @@ func _native_storage_key(app: Dictionary) -> String:
 
 func _open_installed_app(app: Dictionary,bytes: PackedByteArray) -> void:
 	if app.get("runtime")=="windows":
-		_confirm_windows_run(str(app.name),bytes,_native_storage_key(app))
+		_confirm_windows_run(str(app.name),bytes,_native_storage_key(app),false,str(app.get("entry","")))
 		return
 	var project:=Apps.Packages.open_package(bytes)
 	if project.has("error"):

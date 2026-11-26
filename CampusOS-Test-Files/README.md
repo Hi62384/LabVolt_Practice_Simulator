@@ -4,7 +4,7 @@ This folder covers all 145 file extensions in the Campus OS import registry. Use
 
 | Folder | What to check |
 | --- | --- |
-| `applications` | Run or install **Campus Click Test.exe**. Open **Campus Click Setup.exe**, choose **Run setup**, click its installer window, then import **Installed Click.exe**. Open either **Campus Click Package.msi** or **Campus Click Package.msix** and select **Install into Campus OS**. **Campus Hardware Game.exe** uses hardware Direct3D 11. Click the live game or press Space or F9 to update its counter. **sample.campusapp** uses the Campus OS web runtime. |
+| `applications` | Run or install **Campus Click Test.exe**. Open **Campus Click Setup.exe**, choose **Run setup**, click its installer window, then import **Installed Click.exe**. Both **Campus Click Package.msi** and **Campus Click Package.msix** install an app that needs a sibling DLL and a file in an assets folder. **Campus Hardware Game.exe** uses hardware Direct3D 11. Click a live game or press Space or F9 to update its counter. **sample.campusapp** uses the Campus OS web runtime. |
 | `source` | Text and Code Editor syntax. Import `sample.html`, `sample.css` and `sample.js` together for the web preview. Code execution requires a matching runtime. |
 | `images`, `audio`, `video` | Import, preview and playback where the renderer supports the format. |
 | `models` | GLB, glTF, OBJ and STL open in 3D Viewer. PLY, FBX, DAE, 3MF and Blender files are storage samples. |

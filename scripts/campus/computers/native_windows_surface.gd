@@ -10,9 +10,10 @@ var native_texture: ImageTexture
 var last_motion:=0
 var render_size:=Vector2.ZERO
 
-func start(bytes: PackedByteArray, storage_key: String="", setup := false) -> bool:
+func start(bytes: PackedByteArray, storage_key: String="", setup := false, bundle := false) -> bool:
 	client=Client.new()
-	if not client.Start(bytes,storage_key,setup):return false
+	var started: bool=client.StartBundle(bytes,storage_key) if bundle else client.Start(bytes,storage_key,setup)
+	if not started:return false
 	caption=Label.new()
 	caption.text="Starting isolated Windows app…"
 	add_child(caption)

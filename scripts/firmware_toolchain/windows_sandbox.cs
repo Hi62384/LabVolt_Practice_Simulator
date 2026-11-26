@@ -146,11 +146,11 @@ public sealed class WindowsSandbox : IDisposable {
     public int Run(string executable,string[] args,string directory,string log,string cancel,int timeoutMs) {
         return RunCore(executable,args,directory,log,cancel,timeoutMs,null);
     }
-    public int RunDesktop(string executable,string directory,string log,int timeoutMs,Action<uint,IntPtr> activity) {
+    public int RunDesktop(string executable,string directory,string log,int timeoutMs,Action<uint,IntPtr> activity,string launchDirectory=null) {
         if(!desktopApplication||!lessPrivileged||activity==null)throw new InvalidOperationException("An isolated desktop requires LPAC.");
-        return RunCore(executable,new string[0],directory,log,null,timeoutMs,activity);
+        return RunCore(executable,new string[0],directory,log,null,timeoutMs,activity,launchDirectory);
     }
-    int RunCore(string executable,string[] args,string directory,string log,string cancel,int timeoutMs,Action<uint,IntPtr> activity) {
+    int RunCore(string executable,string[] args,string directory,string log,string cancel,int timeoutMs,Action<uint,IntPtr> activity,string launchDirectory=null) {
         int wallLimit=desktopApplication?10*60*1000:90000;
         if(lifetime.ElapsedMilliseconds>wallLimit)throw new TimeoutException("Aggregate process wall limit reached");
         IntPtr list=IntPtr.Zero,size=IntPtr.Zero,caps=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
@@ -212,7 +212,7 @@ public sealed class WindowsSandbox : IDisposable {
             string env=BuildChildEnvironment(executable,directory,windows);
             environment=Marshal.StringToHGlobalUni(env);
             const uint launchFlags=0x80000|0x4|0x400|0x08000000; // EXTENDED, SUSPENDED, UNICODE, NO_WINDOW
-            bool launched=CreateProcessW(executable,command,IntPtr.Zero,IntPtr.Zero,true,launchFlags,environment,directory,ref startup,out process);
+            bool launched=CreateProcessW(executable,command,IntPtr.Zero,IntPtr.Zero,true,launchFlags,environment,launchDirectory??directory,ref startup,out process);
             int launchError=launched?0:Marshal.GetLastWin32Error(); // Capture before any further native call.
             if(!launched)throw new Win32Exception(launchError,"Create isolated compiler failed (Win32 "+launchError+"; "+new Win32Exception(launchError).Message+"; flags=0x"+launchFlags.ToString("X8")+"; explicit UTF-16 environment; explicit job working directory)");
             created=true;

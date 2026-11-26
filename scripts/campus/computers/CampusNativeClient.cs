@@ -31,8 +31,15 @@ public partial class CampusNativeClient : RefCounted
         System.OperatingSystem.IsWindows() && System.Environment.Is64BitProcess && File.Exists(BrokerPath());
 
     public bool Start(byte[] data, string storageKey, bool setup)
+        => StartMode(data, storageKey, setup ? (byte)1 : (byte)0);
+
+    public bool StartBundle(byte[] data, string storageKey)
+        => StartMode(data, storageKey, 2);
+
+    private bool StartMode(byte[] data, string storageKey, byte mode)
     {
-        if (!IsStorageKey(storageKey) || (setup && storageKey.Length != 0) || !Available() || data.Length < 64 || data.Length > MaxInput ||
+        if (!IsStorageKey(storageKey) || (mode == 1 && storageKey.Length != 0) || !Available() || data.Length < 64 ||
+            data.Length > (mode == 2 ? CampusWindowsBundle.WireLimit : MaxInput) ||
             Interlocked.CompareExchange(ref active, 1, 0) != 0) return false;
         var trusted = BrokerPath();
         lock (sync)
@@ -43,11 +50,11 @@ public partial class CampusNativeClient : RefCounted
             frame = Array.Empty<byte>();
             outputs = new Godot.Collections.Dictionary();
         }
-        _ = Task.Run(() => Run(trusted, data, storageKey, setup));
+        _ = Task.Run(() => Run(trusted, data, storageKey, mode));
         return true;
     }
 
-    private void Run(string trusted, byte[] data, string storageKey, bool setup)
+    private void Run(string trusted, byte[] data, string storageKey, byte mode)
     {
         Process? process = null;
         try
@@ -68,7 +75,7 @@ public partial class CampusNativeClient : RefCounted
             var writer = new BinaryWriter(process.StandardInput.BaseStream);
             writer.Write(0x4C564E31);
             writer.Write(data.Length);
-            writer.Write((byte)(setup ? 1 : 0));
+            writer.Write(mode);
             writer.Write((byte)storageKey.Length);
             writer.Write(Encoding.ASCII.GetBytes(storageKey));
             writer.Write(data);
@@ -85,7 +92,7 @@ public partial class CampusNativeClient : RefCounted
                 byte kind = reader.ReadByte();
                 int size = reader.ReadInt32();
                 if (kind < 1 || kind > 4 || size < 1 || size > (kind == 2 ? MaxFrame : kind == 4 ? MaxInput + 26 : 1024)) break;
-                if (kind == 4 && (!setup || outputsCount >= 8 || outputsBytes + size > MaxInput + 208)) break;
+                if (kind == 4 && (mode != 1 || outputsCount >= 8 || outputsBytes + size > MaxInput + 208)) break;
                 var bytes = reader.ReadBytes(size);
                 if (bytes.Length != size) break;
                 lock (sync)

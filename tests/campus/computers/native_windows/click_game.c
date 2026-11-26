@@ -3,6 +3,21 @@
 #include <windows.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+
+#ifdef CAMPUS_BUNDLE_TEST
+__declspec(dllimport) int campus_fixture_version(void);
+
+static int has_bundle_assets(void)
+{
+    FILE *file = NULL;
+    char setting[24] = {0};
+    if (fopen_s(&file, "assets/settings.txt", "rb") != 0 || file == NULL) return 0;
+    fread(setting, 1, sizeof(setting) - 1, file);
+    fclose(file);
+    return campus_fixture_version() == 7 && strcmp(setting, "color-board-v1") == 0;
+}
+#endif
 
 static int score = 0;
 static LRESULT CALLBACK board(HWND window, UINT message, WPARAM key, LPARAM point)
@@ -38,6 +53,9 @@ static LRESULT CALLBACK board(HWND window, UINT message, WPARAM key, LPARAM poin
 int WINAPI wWinMain(HINSTANCE app, HINSTANCE prior, PWSTR cmd, int show)
 {
     (void)prior; (void)cmd; (void)show;
+#ifdef CAMPUS_BUNDLE_TEST
+    if (!has_bundle_assets()) return 7;
+#endif
     WNDCLASSW schema = {0};
     schema.lpfnWndProc = board;
     schema.hInstance = app;

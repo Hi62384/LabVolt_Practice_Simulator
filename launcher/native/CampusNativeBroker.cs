@@ -39,15 +39,18 @@ internal sealed class CampusNativeBroker
             var reader = new BinaryReader(Console.OpenStandardInput());
             if (reader.ReadInt32() != 0x4C564E31) return 2;
             int length = reader.ReadInt32();
-            if (length < 64 || length > MaxProgram) return 2;
             int mode = reader.ReadByte();
-            if (mode > 1) return 2;
+            if (mode > 2 || length < 64 || length > (mode == 2 ? CampusWindowsBundle.WireLimit : MaxProgram)) return 2;
             int keyLength = reader.ReadByte();
             if ((keyLength != 0 && keyLength != 64) || (mode == 1 && keyLength != 0)) return 2;
             var key = System.Text.Encoding.ASCII.GetString(reader.ReadBytes(keyLength));
             if (key.Length != keyLength || key.Any(c => !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f'))) return 2;
             var program = reader.ReadBytes(length);
-            if (program.Length != length || program[0] != 'M' || program[1] != 'Z') return 2;
+            if (program.Length != length) return 2;
+            string entry = "CampusApplication.exe";
+            CampusWindowsBundle.Layout bundle = null;
+            if (mode == 2) bundle = CampusWindowsBundle.Unpack(program, out entry);
+            else if (program[0] != 'M' || program[1] != 'Z') return 2;
             var jobRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "LabVolt-Campus-Processes");
             Directory.CreateDirectory(jobRoot);
             if ((File.GetAttributes(jobRoot) & FileAttributes.ReparsePoint) != 0) return 2;
@@ -63,8 +66,16 @@ internal sealed class CampusNativeBroker
             Directory.CreateDirectory(bin);
             EnsureDirectory(work);
             WindowsSandbox.CheckTree(work);
-            var image = Path.Combine(bin, "CampusApplication.exe");
-            File.WriteAllBytes(image, program);
+            var image = Path.Combine(bin, entry.Replace('/', Path.DirectorySeparatorChar));
+            if (bundle == null) File.WriteAllBytes(image, program);
+            else
+                foreach (var file in bundle.Files)
+                {
+                    var target = Path.Combine(bin, file.Key.Replace('/', Path.DirectorySeparatorChar));
+                    Directory.CreateDirectory(Path.GetDirectoryName(target));
+                    using (var output = new FileStream(target, FileMode.CreateNew, FileAccess.Write))
+                        output.Write(file.Value, 0, file.Value.Length);
+                }
             var stop = new Thread(delegate() { Receive(reader); }) { IsBackground = true };
             stop.Start();
             var clock = Stopwatch.StartNew();
@@ -89,7 +100,7 @@ internal sealed class CampusNativeBroker
                     }
                     ForwardInput(window, pid);
                     Capture(window, pid);
-                });
+                }, mode == 2 ? Path.GetDirectoryName(image) : null);
                 int count = mode == 1 && exit == 0 && !closing ? CollectExecutables(work) : 0;
                 Send(3, count > 0 ? "Setup finished. Import its executable outputs below."
                     : "Windows app closed (" + unchecked((uint)exit).ToString("X8") + ").");
