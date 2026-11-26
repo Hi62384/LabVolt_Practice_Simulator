@@ -436,6 +436,10 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 				for kit_id in a.profile.get("kits",{}):
 					if not incoming.kits.has(kit_id):return failure("Delete kits at the Components Counter")
 					if incoming.kits.has(kit_id) and incoming.kits[kit_id] is Dictionary and not Profile.same(incoming.kits[kit_id].get("items",{}),a.profile.kits[kit_id].get("items",{})):return failure("Edit kit components at the Components Counter")
+				for kit_id in incoming.kits:
+					var candidate: Variant=incoming.kits[kit_id]
+					if candidate is Dictionary and not Profile.same(candidate.get("configuration",{}),a.profile.get("kits",{}).get(kit_id,{}).get("configuration",{})):
+						return failure("Kit specifications must come from a confirmed purchase")
 			for key in ["kits","equipped","circuit_draft","notebook","notebook_pages","notebook_page","blueprints","programs","favorites","ic_library","inventions"]:
 				if incoming.has(key):p.data[key]=incoming[key].duplicate(true) if incoming[key] is Dictionary or incoming[key] is Array else incoming[key]
 			# Validate untrusted field types before dereferencing the blueprint library.

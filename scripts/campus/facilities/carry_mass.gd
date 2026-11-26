@@ -5,6 +5,13 @@ const SUPPLIES := {"notebook":.30,"calculator":.18,"calculator_basic":.14,"calcu
 const BAGS := {"backpack_small":.55,"backpack_medium":.80,"backpack_large":1.10,"backpack_giant":1.50}
 const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 
+static func supply_mass(dorm: Dictionary,key: String) -> float:
+	if key.begins_with("power_bank:"):
+		var options: Dictionary=dorm.get("power_banks",{}).get(key,{}).get("configuration",{})
+		var battery: float=Equipment.value(Equipment.POWER_BANK,options,"hardware","capacity",10.0)
+		return .09+battery*.012
+	return float(SUPPLIES.get(key.get_slice(":",0),.10))
+
 static func component_mass(type: String) -> float:
 	if type.begins_with("battery"):return .05
 	if type.begins_with("wire") or type.begins_with("jumper"):return .003
@@ -48,7 +55,7 @@ static func bag_mass(profile: Dictionary,id: String,seen: Dictionary) -> float:
 		match str(item.get("kind","")):
 			"bag":total+=bag_mass(profile,str(item.get("id","")),seen)
 			"kit":total+=kit_mass(profile,str(item.get("id","")),seen)
-			"supply":total+=float(SUPPLIES.get(str(item.get("id","")).get_slice(":",0),.10))
+			"supply":total+=supply_mass(profile.get("dorm",{}),str(item.get("id","")))
 			"component":total+=component_mass(str(item.get("type","")))
 	return total
 
@@ -61,7 +68,7 @@ static func profile_mass(profile: Dictionary, worn_comfort := false) -> float:
 		elif key.begins_with("kit:"):total+=kit_mass(profile,key.trim_prefix("kit:"),seen)
 		elif not seen.has("supply/"+key):
 			seen["supply/"+key]=true
-			total+=float(SUPPLIES.get(key.get_slice(":",0),.10))
+			total+=supply_mass(dorm,key)
 	for item in dorm.get("carried_components",[]):
 		if item is Dictionary:total+=component_mass(str(item.get("type","")))
 	for supply in dorm.get("worn_supplies",{}).values():

@@ -618,6 +618,7 @@ func apply(peer: int,a: Dictionary) -> void:
 	if op in ["board_mark","board_path","board_edit"]:
 		_mark_whiteboard(peer,a)
 		return
+	if DormSupplies.PowerBanks.valid_key(op):return
 	if DormSupplies.is_supply(op) or op.begins_with("bag:"):
 		const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 		var dorm = game.get("dorm_interactions")

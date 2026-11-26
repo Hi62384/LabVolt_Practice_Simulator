@@ -2,6 +2,7 @@ extends Node3D
 
 const Room := "charging_room"
 const Configuration = preload("res://scripts/campus/items/equipment_configuration.gd")
+const BankInventory = preload("res://scripts/campus/items/power_bank_inventory.gd")
 const PHONE_RUNTIME := {"basic":1200.0,"standard":1950.0,"premium":2900.0}
 const LAPTOP_RUNTIME := {"basic":900.0,"standard":1500.0,"premium":2300.0}
 const RECHARGE_TIME := {"basic":120.0,"standard":82.0,"premium":55.0}
@@ -12,9 +13,13 @@ var devices := {}
 var own_charge := {}
 var own_connected := {}
 var last_phone_note := {}
+var bank_modes := {}
+var banks := preload("res://scripts/campus/items/power_bank_charging.gd").new()
 
 func build(owner: Node) -> void:
 	game=owner
+	banks.game=game
+	banks.charging=self
 	var decor:=Node3D.new()
 	decor.name="ChargingStations"
 	game.campus.room_roots[Room].add_child(decor)
@@ -57,6 +62,40 @@ func _clear() -> void:
 	own_charge.clear()
 	own_connected.clear()
 	last_phone_note.clear()
+	banks.clear()
+	bank_modes.clear()
+
+func bank_percent(key: String) -> int:
+	return int(banks.meter[key]) if banks.meter.has(key) else banks.percent(key)
+
+func bank_label(key: String) -> String:
+	var mode: String=bank_modes.get(key,"")
+	return "Power bank %d%%"%bank_percent(key)+(" · "+mode if not mode.is_empty() else "")
+
+func toggle_bank(key: String) -> void:
+	if multiplayer.is_server():banks.toggle(multiplayer.get_unique_id(),key)
+	else:_power_bank_request.rpc_id(1,key)
+
+@rpc("any_peer","call_remote","reliable")
+func _power_bank_request(key: String) -> void:
+	if multiplayer.is_server():banks.toggle(multiplayer.get_remote_sender_id(),key)
+
+func disconnect_placement(peer: int,key: String) -> void:
+	if BankInventory.valid_key(key):banks.disconnect_bank(peer,key)
+	elif key.begins_with("phone:") or key.begins_with("laptop:"):banks.disconnect_target(key)
+
+func publish_bank(key: String,level: int,mode: String) -> void:
+	_receive_bank(key,level,mode)
+	if game.session.online:_power_bank_state.rpc(key,level,mode)
+
+@rpc("authority","call_remote","reliable")
+func _power_bank_state(key: String,level: int,mode: String) -> void:
+	if multiplayer.get_remote_sender_id()==1:_receive_bank(key,level,mode)
+
+func _receive_bank(key: String,level: int,mode: String) -> void:
+	banks.meter[key]=level
+	bank_modes[key]=mode
+	game.personal_placement.update_bank_charge(key,level)
 
 func percent(kind: String,id: String) -> int:
 	return int(own_charge.get(kind+":"+id,100))
@@ -103,6 +142,11 @@ func _toggle(peer: int,slot: int) -> void:
 	if slot<0 or slot>=sockets.size() or not game.session.roster.has(peer):return
 	var at: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
 	if at.distance_to(sockets[slot])>2.8:return
+	var bank_key:=banks.connection_on_socket(slot)
+	if not bank_key.is_empty():
+		if banks.connections[bank_key].peer==peer:banks.disconnect_bank(peer,bank_key)
+		else:game.discarded_items._notice(peer,"This charger is in use.")
+		return
 	for key in devices:
 		var connected: Dictionary=devices[key]
 		if connected.socket!=slot:continue
@@ -117,21 +161,30 @@ func _toggle(peer: int,slot: int) -> void:
 	for item in game.portable_laptops.placed.values():
 		var distance: float=item.position.distance_to(sockets[slot])
 		if item.peer!=peer or not _on_bay(item.position,slot) or distance>=best_distance:continue
+		if banks.target_connected("laptop:"+item.station):continue
 		best_distance=distance
 		chosen={"kind":"laptop","id":item.station,"tier":item.tier}
 	var identity: String=game.dorm_interactions.authenticated_identity(peer)
 	var dorm: Dictionary=game.dorm_interactions._profile(identity).get("dorm",{})
 	for item in game.personal_placement.placed.values():
-		if item.peer!=peer or not str(item.key).begins_with("phone:") or not _on_bay(item.position,slot):continue
+		if item.peer!=peer or not _on_bay(item.position,slot):continue
 		var distance: float=item.position.distance_to(sockets[slot])
 		if distance>=best_distance:continue
+		if BankInventory.valid_key(item.key):
+			best_distance=distance
+			chosen={"kind":"power_bank","id":item.key}
+			continue
+		if not str(item.key).begins_with("phone:") or banks.target_connected(item.key):continue
 		var id:=str(item.key).trim_prefix("phone:")
 		var tier:=str(dorm.get("smartphones",{}).get(id,{}).get("tier",""))
 		if not PHONE_RUNTIME.has(tier):continue
 		best_distance=distance
 		chosen={"kind":"phone","id":id,"tier":tier}
 	if chosen.is_empty():
-		game.discarded_items._notice(peer,"Place your phone or laptop on this charging bench first.")
+		game.discarded_items._notice(peer,"Place your phone, laptop or power bank on this charging bench first.")
+		return
+	if chosen.kind=="power_bank":
+		banks.on_socket(peer,chosen.id,slot)
 		return
 	var record:=_device(peer,chosen.kind,chosen.id,chosen.tier) if chosen.kind=="laptop" else _phone_device(peer,chosen.id,dorm.smartphones[chosen.id])
 	record.socket=slot
@@ -179,12 +232,14 @@ func _tick() -> void:
 			record.charge=maxf(0.0,float(record.charge)-1.0/float(record.get("runtime_seconds",times.get(record.tier,900.0))))
 		if record.charge<=0.0 and active and laptop:game.computers._power_off(record.id)
 		if record.reported!=roundi(record.charge*100.0) or was_connected!=(record.socket>=0):_report(key,record)
+	banks.tick()
 
 func _report(key: String,record: Dictionary) -> void:
 	var level:=roundi(float(record.charge)*100.0)
 	record.reported=level
-	if record.peer==multiplayer.get_unique_id():_receive(key,level,record.socket>=0)
-	elif game.session.online and game.session.peer_connected_now(record.peer):_charge_state.rpc_id(record.peer,key,level,record.socket>=0)
+	var connected: bool=record.socket>=0 or banks.target_connected(key)
+	if record.peer==multiplayer.get_unique_id():_receive(key,level,connected)
+	elif game.session.online and game.session.peer_connected_now(record.peer):_charge_state.rpc_id(record.peer,key,level,connected)
 
 @rpc("authority","call_remote","reliable")
 func _charge_state(key: String,level: int,connected: bool) -> void:

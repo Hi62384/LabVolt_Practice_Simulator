@@ -63,6 +63,8 @@ static func populate(parent: Node, profile: Variant, refresh: Callable, status: 
 		entries.append({"kind":Config.BACKPACK,"name":"Backpack","price":Dorm.Backpacks.SIZES.backpack_small.price,"rarity":"Common","summary":"Configurable","description":"Choose storage capacity, reserved component pockets, straps and fabric."})
 	if Config.CALCULATOR in product_kinds:
 		entries.append({"kind":Config.CALCULATOR,"name":"Calculator","price":Dorm.TOOL_PRICES.calculator_basic,"rarity":"Common","summary":"Configurable","description":"Choose basic, scientific or financial functions, then arrange your keypad."})
+	if Config.POWER_BANK in product_kinds:
+		entries.append({"kind":Config.POWER_BANK,"name":"Power bank","price":Dorm.PowerBanks.PRICE,"rarity":"Common","summary":"Configurable","description":"Charge it at a campus charging bench, then place it near a phone or USB-C PD laptop to provide power."})
 	if not product_kinds.is_empty():entries=entries.filter(func(product):return str(product.get("kind","")) in product_kinds)
 	for product in entries:
 		var summary: String = product.get("summary", "")

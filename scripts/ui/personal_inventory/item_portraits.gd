@@ -91,6 +91,8 @@ func _draw(kind: String, color_index: int, type: String) -> String:
 			return '<path d="M25 24h78v48H25z" fill="#738d98"/><path d="M30 29h68v37H30z" fill="#1c3d4c"/><path d="M21 72h86l8 8H13z" fill="#a5b8bb"/>'
 		"ac_usb":
 			return '<path d="M22 53C8 19 96 17 101 48S29 78 28 54s72-27 73 5" fill="none" stroke="#859ba2" stroke-width="6"/><path d="M20 49h12v10H20zm77 7h12v10H97z" fill="#dce3de"/>'
+		"power_bank":
+			return '<g transform="rotate(-16 64 48)"><rect x="33" y="25" width="65" height="52" rx="9" fill="#283d4a"/><rect x="33" y="20" width="65" height="49" rx="9" fill="#69838c"/><path d="M47 30h35" stroke="#9ebec2" stroke-width="3"/><path d="M52 54h26" stroke="#88f7ca" stroke-width="5" stroke-dasharray="4 3"/><path d="M61 72h10" stroke="#101a22" stroke-width="4" stroke-linecap="round"/></g>'
 		"paper", "notebook":
 			var art := '<g transform="rotate(-13 64 48)"><rect x="36" y="14" width="56" height="73" rx="4" fill="#142230" opacity=".65"/>'
 			if kind=="notebook":

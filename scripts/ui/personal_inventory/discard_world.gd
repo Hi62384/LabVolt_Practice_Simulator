@@ -557,6 +557,7 @@ func _public_drops() -> Dictionary:
 		if public[id].visual=="laptop":
 			var configuration: Dictionary=drop.get("parcel",{}).get("laptop",{}).get("configuration",{})
 			if not configuration.is_empty():public[id].configuration=configuration
+		if public[id].visual=="power_bank":public[id].bank=_power_bank(drop)
 		if public[id].visual=="pcb":
 			if not drop.has("pcb_preview"):drop.pcb_preview=PcbPreview.describe(drop.get("parcel",{}).get("pcb",{}))
 			if not drop.pcb_preview.is_empty():public[id].pcb_preview=drop.pcb_preview
@@ -577,6 +578,10 @@ func _calculator_configuration(drop: Dictionary) -> Dictionary:
 func _kit_configuration(drop: Dictionary) -> Dictionary:
 	var parcel: Dictionary=drop.get("parcel",{})
 	return drop.get("configuration",parcel.get("kits",{}).get(parcel.get("item",{}).get("id",""),{}).get("configuration",{}))
+
+func _power_bank(drop: Dictionary) -> Dictionary:
+	var parcel: Dictionary=drop.get("parcel",{})
+	return drop.get("bank",parcel.get("power_banks",{}).get(parcel.get("item",{}).get("id",""),{}))
 
 @rpc("authority","call_remote","reliable")
 func sync_drops(public: Dictionary,server_ticks: int) -> void:
@@ -670,6 +675,7 @@ func _visual_kind(drop: Dictionary) -> String:
 	match str(item.get("kind","")):
 		"supply":
 			if Transfer.Dorm.is_notebook(id):return "notebook"
+			if Transfer.Dorm.PowerBanks.valid_key(id):return "power_bank"
 			return Transfer.Dorm.Keypad.model_for(id) if Transfer.Dorm.is_calculator(id) else id
 		"kit":return "kit_"+str(parcel.get("tiers",{}).get(id,"standard"))
 		"bag":return "bag_"+str(parcel.get("bags",{}).get(id,{}).get("size","backpack_small"))
@@ -743,6 +749,11 @@ func _add_item_visual(root: Node3D,kind: String,drop: Dictionary) -> void:
 		kit.collision_layer=0
 	elif kind=="notebook":
 		preload("res://scripts/campus/items/notebook_model.gd").build(prop,_notebook_configuration(drop))
+	elif kind=="power_bank":
+		var bank:=_power_bank(drop)
+		if Transfer.Dorm.PowerBanks.valid(bank):
+			var capacity: float=Transfer.Dorm.PowerBanks.capacity(bank.configuration)
+			preload("res://scripts/campus/items/power_bank_model.gd").build(prop,bank.configuration,roundi(100.0*float(bank.charge_wh)/capacity))
 	elif kind=="paper":
 		game._box(prop,Vector3(0,.012,0),Vector3(.23,.008,.31),Color("eee8d7"))
 		for row in 5:

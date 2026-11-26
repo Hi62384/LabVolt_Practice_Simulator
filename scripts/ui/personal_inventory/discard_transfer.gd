@@ -46,7 +46,7 @@ static func take(profile: Dictionary, source: Dictionary, deployment: Dictionary
 		if int(counts.get(supply,0))<int(parcel.supplies[supply]):return Dorm.fail("This supply is unavailable.")
 		counts[supply]-=parcel.supplies[supply]
 		if counts[supply]==0:counts.erase(supply)
-		for option_group in ["notebook_options","calculator_options"]:
+		for option_group in ["notebook_options","calculator_options","power_banks"]:
 			if not d.get(option_group,{}).has(supply):continue
 			parcel.get_or_add(option_group,{})[supply]=d[option_group][supply]
 			d[option_group].erase(supply)
@@ -167,7 +167,7 @@ static func give(profile: Dictionary, parcel: Dictionary, hotbar_limit: int) -> 
 	d.instances.append_array(parcel.carried_instances)
 	var counts := Dorm.supply_counts(d)
 	for supply in parcel.supplies:counts[supply]=int(counts.get(supply,0))+int(parcel.supplies[supply])
-	for key in ["notebook_options","calculator_options"]:
+	for key in ["notebook_options","calculator_options","power_banks"]:
 		if not parcel.has(key):continue
 		if not parcel[key] is Dictionary:return Dorm.fail("Invalid supply settings.")
 		d.get_or_add(key,{}).merge(parcel[key].duplicate(true))

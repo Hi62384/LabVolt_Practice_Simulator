@@ -9,11 +9,23 @@ const NOTEBOOK := "notebook"
 const BACKPACK := "backpack"
 const CALCULATOR := "calculator"
 const KIT := "kit"
+const POWER_BANK := "power_bank"
 const Keypad = preload("res://scripts/campus/items/calculator_layout.gd")
 const CASE_OPTIONS := {"label":"Case","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,18,18,18]}
 const TRIM_OPTIONS := {"label":"Trim","labels":["Silver","Copper","Black"],"values":["b7c2ca","b6764b","222831"],"prices":[0,12,12]}
 const FINISH_OPTIONS := {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,35]}
 const DEFINITIONS := {
+	POWER_BANK: {
+		"hardware": {
+			"capacity":{"label":"Battery capacity","labels":["10 Wh","20 Wh","32 Wh"],"values":[10.0,20.0,32.0],"prices":[0,28,59]},
+			"input":{"label":"Wall input","labels":["10 W","20 W","45 W"],"values":[10.0,20.0,45.0],"prices":[0,12,28]},
+			"output":{"label":"Total output","labels":["12 W","30 W","65 W"],"values":[12.0,30.0,65.0],"prices":[0,20,43]},
+			"connector":{"label":"Connectors","labels":["USB-C for phones","USB-C PD for phones and laptops"],"values":["usb_c","usb_pd"],"prices":[0,18]},
+			"ports":{"label":"Output ports","labels":["1 port","2 ports"],"values":[1,2],"prices":[0,15]},
+			"efficiency":{"label":"Transfer efficiency","labels":["78%","90%"],"values":[.78,.90],"prices":[0,14]},
+		},
+		"appearance": {"shell":CASE_OPTIONS,"trim":TRIM_OPTIONS,"finish":FINISH_OPTIONS}
+	},
 	KIT: {
 		"hardware": {
 			"size":{"label":"Component capacity","labels":["20 spaces","40 spaces","70 spaces","120 spaces"],"values":["compact","standard","extended","large"],"prices":[0,13,33,83]},

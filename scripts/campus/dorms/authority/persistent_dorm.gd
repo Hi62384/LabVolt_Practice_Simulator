@@ -7,6 +7,7 @@ const LaptopInventory=preload("res://scripts/campus/computers/laptop_inventory.g
 const PhoneInventory=preload("res://scripts/campus/phones/phone_inventory.gd")
 const Keypad=preload("res://scripts/campus/items/calculator_layout.gd")
 const Equipment=preload("res://scripts/campus/items/equipment_configuration.gd")
+const PowerBanks=preload("res://scripts/campus/items/power_bank_inventory.gd")
 const DEFAULTS=["bed","bedside","wardrobe","study_desk","study_chair","desk_laptop","storage_cabinet","shelf","rug","plant","bedside_lamp","desk_lamp"]
 const TOOLS = {"notebook":"Notebook","calculator":"Scientific calculator","pencil_case":"Pencil case","calculator_basic":"Basic calculator","calculator_financial":"Financial calculator","lab_goggles":"Lab goggles","flashlight":"Flashlight","whiteboard":"Whiteboard","marker":"Dry-erase marker"}
 const TOOL_PRICES = {"notebook":5,"calculator":24,"pencil_case":9,"calculator_basic":10,"calculator_financial":32,"lab_goggles":12,"flashlight":15,"whiteboard":28,"marker":4}
@@ -34,9 +35,10 @@ static func is_notebook(item: String) -> bool:
 	return item=="notebook" or not notebook_uid(item).is_empty()
 
 static func is_supply(item: String) -> bool:
-	return TOOLS.has(item) or is_notebook(item) or is_calculator(item)
+	return TOOLS.has(item) or is_notebook(item) or is_calculator(item) or PowerBanks.valid_key(item)
 
 static func supply_title(item: String) -> String:
+	if PowerBanks.valid_key(item):return "Power bank"
 	var uid := notebook_uid(item)
 	if not uid.is_empty():return "Notebook · "+uid.right(5)
 	var model := Keypad.model_for(item)
@@ -200,7 +202,7 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 		if held_id.length()!=32 or not held_id.is_valid_hex_number() or held_id!=held_id.to_lower() or str(custody.room).length()>64 or str(custody.teacher).length()>64:return false
 		if d.get("smartphones",{}).get(held_id,{}).get("location","")!="hotbar" or ("phone:"+held_id) not in carry:return false
 	if d.has("supply_counts"):
-		if not d.supply_counts is Dictionary or d.supply_counts.size()>TOOLS.size()+MAX_NOTEBOOK_COPIES+MAX_CALCULATOR_COPIES:return false
+		if not d.supply_counts is Dictionary or d.supply_counts.size()>TOOLS.size()+MAX_NOTEBOOK_COPIES+MAX_CALCULATOR_COPIES+PowerBanks.LIMIT:return false
 		var notebook_copies := 0
 		var calculator_copies := 0
 		for item in d.supply_counts:
@@ -219,6 +221,12 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 			if not tool is String or tool not in STARTER_TOOLS or tool_seen.has(tool):return false
 			tool_seen[tool]=true
 	var counts_by_supply := supply_counts(d)
+	var banks: Variant=d.get("power_banks",{})
+	if not banks is Dictionary or banks.size()>PowerBanks.LIMIT:return false
+	for key in counts_by_supply:
+		if PowerBanks.valid_key(key) and (int(counts_by_supply[key])!=1 or not banks.has(key)):return false
+	for key in banks:
+		if not key is String or not PowerBanks.valid_key(key) or not counts_by_supply.has(key) or not PowerBanks.valid(banks[key]):return false
 	var notebooks: Variant=d.get("notebook_options",{})
 	if not notebooks is Dictionary or notebooks.size()>MAX_NOTEBOOK_COPIES:return false
 	for notebook in notebooks:

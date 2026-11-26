@@ -92,6 +92,7 @@ func title(item: Dictionary) -> String:
 			return "%s · %d MB" % [drive.get("name","USB drive"),int(drive.get("capacity_mb",0))]
 
 		"notebook":return Dorm.supply_title(str(item.get("dorm_item","notebook")))
+		"power_bank":return "Power bank"
 		"calculator":return str(Dorm.TOOLS.get(item.get("type","calculator"),"Calculator"))
 		"pencil_case":return "Pencil case"
 		"lab_goggles":return "Lab goggles"
@@ -190,6 +191,8 @@ func _sync_dorm_items() -> void:
 			add_item({"kind":"notebook","dorm_item":key})
 		elif Dorm.is_calculator(key):
 			add_item({"kind":"calculator","type":Dorm.Keypad.model_for(key),"dorm_item":key})
+		elif Dorm.PowerBanks.valid_key(key):
+			add_item({"kind":"power_bank","dorm_item":key})
 		elif key.begins_with("bag:"):
 			add_item({"kind":"backpack","id":key.trim_prefix("bag:"),"dorm_item":key})
 		elif key.begins_with("usb:"):
@@ -763,6 +766,7 @@ func _unpack_item(entry: Dictionary) -> Dictionary:
 	if entry.kind=="supply":
 		if Dorm.is_notebook(entry.id):return {"kind":"notebook","dorm_item":entry.id}
 		if Dorm.is_calculator(entry.id):return {"kind":"calculator","type":Dorm.Keypad.model_for(entry.id),"dorm_item":entry.id}
+		if Dorm.PowerBanks.valid_key(entry.id):return {"kind":"power_bank","dorm_item":entry.id}
 		return {"kind":entry.id,"type":entry.id}
 	if entry.kind=="bag":return {"kind":"backpack","id":entry.id}
 	if entry.kind=="phone":return {"kind":"smartphone","id":entry.id}

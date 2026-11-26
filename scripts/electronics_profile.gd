@@ -348,6 +348,7 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	if purchase_hotbar_limit.is_valid():hotbar_limit = mini(hotbar_limit,purchase_hotbar_limit.call())
 	if authority_submit.is_valid():return queued("study_tool",[id,hotbar_limit,configuration])
 	operation_succeeded=false
+	var power_bank := id==EquipmentConfiguration.POWER_BANK
 	var configured_backpack := id==EquipmentConfiguration.BACKPACK
 	var configured_calculator: bool=id==EquipmentConfiguration.CALCULATOR and configuration is Dictionary and not configuration.is_empty()
 	var backpack_quote: Dictionary={}
@@ -357,7 +358,7 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 		configuration=backpack_quote.configuration
 		id=str(EquipmentConfiguration.value(id,configuration,"hardware","size",""))
 	var bag: Dictionary=Dorm.Backpacks.SIZES.get(id,{})
-	if (not Dorm.TOOL_PRICES.has(id) and bag.is_empty()) or not data.has("dorm"):return "Study supply unavailable"
+	if (not power_bank and not Dorm.TOOL_PRICES.has(id) and bag.is_empty()) or not data.has("dorm"):return "Study supply unavailable"
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var counts := Dorm.supply_counts(data.dorm)
 	if int(counts.get(id,0))>=100000:return "Supply quantity limit reached"
@@ -365,7 +366,13 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	if not bag.is_empty() and data.dorm.get("backpacks",{}).size()>=Dorm.Backpacks.MAX_BAGS:return "Backpack limit reached"
 	var price := int(Dorm.TOOL_PRICES.get(id,bag.get("price",0)))
 	if not configuration is Dictionary:return "Invalid study supply configuration"
-	if configured_backpack:
+	if power_bank:
+		if data.dorm.get("power_banks",{}).size()>=Dorm.PowerBanks.LIMIT:return "Power bank limit reached"
+		var quote:=EquipmentConfiguration.quote(id,Dorm.PowerBanks.PRICE,configuration)
+		if quote.is_empty():return "Invalid power bank configuration"
+		price=int(quote.price)
+		configuration=quote.configuration
+	elif configured_backpack:
 		price=int(backpack_quote.price)
 	elif configured_calculator:
 		var quote:=EquipmentConfiguration.quote(id,int(Dorm.TOOL_PRICES.calculator_basic),configuration)
@@ -386,6 +393,7 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	var item_id := id if bag.is_empty() else Crypto.new().generate_random_bytes(12).hex_encode()
 	if id=="notebook":item_id=Dorm.NOTEBOOK_PREFIX+Crypto.new().generate_random_bytes(16).hex_encode()
 	if configured_calculator:item_id=id+":"+Crypto.new().generate_random_bytes(16).hex_encode()
+	if power_bank:item_id=Dorm.PowerBanks.PREFIX+Crypto.new().generate_random_bytes(16).hex_encode()
 	var destination := Dorm.receive_purchase(data.dorm,"supply" if bag.is_empty() else "bag",item_id,hotbar_limit)
 	if destination.is_empty():return "No room in your hotbar, backpack, or dorm cabinet"
 	if bag.is_empty():
@@ -400,12 +408,13 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 		if not data.dorm.has("notebook_options"):data.dorm.notebook_options={}
 		data.dorm.notebook_options[item_id]=configuration
 	if configured_calculator:data.dorm.get_or_add("calculator_options",{})[item_id]=configuration
+	if power_bank:data.dorm.get_or_add("power_banks",{})[item_id]={"configuration":configuration,"charge_wh":Dorm.PowerBanks.capacity(configuration)*.60}
 	data.dorm.erase("owned_tools")
 	data.dorm.revision=int(data.dorm.revision)+1
 	data.dollars=debit.next_balance
 	if save()!=OK:data=before;return "Purchase could not be saved"
 	operation_succeeded=true
-	return "%s added to your %s" % [Dorm.TOOLS.get(id,bag.get("name","Supply")),destination]
+	return "%s added to your %s" % ["Power bank" if power_bank else Dorm.TOOLS.get(id,bag.get("name","Supply")),destination]
 
 func buy_usb(capacity_mb: int, hotbar_limit := 6, requested_id := "", configuration: Variant = {}) -> String:
 	if purchase_hotbar_limit.is_valid():hotbar_limit=mini(hotbar_limit,purchase_hotbar_limit.call())

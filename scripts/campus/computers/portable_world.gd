@@ -204,6 +204,7 @@ func pickup(id: String) -> bool:
 	if entry.open:return false
 	if not game.computers.unregister_portable(entry.station):
 		game.computers._error(entry.peer,"Remove the USB drive before picking up the laptop.");return false
+	game.device_charging.disconnect_placement(entry.peer,"laptop:"+entry.station)
 	entry.model.queue_free();placed.erase(id)
 	if int(entry.peer)==multiplayer.get_unique_id():game.hotbar._sync_dorm_items()
 	_publish()

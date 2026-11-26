@@ -348,12 +348,13 @@ func study_supplies() -> void:
 		if id not in ["lab_goggles","notebook"] and id not in dorm.CALCULATORS:_study_supply_card(grid,id)
 	body.add_child(KitUI.text("CONFIGURABLE EQUIPMENT","Title"))
 	var electronics:=preload("res://scripts/ui/store_bundles_equipment/module.gd")
-	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone","notebook","backpack","calculator"],_equipment_preview)
+	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone","notebook","backpack","calculator","power_bank"],_equipment_preview)
 
 func _equipment_preview(kind: String,parent: Node3D,options: Dictionary = {}) -> Node3D:
 	const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
 	if kind=="usb":return game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))
 	if kind=="notebook":return preload("res://scripts/campus/items/notebook_model.gd").build(parent)
+	if kind=="power_bank":return preload("res://scripts/campus/items/power_bank_model.gd").build(parent,options,60)
 	if kind=="calculator":
 		var dimensions: Vector3=Config.value(kind,options,"hardware","size",Vector3(.135,.026,.215))
 		var calculator: String=Config.value(kind,options,"hardware","model","calculator_basic")

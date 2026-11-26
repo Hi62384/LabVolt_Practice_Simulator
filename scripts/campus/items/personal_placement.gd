@@ -5,9 +5,12 @@ const Phones=preload("res://scripts/campus/phones/phone_tiers.gd")
 const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
 const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
 const EquipmentFinish=preload("res://scripts/campus/items/equipment_finish.gd")
+const PowerModel=preload("res://scripts/campus/items/power_bank_model.gd")
 var game: Node
 var placed: Dictionary={}
 var models: Dictionary={}
+var held_bank: Node3D
+var held_bank_key := ""
 
 func build(owner: Node) -> void:
 	game=owner
@@ -69,6 +72,7 @@ func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
 	elif key.begins_with("bag:"):visual="bag_"+str(dorm.get("backpacks",{}).get(key.trim_prefix("bag:"),{}).get("size","backpack_small"))
 	elif Dorm.is_notebook(key):visual="notebook"
 	elif Dorm.is_calculator(key):visual=Dorm.Keypad.model_for(key)
+	elif Dorm.PowerBanks.valid_key(key):visual="power_bank"
 	placed[key_for(peer,key)]={"key":key,"peer":peer,"position":resting,"yaw":yaw,"label":label,"visual":visual}
 	if key.begins_with("phone:"):
 		var appearance:=Configuration.phone_appearance(dorm.smartphones[key.trim_prefix("phone:")])
@@ -82,6 +86,10 @@ func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
 	elif key.begins_with("bag:"):
 		var configuration: Dictionary=dorm.backpacks[key.trim_prefix("bag:")].get("configuration",{})
 		if not configuration.is_empty():placed[key_for(peer,key)].configuration=configuration
+	elif Dorm.PowerBanks.valid_key(key):
+		var bank: Dictionary=dorm.power_banks[key]
+		placed[key_for(peer,key)].configuration=bank.configuration.duplicate(true)
+		placed[key_for(peer,key)].charge_percent=roundi(100.0*float(bank.charge_wh)/Dorm.PowerBanks.capacity(bank.configuration))
 	_sync_models()
 	_publish()
 
@@ -110,6 +118,9 @@ func interact(target: Object, use: bool) -> bool:
 	if use and str(entry.key).begins_with("phone:"):
 		game.smartphones.open_placed(str(entry.key).trim_prefix("phone:"))
 		return true
+	if use and Dorm.PowerBanks.valid_key(entry.key):
+		game.device_charging.toggle_bank(entry.key)
+		return true
 	if not game.hotbar.slots.has({}):
 		game.ui.log_message("Free a hotbar slot first.")
 		return true
@@ -122,6 +133,8 @@ func hint(target: Object,interact_key: String) -> String:
 	if entry.is_empty():return ""
 	if int(entry.peer)!=multiplayer.get_unique_id():return str(entry.label)
 	if str(entry.key).begins_with("phone:"):return "%s / Right-click: use phone  •  Left-click: pick up"%interact_key
+	if Dorm.PowerBanks.valid_key(entry.key):
+		return "%s · %s: connect or disconnect   •   Left-click: pick up"%[game.device_charging.bank_label(entry.key),interact_key]
 	return "%s / Click: pick up %s"%[interact_key,entry.label]
 
 @rpc("any_peer","call_remote","reliable")
@@ -131,6 +144,7 @@ func _pickup_request(id: String) -> void:
 func _pickup(peer: int,id: String) -> void:
 	var entry: Dictionary=placed.get(id,{})
 	if entry.get("peer",0)!=peer or _actor(peer).distance_to(entry.position)>3.0:return
+	game.device_charging.disconnect_placement(peer,entry.key)
 	placed.erase(id)
 	_sync_models()
 	_publish()
@@ -188,6 +202,11 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 		shape.size=Vector3(.16,.05,.08)
 		var usb: Node3D=game.computer_room_adapter._build_usb_visual(body,Vector3(-.04,.013,0))
 		EquipmentFinish.apply_finish(usb,Configuration.USB,entry.get("configuration",{}))
+	elif Dorm.PowerBanks.valid_key(key):
+		var options: Dictionary=entry.get("configuration",{})
+		shape.size=PowerModel.dimensions(options)
+		hit.position.y=shape.size.y*.5
+		body.set_meta("power_model",PowerModel.build(body,options,int(entry.get("charge_percent",0))))
 	else:
 		if Dorm.is_notebook(key):
 			shape.size=preload("res://scripts/campus/items/notebook_model.gd").dimensions(entry.get("configuration",{}))
@@ -200,6 +219,31 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 			hit.position.y=shape.size.y*.5
 		game.discarded_items._add_item_visual(body,str(entry.visual),entry)
 	return body
+
+func update_bank_charge(key: String, level: int) -> void:
+	for id in models:
+		if placed.get(id,{}).get("key","")!=key or not models[id].has_meta("power_model"):continue
+		placed[id].charge_percent=level
+		PowerModel.show_charge(models[id].get_meta("power_model"),level)
+
+func _process(_delta: float) -> void:
+	if not is_instance_valid(game) or not is_instance_valid(game.hotbar):return
+	var slot: int=game.hotbar.active
+	var key: String=game.hotbar.slots[slot].get("dorm_item","") if slot in range(game.hotbar.slots.size()) else ""
+	if not game.front.in_game or not Dorm.PowerBanks.valid_key(key):key=""
+	if held_bank_key!=key:
+		if is_instance_valid(held_bank):held_bank.queue_free()
+		held_bank=null
+		held_bank_key=key
+		if not key.is_empty():
+			var bank: Dictionary=game.electronics.profile.data.get("dorm",{}).get("power_banks",{}).get(key,{})
+			if not bank.is_empty():
+				held_bank=PowerModel.build(game.camera,bank.configuration,game.device_charging.bank_percent(key))
+				held_bank.position=Vector3(.26,-.23,-.49)
+				held_bank.rotation=Vector3(.62,-.33,-.12)
+	if is_instance_valid(held_bank):
+		held_bank.visible=game.player.enabled and not game.workout_hides_carried_items()
+		PowerModel.show_charge(held_bank,game.device_charging.bank_percent(key))
 
 func _prune() -> void:
 	if not multiplayer.is_server():return
