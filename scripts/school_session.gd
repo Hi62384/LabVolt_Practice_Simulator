@@ -1414,7 +1414,7 @@ func official_extra_assessments(course: String) -> Array[Dictionary]:
 
 func request_activity(config: Dictionary) -> Dictionary:
 	if not multiplayer.is_server():return {"ok":false,"error":"Only the host chooses the activity."}
-	if config.get("mode","Freeplay")=="Course" and not game.host_openai.verified_for_class():
+	if config.get("mode","Freeplay")=="Course" and not game.host_openai.ready_for_class():
 		return {"ok":false,"error":game.host_openai.class_connection_status()}
 	var request:=config.duplicate()
 	request["ai_teaching"]=request.get("mode")=="Course"
@@ -1527,6 +1527,12 @@ func start_activity(config: Dictionary) -> Dictionary:
 		activity.ai_teaching=true
 		activity.teacher=game.faculty.pick_lecture(course)
 	presentation=course_bridge.lesson_for_assignment(assignment,teaching_seconds)
+	if selected=="Course" and not config.has("teaching_seconds"):
+		const LessonPlan=preload("res://scripts/campus/academics/class_lesson_plan.gd")
+		const Teachers=preload("res://scripts/campus/academics/teacher_dialogue.gd")
+		presentation=LessonPlan.build(presentation,Teachers.personalities().get(activity.get("teacher",""),{}),assessment_id.hash())
+		teaching_seconds=float(presentation.get("duration_seconds",teaching_seconds))
+		activity.teaching_seconds=teaching_seconds
 	teacher_position=room_bridge.point(room.get("teacher_position",Vector3.ZERO))
 	if not identities.has(1):_identify(1,local_identity)
 	if selected=="Course":
@@ -1596,7 +1602,7 @@ func teaching_stage() -> Dictionary:
 			var result := stage.duplicate(true)
 			result.index=i;result.count=stages.size()
 			if activity.get("ai_teaching",false):
-				result["teaching_step"]=preload("res://scripts/campus/academics/adaptive_lesson.gd").window(elapsed,teaching_seconds)
+				result["teaching_step"]=preload("res://scripts/campus/academics/class_lesson_plan.gd").step(result,elapsed,teaching_seconds)
 			return result
 	return {}
 

@@ -186,7 +186,7 @@ func _render_palette() -> void:
 	var catalog_symbols:=Catalog.available()
 	for category in Catalog.CATEGORIES.size():
 		var symbols:=PackedStringArray()
-		for symbol in catalog_symbols:
+		for symbol in Catalog.NUMERIC_PAD if category==0 else catalog_symbols:
 			var data:=Catalog.catalog(symbol)
 			if int(data.category)!=category or (hide_installed.button_pressed and symbol in slots):continue
 			if query.is_empty() or query in symbol.to_lower() or query in str(data.name).to_lower():symbols.append(symbol)
@@ -200,7 +200,8 @@ func _render_palette() -> void:
 		heading.text="%s  %s"%["▾" if heading.button_pressed else "›",Catalog.CATEGORIES[category]]
 		heading.alignment=HORIZONTAL_ALIGNMENT_LEFT
 		group.add_child(heading)
-		var buttons:=HFlowContainer.new()
+		var buttons: Container=GridContainer.new() if category==0 else HFlowContainer.new()
+		if buttons is GridContainer:buttons.columns=3
 		buttons.add_theme_constant_override("h_separation",8)
 		buttons.add_theme_constant_override("v_separation",8)
 		buttons.visible=heading.button_pressed
@@ -239,7 +240,7 @@ func _wire_details(button: Button,symbol: String) -> void:
 func _requirement(symbol: String) -> String:
 	var requirement: String=Catalog.catalog(symbol).requires
 	if requirement.is_empty():return ""
-	return "\nRequires "+("3D graphing" if symbol=="y" else Catalog.CAPABILITIES[requirement])+"."
+	return "\nRequires "+("3D graphing" if symbol in ["y","z"] else Catalog.CAPABILITIES[requirement])+"."
 
 func _inspect(symbol: String) -> void:
 	var data:=Catalog.catalog(symbol)

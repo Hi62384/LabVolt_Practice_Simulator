@@ -569,9 +569,9 @@ func decorate_equipment(kind: String,key: String,replacement: Variant,original: 
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var slot:=EquipmentOwnership.slot(data,kind,key)
 	if slot.is_empty():return "This equipment cannot be edited here"
-	var current:=EquipmentConfiguration.quote(kind,0,slot.configuration)
-	var expected:=EquipmentConfiguration.quote(kind,0,original)
-	var edited:=EquipmentConfiguration.quote(kind,0,replacement)
+	var current:=EquipmentConfiguration.quote(kind,0,slot.configuration,true)
+	var expected:=EquipmentConfiguration.quote(kind,0,original,true)
+	var edited:=EquipmentConfiguration.quote(kind,0,replacement,true)
 	if current.is_empty() or current!=expected:return "The design changed. Reopen the editor."
 	if edited.is_empty() or edited.configuration.hardware!=current.configuration.hardware or edited.configuration.get("keypad",[])!=current.configuration.get("keypad",[]):
 		return "The saved hardware and keypad must match this item"

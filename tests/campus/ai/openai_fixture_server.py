@@ -73,7 +73,9 @@ class Handler(BaseHTTPRequestHandler):
             if body.get("model") != "omni-moderation-latest":
                 return self._reply(400, {"error": {"message": "bad moderation model"}})
             return self._reply(200, {"results": [{"flagged": body.get("input") == "flag this"}]})
-        if self.path == "/v1/responses" and str(body.get("input", "")).startswith("You are a fictional classroom instructor"):
+        if self.path == "/v1/responses" and str(body.get("input", "")).startswith(
+            ("You are a fictional classroom instructor", "Speak in character as this classroom instructor")
+        ):
             if body.get("store") is not False:
                 return self._reply(400, {"error": {"message": "request stored"}})
             return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "The board shows a current path."}]}]})

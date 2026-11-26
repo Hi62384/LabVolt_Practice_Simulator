@@ -4,6 +4,7 @@ var teachers:={}
 var incidents:={}
 var reaction_times:={}
 var relationships:={}
+var conversations:={}
 var memory_dirty:=false
 var memory_blocked:=false
 const COOLDOWN_MS:=12000
@@ -12,6 +13,8 @@ var memory_path: String=MEMORY_PATH
 const MAX_RELATIONSHIPS:=2048
 const MAX_REACTION_KEYS:=2048
 const MAX_INCIDENT_KEYS:=2048
+const MAX_CONVERSATIONS:=64
+const MAX_TURNS:=12
 
 static func context_allows(kind: String,phase: String,severity: float) -> bool:
  if kind=="class_message":return phase in ["lesson","assignment"]
@@ -44,6 +47,21 @@ static func visibility(origin: Vector3,forward: Vector3,point: Vector3,obstructe
 func relationship(id: String,student: String) -> Dictionary:
  return relationships.get(id+":"+student,{"familiarity":0,"positive":0,"disruptions":0,"last_seen":0,"decay_at":0}).duplicate(true)
 
+func recall(id: String,student: String) -> Array:
+ return conversations.get(id+":"+student,[]).duplicate(true)
+
+func remember_conversation(id: String,student: String,question: String,reply: String,now: int) -> void:
+ if id.is_empty() or student.is_empty() or memory_blocked:return
+ var key:=id+":"+student
+ if key.length()>128 or (not relationships.has(key) and relationships.size()>=MAX_RELATIONSHIPS):return
+ if conversations.size()>=MAX_CONVERSATIONS and not conversations.has(key):
+  conversations.erase(conversations.keys()[0])
+ var turns: Array=conversations.get_or_add(key,[])
+ turns.append({"student":question.left(220),"teacher":reply.left(320)})
+ while turns.size()>MAX_TURNS:turns.pop_front()
+ remember(id,student,"conversation",now)
+ memory_dirty=true
+
 func remember(id: String,student: String,kind: String,now_unix: int) -> void:
  if id.is_empty() or student.is_empty() or kind not in ["conversation","help","disruption","hazard"]:return
  var key:=id+":"+student
@@ -66,7 +84,7 @@ func remember(id: String,student: String,kind: String,now_unix: int) -> void:
 func load_memory() -> bool:
  # Never replace newer, unsaved observations with an older disk snapshot.
  if memory_dirty:return false
- relationships={};memory_dirty=false;memory_blocked=false
+ relationships={};conversations={};memory_dirty=false;memory_blocked=false
  var primary_exists:=FileAccess.file_exists(memory_path)
  var backup_exists:=FileAccess.file_exists(memory_path+".bak")
  var loaded:=_read_memory(memory_path)
@@ -76,6 +94,7 @@ func load_memory() -> bool:
   recovered=loaded.ok
  if loaded.ok:
   relationships=loaded.relationships
+  conversations=loaded.get("conversations",{})
   memory_dirty=recovered
  else:memory_blocked=primary_exists or backup_exists
  return loaded.ok or not memory_blocked
@@ -112,8 +131,19 @@ func _read_memory(path: String) -> Dictionary:
  var parser:=JSON.new()
  if parser.parse(file.get_as_text())!=OK:return {"ok":false}
  var value: Variant=parser.data
- if not value is Dictionary or value.size()!=2 or not value.has("version") or not value.has("relationships") or value.version!=1:return {"ok":false}
- return _validate_relationships(value.relationships)
+ if not value is Dictionary or not value.has("relationships"):return {"ok":false}
+ if value.get("version")==1 and value.size()==2:return _validate_relationships(value.relationships)
+ if value.get("version")!=2 or value.size()!=3:return {"ok":false}
+ var validated:=_validate_relationships(value.relationships)
+ var turns: Variant=value.get("conversations")
+ if not validated.ok or not turns is Dictionary or turns.size()>MAX_CONVERSATIONS:return {"ok":false}
+ for key in turns:
+  if not key is String or not validated.relationships.has(key) or not turns[key] is Array or turns[key].size()>MAX_TURNS:return {"ok":false}
+  for exchange in turns[key]:
+   if not exchange is Dictionary or exchange.size()!=2 or not exchange.get("student") is String or not exchange.get("teacher") is String:return {"ok":false}
+   if exchange.student.length()>220 or exchange.teacher.length()>320:return {"ok":false}
+ validated.conversations=turns
+ return validated
 
 func save_memory() -> Error:
  if memory_blocked:return ERR_FILE_CORRUPT
@@ -122,7 +152,12 @@ func save_memory() -> Error:
  if not validated.ok:return ERR_INVALID_DATA
  var file:=FileAccess.open(memory_path+".tmp",FileAccess.WRITE)
  if file==null:return FileAccess.get_open_error()
- file.store_string(JSON.stringify({"version":1,"relationships":validated.relationships}));file.flush()
+ var snapshot:={"version":1,"relationships":validated.relationships}
+ if not conversations.is_empty():
+  snapshot.version=2
+  # A remembered dialogue always belongs to an existing relationship record.
+  snapshot.conversations=conversations
+ file.store_string(JSON.stringify(snapshot));file.flush()
  var error:=file.get_error();file.close()
  if error!=OK:return error
  # A corrupt primary must never overwrite the last valid backup.

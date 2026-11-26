@@ -30,6 +30,10 @@ static func fit_printed_content(content: MarginContainer, column: VBoxContainer,
 	content.pivot_offset = Vector2(content.size.x * .5, 0.0)
 	content.scale = Vector2.ONE * minf(1.0, sheet_height / maxf(1.0, required))
 
+func _fit_body(sheet_height: float) -> void:
+	if not is_instance_valid(body) or not is_inside_tree():return
+	fit_printed_content(body.get_parent() as MarginContainer,body,sheet_height)
+
 func _ready() -> void:
 	var configuration: Dictionary=paper.get("notebook_configuration",{})
 	var sheet_size: Vector2=Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","size",PAPER_SIZE)
@@ -58,8 +62,8 @@ func _ready() -> void:
 	for edge in ["top","bottom"]:margin.add_theme_constant_override("margin_"+edge,35)
 	add_child(margin)
 	body=VBoxContainer.new();body.add_theme_constant_override("separation",13);margin.add_child(body)
-	var fit := func():fit_printed_content(margin,body,sheet_size.y)
-	body.minimum_size_changed.connect(func():fit.call_deferred())
+	var fit := _fit_body.bind(sheet_size.y)
+	body.minimum_size_changed.connect(fit,CONNECT_DEFERRED)
 	fit.call_deferred()
 	var lesson: bool=paper.lesson
 	var p: Dictionary=paper.project

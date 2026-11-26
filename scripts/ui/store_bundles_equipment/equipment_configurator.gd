@@ -202,15 +202,25 @@ func _build_preview(parent: Control, model_builder: Callable) -> void:
 	preview_controls.add_child(display)
 	preview=SubViewport.new()
 	preview.own_world_3d=true
-	preview.transparent_bg=true
+	preview.transparent_bg=false
 	preview.msaa_3d=Viewport.MSAA_2X
 	display.add_child(preview)
 	var lighting:=WorldEnvironment.new()
 	lighting.environment=Environment.new()
+	lighting.environment.background_mode=Environment.BG_COLOR
+	lighting.environment.background_color=Color("193645")
 	lighting.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR
 	lighting.environment.ambient_light_color=Color("f5f5f5")
 	lighting.environment.ambient_light_energy=.62
+	lighting.environment.glow_enabled=true
+	lighting.environment.glow_hdr_threshold=1.0
+	lighting.environment.glow_hdr_scale=1.35
+	lighting.environment.glow_intensity=.85
 	preview.add_child(lighting)
+	var key_light:=DirectionalLight3D.new()
+	key_light.rotation_degrees=Vector3(-32,-36,0)
+	key_light.light_energy=.75
+	preview.add_child(key_light)
 	phone=Node3D.new()
 	preview.add_child(phone)
 	if kind==Config.PHONE:
@@ -233,7 +243,7 @@ func _build_preview(parent: Control, model_builder: Callable) -> void:
 		light.rotation_degrees=setup[0]
 		light.light_energy=setup[1]
 		preview.add_child(light)
-	var hint:=Widgets.text("Shift + drag to orbit · Shift + right-drag to pan · Shift + scroll to zoom","MutedLabel")
+	var hint:=Widgets.text("Right-drag to orbit · Left-drag to pan · Scroll to zoom · Hold Shift to edit","MutedLabel")
 	hint.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_font_size_override("font_size",12)
 	preview_controls.add_child(hint)
@@ -259,9 +269,9 @@ func _preview_input(event: InputEvent) -> void:
 	if surface_editor.input(event):
 		get_viewport().set_input_as_handled()
 		return
-	if event is InputEventMouseMotion and event.shift_pressed and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+	if event is InputEventMouseMotion and not event.shift_pressed and event.button_mask & MOUSE_BUTTON_MASK_RIGHT:
 		orbit_camera.orbit(event.relative)
-	elif event is InputEventMouseMotion and event.shift_pressed and event.button_mask & MOUSE_BUTTON_MASK_RIGHT:
+	elif event is InputEventMouseMotion and not event.shift_pressed and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
 		orbit_camera.pan(event.relative)
 	elif event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
 		orbit_camera.zoom(.90 if event.button_index==MOUSE_BUTTON_WHEEL_UP else 1.11)
@@ -310,7 +320,10 @@ func _has_keypad_designer() -> bool:
 func _select(index: int, group: String, key: String) -> void:
 	configuration[group][key]=index
 	if _has_keypad_designer() and group=="hardware":
-		if key=="equation" and index==0:configuration.hardware.complex=0
+		if key=="equation" and index==0:
+			configuration.hardware.complex=0
+			configuration.hardware.algebra=0
+			configuration.hardware.graph=0
 		if key=="algebra" and index==0:configuration.hardware.graph=0
 		keypad_designer.change_hardware(configuration.hardware)
 	_update_quote()
@@ -376,7 +389,7 @@ func _backlight_description() -> String:
 	return "Off" if names.is_empty() else " → ".join(names)
 
 func _quote() -> Dictionary:
-	return Config.quote(kind,base_price,configuration)
+	return Config.quote(kind,base_price,configuration,not editing_key.is_empty())
 
 func _update_quote(rebuild_model := true) -> void:
 	var quoted:=_quote()
@@ -387,10 +400,12 @@ func _update_quote(rebuild_model := true) -> void:
 		pricing.Appearance.text="$%d"%int(quoted.get("appearance_cost",0))
 		pricing.Total.text="$%d"%int(quoted.get("price",base_price))
 	var cost:=int(quoted.get("price",base_price))
-	if not editing_key.is_empty():cost=maxi(0,cost-int(Config.quote(kind,base_price,original_configuration).price))
+	if not editing_key.is_empty():cost=maxi(0,cost-int(Config.quote(kind,base_price,original_configuration,true).price))
 	price.text="$%d"%cost if cost>0 or editing_key.is_empty() else "No charge"
 	if _has_keypad_designer():
 		feature_selectors.complex.disabled=configuration.hardware.equation==0
+		feature_selectors.algebra.disabled=configuration.hardware.equation==0
+		feature_selectors.algebra.tooltip_text="Requires Equation entry."
 		feature_selectors.graph.disabled=configuration.hardware.algebra==0
 	if not rebuild_model:return
 	if screen_demo!=null:

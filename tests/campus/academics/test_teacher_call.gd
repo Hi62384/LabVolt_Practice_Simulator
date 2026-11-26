@@ -22,7 +22,7 @@ func run() -> void:
   assert(classes.interact(guide) and game.paper_ui.open_lab_instructor_visible)
   var host_button: Button
   for button in game.paper_ui.screen.find_children("*","Button",true,false):
-   if button.text=="Host a lab class":host_button=button;break
+   if button.text=="Lab Class Setup":host_button=button;break
   assert(is_instance_valid(host_button))
   host_button.pressed.emit()
   assert(is_instance_valid(classes.picker) and classes.picker.start.disabled)
@@ -37,6 +37,8 @@ func run() -> void:
   assert(is_instance_valid(model) and model.find_child("ClassInstructorTarget",true,false).collision_layer==4)
   faculty.open_conversation(room)
   assert(faculty.conversation.visible)
+  faculty._dialogue_reply(room, str(classes.classes[room].teacher), "For \\(V=a+jb\\), use \\(\\sqrt{a^2+b^2}\\).")
+  assert(faculty.conversation_text.text=="For V=a+jb, use √(a²+b²).")
   await process_frame
   assert(faculty.conversation.position.y>get_viewport_rect().size.y*.65)
   assert(faculty.close_conversation())
@@ -45,11 +47,11 @@ func run() -> void:
   assert(instructor.get_child_count()==0 and not faculty.speech_player.active.has(room))
  if OS.get_environment("LABVOLT_TEST_OPENAI")=="1":
   var client: Node=game.host_openai
-  assert(client.set_local_test_endpoint("http://127.0.0.1:28768/v1"))
+  var port:=OS.get_environment("LABVOLT_OPENAI_FIXTURE_PORT")
+  assert(client.set_local_test_endpoint("http://127.0.0.1:%s/v1"%("28768" if port.is_empty() else port)))
   assert(client.set_session_key("sk-test-12345678901234567890"))
   assert(client.configure("gpt-5.4-mini",128,"",true)==OK)
-  var result: Dictionary=await client.verify_class_connection()
-  assert(result.ok and client.verified_for_class())
+  assert(client.ready_for_class() and not client.verified_for_class())
   game.player.global_position=classes.signs.dc_lab.desk
   classes._apply(1,"start","dc_lab",{"kind":"lab","course_id":"ETY155","week":1,"difficulty":0})
   assert(classes.classes.dc_lab.ai_teaching)
@@ -60,8 +62,8 @@ func run() -> void:
   assert(activity.ai_waiting)
   var limit:=Time.get_ticks_msec()+4000
   while activity.ai_waiting and Time.get_ticks_msec()<limit:await process_frame
-  assert(not activity.ai_waiting and activity.ai_status=="")
-  print("VERIFIED_TEACHER_CLASS PASS")
+  assert(not activity.ai_waiting and activity.ai_status=="" and client.verified_for_class())
+  print("TEACHER_CLASS_WITHOUT_CONNECTION_TEST PASS")
  print("LAB_GUIDE_AND_TEACHER_PRESENCE PASS")
  game.queue_free();await process_frame;quit(0)
 

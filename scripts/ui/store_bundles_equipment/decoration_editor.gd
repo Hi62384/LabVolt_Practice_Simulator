@@ -25,9 +25,12 @@ var thumbnail_cache := {}
 var tracking_material := false
 var material_before: Dictionary
 var details: VBoxContainer
+var base_panel: VBoxContainer
+var base_reset: Button
 var notice: Label
 var canvas: Control
-var brush_tool: OptionButton
+var paint_buttons: Array[Button]=[]
+var paint_segment:=""
 var brush_size: SpinBox
 var brush_data: Dictionary={"ink":Color("e8fbec"),"size":4,"hardness":.8,"spacing":.45,"opacity":1.0}
 var paint_mode:=0
@@ -39,19 +42,23 @@ func build(owner: RefCounted, kind: String) -> void:
 	product_kind=kind
 	segment=Materials.labels(kind).keys()[0]
 	add_theme_constant_override("separation", 8)
+	base_panel=_panel(self,"Base materials")
 	var layers:=_panel(self,"Decoration layers")
 	var additions:=HFlowContainer.new()
 	layers.add_child(additions)
-	for entry in [["Drawing Layer","paint"],["Image Layer","image"]]:
-		var add:=UI.action(entry[0],"plus",_add.bind(entry[1],""))
+	for entry in [["Add drawing layer","paint"],["Add image layer","image"]]:
+		var add:=UI.action(entry[0],"plus",_add.bind(entry[1],""),true)
 		_compact(add)
+		add.custom_minimum_size.y=34
+		add.add_theme_stylebox_override("normal",UI.T.surface(Color("17646a"),UI.T.ACCENT,5))
 		additions.add_child(add)
 	layer_scroll=ScrollContainer.new()
-	layer_scroll.custom_minimum_size.y=108
+	layer_scroll.custom_minimum_size.y=176
 	layer_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_RESERVE
 	layer_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
 	layers.add_child(layer_scroll)
 	list=VBoxContainer.new()
+	list.add_theme_constant_override("separation",4)
 	list.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	layer_scroll.add_child(list)
 	var tools:=HFlowContainer.new()
@@ -125,9 +132,11 @@ func _emit(rebuild: bool) -> void:
 	else:
 		undo_button.disabled=undo.is_empty()
 		redo_button.disabled=redo.is_empty()
+		base_reset.disabled=not materials.has(segment)
 	design_changed.emit(design.duplicate(true), materials.duplicate(true))
 
 func _refresh() -> void:
+	_refresh_base_materials()
 	_refresh_list()
 	_show_details()
 
@@ -136,7 +145,7 @@ func _refresh_list() -> void:
 		list.remove_child(node)
 		node.queue_free()
 	active=clampi(active,-1,design.size()-1)
-	_add_row(-1)
+	if design.is_empty():list.add_child(UI.text("Add a drawing or image layer to decorate the model.","MutedLabel"))
 	for index in range(design.size()-1,-1,-1):
 		_add_row(index)
 	undo_button.disabled=undo.is_empty()
@@ -144,8 +153,9 @@ func _refresh_list() -> void:
 
 func _add_row(index: int) -> void:
 	var row:=HBoxContainer.new()
+	row.add_theme_constant_override("separation",5)
 	list.add_child(row)
-	var layer: Dictionary=design[index] if index>=0 else {}
+	var layer: Dictionary=design[index]
 	if index>=0:
 		var handle:=Label.new()
 		handle.text="⠿"
@@ -155,7 +165,7 @@ func _add_row(index: int) -> void:
 			func(_position: Vector2,data: Variant): return data is int and data>=0 and data<design.size() and not design[data].locked,
 			func(_position: Vector2,data: Variant): _move_layer(data,index))
 		row.add_child(handle)
-	var select:=UI.action(str(layer.get("name","Base Material")),"",_select_layer.bind(index))
+	var select:=UI.action(str(layer.name),"",_select_layer.bind(index))
 	_compact(select)
 	select.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	select.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -164,7 +174,6 @@ func _add_row(index: int) -> void:
 	select.add_theme_stylebox_override("pressed",UI.T.surface(Color("1b4959"),UI.T.ACCENT,4))
 	select.alignment=HORIZONTAL_ALIGNMENT_LEFT
 	row.add_child(select)
-	if index<0: return
 	select.icon=_thumbnail(layer)
 	select.expand_icon=true
 	select.add_theme_constant_override("icon_max_width",24)
@@ -172,10 +181,12 @@ func _add_row(index: int) -> void:
 	visibility.pressed.connect(_set_flag.bind(index,"visible",not layer.visible))
 	visibility.text="Hide" if layer.visible else "Show"
 	visibility.tooltip_text="Toggle layer visibility"
+	_compact(visibility)
 	row.add_child(visibility)
 	var more:=MenuButton.new()
 	more.text="⋯"
 	more.tooltip_text="Layer options"
+	_compact(more)
 	row.add_child(more)
 	var popup:=more.get_popup()
 	for label in ["Duplicate","Unlock" if layer.locked else "Lock","Move up","Move down"]: popup.add_item(label)
@@ -197,11 +208,13 @@ func _add_row(index: int) -> void:
 	remove.pressed.connect(func():active=index;_delete())
 	remove.tooltip_text="Delete layer"
 	remove.disabled=layer.locked
+	_compact(remove)
 	row.add_child(remove)
 
 func _compact(button: Button) -> void:
 	button.custom_minimum_size.y=29
 	button.add_theme_font_size_override("font_size",14)
+	button.add_theme_constant_override("icon_max_width",16)
 	button.add_theme_stylebox_override("normal",UI.T.surface(UI.T.RAISED,UI.T.BORDER,4))
 	button.add_theme_stylebox_override("hover",UI.T.surface(Color("24495a"),UI.T.BORDER,4))
 	button.add_theme_stylebox_override("pressed",UI.T.surface(Color("1b4959"),UI.T.ACCENT,4))
@@ -230,12 +243,38 @@ func _select_layer(index: int) -> void:
 	_refresh()
 	if index>=0: focus_surface.emit()
 
+func _refresh_base_materials() -> void:
+	for index in range(base_panel.get_child_count()-1,0,-1):
+		var child:=base_panel.get_child(index)
+		base_panel.remove_child(child)
+		child.queue_free()
+	var controls:=HBoxContainer.new()
+	base_panel.add_child(controls)
+	var selector:=OptionButton.new()
+	_compact(selector)
+	selector.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	controls.add_child(selector)
+	for key in Materials.labels(product_kind):
+		selector.add_item(Materials.labels(product_kind)[key])
+		selector.set_item_metadata(selector.item_count-1,key)
+		if key==segment:selector.select(selector.item_count-1)
+	selector.item_selected.connect(func(index: int):segment=selector.get_item_metadata(index);_refresh_base_materials())
+	base_reset=UI.action("Reset material","refresh",func():
+		var next:=materials.duplicate(true)
+		next.erase(segment)
+		_commit(design,true,next))
+	_compact(base_reset)
+	base_reset.disabled=not materials.has(segment)
+	controls.add_child(base_reset)
+	_add_properties(base_panel,{},true)
+
 func _show_details() -> void:
 	selection_changed.emit()
 	for child in details.get_children():
 		details.remove_child(child)
 		child.queue_free()
 	canvas=null
+	if active<0:return
 	var layer: Dictionary=design[active] if active>=0 else {}
 	var type: String={"paint":"Drawing Layer","image":"Image Layer","text":"Text Layer","shape":"Shape Layer"}.get(layer.get("kind",""),"Base Material")
 	var heading:=HBoxContainer.new()
@@ -258,23 +297,7 @@ func _show_details() -> void:
 	var context:=HBoxContainer.new()
 	context.add_theme_constant_override("separation",8)
 	details.add_child(context)
-	if active<0:
-		var selector_box:=_panel(context,"Material segments")
-		var segment_select:=OptionButton.new()
-		for key in Materials.labels(product_kind):
-			segment_select.add_item(Materials.labels(product_kind)[key])
-			segment_select.set_item_metadata(segment_select.item_count-1,key)
-			if key==segment: segment_select.select(segment_select.item_count-1)
-		selector_box.add_child(segment_select)
-		segment_select.item_selected.connect(func(i: int): segment=segment_select.get_item_metadata(i);_show_details())
-		var base:=_panel(context,"Finish")
-		var reset:=UI.action("Reset selected material","",func():
-			var next:=materials.duplicate(true)
-			next.erase(segment)
-			_commit(design,true,next))
-		reset.disabled=not materials.has(segment)
-		base.add_child(reset)
-	elif layer.kind=="image":
+	if layer.kind=="image":
 		var source:=_panel(context,"Image source")
 		var photo:=TextureRect.new()
 		photo.texture=_thumbnail(layer)
@@ -287,7 +310,9 @@ func _show_details() -> void:
 			var button:=UI.action(action[0],"folder",action[1])
 			button.disabled=layer.locked
 			source.add_child(button)
-		source.add_child(UI.text("Click the model to place the image. Drag its handles to size or rotate it.","MutedLabel"))
+		source.add_child(UI.text("Show image on","MutedLabel"))
+		_segment_choice(source,layer.get("target_segment",""),layer.locked,func(value: String):_set_layer("target_segment",value,true))
+		source.add_child(UI.text("Shift-click to place the image. Shift-drag its handles to resize or rotate it.","MutedLabel"))
 		var transform:=_panel(context,"Transform")
 		_transform(transform,layer)
 	elif layer.kind=="paint":
@@ -298,17 +323,30 @@ func _show_details() -> void:
 		var legacy:=_panel(context,"Saved decoration")
 		legacy.add_child(UI.text(str(layer.data)))
 		_transform(_panel(context,"Transform"),layer)
-	var properties:=_panel(details,"Material properties" if active<0 else "Layer material")
+	var properties:=_panel(details,"Layer material")
 	_add_properties(properties,layer)
 
 func _add_canvas(tools: VBoxContainer,settings: VBoxContainer,layer: Dictionary) -> void:
-	brush_tool=OptionButton.new()
-	for label in ["Select","Draw","Eraser"]:brush_tool.add_item(label)
-	brush_tool.select(paint_mode)
-	brush_tool.disabled=layer.locked
-	brush_tool.item_selected.connect(func(index: int):paint_mode=index;selection_changed.emit())
-	tools.add_child(brush_tool)
-	tools.add_child(UI.text("Draw on the model. Right-drag erases. Scroll changes brush size. Hold Shift to move the camera.","MutedLabel"))
+	var buttons:=HBoxContainer.new()
+	buttons.add_theme_constant_override("separation",4)
+	tools.add_child(buttons)
+	var group:=ButtonGroup.new()
+	paint_buttons.clear()
+	for index in 3:
+		var button:=UI.action(["Select","Draw","Eraser"][index],"",func():
+			paint_mode=index
+			selection_changed.emit())
+		_compact(button)
+		button.icon=null
+		button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		button.toggle_mode=true
+		button.button_group=group
+		button.set_pressed_no_signal(index==paint_mode)
+		button.disabled=layer.locked
+		buttons.add_child(button)
+		paint_buttons.append(button)
+	_segment_choice(tools,paint_segment,layer.locked,func(value: String):paint_segment=value;selection_changed.emit())
+	tools.add_child(UI.text("Shift + left-drag applies the tool. Shift + right-drag erases.","MutedLabel"))
 	var clear:=UI.action("Clear drawing","",func():
 		_confirm("Clear the drawing on this layer?",func():
 			var empty: Dictionary=design[active].duplicate(true)
@@ -341,10 +379,23 @@ func _add_canvas(tools: VBoxContainer,settings: VBoxContainer,layer: Dictionary)
 		_scalar(grid,field[0],field[2],1.,.05,brush_data[key],layer.locked,func(value: float):brush_data[key]=value)
 	_color(grid,"Color",brush_data.ink.to_html(false),layer.locked,func(value: String):brush_data.ink=Color(value),false)
 
+func _segment_choice(parent: Control,selected: String,locked: bool,change: Callable) -> void:
+	var target:=OptionButton.new()
+	target.add_item("All segments")
+	target.set_item_metadata(0,"")
+	for key in Materials.labels(product_kind):
+		target.add_item(Materials.labels(product_kind)[key])
+		target.set_item_metadata(target.item_count-1,key)
+		if key==selected:target.select(target.item_count-1)
+	target.disabled=locked
+	target.item_selected.connect(func(index: int):change.call(str(target.get_item_metadata(index))))
+	parent.add_child(target)
+
 func brush_settings() -> Dictionary:
 	var values:=brush_data.duplicate()
 	values.ink.a=values.opacity
 	values.erase=paint_mode==2
+	values.segment=paint_segment
 	return values
 
 func replace_active(layer: Dictionary, rebuild := true) -> bool:
@@ -359,7 +410,10 @@ func _transform(parent: VBoxContainer,layer: Dictionary) -> void:
 	var grid:=GridContainer.new()
 	grid.columns=2
 	parent.add_child(grid)
-	var fields:=[["Horizontal","x",0,1,.01],["Vertical","y",0,1,.01],["Scale","size",.1,1,.01],["Rotation","angle",-180,180,1]]
+	var fields:=[["Scale","size",10,100,"%"],["Rotation","angle",-180,180,"°"]]
+	if layer.kind!="image":
+		fields.push_front(["Vertical","y",0,100,"%"])
+		fields.push_front(["Horizontal","x",0,100,"%"])
 	if layer.kind=="image":
 		var aspect:=CheckBox.new()
 		aspect.text="Lock aspect ratio"
@@ -368,7 +422,7 @@ func _transform(parent: VBoxContainer,layer: Dictionary) -> void:
 		aspect.toggled.connect(func(value: bool):_set_layer("lock_aspect",value,true))
 		parent.add_child(aspect)
 		if not aspect.button_pressed:
-			fields.append_array([["Width","width",.25,4,.01],["Height","height",.25,4,.01]])
+			fields.append_array([["Width","width",25,400,"%"],["Height","height",25,400,"%"]])
 		var crop:=Button.new()
 		crop.text="Crop image"
 		crop.toggle_mode=true
@@ -380,26 +434,54 @@ func _transform(parent: VBoxContainer,layer: Dictionary) -> void:
 		crop.toggled.connect(func(expanded: bool):crop_grid.visible=expanded)
 		for edge in ["left","right","top","bottom"]:
 			var crop_key: String="crop_"+edge
-			_scalar(crop_grid,edge.capitalize(),0,.4,.02,layer[crop_key],layer.locked,_set_value.bind(crop_key))
+			_transform_value(crop_grid,layer,[edge.capitalize(),crop_key,0,40,"%"])
 	for entry in fields:
-		var key: String=entry[1]
-		_scalar(grid,entry[0],entry[2],entry[3],entry[4],layer.get(key,1.0),layer.locked,_set_value.bind(key))
+		_transform_value(grid,layer,entry)
 
-func _add_properties(parent: VBoxContainer,layer: Dictionary) -> void:
-	var base:=active<0
+func _transform_value(grid: GridContainer,layer: Dictionary,field: Array) -> void:
+	grid.add_child(UI.text(field[0]))
+	var key: String=field[1]
+	var multiplier:=100.0 if field[4]=="%" else 1.0
+	var control:=_number(field[2],field[3],1.,float(layer.get(key,1.0))*multiplier)
+	control.suffix=field[4]
+	control.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	control.editable=not layer.locked
+	control.value_changed.connect(func(value: float):_set_value(value/multiplier,key))
+	grid.add_child(control)
+
+func _add_properties(parent: VBoxContainer,layer: Dictionary,base := false) -> void:
 	var values: Dictionary=materials.get(segment,segment_reader.call(segment) if segment_reader.is_valid() else Materials.defaults()) if base else layer
 	var lock: bool=layer.get("locked",false)
 	var grid:=GridContainer.new()
-	grid.columns=2
+	grid.columns=3 if base else 2
+	if base:
+		grid.add_theme_constant_override("h_separation",8)
+		grid.add_theme_constant_override("v_separation",4)
 	parent.add_child(grid)
-	_color(grid,"Base color",values.color,lock,_change_property.bind("color",base))
-	_scalar(grid,"Roughness",0,1,.01,values.roughness,lock,_change_property.bind("roughness",base))
-	_scalar(grid,"Metallic",0,1,.01,values.metallic,lock,_change_property.bind("metallic",base))
-	_color(grid,"Emission color",values.emission if base else values.glow_color,lock,_change_property.bind("emission" if base else "glow_color",base))
-	_scalar(grid,"Emission strength",0,4 if base else 2,.01,values.strength if base else values.glow,lock,_change_property.bind("strength" if base else "glow",base))
+	_color(_property_cell(grid,base),"Base color",values.color,lock,_change_property.bind("color",base),true,base)
+	_scalar(_property_cell(grid,base),"Roughness",0,1,.01,values.roughness,lock,_change_property.bind("roughness",base),base)
+	_scalar(_property_cell(grid,base),"Metallic",0,1,.01,values.metallic,lock,_change_property.bind("metallic",base),base)
+	_color(_property_cell(grid,base),"Emission color",values.emission if base else values.glow_color,lock,_change_property.bind("emission" if base else "glow_color",base),true,base)
+	_scalar(_property_cell(grid,base),"Emission strength",0,Materials.MAX_EMISSION if base else Document.MAX_EMISSION,.05,values.strength if base else values.glow,lock,_change_property.bind("strength" if base else "glow",base),base)
+	if not base and layer.kind in ["paint","image"]:
+		_scalar(grid,"Indent", -Document.MAX_INDENT,Document.MAX_INDENT,.05,layer.get("indent",0.0),lock,_set_value.bind("indent"))
 	if not base: _scalar(grid,"Layer opacity",0,1,.05,layer.opacity,lock,_set_value.bind("opacity"))
 
-func _scalar(grid: GridContainer,label: String,low: float,high: float,step: float,value: float,locked: bool,change: Callable) -> void:
+func _property_cell(grid: GridContainer,compact: bool) -> GridContainer:
+	if not compact:return grid
+	var cell:=GridContainer.new()
+	cell.columns=1
+	cell.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	cell.add_theme_constant_override("v_separation",2)
+	grid.add_child(cell)
+	return cell
+
+func _compact_entry(entry: LineEdit) -> void:
+	entry.add_theme_font_size_override("font_size",13)
+	entry.add_theme_stylebox_override("normal",UI.T.surface(Color("102633"),UI.T.BORDER,4))
+	entry.add_theme_stylebox_override("read_only",UI.T.surface(UI.T.SURFACE,UI.T.BORDER,4))
+
+func _scalar(grid: GridContainer,label: String,low: float,high: float,step: float,value: float,locked: bool,change: Callable,compact := false) -> void:
 	grid.add_child(UI.text(label))
 	var row:=HBoxContainer.new()
 	row.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -413,7 +495,8 @@ func _scalar(grid: GridContainer,label: String,low: float,high: float,step: floa
 	slider.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	row.add_child(slider)
 	var spin:=_number(low,high,step,value)
-	spin.custom_minimum_size.x=72
+	spin.custom_minimum_size.x=58 if compact else 72
+	if compact:_compact_entry(spin.get_line_edit())
 	spin.editable=not locked
 	row.add_child(spin)
 	slider.drag_started.connect(_begin_edit)
@@ -421,7 +504,7 @@ func _scalar(grid: GridContainer,label: String,low: float,high: float,step: floa
 	slider.value_changed.connect(func(amount: float): spin.set_value_no_signal(amount);change.call(amount))
 	spin.value_changed.connect(func(amount: float): slider.set_value_no_signal(amount);change.call(amount))
 
-func _color(grid: GridContainer,label: String,value: String,locked: bool,change: Callable,track_history := true) -> void:
+func _color(grid: GridContainer,label: String,value: String,locked: bool,change: Callable,track_history := true,compact := false) -> void:
 	grid.add_child(UI.text(label))
 	var row:=HBoxContainer.new()
 	grid.add_child(row)
@@ -430,12 +513,14 @@ func _color(grid: GridContainer,label: String,value: String,locked: bool,change:
 	picker.edit_alpha=false
 	picker.custom_minimum_size.x=38
 	picker.disabled=locked
+	if compact:_compact(picker)
 	row.add_child(picker)
 	var hex:=LineEdit.new()
 	hex.text="#"+value
 	hex.max_length=7
 	hex.editable=not locked
 	hex.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	if compact:_compact_entry(hex)
 	row.add_child(hex)
 	if track_history:
 		picker.pressed.connect(_begin_edit)
@@ -476,7 +561,7 @@ func _input(event: InputEvent) -> void:
 	if not is_visible_in_tree() or not event is InputEventKey or not event.pressed or event.echo:return
 	if event.keycode==KEY_ESCAPE and paint_mode!=0 and active>=0 and design[active].kind=="paint":
 		paint_mode=0
-		brush_tool.select(0)
+		if not paint_buttons.is_empty() and is_instance_valid(paint_buttons[0]):paint_buttons[0].set_pressed_no_signal(true)
 		selection_changed.emit()
 		get_viewport().set_input_as_handled()
 		return

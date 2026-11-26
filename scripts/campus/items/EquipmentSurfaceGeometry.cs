@@ -4,14 +4,15 @@ using Godot;
 
 public partial class EquipmentSurfaceGeometry : RefCounted
 {
-    public const int TextureSize = 128;
+    public const int TextureSize = 256;
+    private const int CellsPerAxis = 8;
     private readonly Dictionary<int, Surface> surfaces = new();
 
     private record Triangle(Vector3 A, Vector3 B, Vector3 C, Vector2 U, Vector2 V, Vector2 W);
-    private record Texel(int Index, Vector3 Position, Vector3 Normal);
+    private readonly record struct Texel(int Index, Vector3 Position, Vector3 Normal);
     private record Surface(MeshInstance3D Node, Triangle[] Triangles, Aabb Bounds)
     {
-        public Texel[] Texels;
+        public List<Texel>[] Texels;
     }
 
     public void Register(int id, MeshInstance3D node)
@@ -178,43 +179,64 @@ public partial class EquipmentSurfaceGeometry : RefCounted
         var localRadius = radius * Mathf.Max(inverse.Basis.X.Length(), Mathf.Max(inverse.Basis.Y.Length(), inverse.Basis.Z.Length()));
         if (!mesh.Bounds.Grow(localRadius).HasPoint(local)) return false;
         mesh.Texels ??= BuildTexels(mesh);
+        var minimum = CellFor(mesh.Bounds, local - Vector3.One * localRadius);
+        var maximum = CellFor(mesh.Bounds, local + Vector3.One * localRadius);
         var normalTransform = inverse.Basis.Transposed();
         bool changed = false;
-        foreach (var texel in mesh.Texels)
+        for (int z = minimum.Z; z <= maximum.Z; z++)
+        for (int y = minimum.Y; y <= maximum.Y; y++)
+        for (int x = minimum.X; x <= maximum.X; x++)
         {
-            var delta = transform * texel.Position - position;
-            float distance = delta.LengthSquared() / (radius * radius);
-            if (distance >= 1) continue;
-            var worldNormal = (normalTransform * texel.Normal).Normalized();
-            if (worldNormal.Dot(normal) < -0.05f) continue;
-            // Avoid bleeding to parallel surfaces hidden behind the point of contact.
-            if (worldNormal.Dot(normal) > 0.95f && Mathf.Abs(delta.Dot(normal)) > radius * 0.2f) continue;
-            float strength = hardness >= 0.999f ? color.A : color.A * (1 - Mathf.SmoothStep(hardness, 1, Mathf.Sqrt(distance)));
-            if (strength < 1f / 255) continue;
-            int index = texel.Index;
-            float alpha = rgba.Length == 0 ? 0 : rgba[index + 3] / 255f;
-            if (erase && alpha == 0) continue;
-            if (rgba.Length == 0) rgba = new byte[TextureSize * TextureSize * 4];
-            if (!erase)
+            var bucket = mesh.Texels[CellIndex(x, y, z)];
+            if (bucket == null) continue;
+            foreach (var texel in bucket)
             {
-                float mixed = alpha * (1 - strength);
-                float total = strength + mixed;
-                rgba[index] = Byte((color.R * strength + rgba[index] / 255f * mixed) / total);
-                rgba[index + 1] = Byte((color.G * strength + rgba[index + 1] / 255f * mixed) / total);
-                rgba[index + 2] = Byte((color.B * strength + rgba[index + 2] / 255f * mixed) / total);
-                rgba[index + 3] = Byte(total);
+                var delta = transform * texel.Position - position;
+                float distance = delta.LengthSquared() / (radius * radius);
+                if (distance >= 1) continue;
+                var worldNormal = (normalTransform * texel.Normal).Normalized();
+                if (worldNormal.Dot(normal) < -0.05f) continue;
+                // Avoid bleeding to parallel surfaces hidden behind the point of contact.
+                if (worldNormal.Dot(normal) > 0.95f && Mathf.Abs(delta.Dot(normal)) > radius * 0.2f) continue;
+                float strength = hardness >= 0.999f ? color.A : color.A * (1 - Mathf.SmoothStep(hardness, 1, Mathf.Sqrt(distance)));
+                if (strength < 1f / 255) continue;
+                int index = texel.Index;
+                float alpha = rgba.Length == 0 ? 0 : rgba[index + 3] / 255f;
+                if (erase && alpha == 0) continue;
+                if (rgba.Length == 0) rgba = new byte[TextureSize * TextureSize * 4];
+                if (!erase)
+                {
+                    float mixed = alpha * (1 - strength);
+                    float total = strength + mixed;
+                    rgba[index] = Byte((color.R * strength + rgba[index] / 255f * mixed) / total);
+                    rgba[index + 1] = Byte((color.G * strength + rgba[index + 1] / 255f * mixed) / total);
+                    rgba[index + 2] = Byte((color.B * strength + rgba[index + 2] / 255f * mixed) / total);
+                    rgba[index + 3] = Byte(total);
+                }
+                else rgba[index + 3] = Byte(alpha * (1 - strength));
+                changed = true;
             }
-            else rgba[index + 3] = Byte(alpha * (1 - strength));
-            changed = true;
         }
         return changed;
     }
 
     private static byte Byte(float value) => (byte)Mathf.Clamp(Mathf.RoundToInt(value * 255f), 0, 255);
 
-    private static Texel[] BuildTexels(Surface mesh)
+    private static int CellIndex(int x, int y, int z) => (z * CellsPerAxis + y) * CellsPerAxis + x;
+
+    private static Vector3I CellFor(Aabb bounds, Vector3 point)
     {
-        var samples = new List<Texel>();
+        var offset = (point - bounds.Position) * CellsPerAxis;
+        var size = bounds.Size;
+        return new Vector3I(Cell(offset.X, size.X), Cell(offset.Y, size.Y), Cell(offset.Z, size.Z));
+    }
+
+    private static int Cell(float offset, float extent) => extent > 0
+        ? Mathf.Clamp(Mathf.FloorToInt(offset / extent), 0, CellsPerAxis - 1) : 0;
+
+    private static List<Texel>[] BuildTexels(Surface mesh)
+    {
+        var cells = new List<Texel>[CellsPerAxis * CellsPerAxis * CellsPerAxis];
         foreach (var tri in mesh.Triangles)
         {
             var a = tri.U * TextureSize;
@@ -233,9 +255,12 @@ public partial class EquipmentSurfaceGeometry : RefCounted
                 float v = b.Cross(relative) / area;
                 if (u < 0 || v < 0 || u + v > 1) continue;
                 var point = tri.A + (tri.B - tri.A) * u + (tri.C - tri.A) * v;
-                samples.Add(new Texel((y * TextureSize + x) * 4, point, normal));
+                var cell = CellFor(mesh.Bounds, point);
+                var index = CellIndex(cell.X, cell.Y, cell.Z);
+                cells[index] ??= new List<Texel>();
+                cells[index].Add(new Texel((y * TextureSize + x) * 4, point, normal));
             }
         }
-        return samples.ToArray();
+        return cells;
     }
 }

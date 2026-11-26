@@ -31,6 +31,7 @@ var reasoning_mode:="standard"
 var image_reasoning_mode:="standard"
 var model_usage: Dictionary = {}
 var busy := false
+var speech_busy:=false
 var _session_key := ""
 var _environment_key_disconnected := false
 var _model_cache_key := ""
@@ -168,11 +169,14 @@ func _signature(key: String, choice: String, effort: String, output: int, mode: 
 func verified_for_class() -> bool:
 	return enabled and configured() and _verified_signature==_connection_signature()
 
+func ready_for_class() -> bool:
+	return enabled and configured()
+
 func class_connection_status() -> String:
-	if verified_for_class():return "Connected â€” AI teaching available"
-	if not enabled or not configured():return "Not connected â€” Add your API key in OpenAI Settings before starting the game."
-	if not verification_error.is_empty():return "Connection failed â€” "+verification_error
-	return "Not verified â€” Test the host's OpenAI connection to start classes."
+	if verified_for_class():return "Connected. AI teaching available."
+	if not enabled or not configured():return "Add your API key in OpenAI Settings before starting the game."
+	if not verification_error.is_empty():return "Connection failed. "+verification_error
+	return "API key connected. The model is checked when class first uses it."
 
 func verify_class_connection() -> Dictionary:
 	var signature:=_connection_signature()
@@ -190,7 +194,12 @@ func verify_class_connection() -> Dictionary:
 func respond(prompt: String,timeout := 180.0) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS:
 		return {"ok":false,"error":"Enter a prompt of 1 to 4,000 characters."}
-	return await _request_text(prompt,model,max_output_tokens,reasoning_effort,true,{},timeout)
+	var signature:=_connection_signature()
+	var response:=await _request_text(prompt,model,max_output_tokens,reasoning_effort,true,{},timeout)
+	if response.get("ok",false) and signature==_connection_signature():
+		_verified_signature=signature
+		verification_error=""
+	return response
 
 func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
@@ -201,13 +210,18 @@ func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={
 	var effort:=str(draft.get("image_effort",image_reasoning_effort))
 	return await _request_text(content,choice,int(draft.get("output",max_output_tokens)),Models.normalize_effort(choice,effort),draft.is_empty(),draft)
 
-func speak(text: String, draft: Dictionary={}, voice := "alloy") -> Dictionary:
+func speak(text: String,draft: Dictionary={},voice := "alloy",delivery: Dictionary={}) -> Dictionary:
 	var choice:=str(draft.get("modalities",{}).get("tts",tts_model))
 	if not bool(draft.get("tts_enabled",tts_enabled)) or not Models.available_for(choice,"tts"):
 		return {"ok":false,"error":"Enable text-to-speech and choose a voice model in OpenAI Settings."}
 	if voice not in Models.speech_voices(choice):return {"ok":false,"error":"This voice is unavailable for the selected speech model."}
 	if text.strip_edges().is_empty() or text.length()>350:return {"ok":false,"error":"Enter up to 350 characters to read aloud."}
-	return await _call(HTTPClient.METHOD_POST,"/audio/speech",{"model":choice,"input":text,"voice":voice,"response_format":"wav"},draft.is_empty(),draft)
+	var payload:={"model":choice,"input":text,"voice":voice,"response_format":"wav"}
+	if not delivery.is_empty():
+		payload.speed=clampf(float(delivery.get("speed",1.)),.5,1.5)
+		if Models.verified_family(choice)=="gpt-4o-mini-tts":
+			payload.instructions=str(delivery.get("instructions","")).left(500)
+	return await _call(HTTPClient.METHOD_POST,"/audio/speech",payload,draft.is_empty(),draft)
 
 func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	var choice:=str(draft.get("modalities",{}).get("image_generation",image_generation_model))
@@ -250,7 +264,7 @@ func moderate(input: String) -> Dictionary:
 	return result
 
 func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
-	if wav.size()<32044 or wav.size()>192044 or wav.slice(0,4).get_string_from_ascii()!="RIFF" or wav.slice(8,12).get_string_from_ascii()!="WAVE" or wav.slice(12,16).get_string_from_ascii()!="fmt " or wav.decode_u16(20)!=1 or wav.decode_u16(22)!=1 or wav.decode_u32(24)!=16000 or wav.decode_u16(34)!=16 or wav.slice(36,40).get_string_from_ascii()!="data" or wav.decode_u32(40)!=wav.size()-44:return {"ok":false,"error":"Record between one and six seconds of speech."}
+	if wav.size()<32044 or wav.size()>224044 or wav.slice(0,4).get_string_from_ascii()!="RIFF" or wav.slice(8,12).get_string_from_ascii()!="WAVE" or wav.slice(12,16).get_string_from_ascii()!="fmt " or wav.decode_u16(20)!=1 or wav.decode_u16(22)!=1 or wav.decode_u32(24)!=16000 or wav.decode_u16(34)!=16 or wav.slice(36,40).get_string_from_ascii()!="data" or wav.decode_u32(40)!=wav.size()-44:return {"ok":false,"error":"Record between one and seven seconds of speech."}
 	var key:=str(draft.get("key",""))
 	if key.is_empty():key=_credential()
 	if not host_allowed() or (draft.is_empty() and not enabled) or key.is_empty():return {"ok":false,"error":"The host AI connection is unavailable."}
@@ -295,10 +309,12 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var key:=str(draft.get("key",""))
 	if key.is_empty():key=_credential()
 	if key.is_empty():return {"ok":false,"error":"Add an API key in OpenAI Settings or set OPENAI_API_KEY for the host process."}
-	if busy:return {"ok":false,"error":"An OpenAI request is already running."}
+	var speech:=path=="/audio/speech"
+	if speech_busy if speech else busy:return {"ok":false,"error":"An OpenAI request is already running."}
 	var request_model:=str(payload.get("model",model))
 	if not Models.valid_id(request_model):return {"ok":false,"error":"Choose a valid model ID in OpenAI Settings."}
-	busy=true
+	if speech:speech_busy=true
+	else:busy=true
 	var started:=Time.get_ticks_msec()
 	var request := HTTPRequest.new()
 	request.timeout=timeout if path in ["/responses","/images/generations","/chat/completions"] else 20.0
@@ -311,11 +327,13 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var error := request.request(base+path,headers,method,JSON.stringify(payload) if method==HTTPClient.METHOD_POST else "")
 	if error!=OK:
 		request.queue_free()
-		busy=false
+		if speech:speech_busy=false
+		else:busy=false
 		return {"ok":false,"error":"Could not start the OpenAI request."}
 	var completed: Array=await request.request_completed
 	request.queue_free()
-	busy=false
+	if speech:speech_busy=false
+	else:busy=false
 	var response:=_read_response(int(completed[0]),int(completed[1]),completed[3],path,request_model)
 	if method==HTTPClient.METHOD_POST:
 		if purpose.is_empty():purpose={"/images/generations":"image_generation","/audio/speech":"tts","/moderations":"moderation"}.get(path,"text")
@@ -325,7 +343,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 		var characters: int=str(payload.get("input","")).length() if purpose=="tts" else -1
 		response["measurement"]=_record_request(request_model,purpose,raw_data,bool(response.get("ok",false)),Time.get_ticks_msec()-started,draft,payload.get("reasoning",{}),clip.get_length() if clip!=null else -1.,characters)
 		response.erase("_api_metadata")
-	if draft.is_empty() and int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
+	if not speech and draft.is_empty() and int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
 		_verified_signature=""
 		verification_error=str(response.get("error","Connection verification is required."))
 	return response

@@ -147,6 +147,18 @@ func submit(host: bool,identity: String,id: String,response: Variant,now: float)
  submitted_at[identity]=now
  return "accepted"
 
+func simulate_quiz_answer(identity: String,proficiency: float,now: float) -> String:
+ if mode!="quiz" or not present.has(identity):return "not_participating"
+ var roll:=float(posmod(hash([identity,event_id,question_index]),10000))/10000.0
+ var correct: Variant=private_assignment.questions[question_index].get("answer")
+ var response: Variant=correct
+ if roll>proficiency:
+  var alternatives: Array=public_question.get("options",[]).filter(func(value):return value!=correct)
+  if not alternatives.is_empty():response=alternatives[posmod(hash(identity),alternatives.size())]
+  elif correct is float or correct is int:response=float(correct)*1.28+1.
+  else:response="I am unsure."
+ return submit(true,identity,event_id,response,now)
+
 func decline(host: bool,identity: String,id: String,now: float) -> String:
  if not host or closed or not is_finite(now) or now>=deadline:return "closed"
  if mode!="practice":return "unsupported"

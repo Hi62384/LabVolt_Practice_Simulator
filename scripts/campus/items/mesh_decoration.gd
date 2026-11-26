@@ -3,7 +3,6 @@ extends RefCounted
 const Document=preload("res://scripts/campus/items/decoration_document.gd")
 const Geometry=preload("res://scripts/campus/items/EquipmentSurfaceGeometry.cs")
 const ShaderResource=preload("res://scripts/campus/items/mesh_decoration.gdshader")
-const PROTECTED:=["keys","display","ports","paper"]
 const CACHE_LIMIT:=48
 static var texture_cache: Dictionary={}
 static var depth_builder: RefCounted
@@ -17,7 +16,7 @@ static func surfaces(root: Node3D, include_blockers := false) -> Dictionary:
 		if mesh.mesh==null or mesh.has_meta("decoration_overlay") or not mesh.visible: continue
 		var segment: String=mesh.get_meta("material_segment","")
 		if segment.is_empty() and mesh.get_parent().name=="DecorationSurface":continue
-		var usable: bool=not segment.is_empty() and segment not in PROTECTED and not mesh.get_meta("paint_protected",false)
+		var usable: bool=not segment.is_empty() and not mesh.get_meta("paint_protected",false)
 		if not usable:
 			if include_blockers: results["#"+str(mesh.get_instance_id())]=mesh
 			continue
@@ -57,7 +56,9 @@ static func apply(root: Node3D, design: Array) -> void:
 			if blockers.is_empty():blockers.assign(surfaces(root,true).values())
 			var depth: Image=depth_builder.ProjectionDepth(blockers,from_world,frame.size,frame.thickness)
 			var visibility:=ImageTexture.create_from_image(depth)
+			var target_segment: String=layer.get("target_segment","")
 			for id in receivers:
+				if not target_segment.is_empty() and id.get_slice(":",0)!=target_segment:continue
 				var target: MeshInstance3D=receivers[id]
 				var relative:=from_world*target.global_transform
 				var bounds: AABB=relative*target.get_aabb()
@@ -103,7 +104,7 @@ static func image_frame(anchor: MeshInstance3D, layer: Dictionary, texture_size:
 	right=right.rotated(normal,angle)
 	up=up.rotated(normal,angle)
 	var world_size: Vector3=shape.size*transform.basis.get_scale().abs()
-	var span:=maxf(world_size.x,maxf(world_size.y,world_size.z))
+	var span: float=layer.get("reference_span",maxf(world_size.x,maxf(world_size.y,world_size.z)))
 	var crop:=Vector4(layer.crop_left,layer.crop_top,1.-layer.crop_left-layer.crop_right,1.-layer.crop_top-layer.crop_bottom)
 	var aspect:=maxf(.025,texture_size.x*crop.z/maxf(1.,texture_size.y*crop.w))
 	var footprint:=Vector2(aspect,1.)/maxf(1.,aspect)*span*float(layer.size)*Vector2(layer.width,layer.height)
@@ -128,6 +129,7 @@ static func _overlay(target: MeshInstance3D, texture: Texture2D, layer: Dictiona
 	material.set_shader_parameter("glow",layer.glow)
 	material.set_shader_parameter("roughness",layer.roughness)
 	material.set_shader_parameter("metallic",layer.metallic)
+	material.set_shader_parameter("indent",layer.get("indent",0.0))
 	material.set_shader_parameter("pattern",texture)
 	material.set_shader_parameter("projected",false)
 	material.set_shader_parameter("separation",.00004*float(index+1))

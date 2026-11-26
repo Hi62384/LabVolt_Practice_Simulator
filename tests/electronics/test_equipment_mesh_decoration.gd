@@ -8,7 +8,7 @@ const Document=preload("res://scripts/campus/items/decoration_document.gd")
 func _initialize() -> void:
 	call_deferred("run")
 
-func _button(point: Vector2, pressed: bool, button := MOUSE_BUTTON_LEFT, shift := false) -> InputEventMouseButton:
+func _button(point: Vector2, pressed: bool, button := MOUSE_BUTTON_LEFT, shift := true) -> InputEventMouseButton:
 	var event:=InputEventMouseButton.new()
 	event.button_index=button
 	event.position=point
@@ -19,6 +19,7 @@ func _button(point: Vector2, pressed: bool, button := MOUSE_BUTTON_LEFT, shift :
 func _pointer(point: Vector2) -> InputEventMouseMotion:
 	var event:=InputEventMouseMotion.new()
 	event.position=point
+	event.shift_pressed=true
 	return event
 
 func run() -> void:
@@ -40,6 +41,8 @@ func run() -> void:
 		var edit: Control=dialog.decoration_editor
 		var surface: Control=dialog.surface_editor
 		edit._add("paint","")
+		assert(edit.base_panel.is_visible_in_tree())
+		assert(edit.layer_scroll.custom_minimum_size.y>=160 and edit.paint_buttons.size()==3)
 		var at:=Vector2.INF
 		for view in [0,2,1,3,4,5,6]:
 			dialog._camera_view(view)
@@ -55,7 +58,11 @@ func run() -> void:
 		assert(not surface.input(_button(at,true)),"Select applied brush")
 		edit.paint_mode=1
 		edit.brush_size.value=14.
-		assert(not surface.input(_button(at,true,MOUSE_BUTTON_LEFT,true)),"Orbit applied brush")
+		assert(not surface.input(_button(at,true,MOUSE_BUTTON_LEFT,false)),"Pan applied brush")
+		var segment: String=surface.pick(at).surface.get_slice(":",0)
+		edit.paint_segment="nonmatching_segment"
+		assert(not surface.input(_button(at,true)),"Paint applied outside the selected segment")
+		edit.paint_segment=segment
 		var start:=Time.get_ticks_usec()
 		assert(surface.input(_button(at,true)))
 		var first:=Time.get_ticks_usec()-start
@@ -67,6 +74,7 @@ func run() -> void:
 		assert(not edit.design[0].get("mesh_paint",{}).is_empty(),"Paint missing on "+kind)
 		var painted: Dictionary=edit.design[0].mesh_paint.duplicate()
 		var paint_key: String=painted.keys()[0]
+		assert(paint_key.get_slice(":",0)==segment and Document.decode(painted[paint_key]).get_width()==256)
 		var copy: Array=JSON.parse_string(JSON.stringify(edit.design))
 		assert(Document.clean(copy)!=null)
 		copy[0].mesh_paint["../../other:0"]=painted[paint_key]
@@ -81,6 +89,8 @@ func run() -> void:
 		assert(surface.input(_button(at,false,MOUSE_BUTTON_RIGHT)))
 		assert(edit.design[0].mesh_paint!=painted,"Right click did not erase "+kind)
 		edit._add("image",data)
+		edit._set_layer("glow",8.,false)
+		edit._set_layer("indent",-2.,false)
 		if kind==Config.PHONE:
 			dialog._camera_view(2)
 			at=dialog.camera.unproject_position(dialog.rendered_product.global_position)
@@ -92,6 +102,8 @@ func run() -> void:
 		var projected:=_overlay(receiver,true)
 		assert(projected!=null and projected.mesh==receiver.mesh,"Missing mesh-conforming image on "+kind)
 		assert(projected.material_override.get_shader_parameter("projected"))
+		assert(projected.material_override.get_shader_parameter("indent")==-2.)
+		edit._set_layer("glow",0.,false)
 		assert(projected.material_override.get_shader_parameter("visibility_depth") is Texture2D)
 		if kind==Config.PHONE:
 			if DisplayServer.get_name()!="headless":

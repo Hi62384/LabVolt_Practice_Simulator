@@ -37,7 +37,7 @@ static func plan(client: Node, state: Dictionary, project: Dictionary, board: Di
 	if not accepted.is_empty():return accepted
 	var now:=Time.get_ticks_msec()
 	var started: int=state.get_or_add("started_at",now)
-	if not is_instance_valid(client) or not client.verified_for_class() or now-started>=22000:
+	if not is_instance_valid(client) or not client.ready_for_class() or now-started>=22000:
 		return _approve(state,_standard_plan(project))
 	if state.get("pending",false):return {}
 	state.status="Preparing the assessment…"

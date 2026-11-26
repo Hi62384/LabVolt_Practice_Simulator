@@ -414,16 +414,12 @@ func _process(_delta: float) -> void:
 func route(event: InputEvent) -> bool:
 	if phone_overlay.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_ESCAPE:close();return true
-		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_O:_toggle_power(current_id);return true
 		if performance.frozen and (event is InputEventKey or event is InputEventMouse):
 			if event is InputEventMouse and side_power.get_global_rect().has_point(event.position):return true
 			get_viewport().set_input_as_handled()
 			return true
 		return event is InputEventKey or event is InputEventMouse
 	if selected().is_empty() or not game.front.in_game or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED:return false
-	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_O:
-		_toggle_power(selected())
-		return true
 	if camera_phone_id.is_empty() and event is InputEventMouseButton and is_instance_valid(game.current_target) and game.current_target.get_meta("role","")=="placed_personal_item":return false
 	if event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_RIGHT:open();return true
 	if not is_powered(selected()):return false

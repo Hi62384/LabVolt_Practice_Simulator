@@ -258,7 +258,7 @@ func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, op
 	if options.has("body") and int(options.get("version",1))<Equipment.DESIGN_VERSION:keys=Equipment.Keypad.with_required(keys)
 	var columns: int=Equipment.value(Equipment.CALCULATOR,options,"hardware","columns",4 if basic else 5)
 	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,options,"appearance","key_style",false)
-	var rows := maxi(1,ceili(float(keys.size())/columns))
+	var rows := maxi(1,Equipment.Keypad.occupied_rows(keys,columns))
 	var step := Vector2(width*.88/columns,length*.60/rows)
 	for index in keys.size():
 		var key: String=keys[index]

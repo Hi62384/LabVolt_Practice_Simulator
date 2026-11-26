@@ -236,7 +236,7 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 	if not calculators is Dictionary or calculators.size()!=int(counts_by_supply.keys().filter(func(key):return str(key).contains(":") and is_calculator(key)).size()):return false
 	for calculator in calculators:
 		if not calculator is String or not calculator.contains(":") or not is_calculator(calculator) or not counts_by_supply.has(calculator):return false
-		var quote:=Equipment.quote(Equipment.CALCULATOR,0,calculators[calculator])
+		var quote:=Equipment.quote(Equipment.CALCULATOR,0,calculators[calculator],true)
 		if quote.is_empty() or Equipment.value(Equipment.CALCULATOR,quote.configuration,"hardware","model","")!=Keypad.model_for(calculator):return false
 	if not carry is Array or carry.size()>6:return false
 	var carry_seen := {}

@@ -1,11 +1,13 @@
 extends RefCounted
 
 const LAYERS := 6
-const PIXELS := 128
+const PIXELS := 256
 const MAX_IMAGE := 36*1024
 const MAX_DOCUMENT := 84*1024
 const MAX_IMPORT := 6*1024*1024
-const OPTIONAL := ["width","height","lock_aspect","mesh_paint","projection"]
+const MAX_EMISSION := 16.0
+const MAX_INDENT := 4.0
+const OPTIONAL := ["width","height","lock_aspect","mesh_paint","projection","target_segment","reference_span","indent"]
 const TYPES := ["paint","image","text","shape"]
 const SHAPES := ["Panel","Button","Stud","Trim"]
 const BLENDS := ["Normal","Add","Multiply"]
@@ -42,7 +44,7 @@ static func clean(value: Variant) -> Variant:
 			var number: Variant=raw.get(key)
 			if not (number is int or number is float) or not is_finite(number):return null
 		if raw.x<0 or raw.x>1 or raw.y<0 or raw.y>1 or raw.size<.10 or raw.size>1.0 or absf(raw.angle)>180.0:return null
-		if raw.opacity<0 or raw.opacity>1.0 or raw.metallic<0 or raw.metallic>1.0 or raw.roughness<0 or raw.roughness>1.0 or raw.glow<0 or raw.glow>2.0:return null
+		if raw.opacity<0 or raw.opacity>1.0 or raw.metallic<0 or raw.metallic>1.0 or raw.roughness<0 or raw.roughness>1.0 or raw.glow<0 or raw.glow>MAX_EMISSION:return null
 		if raw.blend!=floor(raw.blend) or int(raw.blend) not in range(BLENDS.size()):return null
 		for key in ["crop_left","crop_right","crop_top","crop_bottom"]:
 			if raw[key]<0.0 or raw[key]>.4:return null
@@ -56,13 +58,22 @@ static func clean(value: Variant) -> Variant:
 			"shape":
 				if raw.data not in SHAPES:return null
 		if raw.has("mesh_paint"):
-			if raw.kind!="paint" or not raw.mesh_paint is Dictionary or raw.mesh_paint.size()>32:return null
+			if raw.kind!="paint" or not raw.mesh_paint is Dictionary or raw.mesh_paint.size()>128:return null
 			for id in raw.mesh_paint:
 				var pixels: Variant=raw.mesh_paint[id]
 				if not surface_id(id) or not pixels is String or pixels.is_empty():return null
 				encoded_size+=pixels.length()
 				if encoded_size>MAX_DOCUMENT or not valid_image(pixels):return null
 		if raw.has("projection") and (raw.kind!="image" or not _valid_projection(raw.projection)):return null
+		if raw.has("target_segment"):
+			var target: Variant=raw.target_segment
+			if raw.kind!="image" or not target is String or target.length()>24 or (not target.is_empty() and not target.is_valid_identifier()):return null
+		if raw.has("reference_span"):
+			var span: Variant=raw.reference_span
+			if raw.kind!="image" or not (span is float or span is int) or not is_finite(span) or span<.0001 or span>4.:return null
+		if raw.has("indent"):
+			var depth: Variant=raw.indent
+			if raw.kind not in ["paint","image"] or not (depth is float or depth is int) or not is_finite(depth) or absf(float(depth))>MAX_INDENT:return null
 		for key in raw:item[key]=raw[key]
 		item.blend=int(raw.blend)
 		design.append(item)
@@ -80,7 +91,7 @@ static func _valid_projection(value: Variant) -> bool:
 		var coords: Variant=value.get(field)
 		if not coords is Array or coords.size()!=3:return false
 		for axis in coords:
-			if not (axis is int or axis is float) or not is_finite(float(axis)) or absf(float(axis))>2.0:return false
+			if not (axis is int or axis is float) or not is_finite(float(axis)) or absf(float(axis))>(64.0 if field=="center" else 2.0):return false
 	var normal:=vector(value.normal)
 	var right:=vector(value.right)
 	return absf(normal.length_squared()-1.0)<.01 and absf(right.length_squared()-1.0)<.01 and absf(normal.dot(right))<.01

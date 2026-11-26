@@ -92,7 +92,14 @@ public partial class CalculatorMath : RefCounted
         try
         {
             var node = Read(tree, 0);
-            if (node.Operator == "=") node = node.Right!;
+            if (node.Operator == "=")
+            {
+                if (kind == 2 && node.Right is { Operator: "atom", Text: "z" })
+                    node = node.Left!;
+                else if (kind == 2 && node.Left is not { Operator: "atom", Text: "z" })
+                    throw new ArgumentException("Write a 3D surface as z = f(x, y).");
+                else node = node.Right!;
+            }
             var points = new List<Vector3>();
             double scale = AngleScale(angles);
             if (kind == 2)
@@ -277,6 +284,7 @@ public partial class CalculatorMath : RefCounted
                 return Text switch
                 {
                     "i" => Complex.ImaginaryOne, "pi" or "π" => Math.PI, "e" => Math.E,
+                    "tau" or "τ" => Math.Tau, "phi" or "φ" => (1 + Math.Sqrt(5)) / 2,
                     "x" or "θ" when variables => x, "y" when variables => y,
                     _ => throw new ArgumentException($"Unknown value {Text}.")
                 };

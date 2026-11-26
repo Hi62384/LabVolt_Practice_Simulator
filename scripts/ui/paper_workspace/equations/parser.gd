@@ -24,9 +24,9 @@ func parse(source: String) -> Dictionary:
 			var value := source.substr(start, i - start)
 			if dots > 1 or value == ".": return _result(source, {}, "Invalid number at character %d." % (start + 1))
 			_tokens.append({"kind":"atom", "text":value, "pos":start})
-		elif c.to_lower() in "abcdefghijklmnopqrstuvwxyz" or c in "πθφΩαβγΔΣμ∞":
+		elif c.to_lower() in "abcdefghijklmnopqrstuvwxyz" or c in "πτθφΩαβγΔΣμ∞":
 			var start := i
-			while i < source.length() and (source[i].to_lower() in "abcdefghijklmnopqrstuvwxyz" or source[i] in "πθφΩαβγΔΣμ∞"): i += 1
+			while i < source.length() and (source[i].to_lower() in "abcdefghijklmnopqrstuvwxyz" or source[i] in "πτθφΩαβγΔΣμ∞"): i += 1
 			_tokens.append({"kind":"atom", "text":source.substr(start, i - start), "pos":start})
 		elif c in "+-*/^_()=,;[]×÷−":
 			_tokens.append({"kind":{"×":"*","÷":"/","−":"-"}.get(c,c), "text":c, "pos":i}); i += 1

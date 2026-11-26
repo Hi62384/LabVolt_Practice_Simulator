@@ -20,8 +20,8 @@ static func window(elapsed: float,duration: float) -> Dictionary:
 		start=end
 	return {}
 
-static func pacing_signal(state: Dictionary,identity: String,signal_name: String,elapsed: float,duration: float,present: Array[String]) -> float:
-	var current := window(elapsed,duration)
+static func pacing_signal(state: Dictionary,identity: String,signal_name: String,elapsed: float,duration: float,present: Array[String],stage: Dictionary={}) -> float:
+	var current := window(elapsed,duration) if stage.is_empty() else stage
 	if current.key!="check" or identity not in present or signal_name not in ["ready","clarify"]:return 0.0
 	var signals: Dictionary=state.get("understanding",{})
 	signals[identity]=signal_name

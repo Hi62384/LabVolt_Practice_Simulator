@@ -98,6 +98,9 @@ func start(room: String,now: float,recent_indices: Array=[],mode: String="practi
   var peer:=int(student.get("peer",0))
   if Authority.resolve(peer,game.session.roster,game.school.identities,activity,game.lecture_classes._inside(peer,room))==str(identity):members.append(identity)
  if members.is_empty():return false
+ if mode=="quiz":
+  for id in activity.get("classmates",{}):
+   if activity.classmates[id].seated and members.size()<Round.MAX_STUDENTS:members.append(id)
  var bench: int=-1
  var lab: RefCounted=null
  if mode=="physical":
@@ -454,6 +457,8 @@ func tick(now: float) -> void:
    state.round.observe_live(true,game.session.labs[bench])
   if now>=float(state.open_at) and lifecycle.states.get(state.round.event_id,{}).get("phase","")=="announcing":
    lifecycle.advance(state.round.event_id,"active");publish(room,now)
+  if state.round.mode=="quiz" and not state.round.closed and now>=float(state.open_at):
+   _classmate_quiz(room,state,activity,now)
   if now>=state.round.deadline and not state.round.closed:
    if state.round.submissions.is_empty():
     lifecycle.advance(state.round.event_id,"timed_out")
@@ -593,6 +598,22 @@ func _award_quiz(state: Dictionary) -> void:
   series.scores[member]=int(series.scores.get(member,0))+state.round.quiz_points(member)+(10*maxi(0,streak-1) if correct else 0)
  series.completed=int(series.completed)+1
 
+func _classmate_quiz(room: String,state: Dictionary,activity: Dictionary,now: float) -> void:
+ var classmates: Dictionary=activity.get("classmates",{})
+ var round: RefCounted=state.round
+ for identity in round.participants:
+  if not classmates.has(identity) or round.submissions.has(identity) or round.attempts.has(identity):continue
+  var actor: Dictionary=classmates[identity]
+  var profile: Dictionary=actor.profile
+  var delay:=6.+float(posmod(hash([identity,round.event_id]),1400))/100.
+  if now<float(state.open_at)+delay or now>=round.deadline:continue
+  var proficiency: float=game.lecture_classes.classroom_students.proficiency(identity,activity.course,profile.knowledge)
+  var outcome: String=round.simulate_quiz_answer(identity,proficiency,now)
+  if outcome=="accepted":
+   state.series.labels[identity]=profile.name
+   state.series.teams[identity]="A" if posmod(hash(identity),2)==0 else "B"
+   game.lecture_classes.classroom_students.record_practice(identity,activity.course,round.submissions[identity].get("correct",false))
+
 func sync_roster(room: String,now: float) -> void:
  if not multiplayer.is_server() or not rooms.has(room):return
  for old_peer in request_budget.keys():
@@ -610,6 +631,7 @@ func sync_roster(room: String,now: float) -> void:
     state.hands.add_participant(true,state.round.event_id,str(identity))
     if state.round.mode in ["board","group"]:state.shared.add_member(str(identity))
  for identity in state.round.participants:
+  if activity.get("classmates",{}).has(identity):continue
   var student: Dictionary=activity.students.get(identity,{})
   var previous:=int(student.get("peer",0))
   # Keep a connected enrollment stable even if another peer presents the same

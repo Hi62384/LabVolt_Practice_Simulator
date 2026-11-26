@@ -43,6 +43,7 @@ func _ready() -> void:
 	configured=equipment_options.has("body")
 	equation_enabled=advanced_app or bool(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","equation",false))
 	algebra_enabled=advanced_app or bool(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","algebra",false))
+	equation_enabled=equation_enabled or algebra_enabled
 	complex_enabled=advanced_app or bool(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","complex",false))
 	graph_level=2 if advanced_app else int(Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","graph",0))
 	if equation_enabled or algebra_enabled:math_engine=MathEngine.new()
@@ -119,6 +120,7 @@ func _ready() -> void:
 	if basic or financial or campus_style:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	var keys: Array=equipment_options.get("keypad",keypad_keys(model))
 	if configured and int(equipment_options.get("version",1))<Equipment.DESIGN_VERSION:keys=Equipment.Keypad.with_required(keys)
+	elif configured:keys=keys.slice(0,Equipment.Keypad.occupied_rows(keys,grid.columns)*grid.columns)
 	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","key_style",false)
 	if financial or (configured and keys.any(func(key):return Finance.ARGUMENTS.has(key))):
 		finance_help=Label.new()
@@ -350,9 +352,15 @@ func _build_graph(body: VBoxContainer) -> void:
 			graph.data.append(points)
 		graph.queue_redraw()
 	mode_choice.item_selected.connect(func(_index):plot.call())
+	mode_choice.item_selected.connect(func(index: int):
+		expressions.placeholder_text="Enter one equation per line, up to six. Example: z = x^2 + y^2" if index==2 else "Enter one equation per line, up to six.")
 	var actions:=HBoxContainer.new()
 	functions.add_child(actions)
 	actions.add_child(_action("Plot",plot))
+	actions.add_child(_action("Use entry",func():
+		if not display.text.strip_edges().is_empty():
+			expressions.text+="\n"+display.text if not expressions.text.is_empty() else display.text
+			plot.call()))
 	for measure in ["Slope at x","Area over range"]:
 		var slope: bool=measure.begins_with("Slope")
 		actions.add_child(_action(measure,func():
@@ -403,7 +411,7 @@ static func close_parentheses(value: String) -> String:
 	return value+")".repeat(mini(balance,90))
 static func calculate(value: String,degrees_mode := true,angle_system := "") -> Dictionary:
 	if value.length()>180 or value.is_empty():return {"ok":false,"error":"Enter a calculation"}
-	var safe := close_parentheses(value).to_lower().replace(" ","")
+	var safe := close_parentheses(value).to_lower().replace(" ","").replace("π","pi").replace("τ","tau").replace("φ","phi")
 	var depth := 0
 	for character in safe:
 		if character=="(":depth+=1
@@ -412,9 +420,15 @@ static func calculate(value: String,degrees_mode := true,angle_system := "") -> 
 	if safe.contains("()"):return {"ok":false,"error":"Enter a value"}
 	var scientific := RegEx.new();scientific.compile("([0-9]+(?:\\.[0-9]*)?)[e]([+-]?[0-9]+)");safe=scientific.sub(safe,"($1*10^($2))",true)
 	var words := RegEx.new();words.compile("[a-z_][a-z_0-9]*")
+	var constants:={"pi":"3.141592653589793","e":"2.718281828459045","tau":"6.283185307179586","phi":"1.618033988749895"}
 	for word in words.search_all(safe):
-		if word.get_string() not in ["pi","sqrt","sin","cos","tan","asin","acos","atan","abs","pow","log","ln","exp"]:return {"ok":false,"error":"Invalid function"}
-	safe=_functions(safe,angle_system if angle_system in ["deg","rad","grad"] else ("deg" if degrees_mode else "rad")).replace("pi","3.141592653589793").replace("^","**")
+		if word.get_string() not in ["pi","e","tau","phi","sqrt","sin","cos","tan","asin","acos","atan","abs","pow","log","ln","exp"]:return {"ok":false,"error":"Invalid function"}
+	safe=_functions(safe,angle_system if angle_system in ["deg","rad","grad"] else ("deg" if degrees_mode else "rad")).replace("^","**")
+	var tokens:=words.search_all(safe)
+	tokens.reverse()
+	for word in tokens:
+		if constants.has(word.get_string()):
+			safe=safe.substr(0,word.get_start())+constants[word.get_string()]+safe.substr(word.get_end())
 	var allowed := RegEx.new();allowed.compile("^[0-9a-z+*/().,_-]+$")
 	if not allowed.search(safe):return {"ok":false,"error":"Check brackets"}
 	# Force decimal arithmetic: 1/2 should be 0.5, not integer division.

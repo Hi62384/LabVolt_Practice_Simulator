@@ -59,16 +59,13 @@ func input(event: InputEvent) -> bool:
 		finish()
 		return true
 	if not (event is InputEventMouseButton or event is InputEventMouseMotion):return false
-	if event.shift_pressed:
+	if not event.shift_pressed:
 		hover=Vector2.INF
-		if not drag.is_empty():finish()
+		if not drag.is_empty():
+			finish()
+			return true
 		queue_redraw()
 		return false
-	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_DOWN,MOUSE_BUTTON_WHEEL_UP] and accepts_brush():
-		var direction:=1 if event.button_index==MOUSE_BUTTON_WHEEL_UP else -1
-		editor.brush_size.set_value(clampi(roundi(editor.brush_size.value)+direction,1,14))
-		queue_redraw()
-		return true
 	if event is InputEventMouseMotion:
 		hover=event.position
 		queue_redraw()
@@ -83,7 +80,7 @@ func input(event: InputEvent) -> bool:
 		original=current.duplicate(true)
 		drag_button=event.button_index
 		if current.kind=="paint":
-			if not accepts_brush() or pick(event.position).is_empty():return false
+			if not accepts_brush() or _paint_hit(event.position,editor.paint_segment).is_empty():return false
 			force_erase=event.button_index==MOUSE_BUTTON_RIGHT
 			raw_pixels.clear()
 			paint_textures.clear()
@@ -101,7 +98,7 @@ func input(event: InputEvent) -> bool:
 				resize_axis=(edge_handles[edge]-edge_handles[(edge+2)%4]).normalized()
 			if drag in ["rotate","resize","height","width"]:
 				resize_origin=(handles[0]+handles[2])*.5
-			elif not pick(event.position).is_empty():
+			elif not pick(event.position).is_empty() or (handles.size()==4 and Geometry2D.is_point_in_polygon(event.position,handles)):
 				drag="move"
 				move_image(event.position)
 			else:return false
@@ -116,6 +113,11 @@ func pick(position: Vector2) -> Dictionary:
 	if id.begins_with("#"):return {}
 	result.surface=id
 	return result
+
+func _paint_hit(position: Vector2,segment: String) -> Dictionary:
+	var hit:=pick(position)
+	if hit.is_empty() or (not segment.is_empty() and hit.surface.get_slice(":",0)!=segment):return {}
+	return hit
 
 func paint_to(point: Vector2) -> void:
 	var brush: Dictionary=editor.brush_settings()
@@ -133,7 +135,7 @@ func paint_to(point: Vector2) -> void:
 	var prior:=last_point
 	last_point=point
 	for step in range(1,steps+1):
-		var hit:=pick(prior.lerp(point,float(step)/steps))
+		var hit:=_paint_hit(prior.lerp(point,float(step)/steps),brush.segment)
 		if hit.is_empty():continue
 		var meters: float=-camera.to_local(hit.point).z
 		var radius:=meters*float(brush.size)*1.35/focal
@@ -143,7 +145,7 @@ func paint_to(point: Vector2) -> void:
 	if points.is_empty():return
 	for index in ids.size():
 		var id: String=ids[index]
-		if id.begins_with("#"):continue
+		if id.begins_with("#") or (not str(brush.segment).is_empty() and id.get_slice(":",0)!=brush.segment):continue
 		if not raw_pixels.has(id):
 			if brush.erase and not saved.has(id):continue
 			var image:=Document.decode(saved[id]) if saved.has(id) else null
@@ -166,17 +168,10 @@ func move_image(point: Vector2) -> void:
 	pending=original.duplicate(true) if pending.is_empty() else pending
 	if drag=="move":
 		var hit:=pick(point)
-		if hit.is_empty():return
-		var target: MeshInstance3D=surfaces[hit.surface]
-		var shape:=target.get_aabb()
-		var normal: Vector3=hit.local_normal
-		var tangential: Vector3=target.global_basis.inverse()*camera.global_basis.x
-		var right:=tangential.slide(normal).normalized()
-		if right.is_zero_approx():return
-		var center: Vector3=(hit.local-shape.get_center())/shape.size.max(Vector3.ONE*.00001)
-		pending.projection={"surface":hit.surface,"center":Document.array(center),"normal":Document.array(normal),"right":Document.array(right)}
-		pending.x=.5
-		pending.y=.5
+		if hit.is_empty():
+			_move_on_image_plane(point)
+		else:
+			_place_image(hit)
 	elif handles.size()==4:
 		var base:=last_point-resize_origin
 		var delta:=point-resize_origin
@@ -191,6 +186,39 @@ func move_image(point: Vector2) -> void:
 	Artwork.apply(product,next)
 	render_preview.call()
 	queue_redraw()
+
+func _place_image(hit: Dictionary) -> void:
+	var target: MeshInstance3D=surfaces[hit.surface]
+	var shape:=target.get_aabb()
+	var normal: Vector3=hit.local_normal
+	var tangential: Vector3=target.global_basis.inverse()*camera.global_basis.x
+	var right:=tangential.slide(normal).normalized()
+	if right.is_zero_approx():return
+	if not pending.has("reference_span"):
+		var previous: MeshInstance3D=surfaces.get(pending.get("projection",{}).get("surface",""),target)
+		var extent:=previous.get_aabb().size*previous.global_basis.get_scale().abs()
+		pending.reference_span=maxf(extent.x,maxf(extent.y,extent.z))
+	var center: Vector3=(hit.local-shape.get_center())/shape.size.max(Vector3.ONE*.00001)
+	pending.projection={"surface":hit.surface,"center":Document.array(center),"normal":Document.array(normal),"right":Document.array(right)}
+	pending.x=.5
+	pending.y=.5
+
+func _move_on_image_plane(point: Vector2) -> void:
+	if not pending.has("projection"):return
+	var target: MeshInstance3D=surfaces.get(pending.projection.surface)
+	var texture:=Artwork._texture(pending.data)
+	if not is_instance_valid(target) or texture==null:return
+	var frame: Transform3D=Artwork.image_frame(target,pending,texture.get_size()).transform
+	var plane:=Plane(frame.basis.z,frame.origin)
+	var hit: Variant=plane.intersects_ray(camera.project_ray_origin(point),camera.project_ray_normal(point))
+	if hit==null:return
+	var shape:=target.get_aabb()
+	var center: Vector3=(target.to_local(hit)-shape.get_center())/shape.size.max(Vector3.ONE*.00001)
+	if not center.is_finite():return
+	if maxf(absf(center.x),maxf(absf(center.y),absf(center.z)))>64.:return
+	pending.projection.center=Document.array(center)
+	pending.x=.5
+	pending.y=.5
 
 func finish() -> void:
 	var committed:=true
@@ -226,7 +254,7 @@ func _draw() -> void:
 	rotate_handle=Vector2.INF
 	var current:=pending if not pending.is_empty() else layer()
 	if current.is_empty() or not current.get("visible",false):return
-	if current.kind=="paint" and hover.is_finite() and accepts_brush() and not pick(hover).is_empty():
+	if current.kind=="paint" and hover.is_finite() and accepts_brush() and not _paint_hit(hover,editor.paint_segment).is_empty():
 		var brush: Dictionary=editor.brush_settings()
 		var radius:=float(brush.size)*1.35
 		draw_arc(hover,radius,0.,TAU,32,DARK,3.,true)

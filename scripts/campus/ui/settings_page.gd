@@ -151,6 +151,8 @@ func _select(category: String) -> void:
 			privacy_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 			_label(body, "Teacher replies", 18)
 			_toggle("Play teacher speech when a voice is available", prefs.values.teacher_speech, _preference.bind("teacher_speech"))
+			_toggle("Listen automatically during teacher conversations",prefs.values.teacher_automatic_conversation,_preference.bind("teacher_automatic_conversation"))
+			_label(body,"When enabled, speaking to a teacher sends recognized voice turns to the host’s configured speech-to-text service.",14)
 			_toggle("Show teacher subtitles", prefs.values.teacher_subtitles, _preference.bind("teacher_subtitles"))
 			var mic_test:=preload("res://scripts/campus/voice/microphone_meter.gd").new()
 			body.add_child(mic_test);mic_test.build(func():return prefs.values.teacher_mic_sensitivity)
@@ -275,7 +277,7 @@ func _input_controls() -> void:
 	_toggle("Head bob", game.player.head_bob, _control.bind("head_bob"))
 	_label(body, "Keyboard bindings", 18)
 	for action in game.player.keys:
-		var names := {"voice":"Push to talk","forward":"Move forward","back":"Move backward","left":"Strafe left","right":"Strafe right","read_sheet":"Read held worksheet","place_item":"Place held item","inspect":"Inspect device","emotes":"Open emotes","call_teacher":"Call lab instructor","throw_item":"Charge and throw held item"}
+		var names := {"voice":"Push to talk","forward":"Move forward","back":"Move backward","left":"Strafe left","right":"Strafe right","read_sheet":"Read held worksheet","place_item":"Place held item","inspect":"Inspect device","emotes":"Open emotes","call_teacher":"Call lab instructor","raise_hand":"Raise or lower hand","throw_item":"Charge and throw held item"}
 		var row := _row(names.get(action, str(action).replace("_"," ").capitalize()))
 		binding_buttons[action] = _button(row, OS.get_keycode_string(game.player.keys[action]), "keyboard", _start_binding.bind(action))
 		binding_buttons[action].custom_minimum_size.x = 120

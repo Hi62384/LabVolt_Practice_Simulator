@@ -1,9 +1,11 @@
 extends RefCounted
 ## Chooses class narration from the host's released curriculum stage.
 static func cue(activity: Dictionary, stage: Dictionary, now: float, personality: Dictionary) -> Dictionary:
-	var elapsed := clampf(420.0 - (float(activity.deadline) - now), 0.0, 419.0)
-	var interval := lerpf(24.0, 16.0, clampf(float(personality.get("talkativeness", .5)),0.0,1.0))
+	var duration:=float(activity.get("teaching",{}).get("duration_seconds",420.0))
+	var elapsed := clampf(duration - (float(activity.deadline) - now), 0.0, duration)
+	var interval := lerpf(17.0, 10.0, clampf(float(personality.get("talkativeness", .5)),0.0,1.0))
 	var slot := floori(elapsed / interval)
+	var section_slot:=maxi(0,floori((elapsed-float(stage.get("start_seconds",0.)))/interval))
 	var title := str(stage.get("title", activity.get("title","today's lesson")))
 	var stage_index := int(stage.get("index",0))
 	var strict := float(personality.get("difficulty",.5)) >= .65
@@ -18,10 +20,11 @@ static func cue(activity: Dictionary, stage: Dictionary, now: float, personality
 	for key in ["formulas","worked"]:
 		var line := str(stage.get(key,"")).strip_edges()
 		if not line.is_empty() and not lines.has(line): lines.append(line)
-	var line := lines[posmod(slot,lines.size())] if not lines.is_empty() else title
+	if not lines.is_empty() and section_slot>=lines.size():return {}
+	var line := lines[section_slot] if not lines.is_empty() else title
 	if slot == 0:
 		line = "Let's begin %s. Our topic is %s. %s" % [activity.course, title, line]
-	elif elapsed >= 390:
+	elif elapsed >= duration-30.:
 		line = "Before the assessment, review %s. %s" % [title,line]
 	elif slot % 3 == 2:
 		line = ("Check your reasoning: " if strict else "Try this check with me: ") + line

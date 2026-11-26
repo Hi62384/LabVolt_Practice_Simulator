@@ -65,6 +65,8 @@ func _present_count(room: String,activity: Dictionary) -> int:
  for identity in activity.get("students",{}):
   var peer:=int(activity.students[identity].get("peer",0))
   if peer>0 and game.session.roster.has(peer) and str(game.school.identities.get(peer,""))==str(identity) and game.lecture_classes._inside(peer,room):count+=1
+ for member in activity.get("classmates",{}).values():
+  if member.get("seated",false):count+=1
  return count
 
 ## Host-only, bounded request from a perceived teacher-addressed message.
@@ -140,7 +142,7 @@ func step(now: float) -> void:
     continue
    var class_id:=str(activity.get("id",""))
    if class_id.is_empty():continue
-   if not attempted.has(class_id):attempted[class_id]={"count":0,"tries":0,"next":float(activity.get("deadline",0))-210.0,"recent":[],"recent_modes":[],"last_step":now,"teaching_seconds":0.0,"event_seconds":0.0,"interruption_seconds":0.0,"offtopic_seconds":0.0}
+   if not attempted.has(class_id):attempted[class_id]={"count":0,"tries":0,"next":float(activity.get("deadline",0))-game.lecture_classes.lesson_duration(activity)*.5,"recent":[],"recent_modes":[],"last_step":now,"teaching_seconds":0.0,"event_seconds":0.0,"interruption_seconds":0.0,"offtopic_seconds":0.0}
    var schedule: Dictionary=attempted[class_id]
    if activity.get("ai_teaching",false):
     _step_adaptive_activity(room,activity,schedule,now)
@@ -331,11 +333,13 @@ func _process(delta: float) -> void:
  if not enabled or not is_instance_valid(game):return
  var avatars: Variant=game.get("avatars")
  if not avatars is Dictionary:return
+ var room: String=game.campus.registry.locate(game.player.global_position)
+ var lecture_hands: Array=game.lecture_classes.public_classes.get(room,{}).get("raised_peers",[])
  for peer in avatars:
   var avatar: Node3D=avatars[peer]
   if not is_instance_valid(avatar):continue
   var model:=avatar.get_node_or_null("CharacterModel") as Node3D
-  if is_instance_valid(model):preload("res://scripts/avatar_model.gd").raise_hand(model,int(peer) in raised_peers,delta)
+  if is_instance_valid(model):preload("res://scripts/avatar_model.gd").raise_hand(model,int(peer) in raised_peers or int(peer) in lecture_hands,delta)
 
 func _action(class_id: String,event_id: String,op: String,payload: Variant) -> void:
  if not enabled or current_room.is_empty():return

@@ -196,7 +196,11 @@ const BODY_LIMITS := {"width":Vector2(.122,.21),"height":Vector2(.027,.065),"wei
 
 static func body_size(configuration: Dictionary) -> Vector3:
 	var body: Dictionary=configuration.get("body",BODY_DEFAULT)
-	return Vector3(body.width,body.height,.182)
+	var length:=.182
+	if int(configuration.get("version",1))==DESIGN_VERSION:
+		var layout: Array=configuration.get("keypad",[])
+		length=.062+.020*Keypad.occupied_rows(layout,Keypad.COLUMNS)
+	return Vector3(body.width,body.height,length)
 
 static func kit_capacity(configuration: Dictionary, fallback: int) -> int:
 	return int(value(KIT,configuration,"hardware","capacity",fallback))
@@ -217,7 +221,7 @@ static func defaults(kind: String,version := 0) -> Dictionary:
 		if version>=VERSION:result.body=BODY_DEFAULT.duplicate()
 	return result
 
-static func quote(kind: String, base_price: int, selection: Variant) -> Dictionary:
+static func quote(kind: String,base_price: int,selection: Variant,owned := false) -> Dictionary:
 	if not selection is Dictionary:return {}
 	var version:=_index(selection.get("version"),latest_version(kind)+1)
 	if version<1:return {}
@@ -248,7 +252,7 @@ static func quote(kind: String, base_price: int, selection: Variant) -> Dictiona
 				if keypad_cost<0:return {}
 			elif not Keypad.valid_custom(selection.get("keypad")):return {}
 			var picked: Dictionary=normalized.hardware
-			if (picked.complex>0 and picked.equation==0) or (picked.graph>0 and picked.algebra==0):return {}
+			if ((picked.complex>0 or (picked.algebra>0 and not owned)) and picked.equation==0) or (picked.graph>0 and picked.algebra==0):return {}
 			var body: Variant=selection.get("body")
 			if not body is Dictionary or body.size()!=BODY_LIMITS.size():return {}
 			var dimensions:={}
@@ -326,8 +330,8 @@ static func same_phone_configuration(left: Dictionary, right: Dictionary) -> boo
 
 static func same_configuration(kind: String, left: Dictionary, right: Dictionary) -> bool:
 	if left.is_empty() or right.is_empty():return left.is_empty() and right.is_empty()
-	var canonical := quote(kind,0,left)
-	return not canonical.is_empty() and canonical==quote(kind,0,right)
+	var canonical := quote(kind,0,left,true)
+	return not canonical.is_empty() and canonical==quote(kind,0,right,true)
 
 static func usb_capacity(pending: Variant) -> int:
 	var capacity: Variant=pending.get("capacity_mb") if pending is Dictionary else pending

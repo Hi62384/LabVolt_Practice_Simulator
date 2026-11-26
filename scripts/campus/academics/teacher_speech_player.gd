@@ -44,7 +44,7 @@ func accept(room: String,teacher: String,serial: int,text: String,priority: int,
 	last_serial[room]=serial
 	if not speech_enabled:stream=null
 	var item:={"teacher":teacher,"serial":serial,"text":text,"priority":priority,"anchor":anchor,"stream":stream}
-	awaiting[room]={"item":item,"until":Time.get_ticks_msec()+7000}
+	awaiting[room]={"item":item,"until":Time.get_ticks_msec()+16000}
 	if active.has(room) and priority>int(active[room].priority):
 		_stop(room)
 		_start(room,item)

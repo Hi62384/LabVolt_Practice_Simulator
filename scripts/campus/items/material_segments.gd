@@ -1,5 +1,6 @@
 extends RefCounted
 
+const MAX_EMISSION:=16.0
 const SECTIONS:={
 	"smartphone":{"case":"Case","trim":"Buttons and trim"},
 	"portable_laptop":{"case":"Base casing","lid":"Display lid","keys":"Keyboard","trackpad":"Trackpad","bezel":"Screen bezel"},
@@ -28,7 +29,7 @@ static func clean(kind: String, raw: Variant) -> Variant:
 		var entry:={"color":str(color).to_lower(),"emission":str(emission).to_lower()}
 		for field in ["roughness","metallic","strength"]:
 			var value: Variant=part.get(field)
-			if not (value is int or value is float) or not is_finite(float(value)) or float(value)<0.0 or float(value)>(4.0 if field=="strength" else 1.0):return null
+			if not (value is int or value is float) or not is_finite(float(value)) or float(value)<0.0 or float(value)>(MAX_EMISSION if field=="strength" else 1.0):return null
 			entry[field]=snappedf(float(value),.001)
 		result[key]=entry
 	return result

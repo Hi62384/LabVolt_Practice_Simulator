@@ -6,6 +6,7 @@ const Metadata = preload("res://scripts/campus/academics/record_metadata.gd")
 const TeachingBoard = preload("res://scripts/campus/academics/teaching_board.gd")
 const Practice = preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd")
 const LessonBoardState = preload("res://scripts/campus/academics/lesson_board_state.gd")
+const LessonPlan = preload("res://scripts/campus/academics/class_lesson_plan.gd")
 const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
 const ArrivalSeconds := 120.0
@@ -27,10 +28,14 @@ var check_clock := 0.0
 var publish_clock := 0.0
 var received_at := 0
 var classroom_events: Node
+var classroom_students: Node3D
 
 func build(owner: Node) -> void:
 	game=owner
 	school=game.school
+	classroom_students=preload("res://scripts/campus/academics/classroom_students.gd").new()
+	add_child(classroom_students)
+	classroom_students.configure(game)
 	overlay=CanvasLayer.new()
 	overlay.layer=12
 	add_child(overlay)
@@ -107,13 +112,16 @@ func command(op: String,room: String,config: Dictionary) -> void:
 
 func _apply(peer: int,op: String,room: String,config: Dictionary) -> void:
 	if room not in game.campus.registry.lecture_rooms() + ["ac_lab","dc_lab"] or not game.session.roster.has(peer) or var_to_bytes(config).size()>1024:return
+	if op=="hand":
+		_toggle_hand(peer,room,str(config.get("class_id","")))
+		return
 	var error := "Approach the desk in the lecture room."
 	if _inside(peer,room) and signs.has(room) and _position(peer).distance_to(signs[room].desk)<=3.6:
 		if op=="start":
 			if peer!=1:error="Only the host can start a class."
 			elif student_has_class(peer) or classes.values().any(func(activity):return activity.get("host",0)==peer):
 				error="Finish your current class before starting another."
-			elif not game.host_openai.verified_for_class():error=game.host_openai.class_connection_status()
+			elif not game.host_openai.ready_for_class():error=game.host_openai.class_connection_status()
 			else:
 				error=_start(room,config)
 				if error.is_empty():
@@ -188,8 +196,15 @@ func _start(room: String,config: Dictionary) -> String:
 		teacher=game.faculty.current.get(room,"") if kind=="lab" else ""
 		if course not in Faculty.entry(teacher).get("courses",[]):teacher=game.faculty.pick_lecture(course)
 		if teacher.is_empty():return "No eligible teacher is available right now."
-	var teaching: Dictionary=school.course_bridge.lesson_for_assignment(lesson,LessonSeconds)
-	classes[room]={"id":Crypto.new().generate_random_bytes(16).hex_encode(),"room":room_info,"course":course,"kind":kind,"teacher":teacher,"week":week,"difficulty":level,"extra":extra,"title":str(extra.get("title",lesson.get("title",course))),"phase":"arrival","deadline":_now()+ArrivalSeconds,"teaching":teaching,"students":{}}
+	var class_id:=Crypto.new().generate_random_bytes(16).hex_encode()
+	const Dialogue=preload("res://scripts/campus/academics/teacher_dialogue.gd")
+	var teaching:=LessonPlan.build(school.course_bridge.lesson_for_assignment(lesson,LessonSeconds),
+		Dialogue.personalities().get(teacher,{}),class_id.hash())
+	classes[room]={"id":class_id,"room":room_info,"course":course,"kind":kind,"teacher":teacher,"week":week,"difficulty":level,"extra":extra,"title":str(extra.get("title",lesson.get("title",course))),"phase":"arrival","deadline":_now()+ArrivalSeconds,"teaching":teaching,"students":{}}
+	var present: Array[Vector3]=[]
+	for peer in game.session.roster:
+		if _inside(int(peer),room):present.append(_position(int(peer)))
+	classroom_students.start(classes[room],room_info,present,_now())
 	return ""
 
 func student_has_class(peer: int, except_room := "") -> bool:
@@ -280,6 +295,9 @@ func _process(delta: float) -> void:
 		check_clock+=delta
 		publish_clock+=delta
 		if check_clock>=.2:
+			for room in classes:
+				classroom_students.step(classes[room],_now(),check_clock)
+				_hand_turn(room,classes[room],_now())
 			check_clock=0.0
 			_check_students()
 			_advance()
@@ -287,13 +305,58 @@ func _process(delta: float) -> void:
 			publish_clock=0.0
 			_publish()
 	if is_instance_valid(classroom_events):classroom_events.step(_now())
+	if game.front.in_game:
+		classroom_students.render(game.campus.registry.locate(game.player.global_position),public_classes,delta)
 	_update_views()
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if not event is InputEventKey or not event.pressed or event.echo or not is_instance_valid(game):return
+	if not game.front.in_game or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED or event.physical_keycode!=game.player.keys.raise_hand:return
+	var room: String=game.campus.registry.locate(game.player.global_position)
+	var info: Dictionary=public_classes.get(room,{})
+	if info.get("phase")!="lesson" or not info.get("signed",false):return
+	_send("hand",room,{"class_id":info.id})
+	get_viewport().set_input_as_handled()
+
+func _toggle_hand(peer: int,room: String,class_id: String) -> void:
+	var activity: Dictionary=classes.get(room,{})
+	var identity:=str(school.identities.get(peer,""))
+	if activity.get("phase")!="lesson" or activity.get("id")!=class_id or not _inside(peer,room) or not activity.students.has(identity):return
+	var hands: Array=activity.get_or_add("hands",[])
+	if identity in hands:hands.erase(identity)
+	elif hands.size()<24 and activity.get("hand_identity","")!=identity:hands.append(identity)
+	_publish()
+
+func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
+	if activity.phase!="lesson":return
+	var hands: Array=activity.get("hands",[])
+	if now<float(activity.get("next_hand",0.)):return
+	activity.erase("hand_identity")
+	if hands.is_empty():return
+	if game.faculty.lesson_question_active(room) or classroom_events.service.rooms.has(room):return
+	while not hands.is_empty():
+		var identity: String=hands.pop_front()
+		var peer:=int(activity.students.get(identity,{}).get("peer",0))
+		if not _inside(peer,room) or str(school.identities.get(peer,""))!=identity:continue
+		activity.hand_identity=identity
+		activity.next_hand=now+20.
+		game.faculty.invite_question(room,str(activity.teacher),peer,str(activity.id))
+		break
 
 func _advance() -> void:
 	var changed := false
 	var assessment_intros: Array[String]=[]
+	var now:=_now()
 	for room in classes.keys():
 		var activity: Dictionary=classes[room]
+		if activity.phase=="lesson" and now<float(activity.deadline):
+			var elapsed:=clampf(now-float(activity.get("lesson_tick",now)),0.,.6)
+			activity.lesson_tick=now
+			var spent:=float(activity.get("lesson_pause",0.))
+			if spent<90. and game.faculty.lesson_question_active(room):
+				var pause:=minf(elapsed,90.-spent)
+				activity.deadline+=pause
+				activity.lesson_pause=spent+pause
 		if activity.phase=="assignment" and activity.students.values().all(func(student):return student.done):
 			classes.erase(room)
 			changed=true
@@ -302,7 +365,8 @@ func _advance() -> void:
 		match activity.phase:
 			"arrival":
 				activity.phase="lesson"
-				activity.deadline=_now()+LessonSeconds
+				activity.deadline=now+lesson_duration(activity)
+				activity.lesson_tick=now
 				activity.ai_waiting=activity.get("ai_teaching",false)
 				changed=true
 			"lesson":
@@ -465,11 +529,15 @@ func _reset() -> void:
 		picker=null
 
 func _stage(activity: Dictionary) -> Dictionary:
-	var elapsed := LessonSeconds-maxf(0.0,float(activity.deadline)-_now())
-	var board := LessonBoardState.at(activity.teaching,str(activity.title),elapsed,LessonSeconds)
+	var duration:=lesson_duration(activity)
+	var elapsed := maxf(0.,duration-maxf(0.0,float(activity.deadline)-_now()))
+	var board := LessonBoardState.at(activity.teaching,str(activity.title),elapsed,duration)
 	if activity.get("ai_teaching",false):
-		board["teaching_step"]=preload("res://scripts/campus/academics/adaptive_lesson.gd").window(elapsed,LessonSeconds)
+		board["teaching_step"]=LessonPlan.step(board,elapsed,duration)
 	return board
+
+static func lesson_duration(activity: Dictionary) -> float:
+	return float(activity.get("teaching",{}).get("duration_seconds",LessonSeconds))
 
 func _publish() -> void:
 	for peer in game.session.roster:
@@ -480,6 +548,13 @@ func _publish() -> void:
 			var student: Dictionary=activity.students.get(identity,{})
 			var stage := _stage(activity) if activity.phase=="lesson" and _inside(int(peer),room) else {}
 			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage,"ai_status":activity.get("ai_status",""),"ai_teaching":activity.get("ai_teaching",false)}
+			if _inside(int(peer),room):public[room].classmates=classroom_students.snapshot(activity,_now())
+			if _inside(int(peer),room) and activity.phase=="lesson":
+				var raised: Array[int]=[]
+				for raised_identity in activity.get("hands",[]):
+					var raised_peer:=int(activity.students.get(raised_identity,{}).get("peer",0))
+					if raised_peer>0 and _inside(raised_peer,room):raised.append(raised_peer)
+				public[room].raised_peers=raised
 		if int(peer)==multiplayer.get_unique_id():receive(public)
 		elif game.session.online and game.session.peer_connected_now(int(peer)):receive.rpc_id(int(peer),public)
 
@@ -589,6 +664,7 @@ func _update_views() -> void:
 		if info.phase=="lesson":title=str(info.get("stage",{}).get("teaching_step",{}).get("title",title))
 		var text := "%s · %s\n%s · Week %d   %d:%02d" % [title,info.number,info.course,info.week,seconds/60,seconds%60]
 		if not str(info.get("ai_status","")).is_empty():text+="\n"+str(info.ai_status)
+		if teaching and info.signed:text+="\n[%s] %s"%[OS.get_keycode_string(game.player.keys.raise_hand),"Lower hand" if multiplayer.get_unique_id() in info.get("raised_peers",[]) else "Raise hand"]
 		var label: Label=cards[room].get_child(0)
 		if label.text!=text:label.text=text
 	for room in cards.keys():

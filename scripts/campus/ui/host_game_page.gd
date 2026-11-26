@@ -120,12 +120,6 @@ func build(owner_game: Node) -> void:
 			closed.emit()
 			game.front.pause_menu()
 			game.front.settings_page())
-		_action(connection_row,"Test connection","check",func():
-			connection_status.text="Checking the selected OpenAI model…"
-			var result: Dictionary=await game.host_openai.verify_class_connection()
-			if is_inside_tree():
-				_update_start()
-				if not result.get("ok",false):_error(str(result.get("error","Connection failed."))))
 	page.add_child(HSeparator.new())
 	var footer := HBoxContainer.new()
 	page.add_child(footer)
@@ -264,7 +258,7 @@ func _pick_week(config: Dictionary) -> void:
 func _update_start() -> void:
 	var host:=multiplayer.is_server()
 	connection_status.text=game.host_openai.class_connection_status() if host else "Only the host can start a class."
-	start.disabled=selected_week.is_empty() or not host or not game.host_openai.verified_for_class()
+	start.disabled=selected_week.is_empty() or not host or not game.host_openai.ready_for_class()
 	if is_instance_valid(practice_button):practice_button.disabled=selected_week.is_empty() or not str(selected_week.get("id","")).is_empty()
 
 func _request_practice() -> void:

@@ -8,6 +8,7 @@ const DEFAULTS := {
 	"master": 1.0, "effects": 1.0, "ambience": 1.0, "interface": 1.0,
 	"teacher_mic_sensitivity": 1.0,
 	"teacher_mic_detection": true,
+	"teacher_automatic_conversation": false,
 	"teacher_speech": true, "teacher_subtitles": true,
 	"prompts": true, "notifications": true, "room_names": true, "hud": true, "assists": true,
 	"relay_pose_rate": 10, "relay_skip_idle": true,
