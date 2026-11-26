@@ -542,10 +542,17 @@ func _public_drops() -> Dictionary:
 	for id in drops:
 		var drop: Dictionary=drops[id]
 		public[id]={"position":drop.position,"expires":drop.expires,"label":drop.label,"visual":_visual_kind(drop)}
-		if _visual_kind(drop)=="pcb":
+		if public[id].visual=="notebook":
+			var configuration := _notebook_configuration(drop)
+			if not configuration.is_empty():public[id].configuration=configuration
+		if public[id].visual=="pcb":
 			if not drop.has("pcb_preview"):drop.pcb_preview=PcbPreview.describe(drop.get("parcel",{}).get("pcb",{}))
 			if not drop.pcb_preview.is_empty():public[id].pcb_preview=drop.pcb_preview
 	return public
+
+func _notebook_configuration(drop: Dictionary) -> Dictionary:
+	var parcel: Dictionary=drop.get("parcel",{})
+	return drop.get("configuration",parcel.get("notebook_options",{}).get(parcel.get("item",{}).get("id",""),{}))
 
 @rpc("authority","call_remote","reliable")
 func sync_drops(public: Dictionary,server_ticks: int) -> void:
@@ -702,8 +709,7 @@ func _add_item_visual(root: Node3D,kind: String,drop: Dictionary) -> void:
 		var kit: StaticBody3D=game.kit_world._create_kit_view(0,{"id":"lost","name":str(drop.label),"tier":kind.trim_prefix("kit_")})
 		kit.collision_layer=0;kit.reparent(prop,false)
 	elif kind=="notebook":
-		game._box(prop,Vector3(0,.02,0),Vector3(.23,.034,.31),Color("416b78"))
-		game._box(prop,Vector3(-.09,.038,0),Vector3(.04,.004,.31),Color("254854"))
+		preload("res://scripts/campus/items/notebook_model.gd").build(prop,_notebook_configuration(drop))
 	elif kind=="paper":
 		game._box(prop,Vector3(0,.012,0),Vector3(.23,.008,.31),Color("eee8d7"))
 		for row in 5:

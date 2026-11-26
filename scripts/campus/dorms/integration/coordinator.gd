@@ -370,11 +370,11 @@ func storage_transfer(identity: String,room: String,operation_id: String,item: S
 	var d: Dictionary=game.electronics.profile.data.get("dorm",{})
 	return submit_intent(operation_id,{"op":"storage","revision":int(d.get("revision",-1)),"item":item,"delta":quantity if into_storage else -quantity,"instances":instances})
 
-func move_world_supply(peer: int, item: String, into_hotbar: bool) -> Dictionary:
+func move_world_supply(peer: int, item: String, into_hotbar: bool, configuration: Dictionary = {}) -> Dictionary:
 	if not multiplayer.is_server():return {"ok":false,"error":"Host required"}
 	var identity := authenticated_identity(peer)
 	if identity.is_empty():return {"ok":false,"error":"Profile unavailable"}
-	var applied := Dorm.move_world_supply(_profile(identity),item,into_hotbar)
+	var applied := Dorm.move_world_supply(_profile(identity),item,into_hotbar,configuration)
 	if not applied.ok:return applied
 	return _commit_world_inventory(peer,identity,applied.profile)
 

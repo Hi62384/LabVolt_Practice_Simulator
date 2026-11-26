@@ -345,15 +345,16 @@ func study_supplies() -> void:
 	body.add_child(grid)
 	var dorm := preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 	for id in dorm.TOOLS:
-		if id!="lab_goggles":_study_supply_card(grid,id)
+		if id not in ["lab_goggles","notebook"]:_study_supply_card(grid,id)
 	for id in dorm.Backpacks.SIZES:
 		_study_supply_card(grid,id)
-	body.add_child(KitUI.text("PERSONAL ELECTRONICS","Title"))
+	body.add_child(KitUI.text("CONFIGURABLE EQUIPMENT","Title"))
 	var electronics:=preload("res://scripts/ui/store_bundles_equipment/module.gd")
-	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone"],_equipment_preview)
+	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone","notebook"],_equipment_preview)
 
 func _equipment_preview(kind: String,parent: Node3D) -> Node3D:
 	if kind=="usb":return game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))
+	if kind=="notebook":return preload("res://scripts/campus/items/notebook_model.gd").build(parent)
 	var model:=Node3D.new()
 	model.position=Vector3(0,-.15,.05)
 	parent.add_child(model)

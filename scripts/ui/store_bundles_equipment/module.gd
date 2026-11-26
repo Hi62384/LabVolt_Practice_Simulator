@@ -63,6 +63,8 @@ static func populate(parent: Node, profile: Variant, refresh: Callable, status: 
 	var is_bundle := section == "bundles"
 	var portraits := Portraits.new()
 	var entries := products(profile) if is_bundle else equipment_products()
+	if Config.NOTEBOOK in product_kinds:
+		entries.append({"kind":Config.NOTEBOOK,"name":"Notebook","price":Dorm.TOOL_PRICES[Config.NOTEBOOK],"rarity":"Common","summary":"Configurable","description":"Choose the page count, size, ruling, paper shade and binding."})
 	if not product_kinds.is_empty():entries=entries.filter(func(product):return str(product.get("kind","")) in product_kinds)
 	for product in entries:
 		var summary: String = product.get("summary", "")

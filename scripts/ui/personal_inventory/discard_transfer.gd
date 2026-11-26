@@ -46,6 +46,10 @@ static func take(profile: Dictionary, source: Dictionary, deployment: Dictionary
 		if int(counts.get(supply,0))<int(parcel.supplies[supply]):return Dorm.fail("This supply is unavailable.")
 		counts[supply]-=parcel.supplies[supply]
 		if counts[supply]==0:counts.erase(supply)
+		if d.get("notebook_options",{}).has(supply):
+			if not parcel.has("notebook_options"):parcel.notebook_options={}
+			parcel.notebook_options[supply]=d.notebook_options[supply]
+			d.notebook_options.erase(supply)
 		d.supply_counts=counts
 		d.erase("owned_tools")
 	if Dorm.adds_stock_shortage(profile,next,deployment):return Dorm.fail("This item is reserved or unavailable.")
@@ -158,6 +162,9 @@ static func give(profile: Dictionary, parcel: Dictionary, hotbar_limit: int) -> 
 	d.instances.append_array(parcel.carried_instances)
 	var counts := Dorm.supply_counts(d)
 	for supply in parcel.supplies:counts[supply]=int(counts.get(supply,0))+int(parcel.supplies[supply])
+	if parcel.has("notebook_options"):
+		if not d.has("notebook_options"):d.notebook_options={}
+		d.notebook_options.merge(parcel.notebook_options.duplicate(true))
 	d.supply_counts=counts
 	d.erase("owned_tools")
 	d.revision+=1

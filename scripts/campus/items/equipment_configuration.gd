@@ -5,10 +5,25 @@ const VERSION := 1
 const PHONE := "smartphone"
 const LAPTOP := "portable_laptop"
 const USB := "usb"
+const NOTEBOOK := "notebook"
 const CASE_OPTIONS := {"label":"Case","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,18,18,18]}
 const TRIM_OPTIONS := {"label":"Trim","labels":["Silver","Copper","Black"],"values":["b7c2ca","b6764b","222831"],"prices":[0,12,12]}
 const FINISH_OPTIONS := {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,35]}
 const DEFINITIONS := {
+	NOTEBOOK: {
+		"hardware": {
+			"pages":{"label":"Pages","labels":["12","32","80"],"values":[12,32,80],"prices":[0,8,18]},
+			"ruling":{"label":"Paper ruling","labels":["Lined","Grid","Blank","Dotted"],"values":["lined","grid","blank","dotted"],"prices":[0,3,0,3]},
+			"size":{"label":"Paper size","labels":["Letter","Compact"],"values":[Vector2(780,1100),Vector2(590,830)],"prices":[0,0]},
+			"orientation":{"label":"Orientation","labels":["Portrait","Landscape"],"values":[false,true],"prices":[0,0]},
+			"spacing":{"label":"Ruling spacing","labels":["Standard","Wide"],"values":[24,32],"prices":[0,0]},
+			"paper":{"label":"Paper shade","labels":["Ivory","White","Cream"],"values":["fcfaf2","fafcfd","fff0cc"],"prices":[0,0,2]},
+		},
+		"appearance": {
+			"cover":{"label":"Binding","labels":["Softcover","Hardcover"],"values":[.004,.014],"prices":[0,9]},
+			"shell":CASE_OPTIONS,"trim":TRIM_OPTIONS,"finish":FINISH_OPTIONS,
+		},
+	},
 	PHONE: {
 		"hardware": {
 			"storage": {"label": "Photo storage", "labels": ["4 MB", "16 MB", "64 MB"], "values": [4, 16, 64], "prices": [0, 90, 250]},

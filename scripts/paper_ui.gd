@@ -346,7 +346,7 @@ func _build_reader() -> void:
 	var previous := _button(toolbar,"‹",func():turn_page(-1));previous.disabled=page_index==0
 	page_label=_label(toolbar,"%d / %d"%[page_index+1,_page_count(paper)]);page_label.custom_minimum_size.x=65;page_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER
 	var next := _button(toolbar,"›",func():turn_page(1));next.disabled=page_index>=_page_count(paper)-1
-	if paper.get("notebook",false) and _editable(paper) and _page_count(paper)<100:
+	if paper.get("notebook",false) and _editable(paper) and _page_count(paper)<int(paper.get("notebook_page_limit",100)):
 		_button(toolbar,"Add page",func():
 			flush()
 			school.request({"op":"notebook_page","id":document_id}))

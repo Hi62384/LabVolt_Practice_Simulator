@@ -158,6 +158,8 @@ func _create(paper: Dictionary) -> void:
 	var shape := BoxShape3D.new()
 	var board_size: Vector2=paper.get("board_size",Vector2(1.35,.78))
 	var backpack := supply.begins_with("bag:")
+	var notebook: Dictionary=paper.get("notebook_configuration",{})
+	const NotebookModel = preload("res://scripts/campus/items/notebook_model.gd")
 	var bag_model := str(paper.get("supply_model","backpack_small"))
 	match supply:
 		"whiteboard": shape.size=Vector3(board_size.x,.035,board_size.y)
@@ -173,6 +175,7 @@ func _create(paper: Dictionary) -> void:
 				hit.position.y=shape.size.y*.5
 			elif paper.get("calculator",false):shape.size=Vector3(.135,.026,.215)
 			else:shape.size=Vector3(.32,.018,.44)
+	if not notebook.is_empty():shape.size=NotebookModel.dimensions(notebook)
 	hit.shape=shape
 	root.add_child(hit)
 	var viewport := SubViewport.new()
@@ -192,7 +195,11 @@ func _create(paper: Dictionary) -> void:
 	mesh.material_override=material
 	root.add_child(mesh)
 	var prop: Node3D
-	if paper.get("calculator",false):
+	if not notebook.is_empty():
+		mesh.hide()
+		viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED
+		prop=NotebookModel.build(root,notebook)
+	elif paper.get("calculator",false):
 		mesh.hide()
 		viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED
 		prop=Node3D.new()
@@ -362,6 +369,9 @@ func _page(visual: Dictionary,paper: Dictionary) -> void:
 		visual.revision=paper.revision
 		visual.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 		return
+	if paper.get("notebook",false) and not paper.get("notebook_configuration",{}).is_empty():
+		visual.revision=paper.revision
+		return
 	if paper.get("notebook",false):
 		var cover := ColorRect.new()
 		cover.color=Color("416b78")
@@ -412,10 +422,12 @@ func _process(delta: float) -> void:
 		if p.get("stowed",false):v.root.visible=false;v.hit.disabled=true;continue
 		var supply := str(p.get("supply_id",""))
 		var backpack := supply.begins_with("bag:")
+		var configured_notebook: bool=not p.get("notebook_configuration",{}).is_empty()
 		var shape: Vector3=v.hit.shape.size
 		v.hit.disabled=p.held and p.owner==multiplayer.get_unique_id()
 		v.hit.rotation.x=PI/2 if p.held and not backpack else 0
 		if backpack:v.hit.position.y=0.0 if p.held else shape.y*.5
+		if configured_notebook:v.hit.position.y=0.0 if p.held else shape.y*.5
 		if p.get("calculator",false):v.hit.position.y=0.0 if p.held else shape.y*.5
 		if p.held:
 			v.backing.visible=not is_instance_valid(v.prop) and supply!="pencil_case"
@@ -452,6 +464,10 @@ func _process(delta: float) -> void:
 				if supply=="calculator_basic":carry_basis=carry_basis.scaled(Vector3.ONE*1.23)
 				var grip_offset := Vector3(shape.x*.54,-shape.z*.27,-shape.y*.21)
 				v.root.global_transform=Transform3D(carry_basis,hand-carry_basis*grip_offset)
+			elif configured_notebook:
+				v.prop.rotation.x=PI/2
+				v.prop.position.z=-shape.y*.5
+				v.root.global_transform=Transform3D(basis,hand-basis*Vector3(shape.x*.43,-shape.z*.32,0))
 			elif supply=="pencil_case" or is_instance_valid(v.prop):
 				v.root.global_transform=Transform3D(basis,hand-basis*Vector3(.073,0,.012))
 			else:
@@ -481,6 +497,9 @@ func _process(delta: float) -> void:
 			v.mesh.rotation.x=-PI/2
 			v.mesh.position.y=.034
 			if p.get("calculator",false):v.prop.position.y=shape.y*.5
+			if configured_notebook:
+				v.prop.rotation=Vector3.ZERO
+				v.prop.position=Vector3.ZERO
 
 func use_supply(button: int, continuation := false) -> bool:
 	var held_id: int=school.held(multiplayer.get_unique_id())

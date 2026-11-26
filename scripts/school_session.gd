@@ -617,12 +617,15 @@ func apply(peer: int,a: Dictionary) -> void:
 		_mark_whiteboard(peer,a)
 		return
 	if DormSupplies.is_supply(op) or op.begins_with("bag:"):
+		const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 		var dorm = game.get("dorm_interactions")
 		var bag: Dictionary={}
+		var configuration: Dictionary={}
 		if is_instance_valid(dorm):
 			var profile: Dictionary = dorm._profile(dorm.authenticated_identity(peer))
 			if op not in profile.get("dorm",{}).get("carry_items",[]):return
 			bag=profile.get("dorm",{}).get("backpacks",{}).get(op.trim_prefix("bag:"),{})
+			configuration=profile.get("dorm",{}).get("notebook_options",{}).get(op,{})
 		for existing in papers.values():
 			if existing.owner==peer and DormSupplies.paper_supply(existing)==op and not existing.get("supply_released",false):
 				_notice(peer,"Your item is already in your hotbar.")
@@ -641,11 +644,14 @@ func apply(peer: int,a: Dictionary) -> void:
 		var content=a.get("content",{})
 		if not preload("res://scripts/notebook_store.gd").valid(content):return
 		var note := {"title":"Notebook","topic":0,"difficulty":0,"source":"Personal working notes","questions":[],"theory":"","procedure":"","data":"","seed":0,"guide_pages":[]}
-		var pages := clampi(int(content.get("pages",2)),1,100)
+		var capacity := int(Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","pages",100))
+		var pages := clampi(int(content.get("pages",2)),1,capacity) if configuration.is_empty() else capacity
 		for page in range(pages):note.guide_pages.append({"title":"Notes · %d"%(page+1),"text":""})
 		var id := _give(peer,note,true,false,true)
 		if id!=0:
 			papers[id].guide=true;papers[id].notebook=true
+			papers[id].notebook_configuration=configuration.duplicate(true)
+			papers[id].notebook_page_limit=capacity
 			var copy_uid := DormSupplies.notebook_uid(op)
 			papers[id].document_uid = str(content.get("document_uid",papers[id].document_uid)) if copy_uid.is_empty() else copy_uid
 			papers[id].supply_id=op
@@ -752,7 +758,7 @@ func apply(peer: int,a: Dictionary) -> void:
 					_notice(peer,"Put down the item you are holding first.")
 					return
 				if not supply.is_empty() and paper.get("supply_released",false):
-					var reclaimed: Dictionary=game.dorm_interactions.move_world_backpack(peer,supply.trim_prefix("bag:"),true) if supply.begins_with("bag:") else game.dorm_interactions.move_world_supply(peer,supply,true)
+					var reclaimed: Dictionary=game.dorm_interactions.move_world_backpack(peer,supply.trim_prefix("bag:"),true) if supply.begins_with("bag:") else game.dorm_interactions.move_world_supply(peer,supply,true,paper.get("notebook_configuration",{}))
 					if not reclaimed.ok:_notice(peer,str(reclaimed.error));return
 					paper.supply_released=false
 					paper.erase("wall_normal")
@@ -804,7 +810,7 @@ func apply(peer: int,a: Dictionary) -> void:
 				if op=="drop" and not lost_parcel.is_empty():paper.lost_token=game.discarded_items.track_ground(peer,lost_parcel,lost_label)
 			"page":paper.page=clampi(int(a.get("page",0)),0,page_count(paper)-1)
 			"notebook_page":
-				if not paper.get("notebook",false) or page_count(paper)>=100:return
+				if not paper.get("notebook",false) or page_count(paper)>=int(paper.get("notebook_page_limit",100)):return
 				var count := page_count(paper)
 				paper.project.guide_pages.append({"title":"Notes · %d"%(count+1),"text":""})
 				paper.page=count

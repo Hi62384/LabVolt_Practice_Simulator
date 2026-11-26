@@ -322,8 +322,8 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 			message=p.remove_kit_board_components(args[0])
 			if not p.operation_succeeded:return failure(message)
 		"study_tool":
-			if args.size() not in [1,2] or not args[0] is String or (args.size()==2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid study supply")
-			message=p.buy_study_tool(args[0],args[1] if args.size()==2 else 6)
+			if args.size() not in [1,2,3] or not args[0] is String or (args.size()>=2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid study supply")
+			message=p.buy_study_tool(args[0],args[1] if args.size()>=2 else 6,args[2] if args.size()==3 else {})
 			if not p.operation_succeeded:return failure(message)
 		"buy_usb":
 			if args.size() not in [3,4] or not args[0] is int or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid USB purchase")

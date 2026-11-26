@@ -75,6 +75,9 @@ func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
 	elif key.begins_with("usb:"):
 		var configuration: Dictionary=dorm.usb_drives[key.trim_prefix("usb:")].get("configuration",{})
 		if not configuration.is_empty():placed[key_for(peer,key)].configuration=configuration
+	elif Dorm.is_notebook(key):
+		var configuration: Dictionary=dorm.get("notebook_options",{}).get(key,{})
+		if not configuration.is_empty():placed[key_for(peer,key)].configuration=configuration
 	_sync_models()
 	_publish()
 
@@ -182,6 +185,9 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 		var usb: Node3D=game.computer_room_adapter._build_usb_visual(body,Vector3(-.04,.013,0))
 		EquipmentFinish.apply_finish(usb,Configuration.USB,entry.get("configuration",{}))
 	else:
+		if Dorm.is_notebook(key):
+			shape.size=preload("res://scripts/campus/items/notebook_model.gd").dimensions(entry.get("configuration",{}))
+			hit.position.y=shape.size.y*.5
 		game.discarded_items._add_item_visual(body,str(entry.visual),entry)
 	return body
 

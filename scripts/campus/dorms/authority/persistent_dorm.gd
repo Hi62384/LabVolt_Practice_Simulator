@@ -97,7 +97,7 @@ static func receive_purchase(d: Dictionary, kind: String, id: String, hotbar_lim
 			d.stored_kits=stored
 	return destination
 
-static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bool) -> Dictionary:
+static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bool, configuration: Dictionary = {}) -> Dictionary:
 	if not is_supply(item) or not profile.has("dorm") or not profile.get("pending_trade",{}).is_empty():
 		return fail("Study supply unavailable")
 	var next := profile.duplicate(true)
@@ -111,11 +111,15 @@ static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bo
 		if not notebook_uid(item).is_empty() and counts.has(item):return fail("This notebook is already inventoried")
 		counts[item]=int(counts.get(item,0))+1
 		carried.append(item)
+		if not configuration.is_empty():
+			if not d.has("notebook_options"):d.notebook_options={}
+			d.notebook_options[item]=configuration.duplicate(true)
 	else:
 		if item not in carried or int(counts.get(item,0))<=0:return fail("The supply is no longer in your hotbar")
 		carried.erase(item)
 		if int(counts[item])==1:counts.erase(item)
 		else:counts[item]=int(counts[item])-1
+		d.get("notebook_options",{}).erase(item)
 	d.supply_counts=counts
 	d.erase("owned_tools")
 	d.carry_items=carried
@@ -197,6 +201,11 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 			if not tool is String or tool not in STARTER_TOOLS or tool_seen.has(tool):return false
 			tool_seen[tool]=true
 	var counts_by_supply := supply_counts(d)
+	var notebooks: Variant=d.get("notebook_options",{})
+	if not notebooks is Dictionary or notebooks.size()>MAX_NOTEBOOK_COPIES:return false
+	for notebook in notebooks:
+		if not notebook is String or notebook_uid(notebook).is_empty() or not counts_by_supply.has(notebook):return false
+		if preload("res://scripts/campus/items/equipment_configuration.gd").quote("notebook",0,notebooks[notebook]).is_empty():return false
 	if not carry is Array or carry.size()>6:return false
 	var carry_seen := {}
 	var calculator_count := 0

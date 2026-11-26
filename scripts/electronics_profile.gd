@@ -338,9 +338,9 @@ func buy_configured(base_id: String, settings: Variant, amount: Variant, authori
 	operation_succeeded=true
 	return "Purchased %d × %s"%[plan.quantity,plan.entry.name]
 
-func buy_study_tool(id: String, hotbar_limit := 6) -> String:
+func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) -> String:
 	if purchase_hotbar_limit.is_valid():hotbar_limit = mini(hotbar_limit,purchase_hotbar_limit.call())
-	if authority_submit.is_valid():return queued("study_tool",[id,hotbar_limit])
+	if authority_submit.is_valid():return queued("study_tool",[id,hotbar_limit,configuration])
 	operation_succeeded=false
 	var bag: Dictionary=Dorm.Backpacks.SIZES.get(id,{})
 	if (not Dorm.TOOL_PRICES.has(id) and bag.is_empty()) or not data.has("dorm"):return "Study supply unavailable"
@@ -349,7 +349,15 @@ func buy_study_tool(id: String, hotbar_limit := 6) -> String:
 	if int(counts.get(id,0))>=100000:return "Supply quantity limit reached"
 	if id=="notebook" and counts.keys().filter(func(key):return not Dorm.notebook_uid(key).is_empty()).size()>=Dorm.MAX_NOTEBOOK_COPIES:return "Notebook limit reached"
 	if not bag.is_empty() and data.dorm.get("backpacks",{}).size()>=Dorm.Backpacks.MAX_BAGS:return "Backpack limit reached"
-	var debit := Economy.purchase_debit(int(data.dollars),int(Dorm.TOOL_PRICES.get(id,bag.get("price",0))),true)
+	var price := int(Dorm.TOOL_PRICES.get(id,bag.get("price",0)))
+	if not configuration is Dictionary:return "Invalid study supply configuration"
+	if not configuration.is_empty():
+		if id!=EquipmentConfiguration.NOTEBOOK:return "Invalid study supply configuration"
+		var quote := EquipmentConfiguration.quote(id,price,configuration)
+		if quote.is_empty():return "Invalid notebook configuration"
+		configuration=quote.configuration
+		price=int(quote.price)
+	var debit := Economy.purchase_debit(int(data.dollars),price,true)
 	if not debit.ok:return debit.error
 	var before := data.duplicate(true)
 	var item_id := id if bag.is_empty() else Crypto.new().generate_random_bytes(12).hex_encode()
@@ -363,6 +371,9 @@ func buy_study_tool(id: String, hotbar_limit := 6) -> String:
 		var location := "nested" if destination=="backpack" else "cabinet" if destination=="dorm cabinet" else "hotbar"
 		data.dorm.backpacks[item_id]={"size":id,"location":location,"items":[]}
 	data.dorm.supply_counts=counts
+	if not configuration.is_empty():
+		if not data.dorm.has("notebook_options"):data.dorm.notebook_options={}
+		data.dorm.notebook_options[item_id]=configuration
 	data.dorm.erase("owned_tools")
 	data.dorm.revision=int(data.dorm.revision)+1
 	data.dollars=debit.next_balance
