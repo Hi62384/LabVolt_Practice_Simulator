@@ -128,6 +128,7 @@ jobs:
           $env:APPDATA = $originalAppData
           & $env:GODOT --headless --path . --export-release "Windows Desktop" "$game/LabVolt.exe"
           if ($LASTEXITCODE -or !(Test-Path "$game/LabVolt.pck") -or !(Test-Path "$game/data_CollegeSimulator_windows_x86_64/CollegeSimulator.dll")) { throw 'Windows .NET export failed' }
+          & ./launcher/native/build.ps1 -Output "$game/LabVoltCampusBroker.exe"
           $smoke = Join-Path $PWD 'tests/menu_startup/test_menu_routes.gd'
           $log = "$env:RUNNER_TEMP/exported-play.log"
           $env:APPDATA = "$env:RUNNER_TEMP/menu-smoke-export"

@@ -111,6 +111,13 @@ static func overall_strength(state: Dictionary) -> float:
  var sizes:=muscle_sizes(state);var total:=0.0
  for value in sizes.values():total+=float(value)
  return total/float(MUSCLE_GROUPS.size())
+static func lifting_strength(state: Dictionary) -> float:
+ var total:=0.0
+ var muscles: Dictionary=state.get("muscles",{})
+ for group in MUSCLE_GROUPS:
+  var muscle: Dictionary=muscles.get(group,{})
+  total+=clampf(float(muscle.get("strength",0.0)),0.0,1.0)
+ return total/float(MUSCLE_GROUPS.size())
 static func capacity(state: Dictionary,exercise: String) -> float:
  var weighted:=0.0;var total:=0.0
  for name in exercise_data()[exercise].muscles:

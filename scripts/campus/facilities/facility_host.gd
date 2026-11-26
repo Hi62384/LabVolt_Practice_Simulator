@@ -236,7 +236,7 @@ func _near_sandwich(c: Dictionary) -> bool:
 func _publish_sandwich() -> void:
 	public_event.emit("subway",sandwich_counter.owner,{"activity":"sandwich_counter","prep":sandwich_counter.snapshot(now())})
 
-func act(peer: int, request: Dictionary) -> Dictionary:
+func act(peer: int, request: Dictionary, throw_room := "") -> Dictionary:
 	var c:=trusted(peer)
 	if c.is_empty() or not commit_profile.is_valid():return fail("Facilities unavailable")
 	if not _flush_pending(str(c.identity)):return fail("Previous workout is waiting to save; retry after the profile is available")
@@ -339,11 +339,11 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 			if request.get("ground",false):
 				point=floor_surface.call(point,peer) if floor_surface.is_valid() else null
 				if not point is Vector3:return fail("Choose a clear spot on the floor")
-			elif not point is Vector3 or not point.is_finite() or point.distance_to(c.position)>3.6 or not table_surface.is_valid() or not table_surface.call(point,peer):
+			elif not point is Vector3 or not point.is_finite() or (point.distance_to(c.position)>3.6 and throw_room.is_empty()) or not table_surface.is_valid() or not table_surface.call(point,peer):
 				return fail("Aim at a nearby tabletop")
 			order.station="table"
 			order.position=[point.x,point.y,point.z]
-			order.room=str(c.room_id)
+			order.room=str(c.room_id) if throw_room.is_empty() else throw_room
 		elif op=="pickup":
 			if carried_order_count(p.orders)>=6:return fail("No room for another order")
 			if placed=="table":

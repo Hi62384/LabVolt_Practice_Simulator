@@ -5,6 +5,7 @@ const PIXELS := 128
 const MAX_IMAGE := 36*1024
 const MAX_DOCUMENT := 84*1024
 const MAX_IMPORT := 6*1024*1024
+const OPTIONAL := ["width","height","lock_aspect","mesh_paint","projection"]
 const TYPES := ["paint","image","text","shape"]
 const SHAPES := ["Panel","Button","Stud","Trim"]
 const BLENDS := ["Normal","Add","Multiply"]
@@ -14,7 +15,8 @@ static func layer(kind: String) -> Dictionary:
 	return {"name":kind.capitalize(),"kind":kind,"visible":true,"locked":false,"data":"",
 		"x":.5,"y":.5,"size":1.0 if kind=="paint" else .60,"angle":0.0,"opacity":1.0,
 		"color":"ffffff" if kind in ["paint","image"] else "7fdfcb","metallic":0.0,"roughness":.55,"glow":0.0,"glow_color":"ffffff","blend":0,
-		"crop_left":0.0,"crop_right":0.0,"crop_top":0.0,"crop_bottom":0.0}
+		"crop_left":0.0,"crop_right":0.0,"crop_top":0.0,"crop_bottom":0.0,
+		"width":1.0,"height":1.0,"lock_aspect":true}
 
 static func clean(value: Variant) -> Variant:
 	if not value is Array or value.size()>LAYERS:return null
@@ -23,7 +25,14 @@ static func clean(value: Variant) -> Variant:
 	for raw in value:
 		if not raw is Dictionary or raw.get("kind","") not in TYPES:return null
 		var item:=layer(raw.kind)
-		if raw.size()!=item.size():return null
+		for key in raw:
+			if not item.has(key) and key not in OPTIONAL:return null
+		for key in item:
+			if key not in OPTIONAL and not raw.has(key):return null
+		for key in ["width","height"]:
+			var dimension: Variant=raw.get(key,1.0)
+			if not (dimension is int or dimension is float) or not is_finite(dimension) or dimension<.25 or dimension>4.0:return null
+		if not raw.get("lock_aspect",true) is bool:return null
 		for key in ["name","data","color","glow_color"]:
 			if not raw.get(key) is String:return null
 		if raw.name.strip_edges().is_empty() or raw.name.length()>28:return null
@@ -46,10 +55,41 @@ static func clean(value: Variant) -> Variant:
 				if raw.data.length()>48 or raw.data.contains("\n") or raw.data.contains("\r"):return null
 			"shape":
 				if raw.data not in SHAPES:return null
-		for key in item:item[key]=raw[key]
+		if raw.has("mesh_paint"):
+			if raw.kind!="paint" or not raw.mesh_paint is Dictionary or raw.mesh_paint.size()>32:return null
+			for id in raw.mesh_paint:
+				var pixels: Variant=raw.mesh_paint[id]
+				if not surface_id(id) or not pixels is String or pixels.is_empty():return null
+				encoded_size+=pixels.length()
+				if encoded_size>MAX_DOCUMENT or not valid_image(pixels):return null
+		if raw.has("projection") and (raw.kind!="image" or not _valid_projection(raw.projection)):return null
+		for key in raw:item[key]=raw[key]
 		item.blend=int(raw.blend)
 		design.append(item)
 	return design
+
+static func surface_id(id: Variant) -> bool:
+	if not id is String or id.length()>32 or id.count(":")!=1:return false
+	var segment: String=id.get_slice(":",0)
+	var index: String=id.get_slice(":",1)
+	return segment.is_valid_identifier() and index.is_valid_int() and int(index)>=0 and int(index)<128
+
+static func _valid_projection(value: Variant) -> bool:
+	if not value is Dictionary or value.size()!=4 or not surface_id(value.get("surface")):return false
+	for field in ["center","normal","right"]:
+		var coords: Variant=value.get(field)
+		if not coords is Array or coords.size()!=3:return false
+		for axis in coords:
+			if not (axis is int or axis is float) or not is_finite(float(axis)) or absf(float(axis))>2.0:return false
+	var normal:=vector(value.normal)
+	var right:=vector(value.right)
+	return absf(normal.length_squared()-1.0)<.01 and absf(right.length_squared()-1.0)<.01 and absf(normal.dot(right))<.01
+
+static func vector(values: Array) -> Vector3:
+	return Vector3(values[0],values[1],values[2])
+
+static func array(value: Vector3) -> Array:
+	return [value.x,value.y,value.z]
 
 static func valid_image(data: String) -> bool:
 	if data.length()>ceili(float(MAX_IMAGE)*4.0/3.0)+4:return false

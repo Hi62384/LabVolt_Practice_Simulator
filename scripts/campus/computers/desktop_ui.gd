@@ -50,6 +50,11 @@ var folder_button: Button
 var delete_button: Button
 var _rendering := false
 var _portable_pending := false
+const DevicePerformance=preload("res://scripts/campus/items/device_performance.gd")
+var performance: Node
+var freeze_overlay: CenterContainer
+var performance_status: Label
+var pending_app := ""
 var laptop_display_filter: ColorRect
 var browser_surface: VBoxContainer
 var pending_browser_download := false
@@ -90,6 +95,8 @@ var _covered_viewport_disabled_3d := false
 const Icon = preload("res://scripts/ui/design_system/widgets.gd")
 const FileTypes = preload("res://scripts/campus/computers/browser_download.gd")
 const VirtualFiles = preload("res://scripts/campus/computers/virtual_files.gd")
+const NativeClient=preload("res://scripts/campus/computers/CampusNativeClient.cs")
+const NativeWindow=preload("res://scripts/campus/computers/native_windows_surface.gd")
 const Viewer = preload("res://scripts/campus/computers/file_viewer.gd")
 const Preferences = preload("res://scripts/campus/computers/desktop_preferences.gd")
 const Monaco = preload("res://scripts/campus/computers/monaco_surface.gd")
@@ -138,6 +145,26 @@ func build(source: Node, owner_game: Node = null) -> void:
 	if multiplayer.is_server():execution.configure_from_host()
 	if session.has_signal("power_changed"):session.power_changed.connect(_clear_powered_off)
 	_build_shell()
+	performance=DevicePerformance.new()
+	add_child(performance)
+	freeze_overlay=DevicePerformance.freeze_overlay("Laptop is frozen")
+	add_child(freeze_overlay)
+	freeze_overlay.hide()
+	freeze_overlay.z_index=10
+	performance_status=Label.new()
+	performance_status.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
+	performance_status.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	performance_status.add_theme_stylebox_override("normal",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("142d3fee"),Color("588296"),10))
+	add_child(performance_status)
+	performance_status.position=Vector2(24,18)
+	performance_status.z_index=9
+	performance_status.hide()
+	performance.freeze_changed.connect(func(frozen: bool):
+		freeze_overlay.visible=frozen
+		if is_instance_valid(browser_surface):browser_surface.set_device_suspended(frozen))
+	performance.crashed.connect(func():
+		if is_instance_valid(game):game.ui.log_message("The laptop crashed. Turn it on again to restart Campus OS.")
+		_power_off())
 	visibility_changed.connect(_update_world_rendering)
 	tree_exiting.connect(_restore_world_rendering)
 
@@ -345,7 +372,7 @@ void fragment() {
 	taskbar.add_child(start_button)
 	for name in app_names:
 		var app_name: String = str(name)
-		var app_button := _button("",func():_switch_app(app_name))
+		var app_button := _button("",func():_launch_app(app_name))
 		app_button.icon=shortcuts_by_name[name].icon
 		app_button.add_theme_constant_override("icon_max_width",25)
 		app_button.custom_minimum_size.x=34
@@ -678,6 +705,7 @@ func _close_window(key: String) -> void:
 	var state: Dictionary=windows[key]
 	if state.has("app_record") and is_visible_in_tree():_save_web_app_state(state)
 	if key in ["Text editor","Code editor"] and app_window==state.shell:_capture_draft()
+	if state.has("native_surface") and is_instance_valid(state.native_surface):state.native_surface.client.Stop()
 	if key=="Browser" and is_instance_valid(browser_surface):
 		browser_surface.close_session()
 		browser_surface=null
@@ -737,6 +765,21 @@ func _clear_content() -> void:
 		child.queue_free()
 	_bind_editor({})
 
+func _launch_app(name: String) -> void:
+	if not is_instance_valid(performance) or performance.quality==DevicePerformance.MAX or windows.has(_window_key(name)):
+		_switch_app(name)
+		return
+	if not pending_app.is_empty():return
+	pending_app=name
+	performance_status.text="Opening %s…"%name
+	performance_status.show()
+	if not performance.submit(func():
+		pending_app=""
+		performance_status.hide()
+		_switch_app(name),true):
+		pending_app=""
+		performance_status.hide()
+
 func _switch_app(name: String) -> void:
 	if name not in app_names: return
 	_capture_draft()
@@ -762,6 +805,7 @@ func _switch_app(name: String) -> void:
 		state.merge({"file_list":file_list,"project_tree":project_tree,"breadcrumbs":breadcrumbs,"editor":editor,"path_field":path_field,"folder_button":folder_button,"delete_button":delete_button},true)
 	elif name == "Calculator":
 		var calculator := preload("res://scripts/scientific_calculator.gd").new()
+		calculator.performance=performance
 		calculator.advanced_app=true
 		calculator.campus_style = true
 		calculator.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -773,6 +817,7 @@ func _switch_app(name: String) -> void:
 	elif name == "Browser":
 		browser_surface=preload("res://scripts/campus/computers/browser_surface.gd").new()
 		browser_surface.game=game
+		browser_surface.set_playback_quality(int(snapshot.get("audio_quality",3)))
 		var station_id:=str(snapshot.get("station",""))
 		var adapter: Node=game.get("computer_room_adapter") if game is Node3D else null
 		var speaker: Variant=adapter.speaker_position(station_id) if is_instance_valid(adapter) else null
@@ -818,7 +863,7 @@ func _select_shortcut(name: String) -> void:
 func _desktop_shortcut_input(name: String, button: Button, event: InputEvent) -> void:
 	if not event is InputEventMouseButton or not event.pressed:return
 	if event.button_index==MOUSE_BUTTON_LEFT and event.double_click:
-		_switch_app(name);button.accept_event()
+		_launch_app(name);button.accept_event()
 	elif event.button_index==MOUSE_BUTTON_RIGHT:
 		_select_shortcut(name)
 		var menu:=PopupMenu.new()
@@ -827,7 +872,7 @@ func _desktop_shortcut_input(name: String, button: Button, event: InputEvent) ->
 		menu.add_item("Unpin from taskbar" if name in pinned_apps else "Pin to taskbar",1)
 		menu.add_item("Properties",2)
 		menu.id_pressed.connect(func(id):
-			if id==0:_switch_app(name)
+			if id==0:_launch_app(name)
 			elif id==1:_toggle_pin(name)
 			elif id==2:_message(name,_app_description(name)))
 		menu.popup_hide.connect(menu.queue_free)
@@ -867,7 +912,7 @@ func _update_start_results(query: String) -> void:
 	start_results.add_child(launchers)
 	for name in app_names:
 		if not needle.is_empty() and not name.to_lower().contains(needle):continue
-		var launch:=_button(name,func():_switch_app(name);start_panel.hide())
+		var launch:=_button(name,func():_launch_app(name);start_panel.hide())
 		launch.icon=shortcuts_by_name[name].icon
 		launch.vertical_icon_alignment=VERTICAL_ALIGNMENT_TOP
 		launch.icon_alignment=HORIZONTAL_ALIGNMENT_CENTER
@@ -2409,6 +2454,8 @@ func _show_file_preview(path: String, bytes: PackedByteArray) -> void:
 	tray.add_child(task)
 	tray.move_child(task,desktop_status.get_index())
 	file_viewer=Viewer.new()
+	file_viewer.native_enabled=_native_allowed()
+	file_viewer.playback_quality=int(snapshot.get("audio_quality",3))
 	file_viewer.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	state.content.add_child(file_viewer)
 	state.viewer=file_viewer
@@ -2416,9 +2463,70 @@ func _show_file_preview(path: String, bytes: PackedByteArray) -> void:
 	state.title.text=task.tooltip_text
 	file_viewer.extract_requested.connect(_archive_entry.bind("extract"))
 	file_viewer.install_requested.connect(func(source: String):_install_app(source,bytes))
+	file_viewer.run_windows.connect(func(source: String):_confirm_windows_run(source.get_file(),bytes))
+	file_viewer.install_windows.connect(func(source: String):_confirm_portable_install(source,bytes))
+	file_viewer.run_setup.connect(func(source: String):_confirm_windows_run(source.get_file(),bytes,"",true))
 	_focus_window(key)
 	file_viewer.show_file(path,bytes)
 	_fit_windows.call_deferred()
+
+func _native_allowed() -> bool:
+	return is_instance_valid(game) and not game.session.online and snapshot.has("lease") and NativeClient.new().Available()
+
+func _confirm_windows_run(title: String, bytes: PackedByteArray, storage_key: String="", setup := false) -> void:
+	if not _native_allowed():
+		_message("Windows app unavailable","The isolated Windows runtime requires a local Campus OS session.")
+		return
+	var info: Dictionary=preload("res://scripts/campus/computers/WindowsExecutableInspector.cs").new().Inspect(bytes)
+	if not Apps._supported_windows(info):
+		_message("Unsupported Windows app","Use a compatible standalone Windows desktop executable.")
+		return
+	var lease: Variant=snapshot.lease
+	var digest: String=info.sha256
+	var details: String=" On success, import standalone executables written to its working folder." if setup else ""
+	_confirm_action("Run "+title+" on this PC?\nThe app uses a private Windows desktop with limited file access."+details+"\nSHA-256 "+digest,func():
+		if lease==snapshot.get("lease") and is_visible_in_tree() and _native_allowed():_open_windows_runtime(title,bytes,storage_key,setup))
+
+func _open_windows_runtime(title: String, bytes: PackedByteArray, storage_key: String, setup: bool) -> void:
+	const key:="native:windows"
+	if windows.has(key):
+		_focus_window(key)
+		return
+	var surface:=NativeWindow.new()
+	if not surface.start(bytes,storage_key,setup):
+		surface.free()
+		_message("Windows app unavailable","An isolated runtime is already in use or unavailable.")
+		return
+	var lease: Variant=snapshot.get("lease")
+	surface.output_requested.connect(func(name: String,data: PackedByteArray):
+		if lease==snapshot.get("lease") and is_visible_in_tree() and _native_allowed():_browser_save_download(name,data))
+	var state:=_create_window(key,"Windows",Icon.icon("component"))
+	state.title.text=title
+	state.content.add_child(surface)
+	surface.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	state.native_surface=surface
+	var task:=_button(title,func():
+		if app_window==state.shell:_minimize_window(key)
+		else:_focus_window(key))
+	task.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+	task.custom_minimum_size.x=90
+	task.tooltip_text=title
+	var tray:=start_button.get_parent()
+	tray.add_child(task)
+	tray.move_child(task,desktop_status.get_index())
+	state.viewer_task=task
+	_focus_window(key)
+	_fit_windows.call_deferred()
+
+func _confirm_portable_install(path: String, bytes: PackedByteArray) -> void:
+	if not _native_allowed():return
+	var digest:=Apps.sha256(bytes)
+	var record: Dictionary=snapshot.get("installed_apps",{}).get("windows."+digest.left(32),{})
+	var lease: Variant=snapshot.lease
+	_confirm_action("Install a portable copy of "+path.get_file()+" on the active virtual drive?",func():
+		if lease==snapshot.get("lease") and _native_allowed():
+			_send({"op":"install_app","path":path,"sha256":digest,"folder":"win-"+digest.left(17),
+				"replace":not record.is_empty(),"shortcut":true,"desktop_shortcut":true}))
 
 func _install_app(path: String, bytes: PackedByteArray) -> void:
 	var info:=Apps.Packages.inspect(bytes)
@@ -2525,12 +2633,23 @@ func _uninstall_app(app: Dictionary) -> void:
 			if windows.has(key):
 				windows[key].erase("app_record")
 				_close_window(key)
+			if app.get("runtime")=="windows":
+				if windows.has("native:windows"):_close_window("native:windows")
+				if not keep.button_pressed and _native_allowed():NativeClient.new().Forget(_native_storage_key(app))
 			_send({"op":"uninstall_app","app_id":app.id,"keep_data":keep.button_pressed})
 		dialog.queue_free())
 	dialog.canceled.connect(dialog.queue_free)
 	dialog.popup_centered()
 
+func _native_storage_key(app: Dictionary) -> String:
+	var volume:=str(snapshot.get("app_volume",""))
+	if volume.is_empty():volume=str(snapshot.get("station",""))
+	return JSON.stringify([OS.get_user_data_dir(),str(game.school.local_identity),volume,str(app.id)]).sha256_text()
+
 func _open_installed_app(app: Dictionary,bytes: PackedByteArray) -> void:
+	if app.get("runtime")=="windows":
+		_confirm_windows_run(str(app.name),bytes,_native_storage_key(app))
+		return
 	var project:=Apps.Packages.open_package(bytes)
 	if project.has("error"):
 		_message("Application could not open",str(project.error))
@@ -2681,7 +2800,15 @@ func _send(payload: Dictionary) -> void:
 	payload["revision"] = snapshot.get("revision", 0)
 	var tiers: Dictionary = preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS
 	var tier: String = str(snapshot.get("tier", ""))
-	var delay: int = int(tiers.get(tier, {}).get("delay_ms", 0))
+	var delayed_op: bool=payload.get("op","") in ["save","mkdir","delete","rename","answer","submit","refresh"]
+	if delayed_op and performance.quality<DevicePerformance.MAX:
+		if not performance.submit(func():
+			if snapshot.is_empty() or snapshot.get("lease")!=payload.lease:return
+			payload.revision=snapshot.get("revision",0)
+			session.request(payload)):
+			status_label.text="Laptop busy. Try again."
+		return
+	var delay: int = int(tiers.get(tier, {}).get("delay_ms", 0)) if not snapshot.has("performance") else 0
 	if delay > 0 and payload.get("op", "") in ["save", "mkdir", "delete", "rename", "answer", "submit", "refresh"]:
 		if _portable_pending:
 			status_label.text = "The laptop is still processing the previous action."
@@ -2736,6 +2863,7 @@ func _exit_now() -> void:
 			layout.append({"app":window.app,"rect":window.rect,"restore":window.restore,"maximized":window.maximized,"minimized":not child.visible,"path":current_path if child==app_window else window.get("path",""),"folder":folder_path if child==app_window else window.get("folder",""),"documents":window.get("documents",[]).duplicate()})
 		var browser: Dictionary=browser_surface.parked_tabs() if is_instance_valid(browser_surface) else {}
 		parked_workspaces[parked_device]={"cycle":parked_cycle,"profile":parked_profile,"layout":layout,"path":current_path,"folder":folder_path,"browser":browser,"drafts":drafts.duplicate(true),"pending_new":pending_new}
+	if windows.has("native:windows"):_close_window("native:windows")
 	_send({"op":"exit"})
 
 func _clear_powered_off(power: Dictionary) -> void:
@@ -2848,6 +2976,9 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		if is_instance_valid(browser_surface):browser_surface.status.text="Saved to "+str(value.download_path)
 		pending_browser_download=false
 	if value.is_empty():
+		performance.configure("",DevicePerformance.MAX)
+		pending_app=""
+		performance_status.hide()
 		preferences_timer.stop()
 		if is_instance_valid(execution):execution.stop()
 		file_clipboard.clear()
@@ -2855,7 +2986,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		pending_web_project.clear()
 		pending_run_path=""
 		for key in windows.keys():
-			if windows[key].has("viewer"):_close_window(key)
+			if windows[key].has("viewer") or windows[key].has("native_surface"):_close_window(key)
 		file_viewer=null
 		pending_browser_download=false
 		share_monitor = false
@@ -2890,6 +3021,7 @@ func _on_desktop_changed(value: Dictionary) -> void:
 	if prior_lease!=value.get("lease") and not resumed:_reset_windows()
 	var save_acked := not saving_path.is_empty() and int(value.get("revision",-1))>int(snapshot.get("revision",-1))
 	snapshot = value.duplicate(true)
+	performance.configure(station,int(value.get("performance",DevicePerformance.MAX)))
 	_refresh_desktop_app_shortcuts()
 	for key: String in windows.keys():
 		var window: Dictionary=windows[key]
@@ -3011,6 +3143,10 @@ func _resize_input(event: InputEvent) -> bool:
 	return false
 
 func _input(event: InputEvent) -> void:
+	if is_instance_valid(performance) and performance.frozen and visible:
+		if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:_request_exit()
+		get_viewport().set_input_as_handled()
+		return
 	if not visible or snapshot.is_empty():
 		return
 	if volume_popover.visible and event is InputEventMouseButton and event.pressed and event.button_index==MOUSE_BUTTON_LEFT:
@@ -3050,7 +3186,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 	if event.keycode==KEY_ENTER and is_instance_valid(get_viewport().gui_get_focus_owner()) and get_viewport().gui_get_focus_owner() in shortcuts_by_name.values() and not selected_shortcut.is_empty():
-		_switch_app(selected_shortcut)
+		_launch_app(selected_shortcut)
 		get_viewport().set_input_as_handled()
 	elif event.keycode == KEY_ESCAPE:
 		if volume_popover.visible:

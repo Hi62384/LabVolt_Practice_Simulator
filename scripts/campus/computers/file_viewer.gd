@@ -2,6 +2,10 @@ extends VBoxContainer
 
 signal extract_requested(path: String)
 signal install_requested(path: String)
+signal run_windows(path: String)
+signal install_windows(path: String)
+signal run_setup(path: String)
+var native_enabled:=false
 
 const Browser = preload("res://scripts/campus/computers/browser_surface_native.gd")
 const Types = preload("res://scripts/campus/computers/browser_download.gd")
@@ -19,6 +23,9 @@ var browser: Node
 var browser_key := ""
 var temporary_video := ""
 var audio: AudioStreamPlayer
+var playback_quality:=3
+var playback_bus: StringName=&"Master"
+const AudioQuality=preload("res://scripts/campus/items/device_audio_quality.gd")
 var timeline: HSlider
 var play: Button
 var model_camera: Camera3D
@@ -87,11 +94,7 @@ func show_file(path: String, bytes: PackedByteArray) -> void:
 				_model_scene(root)
 		"zip":_archive(path,bytes)
 		"campusapp":_application_package(Packages.inspect(bytes))
-		"exe": _windows_executable(bytes)
-		"msi","msix","msixbundle":
-			if Types.valid(bytes,extension):
-				_note("Windows packages can be stored and transferred. Installing Windows apps is unavailable in this build.")
-			else:_note("The package header is damaged or incomplete.")
+		"exe","msi","msix","msixbundle":_windows_application(path,extension,bytes)
 		_:
 			if MediaMime.has(extension):_browser_preview(extension,bytes)
 			elif Types.is_text(extension) and Types.valid(bytes,extension):_text(bytes.get_string_from_utf8(),"UTF-8 preview")
@@ -105,26 +108,45 @@ func _note(message: String) -> void:
 	label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(label)
 
-func _windows_executable(bytes: PackedByteArray) -> void:
-	var executable:=ExeInspector.new()
-	var details: Dictionary=executable.Inspect(bytes)
-	if details.has("error"):
-		_note(details.error)
+func _windows_application(path: String, extension: String, bytes: PackedByteArray) -> void:
+	var inspector:=ExeInspector.new()
+	var metadata: Dictionary=inspector.Inspect(bytes) if extension=="exe" else inspector.InspectPackage(extension,bytes)
+	if metadata.has("error"):
+		_note(metadata.error)
 		return
 	var fields:=GridContainer.new()
 	fields.columns=2
 	fields.add_theme_constant_override("h_separation",24)
 	fields.add_theme_constant_override("v_separation",8)
 	body.add_child(fields)
-	for row in [["Application type",details.kind],["Architecture",details.architecture],["Runtime",details.runtime]]:
+	for row in [["Application type","kind"],["Package name","name"],["Architecture","architecture"],["Runtime","runtime"],["Version","version"],["Declared publisher","publisher"]]:
+		var field: String=metadata.get(row[1],"")
+		if field.is_empty():continue
 		var caption:=Label.new()
 		caption.text=row[0]
 		caption.modulate=Color("abd0dc")
 		fields.add_child(caption)
 		var value:=Label.new()
-		value.text=row[1]
+		value.text=field
+		value.tooltip_text=field
+		value.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+		value.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		fields.add_child(value)
-	_note("Campus OS can inspect and store this file. Running Windows apps is unavailable in this build.")
+	var hash: String=metadata.sha256
+	var copy_hash:=_action(toolbar,"Copy SHA-256",func():DisplayServer.clipboard_set(hash))
+	copy_hash.tooltip_text=hash
+	if metadata.has("publisher"):_note("The publisher is read from the manifest. The package signature has not been verified.")
+	if extension=="exe" and preload("res://scripts/campus/computers/application_registry.gd")._supported_windows(metadata):
+		if not native_enabled:
+			_note("The isolated native runtime is available on supported Windows builds in a local Campus OS session.")
+			return
+		_action(toolbar,"Run…",func():run_windows.emit(path)).theme_type_variation="PrimaryButton"
+		if not path.begins_with("Program Files/"):
+			_action(toolbar,"Install portable copy…",func():install_windows.emit(path))
+			_action(toolbar,"Run setup…",func():run_setup.emit(path))
+		_note("A standalone Windows app opens on a private Windows desktop with limited access.")
+	else:
+		_note("This file can be inspected and stored. The current runtime opens standalone x86 and x64 desktop EXEs.")
 
 func _text(value: String, heading: String) -> void:
 	_note(heading)
@@ -216,6 +238,7 @@ func _audio(extension: String, bytes: PackedByteArray) -> void:
 	if stream==null:_note("The audio could not be decoded.");return
 	audio=AudioStreamPlayer.new()
 	audio.stream=stream
+	audio.bus=_audio_output()
 	add_child(audio)
 	var track:=Label.new()
 	track.text="♫"
@@ -268,6 +291,7 @@ func _theora(bytes: PackedByteArray) -> void:
 	stream.file=temporary_video
 	var view:=VideoStreamPlayer.new()
 	view.stream=stream
+	view.bus=_audio_output()
 	view.expand=true
 	view.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	body.add_child(view)
@@ -290,6 +314,16 @@ func _browser_preview(extension: String, bytes: PackedByteArray) -> void:
 	browser_key="file-preview:"+Crypto.new().generate_random_bytes(12).hex_encode()
 	browser=Browser.runtime.create_browser("about:blank",view,{"session_key":browser_key,"allow_downloads":false,"javascript":true}) as Node
 	if not is_instance_valid(browser):_note("The media renderer could not open a preview.");return
+	if (extension in Types.AUDIO_EXTENSIONS or extension in Types.VIDEO_EXTENSIONS) and browser.has_method("set_audio_stream"):
+		var media_audio:=AudioStreamPlayer.new()
+		var generator:=AudioStreamGenerator.new()
+		generator.mix_rate=48000
+		generator.buffer_length=.2
+		media_audio.stream=generator
+		media_audio.bus=_audio_output()
+		add_child(media_audio)
+		media_audio.play()
+		browser.set_audio_stream(media_audio.get_stream_playback())
 	var resize:=func():browser.resize(view.size.max(Vector2(1,1)))
 	view.resized.connect(resize)
 	view.gui_input.connect(func(event: InputEvent):
@@ -446,7 +480,20 @@ func _orbit() -> void:
 	model_camera.position=Vector3(sin(model_orbit.x)*cos(model_orbit.y),sin(model_orbit.y),cos(model_orbit.x)*cos(model_orbit.y))*model_distance
 	model_camera.look_at(Vector3.ZERO)
 
+func _audio_output() -> StringName:
+	if playback_quality==AudioQuality.FULL:return &"Master"
+	if playback_bus==&"Master":
+		playback_bus=StringName("Campus media %d"%get_instance_id())
+		var index:=AudioServer.bus_count
+		AudioServer.add_bus()
+		AudioServer.set_bus_name(index,playback_bus)
+		AudioQuality.apply(index,playback_quality)
+	return playback_bus
+
 func _exit_tree() -> void:
+	if playback_bus!=&"Master":
+		var index:=AudioServer.get_bus_index(playback_bus)
+		if index>=0:AudioServer.remove_bus(index)
 	if is_instance_valid(browser):browser.close()
 	if not browser_key.is_empty() and is_instance_valid(Browser.runtime):Browser.runtime.release_context(browser_key)
 	if not temporary_video.is_empty() and FileAccess.file_exists(temporary_video):DirAccess.remove_absolute(temporary_video)

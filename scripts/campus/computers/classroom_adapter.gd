@@ -237,6 +237,7 @@ func _build_usb_visual(parent: Node3D, at: Vector3) -> Node3D:
 		piece.position=part[0]
 		piece.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		drive.add_child(piece)
+	drive.get_child(0).set_meta("material_segment","connector")
 	drive.set_meta("equipment_shell",[drive.get_child(1)])
 	drive.set_meta("equipment_trim",[drive.get_child(2)])
 	drive.set_meta("decoration_anchor",{"part":drive,"position":Vector3(0,.0081,.012),"rotation":Vector3(-PI/2,0,0),"area":Vector2(.026,.015)})

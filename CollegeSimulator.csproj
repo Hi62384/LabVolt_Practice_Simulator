@@ -9,5 +9,6 @@
     <Compile Include="scripts/electronics/**/*.cs" />
     <Compile Include="scripts/ui/paper_workspace/PaperStrokeCoverage.cs" />
     <Compile Include="scripts/campus/computers/*.cs" />
+    <Compile Include="scripts/campus/items/EquipmentSurfaceGeometry.cs" />
   </ItemGroup>
 </Project>

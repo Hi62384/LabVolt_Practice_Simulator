@@ -379,6 +379,7 @@ func _equipment_preview(kind: String,parent: Node3D,options: Dictionary = {}) ->
 		var lid: Node3D=kit.get_node("Lid")
 		lid.position=kit.get_meta("lid_open")
 		lid.rotation.x=-1.3
+		preload("res://scripts/campus/items/mesh_decoration.gd").apply(kit,options.get("decoration",[]))
 		return kit
 	var model:=Node3D.new()
 	model.position=Vector3(0,-.15,.05)

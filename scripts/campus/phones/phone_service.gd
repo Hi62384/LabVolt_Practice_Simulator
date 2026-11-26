@@ -1,6 +1,7 @@
 extends Node3D
 const Photos=preload("res://scripts/campus/phones/photo_library.gd")
 const Tiers=preload("res://scripts/campus/phones/phone_tiers.gd")
+const DevicePerformance=preload("res://scripts/campus/items/device_performance.gd")
 const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
 const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
 var visible_phone_id := ""
@@ -67,6 +68,8 @@ var classroom_report_at:={}
 var classroom_phone_strikes:={}
 var phone_report_clock:=0.0
 var phone_prune_clock:=0.0
+var performance: Node
+var frozen_overlay: CenterContainer
 var teacher_handoffs:={}
 var handed_phone_id:=""
 
@@ -78,6 +81,12 @@ func build(owner: Node) -> void:
 	comm=preload("res://scripts/campus/phones/phone_network.gd").new();comm.name="PhoneNetwork";add_child(comm);comm.build(game);comm.changed.connect(_communications_changed)
 	call_notice=Label.new();call_notice.position=Vector2(16,280);call_notice.add_theme_font_size_override("font_size",18);call_notice.add_theme_color_override("font_color",Color("a5e9d7"));call_notice.add_theme_constant_override("outline_size",5);layer.add_child(call_notice);call_notice.hide()
 	_build_phone_ui()
+	performance=DevicePerformance.new()
+	add_child(performance)
+	performance.freeze_changed.connect(func(frozen: bool):frozen_overlay.visible=frozen)
+	performance.crashed.connect(func():
+		if is_powered(current_id):_toggle_power(current_id,false)
+		game.ui.log_message("The phone crashed. Press its power button to restart it."))
 	game.session.leaving.connect(func():close(false);powered_on.clear())
 	game.session.restarted.connect(close.bind(false))
 	game.session.roster_changed.connect(_prune_classroom_open)
@@ -205,6 +214,9 @@ func _build_phone_ui() -> void:
 		ring.set_corner_radius_all(24)
 		home.add_theme_stylebox_override(state,ring)
 	shell.add_child(home)
+	frozen_overlay=DevicePerformance.freeze_overlay("Phone is frozen")
+	panel.add_child(frozen_overlay)
+	frozen_overlay.hide()
 	get_viewport().size_changed.connect(_layout_phone)
 	panel.minimum_size_changed.connect(_layout_phone,CONNECT_DEFERRED)
 	camera_hint=Label.new()
@@ -246,7 +258,7 @@ func _build_handset(parent: Node3D, first_person: bool) -> MeshInstance3D:
 func is_powered(id: String) -> bool:
 	return powered_on.has(id) and (not is_instance_valid(game.device_charging) or game.device_charging.percent("phone",id)>0)
 
-func _toggle_power(id: String) -> void:
+func _toggle_power(id: String, notify := true) -> void:
 	if id.is_empty():return
 	if game.device_charging.percent("phone",id)<=0:
 		game.ui.log_message("Phone battery is empty. Connect it to a charger in M110.")
@@ -270,11 +282,12 @@ func _toggle_power(id: String) -> void:
 			_report_classroom_open(false,"")
 			_show_phone_display()
 		_leave_camera()
-		game.ui.log_message("Phone off.")
+		if notify:game.ui.log_message("Phone off.")
 
 func _show_phone_display() -> void:
 	var active:=is_powered(current_id)
 	var config: Dictionary=_phone_record(current_id).get("configuration",{})
+	performance.configure(current_id if active else "",int(Configuration.value(Configuration.PHONE,config,"hardware","performance",DevicePerformance.MAX)))
 	var grain:=Configuration.screen_noise(Configuration.PHONE,config)
 	var fps:=Configuration.phone_or_laptop_fps(Configuration.PHONE,config)
 	screen_period=1.0/float(fps) if active and fps<60 else 0.0
@@ -362,7 +375,7 @@ func _process(_delta: float) -> void:
 			_close_browser()
 		else:
 			browser_active=game.front.in_game and (id==browser_phone_id or is_instance_valid(_placed_model(browser_phone_id)))
-			browser_surface.set_phone_suspended(not browser_active)
+			browser_surface.set_device_suspended(not browser_active or (browser_phone_id==current_id and performance.frozen))
 			if browser_active and id==browser_phone_id:update_placed_speaker()
 	if phone_overlay.visible:
 		if screen_period>0.0:
@@ -402,6 +415,10 @@ func route(event: InputEvent) -> bool:
 	if phone_overlay.visible:
 		if event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_ESCAPE:close();return true
 		if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_O:_toggle_power(current_id);return true
+		if performance.frozen and (event is InputEventKey or event is InputEventMouse):
+			if event is InputEventMouse and side_power.get_global_rect().has_point(event.position):return true
+			get_viewport().set_input_as_handled()
+			return true
 		return event is InputEventKey or event is InputEventMouse
 	if selected().is_empty() or not game.front.in_game or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED:return false
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_O:
@@ -440,6 +457,7 @@ func _open_phone(id: String) -> void:
 	_show_phone_display()
 
 func close(keep_browser := true) -> void:
+	performance.configure("",DevicePerformance.MAX)
 	_leave_camera()
 	generation+=1
 	if not keep_browser or not game.front.in_game:
@@ -617,8 +635,13 @@ func capture() -> void:
 	# Render the shared world through a separate camera so HUD and chat never
 	# appear in saved photos and remain visible to the player during capture.
 	var screen_size: Vector2=get_viewport().get_visible_rect().size
-	var capture_scale:=minf(1.0,minf(1920.0/screen_size.x,1080.0/screen_size.y))
-	var view:=SubViewport.new();view.size=Vector2i(maxi(1,roundi(screen_size.x*capture_scale)),maxi(1,roundi(screen_size.y*capture_scale)));view.world_3d=get_viewport().world_3d
+	var camera_quality:=int(Configuration.phone_value(phone,"camera_quality",-1))
+	var limit: Vector2i=Configuration.CAMERA_SIZES[camera_quality] if camera_quality>=0 else Vector2i(1920,1080)
+	var capture_scale:=minf(float(limit.x)/screen_size.x,float(limit.y)/screen_size.y)
+	if camera_quality<0:capture_scale=minf(1.0,capture_scale)
+	var view:=SubViewport.new()
+	view.size=limit if camera_quality>=0 else Vector2i(maxi(1,roundi(screen_size.x*capture_scale)),maxi(1,roundi(screen_size.y*capture_scale)))
+	view.world_3d=get_viewport().world_3d
 	view.render_target_update_mode=SubViewport.UPDATE_ALWAYS;add_child(view)
 	var camera:=Camera3D.new();view.add_child(camera);camera.global_transform=game.camera.global_transform
 	camera.cull_mask=game.camera.cull_mask
@@ -630,7 +653,8 @@ func capture() -> void:
 	view.queue_free()
 	capturing=false
 	if capture_generation!=generation or selected()!=id or not game.front.in_game or str(game.electronics.profile.data.get("dorm",{}).get("owner",""))!=owner:return
-	var result:=Photos.capture(owner,id,image,_photo_storage(phone))
+	var jpeg_quality:=float(Configuration.CAMERA_JPEG[camera_quality]) if camera_quality>=0 else .88
+	var result:=Photos.capture(owner,id,image,_photo_storage(phone),jpeg_quality)
 	game.ui.log_message(str(result.get("error","Photo saved.")))
 	if not result.has("error"):
 		if is_instance_valid(flash_tween):flash_tween.kill()
@@ -644,6 +668,7 @@ func capture() -> void:
 func _switch(app: String) -> void:
 	if not is_instance_valid(panel) or not phone_overlay.visible:return
 	generation+=1;var request:=generation
+	performance.discard_jobs()
 	rendered_phone_id=""
 	current_app=app
 	last_apps[current_id]=app
@@ -665,16 +690,26 @@ func _switch(app: String) -> void:
 		_home_screen()
 		rendered_phone_id=current_id
 		return
-	var delay:=int(Configuration.phone_value(phone,"processor",Tiers.TIERS[phone.tier].delay_ms))
+	if performance.quality<DevicePerformance.MAX and not resume_browser:
+		status.text="Opening %s…"%app
+		status.show()
+		if not performance.submit(_finish_app.bind(app,request,phone,resume_browser),true):
+			status.text="Phone busy. Try again."
+		return
+	var delay:=0 if phone.get("configuration",{}).get("version")==Configuration.DEVICE_VERSION else int(Configuration.phone_value(phone,"processor",Tiers.TIERS[phone.tier].delay_ms))
 	if delay>0:
 		status.text="Opening %s…"%app
 		status.show()
 		await get_tree().create_timer(float(delay)/1000.0).timeout
+	_finish_app(app,request,phone,resume_browser)
+
+func _finish_app(app: String, request: int, phone: Dictionary, resume_browser: bool) -> void:
 	if request!=generation or not _current_phone_open():return
 	rendered_phone_id=current_id
 	status.hide()
 	if app=="Calculator":
 		var calculator:=preload("res://scripts/scientific_calculator.gd").new()
+		calculator.performance=performance
 		calculator.campus_style=true
 		calculator.advanced_app=true
 		content.add_child(calculator)
@@ -695,6 +730,7 @@ func _switch(app: String) -> void:
 		browser_surface.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		browser_host.add_child(browser_surface)
 		browser_surface.game=game
+		browser_surface.set_playback_quality(int(Configuration.phone_value(phone,"audio_quality",3)))
 		browser_phone_id=current_id
 		browser_surface.phone_display_scale=float(Configuration.phone_value(phone,"display",1.0))
 		browser_surface.speaker_world=game

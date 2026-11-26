@@ -15,6 +15,7 @@ static func choose(hit: Dictionary, feet: Vector3, floor_surface: Callable) -> D
 static func host_position(school: Object, point: Variant, actor: Vector3, peer: int) -> Variant:
 	if point==null:point=actor+Vector3(0,0,-.6)
 	if not point is Vector3 or not point.is_finite() or not actor.is_finite():return null
+	if school.has_method("is_throw_landing") and school.is_throw_landing(peer,point):return point+Vector3.UP*.01
 	if actor.distance_to(point)<=3.0 and school.has_method("_table_position") and school._table_position(point,peer):
 		return point+Vector3.UP*.01
 	return school.ground_drop_position(point,peer)

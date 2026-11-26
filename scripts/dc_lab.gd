@@ -612,7 +612,9 @@ func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 		origin=position
 	elif op in ["kit_lead","board","recall","input","firmware_reset","carry_board","place_board","rotate_board","stow_board","native_begin","native_chunk","native_finish","native_control"] and not station.board.is_empty():
 		origin=position if (station.board_held or station.board_stowed) and station.board_owner==peer else station.board_position if station.board_position!=Vector3.ZERO else origin
-	if position.distance_to(origin)>4 and not releasing and not io_release:return
+	var throw_target: Variant=action.get("position")
+	var thrown: bool=op=="place_board" and throw_target is Vector3 and game.school.is_throw_landing(peer,throw_target)
+	if position.distance_to(origin)>4 and not releasing and not io_release and not thrown:return
 	if op=="kit_lead":
 		var error := _place_kit_lead(peer,index,str(action.get("port","")),str(action.get("hole","")))
 		if not error.is_empty():
@@ -745,7 +747,7 @@ func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 			if pos==null:return
 			action=action.duplicate()
 			action.position=pos+Vector3.UP*.037
-		elif not pos is Vector3 or not pos.is_finite() or position.distance_to(pos)>3.6 or not game.school._table_position(pos):return
+		elif not pos is Vector3 or not pos.is_finite() or (position.distance_to(pos)>3.6 and not thrown) or not game.school._table_position(pos):return
 	if str(action.get("op","")) in ["board","recall","firmware_reset","carry_board","place_board","rotate_board","stow_board"] and station.board_owner not in [0,peer]:
 		if peer==1:game.ui.log_message("This board belongs to another player.")
 		else:feedback.rpc_id(peer,"This board belongs to another player.")

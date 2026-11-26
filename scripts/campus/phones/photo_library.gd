@@ -33,7 +33,7 @@ static func list(owner: String,phone: String) -> Dictionary:
 	photos.sort_custom(func(a,b):return a.id>b.id if a.modified==b.modified else a.modified>b.modified)
 	return {"photos":photos,"bytes":used}
 
-static func capture(owner: String,phone: String,image: Image,quota: int) -> Dictionary:
+static func capture(owner: String,phone: String,image: Image,quota: int,jpeg_quality := .88) -> Dictionary:
 	var base:=directory(owner,phone)
 	if base.is_empty() or image==null or image.is_empty() or quota<=0:return {"error":"Invalid photo"}
 	var state:=list(owner,phone)
@@ -44,7 +44,7 @@ static func capture(owner: String,phone: String,image: Image,quota: int) -> Dict
 		var scale:=minf(1920.0/copy.get_width(),1080.0/copy.get_height())
 		copy.resize(maxi(1,roundi(copy.get_width()*scale)),maxi(1,roundi(copy.get_height()*scale)),Image.INTERPOLATE_LANCZOS)
 	copy.convert(Image.FORMAT_RGB8)
-	var bytes:=copy.save_jpg_to_buffer(.88)
+	var bytes:=copy.save_jpg_to_buffer(clampf(jpeg_quality,0.0,1.0))
 	if bytes.is_empty() or bytes.size()>MAX_PHOTO_BYTES:return {"error":"Photo could not be encoded"}
 	if int(state.bytes)+bytes.size()>quota:return {"error":"Phone storage is full"}
 	var error:=DirAccess.make_dir_recursive_absolute(base)

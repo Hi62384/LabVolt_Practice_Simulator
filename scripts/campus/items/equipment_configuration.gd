@@ -1,7 +1,18 @@
 extends RefCounted
 ## Versioned product options. Clients and the inventory authority use the same quote.
 
+const Materials = preload("res://scripts/campus/items/material_segments.gd")
 const VERSION := 2
+const DEVICE_VERSION := 3
+const DESIGN_VERSION := 3
+const BACKLIGHT_NAMES := ["Ice white","Cyan","Blue","Violet","Pink","Red","Amber","Green"]
+const BACKLIGHT_COLORS := ["d3f3ff","36ddf5","507bff","a774ff","ff73be","ff584e","ffc458","5ae99f"]
+const BACKLIGHT_PRICE := 12
+const CAMERA_SIZES := [Vector2i(480,360),Vector2i(800,600),Vector2i(1280,720),Vector2i(1920,1080)]
+const CAMERA_JPEG := [.40,.61,.78,.92]
+const CAMERA_QUALITY := {"label":"Camera quality","labels":["480 × 360 · Basic","800 × 600 · Standard","1280 × 720 · HD","1920 × 1080 · Full HD"],"values":[0,1,2,3],"prices":[0,32,80,150]}
+const AUDIO_QUALITY := {"label":"Audio quality","labels":["Muffled","Basic","Clear","Full range"],"values":[0,1,2,3],"prices":[0,25,65,125]}
+const PERFORMANCE := {"label":"Performance","labels":["Very slow","Low","Standard","Fast","Unlimited"],"values":[0,1,2,3,4],"prices":[0,45,120,230,400]}
 const PHONE := "smartphone"
 const LAPTOP := "portable_laptop"
 const USB := "usb"
@@ -156,9 +167,22 @@ const HARDWARE := {
 	}
 }
 
-static func definitions(kind: String, version: int=VERSION) -> Dictionary:
+static func latest_version(kind: String) -> int:
+	if kind==CALCULATOR:return DESIGN_VERSION
+	return DEVICE_VERSION if kind in [PHONE,LAPTOP] else VERSION
+
+static func definitions(kind: String, version := 0) -> Dictionary:
 	if not DEFINITIONS.has(kind):return {}
-	return {"hardware":HARDWARE.get(kind,DEFINITIONS[kind].hardware),"appearance":DEFINITIONS[kind].appearance} if version==VERSION else DEFINITIONS[kind]
+	if version==0:version=latest_version(kind)
+	if version==1:return DEFINITIONS[kind]
+	if version not in [VERSION,latest_version(kind)]:return {}
+	var hardware: Dictionary=HARDWARE.get(kind,DEFINITIONS[kind].hardware)
+	if version==DEVICE_VERSION and kind in [PHONE,LAPTOP]:
+		hardware=hardware.duplicate()
+		if kind==PHONE:hardware.camera_quality=CAMERA_QUALITY
+		hardware.audio_quality=AUDIO_QUALITY
+		hardware.performance=PERFORMANCE
+	return {"hardware":hardware,"appearance":DEFINITIONS[kind].appearance}
 
 static func phone_or_laptop_fps(kind: String, configuration: Dictionary) -> int:
 	return int(value(kind,configuration,"hardware","speed",60))
@@ -177,7 +201,8 @@ static func body_size(configuration: Dictionary) -> Vector3:
 static func kit_capacity(configuration: Dictionary, fallback: int) -> int:
 	return int(value(KIT,configuration,"hardware","capacity",fallback))
 
-static func defaults(kind: String,version: int=VERSION) -> Dictionary:
+static func defaults(kind: String,version := 0) -> Dictionary:
+	if version==0:version=latest_version(kind)
 	var definition:=definitions(kind,version)
 	if definition.is_empty():return {}
 	var result := {"version": version}
@@ -186,18 +211,23 @@ static func defaults(kind: String,version: int=VERSION) -> Dictionary:
 		for property in definition[group]:choices[property] = 0
 		result[group] = choices
 	if kind==CALCULATOR:
-		result.keypad=[] if version==VERSION else Keypad.keys("calculator_basic")
-		if version==VERSION:result.body=BODY_DEFAULT.duplicate()
+		result.keypad=Keypad.keys("calculator_basic")
+		if version==VERSION:result.keypad=Keypad.REQUIRED.duplicate()
+		elif version==DESIGN_VERSION:result.keypad=Keypad.default_slots()
+		if version>=VERSION:result.body=BODY_DEFAULT.duplicate()
 	return result
 
 static func quote(kind: String, base_price: int, selection: Variant) -> Dictionary:
 	if not selection is Dictionary:return {}
-	var version:=_index(selection.get("version"),VERSION+1)
-	if version not in [1,VERSION]:return {}
+	var version:=_index(selection.get("version"),latest_version(kind)+1)
+	if version<1:return {}
 	var definition:=definitions(kind,version)
-	var custom_body:=version==VERSION and kind==CALCULATOR
-	if definition.is_empty() or selection.size()!=definition.size()+1+int(kind==CALCULATOR)+int(custom_body)+int(selection.has("decoration")):return {}
-	var price:=base_price
+	var custom_body:=version>=VERSION and kind==CALCULATOR
+	var full_design:=version==DESIGN_VERSION and kind==CALCULATOR
+	if definition.is_empty() or selection.size()!=definition.size()+1+int(kind==CALCULATOR)+int(custom_body)+int(selection.has("decoration"))+int(kind==LAPTOP and selection.has("backlight"))+int(selection.has("materials")):return {}
+	var hardware_cost:=0
+	var appearance_cost:=0
+	var keypad_cost:=0
 	var normalized:={"version":version}
 	for group in definition:
 		var choices: Variant = selection.get(group)
@@ -208,11 +238,15 @@ static func quote(kind: String, base_price: int, selection: Variant) -> Dictiona
 			var index := _index(choices.get(property), entry.values.size())
 			if index<0:return {}
 			indices[property]=index
-			price += int(entry.prices[index])
+			if group=="hardware":hardware_cost+=int(entry.prices[index])
+			else:appearance_cost+=int(entry.prices[index])
 		normalized[group]=indices
 	if kind==CALCULATOR:
 		if custom_body:
-			if not Keypad.valid_custom(selection.get("keypad")):return {}
+			if full_design:
+				keypad_cost=Keypad.design_price(selection.get("keypad"),normalized.hardware)
+				if keypad_cost<0:return {}
+			elif not Keypad.valid_custom(selection.get("keypad")):return {}
 			var picked: Dictionary=normalized.hardware
 			if (picked.complex>0 and picked.equation==0) or (picked.graph>0 and picked.algebra==0):return {}
 			var body: Variant=selection.get("body")
@@ -224,22 +258,42 @@ static func quote(kind: String, base_price: int, selection: Variant) -> Dictiona
 				if not (amount is int or amount is float) or not is_finite(amount) or float(amount)<limits.x-.00001 or float(amount)>limits.y+.00001:return {}
 				dimensions[field]=snappedf(float(amount),.001)
 			normalized.body=dimensions
-			price+=2*selection.keypad.size()
+			if not full_design:
+				var optional_count: int=selection.keypad.filter(func(key):return key not in Keypad.REQUIRED).size()
+				keypad_cost=2*optional_count
 		else:
 			var model: String=value(CALCULATOR,normalized,"hardware","model","")
 			if not Keypad.valid(model,selection.get("keypad")):return {}
-		normalized.keypad=selection.keypad.duplicate()
+		normalized.keypad=Keypad.with_required(selection.keypad) if custom_body and not full_design else selection.keypad.duplicate()
+	if kind==LAPTOP and selection.has("backlight"):
+		var raw: Variant=selection.backlight
+		if not raw is Array or raw.size()>BACKLIGHT_COLORS.size():return {}
+		var colors: Array[int]=[]
+		for value in raw:
+			var color:=_index(value,BACKLIGHT_COLORS.size())
+			if color<0 or color in colors:return {}
+			colors.append(color)
+		if not colors.is_empty():
+			normalized.backlight=colors
+			appearance_cost+=BACKLIGHT_PRICE*colors.size()
+	if selection.has("materials"):
+		var parts: Variant=Materials.clean(kind,selection.materials)
+		if parts==null:return {}
+		if not parts.is_empty():
+			normalized.materials=parts
+			appearance_cost+=4*parts.size()
 	if selection.has("decoration"):
 		var design: Variant=Decoration.clean(selection.decoration)
 		if design==null:return {}
 		if not design.is_empty():
 			normalized.decoration=design
-			price+=3*design.size()
-	return {"price": price, "configuration": normalized}
+			appearance_cost+=3*design.size()
+	return {"price":base_price+hardware_cost+keypad_cost+appearance_cost,"configuration":normalized,
+		"hardware_cost":hardware_cost,"keypad_cost":keypad_cost,"appearance_cost":appearance_cost}
 
 static func value(kind: String, configuration: Dictionary, group: String, key: String, fallback: Variant) -> Variant:
 	var version:=int(configuration.get("version",1))
-	if version==VERSION and group=="hardware":
+	if version>=VERSION and group=="hardware":
 		if kind==CALCULATOR:
 			if key=="model":return "calculator_basic"
 			if key=="size":return body_size(configuration)
@@ -264,6 +318,7 @@ static func phone_appearance(item: Dictionary) -> Dictionary:
 	var configuration: Dictionary=item.get("configuration",{})
 	var appearance: Dictionary=configuration.get("appearance",{}).duplicate()
 	if configuration.has("decoration"):appearance.decoration=configuration.decoration
+	if configuration.has("materials"):appearance.materials=configuration.materials
 	return appearance
 
 static func same_phone_configuration(left: Dictionary, right: Dictionary) -> bool:

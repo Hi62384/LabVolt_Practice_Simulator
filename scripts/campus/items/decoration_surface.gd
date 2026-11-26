@@ -1,15 +1,17 @@
 extends RefCounted
 
 const Document = preload("res://scripts/campus/items/decoration_document.gd")
+const MeshArtwork = preload("res://scripts/campus/items/mesh_decoration.gd")
 const CACHE_LIMIT := 32
 static var textures := {}
 
-static func attach(parent: Node3D, design: Array, center: Vector3, rotation: Vector3, area: Vector2, layers:=1) -> void:
+static func attach(parent: Node3D, design: Array, center: Vector3, rotation: Vector3, area: Vector2, layers:=1, model: Node3D=null) -> void:
 	var previous:=parent.get_node_or_null("DecorationSurface")
 	if is_instance_valid(previous):
 		if previous.get_meta("design",[])==design:return
 		parent.remove_child(previous)
 		previous.queue_free()
+	MeshArtwork.apply(parent if model==null else model,design)
 	if design.is_empty():return
 	var surface:=Node3D.new()
 	surface.name="DecorationSurface"
@@ -19,7 +21,7 @@ static func attach(parent: Node3D, design: Array, center: Vector3, rotation: Vec
 	parent.add_child(surface)
 	for index in design.size():
 		var layer: Dictionary=design[index]
-		if not layer.visible or layer.opacity<=0.0 or layer.data.is_empty():continue
+		if not layer.visible or layer.opacity<=0.0 or layer.data.is_empty() or layer.has("projection"):continue
 		_add(surface,layer,index,area,layers)
 
 static func _add(surface: Node3D, layer: Dictionary, index: int, area: Vector2, layers: int) -> void:
@@ -42,12 +44,15 @@ static func _add(surface: Node3D, layer: Dictionary, index: int, area: Vector2, 
 		text_node.set_meta("line_height",measure.y)
 	elif layer.kind=="shape":
 		target_aspect=4.0 if layer.data=="Trim" else 2.0 if layer.data=="Panel" else 1.0
+	var width:=target_aspect*float(layer.get("width",1.0))
+	var height:=float(layer.get("height",1.0))
 	var angle:=deg_to_rad(float(layer.angle))
-	var available:=Vector2(absf(cos(angle))*target_aspect+absf(sin(angle)),absf(sin(angle))*target_aspect+absf(cos(angle)))
-	var scale:=minf(area.x/available.x,area.y/available.y)*float(layer.size)
+	var available:=Vector2(absf(cos(angle))*width+absf(sin(angle))*height,absf(sin(angle))*width+absf(cos(angle))*height)
+	var neutral:=Vector2(absf(cos(angle))*target_aspect+absf(sin(angle)),absf(sin(angle))*target_aspect+absf(cos(angle)))
+	var scale:=minf(minf(area.x/available.x,area.y/available.y),minf(area.x/neutral.x,area.y/neutral.y)*float(layer.size))
 	var footprint:=available*scale
 	var position:=Vector3((float(layer.x)-.5)*(area.x-footprint.x),(.5-float(layer.y))*(area.y-footprint.y),.00012*(index+1))
-	var box:=Vector2(target_aspect,1.0)*scale
+	var box:=Vector2(width,height)*scale
 	var tint:=Color(layer.color)
 	tint.a=layer.opacity
 	if text_node!=null:

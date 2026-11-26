@@ -34,10 +34,10 @@ static func update(book: Node3D, configuration: Dictionary, opened := false) -> 
 	if opened:
 		_open_spread(book,configuration,size,cover,shade)
 		return
-	_box(book,Vector3(0,cover*.5,0),Vector3(width,cover,length),Color("416b78"),"shell")
-	_box(book,Vector3(0,cover+block_height*.5,0),Vector3(width-.008,block_height,length-.008),shade,"")
-	_box(book,Vector3(0,cover*1.5+block_height,0),Vector3(width,cover,length),Color("416b78"),"shell")
-	_box(book,Vector3(-width*.5-.003,cover+block_height*.5,0),Vector3(.008,size.y+.001,length+.002),Color("254854"),"trim")
+	_box(book,Vector3(0,cover*.5,0),Vector3(width,cover,length),Color("416b78"),"shell").set_meta("material_segment","back")
+	_box(book,Vector3(0,cover+block_height*.5,0),Vector3(width-.008,block_height,length-.008),shade,"").set_meta("material_segment","paper")
+	_box(book,Vector3(0,cover*1.5+block_height,0),Vector3(width,cover,length),Color("416b78"),"shell").set_meta("material_segment","front")
+	_box(book,Vector3(-width*.5-.003,cover+block_height*.5,0),Vector3(.008,size.y+.001,length+.002),Color("254854"),"trim").set_meta("material_segment","binding")
 	book.set_meta("decoration_anchor",{"part":book,"position":Vector3(.008,size.y+.0006,0),"rotation":Vector3(-PI/2,0,0),"area":Vector2(width-.044,length-.025)})
 	Finish.apply_finish(book,Config.NOTEBOOK,configuration)
 
@@ -45,11 +45,14 @@ static func _open_spread(book: Node3D,configuration: Dictionary,size: Vector3,co
 	var width:=size.x
 	var height:=size.y*.68
 	var style: String=Config.value(Config.NOTEBOOK,configuration,"hardware","ruling","lined")
-	_box(book,Vector3(0,cover*.5,0),Vector3(width*2.0+.005,cover,size.z),Color("416b78"),"shell")
-	_box(book,Vector3(0,height*.5,0),Vector3(.009,height,size.z+.001),Color("254854"),"trim")
+	_box(book,Vector3(width*.5+.0025,cover*.5,0),Vector3(width,cover,size.z),Color("416b78"),"shell").set_meta("material_segment","back")
+	var front:=_box(book,Vector3(-width*.5-.0025,cover*.5,0),Vector3(width,cover,size.z),Color("416b78"),"shell")
+	front.set_meta("material_segment","front")
+	front.rotation.z=PI
+	_box(book,Vector3(0,height*.5,0),Vector3(.009,height,size.z+.001),Color("254854"),"trim").set_meta("material_segment","binding")
 	for side in [-1.0,1.0]:
 		var x: float=side*(width*.5+.004)
-		_box(book,Vector3(x,height*.5+cover,0),Vector3(width-.008,height,size.z-.008),shade,"")
+		_box(book,Vector3(x,height*.5+cover,0),Vector3(width-.008,height,size.z-.008),shade,"").set_meta("material_segment","paper")
 		var ink:=shade.lerp(Color("7193ab"),.48)
 		var spacing: float=Config.value(Config.NOTEBOOK,configuration,"hardware","spacing",24)
 		var rows:=maxi(9,roundi(15.0*24.0/spacing))
@@ -79,7 +82,7 @@ static func _open_spread(book: Node3D,configuration: Dictionary,size: Vector3,co
 	book.set_meta("decoration_anchor",{"part":book,"position":Vector3(size.x*.5,-.0006,0),"rotation":Vector3(PI/2,0,0),"area":Vector2(width-.044,size.z-.025)})
 	Finish.apply_finish(book,Config.NOTEBOOK,configuration)
 
-static func _box(parent: Node3D, center: Vector3, dimensions: Vector3, tint: Color, part: String) -> void:
+static func _box(parent: Node3D, center: Vector3, dimensions: Vector3, tint: Color, part: String) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size=dimensions
 	var material := StandardMaterial3D.new()
@@ -93,3 +96,4 @@ static func _box(parent: Node3D, center: Vector3, dimensions: Vector3, tint: Col
 		var group: Array=parent.get_meta("equipment_"+part)
 		group.append(node)
 	parent.add_child(node)
+	return node

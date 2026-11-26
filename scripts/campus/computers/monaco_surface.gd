@@ -110,8 +110,14 @@ func _forward(event: InputEvent) -> void:
 		accept_event()
 	elif event is InputEventKey:
 		var key: int=event.keycode if event.keycode!=KEY_NONE else event.physical_keycode
-		if event.unicode>=32 and event.unicode!=127 and not event.meta_pressed and not (event.ctrl_pressed and not event.alt_pressed):key=event.unicode
-		if key!=KEY_NONE:browser.set_key_pressed(key,event.pressed,event.shift_pressed,event.alt_pressed,event.ctrl_pressed)
+		var printable: bool = event.unicode>=32 and event.unicode!=127 and not event.meta_pressed
+		var shortcut: bool = event.ctrl_pressed and not event.alt_pressed
+		if printable and not shortcut:
+			# Use the character produced by the active keyboard layout. Chromium's
+			# virtual-key mapping can drop or change shifted punctuation.
+			if event.pressed:browser.execute_javascript("window.campusType(%s)"%JSON.stringify(String.chr(event.unicode)))
+		elif key!=KEY_NONE:
+			browser.set_key_pressed(key,event.pressed,event.shift_pressed,event.alt_pressed,event.ctrl_pressed)
 		accept_event()
 
 func _exit_tree() -> void:

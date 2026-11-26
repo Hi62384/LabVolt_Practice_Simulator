@@ -101,11 +101,13 @@ func _animate_cabinet(opened: bool) -> void:
 
 func _closed_laptop(parent: Node3D) -> void:
  var base:=_box(parent,Vector3(0,-.012,0),Vector3(.35,.025,.25),Color("273a47"))
- var lid:=_box(parent,Vector3(0,.012,0),Vector3(.35,.025,.25),Color("718892"))
+ var lid:=_box(parent,Vector3(0,.012,0),Vector3(.35,.25,.025),Color("718892"))
+ lid.rotation.x=PI/2
  var badge:=_box(parent,Vector3(0,.026,0),Vector3(.09,.002,.014),Color("c1d4d2"))
+ lid.set_meta("material_segment","lid")
  parent.set_meta("equipment_shell",[base,lid])
  parent.set_meta("equipment_trim",[badge])
- parent.set_meta("decoration_anchor",{"part":lid,"position":Vector3(0,.013,-.049),"rotation":Vector3(-PI/2,0,0),"area":Vector2(.28,.115)})
+ parent.set_meta("decoration_anchor",{"part":parent,"position":Vector3(0,.025,-.049),"rotation":Vector3(-PI/2,0,0),"area":Vector2(.28,.115)})
  _box(parent,Vector3(0,-.025,-.10),Vector3(.27,.012,.015),Color("101d24"))
 func _coiled_cable(parent: Node3D) -> void:
  var points: Array[Vector3]=[]
@@ -129,13 +131,18 @@ func _build_laptop(root: Node3D,id: int) -> void:
    for col in 10:keyboard_instances.set_instance_transform(row*10+col,Transform3D(Basis.IDENTITY,Vector3(-.174+col*.038,.031,-.108+row*.041)))
   keyboard_material=_material(Color("a4b5b4"))
  var keys:=MultiMeshInstance3D.new();keys.multimesh=keyboard_instances;keys.material_override=keyboard_material;keys.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;body.add_child(keys)
+ keys.set_meta("material_segment","keys")
+ keys.set_meta("unlit_material",keyboard_material)
+ root.set_meta("equipment_keyboard",keys)
  var trackpad:=_box(body,Vector3(0,.028,.108),Vector3(.13,.004,.065),Color("91a5a9"))
  var lid:=Node3D.new();lid.name="Lid";lid.position=Vector3(0,.06,-.15);root.add_child(lid)
  _target(lid,"ac_laptop",id,Vector3(0,.13,.008),Vector3(.46,.26,.034))
  var lid_case:=_box(lid,Vector3(0,.13,0),Vector3(.46,.26,.025),Color("718892"))
- _box(lid,Vector3(0,.13,.014),Vector3(.42,.225,.006),Color("182b36"))
+ _box(lid,Vector3(0,.13,.014),Vector3(.42,.225,.006),Color("182b36")).set_meta("material_segment","bezel")
  root.set_meta("equipment_screen",_box(lid,Vector3(0,.13,.018),Vector3(.385,.188,.003),Color("315e70")))
  var badge:=_box(lid,Vector3(0,.13,-.014),Vector3(.08,.012,.003),Color("c1d4d2"))
+ lid_case.set_meta("material_segment","lid")
+ trackpad.set_meta("material_segment","trackpad")
  root.set_meta("equipment_shell",[chassis,lid_case])
  root.set_meta("equipment_trim",[trackpad,badge])
  root.set_meta("decoration_anchor",{"part":lid,"position":Vector3(0,.190,-.0135),"rotation":Vector3(0,PI,0),"area":Vector2(.35,.101)})
@@ -164,6 +171,7 @@ func _request(op: String,id: int,point: Vector3,station: int) -> void:
  if multiplayer.is_server():_apply(multiplayer.get_remote_sender_id(),op,id,point,station)
 func _apply(peer: int,op: String,id: int,point: Vector3,station: int) -> void:
  if not game.session.roster.has(peer):return
+ var thrown: bool=game.school.is_throw_landing(peer,point)
  var takes_item := op in ["take_laptop","take_cable","pickup","pickup_cable","detach_daq"] or (op=="disconnect" and model.held_cable(peer)!=id)
  if takes_item and not game.dc_lab._can_hold_lead(peer):
   if peer==multiplayer.get_unique_id():game.ui.log_message("Put down the item you are holding first.")
@@ -171,7 +179,7 @@ func _apply(peer: int,op: String,id: int,point: Vector3,station: int) -> void:
   return
  if op=="place_laptop":
   var laptop_id:=model.held_laptop(peer)
-  if laptop_id<0 or not point.is_finite() or not _actor_position(peer).is_finite() or point.distance_to(_actor_position(peer))>3.0:return
+  if laptop_id<0 or not point.is_finite() or not _actor_position(peer).is_finite() or (point.distance_to(_actor_position(peer))>3.0 and not thrown):return
   var surface:=get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(point+Vector3.UP*.08,point-Vector3.UP*.13,5))
   if surface.is_empty() or surface.normal.y<.8 or surface.position.distance_to(point)>.08:
    if peer==multiplayer.get_unique_id():game.ui.log_message("Choose a flat surface for the laptop.")
@@ -192,7 +200,7 @@ func _apply(peer: int,op: String,id: int,point: Vector3,station: int) -> void:
   var ground:Variant=game.school.ground_drop_position(point,peer)
   if ground==null:return
   point=ground+Vector3.UP*.025
- var error: String=model.apply(peer,_actor_position(peer),op,id,point,station)
+ var error: String=model.apply(peer,_actor_position(peer),op,id,point,station,thrown)
  if not error.is_empty():
   if peer==multiplayer.get_unique_id():game.ui.log_message(error)
   else:_notice.rpc_id(peer,error)

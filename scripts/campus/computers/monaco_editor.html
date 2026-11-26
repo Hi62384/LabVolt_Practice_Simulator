@@ -134,6 +134,9 @@ require(["vs/editor/editor.main", "vs/language/typescript/monaco.contribution"],
     });
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => publish("save"));
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => publish("run"));
+    window.campusType = text => {
+        if (editor.getModel()) editor.trigger("keyboard", "type", { text });
+    };
     window.campusEditorFocus = () => editor.focus();
     window.campusSubmitSource = publish;
     document.title = "Campus editor ready";

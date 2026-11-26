@@ -242,6 +242,8 @@ func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, op
 	shell=Color(Equipment.value(Equipment.CALCULATOR,options,"appearance","shell",shell.to_html(false)))
 	var casing: MeshInstance3D=game._box(prop,Vector3.ZERO,Vector3(width,length,dimensions.y),shell)
 	var plate: MeshInstance3D=game._box(prop,Vector3(0,0,face),Vector3(width*.95,length*.96,.004),shell.lightened(.10))
+	casing.set_meta("material_segment","case")
+	plate.set_meta("material_segment","trim")
 	var finish: Vector2=Equipment.value(Equipment.CALCULATOR,options,"appearance","finish",Vector2(.60,0))
 	for surface in [casing,plate]:
 		surface.material_override=surface.get_active_material(0).duplicate()
@@ -250,15 +252,17 @@ func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, op
 	var display_scale: float=Equipment.value(Equipment.CALCULATOR,options,"hardware","screen",1.0)
 	var display_color:=Color(Equipment.value(Equipment.CALCULATOR,options,"appearance","screen_color","b0c398"))
 	game._box(prop,Vector3(0,length*.30,face+.003),Vector3(width*.88,length*.24*display_scale,.006),Color("141f24"))
-	game._box(prop,Vector3(0,length*.30,face+.006),Vector3(width*.81,length*.185*display_scale,.002),display_color)
+	game._box(prop,Vector3(0,length*.30,face+.006),Vector3(width*.81,length*.185*display_scale,.002),display_color).set_meta("material_segment","display")
 	_calculator_mark(prop,"0",Vector3(width*.33,length*.29,face+.0075),.00053,Color("233b30"))
 	var keys: Array=options.get("keypad",Equipment.Keypad.keys(model))
+	if options.has("body") and int(options.get("version",1))<Equipment.DESIGN_VERSION:keys=Equipment.Keypad.with_required(keys)
 	var columns: int=Equipment.value(Equipment.CALCULATOR,options,"hardware","columns",4 if basic else 5)
 	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,options,"appearance","key_style",false)
 	var rows := maxi(1,ceili(float(keys.size())/columns))
 	var step := Vector2(width*.88/columns,length*.60/rows)
 	for index in keys.size():
 		var key: String=keys[index]
+		if key.is_empty():continue
 		var at := Vector3((index%columns-(columns-1)*.5)*step.x,length*.13-(floorf(float(index)/columns)+.5)*step.y,face+.005)
 		var tint := Color("8297a2") if key.is_valid_int() or key=="." else Color("485968")
 		if not options.is_empty():
@@ -266,9 +270,10 @@ func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, op
 			if not key.is_valid_int() and key!=".":tint=tint.darkened(.18)
 		if key=="=":tint=Color("478f7e")
 		if key in ["AC","DEL"]:tint=Color("a76658")
-		if round_keys:Toon.ellipsoid(prop,at,Vector3(step.x*.43,step.y*.395,.0035),Toon.material(tint.to_html(false)),key+" key")
-		else:game._box(prop,at,Vector3(step.x*.86,step.y*.79,.007 if basic else .004),tint)
+		if round_keys:Toon.ellipsoid(prop,at,Vector3(step.x*.43,step.y*.395,.0035),Toon.material(tint.to_html(false)),key+" key").set_meta("material_segment","keys")
+		else:game._box(prop,at,Vector3(step.x*.86,step.y*.79,.007 if basic else .004),tint).set_meta("material_segment","keys")
 		_calculator_mark(prop,key,at+Vector3(0,0,.004),.00032 if basic else .00022,Color("1a2631") if tint.get_luminance()>.45 else Color("f2f5ef"))
+	Equipment.Materials.apply(prop,options)
 	preload("res://scripts/campus/items/decoration_surface.gd").attach(prop,options.get("decoration",[]),Vector3(0,0,-face-.0005),Vector3(0,PI,0),Vector2(width*.83,length*.86))
 
 func _calculator_mark(parent: Node3D, value: String, at: Vector3, pixel: float, tint: Color) -> void:

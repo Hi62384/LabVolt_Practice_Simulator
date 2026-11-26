@@ -117,14 +117,14 @@ func run() -> void:
 		game.smartphones.close()
 		game.hotbar.active=-1
 		for frame in 3:await process_frame
-		if not active_browser.has_method("set_page_suspended") or not browser.phone_suspended:fail("Unequipping did not suspend the browser");return
+		if not active_browser.has_method("set_page_suspended") or not browser.device_suspended:fail("Unequipping did not suspend the browser");return
 		await create_timer(.35).timeout
 		var suspended_title: String=active_browser.get_title()
 		await create_timer(1.3).timeout
 		if active_browser.get_title()!=suspended_title:fail("The page timer ran while the phone was stowed");return
 		game.hotbar.active=phone_slot
 		for frame in 3:await process_frame
-		if browser.phone_suspended:fail("Re-equipping did not resume the browser");return
+		if browser.device_suspended:fail("Re-equipping did not resume the browser");return
 		until=Time.get_ticks_msec()+2500
 		while active_browser.get_title()==suspended_title and Time.get_ticks_msec()<until:await process_frame
 		if active_browser.get_title()==suspended_title:fail("The page timer did not resume");return

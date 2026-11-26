@@ -49,6 +49,8 @@ public sealed class WindowsSandbox : IDisposable {
     [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr process,out uint code);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
     [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetFileInformationByHandle(IntPtr handle,out FILE_INFO info);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateDesktop(string name,IntPtr device,IntPtr mode,uint flags,uint access,ref SECURITY_ATTRIBUTES attributes);
+    [DllImport("user32.dll",SetLastError=true)] static extern bool CloseDesktop(IntPtr desktop);
     readonly string profile="LabVolt.Compiler."+Guid.NewGuid().ToString("N");
     IntPtr sid=IntPtr.Zero,job=IntPtr.Zero;
     readonly List<KeyValuePair<string,byte[]>> aclBackups=new List<KeyValuePair<string,byte[]>>();
@@ -134,33 +136,55 @@ public sealed class WindowsSandbox : IDisposable {
         return block.Append('\0').ToString();
     }
     public int Run(string executable,string[] args,string directory,string log,string cancel,int timeoutMs) {
+        return RunCore(executable,args,directory,log,cancel,timeoutMs,null);
+    }
+    public int RunDesktop(string executable,string directory,string log,int timeoutMs,Action<uint,IntPtr> activity) {
+        if(!desktopApplication||!lessPrivileged||activity==null)throw new InvalidOperationException("An isolated desktop requires LPAC.");
+        return RunCore(executable,new string[0],directory,log,null,timeoutMs,activity);
+    }
+    int RunCore(string executable,string[] args,string directory,string log,string cancel,int timeoutMs,Action<uint,IntPtr> activity) {
         int wallLimit=desktopApplication?10*60*1000:90000;
         if(lifetime.ElapsedMilliseconds>wallLimit)throw new TimeoutException("Aggregate process wall limit reached");
         IntPtr list=IntPtr.Zero,size=IntPtr.Zero,caps=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
         IntPtr policies=IntPtr.Zero;
-        IntPtr stdout=IntPtr.Zero,stdin=IntPtr.Zero;PROCESS_INFORMATION process=new PROCESS_INFORMATION();bool created=false,assigned=false;
+        IntPtr stdout=IntPtr.Zero,stdin=IntPtr.Zero;PROCESS_INFORMATION process=new PROCESS_INFORMATION();bool created=false,assigned=false;IntPtr desktop=IntPtr.Zero;
         try {
             SECURITY_ATTRIBUTES security=new SECURITY_ATTRIBUTES();security.length=Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));security.inherit=true;
             // CREATE_NEW refuses guest-precreated links instead of following them.
             stdout=CreateFile(log,0x40000000,3,ref security,1,0x80,IntPtr.Zero);Ensure(stdout!=new IntPtr(-1),"Create new output file");
             stdin=CreateFile("NUL",0x80000000,3,ref security,3,0x80,IntPtr.Zero);Ensure(stdin!=new IntPtr(-1),"Open NUL input");
-            int attributes=desktopApplication?(lessPrivileged?4:3):2;
+            int attributes=lessPrivileged?3:2;
             InitializeProcThreadAttributeList(IntPtr.Zero,attributes,0,ref size);list=Marshal.AllocHGlobal(size);
             Ensure(InitializeProcThreadAttributeList(list,attributes,0,ref size),"InitializeProcThreadAttributeList");
             SECURITY_CAPABILITIES capabilities=new SECURITY_CAPABILITIES();capabilities.sid=sid;
             caps=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)));Marshal.StructureToPtr(capabilities,caps,false);
             Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x20009,caps,(IntPtr)Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)),IntPtr.Zero,IntPtr.Zero),"Set AppContainer capabilities");
-            if(desktopApplication) {
-                policies=Marshal.AllocHGlobal(2*sizeof(uint));
+            // The one-process Job Object blocks children before resuming the guest.
+            // The additional process-creation policy prevents USER32 initialization on Windows 10.
+            if(lessPrivileged) {
+                policies=Marshal.AllocHGlobal(sizeof(uint));
                 Marshal.WriteInt32(policies,1);
-                Marshal.WriteInt32(policies,sizeof(uint),1);
-                if(lessPrivileged)Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x2000f,policies,(IntPtr)sizeof(uint),IntPtr.Zero,IntPtr.Zero),"Opt out of All Application Packages");
-                Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x2000e,IntPtr.Add(policies,sizeof(uint)),(IntPtr)sizeof(uint),IntPtr.Zero,IntPtr.Zero),"Block subprocess creation");
+                Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x2000f,policies,(IntPtr)sizeof(uint),IntPtr.Zero,IntPtr.Zero),"Opt out of All Application Packages");
             }
             handles=Marshal.AllocHGlobal(IntPtr.Size*2);Marshal.WriteIntPtr(handles,0,stdout);Marshal.WriteIntPtr(handles,IntPtr.Size,stdin);
             Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x20002,handles,(IntPtr)(IntPtr.Size*2),IntPtr.Zero,IntPtr.Zero),"Whitelist inherited handles");
             STARTUPINFOEX startup=new STARTUPINFOEX();startup.startup.cb=Marshal.SizeOf(typeof(STARTUPINFOEX));startup.attributes=list;
             startup.startup.flags=0x100;startup.startup.input=stdin;startup.startup.output=stdout;startup.startup.error=stdout;
+            if(activity!=null) {
+                string name="LabVolt"+Guid.NewGuid().ToString("N");
+                string user=WindowsIdentity.GetCurrent().User.Value;
+                string app=new SecurityIdentifier(sid).Value;
+                var dacl=new RawSecurityDescriptor("O:"+user+"D:(A;;0x000f01ff;;;"+user+")(A;;0x000001ff;;;"+app+")");
+                var descriptor=new byte[dacl.BinaryLength];dacl.GetBinaryForm(descriptor,0);
+                var pinned=GCHandle.Alloc(descriptor,GCHandleType.Pinned);
+                try {
+                    SECURITY_ATTRIBUTES desk=new SECURITY_ATTRIBUTES();
+                    desk.length=Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));desk.descriptor=pinned.AddrOfPinnedObject();
+                    desktop=CreateDesktop(name,IntPtr.Zero,IntPtr.Zero,0,0x000f01ff,ref desk);
+                    Ensure(desktop!=IntPtr.Zero,"Create private application desktop");
+                } finally {pinned.Free();}
+                startup.startup.desktop=@"WinSta0\"+name;
+            }
             StringBuilder command=new StringBuilder(Quote(executable));foreach(string a in args)command.Append(" ").Append(Quote(a));
             // A minimal environment prevents compiler search paths, injected DLL search
             // and user-provided temp/plugin settings from entering the container.
@@ -178,11 +202,16 @@ public sealed class WindowsSandbox : IDisposable {
             Ensure(ResumeThread(process.thread)!=0xffffffff,"Resume isolated compiler");
             IsolationExercised=true;
             Stopwatch elapsed=Stopwatch.StartNew();
+            long nextCheck=0;
             while(WaitForSingleObject(process.process,50)==0x102) {
+                if(activity!=null)activity(process.pid,desktop);
                 if(File.Exists(cancel))throw new OperationCanceledException("Compilation cancelled");
                 if(elapsed.ElapsedMilliseconds>timeoutMs||lifetime.ElapsedMilliseconds>wallLimit)throw new TimeoutException("Process wall time exceeded");
                 if(File.Exists(log)&&new FileInfo(log).Length>262144)throw new InvalidOperationException("Compiler diagnostic output limit exceeded");
-                CheckTree(directory);
+                if(elapsed.ElapsedMilliseconds>=nextCheck) {
+                    CheckTree(directory);
+                    nextCheck=elapsed.ElapsedMilliseconds+(activity!=null?500:50);
+                }
             }
             CheckTree(directory);
             if(File.Exists(log)&&new FileInfo(log).Length>262144)throw new InvalidOperationException("Compiler diagnostic output limit exceeded");
@@ -200,6 +229,7 @@ public sealed class WindowsSandbox : IDisposable {
             if(stdout!=IntPtr.Zero&&stdout!=new IntPtr(-1))CloseHandle(stdout);if(stdin!=IntPtr.Zero&&stdin!=new IntPtr(-1))CloseHandle(stdin);
             if(list!=IntPtr.Zero){DeleteProcThreadAttributeList(list);Marshal.FreeHGlobal(list);}if(caps!=IntPtr.Zero)Marshal.FreeHGlobal(caps);if(handles!=IntPtr.Zero)Marshal.FreeHGlobal(handles);if(environment!=IntPtr.Zero)Marshal.FreeHGlobal(environment);
             if(policies!=IntPtr.Zero)Marshal.FreeHGlobal(policies);
+            if(desktop!=IntPtr.Zero)CloseDesktop(desktop);
         }
     }
     void VerifyDesktopToken(IntPtr process) {

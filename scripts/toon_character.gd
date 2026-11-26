@@ -45,7 +45,7 @@ static func ellipsoid(parent: Node3D, at: Vector3, size: Vector3, mat: Material,
 	var node := MeshInstance3D.new();node.name=label;node.mesh=mesh;node.material_override=mat;node.position=at;node.scale=size
 	node.set_meta("toon_part", label)
 	parent.add_child(node);return node
-static func link(parent: Node3D,a: Vector3,b: Vector3,radius: float,mat: Material) -> void:
+static func link(parent: Node3D,a: Vector3,b: Vector3,radius: float,mat: Material) -> MeshInstance3D:
 	var node := MeshInstance3D.new();var mesh := CylinderMesh.new()
 	mesh.top_radius=radius;mesh.bottom_radius=radius;mesh.height=a.distance_to(b);mesh.radial_segments=12
 	node.mesh=mesh;node.material_override=mat;node.position=(a+b)*.5
@@ -53,6 +53,7 @@ static func link(parent: Node3D,a: Vector3,b: Vector3,radius: float,mat: Materia
 	if abs(axis.dot(side))>.95:side=Vector3.FORWARD
 	var z := side.cross(axis).normalized();node.basis=Basis(axis.cross(z).normalized(),axis,z)
 	parent.add_child(node)
+	return node
 static func line(parent: Node3D,points: Array,radius: float,mat: Material) -> void:
 	for i in range(points.size()-1):link(parent,points[i],points[i+1],radius,mat)
 static func ring(parent: Node3D,center: Vector3,rx: float,ry: float,mat: Material,radius := .008) -> void:

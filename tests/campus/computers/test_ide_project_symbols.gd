@@ -38,6 +38,7 @@ func run() -> void:
 		# TS2322 proves the imported value resolved to string. An unresolved
 		# sibling produces TS2307 instead and cannot provide cross-file types.
 		if title=="2322":
+			if not await _keyboard(surface):return
 			print("IDE_PROJECT_SYMBOLS PASS")
 			surface.queue_free()
 			await process_frame
@@ -46,6 +47,30 @@ func run() -> void:
 		if title.begins_with("Worker failed"):break
 		await create_timer(.1).timeout
 	_fail("Unexpected TypeScript diagnostics: "+str(surface.browser.get_title()))
+
+func _keyboard(surface: TextureRect) -> bool:
+	var path:="Projects/punctuation.txt"
+	surface.show_source(path,"")
+	await create_timer(.2).timeout
+	var received: Array[String]=[]
+	surface.source_changed.connect(func(changed_path: String,text: String,kind: String):
+		if changed_path==path and kind=="edit":received.append(text))
+	var sample:="[{(\"'é"
+	for index in sample.length():
+		var event:=InputEventKey.new()
+		event.unicode=sample.unicode_at(index)
+		event.pressed=true
+		event.shift_pressed=sample[index] in ["{","(","\""]
+		surface._forward(event)
+		event.pressed=false
+		surface._forward(event)
+	for attempt in 40:
+		if not received.is_empty() and received.back()==sample+")}]":
+			print("IDE_KEYBOARD_PUNCTUATION PASS")
+			return true
+		await create_timer(.1).timeout
+	_fail("Opening punctuation did not reach the editor: "+str(received))
+	return false
 
 func _fail(message: String) -> void:
 	push_error(message)

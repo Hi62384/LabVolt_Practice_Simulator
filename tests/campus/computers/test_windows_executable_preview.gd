@@ -18,6 +18,7 @@ func run() -> void:
 	var inspected: Dictionary=inspector.Inspect(fixture)
 	assert(inspected.get("architecture")=="x64" and inspected.get("runtime")=="Native entry point")
 	assert(not inspected.get("kind","").is_empty())
+	assert(str(inspected.sha256).length()==64)
 	assert(inspector.Inspect(fixture.slice(0,512)).has("error"))
 	var fake:=PackedByteArray()
 	fake.resize(128)
@@ -34,6 +35,27 @@ func run() -> void:
 		assert(Downloads.extension_for("setup."+extension,"application/octet-stream")==extension)
 		assert(Viewer.app_for("setup."+extension)=="Windows Application")
 		assert(not Downloads.valid(fake,extension))
+	var manifest := '<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"><Identity Name="Campus.Test" Publisher="CN=Campus Fixture" Version="1.2.3.4" ProcessorArchitecture="arm64"/></Package>'
+	var packaged := _package("AppxManifest.xml",manifest)
+	var app: Dictionary=inspector.InspectPackage("msix",packaged)
+	assert(app.get("name","")=="Campus.Test" and app.get("architecture","")=="arm64")
+	assert(app.get("publisher","")=="CN=Campus Fixture" and app.get("version","")=="1.2.3.4")
+	assert(inspector.InspectPackage("msixbundle",packaged).has("error"))
+	var bundle := '<Bundle xmlns="http://schemas.microsoft.com/appx/2013/bundle"><Identity Name="Campus.Test" Publisher="CN=Campus Fixture" Version="1.2.3.4"/><Packages><Package Architecture="x64"/><Package Architecture="arm64"/></Packages></Bundle>'
+	assert(inspector.InspectPackage("msixbundle",_package("AppxMetadata/AppxBundleManifest.xml",bundle)).get("architecture","")=="x64, arm64")
+	var invalid := _package("AppxManifest.xml",'<!DOCTYPE Package [<!ENTITY name "Injected">]>'+manifest)
+	assert(inspector.InspectPackage("msix",invalid).has("error"))
+	assert(inspector.InspectPackage("msix",_package("AppxManifest.xml","x".repeat(262145))).has("error"))
 	viewer.free()
 	print("WINDOWS_EXECUTABLE_PREVIEW PASS")
 	quit()
+
+func _package(path: String, xml: String) -> PackedByteArray:
+	var target := "user://windows-preview-test.zip"
+	var packer := ZIPPacker.new()
+	assert(packer.open(target)==OK)
+	assert(packer.start_file(path)==OK)
+	assert(packer.write_file(xml.to_utf8_buffer())==OK)
+	assert(packer.close_file()==OK)
+	assert(packer.close()==OK)
+	return FileAccess.get_file_as_bytes(target)

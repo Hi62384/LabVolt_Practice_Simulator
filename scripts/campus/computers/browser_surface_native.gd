@@ -23,8 +23,10 @@ var speaker_position := Vector3.ZERO
 var download_destination: Callable
 var speaker_clock := 0.0
 var speaker_bus := ""
+var playback_quality := 3
+const AudioQuality=preload("res://scripts/campus/items/device_audio_quality.gd")
 var speaker_volume := 35
-var phone_suspended := false
+var device_suspended := false
 var phone_display_scale := 1.0
 var device_kind:=""
 var device_id:=""
@@ -78,7 +80,7 @@ func _ready() -> void:
  get_viewport().size_changed.connect(_resize_tabs)
 
 func _process(delta: float) -> void:
- if phone_suspended:return
+ if device_suspended:return
  _update_speakers(delta)
  if not is_visible_in_tree():return
  if pointer_browser!=null:
@@ -301,6 +303,7 @@ func _route_tab_audio(browser: Node) -> AudioStreamPlayer3D:
   var index:=AudioServer.bus_count
   AudioServer.add_bus()
   AudioServer.set_bus_name(index,speaker_bus)
+  AudioQuality.apply(index,playback_quality)
  var generator:=AudioStreamGenerator.new()
  generator.mix_rate=48000.0 # Matches gdCEF's capture rate, independent of the output device.
  generator.buffer_length=.25
@@ -317,6 +320,12 @@ func _route_tab_audio(browser: Node) -> AudioStreamPlayer3D:
  if browser.has_method("set_audio_drive"):browser.set_audio_drive(_speaker_drive())
  return speaker
 
+func set_playback_quality(quality: int) -> void:
+ if quality==playback_quality:return
+ playback_quality=quality
+ var index:=AudioServer.get_bus_index(speaker_bus) if not speaker_bus.is_empty() else -1
+ if index>=0:AudioQuality.apply(index,playback_quality)
+
 func _speaker_drive() -> float:
  return lerpf(1.0,24.0,pow(clampf((speaker_volume-65.0)/35.0,0.0,1.0),2.0))
 
@@ -329,9 +338,9 @@ func set_speaker_volume(value: int) -> void:
    tab.browser.set_audio_drive(_speaker_drive())
  _update_speakers(.08)
 
-func set_phone_suspended(suspended: bool) -> void:
- if device_kind!="phone" or phone_suspended==suspended:return
- phone_suspended=suspended
+func set_device_suspended(suspended: bool) -> void:
+ if device_suspended==suspended:return
+ device_suspended=suspended
  for tab in tabs:
   if is_instance_valid(tab.browser) and tab.browser.has_method("set_page_suspended"):
    tab.browser.set_page_suspended(suspended)
@@ -346,7 +355,7 @@ func set_phone_suspended(suspended: bool) -> void:
  if not suspended:_update_speakers(.08)
 
 func _update_speakers(delta: float) -> void:
- if phone_suspended:return
+ if device_suspended:return
  if not is_instance_valid(speaker_world) or tabs.is_empty():return
  speaker_clock+=delta
  if speaker_clock<.08:return

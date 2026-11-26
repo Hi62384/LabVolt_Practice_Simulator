@@ -22,16 +22,19 @@ static func update(bag: Node3D, model: String, options: Dictionary) -> void:
 	var fabric := Toon.material(shell,material.x)
 	var edging := Toon.material(trim,.68)
 	var zipper := Toon.material("c3ab82")
-	Toon.ellipsoid(bag,Vector3(0,-.01,0),Vector3(.141,.174,.087),fabric,"Fabric shell")
-	Toon.ellipsoid(bag,Vector3(0,-.071,.073),Vector3(.109,.080,.039),edging,"Front pocket")
-	Toon.link(bag,Vector3(-.082,-.044,.106),Vector3(.082,-.044,.106),.004,zipper)
+	Toon.ellipsoid(bag,Vector3(0,-.01,0),Vector3(.141,.174,.087),fabric,"Fabric shell").set_meta("material_segment","case")
+	Toon.ellipsoid(bag,Vector3(0,-.071,.073),Vector3(.109,.080,.039),edging,"Front pocket").set_meta("material_segment","pocket")
+	Toon.link(bag,Vector3(-.082,-.044,.106),Vector3(.082,-.044,.106),.004,zipper).set_meta("material_segment","zipper")
 	if Config.value(Config.BACKPACK,options,"appearance","handle",true):
 		Toon.line(bag,[Vector3(-.045,.145,0),Vector3(-.036,.179,0),Vector3(.036,.179,0),Vector3(.045,.145,0)],.009,edging)
 	var strap_factor: float=Config.value(Config.BACKPACK,options,"hardware","straps",1.0)
 	var pocket_slots := int(Config.value(Config.BACKPACK,options,"hardware","pockets",0))
 	for side in [-1.0,1.0]:
 		var x: float=side*.079
+		var first_strap:=bag.get_child_count()
 		Toon.line(bag,[Vector3(x,.118,-.059),Vector3(x,.063,-.112),Vector3(x,-.074,-.113),Vector3(x,-.141,-.057)],.014 if strap_factor==1.0 else .022,edging)
+		for index in range(first_strap,bag.get_child_count()):bag.get_child(index).set_meta("material_segment","strap")
 		if pocket_slots==4 or (pocket_slots==2 and side<0):
 			Toon.ellipsoid(bag,Vector3(side*.124,-.091,.012),Vector3(.029,.061,.059),edging,"Component pocket")
+	Config.Materials.apply(bag,options)
 	preload("res://scripts/campus/items/decoration_surface.gd").attach(bag,options.get("decoration",[]),Vector3(0,-.091,.1125),Vector3.ZERO,Vector2(.110,.049))

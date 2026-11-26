@@ -17,17 +17,17 @@ static func build(parent: Node3D, options: Dictionary, percent: int) -> Node3D:
 	bank.set_meta("equipment_shell",[side])
 	bank.set_meta("equipment_trim",[face])
 	bank.set_meta("decoration_anchor",{"part":bank,"position":Vector3(0,size.y+.002,size.z*.19),"rotation":Vector3(-PI/2,0,0),"area":Vector2(size.x*.77,size.z*.40)})
-	Finish.apply_finish(bank,Config.POWER_BANK,options)
 	var ports: int=Config.value(Config.POWER_BANK,options,"hardware","ports",1)
 	for index in ports:
 		var x: float=(float(index)-float(ports-1)*.5)*.024
-		_box(bank,Vector3(x,size.y*.62,-size.z*.5-.002),Vector3(.016,.007,.004),Color("1e2c35"))
+		_box(bank,Vector3(x,size.y*.62,-size.z*.5-.002),Vector3(.016,.007,.004),Color("1e2c35")).set_meta("material_segment","ports")
 	var lights: Array[MeshInstance3D]=[]
 	for index in 4:
 		var led:=_box(bank,Vector3((float(index)-1.5)*.010,size.y+.003,-size.z*.27),Vector3(.007,.002,.013),Color("192b35"))
 		led.material_override.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
 		lights.append(led)
 	bank.set_meta("battery_lights",lights)
+	Finish.apply_finish(bank,Config.POWER_BANK,options)
 	show_charge(bank,percent)
 	return bank
 

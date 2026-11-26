@@ -8,6 +8,9 @@ const Equation=preload("res://scripts/campus/items/calculator_equation_view.gd")
 const Parser=preload("res://scripts/ui/paper_workspace/equations/parser.gd")
 const Graph=preload("res://scripts/campus/items/calculator_graph_view.gd")
 var math_engine: RefCounted
+var performance: Node
+var busy_label: Label
+var queued_controls:=0
 var advanced_app:=false
 var equation_enabled:=false
 var algebra_enabled:=false
@@ -66,7 +69,7 @@ func _ready() -> void:
 			angle_button.text=choice.to_upper()
 			angle_button.toggle_mode=true
 			angle_button.custom_minimum_size=Vector2(43,23)
-			angle_button.pressed.connect(_set_angle_mode.bind(choice))
+			angle_button.pressed.connect(func():_schedule(_set_angle_mode.bind(choice)))
 			angle_modes.add_child(angle_button)
 			angle_buttons[choice]=angle_button
 		_set_angle_mode(angle_mode)
@@ -84,7 +87,7 @@ func _ready() -> void:
 		lcd_style.set_border_width_all(1)
 	var lines := VBoxContainer.new();lcd.add_child(lines)
 	memory_label=Label.new();memory_label.text="DEG";memory_label.visible=not basic and not financial;memory_label.add_theme_color_override("font_color",Color("91d9de") if campus_style else Color("385044"));memory_label.add_theme_font_size_override("font_size",12);lines.add_child(memory_label)
-	display=LineEdit.new();display.placeholder_text="0";display.max_length=180;display.add_theme_font_size_override("font_size",18);display.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));display.add_theme_color_override("font_placeholder_color",Color("8cbcc8") if campus_style else Color("617367"));display.add_theme_stylebox_override("normal",StyleBoxEmpty.new());display.add_theme_stylebox_override("focus",StyleBoxEmpty.new());display.text_submitted.connect(func(_text):evaluate());lines.add_child(display)
+	display=LineEdit.new();display.placeholder_text="0";display.max_length=180;display.add_theme_font_size_override("font_size",18);display.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));display.add_theme_color_override("font_placeholder_color",Color("8cbcc8") if campus_style else Color("617367"));display.add_theme_stylebox_override("normal",StyleBoxEmpty.new());display.add_theme_stylebox_override("focus",StyleBoxEmpty.new());display.text_submitted.connect(func(_text):_schedule(evaluate));lines.add_child(display)
 	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));result.clip_text=true;lines.add_child(result)
 	if campus_style:result.add_theme_font_size_override("font_size",34)
 	if equation_enabled:
@@ -108,15 +111,16 @@ func _ready() -> void:
 		for id in operations:
 			operation.add_item(operations[id])
 			operation.set_item_metadata(operation.item_count-1,id)
-		tools.add_child(_action("Run",func():evaluate()))
+		tools.add_child(_action("Run",evaluate))
 		if graph_level>0:tools.add_child(_action("Graph",func():functions.visible=not functions.visible))
 	if graph_level>0:_build_graph(body)
 	var grid := GridContainer.new();grid.columns=4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
 	grid.columns=Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","columns",grid.columns)
 	if basic or financial or campus_style:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	var keys: Array=equipment_options.get("keypad",keypad_keys(model))
+	if configured and int(equipment_options.get("version",1))<Equipment.DESIGN_VERSION:keys=Equipment.Keypad.with_required(keys)
 	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","key_style",false)
-	if financial:
+	if financial or (configured and keys.any(func(key):return Finance.ARGUMENTS.has(key))):
 		finance_help=Label.new()
 		finance_help.text="Choose a finance key for its inputs"
 		finance_help.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -124,6 +128,17 @@ func _ready() -> void:
 		body.add_child(finance_help)
 		body.move_child(finance_help,2)
 	for key in keys:
+		if key.is_empty():
+			var blank:=Panel.new()
+			blank.custom_minimum_size=Vector2(44,32 if show_close else 40)
+			blank.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+			blank.size_flags_vertical=Control.SIZE_EXPAND_FILL
+			var recess:=StyleBoxFlat.new()
+			recess.bg_color=Color("172d38")
+			recess.set_corner_radius_all(5)
+			blank.add_theme_stylebox_override("panel",recess)
+			grid.add_child(blank)
+			continue
 		var button := Button.new();button.text=key;button.custom_minimum_size=Vector2(44,32 if show_close else 40);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",15);button.tooltip_text={"DEG":"Toggle degrees / radians","AC":"Clear expression","DEL":"Delete previous character","=":"Evaluate expression","MR":"Recall memory","MC":"Clear memory"}.get(key,key)
 		if basic or financial or campus_style:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		if financial and Finance.ARGUMENTS.has(key):button.tooltip_text=Finance.ARGUMENTS[key]
@@ -139,8 +154,27 @@ func _ready() -> void:
 		style.set_corner_radius_all(20 if round_keys else 6);button.add_theme_stylebox_override("normal",style);var hover: StyleBoxFlat=style.duplicate();hover.bg_color=hover.bg_color.lightened(.15);button.add_theme_stylebox_override("hover",hover);button.add_theme_stylebox_override("pressed",hover)
 		if style.bg_color.get_luminance()>.45:
 			for state in ["font_color","font_hover_color","font_pressed_color"]:button.add_theme_color_override(state,Color("192934"))
-		button.pressed.connect(func():press(key));grid.add_child(button)
+		button.pressed.connect(func():_schedule(press.bind(key)));grid.add_child(button)
 		if key=="DEG":mode=button
+func _schedule(action: Callable) -> void:
+	if not is_instance_valid(performance) or performance.quality==performance.MAX:
+		action.call()
+		return
+	if not is_instance_valid(busy_label):
+		busy_label=Label.new()
+		busy_label.text="Processing…"
+		busy_label.theme_type_variation="MutedLabel"
+		var body:=get_child(0)
+		body.add_child(busy_label)
+		body.move_child(busy_label,1)
+	if performance.submit(func():
+		if not is_instance_valid(self) or not is_inside_tree():return
+		queued_controls-=1
+		busy_label.visible=queued_controls>0
+		action.call()):
+		queued_controls+=1
+		busy_label.show()
+
 static func keypad_keys(model_id: String) -> Array:
 	return Equipment.Keypad.keys(model_id)
 
@@ -170,12 +204,16 @@ func press(key: String) -> void:
 		"M+","M−":
 			if evaluate():memory+=answer*(1 if key=="M+" else -1)
 		"Ans":_insert(str(answer))
-		"±":display.text="-("+display.text+")";display.caret_column=display.text.length()
+		"±":
+			if configured and not equation_enabled and not algebra_enabled and display.text.is_valid_float():
+				display.text=str(-float(display.text))
+			else:display.text="-("+display.text+")"
+			display.caret_column=display.text.length()
 		"sin","cos","tan","asin","acos","atan","ln","log":_insert(key+"(")
 		"√":_insert("sqrt(")
 		"x²":_insert("^2")
 		"xʸ":_insert("^")
-		"1/x":display.text="1/("+display.text+")";display.caret_column=display.text.length()
+		"1/x","⁻¹":display.text="1/("+display.text+")";display.caret_column=display.text.length()
 		"%":_insert("/100") if equation_enabled else _divide_percent()
 		_:_insert({"×":"*","÷":"/","−":"-","π":"pi"}.get(key,key))
 	memory_label.text=angle_mode.to_upper()+("   M" if memory!=0 else "")
@@ -257,7 +295,7 @@ func _limited_calculate(input: String) -> Dictionary:
 func _action(title: String,callback: Callable) -> Button:
 	var button:=Button.new()
 	button.text=title
-	button.pressed.connect(callback)
+	button.pressed.connect(func():_schedule(callback))
 	return button
 
 func _build_graph(body: VBoxContainer) -> void:

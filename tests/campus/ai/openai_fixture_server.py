@@ -79,6 +79,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "The board shows a current path."}]}]})
         if self.path == "/v1/responses" and body.get("store") is False:
             request_input = body.get("input")
+            if isinstance(request_input, str) and request_input.startswith("Choose one answer."):
+                if (body.get("model") != "gpt-5.4-mini" or body.get("service_tier") != "default"
+                        or body.get("max_output_tokens") != 512 or body.get("reasoning") != {"effort": "low"}):
+                    return self._reply(400, {"error": {"message": "comparison request shape was wrong"}})
+                return self._reply(200, {"status": "completed", "model": "gpt-5.4-mini-2026-03-17",
+                                         "service_tier": "default", "reasoning": {"effort": "low"},
+                                         "usage": {"input_tokens": 10, "output_tokens": 20,
+                                                   "output_tokens_details": {"reasoning_tokens": 8}},
+                                         "output": [{"type": "message", "content": [{"type": "output_text", "text": "B"}]}]})
             if isinstance(request_input, str) and request_input.startswith("Prepare a new classroom assessment plan"):
                 plan = {"focus": "evidence", "scenarios": [37, 526, 1044]}
                 return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(plan)}]}]})

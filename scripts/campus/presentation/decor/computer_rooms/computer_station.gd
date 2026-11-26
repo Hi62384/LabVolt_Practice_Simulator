@@ -115,6 +115,7 @@ func _build() -> void:
 	_box(self,Vector3(0,.035,.98),Vector3(.48,.05,.42),"steel",true)
 
 func set_display(powered: bool, source: Texture2D = null) -> void:
+	if has_meta("equipment_keyboard"):preload("res://scripts/campus/items/equipment_finish.gd").set_backlight_power(self,powered)
 	# Graphics filtering may have localized either material since the last power event.
 	screen_material=screen.material_override
 	led_material=power_led.material_override

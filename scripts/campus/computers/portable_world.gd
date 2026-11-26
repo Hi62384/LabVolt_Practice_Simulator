@@ -45,7 +45,7 @@ func place_selected(landing: Dictionary={}) -> bool:
 		point=hit.position if hit.has("position") and hit.get("normal",Vector3.ZERO).y>.9 else game.school.ground_drop_position(game.player.global_position,multiplayer.get_unique_id())
 	if point==null:game.ui.log_message("No clear flat surface to place the laptop.");return true
 	if game.session.online and not multiplayer.is_server():_place_request.rpc_id(1,id,point,game.player.global_rotation.y)
-	elif not _place_for(multiplayer.get_unique_id(),id,point,game.player.global_rotation.y,float(landing.get("throw_range",3.2))):game.ui.log_message("The laptop could not be placed.")
+	elif not _place_for(multiplayer.get_unique_id(),id,point,game.player.global_rotation.y):game.ui.log_message("The laptop could not be placed.")
 	return true
 
 func _placement_hit(query: PhysicsRayQueryParameters3D) -> Dictionary:
@@ -69,10 +69,10 @@ func place(id: String,point: Vector3,yaw: float) -> bool:
 func _place_request(id: String,point: Vector3,yaw: float) -> void:
 	if multiplayer.is_server():_place_for(multiplayer.get_remote_sender_id(),id,point,yaw)
 
-func _place_for(peer: int,id: String,point: Vector3,yaw: float,reach:=3.2) -> bool:
+func _place_for(peer: int,id: String,point: Vector3,yaw: float) -> bool:
 	if not multiplayer.is_server() or not game.session.roster.has(peer) or placed.has(id) or not point.is_finite() or not is_finite(yaw):return false
 	var position: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
-	if not position.is_finite() or point.distance_to(position)>reach:return false
+	if not position.is_finite() or (point.distance_to(position)>3.2 and not game.school.is_throw_landing(peer,point)):return false
 	var identity: String=game.dorm_interactions.authenticated_identity(peer)
 	var dorm: Dictionary=game.dorm_interactions._profile(identity).get("dorm",{})
 	var item: Dictionary=dorm.get("portable_laptops",{}).get(id,{})
@@ -97,6 +97,7 @@ func _spawn(id: String,point: Vector3,yaw: float,owner_peer: int,owner: String,t
 	add_child(model)
 	game.ac_laptops._build_laptop(model,-1)
 	EquipmentFinish.apply_finish(model,EquipmentConfig.LAPTOP,configuration)
+	EquipmentFinish.set_backlight_power(model,false)
 	model.set_meta("display_scale",EquipmentConfig.value(EquipmentConfig.LAPTOP,configuration,"hardware","display",1.0))
 	for body in model.find_children("*","StaticBody3D",true,false):
 		if body.get_meta("role","")=="ac_laptop":

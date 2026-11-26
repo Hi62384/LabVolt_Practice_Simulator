@@ -49,7 +49,7 @@ func apply(peer: int,action: Dictionary) -> void:
 		if op=="drop":
 			pos=game.school.ground_drop_position(pos,peer)
 			if pos==null:return
-		elif not pos is Vector3 or not game.school._table_position(pos) or pose.distance_to(pos)>3.6:return
+		elif not pos is Vector3 or not game.school._table_position(pos) or (pose.distance_to(pos)>3.6 and not game.school.is_throw_landing(peer,pos)):return
 		if not _set_carry(peer,str(kits[peer].id),false):return
 		kits[peer].held=false;kits[peer].position=pos
 		placed[_key(peer,kits[peer].id)]=kits[peer]
@@ -172,13 +172,13 @@ func _create_kit_view(peer: int,kit: Dictionary,parent: Node3D = null) -> Static
 	root.set_meta("role","kit");root.set_meta("owner",peer);root.set_meta("kit_id",kit.id);root.set_meta("label",kit.name);root.set_meta("tier",tier)
 	(self if parent==null else parent).add_child(root)
 	if options.is_empty():
-		game._box(root,Vector3(0,h*.5,0),Vector3(w,h,d),shell)
+		game._box(root,Vector3(0,h*.5,0),Vector3(w,h,d),shell).set_meta("material_segment","case")
 	else:
-		_case_piece(root,Vector3(0,.013,0),Vector3(w,.026,d),shell,surface)
+		_case_piece(root,Vector3(0,.013,0),Vector3(w,.026,d),shell,surface).set_meta("material_segment","case")
 		for side in [-1.0,1.0]:
-			_case_piece(root,Vector3(side*(w*.5-.013),h*.5,0),Vector3(.026,h,d),shell,surface)
-			_case_piece(root,Vector3(0,h*.5,side*(d*.5-.013)),Vector3(w-.052,h,.026),shell,surface)
-		game._box(root,Vector3(0,.034,0),Vector3(w-.054,.014,d-.054),interior)
+			_case_piece(root,Vector3(side*(w*.5-.013),h*.5,0),Vector3(.026,h,d),shell,surface).set_meta("material_segment","case")
+			_case_piece(root,Vector3(0,h*.5,side*(d*.5-.013)),Vector3(w-.052,h,.026),shell,surface).set_meta("material_segment","case")
+		game._box(root,Vector3(0,.034,0),Vector3(w-.054,.014,d-.054),interior).set_meta("material_segment","interior")
 		var tray_fraction: float=Equipment.value(Equipment.KIT,options,"hardware","tray",0.0)
 		if tray_fraction>0:
 			var tray_width: float=(w-.06)*tray_fraction
@@ -195,17 +195,18 @@ func _create_kit_view(peer: int,kit: Dictionary,parent: Node3D = null) -> Static
 		game._box(root,Vector3(0,h*.50,d*.5+reach),Vector3(grip_width,grip_height,grip_height),trim)
 		for side in [-1.0,1.0]:
 			game._box(root,Vector3(side*(grip_width*.5-.014),h*.5,d*.5+reach*.5),Vector3(.03,grip_height,reach),trim)
-	var lid:=_case_piece(root,Vector3(0,h+.018,0),Vector3(w+.02,.036,d+.02),lid_color,surface);lid.name="Lid"
-	preload("res://scripts/campus/items/decoration_surface.gd").attach(lid,options.get("decoration",[]),Vector3(0,.019,0),Vector3(-PI/2,0,0),Vector2(w*.55,d*.78))
+	var lid:=_case_piece(root,Vector3(0,h+.018,0),Vector3(w+.02,.036,d+.02),lid_color,surface);lid.name="Lid";lid.set_meta("material_segment","lid")
 	if not options.is_empty():game._box(lid,Vector3(0,-.020,0),Vector3(w-.05,.007,d-.05),interior)
 	root.set_meta("lid_closed",Vector3(0,h+.018,0));root.set_meta("lid_open",Vector3(0,h+d*.46,-d*.45))
-	for x in [-w*.32,w*.32]:game._box(root,Vector3(x,h*.65,-d*.505),Vector3(.035,.075,.018),trim)
+	for x in [-w*.32,w*.32]:game._box(root,Vector3(x,h*.65,-d*.505),Vector3(.035,.075,.018),trim).set_meta("material_segment","trim")
 	if tier in ["extended","large"]:
 		for x in [-w*.37,w*.37]:game._box(lid,Vector3(x,.021,0),Vector3(.032,.008,d*.92),trim)
 		if options.is_empty():game._box(root,Vector3(0,h*.45,-d*.54),Vector3(w*.28,.025,.03),trim)
 	if tier=="large":
 		for x in [-w*.42,w*.42]:game._box(root,Vector3(x,.035,d*.49),Vector3(.07,.07,.045),Color("202b38"))
 	elif tier=="compact":game._box(lid,Vector3(0,.021,0),Vector3(.15,.008,.045),trim)
+	Equipment.Materials.apply(root,options)
+	preload("res://scripts/campus/items/decoration_surface.gd").attach(lid,options.get("decoration",[]),Vector3(0,.019,0),Vector3(-PI/2,0,0),Vector2(w*.55,d*.78),1,root)
 	var hit:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=Vector3(w+.03,h+.07,d+.04);hit.shape=box;hit.position.y=h*.5;root.add_child(hit)
 	var lid_hit:=CollisionShape3D.new();lid_hit.name="LidHit";var lid_shape:=BoxShape3D.new();lid_shape.size=Vector3(w+.02,.045,d+.02);lid_hit.shape=lid_shape;root.add_child(lid_hit)
 	return root

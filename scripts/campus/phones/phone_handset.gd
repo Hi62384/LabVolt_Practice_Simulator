@@ -16,6 +16,8 @@ static func build(parent: Node3D, layers := 1) -> MeshInstance3D:
 	button.height=.001
 	var home := _mesh(parent,button,Vector3(0,-.087,.007),Color("7597a3"),layers)
 	home.rotation.x=PI/2
+	shell.set_meta("material_segment","case")
+	for part in [speaker,power,home]:part.set_meta("material_segment","trim")
 	parent.set_meta("phone_shell",shell)
 	parent.set_meta("phone_trim",[speaker,power,home])
 	return screen
@@ -30,6 +32,7 @@ static func apply_appearance(parent: Node3D, appearance: Dictionary) -> void:
 	var trim:=Color(Configuration.value(Configuration.PHONE,config,"appearance","trim","7597a3"))
 	for part in parent.get_meta("phone_trim"):
 		part.material_override.albedo_color=trim
+	Configuration.Materials.apply(parent,appearance)
 	preload("res://scripts/campus/items/decoration_surface.gd").attach(parent,appearance.get("decoration",[]),Vector3(0,-.019,-.0064),Vector3(0,PI,0),Vector2(.087,.131),shell.layers)
 
 static func _box(parent: Node3D, offset: Vector3, size: Vector3, color: Color, layers: int) -> MeshInstance3D:

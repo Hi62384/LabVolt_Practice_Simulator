@@ -33,7 +33,7 @@ static func connected_to_daq(entries: Array, station: int) -> int:
  for i in entries.size():
   if entries[i].where=="connected" and entries[i].station==station:return i
  return -1
-func apply(peer: int, position: Vector3, op: String, id: int = -1, point: Vector3 = Vector3.ZERO, station: int = -1) -> String:
+func apply(peer: int, position: Vector3, op: String, id: int = -1, point: Vector3 = Vector3.ZERO, station: int = -1, thrown := false) -> String:
  if peer < 1 or not position.is_finite():return "Invalid player position."
  var near_cabinet := position.distance_to(CABINET + Vector3(0,1,0)) < 3.0
  if op == "cabinet":
@@ -50,8 +50,8 @@ func apply(peer: int, position: Vector3, op: String, id: int = -1, point: Vector
   cabinet_open=false
  elif op == "place_laptop":
   var item := held_laptop(peer)
-  if item<0 or not point.is_finite() or point.distance_to(position)>3.0:return "Choose a nearby surface."
-  if point.x < -9.8 or point.x > 9.8 or point.z < -3.8 or point.z > 9.8 or point.y < 0 or point.y > 2.5:return "Place the laptop inside the AC lab."
+  if item<0 or not point.is_finite() or (point.distance_to(position)>3.0 and not thrown):return "Choose a nearby surface."
+  if not thrown and (point.x < -9.8 or point.x > 9.8 or point.z < -3.8 or point.z > 9.8 or point.y < 0 or point.y > 2.5):return "Place the laptop inside the AC lab."
   laptops[item].where="placed";laptops[item].owner=0;laptops[item].position=point
  elif op in ["open", "close", "pickup"]:
   if id not in range(COUNT) or laptops[id].where!="placed" or position.distance_to(laptops[id].position)>3.0:return "Move closer to the laptop."

@@ -1,5 +1,6 @@
 extends SceneTree
 ## Run two graphical processes with separate APPDATA directories and the same local port.
+const MeshArtwork=preload("res://scripts/campus/items/mesh_decoration.gd")
 const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
 var game: Node
 var deadline: int
@@ -34,6 +35,7 @@ func run() -> void:
 	deadline=Time.get_ticks_msec()+75000
 	if not await _until(func():return game.session.roster.size()==2 and game.electronics_trade.authority.bound,"both players bind"):
 		return
+	deadline=Time.get_ticks_msec()+75000
 	print("HANDSET_BOUND ",args[0])
 	game.front.screen.hide()
 	game.front.in_game=true
@@ -52,7 +54,12 @@ func _broadcast(profile: RefCounted) -> void:
 	configuration.appearance.shell=2
 	var stamp:=Configuration.Decoration.layer("text")
 	stamp.data="Campus"
-	configuration.decoration=[stamp]
+	var artwork_image:=Image.create_empty(16,16,false,Image.FORMAT_RGBA8)
+	artwork_image.fill(Color("d43aac"))
+	var placement:=Configuration.Decoration.layer("image")
+	placement.data=Configuration.Decoration.encode(artwork_image)
+	placement.projection={"surface":"case:0","center":[0.,0.,-.5],"normal":[0.,0.,-1.],"right":[-1.,0.,0.]}
+	configuration.decoration=[stamp,placement]
 	profile.buy_smartphone("basic",6,"",configuration)
 	if not await _until(func():return not profile.data.dorm.get("smartphones",{}).is_empty(),"phone purchase"):return
 	var id: String=profile.data.dorm.smartphones.keys()[0]
@@ -70,6 +77,7 @@ func _broadcast(profile: RefCounted) -> void:
 	live_view.add_child(swatch)
 	for color in [FIRST,SECOND]:
 		swatch.color=color
+		await process_frame
 		await RenderingServer.frame_post_draw
 		var until:=Time.get_ticks_msec()+7000
 		while Time.get_ticks_msec()<until:
@@ -97,6 +105,14 @@ func _observe() -> void:
 	if not handset.get_meta("phone_shell").material_override.albedo_color.is_equal_approx(Color("27745e")):
 		_fail("The viewer did not receive the purchased case finish.")
 		return
+	var shell: MeshInstance3D=MeshArtwork.surfaces(handset)["case:0"]
+	if not await _until(func():
+		for child in shell.get_children():
+			if child.has_meta("decoration_overlay") and child.mesh==shell.mesh and child.material_override.get_shader_parameter("projected"):
+				return true
+		return false
+	,"remote mesh projection"):return
+	print("HANDSET_MESH_ARTWORK PASS")
 	var camera:=Camera3D.new()
 	game.add_child(camera)
 	# The gameplay camera controls the observer's frame and distance checks.

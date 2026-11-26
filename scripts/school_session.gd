@@ -340,8 +340,12 @@ func shared_document_access(peer: int, paper: Dictionary) -> bool:
 	if not multiplayer.is_server():return bool(paper.get("shared_access",false))
 	return document_readers.get(peer,0)==int(paper.get("id",0)) and game.session.roster.has(peer) and shareable_document(paper) and _near(peer,paper.position)
 
+func is_throw_landing(peer: int,point: Vector3) -> bool:
+	return is_instance_valid(game.item_throw) and game.item_throw.is_landing(peer,point)
+
 func ground_drop_position(point: Variant, peer: int) -> Variant:
 	if not point is Vector3 or not point.is_finite():return null
+	if is_throw_landing(peer,point):return point+Vector3.UP*.005
 	var feet: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
 	if not feet.is_finite() or feet.distance_to(point)>1.8:return null
 	var space: PhysicsDirectSpaceState3D=game.get_world_3d().direct_space_state
@@ -777,7 +781,7 @@ func apply(peer: int,a: Dictionary) -> void:
 				var pos=a.get("position")
 				var lost_parcel: Dictionary={}
 				var lost_label := "Worksheet"
-				if not paper.held or not pos is Vector3 or not pos.is_finite() or not _near(peer,pos):return
+				if not paper.held or not pos is Vector3 or not pos.is_finite() or (not _near(peer,pos) and not is_throw_landing(peer,pos)):return
 				if op=="drop":
 					pos=ground_drop_position(pos,peer)
 					if pos==null:return

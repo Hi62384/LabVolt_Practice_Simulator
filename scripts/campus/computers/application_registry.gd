@@ -1,12 +1,14 @@
 extends RefCounted
 
 const Packages=preload("res://scripts/campus/computers/application_package.gd")
+const Inspector=preload("res://scripts/campus/computers/WindowsExecutableInspector.cs")
 const Drive=preload("res://scripts/campus/computers/device_filesystem.gd")
 const Files=preload("res://scripts/campus/computers/virtual_files.gd")
 const ROOT:="Program Files"
 const DATA_ROOT:="App Data"
 const RECORD:="install.json"
 const ARCHIVE:="Application.campusapp"
+const NATIVE_IMAGE:="Application.exe"
 const OPERATIONS:=["install_app","uninstall_app","save_app_state"]
 const MAX_APPS:=24
 const MAX_STATE_BYTES:=4096
@@ -40,12 +42,13 @@ static func _read_record(drive: RefCounted,path: String) -> Variant:
 	for field in ["id","name","publisher","version","sha256"]:
 		if not value.get(field) is String or str(value[field]).is_empty() or str(value[field]).length()>80:return null
 	if str(value.sha256).length()!=64 or not str(value.sha256).is_valid_hex_number():return null
-	var archive:=path.get_base_dir()+"/"+ARCHIVE
+	var native: bool=value.get("runtime","web")=="windows"
+	var archive:=path.get_base_dir()+"/"+(NATIVE_IMAGE if native else ARCHIVE)
 	if drive.entries.get(archive,{}).get("type")!="file":return null
 	var stored: Variant=drive.entries.get(state_path(str(value.id)),{}).get("data")
 	var state: String=stored.get_string_from_utf8() if stored is PackedByteArray and stored.size()<=MAX_STATE_BYTES else "{}"
 	return {"id":value.id,"name":value.name,"publisher":value.publisher,"version":value.version,
-		"sha256":value.sha256,"archive":archive,"bytes":drive.entries[archive].data.size(),
+		"sha256":value.sha256,"archive":archive,"bytes":drive.entries[archive].data.size(),"runtime":"windows" if native else "web",
 		"shortcut":value.get("shortcut",true)==true,"desktop_shortcut":value.get("desktop_shortcut",false)==true,
 		"state":state if valid_state(state) else "{}"}
 
@@ -74,15 +77,23 @@ static func apply(drive: RefCounted,action: Dictionary) -> String:
 		return ""
 	if op!="install_app":return "Unknown installation action."
 	var path:=str(action.get("path",""))
-	if not Drive.valid_path(path) or managed(path) or path.get_extension().to_lower() not in ["campusapp","zip"]:
+	if not Drive.valid_path(path) or managed(path) or path.get_extension().to_lower() not in ["campusapp","zip","exe"]:
 		return "Choose a Campus OS application package."
 	var file: Dictionary=drive.entries.get(path,{})
 	if file.get("type")!="file":return "The selected package is unavailable."
-	var package:=Packages.inspect(file.data)
-	if package.has("error"):return str(package.error)
+	var native:=path.get_extension().to_lower()=="exe"
 	var digest:=sha256(file.data)
 	if digest!=action.get("sha256",""):return "The package changed. Reopen it to review the new contents."
-	var manifest: Dictionary=package.manifest
+	var manifest: Dictionary
+	if native:
+		var inspect: Dictionary=Inspector.new().Inspect(file.data)
+		if not _supported_windows(inspect):return "This file does not contain a supported native Windows desktop application."
+		manifest={"id":"windows."+digest.left(32),"name":path.get_file().get_basename().left(64),
+			"version":"1.0.0","publisher":"Portable Windows application"}
+	else:
+		var package:=Packages.inspect(file.data)
+		if package.has("error"):return str(package.error)
+		manifest=package.manifest
 	var previous: Dictionary=list.get(manifest.id,{})
 	if previous.is_empty() and list.size()>=MAX_APPS:return "The application limit is reached."
 	if not previous.is_empty():
@@ -101,11 +112,14 @@ static func apply(drive: RefCounted,action: Dictionary) -> String:
 	if not staging.entries.has(ROOT) and not staging.make_folder(ROOT):return "Could not create Program Files."
 	if not staging.entries.has(target) and not staging.make_folder(target):return "Could not create the installation folder."
 	var record:={"id":manifest.id,"name":manifest.name,"publisher":manifest.publisher,"version":manifest.version,
-		"sha256":digest,"shortcut":action.get("shortcut",true)==true,"desktop_shortcut":action.get("desktop_shortcut",false)==true}
-	if not staging.write_file(target+"/"+ARCHIVE,file.data) or not staging.write_file(target+"/"+RECORD,JSON.stringify(record).to_utf8_buffer()):
+		"sha256":digest,"runtime":"windows" if native else "web","shortcut":action.get("shortcut",true)==true,"desktop_shortcut":action.get("desktop_shortcut",false)==true}
+	if not staging.write_file(target+"/"+(NATIVE_IMAGE if native else ARCHIVE),file.data) or not staging.write_file(target+"/"+RECORD,JSON.stringify(record).to_utf8_buffer()):
 		return "There is insufficient space to install this package."
 	drive.entries=staging.entries
 	return ""
+
+static func _supported_windows(info: Dictionary) -> bool:
+	return not info.has("error") and info.get("architecture") in ["x64","x86"] and info.get("kind")=="Desktop application" and info.get("runtime")=="Native entry point"
 
 static func _older(candidate: String,current: String) -> bool:
 	for index in 3:

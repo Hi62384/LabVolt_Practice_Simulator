@@ -225,6 +225,9 @@ func _accept(peer: int, action: Dictionary) -> void:
 			sessions[peer].tier=entry.tier
 			sessions[peer].display_scale=EquipmentConfig.value(EquipmentConfig.LAPTOP,entry.configuration,"hardware","display",1.0)
 			sessions[peer].display_fps=EquipmentConfig.phone_or_laptop_fps(EquipmentConfig.LAPTOP,entry.configuration)
+			if entry.configuration.get("version")==EquipmentConfig.DEVICE_VERSION:
+				sessions[peer].performance=EquipmentConfig.value(EquipmentConfig.LAPTOP,entry.configuration,"hardware","performance",4)
+			sessions[peer].audio_quality=EquipmentConfig.value(EquipmentConfig.LAPTOP,entry.configuration,"hardware","audio_quality",3)
 			sessions[peer].display_noise=EquipmentConfig.screen_noise(EquipmentConfig.LAPTOP,entry.configuration)
 		if entry.has("power"):
 			entry.power.touch(Time.get_ticks_msec())
@@ -286,7 +289,7 @@ func _accept(peer: int, action: Dictionary) -> void:
 		var path:=str(action.get(key,"")).to_lower()
 		if path.begins_with(".recycle") or path==Preferences.PATH:
 			_error(peer,"That path is reserved.");return
-		if Apps.managed(path) and (op!="read_file" or not path.begins_with("program files/") or not path.ends_with("/application.campusapp")):
+		if Apps.managed(path) and (op!="read_file" or not path.begins_with("program files/") or not (path.ends_with("/application.campusapp") or path.ends_with("/application.exe"))):
 			_error(peer,"Use Installed Apps to manage Program Files.");return
 	match op:
 		"install_app","uninstall_app","save_app_state":
