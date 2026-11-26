@@ -545,6 +545,9 @@ func _public_drops() -> Dictionary:
 		if public[id].visual=="notebook":
 			var configuration := _notebook_configuration(drop)
 			if not configuration.is_empty():public[id].configuration=configuration
+		if public[id].visual.begins_with("calculator"):
+			var configuration := _calculator_configuration(drop)
+			if not configuration.is_empty():public[id].configuration=configuration
 		if public[id].visual.begins_with("bag_"):
 			var configuration := _backpack_configuration(drop)
 			if not configuration.is_empty():public[id].configuration=configuration
@@ -563,6 +566,10 @@ func _notebook_configuration(drop: Dictionary) -> Dictionary:
 func _backpack_configuration(drop: Dictionary) -> Dictionary:
 	var parcel: Dictionary=drop.get("parcel",{})
 	return drop.get("configuration",parcel.get("bags",{}).get(parcel.get("item",{}).get("id",""),{}).get("configuration",{}))
+
+func _calculator_configuration(drop: Dictionary) -> Dictionary:
+	var parcel: Dictionary=drop.get("parcel",{})
+	return drop.get("configuration",parcel.get("calculator_options",{}).get(parcel.get("item",{}).get("id",""),{}))
 
 @rpc("authority","call_remote","reliable")
 func sync_drops(public: Dictionary,server_ticks: int) -> void:
@@ -647,13 +654,16 @@ func _visual_kind(drop: Dictionary) -> String:
 	if parcel.has("wire"):return "wire_%d" % int(parcel.get("color",0))
 	if parcel.has("paper"):
 		var supply := Transfer.Dorm.paper_supply(parcel.paper)
+		if Transfer.Dorm.is_calculator(supply):return Transfer.Dorm.Keypad.model_for(supply)
 		return supply if not supply.is_empty() else "paper"
 	if parcel.has("food"):return "food_"+str(parcel.food.get("item",""))
 	if parcel.has("pcb"):return "pcb"
 	var item: Dictionary=parcel.get("item",{})
 	var id:=str(item.get("id",""))
 	match str(item.get("kind","")):
-		"supply":return id
+		"supply":
+			if Transfer.Dorm.is_notebook(id):return "notebook"
+			return Transfer.Dorm.Keypad.model_for(id) if Transfer.Dorm.is_calculator(id) else id
 		"kit":return "kit_"+str(parcel.get("tiers",{}).get(id,"standard"))
 		"bag":return "bag_"+str(parcel.get("bags",{}).get(id,{}).get("size","backpack_small"))
 		"component":return "component:"+str(item.get("type",""))
@@ -706,8 +716,11 @@ func _add_item_visual(root: Node3D,kind: String,drop: Dictionary) -> void:
 		game.school_world._build_supply_prop(prop,kind)
 		prop.position.y=.05
 	elif kind.begins_with("calculator"):
-		game.school_world._build_calculator_prop(prop,Vector3(.135,.026,.215),kind)
-		prop.rotation.x=-PI/2;prop.position.y=.025
+		var options:=_calculator_configuration(drop)
+		var dimensions: Vector3=Transfer.Dorm.Equipment.value("calculator",options,"hardware","size",Vector3(.135,.026,.215))
+		game.school_world._build_calculator_prop(prop,dimensions,kind,options)
+		prop.rotation.x=-PI/2
+		prop.position.y=dimensions.y*.5+.012
 	elif kind=="pencil_case":
 		var toon=preload("res://scripts/toon_character.gd")
 		toon.ellipsoid(prop,Vector3(0,.03,0),Vector3(.11,.027,.052),toon.material("a45652"),"Pencil case")

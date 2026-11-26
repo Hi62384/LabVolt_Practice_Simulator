@@ -19,12 +19,17 @@ var sections: Array[GridContainer] = []
 var preview: SubViewport
 var phone: Node3D
 var rendered_product: Node3D
+var keypad_panel: VBoxContainer
+var keypad_grid: GridContainer
+var optional_keys: HBoxContainer
+var preview_builder: Callable
 
 func build(owner: RefCounted, purchase_completed: Callable, product: Dictionary, model_builder: Callable) -> void:
 	profile=owner
 	bought=purchase_completed
 	kind=product.kind
 	base_price=product.price
+	preview_builder=model_builder
 	configuration=Config.defaults(kind)
 	title="Configure " + str(product.name).to_lower()
 	dialog_hide_on_ok=false
@@ -46,7 +51,12 @@ func build(owner: RefCounted, purchase_completed: Callable, product: Dictionary,
 	_build_preview(workbench,model_builder)
 	var options:=VBoxContainer.new()
 	options.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	workbench.add_child(options)
+	var scroll:=ScrollContainer.new()
+	scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size.x=345
+	workbench.add_child(scroll)
+	scroll.add_child(options)
 	for group in ["hardware","appearance"]:
 		var fields:=GridContainer.new()
 		fields.columns=2
@@ -63,6 +73,17 @@ func build(owner: RefCounted, purchase_completed: Callable, product: Dictionary,
 			selector.item_selected.connect(_select.bind(group,key))
 			fields.add_child(selector)
 	review=Widgets.text("")
+	if kind==Config.CALCULATOR:
+		keypad_panel=VBoxContainer.new()
+		options.add_child(keypad_panel)
+		var instructions:=Widgets.text("Drag keys to swap positions. Optional keys can be toggled below.","MutedLabel")
+		instructions.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+		keypad_panel.add_child(instructions)
+		keypad_grid=GridContainer.new()
+		keypad_panel.add_child(keypad_grid)
+		optional_keys=HBoxContainer.new()
+		keypad_panel.add_child(optional_keys)
+		_rebuild_keypad()
 	review.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	options.add_child(review)
 	back=add_button("Back",true,"back")
@@ -91,14 +112,14 @@ func _build_preview(parent: Control, model_builder: Callable) -> void:
 	if kind==Config.PHONE:
 		Handset.build(phone)
 		rendered_product=phone
-	elif kind==Config.BACKPACK:
+	elif kind in [Config.CALCULATOR,Config.BACKPACK]:
 		rendered_product=Node3D.new()
 		phone.add_child(rendered_product)
 	else:
 		rendered_product=model_builder.call(kind,phone)
 	phone.rotation=Vector3(-.85 if kind==Config.NOTEBOOK else .28 if kind==Config.LAPTOP else -.12,-.38,.09)
 	var camera:=Camera3D.new()
-	camera.position=Vector3(0,0,{Config.PHONE:.36,Config.LAPTOP:.98,Config.USB:.21,Config.NOTEBOOK:.60,Config.BACKPACK:.89}[kind])
+	camera.position=Vector3(0,0,{Config.PHONE:.36,Config.LAPTOP:.98,Config.USB:.21,Config.NOTEBOOK:.60,Config.BACKPACK:.89,Config.CALCULATOR:.43}[kind])
 	camera.fov=42
 	preview.add_child(camera)
 	for setup in [[Vector3(-26,-30,0),1.4],[Vector3(15,63,0),.8]]:
@@ -116,6 +137,57 @@ func _build_preview(parent: Control, model_builder: Callable) -> void:
 
 func _select(index: int, group: String, key: String) -> void:
 	configuration[group][key]=index
+	if kind==Config.CALCULATOR and group=="hardware":
+		if key=="model":configuration.keypad=Config.Keypad.keys(_calculator_model())
+		_rebuild_keypad()
+	_update_quote()
+
+func _calculator_model() -> String:
+	return Config.value(kind,configuration,"hardware","model","calculator_basic")
+
+func _rebuild_keypad() -> void:
+	for parent in [keypad_grid,optional_keys]:
+		for child in parent.get_children():
+			parent.remove_child(child)
+			child.queue_free()
+	keypad_grid.columns=int(Config.value(kind,configuration,"hardware","columns",4))
+	for index in configuration.keypad.size():
+		var key: String=configuration.keypad[index]
+		var button:=Button.new()
+		button.text=key
+		button.tooltip_text="Drag to move "+key
+		button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		keypad_grid.add_child(button)
+		button.set_drag_forwarding(_drag_key.bind(button,index),_can_drop_key,_drop_key.bind(index))
+	for key in Config.Keypad.OPTIONAL:
+		if key not in Config.Keypad.keys(_calculator_model()):continue
+		var button:=CheckButton.new()
+		button.text=key
+		button.button_pressed=key in configuration.keypad
+		button.toggled.connect(_toggle_key.bind(key))
+		optional_keys.add_child(button)
+
+func _drag_key(_position: Vector2, button: Button, index: int) -> Dictionary:
+	var label:=Label.new()
+	label.text=button.text
+	button.set_drag_preview(label)
+	return {"key_index":index}
+
+func _can_drop_key(_position: Vector2, data: Variant) -> bool:
+	return data is Dictionary and data.get("key_index") is int and data.key_index in range(configuration.keypad.size())
+
+func _drop_key(position: Vector2, data: Variant, destination: int) -> void:
+	if not _can_drop_key(position,data) or data.key_index==destination:return
+	var key: String=configuration.keypad[destination]
+	configuration.keypad[destination]=configuration.keypad[data.key_index]
+	configuration.keypad[data.key_index]=key
+	_rebuild_keypad()
+	_update_quote()
+
+func _toggle_key(enabled: bool, key: String) -> void:
+	if enabled:configuration.keypad.append(key)
+	else:configuration.keypad.erase(key)
+	_rebuild_keypad()
 	_update_quote()
 
 func _quote() -> Dictionary:
@@ -129,6 +201,11 @@ func _update_quote() -> void:
 	elif kind==Config.BACKPACK:
 		var model: String=Config.value(kind,configuration,"hardware","size","backpack_small")
 		preload("res://scripts/campus/items/backpack_model.gd").update(rendered_product,model,configuration)
+	elif kind==Config.CALCULATOR:
+		for child in rendered_product.get_children():
+			rendered_product.remove_child(child)
+			child.queue_free()
+		preview_builder.call(kind,rendered_product,configuration)
 	else:Finish.apply_finish(rendered_product,kind,configuration)
 	preview.render_target_update_mode=SubViewport.UPDATE_ONCE
 
@@ -138,6 +215,7 @@ func _show_stage(index: int) -> void:
 	ok_button_text=["Continue to appearance","Review","Confirm purchase"][stage]
 	back.visible=stage>0
 	for i in sections.size():sections[i].visible=i==stage
+	if is_instance_valid(keypad_panel):keypad_panel.visible=stage==0
 	review.visible=stage==2
 	if stage==2:
 		var lines:=PackedStringArray()
@@ -145,6 +223,7 @@ func _show_stage(index: int) -> void:
 			for key in Config.DEFINITIONS[kind][group]:
 				var option: Dictionary=Config.DEFINITIONS[kind][group][key]
 				lines.append("%s  ·  %s"%[option.label,option.labels[configuration[group][key]]])
+		if kind==Config.CALCULATOR:lines.append("Keypad  ·  %d keys"%configuration.keypad.size())
 		review.text="\n".join(lines)
 
 func _advance() -> void:
@@ -158,6 +237,7 @@ func _advance() -> void:
 		Config.LAPTOP:message=profile.buy_portable_laptop("basic",6,"",configuration)
 		Config.NOTEBOOK:message=profile.buy_study_tool(Config.NOTEBOOK,6,configuration)
 		Config.BACKPACK:message=profile.buy_study_tool(Config.BACKPACK,6,configuration)
+		Config.CALCULATOR:message=profile.buy_study_tool(Config.CALCULATOR,6,configuration)
 		Config.USB:
 			var capacity:=int(Config.value(Config.USB,configuration,"hardware","storage",8))
 			message=profile.buy_usb(capacity,6,"",configuration)

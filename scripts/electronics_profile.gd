@@ -343,6 +343,7 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	if authority_submit.is_valid():return queued("study_tool",[id,hotbar_limit,configuration])
 	operation_succeeded=false
 	var configured_backpack := id==EquipmentConfiguration.BACKPACK
+	var configured_calculator: bool=id==EquipmentConfiguration.CALCULATOR and configuration is Dictionary and not configuration.is_empty()
 	var backpack_quote: Dictionary={}
 	if configured_backpack:
 		backpack_quote=EquipmentConfiguration.quote(id,int(Dorm.Backpacks.SIZES.backpack_small.price),configuration)
@@ -360,6 +361,13 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	if not configuration is Dictionary:return "Invalid study supply configuration"
 	if configured_backpack:
 		price=int(backpack_quote.price)
+	elif configured_calculator:
+		var quote:=EquipmentConfiguration.quote(id,int(Dorm.TOOL_PRICES.calculator_basic),configuration)
+		if quote.is_empty():return "Invalid calculator configuration"
+		if data.dorm.get("calculator_options",{}).size()>=Dorm.MAX_CALCULATOR_COPIES:return "Calculator limit reached"
+		configuration=quote.configuration
+		price=int(quote.price)
+		id=EquipmentConfiguration.value(id,configuration,"hardware","model","calculator_basic")
 	elif not configuration.is_empty():
 		if id!=EquipmentConfiguration.NOTEBOOK:return "Invalid study supply configuration"
 		var quote := EquipmentConfiguration.quote(id,price,configuration)
@@ -371,6 +379,7 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	var before := data.duplicate(true)
 	var item_id := id if bag.is_empty() else Crypto.new().generate_random_bytes(12).hex_encode()
 	if id=="notebook":item_id=Dorm.NOTEBOOK_PREFIX+Crypto.new().generate_random_bytes(16).hex_encode()
+	if configured_calculator:item_id=id+":"+Crypto.new().generate_random_bytes(16).hex_encode()
 	var destination := Dorm.receive_purchase(data.dorm,"supply" if bag.is_empty() else "bag",item_id,hotbar_limit)
 	if destination.is_empty():return "No room in your hotbar, backpack, or dorm cabinet"
 	if bag.is_empty():
@@ -384,6 +393,7 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	if id==EquipmentConfiguration.NOTEBOOK and not configuration.is_empty():
 		if not data.dorm.has("notebook_options"):data.dorm.notebook_options={}
 		data.dorm.notebook_options[item_id]=configuration
+	if configured_calculator:data.dorm.get_or_add("calculator_options",{})[item_id]=configuration
 	data.dorm.erase("owned_tools")
 	data.dorm.revision=int(data.dorm.revision)+1
 	data.dollars=debit.next_balance

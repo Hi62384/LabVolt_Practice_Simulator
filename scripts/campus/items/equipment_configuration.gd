@@ -7,10 +7,27 @@ const LAPTOP := "portable_laptop"
 const USB := "usb"
 const NOTEBOOK := "notebook"
 const BACKPACK := "backpack"
+const CALCULATOR := "calculator"
+const Keypad = preload("res://scripts/campus/items/calculator_layout.gd")
 const CASE_OPTIONS := {"label":"Case","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,18,18,18]}
 const TRIM_OPTIONS := {"label":"Trim","labels":["Silver","Copper","Black"],"values":["b7c2ca","b6764b","222831"],"prices":[0,12,12]}
 const FINISH_OPTIONS := {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,35]}
 const DEFINITIONS := {
+	CALCULATOR: {
+		"hardware": {
+			"model":{"label":"Functions","labels":["Basic","Scientific","Financial"],"values":Keypad.MODELS,"prices":[0,14,22]},
+			"size":{"label":"Body size","labels":["Compact","Standard","Wide"],"values":[Vector3(.122,.027,.182),Vector3(.151,.033,.219),Vector3(.181,.039,.235)],"prices":[0,2,6]},
+			"screen":{"label":"Display size","labels":["Standard","Large"],"values":[1.0,1.28],"prices":[0,6]},
+			"columns":{"label":"Key columns","labels":["4","5","6"],"values":[4,5,6],"prices":[0,0,0]},
+		},
+		"appearance": {
+			"shell":CASE_OPTIONS,
+			"keys":{"label":"Key color","labels":["Slate","Ivory","Jade"],"values":["60747e","d1c6a9","35765f"],"prices":[0,3,3]},
+			"key_style":{"label":"Key shape","labels":["Soft square","Round"],"values":[false,true],"prices":[0,3]},
+			"screen_color":{"label":"Display","labels":["Green LCD","Blue LCD","Amber LCD"],"values":["b0c398","93c9da","e4bd75"],"prices":[0,3,3]},
+			"finish":FINISH_OPTIONS,
+		},
+	},
 	BACKPACK: {
 		"hardware": {
 			"size":{"label":"Capacity","labels":["12 slots","24 slots","40 slots","60 slots"],"values":["backpack_small","backpack_medium","backpack_large","backpack_giant"],"prices":[0,18,44,77]},
@@ -83,11 +100,12 @@ static func defaults(kind: String) -> Dictionary:
 		var choices := {}
 		for property in definition[group]:choices[property] = 0
 		result[group] = choices
+	if kind==CALCULATOR:result.keypad=Keypad.keys("calculator_basic")
 	return result
 
 static func quote(kind: String, base_price: int, selection: Variant) -> Dictionary:
 	var definition: Dictionary = DEFINITIONS.get(kind, {})
-	if definition.is_empty() or not selection is Dictionary or selection.size() != definition.size() + 1 or selection.get("version") != VERSION:
+	if definition.is_empty() or not selection is Dictionary or selection.size() != definition.size() + 1 + int(kind==CALCULATOR) or selection.get("version") != VERSION:
 		return {}
 	var price := base_price
 	var normalized := {"version":VERSION}
@@ -102,6 +120,10 @@ static func quote(kind: String, base_price: int, selection: Variant) -> Dictiona
 			indices[property]=index
 			price += int(entry.prices[index])
 		normalized[group]=indices
+	if kind==CALCULATOR:
+		var model: String=value(CALCULATOR,normalized,"hardware","model","")
+		if not Keypad.valid(model,selection.get("keypad")):return {}
+		normalized.keypad=selection.keypad.duplicate()
 	return {"price": price, "configuration": normalized}
 
 static func value(kind: String, configuration: Dictionary, group: String, key: String, fallback: Variant) -> Variant:

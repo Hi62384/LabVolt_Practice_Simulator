@@ -68,6 +68,7 @@ func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
 	if key.begins_with("part:"):visual="component:"+key.get_slice(":",1)
 	elif key.begins_with("bag:"):visual="bag_"+str(dorm.get("backpacks",{}).get(key.trim_prefix("bag:"),{}).get("size","backpack_small"))
 	elif Dorm.is_notebook(key):visual="notebook"
+	elif Dorm.is_calculator(key):visual=Dorm.Keypad.model_for(key)
 	placed[key_for(peer,key)]={"key":key,"peer":peer,"position":resting,"yaw":yaw,"label":label,"visual":visual}
 	if key.begins_with("phone:"):
 		var appearance:=Configuration.phone_appearance(dorm.smartphones[key.trim_prefix("phone:")])
@@ -75,8 +76,8 @@ func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
 	elif key.begins_with("usb:"):
 		var configuration: Dictionary=dorm.usb_drives[key.trim_prefix("usb:")].get("configuration",{})
 		if not configuration.is_empty():placed[key_for(peer,key)].configuration=configuration
-	elif Dorm.is_notebook(key):
-		var configuration: Dictionary=dorm.get("notebook_options",{}).get(key,{})
+	elif Dorm.is_notebook(key) or Dorm.is_calculator(key):
+		var configuration:=Dorm.supply_configuration(dorm,key)
 		if not configuration.is_empty():placed[key_for(peer,key)].configuration=configuration
 	elif key.begins_with("bag:"):
 		var configuration: Dictionary=dorm.backpacks[key.trim_prefix("bag:")].get("configuration",{})
@@ -193,6 +194,9 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 			hit.position.y=shape.size.y*.5
 		elif key.begins_with("bag:"):
 			shape.size=Dorm.Backpacks.dimensions(str(entry.visual).trim_prefix("bag_"))
+			hit.position.y=shape.size.y*.5
+		elif Dorm.is_calculator(key):
+			shape.size=Configuration.value(Configuration.CALCULATOR,entry.get("configuration",{}),"hardware","size",Vector3(.135,.05,.215))
 			hit.position.y=shape.size.y*.5
 		game.discarded_items._add_item_visual(body,str(entry.visual),entry)
 	return body

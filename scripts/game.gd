@@ -473,11 +473,15 @@ func install_dorm_rest(authority: Object) -> void:
 	dorm_rest.name="DormRest";add_child(dorm_rest);dorm_rest.configure(self,authority)
 	session.rest_pose_guard=dorm_rest.canonical_pose
 
-func open_carried_calculator(model := "") -> void:
-	if model.is_empty():model=hotbar.calculator_type()
+func open_carried_calculator(item := "", equipment_options: Dictionary = {}) -> void:
+	const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+	if item.is_empty():item=hotbar.calculator_type()
+	var model:=Dorm.Keypad.model_for(item)
 	if model.is_empty():return
+	if equipment_options.is_empty():
+		equipment_options=Dorm.supply_configuration(electronics.profile.data.get("dorm",{}),item)
 	var window := Window.new()
-	window.title = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd").TOOLS.get(model,"Scientific calculator")
+	window.title = Dorm.supply_title(item)
 	window.borderless = true
 	window.transient = true
 	window.exclusive = true
@@ -485,6 +489,7 @@ func open_carried_calculator(model := "") -> void:
 	ui.add_child(window)
 	var calculator := preload("res://scripts/scientific_calculator.gd").new()
 	calculator.model=model
+	calculator.equipment_options=equipment_options
 	calculator.show_close=true
 	window.add_child(calculator)
 	calculator.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -500,7 +505,7 @@ func open_carried_calculator(model := "") -> void:
 			dismiss.call())
 	release_mouse()
 	var minimum := calculator.get_combined_minimum_size()
-	var calculator_size := Vector2i(ceili(minimum.x) if model=="calculator_basic" else 420, ceili(minimum.y))
+	var calculator_size := Vector2i(maxi(ceili(minimum.x),420 if model!="calculator_basic" else 260),ceili(minimum.y))
 	window.popup_centered(calculator_size)
 
 func _input(event: InputEvent) -> void:

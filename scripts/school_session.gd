@@ -627,7 +627,7 @@ func apply(peer: int,a: Dictionary) -> void:
 			var profile: Dictionary = dorm._profile(dorm.authenticated_identity(peer))
 			if op not in profile.get("dorm",{}).get("carry_items",[]):return
 			bag=profile.get("dorm",{}).get("backpacks",{}).get(op.trim_prefix("bag:"),{})
-			configuration=profile.get("dorm",{}).get("notebook_options",{}).get(op,{})
+			configuration=DormSupplies.supply_configuration(profile.get("dorm",{}),op)
 		for existing in papers.values():
 			if existing.owner==peer and DormSupplies.paper_supply(existing)==op and not existing.get("supply_released",false):
 				_notice(peer,"Your item is already in your hotbar.")
@@ -635,13 +635,14 @@ func apply(peer: int,a: Dictionary) -> void:
 		if held(peer)!=0 or _holding_cable(peer) or _holding_kit(peer):return
 		if not DormSupplies.is_notebook(op):
 			var product: Dictionary=DormSupplies.Backpacks.SIZES.get(bag.get("size",""),{})
-			var item_id := _give(peer,{"title":DormSupplies.TOOLS.get(op,product.get("name","Backpack")),"questions":[],"guide_pages":[]},true,false,true)
+			var item_id := _give(peer,{"title":product.get("name","Backpack") if op.begins_with("bag:") else DormSupplies.supply_title(op),"questions":[],"guide_pages":[]},true,false,true)
 			if item_id!=0:
 				papers[item_id].supply_id=op
 				if not bag.is_empty():
 					papers[item_id].supply_model=bag.size
 					papers[item_id].supply_configuration=bag.get("configuration",{}).duplicate(true)
-				papers[item_id].calculator=op in DormSupplies.CALCULATORS
+				papers[item_id].calculator=DormSupplies.is_calculator(op)
+				if papers[item_id].calculator:papers[item_id].supply_configuration=configuration.duplicate(true)
 				papers[item_id].guide=true
 			broadcast()
 			return
@@ -762,7 +763,8 @@ func apply(peer: int,a: Dictionary) -> void:
 					_notice(peer,"Put down the item you are holding first.")
 					return
 				if not supply.is_empty() and paper.get("supply_released",false):
-					var reclaimed: Dictionary=game.dorm_interactions.move_world_backpack(peer,supply.trim_prefix("bag:"),true) if supply.begins_with("bag:") else game.dorm_interactions.move_world_supply(peer,supply,true,paper.get("notebook_configuration",{}))
+					var configuration: Dictionary=paper.get("notebook_configuration",paper.get("supply_configuration",{}))
+					var reclaimed: Dictionary=game.dorm_interactions.move_world_backpack(peer,supply.trim_prefix("bag:"),true) if supply.begins_with("bag:") else game.dorm_interactions.move_world_supply(peer,supply,true,configuration)
 					if not reclaimed.ok:_notice(peer,str(reclaimed.error));return
 					paper.supply_released=false
 					paper.erase("wall_normal")

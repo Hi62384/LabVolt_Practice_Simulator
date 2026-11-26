@@ -236,9 +236,9 @@ static func move(dorm: Dictionary, intent: Dictionary, calculators: Array, world
 					carried.append("kit:"+str(item.id))
 				"supply":
 					if item.id in carried:return "Store the copy in your hotbar first"
-					if item.id in calculators:
+					if Config.Keypad.model_for(item.id) in calculators:
 						for key in carried:
-							if key in calculators:return "Store your current calculator first"
+							if Config.Keypad.model_for(key) in calculators:return "Store your current calculator first"
 					carried.append(item.id)
 				"component":
 					var parts: Array=dorm.get("carried_components",[]).duplicate(true)

@@ -540,7 +540,7 @@ func _build_storage() -> void:
 	panels.add_child(VSeparator.new())
 	var stored := _cabinet_column(panels,"Dorm storage",true)
 	for tool in Dorm.supply_counts(dorm_data):
-		var item := {"kind":"calculator" if tool in Dorm.CALCULATORS else "notebook" if Dorm.is_notebook(tool) else str(tool),"type":tool}
+		var item := {"kind":"calculator" if Dorm.is_calculator(tool) else "notebook" if Dorm.is_notebook(tool) else str(tool),"type":Dorm.Keypad.model_for(tool) if Dorm.is_calculator(tool) else tool}
 		var count := Dorm.cabinet_supply_count(dorm_data,tool)
 		if tool in dorm_data.get("carry_items",[]):
 			_cabinet_tile(carried,Dorm.supply_title(tool),item,"Store",_cabinet_transfer.bind({"op":"carry_item","item":tool,"carry":false},false))
