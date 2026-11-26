@@ -215,13 +215,19 @@ static func valid(value: Variant) -> bool:
 	if not kit_tiers is Dictionary or kit_tiers.size()>1000:return false
 	for id in kit_tiers:
 		if not id is String or not kit_tiers[id] is String or not KIT_TIERS.has(kit_tiers[id]):return false
-	for kit in value.kits.values():
+	for id in value.kits:
+		var kit: Variant=value.kits[id]
 		if not kit is Dictionary or not kit.get("name","") is String or not kit.get("items") is Dictionary or not kit.get("board") is Dictionary:return false
 		if not Shape.board(kit.board) or Board.validate(kit.board,{},true)!="":return false
 		for type in kit.items:
 			if not known.has(type) or not quantity(kit.items[type]):return false
 		for amount in kit.items.values():
 			if not (amount is int or amount is float) or not is_finite(float(amount)) or amount<0 or amount!=floor(amount):return false
+		if kit.has("configuration"):
+			var options:=EquipmentConfiguration.quote(EquipmentConfiguration.KIT,0,kit.configuration)
+			var tier: String=EquipmentConfiguration.value(EquipmentConfiguration.KIT,options.get("configuration",{}),"hardware","size","")
+			if options.is_empty() or tier!=kit_tiers.get(id):return false
+			if not _configured_kit_space(kit,known,int(KIT_TIERS[tier].capacity)).ok:return false
 	if not value.kits.has(str(value.get("equipped",""))):return false
 	if not is_finite(float(value.get("dollars",-1))) or float(value.dollars)<0:return false
 	for count in value.inventory.values():
@@ -557,15 +563,22 @@ func kit_used(id: String) -> int:
 	kit_usage_cache[id]={"items":items.duplicate(),"used":used}
 	return used
 
-func create_kit(tier: String, hotbar_limit := 6) -> String:
+func create_kit(tier: String, hotbar_limit := 6, configuration: Variant = {}) -> String:
 	if purchase_hotbar_limit.is_valid():hotbar_limit = mini(hotbar_limit,purchase_hotbar_limit.call())
-	if authority_submit.is_valid():return queued("create_kit",[tier,hotbar_limit])
+	if authority_submit.is_valid():return queued("create_kit",[tier,hotbar_limit,configuration])
 	operation_succeeded=false
 	if not KIT_TIERS.has(tier):return "Unknown kit size"
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	if data.kits.size()>=1000 or data.get("kit_tiers",{}).size()>=1000:return "Kit limit reached"
 	var product: Dictionary = KIT_TIERS[tier]
-	var debit := Economy.purchase_debit(int(data.dollars),int(product.price),true)
+	if not configuration is Dictionary:return "Invalid kit configuration"
+	var price := int(product.price)
+	if not configuration.is_empty():
+		var quote:=EquipmentConfiguration.quote(EquipmentConfiguration.KIT,int(KIT_TIERS.compact.price),configuration)
+		if quote.is_empty() or EquipmentConfiguration.value(EquipmentConfiguration.KIT,quote.configuration,"hardware","size","")!=tier:return "Invalid kit configuration"
+		configuration=quote.configuration
+		price=int(quote.price)
+	var debit := Economy.purchase_debit(int(data.dollars),price,true)
 	if not debit.ok:return debit.error
 	var before := data.duplicate(true)
 	var id := Crypto.new().generate_random_bytes(12).hex_encode()
@@ -578,6 +591,7 @@ func create_kit(tier: String, hotbar_limit := 6) -> String:
 	if not data.has("kit_tiers"):data.kit_tiers={}
 	data.kit_tiers[id]=tier
 	data.kits[id]={"name":str(product.name),"items":{},"board":Board.empty()}
+	if not configuration.is_empty():data.kits[id].configuration=configuration
 	data.dollars=debit.next_balance
 	if save()!=OK:data=before;return "Kit could not be saved"
 	operation_succeeded=true
@@ -590,7 +604,28 @@ func kit_error(id: String) -> String:
 		var amount := int(data.kits[id].items[type])
 		if not catalog.has(type) or amount<0 or amount>int(data.inventory.get(type,0)):return "Kit contains components you no longer own"
 		used+=amount*int(catalog[type].space)
-	return "Kit exceeds capacity" if used>kit_capacity(id) else ""
+	var capacity:=kit_capacity(id)
+	if used>capacity:return "Kit exceeds capacity"
+	if data.kits[id].has("configuration") and not _configured_kit_space(data.kits[id],catalog,capacity).ok:return "The main compartment is full. The tray reserves space for resistors, capacitors and inductors."
+	return ""
+
+static func _configured_kit_space(kit: Dictionary, entries: Dictionary, capacity: int) -> Dictionary:
+	var fraction: float=EquipmentConfiguration.value(EquipmentConfiguration.KIT,kit.configuration,"hardware","tray",0.0)
+	var reserved:=roundi(capacity*fraction)
+	var used:=0
+	var passive:=0
+	for type in kit.items:
+		var entry: Dictionary=entries[type]
+		var cost:=int(entry.space)*int(kit.items[type])
+		used+=cost
+		if entry.get("kind") in ["R","C","L"]:passive+=cost
+	var tray_used:=mini(reserved,passive)
+	return {"ok":used<=capacity and used-tray_used<=capacity-reserved,"tray":reserved,"tray_used":tray_used,"main":capacity-reserved,"main_used":used-tray_used}
+
+func kit_compartments(id: String) -> Dictionary:
+	var kit: Dictionary=data.kits.get(id,{})
+	if not kit.has("configuration"):return {}
+	return _configured_kit_space(kit,catalog(),kit_capacity(id))
 func kit_available(type: String) -> int:
 	var used := Dorm.stock_used(data)
 	return maxi(0, int(data.inventory.get(type, 0)) - int(used.get(type, 0)))
@@ -659,6 +694,7 @@ func duplicate_kit() -> String:
 	data.kits[id]=data.kits[source].duplicate(true);data.kits[id].name+=" copy";data.equipped=id
 	data.kits[id].erase("workspace_only")
 	data.kits[id].erase("package_draft")
+	data.kits[id].erase("configuration")
 	if data.get("kit_tiers",{}).has(source):
 		data.kit_tiers[id]="standard"
 		var error := kit_error(id)

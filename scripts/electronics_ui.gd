@@ -351,14 +351,22 @@ func study_supplies() -> void:
 	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone","notebook","backpack","calculator"],_equipment_preview)
 
 func _equipment_preview(kind: String,parent: Node3D,options: Dictionary = {}) -> Node3D:
+	const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
 	if kind=="usb":return game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))
 	if kind=="notebook":return preload("res://scripts/campus/items/notebook_model.gd").build(parent)
 	if kind=="calculator":
-		const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
 		var dimensions: Vector3=Config.value(kind,options,"hardware","size",Vector3(.135,.026,.215))
 		var calculator: String=Config.value(kind,options,"hardware","model","calculator_basic")
 		game.school_world._build_calculator_prop(parent,dimensions,calculator,options)
 		return parent
+	if kind=="kit":
+		var size: String=Config.value(kind,options,"hardware","size","compact")
+		var kit: Node3D=game.kit_world._create_kit_view(0,{"id":"preview","name":"Electronics kit","tier":size,"configuration":options},parent)
+		kit.position.y=-.26
+		var lid: Node3D=kit.get_node("Lid")
+		lid.position=kit.get_meta("lid_open")
+		lid.rotation.x=-1.3
+		return kit
 	var model:=Node3D.new()
 	model.position=Vector3(0,-.15,.05)
 	parent.add_child(model)
@@ -427,7 +435,7 @@ func shop() -> void:
 	var equipment_mount := VBoxContainer.new()
 	equipment_mount.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	equipment.add_child(equipment_mount)
-	supplies.populate(equipment_mount,profile,func(message: String):open("shop",bench);status.text=message,status,"equipment",Callable(),["lab_goggles","kit"])
+	supplies.populate(equipment_mount,profile,func(message: String):open("shop",bench);status.text=message,status,"equipment",Callable(),["lab_goggles","kit"],_equipment_preview)
 	section.item_selected.connect(func(index: int):
 		shop_section=index
 		components.visible=index==0
@@ -729,6 +737,9 @@ func _change_kit_part(type: String, amount: int) -> void:
 	status.text=message
 
 func _kit_capacity_text(id: String) -> String:
+	var slots: Dictionary=profile.kit_compartments(id)
+	if int(slots.get("tray",0))>0:
+		return "Main %d/%d  ·  Passive tray %d/%d  %s" % [slots.main_used,slots.main,slots.tray_used,slots.tray,profile.kit_error(id)]
 	return "Capacity  %d/%d  %s" % [profile.kit_used(id),profile.kit_capacity(id),profile.kit_error(id)]
 func _queue_kit_name(generation: int,character: String,id: String,value: String) -> void:
 	if not active or generation!=panel_generation or character!=str(game.characters.selected) or not profile.data.kits.has(id):return

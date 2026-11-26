@@ -30,13 +30,7 @@ static func equipment_products() -> Array:
 		"rarity": "Uncommon", "summary": "Protective eyewear",
 		"description": "Protective eyewear for your head accessory slot."
 	}]
-	for tier in Profile.KIT_TIERS:
-		var kit: Dictionary = Profile.KIT_TIERS[tier]
-		var summary := "%d component spaces" % int(kit.capacity)
-		result.append({
-			"kind": "kit", "tier": tier, "name": kit.name, "price": kit.price, "rarity": kit.rarity,
-			"summary": summary, "description": "%s." % summary
-		})
+	result.append({"kind":Config.KIT,"tier":"compact","name":"Electronics kit","price":Profile.KIT_TIERS.compact.price,"rarity":"Common","summary":"Configurable","description":"Choose a case size and an optional tray for resistors, capacitors and inductors."})
 	var usb_price: int=preload("res://scripts/campus/computers/usb_inventory.gd").PRICES[8]
 	result.append({"kind":"usb","name":"USB drive","price":usb_price,"rarity":"Common","summary":"Configurable","description":"Choose capacity, transfer speeds and appearance for removable storage."})
 	var laptop: Dictionary=preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS.basic

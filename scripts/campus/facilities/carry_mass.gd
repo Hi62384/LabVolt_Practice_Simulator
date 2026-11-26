@@ -24,6 +24,13 @@ static func kit_mass(profile: Dictionary,id: String,seen: Dictionary) -> float:
 	var kit: Dictionary=profile.get("kits",{}).get(id,{})
 	if kit.is_empty():return 0.0
 	var total:=.40+board_mass(kit.get("board",{}))
+	if kit.has("configuration"):
+		var model: String=profile.get("kit_tiers",{}).get(id,"compact")
+		var weights: Dictionary={"compact":.4,"standard":.58,"extended":.75,"large":.99}
+		total+=float(weights.get(model,.4))-.4
+		var tray: float=Equipment.value(Equipment.KIT,kit.configuration,"hardware","tray",0.0)
+		total+=tray*.3
+		if Equipment.value(Equipment.KIT,kit.configuration,"appearance","handle",false):total+=.08
 	for type in kit.get("items",{}):total+=component_mass(str(type))*maxi(0,int(kit.items[type]))
 	return total
 

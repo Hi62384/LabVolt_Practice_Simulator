@@ -291,8 +291,8 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 	var deployment: Dictionary = a.deployment.duplicate(true)
 	match op:
 		"create_kit":
-			if args.size() not in [1,2] or not args[0] is String or (args.size()==2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid kit size")
-			message=p.create_kit(args[0],args[1] if args.size()==2 else 6)
+			if args.size() not in [1,2,3] or not args[0] is String or (args.size()>=2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid kit size")
+			message=p.create_kit(args[0],args[1] if args.size()>=2 else 6,args[2] if args.size()==3 else {})
 			if not p.operation_succeeded:return failure(message)
 		"duplicate_kit":
 			if not args.is_empty():return failure("Invalid kit copy")

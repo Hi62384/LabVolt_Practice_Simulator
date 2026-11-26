@@ -8,11 +8,26 @@ const USB := "usb"
 const NOTEBOOK := "notebook"
 const BACKPACK := "backpack"
 const CALCULATOR := "calculator"
+const KIT := "kit"
 const Keypad = preload("res://scripts/campus/items/calculator_layout.gd")
 const CASE_OPTIONS := {"label":"Case","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,18,18,18]}
 const TRIM_OPTIONS := {"label":"Trim","labels":["Silver","Copper","Black"],"values":["b7c2ca","b6764b","222831"],"prices":[0,12,12]}
 const FINISH_OPTIONS := {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,35]}
 const DEFINITIONS := {
+	KIT: {
+		"hardware": {
+			"size":{"label":"Component capacity","labels":["20 spaces","40 spaces","70 spaces","120 spaces"],"values":["compact","standard","extended","large"],"prices":[0,13,33,83]},
+			"tray":{"label":"Passive component tray","labels":["Open compartment","Reserve 20%","Reserve 35%"],"values":[0.0,.20,.35],"prices":[0,5,11]},
+		},
+		"appearance": {
+			"shell":CASE_OPTIONS,
+			"lid":{"label":"Lid","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,3,3,3]},
+			"interior":{"label":"Interior","labels":["Charcoal","Sand","Mint"],"values":["343e47","c0a783","83ad99"],"prices":[0,3,3]},
+			"trim":TRIM_OPTIONS,
+			"handle":{"label":"Handle","labels":["Compact grip","Reinforced grip"],"values":[false,true],"prices":[0,6]},
+			"finish":FINISH_OPTIONS,
+		},
+	},
 	CALCULATOR: {
 		"hardware": {
 			"model":{"label":"Functions","labels":["Basic","Scientific","Financial"],"values":Keypad.MODELS,"prices":[0,14,22]},

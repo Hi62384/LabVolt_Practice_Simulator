@@ -112,14 +112,14 @@ func _build_preview(parent: Control, model_builder: Callable) -> void:
 	if kind==Config.PHONE:
 		Handset.build(phone)
 		rendered_product=phone
-	elif kind in [Config.CALCULATOR,Config.BACKPACK]:
+	elif kind in [Config.CALCULATOR,Config.BACKPACK,Config.KIT]:
 		rendered_product=Node3D.new()
 		phone.add_child(rendered_product)
 	else:
 		rendered_product=model_builder.call(kind,phone)
-	phone.rotation=Vector3(-.85 if kind==Config.NOTEBOOK else .28 if kind==Config.LAPTOP else -.12,-.38,.09)
+	phone.rotation=Vector3(-.85 if kind==Config.NOTEBOOK else .28 if kind in [Config.LAPTOP,Config.KIT] else -.12,-.38,.09)
 	var camera:=Camera3D.new()
-	camera.position=Vector3(0,0,{Config.PHONE:.36,Config.LAPTOP:.98,Config.USB:.21,Config.NOTEBOOK:.60,Config.BACKPACK:.89,Config.CALCULATOR:.43}[kind])
+	camera.position=Vector3(0,0,{Config.PHONE:.36,Config.LAPTOP:.98,Config.USB:.21,Config.NOTEBOOK:.60,Config.BACKPACK:.89,Config.CALCULATOR:.43,Config.KIT:1.65}[kind])
 	camera.fov=42
 	preview.add_child(camera)
 	for setup in [[Vector3(-26,-30,0),1.4],[Vector3(15,63,0),.8]]:
@@ -201,7 +201,7 @@ func _update_quote() -> void:
 	elif kind==Config.BACKPACK:
 		var model: String=Config.value(kind,configuration,"hardware","size","backpack_small")
 		preload("res://scripts/campus/items/backpack_model.gd").update(rendered_product,model,configuration)
-	elif kind==Config.CALCULATOR:
+	elif kind in [Config.CALCULATOR,Config.KIT]:
 		for child in rendered_product.get_children():
 			rendered_product.remove_child(child)
 			child.queue_free()
@@ -238,6 +238,9 @@ func _advance() -> void:
 		Config.NOTEBOOK:message=profile.buy_study_tool(Config.NOTEBOOK,6,configuration)
 		Config.BACKPACK:message=profile.buy_study_tool(Config.BACKPACK,6,configuration)
 		Config.CALCULATOR:message=profile.buy_study_tool(Config.CALCULATOR,6,configuration)
+		Config.KIT:
+			var size: String=Config.value(kind,configuration,"hardware","size","compact")
+			message=profile.create_kit(size,6,configuration)
 		Config.USB:
 			var capacity:=int(Config.value(Config.USB,configuration,"hardware","storage",8))
 			message=profile.buy_usb(capacity,6,"",configuration)

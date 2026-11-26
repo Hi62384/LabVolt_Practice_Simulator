@@ -551,6 +551,9 @@ func _public_drops() -> Dictionary:
 		if public[id].visual.begins_with("bag_"):
 			var configuration := _backpack_configuration(drop)
 			if not configuration.is_empty():public[id].configuration=configuration
+		if public[id].visual.begins_with("kit_"):
+			var configuration := _kit_configuration(drop)
+			if not configuration.is_empty():public[id].configuration=configuration
 		if public[id].visual=="laptop":
 			var configuration: Dictionary=drop.get("parcel",{}).get("laptop",{}).get("configuration",{})
 			if not configuration.is_empty():public[id].configuration=configuration
@@ -570,6 +573,10 @@ func _backpack_configuration(drop: Dictionary) -> Dictionary:
 func _calculator_configuration(drop: Dictionary) -> Dictionary:
 	var parcel: Dictionary=drop.get("parcel",{})
 	return drop.get("configuration",parcel.get("calculator_options",{}).get(parcel.get("item",{}).get("id",""),{}))
+
+func _kit_configuration(drop: Dictionary) -> Dictionary:
+	var parcel: Dictionary=drop.get("parcel",{})
+	return drop.get("configuration",parcel.get("kits",{}).get(parcel.get("item",{}).get("id",""),{}).get("configuration",{}))
 
 @rpc("authority","call_remote","reliable")
 func sync_drops(public: Dictionary,server_ticks: int) -> void:
@@ -732,8 +739,8 @@ func _add_item_visual(root: Node3D,kind: String,drop: Dictionary) -> void:
 		preload("res://scripts/campus/items/backpack_model.gd").build(prop,model,_backpack_configuration(drop))
 		prop.position.y=Transfer.Dorm.Backpacks.dimensions(model).y*.5
 	elif kind.begins_with("kit_"):
-		var kit: StaticBody3D=game.kit_world._create_kit_view(0,{"id":"lost","name":str(drop.label),"tier":kind.trim_prefix("kit_")})
-		kit.collision_layer=0;kit.reparent(prop,false)
+		var kit: StaticBody3D=game.kit_world._create_kit_view(0,{"id":"lost","name":str(drop.label),"tier":kind.trim_prefix("kit_"),"configuration":_kit_configuration(drop)},prop)
+		kit.collision_layer=0
 	elif kind=="notebook":
 		preload("res://scripts/campus/items/notebook_model.gd").build(prop,_notebook_configuration(drop))
 	elif kind=="paper":
