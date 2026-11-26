@@ -11,9 +11,11 @@ func _run() -> void:
 	legacy_settings.set_value("openai","requests_per_minute",1)
 	legacy_settings.set_value("openai","requests_per_day",1)
 	legacy_settings.save("user://host_openai.cfg")
+	var fixture_port: String=OS.get_environment("LABVOLT_OPENAI_FIXTURE_PORT") if OS.has_environment("LABVOLT_OPENAI_FIXTURE_PORT") else "28768"
+	var fixture: String="http://127.0.0.1:%s/v1"%fixture_port
 	var client: Node=Client.new()
 	root.add_child(client)
-	if not client.set_local_test_endpoint("http://127.0.0.1:28768/v1"):failures.append("Test endpoint was rejected")
+	if not client.set_local_test_endpoint(fixture):failures.append("Test endpoint was rejected")
 	if client.set_local_test_endpoint("https://example.com"):failures.append("Non-loopback test endpoint was accepted")
 	if not client.set_session_key("sk-test-12345678901234567890"):failures.append("Fixture credential was rejected")
 	if client.configure("gpt-5.4-mini",64,"",true)!=OK:failures.append("Settings did not save")
@@ -26,8 +28,7 @@ func _run() -> void:
 			break
 	var too_long: Dictionary=await client.respond("x".repeat(4001))
 	if too_long.get("ok",true):failures.append("Oversized prompt was accepted")
-	if client.configure("rate-limited",64,"",true)!=OK:failures.append("Rate-limit test settings did not save")
-	var limited: Dictionary=await client.test_connection()
+	var limited: Dictionary=await client.list_models("sk-rate-limited-12345678901234567890",true)
 	if limited.get("ok",true) or not str(limited.get("error","")).contains("rate limiting"):failures.append("HTTP 429 was not mapped safely")
 	if client.configure("gpt-5.4-mini",64,"",true)!=OK:failures.append("Settings did not save")
 	if not client.set_session_key("sk-wrong-12345678901234567890"):failures.append("Invalid-key fixture was rejected locally")
@@ -39,7 +40,7 @@ func _run() -> void:
 	var reloaded: Node=Client.new();root.add_child(reloaded)
 	var totals: Dictionary=reloaded.model_usage.get("gpt-5.4-mini",{})
 	if totals.get("requests")!=25 or totals.get("input")!=250 or totals.get("output")!=500 or totals.get("reasoning")!=200:failures.append("Per-model usage did not survive a restart")
-	reloaded.set_local_test_endpoint("http://127.0.0.1:28768/v1")
+	reloaded.set_local_test_endpoint(fixture)
 	reloaded.configure("gpt-5.4-mini",64,"",false)
 	var draft: Dictionary={"key":"sk-test-12345678901234567890","model":"gpt-6.2-astra","output":64,"effort":"max"}
 	draft.modalities={"image_generation":"gpt-image-2.6-sunburst"}

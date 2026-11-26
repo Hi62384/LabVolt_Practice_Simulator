@@ -22,6 +22,8 @@ class Handler(BaseHTTPRequestHandler):
         return self.headers.get("Authorization") == "Bearer sk-test-12345678901234567890"
 
     def do_GET(self):
+        if self.headers.get("Authorization") == "Bearer sk-rate-limited-12345678901234567890":
+            return self._reply(429, {"error": {"message": "rate limited"}})
         if not self._authorized():
             return self._reply(401, {"error": {"message": "secret details must stay private"}})
         if self.path == "/v1/models":
@@ -32,8 +34,6 @@ class Handler(BaseHTTPRequestHandler):
             return self._reply(200, {"object": "list", "data": [
                 {"id": identifier, "object": "model"} for identifier in identifiers
             ]})
-        if self.path == "/v1/models/rate-limited":
-            return self._reply(429, {"error": {"message": "rate limited"}})
         if self.path == "/v1/models/gpt-5.4-mini":
             return self._reply(200, {"id": "gpt-5.4-mini", "object": "model"})
         return self._reply(404, {"error": {"message": "unknown model"}})

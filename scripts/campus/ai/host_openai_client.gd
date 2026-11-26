@@ -23,6 +23,12 @@ var tts_enabled := false
 var max_output_tokens := 384
 var reasoning_effort := ""
 var image_reasoning_effort := ""
+const Usage=preload("res://scripts/campus/ai/openai_usage.gd")
+var usage_tracker=Usage.new()
+var usage_profile:=""
+var local_usage_session:=""
+var reasoning_mode:="standard"
+var image_reasoning_mode:="standard"
 var model_usage: Dictionary = {}
 var busy := false
 var _session_key := ""
@@ -34,6 +40,7 @@ var _verified_signature := ""
 var verification_error := ""
 
 func _ready() -> void:
+	local_usage_session="Session "+Crypto.new().generate_random_bytes(5).hex_encode()
 	_load()
 
 func host_allowed() -> bool:
@@ -109,7 +116,7 @@ func preview_setup_prompt(prompt: String, draft: Dictionary) -> Dictionary:
 	var key:=str(draft.key) if not str(draft.key).is_empty() else _credential()
 	var effort:=str(draft.get("effort",""))
 	var output:=int(draft.output)
-	var signature:=_signature(key,choice,effort,output)
+	var signature:=_signature(key,choice,effort,output,str(draft.get("mode","standard")))
 	var result:=await _request_text(prompt,choice,output,effort,false,draft)
 	if result.get("ok",false):result.signature=signature
 	return result
@@ -125,7 +132,13 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	var next_image:=str(choices.get("image",image_model))
 	var next_image_effort:=str(draft.get("image_effort",image_reasoning_effort))
 	if next_image_effort!=Models.normalize_effort(next_image,next_image_effort):return ERR_INVALID_PARAMETER
-	var previous: Array=[image_model,stt_model,tts_model,stt_enabled,tts_enabled,image_generation_model,image_reasoning_effort]
+	var selected_mode:=str(draft.get("mode","standard"))
+	var selected_image_mode:=str(draft.get("image_mode","standard"))
+	if not _mode_allowed(str(draft.model),selected_mode) or not _mode_allowed(next_image,selected_image_mode):return ERR_INVALID_PARAMETER
+	var previous: Array=[image_model,stt_model,tts_model,stt_enabled,tts_enabled,image_generation_model,image_reasoning_effort,reasoning_mode,image_reasoning_mode,usage_profile]
+	reasoning_mode=selected_mode
+	image_reasoning_mode=selected_image_mode
+	usage_profile=_clean_profile(str(draft.get("usage_profile",usage_profile)))
 	image_model=next_image
 	image_reasoning_effort=next_image_effort
 	image_generation_model=str(choices.get("image_generation",image_generation_model))
@@ -138,6 +151,7 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 		image_model=previous[0];stt_model=previous[1];tts_model=previous[2];stt_enabled=previous[3];tts_enabled=previous[4]
 		image_generation_model=previous[5]
 		image_reasoning_effort=previous[6]
+		reasoning_mode=previous[7];image_reasoning_mode=previous[8];usage_profile=previous[9]
 		return error
 	if not key.is_empty():set_session_key(key)
 	if signature==_connection_signature():
@@ -146,10 +160,10 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	return OK
 
 func _connection_signature() -> String:
-	return _signature(_credential(),model,reasoning_effort,max_output_tokens)
+	return _signature(_credential(),model,reasoning_effort,max_output_tokens,reasoning_mode)
 
-func _signature(key: String, choice: String, effort: String, output: int) -> String:
-	return JSON.stringify([key,choice,effort,output,_test_base]).sha256_text()
+func _signature(key: String, choice: String, effort: String, output: int, mode: String) -> String:
+	return JSON.stringify([key,choice,effort,output,mode,_test_base]).sha256_text()
 
 func verified_for_class() -> bool:
 	return enabled and configured() and _verified_signature==_connection_signature()
@@ -189,7 +203,7 @@ func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={
 
 func speak(text: String, draft: Dictionary={}, voice := "alloy") -> Dictionary:
 	var choice:=str(draft.get("modalities",{}).get("tts",tts_model))
-	if not bool(draft.get("tts_enabled",tts_enabled)) or not Models.supports(choice,"tts"):
+	if not bool(draft.get("tts_enabled",tts_enabled)) or not Models.available_for(choice,"tts"):
 		return {"ok":false,"error":"Enable text-to-speech and choose a voice model in OpenAI Settings."}
 	if voice not in Models.speech_voices(choice):return {"ok":false,"error":"This voice is unavailable for the selected speech model."}
 	if text.strip_edges().is_empty() or text.length()>350:return {"ok":false,"error":"Enter up to 350 characters to read aloud."}
@@ -197,7 +211,7 @@ func speak(text: String, draft: Dictionary={}, voice := "alloy") -> Dictionary:
 
 func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	var choice:=str(draft.get("modalities",{}).get("image_generation",image_generation_model))
-	if not Models.supports(choice,"image_generation"):
+	if not Models.available_for(choice,"image_generation"):
 		return {"ok":false,"error":"Choose an image generation model."}
 	prompt=prompt.strip_edges()
 	if prompt.is_empty() or prompt.length()>MAX_INPUT_CHARS:
@@ -207,9 +221,15 @@ func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 
 func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}, timeout := 180.0) -> Dictionary:
 	var path:=Models.endpoint(choice)
-	if path.is_empty():return {"ok":false,"error":"This model uses a specialized API. Choose a text model for classroom prompts."}
+	if path.is_empty() or Models.lifecycle(choice).status=="retired":
+		return {"ok":false,"error":"Choose an available model for this request."}
+	var category:="image" if input is Array else "text"
+	var setting:="image_mode" if category=="image" else "mode"
+	var mode:=str(draft.get(setting,image_reasoning_mode if category=="image" else reasoning_mode))
+	if not _mode_allowed(choice,mode):mode="standard"
 	if effort!=Models.normalize_effort(choice,effort):return {"ok":false,"error":"This model does not support that thinking effort."}
 	var payload: Dictionary={"model":choice}
+	if draft.get("request_type","")=="comparison":payload.service_tier="default"
 	if path=="/chat/completions":
 		var content: Variant=input
 		if input is Array:
@@ -221,7 +241,8 @@ func _request_text(input: Variant, choice: String, output: int, effort: String, 
 		payload.max_output_tokens=output
 		payload.store=false
 		if not effort.is_empty():payload.reasoning={"effort":effort}
-	return await _call(HTTPClient.METHOD_POST,path,payload,needs_enabled,draft,timeout)
+		if mode=="pro":payload.get_or_add("reasoning",{}).mode="pro"
+	return await _call(HTTPClient.METHOD_POST,path,payload,needs_enabled,draft,timeout,category)
 
 func moderate(input: String) -> Dictionary:
 	if input.strip_edges().is_empty() or input.length()>1000:return {"ok":false,"error":"The message is too long."}
@@ -234,7 +255,7 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if key.is_empty():key=_credential()
 	if not host_allowed() or (draft.is_empty() and not enabled) or key.is_empty():return {"ok":false,"error":"The host AI connection is unavailable."}
 	var choice:=str(draft.get("modalities",{}).get("stt",stt_model))
-	if not bool(draft.get("stt_enabled",stt_enabled)) or not Models.supports(choice,"stt"):return {"ok":false,"error":"Speech-to-text is disabled in the host's OpenAI settings."}
+	if not bool(draft.get("stt_enabled",stt_enabled)) or not Models.available_for(choice,"stt"):return {"ok":false,"error":"Speech-to-text is disabled in the host's OpenAI settings."}
 	if busy:return {"ok":false,"error":"An AI request is already running."}
 	var now:=Time.get_ticks_msec()
 	busy=true
@@ -248,13 +269,17 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if error!=OK:request.queue_free();busy=false;return {"ok":false,"error":"Could not start speech transcription."}
 	var completed: Array=await request.request_completed
 	request.queue_free();busy=false
-	if int(completed[0])!=HTTPRequest.RESULT_SUCCESS:return {"ok":false,"error":"Speech transcription timed out."}
+	var elapsed:=Time.get_ticks_msec()-now
 	var code:=int(completed[1])
-	if code<200 or code>=300:return {"ok":false,"error":"Speech transcription failed (HTTP %d)."%code}
+	if int(completed[0])!=HTTPRequest.RESULT_SUCCESS or code<200 or code>=300:
+		_record_request(choice,"stt",{},false,elapsed,draft,{})
+		return {"ok":false,"error":"Speech transcription timed out." if code==0 else "Speech transcription failed (HTTP %d)."%code}
 	var parsed: Variant=JSON.parse_string((completed[3] as PackedByteArray).get_string_from_utf8())
-	if not parsed is Dictionary:return {"ok":false,"error":"Speech transcription was unreadable."}
-	_record_usage(choice,parsed,float(wav.size()-44)/32000.0)
+	if not parsed is Dictionary:
+		_record_request(choice,"stt",{},false,elapsed,draft,{})
+		return {"ok":false,"error":"Speech transcription was unreadable."}
 	var words:=str(parsed.get("text","")).strip_edges().left(500)
+	_record_request(choice,"stt",parsed,not words.is_empty(),elapsed,draft,{},float(wav.size()-44)/32000.0)
 	return {"ok":true,"text":words} if not words.is_empty() else {"ok":false,"error":"No speech was recognized."}
 
 func set_local_test_endpoint(value: String) -> bool:
@@ -264,7 +289,7 @@ func set_local_test_endpoint(value: String) -> bool:
 	_test_base=value
 	return true
 
-func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enabled: bool,draft := {},timeout := 180.0) -> Dictionary:
+func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enabled: bool,draft := {},timeout := 180.0,purpose := "") -> Dictionary:
 	if not host_allowed():return {"ok":false,"error":"Only the host can use the OpenAI connection."}
 	if needs_enabled and not enabled:return {"ok":false,"error":"Accept the OpenAI settings before starting the game."}
 	var key:=str(draft.get("key",""))
@@ -274,6 +299,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var request_model:=str(payload.get("model",model))
 	if not Models.valid_id(request_model):return {"ok":false,"error":"Choose a valid model ID in OpenAI Settings."}
 	busy=true
+	var started:=Time.get_ticks_msec()
 	var request := HTTPRequest.new()
 	request.timeout=timeout if path in ["/responses","/images/generations","/chat/completions"] else 20.0
 	request.body_size_limit=2097152 if path in ["/models","/audio/speech"] else MAX_RESPONSE_BYTES
@@ -291,6 +317,14 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	request.queue_free()
 	busy=false
 	var response:=_read_response(int(completed[0]),int(completed[1]),completed[3],path,request_model)
+	if method==HTTPClient.METHOD_POST:
+		if purpose.is_empty():purpose={"/images/generations":"image_generation","/audio/speech":"tts","/moderations":"moderation"}.get(path,"text")
+		var raw_data: Variant=response.get("_api_metadata",{})
+		if not raw_data is Dictionary:raw_data={}
+		var clip: AudioStreamWAV=response.get("stream")
+		var characters: int=str(payload.get("input","")).length() if purpose=="tts" else -1
+		response["measurement"]=_record_request(request_model,purpose,raw_data,bool(response.get("ok",false)),Time.get_ticks_msec()-started,draft,payload.get("reasoning",{}),clip.get_length() if clip!=null else -1.,characters)
+		response.erase("_api_metadata")
 	if draft.is_empty() and int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
 		_verified_signature=""
 		verification_error=str(response.get("error","Connection verification is required."))
@@ -309,7 +343,6 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 			return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
 		var stream:=AudioStreamWAV.load_from_buffer(body)
 		if stream==null or stream.data.is_empty():return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
-		_record_usage(request_model,{},stream.get_length())
 		return {"ok":true,"stream":stream}
 	var parsed: Variant=JSON.parse_string(body.get_string_from_utf8())
 	if not parsed is Dictionary:return {"ok":false,"error":"OpenAI returned an unreadable response."}
@@ -323,7 +356,11 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 		return {"ok":true,"models":ids}
 	if path.begins_with("/models/"):
 		return {"ok":true,"message":"Connected to OpenAI. Model is available."} if str(parsed.get("id",""))==request_model else {"ok":false,"error":"OpenAI did not confirm the selected model."}
-	_record_usage(request_model,parsed)
+	var response:=_decode_body(path,parsed)
+	response._api_metadata={"usage":parsed.get("usage",{}),"model":parsed.get("model",""),"service_tier":parsed.get("service_tier",""),"reasoning":parsed.get("reasoning",{})}
+	return response
+
+func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 	if path=="/images/generations":
 		var items: Variant=parsed.get("data")
 		if not items is Array or items.size()!=1 or not items[0] is Dictionary:
@@ -362,19 +399,52 @@ func _text_result(value: String) -> Dictionary:
 	var answer:=value.strip_edges().left(16000)
 	return {"ok":true,"text":answer} if not answer.is_empty() else {"ok":false,"error":"OpenAI returned no text."}
 
-func _record_usage(id: String, response: Dictionary, audio_seconds := 0.0) -> void:
-	var raw: Variant=response.get("usage",{})
-	var usage: Dictionary=raw if raw is Dictionary else {}
-	var details: Variant=usage.get("output_tokens_details",usage.get("completion_tokens_details",{}))
-	var totals: Dictionary=model_usage.get_or_add(id,{"requests":0,"input":0,"output":0,"reasoning":0,"seconds":0.0})
-	totals.requests+=1
-	totals.input+=_token_count(usage.get("input_tokens",usage.get("prompt_tokens",0)))
-	totals.output+=_token_count(usage.get("output_tokens",usage.get("completion_tokens",0)))
-	if details is Dictionary:totals.reasoning+=_token_count(details.get("reasoning_tokens",0))
-	var seconds: Variant=usage.get("seconds",audio_seconds)
-	if (seconds is int or seconds is float) and is_finite(float(seconds)) and seconds>0:totals.seconds+=float(seconds)
+func _mode_allowed(choice: String, mode: String) -> bool:
+	return mode=="standard" or (mode=="pro" and Models.has_pro_mode(choice))
+
+func _clean_profile(value: String) -> String:
+	var clean:=value.strip_edges().left(36)
+	# A local label can never be used to store a pasted credential.
+	if clean.begins_with("sk-"):return ""
+	for character in clean:
+		if not character in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_":return ""
+	return clean
+
+func usage_scope(draft := {}) -> String:
+	var label:=_clean_profile(str(draft.get("usage_profile",usage_profile)))
+	return "Profile "+label if not label.is_empty() else local_usage_session
+
+func _record_request(id: String,purpose: String,response: Dictionary,success: bool,elapsed: int,draft: Dictionary,reasoning: Dictionary,seconds := -1.0,characters := -1) -> Dictionary:
+	var measurement:=Usage.usage_from(response,seconds,characters)
+	var requested_effort:=str(reasoning.get("effort",""))
+	var observed: Variant=response.get("reasoning",{})
+	var effort:=str(observed.get("effort",requested_effort)) if observed is Dictionary else requested_effort
+	var mode:=str(reasoning.get("mode","pro" if id.ends_with("-pro") else "standard"))
+	var snapshot:=str(response.get("model",""))
+	if not Models.valid_id(snapshot) or snapshot==id:snapshot=""
+	var processing:=str(response.get("service_tier",""))
+	if processing.is_empty() or processing in ["auto","default"]:processing="standard"
+	if processing=="priority":processing="fast"
+	var data:={"profile":usage_scope(draft),"model":id,"snapshot":snapshot,"purpose":purpose,
+		"effort":effort,"mode":mode,"tier":processing,"date":Time.get_date_string_from_system(true),"type":str(draft.get("request_type","feature" if draft.is_empty() else "test"))}
+	var entry:=usage_tracker.record(data,measurement,success,elapsed)
+	if success or not measurement.is_empty():
+		var totals: Dictionary=model_usage.get_or_add(id,{"requests":0,"input":0,"output":0,"reasoning":0,"seconds":0.0})
+		totals.requests+=1
+		for field in ["input","output","reasoning","seconds"]:totals[field]+=measurement.get(field,0)
+	entry.effort=effort
+	entry.mode=mode
 	_save()
 	usage_changed.emit()
+	return entry
+
+func comparison_question(question: String,choice: String,effort: String,mode: String,limit: int,draft: Dictionary) -> Dictionary:
+	if not Models.available_for(choice,"text") or not _mode_allowed(choice,mode) or limit not in range(16,2049):
+		return {"ok":false,"error":"Comparison request is unavailable for this model."}
+	var context:=draft.duplicate()
+	context.request_type="comparison"
+	context.mode=mode
+	return await _request_text(question,choice,limit,effort,false,context,35.0)
 
 func _token_count(value: Variant) -> int:
 	return clampi(int(value),0,2000000000) if (value is int or value is float) and is_finite(float(value)) else 0
@@ -397,6 +467,12 @@ func _load() -> void:
 	tts_model=str(config.get_value("openai","tts_model",SPEECH_MODEL))
 	stt_enabled=bool(config.get_value("openai","stt_enabled",enabled))
 	tts_enabled=bool(config.get_value("openai","tts_enabled",false))
+	usage_profile=_clean_profile(str(config.get_value("openai","usage_profile","")))
+	reasoning_mode=str(config.get_value("openai","reasoning_mode","standard"))
+	if not _mode_allowed(model,reasoning_mode):reasoning_mode="standard"
+	image_reasoning_mode=str(config.get_value("openai","image_reasoning_mode","standard"))
+	if not _mode_allowed(image_model,image_reasoning_mode):image_reasoning_mode="standard"
+	usage_tracker.load_rows(config.get_value("usage_v2","rows",{}))
 	var usage: Variant=config.get_value("usage","models",{})
 	if usage is Dictionary:
 		for id in usage:
@@ -417,5 +493,9 @@ func _save() -> Error:
 	config.set_value("openai","tts_model",tts_model)
 	config.set_value("openai","stt_enabled",stt_enabled)
 	config.set_value("openai","tts_enabled",tts_enabled)
+	config.set_value("openai","usage_profile",usage_profile)
+	config.set_value("openai","reasoning_mode",reasoning_mode)
+	config.set_value("openai","image_reasoning_mode",image_reasoning_mode)
 	config.set_value("usage","models",model_usage)
+	config.set_value("usage_v2","rows",usage_tracker.rows)
 	return config.save(SETTINGS_PATH)

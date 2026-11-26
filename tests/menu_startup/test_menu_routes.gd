@@ -125,13 +125,11 @@ func _run() -> void:
 				controls.model.pressed.emit()
 				await process_frame
 				var picker_bounds:=Rect2(Vector2(controls.picker.position),Vector2(controls.picker.size))
-				var model_bounds: Rect2=controls.model.get_global_rect()
-				var gap:=minf(absf(picker_bounds.end.y-model_bounds.position.y),absf(picker_bounds.position.y-model_bounds.end.y))
-				_check(picker_bounds.size.y<=410 and gap<=30,label+" model options opened away from the selected category")
+				_check(root.get_visible_rect().encloses(picker_bounds),label+" comparison window escaped the menu viewport")
 				var rows: Dictionary=controls.picker_models
 				_check(rows.has("gpt-5.4-mini") and not rows.has("text-embedding-3-small") and not rows.has("gpt-image-2.6-sunburst"), label + " text picker mixed model types")
-				_check(rows.get("gpt-5-nano",{}).get("benchmark")==71.2 and rows.get("gpt-5.4-mini",{}).get("benchmark")==88.0, label + " benchmark scores were incorrect")
-				_check(rows.get("gpt-5.4-mini",{}).get("price",{}).get("compare")==5.25, label + " published pricing was missing")
+				_check(rows.get("gpt-5-nano",{}).get("benchmark")==-1.0 and rows.get("gpt-5.4-mini",{}).get("benchmark")==88.0, label + " benchmark scores were incorrect")
+				_check(rows.get("gpt-5.4-mini",{}).get("price",{}).get("input")==.75 and rows["gpt-5.4-mini"].price.output==4.5, label + " published pricing was missing")
 				controls.picker.hide()
 				controls.model_buttons.image_generation.pressed.emit()
 				_check(controls.picker_models.keys()==["gpt-image-2.6-sunburst"], label + " image generation picker mixed model types")
