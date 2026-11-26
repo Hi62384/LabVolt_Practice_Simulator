@@ -1,4 +1,4 @@
-param([string]$FixtureRoot, [switch]$VerifyGpuAndInput)
+param([string]$FixtureRoot, [switch]$VerifyGpuAndInput, [switch]$LessPrivileged, [switch]$DesktopIsolation)
 
 $ErrorActionPreference = 'Stop'
 $project = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
@@ -6,7 +6,7 @@ $broker = Join-Path $project 'scripts/firmware_toolchain/windows_sandbox.cs'
 
 if ($FixtureRoot) {
     Add-Type -Path $broker
-    $sandbox = New-Object LabVolt.Toolchain.WindowsSandbox
+    $sandbox = New-Object LabVolt.Toolchain.WindowsSandbox -ArgumentList ([bool]($LessPrivileged -or $DesktopIsolation)),([bool]$LessPrivileged)
     try {
         $payload = Join-Path $FixtureRoot 'payload'
         $sandbox.GrantDirectory($payload, $true)
@@ -56,6 +56,8 @@ public static class CampusFixtureCapture {
 
 $arguments = @('-NoProfile', '-File', ('"{0}"' -f $PSCommandPath), '-FixtureRoot', ('"{0}"' -f $root))
 if ($VerifyGpuAndInput) { $arguments += '-VerifyGpuAndInput' }
+if ($LessPrivileged) { $arguments += '-LessPrivileged' }
+if ($DesktopIsolation) { $arguments += '-DesktopIsolation' }
 $fixtureLog = Join-Path $root 'fixture.log'
 $brokerErrors = Join-Path $root 'broker-errors.log'
 $process = Start-Process -FilePath powershell.exe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardError $brokerErrors

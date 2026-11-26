@@ -36,7 +36,7 @@ static func app_for(path: String) -> String:
 	if extension in Types.AUDIO_EXTENSIONS:return "Audio Player"
 	if extension=="pdf":return "PDF Reader"
 	if extension=="campusapp":return "Application Package"
-	if extension in ["exe","msi"]:return "Windows Application"
+	if extension in ["exe","msi","msix","msixbundle"]:return "Windows Application"
 	if extension in ["zip","7z","rar","tar","gz","tgz","bz2","xz"]:return "Archive Manager"
 	return "File Viewer"
 
@@ -88,7 +88,10 @@ func show_file(path: String, bytes: PackedByteArray) -> void:
 		"zip":_archive(path,bytes)
 		"campusapp":_application_package(Packages.inspect(bytes))
 		"exe": _windows_executable(bytes)
-		"msi": _note("Windows Installer packages are currently available for storage and transfer.")
+		"msi","msix","msixbundle":
+			if Types.valid(bytes,extension):
+				_note("Windows packages can be stored and transferred. Installing Windows apps is unavailable in this build.")
+			else:_note("The package header is damaged or incomplete.")
 		_:
 			if MediaMime.has(extension):_browser_preview(extension,bytes)
 			elif Types.is_text(extension) and Types.valid(bytes,extension):_text(bytes.get_string_from_utf8(),"UTF-8 preview")
@@ -121,7 +124,7 @@ func _windows_executable(bytes: PackedByteArray) -> void:
 		var value:=Label.new()
 		value.text=row[1]
 		fields.add_child(value)
-	_note("This build supports inspection and storage of Windows executables. The in-game launcher is still in development.")
+	_note("Campus OS can inspect and store this file. Running Windows apps is unavailable in this build.")
 
 func _text(value: String, heading: String) -> void:
 	_note(heading)

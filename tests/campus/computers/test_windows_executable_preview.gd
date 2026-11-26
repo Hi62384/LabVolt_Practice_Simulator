@@ -2,6 +2,7 @@ extends SceneTree
 
 const Viewer = preload("res://scripts/campus/computers/file_viewer.gd")
 const Inspector = preload("res://scripts/campus/computers/WindowsExecutableInspector.cs")
+const Downloads = preload("res://scripts/campus/computers/browser_download.gd")
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -29,6 +30,10 @@ func run() -> void:
 	var labels:=viewer.body.find_children("*","Label",true,false)
 	assert(labels.any(func(label):return label.text=="x64"))
 	assert(labels.any(func(label):return label.text=="Native entry point"))
+	for extension in ["msix","msixbundle"]:
+		assert(Downloads.extension_for("setup."+extension,"application/octet-stream")==extension)
+		assert(Viewer.app_for("setup."+extension)=="Windows Application")
+		assert(not Downloads.valid(fake,extension))
 	viewer.free()
 	print("WINDOWS_EXECUTABLE_PREVIEW PASS")
 	quit()

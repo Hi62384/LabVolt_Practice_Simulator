@@ -6,12 +6,19 @@
 
 static BOOL render_color_on_gpu(COLORREF *color)
 {
+    HMODULE d3d = LoadLibraryExW(L"d3d11.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!d3d) return FALSE;
+    PFN_D3D11_CREATE_DEVICE create_device = (PFN_D3D11_CREATE_DEVICE)(void *)GetProcAddress(d3d, "D3D11CreateDevice");
+    if (!create_device) {
+        FreeLibrary(d3d);
+        return FALSE;
+    }
     ID3D11Device *device = NULL;
     ID3D11DeviceContext *context = NULL;
     ID3D11Texture2D *target = NULL;
     ID3D11Texture2D *readback = NULL;
     ID3D11RenderTargetView *view = NULL;
-    HRESULT result = D3D11CreateDevice(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0,
+    HRESULT result = create_device(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0,
         NULL, 0, D3D11_SDK_VERSION, &device, NULL, &context);
     if (FAILED(result)) goto done;
     D3D11_TEXTURE2D_DESC desc = {0};
@@ -44,6 +51,7 @@ done:
     if (target) ID3D11Texture2D_Release(target);
     if (context) ID3D11DeviceContext_Release(context);
     if (device) ID3D11Device_Release(device);
+    FreeLibrary(d3d);
     if (FAILED(result)) printf("Direct3D hardware render failed: 0x%08lx\n", (unsigned long)result);
     return SUCCEEDED(result);
 }

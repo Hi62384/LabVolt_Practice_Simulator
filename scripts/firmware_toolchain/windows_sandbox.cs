@@ -22,11 +22,16 @@ public sealed class WindowsSandbox : IDisposable {
     [StructLayout(LayoutKind.Sequential)] struct IO_COUNTERS { public ulong a,b,c,d,e,f; }
     [StructLayout(LayoutKind.Sequential)] struct EXTENDED_LIMIT { public BASIC_LIMIT basic; public IO_COUNTERS io; public UIntPtr processMemory,jobMemory,peakProcess,peakJob; }
     [StructLayout(LayoutKind.Sequential)] struct CPU_RATE { public uint flags,rate; }
+    [StructLayout(LayoutKind.Sequential)] struct GENERIC_MAPPING { public uint read,write,execute,all; }
     [StructLayout(LayoutKind.Sequential)] struct FILE_TIME { public uint low,high; }
     [StructLayout(LayoutKind.Sequential)] struct FILE_INFO { public uint attributes; public FILE_TIME created,accessed,written; public uint volume,sizeHigh,sizeLow,links,indexHigh,indexLow; }
     [DllImport("userenv.dll",CharSet=CharSet.Unicode)] static extern int CreateAppContainerProfile(string name,string display,string description,IntPtr capabilities,uint count,out IntPtr sid);
     [DllImport("userenv.dll",CharSet=CharSet.Unicode)] static extern int DeleteAppContainerProfile(string name);
     [DllImport("advapi32.dll")] static extern IntPtr FreeSid(IntPtr sid);
+    [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
+    [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetTokenInformation(IntPtr token,int informationClass,out uint value,uint bytes,out uint written);
+    [DllImport("advapi32.dll",SetLastError=true)] static extern bool DuplicateToken(IntPtr token,int level,out IntPtr duplicate);
+    [DllImport("advapi32.dll",SetLastError=true)] static extern bool AccessCheck(byte[] descriptor,IntPtr token,uint desired,ref GENERIC_MAPPING mapping,IntPtr privileges,ref uint length,out uint granted,[MarshalAs(UnmanagedType.Bool)] out bool allowed);
     [DllImport("userenv.dll",CharSet=CharSet.Unicode)] static extern int GetAppContainerFolderPath(string sid,out IntPtr path);
     [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr CreateJobObject(IntPtr attributes,string name);
     [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetInformationJobObject(IntPtr job,int info,IntPtr data,uint length);
@@ -48,18 +53,28 @@ public sealed class WindowsSandbox : IDisposable {
     IntPtr sid=IntPtr.Zero,job=IntPtr.Zero;
     readonly List<KeyValuePair<string,byte[]>> aclBackups=new List<KeyValuePair<string,byte[]>>();
     readonly Stopwatch lifetime=Stopwatch.StartNew();
+    readonly bool desktopApplication;
+    readonly bool lessPrivileged;
     public bool IsolationExercised { get; private set; }
-    public string Isolation { get { return "Windows AppContainer, no capabilities, job-limited"; } }
-    public WindowsSandbox() {
+    public string Isolation { get { return lessPrivileged ? "Windows LPAC, no capabilities, one process" : "Windows AppContainer, no capabilities, job-limited"; } }
+    public WindowsSandbox() : this(false) {}
+    public WindowsSandbox(bool desktopApplication) : this(desktopApplication,desktopApplication) {}
+    public WindowsSandbox(bool desktopApplication,bool lessPrivileged) {
+        this.desktopApplication=desktopApplication;
+        this.lessPrivileged=lessPrivileged;
+        if(lessPrivileged&&!desktopApplication)throw new ArgumentException("This mode requires desktop process restrictions.");
         int hr=CreateAppContainerProfile(profile,"LabVolt isolated compiler","Temporary offline firmware compiler",IntPtr.Zero,0,out sid);
         if(hr!=0) throw new InvalidOperationException("CreateAppContainerProfile failed: 0x"+hr.ToString("X8")+". No compiler executed; no reduced-isolation fallback.");
         try {
             job=CreateJobObject(IntPtr.Zero,null); Ensure(job!=IntPtr.Zero,"CreateJobObject");
             EXTENDED_LIMIT limits=new EXTENDED_LIMIT();
             // KILL_ON_JOB_CLOSE, PROCESS_MEMORY, JOB_MEMORY, ACTIVE_PROCESS, JOB_TIME.
-            limits.basic.flags=0x2000|0x100|0x200|0x8|0x4; limits.basic.active=8;
-            limits.basic.jobTime=60L*10000000L; limits.processMemory=(UIntPtr)(512UL*1024*1024); limits.jobMemory=(UIntPtr)(768UL*1024*1024);
+            limits.basic.flags=0x2000|0x100|0x200|0x8|0x4; limits.basic.active=desktopApplication?1U:8U;
+            limits.basic.jobTime=(desktopApplication?300L:60L)*10000000L;
+            limits.processMemory=(UIntPtr)((desktopApplication?1024UL:512UL)*1024*1024);
+            limits.jobMemory=(UIntPtr)((desktopApplication?1024UL:768UL)*1024*1024);
             SetJob(9,limits);
+            if(desktopApplication)SetJob(4,0x6U); // Block reads and writes to the host clipboard.
             CPU_RATE cpu=new CPU_RATE();cpu.flags=0x1|0x4;cpu.rate=5000;SetJob(15,cpu);
             // The implicit per-profile storage must not become an unmonitored
             // second writable filesystem. All compiler temp files use the job.
@@ -67,9 +82,9 @@ public sealed class WindowsSandbox : IDisposable {
             if(folderResult!=0)throw new InvalidOperationException("Cannot locate isolated profile storage: 0x"+folderResult.ToString("X8"));
             try {
                 string profilePath=Marshal.PtrToStringUni(folder);
-                DirectorySecurity profileAcl=Directory.GetAccessControl(profilePath);
+                DirectorySecurity profileAcl=new DirectoryInfo(profilePath).GetAccessControl();
                 profileAcl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid),FileSystemRights.Write|FileSystemRights.Delete|FileSystemRights.DeleteSubdirectoriesAndFiles,InheritanceFlags.ContainerInherit|InheritanceFlags.ObjectInherit,PropagationFlags.None,AccessControlType.Deny));
-                Directory.SetAccessControl(profilePath,profileAcl);
+                new DirectoryInfo(profilePath).SetAccessControl(profileAcl);
             } finally {Marshal.FreeCoTaskMem(folder);}
         } catch { Dispose();throw; }
     }
@@ -82,12 +97,12 @@ public sealed class WindowsSandbox : IDisposable {
         if(write)Directory.CreateDirectory(Path.Combine(path,"Packages",profile.ToLowerInvariant(),"AC","Temp"));
         foreach(string item in Directory.EnumerateFileSystemEntries(path,"*",SearchOption.AllDirectories))
             if((File.GetAttributes(item)&FileAttributes.ReparsePoint)!=0)throw new InvalidOperationException("Reparse points are forbidden in compiler roots");
-        DirectorySecurity acl=Directory.GetAccessControl(path);
+        DirectorySecurity acl=new DirectoryInfo(path).GetAccessControl();
         aclBackups.Add(new KeyValuePair<string,byte[]>(path,acl.GetSecurityDescriptorBinaryForm()));
         SecurityIdentifier identity=new SecurityIdentifier(sid);
         FileSystemRights rights=write?FileSystemRights.Modify:FileSystemRights.ReadAndExecute;
         acl.AddAccessRule(new FileSystemAccessRule(identity,rights,InheritanceFlags.ContainerInherit|InheritanceFlags.ObjectInherit,PropagationFlags.None,AccessControlType.Allow));
-        Directory.SetAccessControl(path,acl);
+        new DirectoryInfo(path).SetAccessControl(acl);
         if(write) {
             // Mandatory integrity is separate from the AppContainer's DACL access.
             ProcessStartInfo start=new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","icacls.exe"));
@@ -119,22 +134,29 @@ public sealed class WindowsSandbox : IDisposable {
         return block.Append('\0').ToString();
     }
     public int Run(string executable,string[] args,string directory,string log,string cancel,int timeoutMs) {
-        if(lifetime.ElapsedMilliseconds>90000)throw new TimeoutException("Aggregate compiler wall limit reached");
+        int wallLimit=desktopApplication?10*60*1000:90000;
+        if(lifetime.ElapsedMilliseconds>wallLimit)throw new TimeoutException("Aggregate process wall limit reached");
         IntPtr list=IntPtr.Zero,size=IntPtr.Zero,caps=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
+        IntPtr policies=IntPtr.Zero;
         IntPtr stdout=IntPtr.Zero,stdin=IntPtr.Zero;PROCESS_INFORMATION process=new PROCESS_INFORMATION();bool created=false,assigned=false;
         try {
             SECURITY_ATTRIBUTES security=new SECURITY_ATTRIBUTES();security.length=Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));security.inherit=true;
             // CREATE_NEW refuses guest-precreated links instead of following them.
             stdout=CreateFile(log,0x40000000,3,ref security,1,0x80,IntPtr.Zero);Ensure(stdout!=new IntPtr(-1),"Create new output file");
             stdin=CreateFile("NUL",0x80000000,3,ref security,3,0x80,IntPtr.Zero);Ensure(stdin!=new IntPtr(-1),"Open NUL input");
-            InitializeProcThreadAttributeList(IntPtr.Zero,2,0,ref size);list=Marshal.AllocHGlobal(size);
-            Ensure(InitializeProcThreadAttributeList(list,2,0,ref size),"InitializeProcThreadAttributeList");
+            int attributes=desktopApplication?(lessPrivileged?4:3):2;
+            InitializeProcThreadAttributeList(IntPtr.Zero,attributes,0,ref size);list=Marshal.AllocHGlobal(size);
+            Ensure(InitializeProcThreadAttributeList(list,attributes,0,ref size),"InitializeProcThreadAttributeList");
             SECURITY_CAPABILITIES capabilities=new SECURITY_CAPABILITIES();capabilities.sid=sid;
             caps=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)));Marshal.StructureToPtr(capabilities,caps,false);
             Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x20009,caps,(IntPtr)Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)),IntPtr.Zero,IntPtr.Zero),"Set AppContainer capabilities");
-            // LPAC's broad-package opt-out prevents this unpackaged GCC from
-            // launching cc1plus on Windows. Standard AppContainer still has no
-            // capabilities; the acceptance suite verifies its actual boundary.
+            if(desktopApplication) {
+                policies=Marshal.AllocHGlobal(2*sizeof(uint));
+                Marshal.WriteInt32(policies,1);
+                Marshal.WriteInt32(policies,sizeof(uint),1);
+                if(lessPrivileged)Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x2000f,policies,(IntPtr)sizeof(uint),IntPtr.Zero,IntPtr.Zero),"Opt out of All Application Packages");
+                Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x2000e,IntPtr.Add(policies,sizeof(uint)),(IntPtr)sizeof(uint),IntPtr.Zero,IntPtr.Zero),"Block subprocess creation");
+            }
             handles=Marshal.AllocHGlobal(IntPtr.Size*2);Marshal.WriteIntPtr(handles,0,stdout);Marshal.WriteIntPtr(handles,IntPtr.Size,stdin);
             Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x20002,handles,(IntPtr)(IntPtr.Size*2),IntPtr.Zero,IntPtr.Zero),"Whitelist inherited handles");
             STARTUPINFOEX startup=new STARTUPINFOEX();startup.startup.cb=Marshal.SizeOf(typeof(STARTUPINFOEX));startup.attributes=list;
@@ -152,12 +174,13 @@ public sealed class WindowsSandbox : IDisposable {
             created=true;
             Ensure(AssignProcessToJobObject(job,process.process),"Assign isolated compiler job");
             assigned=true;
+            if(desktopApplication)VerifyDesktopToken(process.process);
             Ensure(ResumeThread(process.thread)!=0xffffffff,"Resume isolated compiler");
             IsolationExercised=true;
             Stopwatch elapsed=Stopwatch.StartNew();
             while(WaitForSingleObject(process.process,50)==0x102) {
                 if(File.Exists(cancel))throw new OperationCanceledException("Compilation cancelled");
-                if(elapsed.ElapsedMilliseconds>timeoutMs||lifetime.ElapsedMilliseconds>90000)throw new TimeoutException("Compiler wall time exceeded");
+                if(elapsed.ElapsedMilliseconds>timeoutMs||lifetime.ElapsedMilliseconds>wallLimit)throw new TimeoutException("Process wall time exceeded");
                 if(File.Exists(log)&&new FileInfo(log).Length>262144)throw new InvalidOperationException("Compiler diagnostic output limit exceeded");
                 CheckTree(directory);
             }
@@ -176,7 +199,39 @@ public sealed class WindowsSandbox : IDisposable {
             if(process.thread!=IntPtr.Zero)CloseHandle(process.thread);if(process.process!=IntPtr.Zero)CloseHandle(process.process);
             if(stdout!=IntPtr.Zero&&stdout!=new IntPtr(-1))CloseHandle(stdout);if(stdin!=IntPtr.Zero&&stdin!=new IntPtr(-1))CloseHandle(stdin);
             if(list!=IntPtr.Zero){DeleteProcThreadAttributeList(list);Marshal.FreeHGlobal(list);}if(caps!=IntPtr.Zero)Marshal.FreeHGlobal(caps);if(handles!=IntPtr.Zero)Marshal.FreeHGlobal(handles);if(environment!=IntPtr.Zero)Marshal.FreeHGlobal(environment);
+            if(policies!=IntPtr.Zero)Marshal.FreeHGlobal(policies);
         }
+    }
+    void VerifyDesktopToken(IntPtr process) {
+        IntPtr token;
+        Ensure(OpenProcessToken(process,0x000a,out token),"Open isolated process token");
+        try {
+            uint value,written;
+            Ensure(GetTokenInformation(token,29,out value,sizeof(uint),out written)&&value==1,"Verify AppContainer token");
+            IntPtr impersonation;
+            Ensure(DuplicateToken(token,2,out impersonation),"Inspect isolated token access");
+            try {
+                string user=WindowsIdentity.GetCurrent().User.Value;
+                string scope=new SecurityIdentifier(sid).Value;
+                if(!CanRead(impersonation,user,scope)||CanRead(impersonation,user,user)||(lessPrivileged&&CanRead(impersonation,user,"S-1-15-2-1")))
+                    throw new InvalidOperationException("The launch token did not enforce private AppContainer access.");
+            } finally {CloseHandle(impersonation);}
+        } finally {CloseHandle(token);}
+    }
+    static bool CanRead(IntPtr token,string user,string group) {
+        // Check the effective DACL decision before any application code runs.
+        // An ordinary AppContainer would also pass the All Application Packages check.
+        var acl=new RawSecurityDescriptor("O:"+user+"G:"+user+"D:(A;;0x80;;;"+user+")(A;;0x80;;;"+group+")");
+        byte[] descriptor=new byte[acl.BinaryLength];
+        acl.GetBinaryForm(descriptor,0);
+        GENERIC_MAPPING mapping=new GENERIC_MAPPING();
+        uint length=1024,granted;
+        bool allowed;
+        IntPtr privileges=Marshal.AllocHGlobal((int)length);
+        try {
+            Ensure(AccessCheck(descriptor,token,0x80,ref mapping,privileges,ref length,out granted,out allowed),"Verify isolated token access");
+            return allowed&&(granted&0x80)!=0;
+        } finally {Marshal.FreeHGlobal(privileges);}
     }
     public void Stop() { if(job!=IntPtr.Zero)TerminateJobObject(job,125); }
     public static byte[] ReadBytes(string path,int maximum) {
@@ -259,7 +314,7 @@ public sealed class WindowsSandbox : IDisposable {
     }
     public void Dispose() {
         if(job!=IntPtr.Zero){TerminateJobObject(job,125);CloseHandle(job);job=IntPtr.Zero;}
-        for(int i=aclBackups.Count-1;i>=0;i--) { try {DirectorySecurity acl=new DirectorySecurity();acl.SetSecurityDescriptorBinaryForm(aclBackups[i].Value);Directory.SetAccessControl(aclBackups[i].Key,acl);} catch {} }
+        for(int i=aclBackups.Count-1;i>=0;i--) { try {DirectorySecurity acl=new DirectorySecurity();acl.SetSecurityDescriptorBinaryForm(aclBackups[i].Value);new DirectoryInfo(aclBackups[i].Key).SetAccessControl(acl);} catch {} }
         aclBackups.Clear();if(sid!=IntPtr.Zero){FreeSid(sid);sid=IntPtr.Zero;DeleteAppContainerProfile(profile);}
     }
 }
