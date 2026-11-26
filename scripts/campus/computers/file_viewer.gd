@@ -7,6 +7,7 @@ const Browser = preload("res://scripts/campus/computers/browser_surface_native.g
 const Types = preload("res://scripts/campus/computers/browser_download.gd")
 const Zip = preload("res://scripts/campus/computers/VirtualZip.cs")
 const MeshImporter = preload("res://scripts/campus/computers/WorkspaceMesh.cs")
+const ExeInspector = preload("res://scripts/campus/computers/WindowsExecutableInspector.cs")
 const Packages = preload("res://scripts/campus/computers/application_package.gd")
 const MediaMime := {
 	"mp4":"video/mp4","m4v":"video/mp4","webm":"video/webm","mov":"video/quicktime",
@@ -86,8 +87,8 @@ func show_file(path: String, bytes: PackedByteArray) -> void:
 				_model_scene(root)
 		"zip":_archive(path,bytes)
 		"campusapp":_application_package(Packages.inspect(bytes))
-		"exe","msi":
-			_note("Windows application execution is unavailable in this build. The file can be stored or transferred through the virtual drive.")
+		"exe": _windows_executable(bytes)
+		"msi": _note("Windows Installer packages are currently available for storage and transfer.")
 		_:
 			if MediaMime.has(extension):_browser_preview(extension,bytes)
 			elif Types.is_text(extension) and Types.valid(bytes,extension):_text(bytes.get_string_from_utf8(),"UTF-8 preview")
@@ -100,6 +101,27 @@ func _note(message: String) -> void:
 	label.text=message
 	label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(label)
+
+func _windows_executable(bytes: PackedByteArray) -> void:
+	var executable:=ExeInspector.new()
+	var details: Dictionary=executable.Inspect(bytes)
+	if details.has("error"):
+		_note(details.error)
+		return
+	var fields:=GridContainer.new()
+	fields.columns=2
+	fields.add_theme_constant_override("h_separation",24)
+	fields.add_theme_constant_override("v_separation",8)
+	body.add_child(fields)
+	for row in [["Application type",details.kind],["Architecture",details.architecture],["Runtime",details.runtime]]:
+		var caption:=Label.new()
+		caption.text=row[0]
+		caption.modulate=Color("abd0dc")
+		fields.add_child(caption)
+		var value:=Label.new()
+		value.text=row[1]
+		fields.add_child(value)
+	_note("This build supports inspection and storage of Windows executables. The in-game launcher is still in development.")
 
 func _text(value: String, heading: String) -> void:
 	_note(heading)
