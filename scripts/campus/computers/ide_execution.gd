@@ -2,6 +2,9 @@ extends Node
 
 const SOURCE_LIMIT := 32 * 1024
 const OUTPUT_LIMIT := 16 * 1024
+const SETTINGS_PATH := "user://compiler_settings.cfg"
+const PUBLIC_ENDPOINT := "https://ce.judge0.com"
+static var session_credential := ""
 const EXTENSIONS := {
 	"py":"Python","pyw":"Python","c":"C","cc":"C++","cpp":"C++","cxx":"C++","cs":"C#",
 	"java":"Java","rs":"Rust","go":"Go","rb":"Ruby","lua":"Lua","php":"PHP","kt":"Kotlin","swift":"Swift",
@@ -19,13 +22,33 @@ var in_flight: HTTPRequest
 var running := false
 
 func configure_from_host() -> void:
-	endpoint=OS.get_environment("LABVOLT_JUDGE0_URL").strip_edges().trim_suffix("/")
-	credential=OS.get_environment("LABVOLT_JUDGE0_TOKEN").strip_edges()
-	if not endpoint.begins_with("https://") and not (credential.is_empty() and endpoint.begins_with("http://127.0.0.1:")):
-		endpoint=""
-	var authority:=endpoint.get_slice("/",2)
-	if authority.is_empty() or authority.contains("@") or endpoint.contains("#") or endpoint.contains("?") or endpoint.contains("\\") or credential.contains("\n") or credential.contains("\r"):
-		endpoint=""
+	if running or is_instance_valid(in_flight):return
+	var config:=ConfigFile.new()
+	var saved:=config.load(SETTINGS_PATH)==OK
+	var url:=str(config.get_value("compiler","endpoint","")) if saved else OS.get_environment("LABVOLT_JUDGE0_URL")
+	var token:=session_credential if saved else OS.get_environment("LABVOLT_JUDGE0_TOKEN")
+	set_provider(url,token)
+
+func set_provider(url: String, token: String) -> bool:
+	url=url.strip_edges().trim_suffix("/")
+	token=token.strip_edges()
+	var pattern:=RegEx.create_from_string("^https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._/-]*)?$")
+	var loopback:=RegEx.create_from_string("^http://127\\.0\\.0\\.1:[0-9]{1,5}(?:/[A-Za-z0-9._/-]*)?$")
+	var valid:=url.is_empty() or ((pattern.search(url)!=null or (token.is_empty() and loopback.search(url)!=null)) and token.length()<=512 and not token.contains("\n") and not token.contains("\r"))
+	if not valid:return false
+	if endpoint!=url or credential!=token:
+		endpoint=url
+		credential=token
+		runtimes.clear()
+		cached_until=0
+	return true
+
+func save_provider() -> Error:
+	var config:=ConfigFile.new()
+	config.set_value("compiler","endpoint",endpoint)
+	var result:=config.save(SETTINGS_PATH)
+	if result==OK:session_credential=credential
+	return result
 
 static func validate_json(source: String) -> String:
 	var parser:=JSON.new()

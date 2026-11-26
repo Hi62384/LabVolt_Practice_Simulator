@@ -1,6 +1,7 @@
 extends SceneTree
 const Archive=preload("res://scripts/campus/computers/usb_archive.gd")
 const Drive=preload("res://scripts/campus/computers/device_filesystem.gd")
+const Preferences=preload("res://scripts/campus/computers/desktop_preferences.gd")
 var game: Node
 var deadline: int
 func _initialize() -> void:call_deferred("run")
@@ -21,6 +22,7 @@ func run() -> void:
 	var handoff_case: bool=args.size()==3 and args[2] in ["handoff","handoff_source_abort"]
 	var purchase_case: bool=args.size()==3 and args[2]=="purchase"
 	var download_case: bool=args.size()==3 and args[2]=="download"
+	var wallpaper_case: bool=args.size()==3 and args[2]=="wallpaper"
 	game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
 	for i in 4:await process_frame
 	var profile=game.electronics.profile
@@ -33,6 +35,11 @@ func run() -> void:
 			profile.buy_usb(8)
 			drive_id=str(profile.data.dorm.usb_drives.keys()[0])
 			var drive=Drive.new(8*1024*1024);drive.write_file("network.txt","owner data".to_utf8_buffer())
+			if wallpaper_case:
+				var image:=Image.create_empty(320,180,false,Image.FORMAT_RGB8)
+				image.fill(Color.CORNFLOWER_BLUE)
+				var settings:={"wallpaper":Preferences.CUSTOM_WALLPAPER,"image":Marshalls.raw_to_base64(image.save_jpg_to_buffer(.9))}
+				assert(drive.write_file(Preferences.PATH,JSON.stringify(settings).to_utf8_buffer()))
 			if handoff_abort:
 				var payload:=PackedByteArray();payload.resize(4*1024*1024)
 				drive.write_file("large.bin",payload)
@@ -72,6 +79,9 @@ func run() -> void:
 			game.session.leave();game.queue_free();await process_frame;quit();return
 		if not await until(func():return not service.stations[station].power.usb.is_empty(),"USB mounted"):return
 		var usb: Dictionary=service.stations[station].power.usb
+		if wallpaper_case:
+			if not await until(func():return service.stations[station].power.powered,"client powered workstation"):return
+			assert(not game.computer_room_adapter.usb_previews.has(station),"Host saw another player's private wallpaper")
 		if usb.drive.entries.get("network.txt",{}).get("data",PackedByteArray()).get_string_from_utf8()!="owner data":push_error("Uploaded USB data differs");quit(1);return
 		if interrupted_case:
 			var owner_peer:=0
@@ -172,8 +182,17 @@ func run() -> void:
 			game.session.leave();game.queue_free();await process_frame;quit();return
 		service.request({"op":"power","station":station})
 		await create_timer(1.8).timeout
+		if wallpaper_case:
+			if not await until(func():return game.computer_room_adapter.usb_previews.has(station),"wallpaper before desktop opens"):return
+			var preview: Control=game.computer_room_adapter.usb_previews[station].viewport.get_child(0)
+			assert(service.local_snapshot.is_empty() and preview.wallpaper_choice==Preferences.CUSTOM_WALLPAPER)
+			assert(preview.wallpaper_panel.texture.get_size()==Vector2(320,180),"Preview did not load custom image")
 		service.request({"op":"enter","station":station})
 		if not await until(func():return service.local_snapshot.get("files",{}).has("network.txt"),"USB desktop opened"):return
+		if wallpaper_case:
+			service.request({"op":"save_preferences","lease":service.local_snapshot.lease,"revision":service.local_snapshot.revision,"settings":{"wallpaper":6}})
+			if not await until(func():return service.local_snapshot.get("usb_preferences",{}).get("wallpaper",0)==6,"wallpaper committed"):return
+			if not await until(func():return game.computer_room_adapter.usb_previews[station].viewport.get_child(0).wallpaper_choice==6,"wallpaper preview refresh"):return
 		if save_error_case:
 			var archive_path: String=Archive.path(game.school.local_identity,drive_id)
 			if DirAccess.rename_absolute(archive_path,archive_path+".fixture")!=OK:push_error("Could not stage save failure");quit(1);return

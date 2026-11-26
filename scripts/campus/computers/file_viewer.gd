@@ -313,9 +313,13 @@ func _model(extension: String, bytes: PackedByteArray) -> void:
 	if importer.append_from_buffer(bytes,"",state)!=OK:_note("The model could not be loaded.");return
 	var model:=importer.generate_scene(state)
 	if model==null:_note("This model has no scene.");return
-	_model_scene(model)
+	var has_normals := false
+	for mesh: Dictionary in descriptor.get("meshes",[]):
+		for primitive: Dictionary in mesh.get("primitives",[]):
+			has_normals = has_normals or primitive.get("attributes",{}).has("NORMAL")
+	_model_scene(model, not has_normals)
 
-func _model_scene(model: Node3D) -> void:
+func _model_scene(model: Node3D, generate_flat_normals := false) -> void:
 	var display:=SubViewportContainer.new()
 	display.stretch=true
 	display.size_flags_vertical=Control.SIZE_EXPAND_FILL
@@ -332,6 +336,8 @@ func _model_scene(model: Node3D) -> void:
 	if model is MeshInstance3D:meshes.push_front(model)
 	for node in meshes:
 		if node.mesh==null:continue
+		if generate_flat_normals and node.mesh is ArrayMesh and node.mesh.get_blend_shape_count()==0:
+			node.mesh=_flat_preview_mesh(node.mesh)
 		var world_bounds: AABB=node.global_transform*node.get_aabb()
 		bounds=bounds.merge(world_bounds) if found else world_bounds
 		found=true
@@ -350,9 +356,9 @@ func _model_scene(model: Node3D) -> void:
 	world.environment.background_color=Color("142c3c")
 	world.environment.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR
 	world.environment.ambient_light_color=Color("cfdeff")
-	world.environment.ambient_light_energy=.38
+	world.environment.ambient_light_energy=.24
 	viewport.add_child(world)
-	for light in [[Vector3(-48,-38,0),Color("fff2e5"),1.45],[Vector3(-12,142,0),Color("9ad9ff"),.8]]:
+	for light in [[Vector3(-41,-37,0),Color("fff2e5"),1.45],[Vector3(-16,52,0),Color("b9d9ff"),.30],[Vector3(-30,143,0),Color("90bcff"),.68]]:
 		var lamp:=DirectionalLight3D.new()
 		lamp.rotation_degrees=light[0]
 		lamp.light_color=light[1]
@@ -377,6 +383,34 @@ func _model_scene(model: Node3D) -> void:
 			display.accept_event())
 	details.text="%d meshes   ·   Drag to orbit   ·   Scroll to zoom"%meshes.size()
 	details.show()
+
+func _flat_preview_mesh(mesh: ArrayMesh) -> ArrayMesh:
+	# For small models without authored normals, shade each face independently.
+	var corner_count := 0
+	for index in mesh.get_surface_count():
+		if mesh.surface_get_primitive_type(index)!=Mesh.PRIMITIVE_TRIANGLES:return mesh
+		var corners := maxi(mesh.surface_get_array_len(index),mesh.surface_get_array_index_len(index))
+		if corners%3!=0:return mesh
+		corner_count+=corners
+		if corner_count>6000:return mesh
+	var preview := ArrayMesh.new()
+	for index in mesh.get_surface_count():
+		var surface := SurfaceTool.new()
+		surface.create_from(mesh,index)
+		surface.deindex()
+		var arrays := surface.commit_to_arrays()
+		var vertices: PackedVector3Array=arrays[Mesh.ARRAY_VERTEX]
+		var normals := PackedVector3Array()
+		normals.resize(vertices.size())
+		for i in range(0,vertices.size(),3):
+			var normal := (vertices[i+2]-vertices[i]).cross(vertices[i+1]-vertices[i]).normalized()
+			normals[i]=normal
+			normals[i+1]=normal
+			normals[i+2]=normal
+		arrays[Mesh.ARRAY_NORMAL]=normals
+		preview.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+		preview.surface_set_material(index,mesh.surface_get_material(index))
+	return preview
 
 func _zoom_model(scale: float) -> void:
 	model_distance=clampf(model_distance*scale,model_fit_distance*.15,model_fit_distance*10.0)

@@ -1,6 +1,7 @@
 extends Node
 ## Composition layer: static room anchors + existing chair authority + one local UI.
 const Desktop = preload("res://scripts/campus/computers/course_desktop.gd")
+const Preferences = preload("res://scripts/campus/computers/desktop_preferences.gd")
 const Board = preload("res://scripts/campus/academics/teaching_board.gd")
 var game: Node
 var room: Node3D
@@ -11,6 +12,7 @@ var indicators := {}
 var desktop_overlay: SubViewportContainer
 var desktop_render: SubViewport
 var idle_render: SubViewport
+var usb_previews := {}
 var boot_render: SubViewport
 var boot_cover: ColorRect
 var boot_spinner: Label
@@ -71,6 +73,7 @@ func build(owner_game: Node, mounted_room: Node3D) -> bool:
 	game.computers.desktop_changed.connect(_desktop_changed)
 	game.computers.power_changed.connect(_power)
 	game.computers.connected_usb_changed.connect(_update_usb_visuals)
+	game.computers.owned_usb_preferences_changed.connect(_update_indicators)
 	held_usb=_build_usb_visual(game.camera,Vector3(.28,-.21,-.48))
 	held_usb.rotation=Vector3(-.10,.37,-.38)
 	held_usb.scale=Vector3.ONE*1.35
@@ -250,6 +253,7 @@ func mount_portable_display(id: String, model: Node3D) -> void:
 		indicators.erase(id)
 		station_frames.erase(id)
 		remote_frames.erase(id)
+		_clear_usb_preview(id)
 		if live_preview_station==id:live_preview_station=""
 	,CONNECT_ONE_SHOT)
 	_update_indicators()
@@ -313,25 +317,58 @@ func _desktop_changed(snapshot: Dictionary) -> void:
 		if is_instance_valid(game.front.campus_hud):game.front.campus_hud.hide()
 		game.release_mouse()
 func _build_idle_display() -> void:
-	idle_render=SubViewport.new()
-	idle_render.size=Vector2i(384,216)
-	idle_render.disable_3d=true
-	idle_render.gui_disable_input=true
-	idle_render.size_2d_override=Vector2i(960,540)
-	idle_render.size_2d_override_stretch=true
-	idle_render.render_target_update_mode=SubViewport.UPDATE_ONCE
-	add_child(idle_render)
+	idle_render=_new_monitor_preview()
+	idle_clock=idle_render.get_child(0).clock_label
+
+func _new_monitor_preview() -> SubViewport:
+	var viewport := SubViewport.new()
+	viewport.size=Vector2i(384,216)
+	viewport.disable_3d=true
+	viewport.gui_disable_input=true
+	viewport.size_2d_override=Vector2i(960,540)
+	viewport.size_2d_override_stretch=true
+	add_child(viewport)
 	var preview: Control=Desktop.new()
-	idle_render.add_child(preview)
+	viewport.add_child(preview)
 	preview.set_process_input(false)
 	preview.build_monitor_preview()
-	idle_clock=preview.clock_label
+	viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
+	return viewport
+
+func _clear_usb_preview(id: String) -> void:
+	var viewport: SubViewport=usb_previews.get(id,{}).get("viewport")
+	if is_instance_valid(viewport):viewport.queue_free()
+	usb_previews.erase(id)
+
+func _usb_monitor_texture(id: String, bytes: PackedByteArray) -> Texture2D:
+	if bytes.is_empty():
+		_clear_usb_preview(id)
+		return null
+	var cached: Dictionary=usb_previews.get(id,{})
+	if cached.get("bytes")!=bytes:
+		var settings := Preferences.decode(bytes)
+		var viewport: SubViewport=cached.get("viewport")
+		if not settings.is_empty():
+			if viewport==null:viewport=_new_monitor_preview()
+			viewport.get_child(0).apply_monitor_preferences(settings)
+			viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
+		elif viewport!=null:
+			viewport.queue_free()
+			viewport=null
+		cached={"bytes":bytes,"viewport":viewport}
+		usb_previews[id]=cached
+	return cached.viewport.get_texture() if cached.viewport!=null else null
 
 func _update_idle_clock() -> void:
 	var time := Time.get_time_string_from_system().left(5)
 	if idle_clock.text==time:return
 	idle_clock.text=time
 	idle_render.render_target_update_mode=SubViewport.UPDATE_ONCE
+	for cached in usb_previews.values():
+		var viewport: SubViewport=cached.viewport
+		if viewport==null:continue
+		viewport.get_child(0).clock_label.text=time
+		viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func _build_boot_display() -> void:
 	boot_render=SubViewport.new()
@@ -527,19 +564,27 @@ func _power(power: Dictionary) -> void:
 
 func _update_indicators() -> void:
 	if not is_instance_valid(idle_render):return
-	var ambient: Texture2D=idle_render.get_texture()
 	var private_screen: Texture2D=desktop_render.get_texture()
 	for id in indicators:
 		var powered := bool(power_states.get(id,false))
+		var preference_bytes := PackedByteArray()
 		if multiplayer.is_server():
 			var device: Variant=game.computers.stations.get(id,{}).get("power")
 			powered=is_instance_valid(device) and device.powered
+			if powered and device.usb.get("owner","")==game.school.local_identity:
+				preference_bytes=device.usb.drive.entries.get(Preferences.PATH,{}).get("data",PackedByteArray())
+		elif powered:
+			preference_bytes=game.computers.owned_usb_preferences.get(id,PackedByteArray())
+		var usb_screen:=_usb_monitor_texture(id,preference_bytes)
+		var ambient: Texture2D=usb_screen if usb_screen!=null else idle_render.get_texture()
 		var use_local: bool=id==local_screen_station or (id==live_preview_station and id==desktop.parked_device and int(screen_occupants.get(id,0))==0)
 		var texture: Texture2D=private_screen if use_local else remote_frames.get(id, {}).get("texture", station_frames.get(id, ambient))
 		var power_target: Node = indicators[id].get_meta("power_target")
 		var device_name: String="laptop" if indicators[id].has_meta("portable") else "computer"
 		power_target.set_meta("label", ("Turn off " if powered else "Turn on ")+device_name)
-		if powered and boot_until.has(id):texture=boot_render.get_texture()
+		if powered and boot_until.has(id):
+			var boot_remaining := int(boot_until[id])-Time.get_ticks_msec()
+			if usb_screen==null or boot_remaining>320:texture=boot_render.get_texture()
 		indicators[id].set_display(powered,texture)
 
 func _teaching() -> void:

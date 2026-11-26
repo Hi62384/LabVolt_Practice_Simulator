@@ -282,8 +282,45 @@ func _build_play(offline: bool) -> void:
 		var caption := "Relay account · Connected" if connected else "Relay account · Not connected"
 		fields.add_child(MenuWidgets.action(caption, "settings", relay_account_page))
 	fields.add_child(MenuWidgets.action("OpenAI Settings","settings",_openai_page.bind(offline)))
+	fields.add_child(MenuWidgets.action("Programming Setup","code",_programming_page.bind(offline)))
 	var actions := _session_actions("Play", "play", _start_play.bind(offline))
 	actions.get_child(1).disabled = not offline and not relay_account.connected() and Session.relay_endpoint().is_empty()
+
+func _programming_page(offline: bool) -> void:
+	clear("programming","Programming Setup")
+	text("Judge0 runs code on a remote server. The Code Editor asks before sending a program and its input. HTML previews and JSON checks run locally.")
+	var runner:=preload("res://scripts/campus/computers/ide_execution.gd").new()
+	body.add_child(runner)
+	runner.configure_from_host()
+	var address:=LineEdit.new()
+	address.placeholder_text="HTTPS compiler address"
+	address.text=runner.endpoint
+	body.add_child(address)
+	var token:=LineEdit.new()
+	token.placeholder_text="Optional API token for this run"
+	token.secret=true
+	token.text=runner.credential
+	body.add_child(token)
+	address.text_changed.connect(func(_value: String):token.clear())
+	_host_button("Use public Judge0",body,func():address.text=runner.PUBLIC_ENDPOINT;token.clear())
+	var feedback:=_host_label("",body)
+	_host_button("Test Connection",body,func():
+		if not runner.set_provider(address.text,token.text) or runner.endpoint.is_empty():
+			feedback.text="Enter a valid compiler address."
+			return
+		feedback.text="Checking available languages…"
+		var result: Dictionary=await runner.supported_runtimes()
+		if is_instance_valid(feedback):
+			feedback.text=str(result.error) if result.has("error") else "Connected · %d runtimes"%result.runtimes.size())
+	var back:=func():
+		if offline:singleplayer_page()
+		else:network_page(false)
+	_host_button("Save",body,func():
+		if not runner.set_provider(address.text,token.text):
+			feedback.text="Enter a valid HTTPS compiler address."
+		elif runner.save_provider()!=OK:feedback.text="Could not save programming settings."
+		else:back.call())
+	_host_button("Cancel",body,back)
 
 func _openai_page(offline: bool) -> void:
 	openai_offline=offline

@@ -84,11 +84,21 @@ func run() -> void:
 		var response: Dictionary=host.act(1,{"op":"start","station":id,"exercise":"overhead_press","equipment":"barbell","sequence":sequence+1})
 		assert(response.ok,str(response))
 		assert(host.active[1].equipment=="barbell" and host.active[1].bench_position==host.anchors[id].bench_position)
-		var cancel: Dictionary=host.act(1,{"op":"cancel","sequence":sequence+2})
+		var early_cancel: Dictionary=host.act(1,{"op":"cancel","sequence":sequence+2})
+		assert(not early_cancel.ok and "Raise the bar" in early_cancel.error)
+		for press in 65:
+			if host.active[1].phase==0:break
+			while host.now()-int(host.last_request.get(1,-1000))<90:await process_frame
+			var next_sequence: int=host.private_state(1).profile.last_sequence+1
+			var effort: Dictionary=host.act(1,{"op":"effort","sequence":next_sequence})
+			assert(effort.ok,str(effort))
+		assert(host.active[1].phase==0,"The bar did not reach lockout")
+		var cancel: Dictionary=host.act(1,{"op":"cancel","sequence":host.private_state(1).profile.last_sequence+1})
 		assert(cancel.ok,str(cancel))
 		await create_timer(1.55).timeout
 		assert(not host.movement_locked(1) and not game.player.workout_camera_override)
 	var bridge: Node=game.interaction_presentation
+	game.player.reduced_motion=true
 	var bar:=Node3D.new()
 	game.add_child(bar)
 	var bench: Vector3=host.anchors["gym/benchpress"].bench_position
@@ -111,7 +121,8 @@ func run() -> void:
 	bridge._workout_camera(game.camera,"calf_raise",null,null,0.0,1.0)
 	assert(is_equal_approx(game.camera.global_position.y,bottom))
 	var low_grip: Vector3=bridge._frame_workout_weight(game.camera,Vector3(.3,-.9,-.22))
-	assert(is_equal_approx(low_grip.y,-.9) and low_grip.z<-.9)
+	assert(low_grip.y>=-.9 and low_grip.y<0.0 and low_grip.z<-.9)
+	assert(game.camera.is_position_in_frustum(game.camera.to_global(low_grip)))
 	for exercise in ["deadlift","romanian_deadlift","squat","good_morning"]:
 		bridge._workout_camera(game.camera,exercise,null,null,0.0,1.0)
 		var crouched: float=game.camera.global_position.y

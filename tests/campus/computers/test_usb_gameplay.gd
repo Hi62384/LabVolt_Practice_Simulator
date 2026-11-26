@@ -137,6 +137,9 @@ func run() -> void:
 	service.request({"op":"usb_port","station":station})
 	service.request({"op":"power","station":station})
 	await create_timer(1.8).timeout
+	var preview: SubViewport=game.computer_room_adapter.usb_previews.get(station,{}).get("viewport")
+	assert(is_instance_valid(preview), "The physical monitor should use the USB desktop before entry")
+	assert(preview.get_child(0).wallpaper_choice==2 and preview.get_child(0).pinned_apps==["Calculator"])
 	service.request({"op":"enter","station":station})
 	if service.local_snapshot.get("files",{}).get("notes.txt",{}).get("text","")!="USB test":push_error("Another workstation did not reopen the USB file");quit(1);return
 	assert(not service.local_snapshot.files.has("Downloads/manual.pdf") and service.local_snapshot.binary_files.has("Downloads/manual.pdf"))

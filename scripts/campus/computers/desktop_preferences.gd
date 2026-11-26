@@ -2,8 +2,9 @@ extends RefCounted
 
 const PATH := ".campus-os.json"
 const APPS := ["Files","Text editor","Code editor","Calculator","Browser","Terminal","Settings","Recycle Bin"]
-const WALLPAPERS := ["Campus waves","Dusk ridges","Polar night","Circuit grid"]
-const MAX_IMAGE_BYTES := 36 * 1024
+const WALLPAPERS := ["Campus waves","Dusk ridges","Polar night","Circuit grid","Custom image","Sunset horizon","Rainy window","Copper rings","Blue hour"]
+const CUSTOM_WALLPAPER := 4
+const MAX_IMAGE_BYTES := 96 * 1024
 
 static func clean(value: Variant) -> Dictionary:
 	if not value is Dictionary:return {}
@@ -17,7 +18,7 @@ static func clean(value: Variant) -> Dictionary:
 	for pin in pins:
 		if pin in APPS and pin not in filtered:filtered.append(pin)
 	if not image.is_empty() and not valid_image(Marshalls.base64_to_raw(image)):return {}
-	return {"style":clampi(int(style),0,2),"wallpaper":clampi(int(wallpaper),0,WALLPAPERS.size()),"volume":clampi(int(volume),0,100),"pinned":filtered,"image":image}
+	return {"style":clampi(int(style),0,2),"wallpaper":clampi(int(wallpaper),0,WALLPAPERS.size()-1),"volume":clampi(int(volume),0,100),"pinned":filtered,"image":image}
 
 # Validate JPEG marker dimensions before decoding data from a mounted drive.
 static func valid_image(bytes: PackedByteArray) -> bool:
@@ -30,11 +31,14 @@ static func valid_image(bytes: PackedByteArray) -> bool:
 		if marker in [192,193,194]:
 			var width:=bytes[pos+7]*256+bytes[pos+8]
 			var height:=bytes[pos+5]*256+bytes[pos+6]
-			return width>=1 and width<=1024 and height>=1 and height<=768
+			return width>=1 and width<=1920 and height>=1 and height<=1200
 		pos+=length+2
 	return false
 
 static func read(drive: RefCounted) -> Dictionary:
 	var bytes: PackedByteArray=drive.entries.get(PATH,{}).get("data",PackedByteArray())
+	return decode(bytes)
+
+static func decode(bytes: PackedByteArray) -> Dictionary:
 	if bytes.is_empty() or bytes.size()>MAX_IMAGE_BYTES*2:return {}
 	return clean(JSON.parse_string(bytes.get_string_from_utf8()))

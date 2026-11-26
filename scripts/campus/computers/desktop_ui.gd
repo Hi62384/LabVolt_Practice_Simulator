@@ -70,7 +70,7 @@ var start_account: Label
 var start_results: VBoxContainer
 var recent_files: Array[String]=[]
 var wallpaper_panel: TextureRect
-var portable_battery: Label
+var portable_battery: HBoxContainer
 var style_choice := 0
 var wallpaper_choice := 0
 var wallpaper_image := ""
@@ -162,6 +162,10 @@ func build_monitor_preview() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build_shell(true)
 
+func apply_monitor_preferences(settings: Dictionary) -> void:
+	_apply_appearance_preferences(settings)
+	for name in app_names:task_buttons[name].visible=name in pinned_apps
+
 func _build_shell(preview := false) -> void:
 	var backdrop := TextureRect.new()
 	wallpaper_panel=backdrop
@@ -223,6 +227,28 @@ void fragment() {
 		float focus=exp(-length((uv-vec2(.73,.42))*vec2(1.1,1.6))*2.7);
 		base=vec3(.022,.093,.11);
 		light=focus*(vec3(.04,.20,.18)*trace+vec3(.16,.44,.34)*led);
+	} else if (scene_id == 5) {
+		base=mix(vec3(.05,.06,.18),vec3(.42,.17,.20),smoothstep(.0,.64,uv.y));
+		vec2 sun_uv=(uv-vec2(.72,.49))*vec2(1.7,1.0);
+		light=vec3(.7,.32,.10)*(1.0-smoothstep(.11,.114,length(sun_uv)))*(1.0-smoothstep(.57,.58,uv.y));
+		base=mix(base,vec3(.035,.064,.12),smoothstep(.58,.65,uv.y));
+		light+=vec3(.18,.055,.04)*exp(-16.0*abs(uv.y-.6));
+	} else if (scene_id == 6) {
+		vec2 cell=floor(uv*vec2(56.0,29.0));
+		vec2 drop=fract(uv*vec2(56.0,29.0))-.5;
+		float chance=fract(sin(dot(cell,vec2(32.17,83.92)))*17432.3);
+		base=mix(vec3(.045,.09,.17),vec3(.025,.21,.24),1.0-uv.y);
+		light=vec3(.31,.57,.62)*step(.65,chance)*(1.0-smoothstep(.035,.22,length(drop*vec2(2.0,.55))));
+	} else if (scene_id == 7) {
+		float radius=length((uv-vec2(.73,.46))*vec2(1.65,1.0));
+		float rings=1.0-smoothstep(.025,.09,abs(fract(radius*17.0)-.5));
+		base=mix(vec3(.055,.039,.071),vec3(.31,.13,.08),exp(-radius*2.0));
+		light=vec3(.55,.25,.10)*rings*exp(-radius*3.2);
+	} else if (scene_id == 8) {
+		base=mix(vec3(.019,.035,.09),vec3(.09,.24,.39),smoothstep(.0,.86,uv.y));
+		float ridge=.65+.08*sin(uv.x*8.0)+.04*sin(uv.x*21.0+1.0);
+		base=mix(base,vec3(.016,.056,.105),smoothstep(ridge,ridge+.005,uv.y));
+		light=vec3(.35,.43,.54)*(1.0-smoothstep(.036,.038,length((uv-vec2(.76,.25))*vec2(1.65,1.0))));
 	}
 	COLOR = vec4((base + light) * COLOR.rgb, 1.0);
 }
@@ -334,7 +360,7 @@ void fragment() {
 	tray_spacer.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	taskbar.add_child(tray_spacer)
 	if not preview:
-		portable_battery=Label.new()
+		portable_battery=preload("res://scripts/ui/design_system/device_battery.gd").new()
 		portable_battery.hide()
 		taskbar.add_child(portable_battery)
 		_build_volume_control(taskbar)
@@ -457,7 +483,7 @@ func _update_clock() -> void:
 	if not is_instance_valid(portable_battery) or not is_instance_valid(game):return
 	var station:=str(snapshot.get("station",""))
 	portable_battery.visible=is_instance_valid(game.portable_laptops) and game.portable_laptops.placed.has(station)
-	if portable_battery.visible:portable_battery.text=game.device_charging.label("laptop",station)
+	if portable_battery.visible:portable_battery.update_charge(game.device_charging.percent("laptop",station))
 
 func _window_key(name: String) -> String:
 	return name
@@ -537,7 +563,8 @@ func _create_window(key: String,name: String,viewer_icon: Texture2D = null) -> D
 	grip.add_theme_color_override("font_color",Color("6998aa"))
 	grip.gui_input.connect(_resize_window.bind(key))
 	footer.add_child(grip)
-	var base := Vector2(830,575) if name in ["Files","Text editor","Code editor","Browser","Terminal","Recycle Bin","Settings"] else Vector2(338,460)
+	var base := Vector2(830,575) if name in ["Files","Text editor","Code editor","Browser","Terminal","Settings"] else Vector2(338,460)
+	if name=="Recycle Bin":base=Vector2(650,430) if snapshot.get("recycle_available",false) else Vector2(475,185)
 	var offset := float(windows.size()%5)*24.0
 	window.position=Vector2(maxf(155.0,workspace.size.x-base.x-12) if name=="Calculator" else 210+offset,12+offset)
 	if viewer_icon!=null:
@@ -545,6 +572,9 @@ func _create_window(key: String,name: String,viewer_icon: Texture2D = null) -> D
 		base=base.min(workspace.size)
 		window.position=(workspace.size-base)*.5
 	var state := {"shell":window,"title":title,"content":area,"status":message,"app":name,"built":false,"maximized":false,"rect":Rect2(window.position,base),"restore":Rect2(window.position,base)}
+	if name=="Recycle Bin" and not snapshot.get("recycle_available",false):
+		state.rect=Rect2((workspace.size-base)*.5,base)
+		state.restore=state.rect
 	windows[key]=state
 	_fit_windows()
 	return state
@@ -606,6 +636,8 @@ func _fit_windows() -> void:
 			var rect: Rect2=state.rect
 			window.size=rect.size.max(window.get_combined_minimum_size()).min(workspace.size)
 			window.position=_recoverable_window_position(rect.position,window.size)
+			if state.app=="Recycle Bin":
+				window.position=window.position.clamp(Vector2.ZERO,(workspace.size-window.size).max(Vector2.ZERO))
 
 func _window_drag(key: String,event: InputEvent) -> void:
 	var state: Dictionary=windows.get(key,{})
@@ -616,6 +648,8 @@ func _window_drag(key: String,event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT and not state.maximized:
 		var window: PanelContainer=state.shell
 		window.position=_recoverable_window_position(window.position+event.relative,window.size)
+		if state.app=="Recycle Bin":
+			window.position=window.position.clamp(Vector2.ZERO,(workspace.size-window.size).max(Vector2.ZERO))
 		state.rect=Rect2(window.position,window.size)
 
 func _toggle_maximize(key: String) -> void:
@@ -1121,10 +1155,7 @@ func _load_os_preferences() -> void:
 		var old_defaults: bool=not cfg.get_value("desktop","pins_configured",false) and saved==["Files","Browser"]
 		settings=Preferences.clean({"style":cfg.get_value("desktop","style",0),"wallpaper":cfg.get_value("desktop","wallpaper",0),"image":cfg.get_value("desktop","image",""),"pinned":saved if not old_defaults else [],"volume":cfg.get_value("desktop","volume",35)})
 	if not snapshot.get("usb_preferences",{}).is_empty():settings=snapshot.usb_preferences
-	pinned_apps=settings.get("pinned",[])
-	style_choice=settings.get("style",0)
-	wallpaper_choice=settings.get("wallpaper",0)
-	wallpaper_image=settings.get("image","")
+	_apply_appearance_preferences(settings)
 	var station:=str(snapshot.get("station",""))
 	if not station.is_empty():
 		var volume:=int(settings.get("volume",35))
@@ -1134,16 +1165,22 @@ func _load_os_preferences() -> void:
 			workstation_volume_changed.emit(station,volume)
 		_sync_volume_slider()
 	for name in app_names:task_buttons[name].visible=name in pinned_apps or windows.has(name)
+
+func _apply_appearance_preferences(settings: Dictionary) -> void:
+	pinned_apps=settings.get("pinned",[])
+	style_choice=settings.get("style",0)
+	wallpaper_choice=settings.get("wallpaper",0)
+	wallpaper_image=settings.get("image","")
 	_apply_wallpaper()
 
 func _apply_wallpaper() -> void:
-	if wallpaper_choice==Preferences.WALLPAPERS.size() and not wallpaper_image.is_empty():
+	if wallpaper_choice==Preferences.CUSTOM_WALLPAPER and not wallpaper_image.is_empty():
 		var source:=Marshalls.base64_to_raw(wallpaper_image)
 		var image:=Image.new()
 		if Preferences.valid_image(source) and image.load_jpg_from_buffer(source)==OK:
 			wallpaper_panel.material=null
 			wallpaper_panel.texture=ImageTexture.create_from_image(image)
-			wallpaper_panel.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			wallpaper_panel.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			wallpaper_panel.modulate=Color.WHITE
 			return
 	wallpaper_panel.material=wallpaper_material
@@ -1165,15 +1202,16 @@ func _choose_wallpaper(selector: OptionButton) -> void:
 		var source:=FileAccess.open(path,FileAccess.READ)
 		var image:=Image.new()
 		if lease==snapshot.get("lease") and source!=null and source.get_length()<=16*1024*1024 and image.load(path)==OK:
-			var aspect:=minf(1.0,minf(960.0/image.get_width(),600.0/image.get_height()))
-			image.resize(maxi(1,roundi(image.get_width()*aspect)),maxi(1,roundi(image.get_height()*aspect)),Image.INTERPOLATE_LANCZOS)
-			var encoded:=image.save_jpg_to_buffer(.68)
+			var aspect:=minf(1.0,minf(1920.0/image.get_width(),1200.0/image.get_height()))
+			if aspect<1.0:image.resize(maxi(1,roundi(image.get_width()*aspect)),maxi(1,roundi(image.get_height()*aspect)),Image.INTERPOLATE_LANCZOS)
+			var encoded:=image.save_jpg_to_buffer(.88)
 			while encoded.size()>Preferences.MAX_IMAGE_BYTES and image.get_width()>120:
-				image.resize(maxi(1,roundi(image.get_width()*.8)),maxi(1,roundi(image.get_height()*.8)),Image.INTERPOLATE_LANCZOS)
-				encoded=image.save_jpg_to_buffer(.61)
+				var scale:=clampf(sqrt(float(Preferences.MAX_IMAGE_BYTES)/encoded.size()),.65,.92)
+				image.resize(maxi(1,roundi(image.get_width()*scale)),maxi(1,roundi(image.get_height()*scale)),Image.INTERPOLATE_LANCZOS)
+				encoded=image.save_jpg_to_buffer(.86)
 			if Preferences.valid_image(encoded):
 				wallpaper_image=Marshalls.raw_to_base64(encoded)
-				wallpaper_choice=Preferences.WALLPAPERS.size()
+				wallpaper_choice=Preferences.CUSTOM_WALLPAPER
 				if is_instance_valid(selector):selector.set_item_disabled(wallpaper_choice,false);selector.select(wallpaper_choice)
 				_apply_wallpaper()
 				_save_os_preferences()
@@ -1240,8 +1278,7 @@ func _build_os_settings() -> void:
 	appearance.add_child(wallpaper_heading)
 	var wallpapers:=OptionButton.new()
 	for name in Preferences.WALLPAPERS:wallpapers.add_item(name)
-	wallpapers.add_item("Custom image")
-	wallpapers.set_item_disabled(Preferences.WALLPAPERS.size(),wallpaper_image.is_empty())
+	wallpapers.set_item_disabled(Preferences.CUSTOM_WALLPAPER,wallpaper_image.is_empty())
 	wallpapers.select(wallpaper_choice)
 	wallpapers.item_selected.connect(func(index: int):
 		wallpaper_choice=index
@@ -1446,13 +1483,20 @@ func _build_files(name: String) -> void:
 	trail_panel.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	trail_panel.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("062638"),Color("286478"),16))
 	trail.add_child(trail_panel)
+	var path_scroll:=ScrollContainer.new()
+	path_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	path_scroll.follow_focus=true
+	trail_panel.add_child(path_scroll)
 	breadcrumbs=HBoxContainer.new()
-	trail_panel.add_child(breadcrumbs)
+	breadcrumbs.add_theme_constant_override("separation",5)
+	path_scroll.add_child(breadcrumbs)
 	var up:=_button("↑",_folder_up)
 	up.custom_minimum_size.x=34
 	up.tooltip_text="Parent folder"
 	trail.add_child(up)
 	trail.visible=name=="Files"
+	if name=="Files" and snapshot.get("public_device",false):
+		toolbar.add_child(_button("Import file…",_import_local_file))
 	var split := HSplitContainer.new()
 	split.split_offset=-165 if name=="Code editor" else -220 if name=="Files" else 0
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1969,8 +2013,9 @@ func _run_source(path: String, source: String, finished: Callable) -> void:
 	if ext=="campus":
 		finished.call("CampusScript files can be opened as text.")
 		return
+	if multiplayer.is_server():execution.configure_from_host()
 	if not multiplayer.is_server() or execution.endpoint.is_empty():
-		finished.call("Remote execution requires a Judge0 service configured by the session host.")
+		finished.call("Set up the remote code runner in Singleplayer or Host Game → Programming Setup." if multiplayer.is_server() else "The session host manages remote code execution.")
 		return
 	if execution.running:
 		finished.call("A program is already running.")
@@ -2130,12 +2175,11 @@ func _refresh_breadcrumbs() -> void:
 		crumb.text=segments[index]
 		crumb.tooltip_text=path if not path.is_empty() else "Workspace"
 		crumb.flat=true
-		crumb.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
-		crumb.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		crumb.size_flags_stretch_ratio=maxf(1.0,float(segments[index].length()))
 		crumb.disabled=index==segments.size()-1
 		crumb.pressed.connect(_navigate_folder.bind(path))
 		breadcrumbs.add_child(crumb)
+	var scroll:=breadcrumbs.get_parent() as ScrollContainer
+	scroll.set_deferred("scroll_horizontal",2147483647)
 
 func _file_icon(path: String) -> Texture2D:
 	var extension:=path.get_extension().to_lower()
@@ -2754,6 +2798,25 @@ func _browser_save_answer(answer: String) -> void:
 	if not _file(path).is_empty():status_label.text="No free name for the assistant answer.";return
 	_send({"op":"save","path":path,"text":answer.left(1600),"version":0})
 	status_label.text="Saving assistant answer as "+path+"…"
+
+func _import_local_file() -> void:
+	var picker:=FileDialog.new()
+	picker.title="Import file to Downloads"
+	picker.use_native_dialog=true
+	picker.access=FileDialog.ACCESS_FILESYSTEM
+	picker.file_mode=FileDialog.FILE_MODE_OPEN_FILE
+	add_child(picker)
+	var lease: Variant=snapshot.get("lease")
+	picker.file_selected.connect(func(path: String):
+		if visible and lease==snapshot.get("lease"):
+			var source:=FileAccess.open(path,FileAccess.READ)
+			if source==null or source.get_length()>FileTypes.MAX_BYTES:
+				_message("Import file","Choose a readable file up to 8 MiB.")
+			else:
+				_browser_save_download(path.get_file(),source.get_buffer(source.get_length()))
+		picker.queue_free())
+	picker.canceled.connect(picker.queue_free)
+	picker.popup_centered(Vector2i(650,440))
 
 func _browser_save_download(filename: String,bytes: PackedByteArray) -> void:
 	if not visible or snapshot.is_empty():return

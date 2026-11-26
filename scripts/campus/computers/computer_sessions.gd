@@ -4,6 +4,9 @@ signal occupancy_changed(occupancy: Dictionary)
 signal power_changed(power: Dictionary)
 signal connected_usb_changed(ports: Dictionary)
 var connected_usb_ports: Dictionary = {}
+signal owned_usb_preferences_changed
+var owned_usb_mounts: Dictionary = {}
+var owned_usb_preferences: Dictionary = {}
 signal boot_changed(boot: Dictionary)
 signal operation_failed(message: String)
 signal file_opened(path: String, bytes: PackedByteArray)
@@ -692,6 +695,7 @@ func _apply_committed_usb_write(station: String,token: String) -> void:
 	var profile=game.electronics.profile
 	var pending: Dictionary=profile.data.get("usb_write_pending",{}).get(token,{})
 	var ok: bool=bool(profile.data.get("usb_write_completed",{}).get(token,false))
+	var committed_drive: RefCounted
 	if not pending.is_empty():
 		var staged: Dictionary=UsbArchive.load(game.school.local_identity,token,int(pending.capacity))
 		if not staged.has("error") and UsbArchive.save(game.school.local_identity,str(pending.id),str(staged.name),int(pending.capacity),staged.drive)==OK:
@@ -702,8 +706,12 @@ func _apply_committed_usb_write(station: String,token: String) -> void:
 			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
 			ok=profile.save()==OK;profile.authority_submit=callback
 			if not ok:profile.data=before
+			else:committed_drive=staged.drive
 	if multiplayer.is_server():_finish_usb_commit(multiplayer.get_unique_id(),station,token,ok)
-	else:_usb_commit_ack.rpc_id(1,station,token,ok)
+	else:
+		if committed_drive!=null and owned_usb_mounts.get(station,{}).get("id")==pending.id:
+			if _cache_owned_usb_preferences(station,committed_drive):owned_usb_preferences_changed.emit()
+		_usb_commit_ack.rpc_id(1,station,token,ok)
 
 @rpc("any_peer","call_remote","reliable",6)
 func _usb_commit_ack(station: String,token: String,ok: bool) -> void:
@@ -1071,10 +1079,41 @@ func _power_state(power: Dictionary) -> void:
 
 func _publish_usb_ports() -> void:
 	var ports:={}
+	var mounts_by_owner:={}
 	for id in stations:
-		if stations[id].has("power") and not stations[id].power.usb.is_empty():ports[id]=true
+		if not stations[id].has("power"):continue
+		var usb: Dictionary=stations[id].power.usb
+		if usb.is_empty():continue
+		ports[id]=true
+		mounts_by_owner.get_or_add(usb.owner,{})[id]={"id":usb.id,"capacity":usb.capacity_mb}
 	_set_usb_ports(ports)
-	if game.session.online and multiplayer.is_server():_usb_port_state.rpc(ports)
+	if game.session.online and multiplayer.is_server():
+		_usb_port_state.rpc(ports)
+		for peer in game.session.roster:
+			if peer!=multiplayer.get_unique_id() and game.session.peer_connected_now(int(peer)):
+				_owned_usb_mount_state.rpc_id(peer,mounts_by_owner.get(_identity(peer),{}))
+
+@rpc("authority","call_remote","reliable",6)
+func _owned_usb_mount_state(mounts: Dictionary) -> void:
+	if multiplayer.get_remote_sender_id()!=1 or owned_usb_mounts==mounts:return
+	var previous:=owned_usb_mounts
+	owned_usb_mounts=mounts
+	for station in previous:
+		if not mounts.has(station):owned_usb_preferences.erase(station)
+	for station in mounts:
+		var mount: Dictionary=mounts[station]
+		if previous.get(station)==mount:continue
+		var loaded:=UsbArchive.load(game.school.local_identity,str(mount.id),int(mount.capacity))
+		_cache_owned_usb_preferences(station,loaded.get("drive"))
+	owned_usb_preferences_changed.emit()
+
+func _cache_owned_usb_preferences(station: String,drive: RefCounted) -> bool:
+	var bytes:=PackedByteArray()
+	if drive!=null:bytes=drive.entries.get(Preferences.PATH,{}).get("data",PackedByteArray())
+	if bytes==owned_usb_preferences.get(station,PackedByteArray()):return false
+	if bytes.is_empty():owned_usb_preferences.erase(station)
+	else:owned_usb_preferences[station]=bytes
+	return true
 
 @rpc("authority","call_remote","reliable",6)
 func _usb_port_state(ports: Dictionary) -> void:
@@ -1217,6 +1256,9 @@ func _reset() -> void:
 	desktop_changed.emit({})
 	occupancy_changed.emit({})
 	power_changed.emit({})
+	owned_usb_mounts.clear()
+	owned_usb_preferences.clear()
+	owned_usb_preferences_changed.emit()
 	_set_usb_ports({})
 	set_meta("resetting",false)
 
