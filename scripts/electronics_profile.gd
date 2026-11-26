@@ -342,6 +342,13 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	if purchase_hotbar_limit.is_valid():hotbar_limit = mini(hotbar_limit,purchase_hotbar_limit.call())
 	if authority_submit.is_valid():return queued("study_tool",[id,hotbar_limit,configuration])
 	operation_succeeded=false
+	var configured_backpack := id==EquipmentConfiguration.BACKPACK
+	var backpack_quote: Dictionary={}
+	if configured_backpack:
+		backpack_quote=EquipmentConfiguration.quote(id,int(Dorm.Backpacks.SIZES.backpack_small.price),configuration)
+		if backpack_quote.is_empty():return "Invalid backpack configuration"
+		configuration=backpack_quote.configuration
+		id=str(EquipmentConfiguration.value(id,configuration,"hardware","size",""))
 	var bag: Dictionary=Dorm.Backpacks.SIZES.get(id,{})
 	if (not Dorm.TOOL_PRICES.has(id) and bag.is_empty()) or not data.has("dorm"):return "Study supply unavailable"
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
@@ -351,7 +358,9 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 	if not bag.is_empty() and data.dorm.get("backpacks",{}).size()>=Dorm.Backpacks.MAX_BAGS:return "Backpack limit reached"
 	var price := int(Dorm.TOOL_PRICES.get(id,bag.get("price",0)))
 	if not configuration is Dictionary:return "Invalid study supply configuration"
-	if not configuration.is_empty():
+	if configured_backpack:
+		price=int(backpack_quote.price)
+	elif not configuration.is_empty():
 		if id!=EquipmentConfiguration.NOTEBOOK:return "Invalid study supply configuration"
 		var quote := EquipmentConfiguration.quote(id,price,configuration)
 		if quote.is_empty():return "Invalid notebook configuration"
@@ -370,8 +379,9 @@ func buy_study_tool(id: String, hotbar_limit := 6, configuration: Variant = {}) 
 		if not data.dorm.has("backpacks"):data.dorm.backpacks={}
 		var location := "nested" if destination=="backpack" else "cabinet" if destination=="dorm cabinet" else "hotbar"
 		data.dorm.backpacks[item_id]={"size":id,"location":location,"items":[]}
+		if configured_backpack:data.dorm.backpacks[item_id].configuration=configuration
 	data.dorm.supply_counts=counts
-	if not configuration.is_empty():
+	if id==EquipmentConfiguration.NOTEBOOK and not configuration.is_empty():
 		if not data.dorm.has("notebook_options"):data.dorm.notebook_options={}
 		data.dorm.notebook_options[item_id]=configuration
 	data.dorm.erase("owned_tools")

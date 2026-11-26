@@ -8,6 +8,25 @@ const SIZES := {
 }
 const MAX_BAGS := 128
 const ROOT_LOCATIONS := ["cabinet","hotbar","back","ground"]
+const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
+
+static func pocket_slots(bag: Dictionary) -> int:
+	return int(Config.value(Config.BACKPACK,bag.get("configuration",{}),"hardware","pockets",0))
+
+static func component_count(bag: Dictionary) -> int:
+	var used := 0
+	for item in bag.items:
+		if item.kind=="component":used+=1
+	return used
+
+static func can_add(bag: Dictionary, kind: String) -> bool:
+	var capacity: int=SIZES[bag.size].capacity
+	if kind=="component":return bag.items.size()<capacity
+	return bag.items.size()-mini(pocket_slots(bag),component_count(bag))<capacity-pocket_slots(bag)
+
+static func dimensions(model: String) -> Vector3:
+	var scale: float={"backpack_small":1.0,"backpack_medium":1.14,"backpack_large":1.28,"backpack_giant":1.44}.get(model,1.0)
+	return Vector3(.29,.38,.22)*scale
 
 static func occupied(bags: Dictionary, id: String) -> int:
 	return _occupied(bags,id,{})
@@ -85,6 +104,9 @@ static func valid(dorm: Dictionary, supplies: Dictionary) -> bool:
 		if not bag is Dictionary or not SIZES.has(bag.get("size")) or not bag.get("items") is Array:return false
 		if bag.get("location") not in ROOT_LOCATIONS and bag.get("location")!="nested":return false
 		if bag.items.size()>int(SIZES[bag.size].capacity):return false
+		if bag.has("configuration"):
+			var quote:=Config.quote(Config.BACKPACK,0,bag.configuration)
+			if quote.is_empty() or Config.value(Config.BACKPACK,quote.configuration,"hardware","size","")!=bag.size:return false
 		if (bag.location=="hotbar")!=("bag:"+id in dorm.get("carry_items",[])):return false
 		if bag.location=="back":equipped_count+=1
 		if bag.location=="ground":
@@ -92,6 +114,7 @@ static func valid(dorm: Dictionary, supplies: Dictionary) -> bool:
 			if not point is Array or point.size()!=3:return false
 			for axis in point:
 				if not (axis is float or axis is int) or not is_finite(float(axis)) or absf(float(axis))>1000:return false
+		var parts := 0
 		for item in bag.items:
 			if not item is Dictionary:return false
 			match item.get("kind",""):
@@ -109,9 +132,11 @@ static func valid(dorm: Dictionary, supplies: Dictionary) -> bool:
 					used_supplies[supply]=int(used_supplies.get(supply,0))+1
 				"component":
 					if not item.get("type") is String or not item.get("instance") is String:return false
+					parts+=1
 				"phone":
 					if not item.get("id") is String or not dorm.get("smartphones",{}).has(item.id):return false
 				_:return false
+		if bag.items.size()-parts>int(SIZES[bag.size].capacity)-pocket_slots(bag):return false
 	if equipped_count>1:return false
 	for id in bags:
 		if (bags[id].location=="nested")!=parents.has(id):return false
@@ -158,9 +183,9 @@ static func move(dorm: Dictionary, intent: Dictionary, calculators: Array, world
 			bag.location=destination
 		"bag_pack":
 			if bag.location!="back":return "Wear this backpack first"
-			if bag.items.size()>=int(SIZES[bag.size].capacity):return "Backpack is full"
 			var item: Variant=intent.get("item")
 			if not item is Dictionary:return "Invalid item"
+			if not can_add(bag,str(item.get("kind",""))):return "There are no available slots for this item"
 			var key := str(item.get("id",""))
 			match str(item.get("kind","")):
 				"bag":

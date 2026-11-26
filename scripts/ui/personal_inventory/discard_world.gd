@@ -545,6 +545,12 @@ func _public_drops() -> Dictionary:
 		if public[id].visual=="notebook":
 			var configuration := _notebook_configuration(drop)
 			if not configuration.is_empty():public[id].configuration=configuration
+		if public[id].visual.begins_with("bag_"):
+			var configuration := _backpack_configuration(drop)
+			if not configuration.is_empty():public[id].configuration=configuration
+		if public[id].visual=="laptop":
+			var configuration: Dictionary=drop.get("parcel",{}).get("laptop",{}).get("configuration",{})
+			if not configuration.is_empty():public[id].configuration=configuration
 		if public[id].visual=="pcb":
 			if not drop.has("pcb_preview"):drop.pcb_preview=PcbPreview.describe(drop.get("parcel",{}).get("pcb",{}))
 			if not drop.pcb_preview.is_empty():public[id].pcb_preview=drop.pcb_preview
@@ -553,6 +559,10 @@ func _public_drops() -> Dictionary:
 func _notebook_configuration(drop: Dictionary) -> Dictionary:
 	var parcel: Dictionary=drop.get("parcel",{})
 	return drop.get("configuration",parcel.get("notebook_options",{}).get(parcel.get("item",{}).get("id",""),{}))
+
+func _backpack_configuration(drop: Dictionary) -> Dictionary:
+	var parcel: Dictionary=drop.get("parcel",{})
+	return drop.get("configuration",parcel.get("bags",{}).get(parcel.get("item",{}).get("id",""),{}).get("configuration",{}))
 
 @rpc("authority","call_remote","reliable")
 func sync_drops(public: Dictionary,server_ticks: int) -> void:
@@ -690,6 +700,8 @@ func _add_item_visual(root: Node3D,kind: String,drop: Dictionary) -> void:
 		game._box(prop,Vector3(.061,.014,0),Vector3(.025,.012,.027),Color("bdccca"))
 	elif kind=="laptop":
 		game.ac_laptops._closed_laptop(prop)
+		var configuration: Dictionary=drop.get("configuration",drop.get("parcel",{}).get("laptop",{}).get("configuration",{}))
+		preload("res://scripts/campus/items/equipment_finish.gd").apply_finish(prop,"portable_laptop",configuration)
 	elif kind in ["flashlight","lab_goggles","marker"]:
 		game.school_world._build_supply_prop(prop,kind)
 		prop.position.y=.05
@@ -703,8 +715,9 @@ func _add_item_visual(root: Node3D,kind: String,drop: Dictionary) -> void:
 	elif kind.begins_with("food_"):
 		prop.add_child(preload("res://scripts/campus/facilities/food_visual.gd").build(kind.trim_prefix("food_")))
 	elif kind.begins_with("bag_"):
-		game.school_world._build_backpack(prop,Vector3(.29,.38,.22),kind.trim_prefix("bag_"))
-		prop.position.y=.19
+		var model:=kind.trim_prefix("bag_")
+		preload("res://scripts/campus/items/backpack_model.gd").build(prop,model,_backpack_configuration(drop))
+		prop.position.y=Transfer.Dorm.Backpacks.dimensions(model).y*.5
 	elif kind.begins_with("kit_"):
 		var kit: StaticBody3D=game.kit_world._create_kit_view(0,{"id":"lost","name":str(drop.label),"tier":kind.trim_prefix("kit_")})
 		kit.collision_layer=0;kit.reparent(prop,false)
@@ -928,6 +941,7 @@ func _valid_entry(token: String,entry: Variant) -> bool:
 	if parcel.item.get("kind")=="laptop":
 		var id: String=str(parcel.item.get("id",""))
 		if id.length()!=32 or not id.is_valid_hex_number() or not parcel.get("laptop") is Dictionary or not Transfer.Laptops.TIERS.has(parcel.laptop.get("tier","")):return false
+		if parcel.laptop.has("configuration") and Transfer.Laptops.Config.quote(Transfer.Laptops.Config.LAPTOP,0,parcel.laptop.configuration).is_empty():return false
 	for key in ["kits","tiers","bags","stock","instances","supplies","definitions","carried_stock"]:
 		if not parcel.get(key) is Dictionary:return false
 	return parcel.get("carried_instances") is Array and (not parcel.has("pcb") or parcel.pcb is Dictionary)

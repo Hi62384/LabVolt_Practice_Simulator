@@ -587,6 +587,10 @@ func manager(parent: Node) -> void:
 		var bag: Dictionary=dorm.backpacks[back_id]
 		var capacity: int=Dorm.Backpacks.SIZES[bag.size].capacity
 		parent.add_child(UI.text("Backpack  ·  %d / %d slots" % [bag.items.size(),capacity],"SubtitleLabel"))
+		var pockets := Dorm.Backpacks.pocket_slots(bag)
+		if pockets>0:
+			var parts := mini(Dorm.Backpacks.component_count(bag),pockets)
+			parent.add_child(UI.text("Main compartment  %d / %d   ·   Component pockets  %d / %d" % [bag.items.size()-parts,capacity-pockets,parts,pockets],"MutedLabel"))
 		var contents := preload("res://scripts/ui/design_system/responsive_grid.gd").new()
 		contents.minimum_card_width=105
 		contents.maximum_columns=8

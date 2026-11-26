@@ -86,7 +86,7 @@ static func receive_purchase(d: Dictionary, kind: String, id: String, hotbar_lim
 		carried.append(key)
 		d.carry_items=carried
 		destination="hotbar"
-	elif not bag_id.is_empty() and d.backpacks[bag_id].items.size()<int(Backpacks.SIZES[d.backpacks[bag_id].size].capacity):
+	elif not bag_id.is_empty() and Backpacks.can_add(d.backpacks[bag_id],kind):
 		d.backpacks[bag_id].items.append({"kind":kind,"id":id})
 		destination="backpack"
 	elif storage_used(d)<CAPACITY:

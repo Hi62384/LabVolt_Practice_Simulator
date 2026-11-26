@@ -527,7 +527,9 @@ func _sync_supply_world() -> bool:
 		var state: Dictionary=profile.get("dorm",{})
 		var back := DormSupplies.Backpacks.equipped(state)
 		var head: bool=state.get("worn_supplies",{}).has("head")
-		if head or not back.is_empty():gear[peer]={"head":head,"back":state.backpacks[back].size if not back.is_empty() else ""}
+		if head or not back.is_empty():
+			var bag: Dictionary=state.get("backpacks",{}).get(back,{})
+			gear[peer]={"head":head,"back":bag.get("size",""),"back_configuration":bag.get("configuration",{})}
 		var present := {}
 		for id in papers.keys():
 			var paper: Dictionary=papers[id]
@@ -545,7 +547,7 @@ func _sync_supply_world() -> bool:
 			var paper_id := _give(peer,{"title":DormSupplies.Backpacks.SIZES[bag.size].name,"questions":[],"guide_pages":[]},true,false,true)
 			if paper_id==0:continue
 			var point: Array=bag.position
-			papers[paper_id].merge({"held":false,"position":Vector3(float(point[0]),float(point[1]),float(point[2])),"supply_id":item,"supply_model":bag.size,"supply_released":true},true)
+			papers[paper_id].merge({"held":false,"position":Vector3(float(point[0]),float(point[1]),float(point[2])),"supply_id":item,"supply_model":bag.size,"supply_configuration":bag.get("configuration",{}),"supply_released":true},true)
 			changed=true
 	if worn_gear!=gear:
 		worn_gear=gear
@@ -636,7 +638,9 @@ func apply(peer: int,a: Dictionary) -> void:
 			var item_id := _give(peer,{"title":DormSupplies.TOOLS.get(op,product.get("name","Backpack")),"questions":[],"guide_pages":[]},true,false,true)
 			if item_id!=0:
 				papers[item_id].supply_id=op
-				if not bag.is_empty():papers[item_id].supply_model=bag.size
+				if not bag.is_empty():
+					papers[item_id].supply_model=bag.size
+					papers[item_id].supply_configuration=bag.get("configuration",{}).duplicate(true)
 				papers[item_id].calculator=op in DormSupplies.CALCULATORS
 				papers[item_id].guide=true
 			broadcast()

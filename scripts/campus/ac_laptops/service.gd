@@ -80,9 +80,11 @@ func _build_cabinet() -> void:
   var cable:=_target(cabinet_items,"ac_usb_stored",i,Vector3(x,shelf+.025,.18),Vector3(.30,.05,.22))
   _coiled_cable(cable)
 func _closed_laptop(parent: Node3D) -> void:
- _box(parent,Vector3(0,-.012,0),Vector3(.35,.025,.25),Color("273a47"))
- _box(parent,Vector3(0,.012,0),Vector3(.35,.025,.25),Color("718892"))
- _box(parent,Vector3(0,.026,0),Vector3(.09,.002,.014),Color("c1d4d2"))
+ var base:=_box(parent,Vector3(0,-.012,0),Vector3(.35,.025,.25),Color("273a47"))
+ var lid:=_box(parent,Vector3(0,.012,0),Vector3(.35,.025,.25),Color("718892"))
+ var badge:=_box(parent,Vector3(0,.026,0),Vector3(.09,.002,.014),Color("c1d4d2"))
+ parent.set_meta("equipment_shell",[base,lid])
+ parent.set_meta("equipment_trim",[badge])
  _box(parent,Vector3(0,-.025,-.10),Vector3(.27,.012,.015),Color("101d24"))
 func _coiled_cable(parent: Node3D) -> void:
  var points: Array[Vector3]=[]

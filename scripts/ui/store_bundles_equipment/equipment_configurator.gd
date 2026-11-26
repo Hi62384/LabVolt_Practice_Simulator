@@ -91,11 +91,14 @@ func _build_preview(parent: Control, model_builder: Callable) -> void:
 	if kind==Config.PHONE:
 		Handset.build(phone)
 		rendered_product=phone
+	elif kind==Config.BACKPACK:
+		rendered_product=Node3D.new()
+		phone.add_child(rendered_product)
 	else:
 		rendered_product=model_builder.call(kind,phone)
 	phone.rotation=Vector3(-.85 if kind==Config.NOTEBOOK else .28 if kind==Config.LAPTOP else -.12,-.38,.09)
 	var camera:=Camera3D.new()
-	camera.position=Vector3(0,0,{Config.PHONE:.36,Config.LAPTOP:.98,Config.USB:.21,Config.NOTEBOOK:.60}[kind])
+	camera.position=Vector3(0,0,{Config.PHONE:.36,Config.LAPTOP:.98,Config.USB:.21,Config.NOTEBOOK:.60,Config.BACKPACK:.89}[kind])
 	camera.fov=42
 	preview.add_child(camera)
 	for setup in [[Vector3(-26,-30,0),1.4],[Vector3(15,63,0),.8]]:
@@ -123,6 +126,9 @@ func _update_quote() -> void:
 	price.text="$%d"%quoted.price
 	if kind==Config.PHONE:Handset.apply_appearance(phone,configuration.appearance)
 	elif kind==Config.NOTEBOOK:preload("res://scripts/campus/items/notebook_model.gd").update(rendered_product,configuration)
+	elif kind==Config.BACKPACK:
+		var model: String=Config.value(kind,configuration,"hardware","size","backpack_small")
+		preload("res://scripts/campus/items/backpack_model.gd").update(rendered_product,model,configuration)
 	else:Finish.apply_finish(rendered_product,kind,configuration)
 	preview.render_target_update_mode=SubViewport.UPDATE_ONCE
 
@@ -151,6 +157,7 @@ func _advance() -> void:
 		Config.PHONE:message=profile.buy_smartphone("basic",6,"",configuration)
 		Config.LAPTOP:message=profile.buy_portable_laptop("basic",6,"",configuration)
 		Config.NOTEBOOK:message=profile.buy_study_tool(Config.NOTEBOOK,6,configuration)
+		Config.BACKPACK:message=profile.buy_study_tool(Config.BACKPACK,6,configuration)
 		Config.USB:
 			var capacity:=int(Config.value(Config.USB,configuration,"hardware","storage",8))
 			message=profile.buy_usb(capacity,6,"",configuration)

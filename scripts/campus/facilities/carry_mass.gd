@@ -3,6 +3,7 @@ extends RefCounted
 const LB_TO_KG := .45359237
 const SUPPLIES := {"notebook":.30,"calculator":.18,"calculator_basic":.14,"calculator_financial":.20,"pencil_case":.24,"lab_goggles":.08,"flashlight":.25,"whiteboard":.85,"marker":.02}
 const BAGS := {"backpack_small":.55,"backpack_medium":.80,"backpack_large":1.10,"backpack_giant":1.50}
+const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 
 static func component_mass(type: String) -> float:
 	if type.begins_with("battery"):return .05
@@ -32,6 +33,9 @@ static func bag_mass(profile: Dictionary,id: String,seen: Dictionary) -> float:
 	var bag: Dictionary=profile.get("dorm",{}).get("backpacks",{}).get(id,{})
 	if bag.is_empty():return 0.0
 	var total: float=float(BAGS.get(str(bag.get("size","")),.55))
+	var options: Dictionary=bag.get("configuration",{})
+	total+=float(Equipment.value(Equipment.BACKPACK,options,"hardware","pockets",0))*.035
+	if float(Equipment.value(Equipment.BACKPACK,options,"hardware","straps",1.0))<1.0:total+=.09
 	for item in bag.get("items",[]):
 		if not item is Dictionary:continue
 		match str(item.get("kind","")):
@@ -41,7 +45,7 @@ static func bag_mass(profile: Dictionary,id: String,seen: Dictionary) -> float:
 			"component":total+=component_mass(str(item.get("type","")))
 	return total
 
-static func profile_mass(profile: Dictionary) -> float:
+static func profile_mass(profile: Dictionary, worn_comfort := false) -> float:
 	var dorm: Dictionary=profile.get("dorm",{})
 	var seen:={};var total:=0.0
 	for entry in dorm.get("carry_items",[]):
@@ -59,7 +63,10 @@ static func profile_mass(profile: Dictionary) -> float:
 			seen["supply/"+key]=true
 			total+=float(SUPPLIES.get(key,.10))
 	for id in dorm.get("backpacks",{}):
-		if dorm.backpacks[id].get("location","")=="back":total+=bag_mass(profile,str(id),seen)
+		var bag: Dictionary=dorm.backpacks[id]
+		if bag.get("location","")!="back":continue
+		var comfort: float=Equipment.value(Equipment.BACKPACK,bag.get("configuration",{}),"hardware","straps",1.0) if worn_comfort else 1.0
+		total+=bag_mass(profile,str(id),seen)*comfort
 	return total
 
 static func gym_mass(peer: int,dumbbells: Array,bars: Dictionary,belts: Array,plates: Array) -> float:

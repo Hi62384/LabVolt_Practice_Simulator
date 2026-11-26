@@ -18,5 +18,19 @@ func _initialize() -> void:
 	ok=ok and not profile.operation_succeeded and profile.data==before
 	ok=ok and Laptops.TIERS.basic.delay_ms>Laptops.TIERS.standard.delay_ms and Laptops.TIERS.standard.delay_ms>Laptops.TIERS.premium.delay_ms
 	ok=ok and Laptops.TIERS.basic.display_scale<Laptops.TIERS.standard.display_scale and Laptops.TIERS.standard.display_scale<Laptops.TIERS.premium.display_scale
+	ok=_configured_transfer(profile) and ok
 	print("LAPTOP_INVENTORY ","PASS" if ok else "FAIL")
 	quit(0 if ok else 1)
+
+func _configured_transfer(profile: RefCounted) -> bool:
+	const Transfer = preload("res://scripts/ui/personal_inventory/discard_transfer.gd")
+	var configuration:=Laptops.Config.defaults(Laptops.Config.LAPTOP)
+	configuration.hardware.battery=2
+	configuration.appearance.shell=1
+	profile.buy_portable_laptop("basic",6,"",configuration)
+	if not profile.operation_succeeded:return false
+	var id: String=profile.data.dorm.portable_laptops.keys().back()
+	var taken:=Transfer.take(profile.data,{"location":"hotbar","item":{"kind":"laptop","id":id}},{})
+	if not taken.ok or taken.parcel.laptop.get("configuration",{})!=configuration:return false
+	var given:=Transfer.give(taken.profile,taken.parcel,6)
+	return given.ok and given.profile.dorm.portable_laptops[id].get("configuration",{})==configuration

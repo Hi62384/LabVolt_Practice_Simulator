@@ -170,8 +170,7 @@ func _create(paper: Dictionary) -> void:
 		"notebook": shape.size=Vector3(.23,.034,.31)
 		_:
 			if backpack:
-				var bag_scale: float={"backpack_small":1.0,"backpack_medium":1.14,"backpack_large":1.28,"backpack_giant":1.44}.get(bag_model,1.0)
-				shape.size=Vector3(.29,.38,.22)*bag_scale
+				shape.size=preload("res://scripts/campus/dorms/authority/backpack_inventory.gd").dimensions(bag_model)
 				hit.position.y=shape.size.y*.5
 			elif paper.get("calculator",false):shape.size=Vector3(.135,.026,.215)
 			else:shape.size=Vector3(.32,.018,.44)
@@ -212,9 +211,7 @@ func _create(paper: Dictionary) -> void:
 		_build_supply_prop(prop,supply)
 	elif backpack:
 		mesh.hide()
-		prop=Node3D.new()
-		root.add_child(prop)
-		_build_backpack(prop,shape.size,bag_model)
+		prop=preload("res://scripts/campus/items/backpack_model.gd").build(root,bag_model,paper.get("supply_configuration",{}))
 	if supply=="pencil_case":
 		mesh.hide()
 		var material_pouch := Toon.material("a45652")
@@ -266,19 +263,6 @@ func _calculator_mark(parent: Node3D, value: String, at: Vector3, pixel: float, 
 	mark.outline_size=0
 	mark.position=at
 	parent.add_child(mark)
-
-func _build_backpack(prop: Node3D, dimensions: Vector3, model: String) -> void:
-	prop.scale=dimensions/Vector3(.29,.38,.22)
-	var shell: String={"backpack_small":"607b58","backpack_medium":"3b7283","backpack_large":"8e5544","backpack_giant":"645780"}.get(model,"607b58")
-	var trim := Toon.material("283e4b")
-	var zipper := Toon.material("c3ab82")
-	Toon.ellipsoid(prop,Vector3(0,-.01,0),Vector3(.141,.174,.087),Toon.material(shell),"Fabric shell")
-	Toon.ellipsoid(prop,Vector3(0,-.071,.073),Vector3(.109,.080,.039),trim,"Front pocket")
-	Toon.link(prop,Vector3(-.082,-.044,.106),Vector3(.082,-.044,.106),.004,zipper)
-	Toon.line(prop,[Vector3(-.045,.145,0),Vector3(-.036,.179,0),Vector3(.036,.179,0),Vector3(.045,.145,0)],.009,trim)
-	for side in [-1.0,1.0]:
-		var x: float=side*.079
-		Toon.line(prop,[Vector3(x,.118,-.059),Vector3(x,.063,-.112),Vector3(x,-.074,-.113),Vector3(x,-.141,-.057)],.014,trim)
 
 func _build_supply_prop(prop: Node3D, supply: String) -> void:
 	if supply=="lab_goggles":

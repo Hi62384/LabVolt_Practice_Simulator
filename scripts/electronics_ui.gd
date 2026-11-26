@@ -346,11 +346,9 @@ func study_supplies() -> void:
 	var dorm := preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 	for id in dorm.TOOLS:
 		if id not in ["lab_goggles","notebook"]:_study_supply_card(grid,id)
-	for id in dorm.Backpacks.SIZES:
-		_study_supply_card(grid,id)
 	body.add_child(KitUI.text("CONFIGURABLE EQUIPMENT","Title"))
 	var electronics:=preload("res://scripts/ui/store_bundles_equipment/module.gd")
-	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone","notebook"],_equipment_preview)
+	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone","notebook","backpack"],_equipment_preview)
 
 func _equipment_preview(kind: String,parent: Node3D) -> Node3D:
 	if kind=="usb":return game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))

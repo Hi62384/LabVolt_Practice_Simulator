@@ -6,10 +6,24 @@ const PHONE := "smartphone"
 const LAPTOP := "portable_laptop"
 const USB := "usb"
 const NOTEBOOK := "notebook"
+const BACKPACK := "backpack"
 const CASE_OPTIONS := {"label":"Case","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,18,18,18]}
 const TRIM_OPTIONS := {"label":"Trim","labels":["Silver","Copper","Black"],"values":["b7c2ca","b6764b","222831"],"prices":[0,12,12]}
 const FINISH_OPTIONS := {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,35]}
 const DEFINITIONS := {
+	BACKPACK: {
+		"hardware": {
+			"size":{"label":"Capacity","labels":["12 slots","24 slots","40 slots","60 slots"],"values":["backpack_small","backpack_medium","backpack_large","backpack_giant"],"prices":[0,18,44,77]},
+			"pockets":{"label":"Component pockets","labels":["None","One 2-slot pocket","Two 2-slot pockets"],"values":[0,2,4],"prices":[0,7,13]},
+			"straps":{"label":"Shoulder straps","labels":["Standard","Padded"],"values":[1.0,.7],"prices":[0,9]},
+		},
+		"appearance": {
+			"shell":{"label":"Fabric","labels":["Forest","Midnight blue","Rust","Violet"],"values":["607b58","3b7283","8e5544","645780"],"prices":[0,3,3,3]},
+			"trim":TRIM_OPTIONS,
+			"handle":{"label":"Top handle","labels":["With handle","Without handle"],"values":[true,false],"prices":[0,0]},
+			"finish":{"label":"Material","labels":["Canvas","Ripstop"],"values":[Vector2(.90,0),Vector2(.57,0)],"prices":[0,8]},
+		},
+	},
 	NOTEBOOK: {
 		"hardware": {
 			"pages":{"label":"Pages","labels":["12","32","80"],"values":[12,32,80],"prices":[0,8,18]},

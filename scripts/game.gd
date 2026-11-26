@@ -1883,7 +1883,7 @@ func _apply_supply_accessories(peer: int, model: Node3D) -> void:
 				Toon.link(glasses,Vector3(side*.165,.018,.195),Vector3(side*.225,.007,.02),.015,frame)
 			Toon.link(glasses,Vector3(-.032,.026,.218),Vector3(.032,.026,.218),.014,frame)
 	if not str(gear.get("back","")).is_empty():
-		var pack := Node3D.new();pack.name="PhysicalBackpack";model.add_child(pack)
-		var width: float={"backpack_small":.18,"backpack_medium":.22,"backpack_large":.26,"backpack_giant":.29}.get(gear.back,.22)
-		Toon.ellipsoid(pack,Vector3(0,1.05,-.20),Vector3(width,.33,.16),Toon.material("476775"))
-		Toon.ellipsoid(pack,Vector3(0,.94,-.33),Vector3(width*.76,.13,.054),Toon.material("354e5c"))
+		var pack := preload("res://scripts/campus/items/backpack_model.gd").build(model,gear.back,gear.get("back_configuration",{}))
+		pack.name="PhysicalBackpack"
+		pack.position=Vector3(0,1.06,-.23)
+		pack.rotation.y=PI

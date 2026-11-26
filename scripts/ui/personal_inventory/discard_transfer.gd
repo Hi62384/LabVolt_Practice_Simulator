@@ -100,6 +100,7 @@ static func _collect(profile: Dictionary,item: Dictionary,parcel: Dictionary,dep
 			var laptop: Dictionary=profile.dorm.get("portable_laptops",{}).get(id,{})
 			if laptop.get("location","")!="hotbar" or not Laptops.TIERS.has(laptop.get("tier","")):return false
 			parcel.laptop={"tier":laptop.tier}
+			if laptop.has("configuration"):parcel.laptop.configuration=laptop.configuration.duplicate(true)
 			profile.dorm.portable_laptops.erase(id)
 		_:return false
 	return true
@@ -132,7 +133,7 @@ static func give(profile: Dictionary, parcel: Dictionary, hotbar_limit: int) -> 
 			destination="hotbar"
 		else:
 			var bag_id := Dorm.Backpacks.equipped(d)
-			if not bag_id.is_empty() and d.backpacks[bag_id].items.size()<int(Dorm.Backpacks.SIZES[d.backpacks[bag_id].size].capacity):
+			if not bag_id.is_empty() and Dorm.Backpacks.can_add(d.backpacks[bag_id],kind):
 				d.backpacks[bag_id].items.append(item.duplicate(true))
 				destination="backpack"
 	elif kind=="laptop":
@@ -141,6 +142,10 @@ static func give(profile: Dictionary, parcel: Dictionary, hotbar_limit: int) -> 
 		if not parcel.get("laptop") is Dictionary or not Laptops.TIERS.has(parcel.laptop.get("tier","")):
 			return Dorm.fail("Invalid laptop.")
 		d.get_or_add("portable_laptops",{})[id]={"location":"hotbar","tier":parcel.laptop.tier}
+		if parcel.laptop.has("configuration"):
+			var quote:=Laptops.Config.quote(Laptops.Config.LAPTOP,0,parcel.laptop.configuration)
+			if quote.is_empty():return Dorm.fail("Invalid laptop configuration.")
+			d.portable_laptops[id].configuration=quote.configuration
 		d.carry_items=d.get("carry_items",[])+["laptop:"+id]
 		destination="hotbar"
 	else:destination=Dorm.receive_purchase(d,kind,id,hotbar_limit)
