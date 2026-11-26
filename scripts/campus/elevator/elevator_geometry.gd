@@ -54,18 +54,18 @@ func _text(value: String, point: Vector3, yaw: float, size: int = 28) -> Label3D
 
 static func control_position(floor_id: int, button: int) -> Vector3:
 	var y := floor_id * HEIGHT
-	return Vector3(15.82, y + 1.25, 60.35) if button < 0 else Vector3(16.70, y + 1.20 + button * 0.28, 60.45)
+	return Vector3(15.82, y + 1.25, 60.35) if button < 0 else Vector3(17.30 + button * .27, y + 1.35, 60.40)
 
 func _button(floor_id: int, button: int) -> void:
 	var point := control_position(floor_id, button)
 	var target := StaticBody3D.new(); target.position = point; target.collision_layer = 4; target.collision_mask = 0
 	target.set_meta("role", "elevator_control"); target.set_meta("floor", floor_id); target.set_meta("button", button)
 	target.set_meta("label", ("Call elevator " + ("↑" if floor_id == 0 else "↓")) if button < 0 else "Elevator · Floor " + str(button + 1))
-	var collision := CollisionShape3D.new(); var box := BoxShape3D.new(); box.size = Vector3(0.16, 0.22, 0.22)
+	var collision := CollisionShape3D.new(); var box := BoxShape3D.new(); box.size = Vector3(0.16, 0.22, 0.22) if button<0 else Vector3(.24,.25,.13)
 	collision.shape = box; target.add_child(collision); add_child(target)
-	var mesh := _box(point, Vector3(0.10, 0.16, 0.16), "b4bec0", false)
+	var mesh := _box(point, Vector3(0.10, 0.16, 0.16) if button<0 else Vector3(.20,.20,.045), "b4bec0", false)
 	controls[str(floor_id) + ":" + str(button)] = mesh
-	_text(("↑" if floor_id == 0 else "↓") if button < 0 else str(button + 1), point + Vector3(-0.065 if button < 0 else 0.065, 0, 0), -PI / 2 if button < 0 else PI / 2, 22)
+	_text(("↑" if floor_id == 0 else "↓") if button < 0 else str(button + 1), point + (Vector3(-.065,0,0) if button<0 else Vector3(0,0,-.026)), -PI / 2 if button < 0 else PI, 22)
 
 func _landing(floor_id: int) -> void:
 	var y := floor_id * HEIGHT
@@ -100,8 +100,8 @@ func _landing(floor_id: int) -> void:
 		# Separate liners on either side of the sliding-leaf track conceal
 		# the structural wall ends without intersecting the moving doors.
 		var jamb_z: float=DOOR_Z+side*(WIDTH*.5+.018)
-		_box(Vector3(15.968,y+DOOR_HEIGHT*.5,jamb_z),Vector3(.266,DOOR_HEIGHT,.086),"29404f",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_box(Vector3(16.31,y+DOOR_HEIGHT*.5,jamb_z),Vector3(.16,DOOR_HEIGHT,.086),"486879",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_box(Vector3(15.974,y+DOOR_HEIGHT*.5,jamb_z-.002*side),Vector3(.249,DOOR_HEIGHT-.006,.081),"29404f",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_box(Vector3(16.316,y+DOOR_HEIGHT*.5,jamb_z+.004*side),Vector3(.152,DOOR_HEIGHT-.012,.090),"486879",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_box(Vector3(surround_x,y+DOOR_HEIGHT+.062,DOOR_Z),Vector3(.065,.124,WIDTH+.188),"29404f",false).cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_box(Vector3(DOOR_X,y+DOOR_HEIGHT+.035,DOOR_Z),Vector3(.12,.045,WIDTH),"486879",false)
 	var cabin_header_bottom := DOOR_HEIGHT+.06
@@ -117,7 +117,8 @@ func _landing(floor_id: int) -> void:
 	_floor_display(15.785,y+2.48,-1.0)
 	_floor_display(16.421,y+2.48,1.0)
 	_box(Vector3(15.87, y + 1.3, 60.35), Vector3(0.08, 0.40, 0.30), "294e68", false)
-	_box(Vector3(16.35, y + 1.35, 60.45), Vector3(0.06, 0.66, 0.34), "294e68", false)
+	_box(Vector3(17.435,y+1.39,60.49),Vector3(.67,.46,.10),"294e68",false)
+	_text("FLOOR",Vector3(17.435,y+1.54,60.432),PI,15)
 	_button(floor_id, -1)
 	for stop in [0, 1]: _button(floor_id, stop)
 	_box(Vector3(CABIN_BACK-.16,y+1,DOOR_Z),Vector3(.07,.07,2.62),"486879")
@@ -133,13 +134,13 @@ func _landing(floor_id: int) -> void:
 	light.light_energy = .74
 	light.shadow_enabled = false
 	add_child(light)
-	# Waiting furniture against the west wall, beyond the stair landing.
-	# Cabin and Z58..60 aperture stay clear. The X13..16 upper route stays entirely clear.
+	# Keep waiting furniture clear of the elevator and the M110 entrance.
 	var bench_x := 15.45 if floor_id==0 else 10.55
 	var back_x := 15.78 if floor_id==0 else 10.22
-	_box(Vector3(bench_x, y + 0.46, 64.4), Vector3(0.55, 0.12, 1.8), "486879")
-	_box(Vector3(back_x, y + 0.85, 64.4), Vector3(0.09, 0.65, 1.8), "859aa5")
-	for z in [63.75, 65.05]: _box(Vector3(bench_x, y + 0.2, z), Vector3(0.4, 0.4, 0.09), "294e68")
+	var bench_z := 66.85 if floor_id==0 else 64.4
+	_box(Vector3(bench_x, y + 0.46, bench_z), Vector3(0.55, 0.12, 1.8), "486879")
+	_box(Vector3(back_x, y + 0.85, bench_z), Vector3(0.09, 0.65, 1.8), "859aa5")
+	for offset in [-.65,.65]: _box(Vector3(bench_x, y + 0.2, bench_z+offset), Vector3(0.4, 0.4, 0.09), "294e68")
 	_box(Vector3(10.55, y + 0.25, 66), Vector3(0.45, 0.5, 0.45), "7c898e")
 	_box(Vector3(10.55, y + 0.8, 66), Vector3(0.5, 0.7, 0.5), "6f8b79", false)
 

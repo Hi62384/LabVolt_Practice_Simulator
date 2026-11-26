@@ -20,8 +20,12 @@ var download_dialog: ConfirmationDialog
 var game: Node
 var speaker_world: Node3D
 var speaker_position := Vector3.ZERO
+var download_destination: Callable
 var speaker_clock := 0.0
 var speaker_bus := ""
+var speaker_volume := 35
+var phone_suspended := false
+var phone_display_scale := 1.0
 var device_kind:=""
 var device_id:=""
 var lease:=""
@@ -31,7 +35,8 @@ var selected_attachment: Dictionary={}
 var tabs: Array=[]
 var active:=0
 var address: LineEdit
-var tab_row: HFlowContainer
+var tab_row: Container
+var phone_new_tab: Button
 var back: Button
 var forward: Button
 var holder: Control
@@ -73,6 +78,7 @@ func _ready() -> void:
  get_viewport().size_changed.connect(_resize_tabs)
 
 func _process(delta: float) -> void:
+ if phone_suspended:return
  _update_speakers(delta)
  if not is_visible_in_tree():return
  if pointer_browser!=null:
@@ -170,15 +176,25 @@ func renderer_available() -> bool:
 
 func _build() -> void:
  var chrome:=VBoxContainer.new();chrome.add_theme_constant_override("separation",4);add_child(chrome)
- tab_row=HFlowContainer.new();tab_row.add_theme_constant_override("h_separation",3);chrome.add_child(tab_row)
+ if device_kind=="phone":
+  var strip:=HBoxContainer.new();chrome.add_child(strip)
+  var scroll:=ScrollContainer.new()
+  scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_SHOW_NEVER
+  scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+  scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+  strip.add_child(scroll)
+  tab_row=HBoxContainer.new();tab_row.add_theme_constant_override("separation",4);scroll.add_child(tab_row)
+  phone_new_tab=Button.new();phone_new_tab.text="+";phone_new_tab.accessibility_name="New tab";phone_new_tab.pressed.connect(_add_tab);strip.add_child(phone_new_tab)
+ else:
+  phone_new_tab=null
+  tab_row=HFlowContainer.new();tab_row.add_theme_constant_override("h_separation",3);chrome.add_child(tab_row)
  var nav:=HBoxContainer.new();nav.add_theme_constant_override("separation",4);chrome.add_child(nav)
  back=Button.new();back.text="‹";back.tooltip_text="Back";back.accessibility_name="Back";back.pressed.connect(func():_history(-1));nav.add_child(back)
  forward=Button.new();forward.text="›";forward.tooltip_text="Forward";forward.accessibility_name="Forward";forward.pressed.connect(func():_history(1));nav.add_child(forward)
  var reload:=Button.new();reload.text="↻";reload.tooltip_text="Reload";reload.accessibility_name="Reload";reload.pressed.connect(func():if _browser()!=null:_browser().reload());nav.add_child(reload)
  var home:=Button.new();home.text="⌂";home.tooltip_text="Home";home.accessibility_name="Home";home.pressed.connect(_home);nav.add_child(home)
  address=LineEdit.new();address.right_icon=preload("res://scripts/ui/design_system/widgets.gd").icon("search");address.placeholder_text="Search or enter address";address.max_length=2048;address.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- if device_kind=="phone":chrome.add_child(address)
- else:nav.add_child(address)
+ nav.add_child(address)
  address.text_submitted.connect(func(_text):_navigate())
  var menu:=MenuButton.new();menu.text="⋯";menu.tooltip_text="Browser tools";menu.accessibility_name="Browser tools";nav.add_child(menu)
  var popup:=menu.get_popup()
@@ -191,7 +207,7 @@ func _build() -> void:
   elif id==2:_download_address())
  attachment=Label.new();attachment.add_theme_font_size_override("font_size",12);chrome.add_child(attachment)
  var page_frame:=PanelContainer.new()
- page_frame.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("062434"),Color("326979"),9))
+ page_frame.add_theme_stylebox_override("panel",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("062434"),Color("326979"),2 if device_kind=="phone" else 9))
  var split:=HSplitContainer.new()
  split.size_flags_vertical=Control.SIZE_EXPAND_FILL
  add_child(split)
@@ -204,7 +220,7 @@ func _build() -> void:
  split.add_child(inspector)
  _build_inspector()
  inspector.hide()
- holder=Control.new();holder.clip_contents=true;holder.custom_minimum_size.y=220 if device_kind=="phone" else 180;holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_EXPAND_FILL;page_frame.add_child(holder)
+ holder=Control.new();holder.clip_contents=true;holder.custom_minimum_size.y=144 if device_kind=="phone" else 180;holder.size_flags_horizontal=Control.SIZE_EXPAND_FILL;holder.size_flags_vertical=Control.SIZE_EXPAND_FILL;page_frame.add_child(holder)
  home_screen=VBoxContainer.new();home_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);home_screen.alignment=BoxContainer.ALIGNMENT_CENTER;home_screen.add_theme_constant_override("separation",12);holder.add_child(home_screen)
  var home_title:=Label.new();home_title.text="Campus Browser";home_title.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;home_title.add_theme_font_size_override("font_size",30);home_screen.add_child(home_title)
  var home_subtitle:=Label.new();home_subtitle.text="Enter a website or search in the address bar above.";home_subtitle.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER;home_subtitle.add_theme_color_override("font_color",Color("b6cad4"));home_screen.add_child(home_subtitle)
@@ -252,7 +268,7 @@ static func ensure_runtime(tree: SceneTree) -> bool:
 func _add_tab() -> void:
  if not is_instance_valid(runtime) or tabs.size()>=MAX_TABS:return
  var surface:=TextureRect.new();surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);surface.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;surface.stretch_mode=TextureRect.STRETCH_SCALE;surface.focus_mode=Control.FOCUS_ALL;holder.add_child(surface)
- var browser: Variant=runtime.create_browser(HOME_URL if device_kind=="computer" else "about:blank",surface,{"allow_downloads":false,"javascript":true,"javascript_access_clipboard":false,"session_key":session_key,"frame_rate":45})
+ var browser: Variant=runtime.create_browser(HOME_URL,surface,{"allow_downloads":false,"javascript":true,"javascript_access_clipboard":false,"session_key":session_key,"frame_rate":45})
  if not is_instance_valid(browser):surface.queue_free();status.text="Browser tab failed: "+str(runtime.get_error());return
  browser.register_method(self,"_labvolt_element_report")
  browser.register_method(self,"_labvolt_context_report")
@@ -265,7 +281,7 @@ func _add_tab() -> void:
    if native_download:
     browser.connect("virtual_download_progress",_native_download_progress.bind(session_key))
     browser.connect("virtual_download_finished",_native_download_finished.bind(session_key))
- tabs.append({"browser":browser,"surface":surface,"title":"New tab","native_download":native_download,"speaker":_route_tab_audio(browser)});active=tabs.size()-1
+ tabs.append({"browser":browser,"surface":surface,"title":"Google","native_download":native_download,"speaker":_route_tab_audio(browser)});active=tabs.size()-1
  var browser_ref: WeakRef=weakref(browser)
  browser.connect("on_page_loaded",func(_view,_http_code):if browser_ref.get_ref()!=null:_loaded(browser_ref.get_ref()))
  browser.connect("on_page_failed_loading",func(_code,message,_view):if browser_ref.get_ref()==_browser():
@@ -274,6 +290,9 @@ func _add_tab() -> void:
  surface.gui_input.connect(func(event):if browser_ref.get_ref()!=null:_forward(browser_ref.get_ref(),surface,event))
  surface.resized.connect(func():if browser_ref.get_ref()!=null:_resize_browser(browser_ref.get_ref(),surface))
  _resize_browser(browser,surface);_refresh()
+ if device_kind=="phone":
+  address.text=HOME_URL
+  status.text="Loading Google…"
 
 func _route_tab_audio(browser: Node) -> AudioStreamPlayer3D:
  if not is_instance_valid(speaker_world) or not browser.has_method("set_audio_stream"):return null
@@ -283,22 +302,51 @@ func _route_tab_audio(browser: Node) -> AudioStreamPlayer3D:
   AudioServer.add_bus()
   AudioServer.set_bus_name(index,speaker_bus)
  var generator:=AudioStreamGenerator.new()
- generator.mix_rate=AudioServer.get_mix_rate()
- generator.buffer_length=.18
+ generator.mix_rate=48000.0 # Matches gdCEF's capture rate, independent of the output device.
+ generator.buffer_length=.25
  var speaker:=AudioStreamPlayer3D.new()
  speaker.name="CampusComputerSpeaker"
  speaker.stream=generator
  speaker.bus=speaker_bus
  speaker.attenuation_model=AudioStreamPlayer3D.ATTENUATION_DISABLED
- speaker.max_distance=8.0
  speaker_world.add_child(speaker)
  speaker.global_position=speaker_position
  speaker.play()
  var playback:=speaker.get_stream_playback() as AudioStreamGeneratorPlayback
  if playback!=null:browser.set_audio_stream(playback)
+ if browser.has_method("set_audio_drive"):browser.set_audio_drive(_speaker_drive())
  return speaker
 
+func _speaker_drive() -> float:
+ return lerpf(1.0,24.0,pow(clampf((speaker_volume-65.0)/35.0,0.0,1.0),2.0))
+
+func set_speaker_volume(value: int) -> void:
+ var volume:=clampi(value,0,100)
+ if speaker_volume==volume:return
+ speaker_volume=volume
+ for tab in tabs:
+  if is_instance_valid(tab.browser) and tab.browser.has_method("set_audio_drive"):
+   tab.browser.set_audio_drive(_speaker_drive())
+ _update_speakers(.08)
+
+func set_phone_suspended(suspended: bool) -> void:
+ if device_kind!="phone" or phone_suspended==suspended:return
+ phone_suspended=suspended
+ for tab in tabs:
+  if is_instance_valid(tab.browser) and tab.browser.has_method("set_page_suspended"):
+   tab.browser.set_page_suspended(suspended)
+  if is_instance_valid(tab.speaker):
+   if suspended:
+    if is_instance_valid(tab.browser):tab.browser.set_audio_stream(null)
+    tab.speaker.stop()
+   else:
+    tab.speaker.play()
+    var playback:=tab.speaker.get_stream_playback() as AudioStreamGeneratorPlayback
+    if playback!=null and is_instance_valid(tab.browser):tab.browser.set_audio_stream(playback)
+ if not suspended:_update_speakers(.08)
+
 func _update_speakers(delta: float) -> void:
+ if phone_suspended:return
  if not is_instance_valid(speaker_world) or tabs.is_empty():return
  speaker_clock+=delta
  if speaker_clock<.08:return
@@ -306,11 +354,13 @@ func _update_speakers(delta: float) -> void:
  var listener:=speaker_world.get_viewport().get_camera_3d()
  if listener==null:return
  var distance:=listener.global_position.distance_to(speaker_position)
- var gain:=1.0-smoothstep(1.25,8.0,distance)
+ var reach:=lerpf(4.0,32.0,pow(speaker_volume/100.0,.9))
+ var falloff:=1.0-smoothstep(2.4,reach,distance)
+ var gain:=pow(minf(speaker_volume/65.0,1.0),1.5)*falloff
  var bus_index:=AudioServer.get_bus_index(speaker_bus)
  if bus_index>0:
-  AudioServer.set_bus_volume_db(bus_index,linear_to_db(maxf(gain*gain,.0001)))
-  AudioServer.set_bus_mute(bus_index,distance>=8.0)
+  AudioServer.set_bus_volume_db(bus_index,linear_to_db(maxf(gain,.0001)))
+  AudioServer.set_bus_mute(bus_index,speaker_volume==0 or distance>=reach)
 
 func _release_speaker_bus() -> void:
  if speaker_bus.is_empty():return
@@ -330,14 +380,25 @@ func _resize_tabs() -> void:
   if is_instance_valid(tab.browser) and is_instance_valid(tab.surface):_resize_browser(tab.browser,tab.surface)
 
 func _resize_browser(browser: Variant,surface: TextureRect) -> void:
+ if get_viewport().get_meta("parked_preview",false):return
  if surface.size.x<2 or surface.size.y<2:return
- var desired:=surface.size*_desktop_pixel_scale()
+ var desired:=surface.size*_desktop_pixel_scale()*phone_display_scale
  var factor:=minf(1.0,minf(1440.0/desired.x,900.0/desired.y))
  var pixels:=(desired*factor).round()
  if pixels==surface.get_meta("cef_pixels",Vector2.ZERO):return
  surface.set_meta("cef_pixels",pixels)
  browser.resize(pixels)
  browser.set_zoom_level(log(pixels.x/surface.size.x)/log(1.2))
+
+func move_speaker(point: Vector3) -> void:
+ if speaker_position.is_equal_approx(point):return
+ speaker_position=point
+ for tab in tabs:
+  if is_instance_valid(tab.get("speaker")):tab.speaker.global_position=point
+
+func preview_texture() -> Texture2D:
+ if active not in range(tabs.size()) or not is_instance_valid(tabs[active].surface):return null
+ return tabs[active].surface.texture
 
 func parked_tabs() -> Dictionary:
  var urls: Array[String]=[]
@@ -389,7 +450,10 @@ func _refresh() -> void:
   line.add_child(button)
   var stop:=Button.new();stop.flat=true;stop.text="×";stop.tooltip_text="Close tab"
   stop.disabled=tabs.size()<=1;stop.pressed.connect(func():_close_tab_at(index));line.add_child(stop)
- var plus:=Button.new();plus.text="+";plus.disabled=tabs.size()>=MAX_TABS or not is_instance_valid(runtime);plus.pressed.connect(_add_tab);tab_row.add_child(plus)
+ var plus:=phone_new_tab
+ if not is_instance_valid(plus):
+  plus=Button.new();plus.text="+";plus.pressed.connect(_add_tab);tab_row.add_child(plus)
+ plus.disabled=tabs.size()>=MAX_TABS or not is_instance_valid(runtime)
  for i in tabs.size():tabs[i].surface.visible=i==active
  var browser: Variant=_browser()
  if is_instance_valid(home_screen):home_screen.visible=device_kind!="computer" and (browser==null or str(browser.get_url())=="about:blank")
@@ -416,8 +480,8 @@ func _close_tab_at(index: int) -> void:
 func _home() -> void:
  var browser: Variant=_browser()
  if browser==null:return
- browser.load_url(HOME_URL if device_kind=="computer" else "about:blank")
- if is_instance_valid(home_screen):home_screen.visible=device_kind!="computer"
+ browser.load_url(HOME_URL)
+ if is_instance_valid(home_screen):home_screen.hide()
  address.clear()
  status.text=""
 
@@ -426,7 +490,7 @@ func _input(event: InputEvent) -> void:
  if not is_instance_valid(address):return
  var focused:=get_viewport().gui_get_focus_owner()
  var hovered:=get_viewport().gui_get_hovered_control()
- if focused!=address and not is_ancestor_of(focused) and not is_ancestor_of(hovered):return
+ if focused!=address and (focused==null or not is_ancestor_of(focused)) and (hovered==null or not is_ancestor_of(hovered)):return
  if event.ctrl_pressed:
   match event.keycode:
    KEY_L:address.grab_focus();address.select_all()
@@ -526,8 +590,9 @@ func _offer_download(name: String,extension: String,body: PackedByteArray,_sourc
   return
  var filename:=Downloads.filename(name.left(128),extension)
  var expected_session:=session_key
+ var destination_name: String=download_destination.call() if download_destination.is_valid() else "Downloads"
  download_dialog=ConfirmationDialog.new()
- download_dialog.title="Save to Campus Downloads"
+ download_dialog.title="Save to "+destination_name
  download_dialog.theme=_download_theme()
  download_dialog.ok_button_text="Save"
  var fields:=VBoxContainer.new()
@@ -550,7 +615,7 @@ func _offer_download(name: String,extension: String,body: PackedByteArray,_sourc
  details.size_flags_horizontal=Control.SIZE_EXPAND_FILL
  summary.add_child(details)
  var folder_label:=Label.new()
- folder_label.text="Downloads"
+ folder_label.text=destination_name
  details.add_child(folder_label)
  var metadata:=Label.new()
  metadata.text="%s file · %s"%[extension.to_upper(),String.humanize_size(body.size())]
@@ -572,7 +637,7 @@ func _offer_download(name: String,extension: String,body: PackedByteArray,_sourc
  download_dialog.get_ok_button().theme_type_variation="DownloadSaveButton"
  download_dialog.confirmed.connect(func():
   if session_key==expected_session and virtual_download_save.is_valid():
-   status.text="Saving to Downloads…"
+   status.text="Saving to "+destination_name+"…"
    var requested:=name_field.text.strip_edges()
    if not requested.to_lower().ends_with("."+extension):requested+="."+extension
    virtual_download_save.call(Downloads.filename(requested,extension),body)

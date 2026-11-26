@@ -179,6 +179,8 @@ func execute(peer: int,action: Dictionary) -> void:
 			result = ledger.failure("Pick up and stow the kit before transferring it")
 		elif action.get("op") == "dorm" and action.args.size() == 1 and action.args[0] is Dictionary and game.portable_laptops.blocks_dorm_transfer(peer,action.args[0]):
 			result = ledger.failure("Pick up the laptop before storing it")
+		elif action.get("op") == "dorm" and action.args.size() == 1 and action.args[0] is Dictionary and game.personal_placement.is_placed(peer,str(action.args[0].get("item",""))):
+			result = ledger.failure("Pick up the item before storing it")
 		elif not _accessory_change_allowed(peer,action):
 			result = ledger.failure("Remove an accessory to free a slot")
 		else:
@@ -258,21 +260,21 @@ func receive_snapshot(result: Dictionary) -> void:
 	var operation := ""
 	if not pending.is_empty() and pending[0].id==id:
 		operation=str(pending[0].get("op",""))
-		if operation=="buy_usb" and not result.get("ok",false) and pending[0].args.size()==3:
+		if operation=="buy_usb" and not result.get("ok",false) and pending[0].args.size() in [3,4]:
 			var profile=game.electronics.profile
 			var before: Dictionary=profile.data.duplicate(true)
 			profile.data.get("usb_purchase_pending",{}).erase(str(pending[0].args[2]))
 			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
 			if profile.save()!=OK:profile.data=before
 			profile.authority_submit=callback
-		if operation=="buy_portable_laptop" and not result.get("ok",false) and pending[0].args.size()==3:
+		if operation=="buy_portable_laptop" and not result.get("ok",false) and pending[0].args.size() in [3,4]:
 			var profile=game.electronics.profile
 			var before: Dictionary=profile.data.duplicate(true)
 			profile.data.get("laptop_purchase_pending",{}).erase(str(pending[0].args[2]))
 			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
 			if profile.save()!=OK:profile.data=before
 			profile.authority_submit=callback
-		if operation=="buy_smartphone" and not result.get("ok",false) and pending[0].args.size()==3:
+		if operation=="buy_smartphone" and not result.get("ok",false) and pending[0].args.size() in [3,4]:
 			var profile=game.electronics.profile
 			var before: Dictionary=profile.data.duplicate(true)
 			profile.data.get("phone_purchase_pending",{}).erase(str(pending[0].args[2]))
@@ -283,6 +285,7 @@ func receive_snapshot(result: Dictionary) -> void:
 		operation_result.emit(str(pending[0].get("op","")),result)
 		pending.pop_front()
 	if result.get("message","")!="":game.ui.log_message(str(result.message))
+	if operation=="decorate_equipment" and result.get("ok",false):game.hotbar.refresh_portraits()
 	if result.get("ok",false) and game.front.in_game and operation in ["avatar_cosmetic","cosmetic_purchase"]:
 		var profile: RefCounted = game.electronics.profile
 		if previous_profile.get("avatar_cosmetics",{}) != profile.data.get("avatar_cosmetics",{}):

@@ -71,7 +71,8 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 					if not imported.has("laptop_purchase_resolved"):imported.laptop_purchase_resolved={}
 					imported.laptop_purchase_resolved[laptop_id]=true
 					continue
-				if not previous_laptops.has(laptop_id) or imported.laptop_purchase_pending[laptop_id].tier!=purchase.item.tier or (incoming_laptops.has(laptop_id) and not adopted_host_dorm):return failure("Pending laptop purchase conflicts with host record")
+				var pending: Dictionary=imported.laptop_purchase_pending[laptop_id]
+				if not previous_laptops.has(laptop_id) or pending.tier!=purchase.item.tier or not Profile.EquipmentConfiguration.same_configuration("portable_laptop",pending.get("configuration",{}),purchase.item.get("configuration",{})) or (incoming_laptops.has(laptop_id) and not adopted_host_dorm):return failure("Pending laptop purchase conflicts with host record")
 				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending laptop purchase")
 				imported.dollars-=int(purchase.debit)
 				if adopted_host_dorm:
@@ -94,7 +95,8 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 					if not imported.has("phone_purchase_resolved"):imported.phone_purchase_resolved={}
 					imported.phone_purchase_resolved[phone_id]=true
 					continue
-				if not previous_phones.has(phone_id) or imported.phone_purchase_pending[phone_id].tier!=purchase.item.tier or (incoming_phones.has(phone_id) and not adopted_host_dorm):return failure("Pending phone purchase conflicts with host record")
+				var pending: Dictionary=imported.phone_purchase_pending[phone_id]
+				if not previous_phones.has(phone_id) or pending.tier!=purchase.item.tier or not Profile.EquipmentConfiguration.same_phone_configuration(pending.get("configuration",{}),purchase.item.get("configuration",{})) or (incoming_phones.has(phone_id) and not adopted_host_dorm):return failure("Pending phone purchase conflicts with host record")
 				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending phone purchase")
 				imported.dollars-=int(purchase.debit)
 				if adopted_host_dorm:
@@ -117,7 +119,9 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 					if not imported.has("usb_purchase_resolved"):imported.usb_purchase_resolved={}
 					imported.usb_purchase_resolved[usb_id]=true
 					continue
-				if not previous_drives.has(usb_id) or int(imported.usb_purchase_pending[usb_id])!=int(purchase.item.capacity_mb):return failure("Pending USB purchase conflicts with host record")
+				var pending: Variant=imported.usb_purchase_pending[usb_id]
+				var configuration: Dictionary=pending.get("configuration",{}) if pending is Dictionary else {}
+				if not previous_drives.has(usb_id) or Profile.EquipmentConfiguration.usb_capacity(pending)!=int(purchase.item.capacity_mb) or not Profile.EquipmentConfiguration.same_configuration("usb",configuration,purchase.item.get("configuration",{})):return failure("Pending USB purchase conflicts with host record")
 				if incoming_drives.has(usb_id) and not adopted_host_dorm:return failure("Pending USB purchase conflicts with inventory")
 				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending USB purchase")
 				imported.dollars-=int(purchase.debit)
@@ -287,8 +291,12 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 	var deployment: Dictionary = a.deployment.duplicate(true)
 	match op:
 		"create_kit":
-			if args.size() not in [1,2] or not args[0] is String or (args.size()==2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid kit size")
-			message=p.create_kit(args[0],args[1] if args.size()==2 else 6)
+			if args.size() not in [1,2,3] or not args[0] is String or (args.size()>=2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid kit size")
+			message=p.create_kit(args[0],args[1] if args.size()>=2 else 6,args[2] if args.size()==3 else {})
+			if not p.operation_succeeded:return failure(message)
+		"decorate_equipment":
+			if args.size()!=4 or not args[0] is String or not args[1] is String or args[1].length()>70:return failure("Invalid decoration edit")
+			message=p.decorate_equipment(args[0],args[1],args[2],args[3])
 			if not p.operation_succeeded:return failure(message)
 		"duplicate_kit":
 			if not args.is_empty():return failure("Invalid kit copy")
@@ -318,26 +326,26 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 			message=p.remove_kit_board_components(args[0])
 			if not p.operation_succeeded:return failure(message)
 		"study_tool":
-			if args.size() not in [1,2] or not args[0] is String or (args.size()==2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid study supply")
-			message=p.buy_study_tool(args[0],args[1] if args.size()==2 else 6)
+			if args.size() not in [1,2,3] or not args[0] is String or (args.size()>=2 and (not args[1] is int or args[1] not in range(7))):return failure("Invalid study supply")
+			message=p.buy_study_tool(args[0],args[1] if args.size()>=2 else 6,args[2] if args.size()==3 else {})
 			if not p.operation_succeeded:return failure(message)
 		"buy_usb":
-			if args.size()!=3 or not args[0] is int or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid USB purchase")
+			if args.size() not in [3,4] or not args[0] is int or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid USB purchase")
 			for account_data in state.accounts.values():
 				if account_data.profile.get("dorm",{}).get("usb_drives",{}).has(args[2]):return failure("USB identity already exists")
-			message=p.buy_usb(args[0],args[1],args[2])
+			message=p.buy_usb(args[0],args[1],args[2],args[3] if args.size()==4 else {})
 			if not p.operation_succeeded:return failure(message)
 		"buy_portable_laptop":
-			if args.size()!=3 or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid laptop purchase")
+			if args.size() not in [3,4] or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid laptop purchase")
 			for account_data in state.accounts.values():
 				if account_data.profile.get("dorm",{}).get("portable_laptops",{}).has(args[2]):return failure("Laptop identity already exists")
-			message=p.buy_portable_laptop(args[0],args[1],args[2])
+			message=p.buy_portable_laptop(args[0],args[1],args[2],args[3] if args.size()==4 else {})
 			if not p.operation_succeeded:return failure(message)
 		"buy_smartphone":
-			if args.size()!=3 or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid phone purchase")
+			if args.size() not in [3,4] or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid phone purchase")
 			for account_data in state.accounts.values():
 				if account_data.profile.get("dorm",{}).get("smartphones",{}).has(args[2]):return failure("Phone identity already exists")
-			message=p.buy_smartphone(args[0],args[1],args[2])
+			message=p.buy_smartphone(args[0],args[1],args[2],args[3] if args.size()==4 else {})
 			if not p.operation_succeeded:return failure(message)
 		"dorm":
 			if args.size()!=1 or not args[0] is Dictionary:return failure("Invalid dorm intent")
@@ -432,6 +440,10 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 				for kit_id in a.profile.get("kits",{}):
 					if not incoming.kits.has(kit_id):return failure("Delete kits at the Components Counter")
 					if incoming.kits.has(kit_id) and incoming.kits[kit_id] is Dictionary and not Profile.same(incoming.kits[kit_id].get("items",{}),a.profile.kits[kit_id].get("items",{})):return failure("Edit kit components at the Components Counter")
+				for kit_id in incoming.kits:
+					var candidate: Variant=incoming.kits[kit_id]
+					if candidate is Dictionary and not Profile.same(candidate.get("configuration",{}),a.profile.get("kits",{}).get(kit_id,{}).get("configuration",{})):
+						return failure("Kit specifications must come from a confirmed purchase")
 			for key in ["kits","equipped","circuit_draft","notebook","notebook_pages","notebook_page","blueprints","programs","favorites","ic_library","inventions"]:
 				if incoming.has(key):p.data[key]=incoming[key].duplicate(true) if incoming[key] is Dictionary or incoming[key] is Array else incoming[key]
 			# Validate untrusted field types before dereferencing the blueprint library.

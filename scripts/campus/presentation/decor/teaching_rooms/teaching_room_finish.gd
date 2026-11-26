@@ -21,6 +21,7 @@ func mount(room_id: String,campus: Node,registry: Object) -> bool:
 	if room.get("kind")=="lecture":
 		var root := Node3D.new()
 		root.name="TeachingFinish_"+room_id
+		root.set_meta("stable_fixture_shadows",true)
 		campus.add_child(root)
 		_lecture(root,campus,room,{"door_east":float(room.door[0])>float(room.center[0])})
 		if not campus.call("register_content",room_id,root):

@@ -42,9 +42,6 @@ const RecordMetadata=preload("res://scripts/campus/academics/record_metadata.gd"
 const Attendance = preload("res://scripts/campus/academics/attendance_ledger.gd")
 const ClassStartClock = preload("res://scripts/campus/academics/class_start/class_start_clock.gd")
 const GradeWeights = preload("res://scripts/campus/academics/grade_weight_policy.gd")
-const PracticeSheets = preload("res://scripts/campus/academics/open_lab/practice/practice_sheet_store.gd")
-var practice_dirty := {}
-var practice_save_clock := 0.0
 var class_start = ClassStartClock.new()
 var attendance_archive := {}
 var local_attendance := {}
@@ -85,7 +82,6 @@ func _reset_session() -> void:
 	document_readers.clear()
 	document_sequences.clear()
 	document_sequence=0
-	_flush_practice()
 	host_departure_in_progress=false
 	class_start.cancel()
 	sent_identity=false
@@ -126,7 +122,6 @@ func start(new_mode: String,level: int) -> void:
 		_notice(1,"Finish or explicitly abandon the active assessment before changing activities.")
 		return
 	class_start.cancel()
-	_flush_practice()
 	activity_epoch+=1
 	activity={}
 	presentation={}
@@ -140,7 +135,6 @@ func start(new_mode: String,level: int) -> void:
 	phase="freeplay"
 	remaining=0
 	if not identities.has(1):_identify(1,local_identity)
-	else:_restore_practice(1)
 	if mode=="Class":_clear_earthing_demo();_new_round()
 	broadcast()
 func roster_changed() -> void:
@@ -156,7 +150,6 @@ func roster_changed() -> void:
 	for peer in identities.keys():
 		if not game.session.roster.has(peer):
 			var token: String=identities[peer]
-			_save_practice(token)
 			if not host_departure_in_progress:_fail_departing(token,peer)
 			for id in papers.keys():
 				var paper: Dictionary=papers[id]
@@ -188,7 +181,6 @@ func _identify(peer: int,token: String) -> void:
 			_notice(peer,"Class enrollment could not be saved. Ask the host to retry admission.")
 			return
 	identities[peer]=token
-	_restore_practice(peer)
 	if peer==1:_identity_accepted(token,archive.get(token,{}))
 	elif game.session.online:_identity_accepted.rpc_id(peer,token,archive.get(token,{}))
 	if mode=="Class":
@@ -313,7 +305,6 @@ func _give(peer: int,assignment: Dictionary,lesson: bool,class_copy: bool,supply
 		var instructions := str(project_data.get("teaching",{}).get("equipment",""))
 		if not project_data.has("practice_instruction_pages") and instructions.length()>480:
 			project_data.practice_instruction_pages=preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd").instruction_pages(instructions)
-	_queue_practice_save(papers[id])
 	if not can_hold:_notice(peer,"Your new sheet is on a student desk. Look for your name on its cover.")
 	return id
 func _holding_cable(peer: int) -> bool:
@@ -536,7 +527,9 @@ func _sync_supply_world() -> bool:
 		var state: Dictionary=profile.get("dorm",{})
 		var back := DormSupplies.Backpacks.equipped(state)
 		var head: bool=state.get("worn_supplies",{}).has("head")
-		if head or not back.is_empty():gear[peer]={"head":head,"back":state.backpacks[back].size if not back.is_empty() else ""}
+		if head or not back.is_empty():
+			var bag: Dictionary=state.get("backpacks",{}).get(back,{})
+			gear[peer]={"head":head,"back":bag.get("size",""),"back_configuration":bag.get("configuration",{})}
 		var present := {}
 		for id in papers.keys():
 			var paper: Dictionary=papers[id]
@@ -554,7 +547,7 @@ func _sync_supply_world() -> bool:
 			var paper_id := _give(peer,{"title":DormSupplies.Backpacks.SIZES[bag.size].name,"questions":[],"guide_pages":[]},true,false,true)
 			if paper_id==0:continue
 			var point: Array=bag.position
-			papers[paper_id].merge({"held":false,"position":Vector3(float(point[0]),float(point[1]),float(point[2])),"supply_id":item,"supply_model":bag.size,"supply_released":true},true)
+			papers[paper_id].merge({"held":false,"position":Vector3(float(point[0]),float(point[1]),float(point[2])),"supply_id":item,"supply_model":bag.size,"supply_configuration":bag.get("configuration",{}),"supply_released":true},true)
 			changed=true
 	if worn_gear!=gear:
 		worn_gear=gear
@@ -625,13 +618,17 @@ func apply(peer: int,a: Dictionary) -> void:
 	if op in ["board_mark","board_path","board_edit"]:
 		_mark_whiteboard(peer,a)
 		return
+	if DormSupplies.PowerBanks.valid_key(op):return
 	if DormSupplies.is_supply(op) or op.begins_with("bag:"):
+		const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 		var dorm = game.get("dorm_interactions")
 		var bag: Dictionary={}
+		var configuration: Dictionary={}
 		if is_instance_valid(dorm):
 			var profile: Dictionary = dorm._profile(dorm.authenticated_identity(peer))
 			if op not in profile.get("dorm",{}).get("carry_items",[]):return
 			bag=profile.get("dorm",{}).get("backpacks",{}).get(op.trim_prefix("bag:"),{})
+			configuration=DormSupplies.supply_configuration(profile.get("dorm",{}),op)
 		for existing in papers.values():
 			if existing.owner==peer and DormSupplies.paper_supply(existing)==op and not existing.get("supply_released",false):
 				_notice(peer,"Your item is already in your hotbar.")
@@ -639,22 +636,28 @@ func apply(peer: int,a: Dictionary) -> void:
 		if held(peer)!=0 or _holding_cable(peer) or _holding_kit(peer):return
 		if not DormSupplies.is_notebook(op):
 			var product: Dictionary=DormSupplies.Backpacks.SIZES.get(bag.get("size",""),{})
-			var item_id := _give(peer,{"title":DormSupplies.TOOLS.get(op,product.get("name","Backpack")),"questions":[],"guide_pages":[]},true,false,true)
+			var item_id := _give(peer,{"title":product.get("name","Backpack") if op.begins_with("bag:") else DormSupplies.supply_title(op),"questions":[],"guide_pages":[]},true,false,true)
 			if item_id!=0:
 				papers[item_id].supply_id=op
-				if not bag.is_empty():papers[item_id].supply_model=bag.size
-				papers[item_id].calculator=op in DormSupplies.CALCULATORS
+				if not bag.is_empty():
+					papers[item_id].supply_model=bag.size
+					papers[item_id].supply_configuration=bag.get("configuration",{}).duplicate(true)
+				papers[item_id].calculator=DormSupplies.is_calculator(op)
+				if papers[item_id].calculator:papers[item_id].supply_configuration=configuration.duplicate(true)
 				papers[item_id].guide=true
 			broadcast()
 			return
 		var content=a.get("content",{})
 		if not preload("res://scripts/notebook_store.gd").valid(content):return
 		var note := {"title":"Notebook","topic":0,"difficulty":0,"source":"Personal working notes","questions":[],"theory":"","procedure":"","data":"","seed":0,"guide_pages":[]}
-		var pages := clampi(int(content.get("pages",2)),1,100)
+		var capacity := int(Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","pages",100))
+		var pages := clampi(int(content.get("pages",2)),1,capacity) if configuration.is_empty() else capacity
 		for page in range(pages):note.guide_pages.append({"title":"Notes · %d"%(page+1),"text":""})
 		var id := _give(peer,note,true,false,true)
 		if id!=0:
 			papers[id].guide=true;papers[id].notebook=true
+			papers[id].notebook_configuration=configuration.duplicate(true)
+			papers[id].notebook_page_limit=capacity
 			var copy_uid := DormSupplies.notebook_uid(op)
 			papers[id].document_uid = str(content.get("document_uid",papers[id].document_uid)) if copy_uid.is_empty() else copy_uid
 			papers[id].supply_id=op
@@ -761,7 +764,8 @@ func apply(peer: int,a: Dictionary) -> void:
 					_notice(peer,"Put down the item you are holding first.")
 					return
 				if not supply.is_empty() and paper.get("supply_released",false):
-					var reclaimed: Dictionary=game.dorm_interactions.move_world_backpack(peer,supply.trim_prefix("bag:"),true) if supply.begins_with("bag:") else game.dorm_interactions.move_world_supply(peer,supply,true)
+					var configuration: Dictionary=paper.get("notebook_configuration",paper.get("supply_configuration",{}))
+					var reclaimed: Dictionary=game.dorm_interactions.move_world_backpack(peer,supply.trim_prefix("bag:"),true) if supply.begins_with("bag:") else game.dorm_interactions.move_world_supply(peer,supply,true,configuration)
 					if not reclaimed.ok:_notice(peer,str(reclaimed.error));return
 					paper.supply_released=false
 					paper.erase("wall_normal")
@@ -813,7 +817,7 @@ func apply(peer: int,a: Dictionary) -> void:
 				if op=="drop" and not lost_parcel.is_empty():paper.lost_token=game.discarded_items.track_ground(peer,lost_parcel,lost_label)
 			"page":paper.page=clampi(int(a.get("page",0)),0,page_count(paper)-1)
 			"notebook_page":
-				if not paper.get("notebook",false) or page_count(paper)>=100:return
+				if not paper.get("notebook",false) or page_count(paper)>=int(paper.get("notebook_page_limit",100)):return
 				var count := page_count(paper)
 				paper.project.guide_pages.append({"title":"Notes · %d"%(count+1),"text":""})
 				paper.page=count
@@ -983,39 +987,8 @@ func apply(peer: int,a: Dictionary) -> void:
 					_mark(paper,false)
 					if room_class and not paper.mark.is_empty():game.lecture_classes.paper_submitted(paper)
 		paper.revision+=1
-		_queue_practice_save(paper)
 	broadcast()
 
-func _queue_practice_save(paper: Dictionary) -> void:
-	if paper.project.get("practice_scope") != "ungraded":return
-	var identity := str(paper.get("identity", ""))
-	if not identity.is_empty():practice_dirty[identity] = true
-
-func _save_practice(identity: String) -> void:
-	if practice_dirty.has(identity) and PracticeSheets.write(identity, papers) == OK:practice_dirty.erase(identity)
-
-func _flush_practice() -> void:
-	if not multiplayer.is_server():return
-	for identity in practice_dirty.keys():_save_practice(identity)
-
-func _restore_practice(peer: int) -> void:
-	if mode not in ["Open Lab", "Freeplay", "Creative Freeplay"]:return
-	var identity := str(identities.get(peer, ""))
-	if identity.is_empty():return
-	for paper in papers.values():
-		if paper.owner == peer and paper.project.get("practice_scope") == "ungraded":return
-	for draft in PracticeSheets.read(identity):
-		draft.id = next_id
-		draft.identity = identity
-		draft.owner = peer
-		draft.owner_name = game.session.roster.get(peer, {}).get("name", "Student")
-		draft.held = false
-		draft.position = _practice_desk(peer, draft.project)
-		draft.lesson = true
-		draft.class_round = 0
-		draft.assessment_id = ""
-		papers[next_id] = draft
-		next_id += 1
 
 func _practice_desk(peer: int, project_data: Dictionary) -> Vector3:
 	if project_data.get("course_id") == "ETY155":
@@ -1305,10 +1278,6 @@ func _process(delta: float) -> void:
 		if revoked:broadcast()
 	if game==null or not multiplayer.has_multiplayer_peer():return
 	if multiplayer.multiplayer_peer.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED or not multiplayer.is_server():return
-	practice_save_clock += delta
-	if practice_save_clock >= 1.25:
-		practice_save_clock = 0.0
-		_flush_practice()
 	if phase=="travel" and not suspended:
 		var now_usec := Time.get_ticks_usec()
 		remaining=class_start.remaining(now_usec)
@@ -1532,7 +1501,6 @@ func start_activity(config: Dictionary) -> Dictionary:
 	_clear_earthing_demo()
 	class_start.cancel()
 	activity_epoch+=1
-	_flush_practice()
 	papers.clear()
 	class_students.clear()
 	round_id+=1
@@ -1772,7 +1740,6 @@ func prepare_host_exit(intentional: bool) -> void:
 	else:suspend_for_host_loss()
 
 func _session_leaving() -> void:
-	_flush_practice()
 	if not game.front.in_game:return
 	if game.session.get_meta("lost_authority",false):suspend_for_host_loss()
 	else:prepare_host_exit(multiplayer.is_server())

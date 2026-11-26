@@ -2,8 +2,10 @@ extends PanelContainer
 signal close_requested
 const Supplies = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Finance = preload("res://scripts/financial_calculator.gd")
+const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 var finance_help: Label
 var model := "calculator"
+var equipment_options: Dictionary={}
 var show_close := false
 var campus_style := false
 var display: LineEdit
@@ -21,6 +23,8 @@ func _ready() -> void:
 	var financial := model=="calculator_financial"
 	custom_minimum_size.x=260 if basic else 280
 	var shell := StyleBoxFlat.new();shell.bg_color=Color("15171a") if basic else Color("39473c") if financial else Color("29333e")
+	if not equipment_options.is_empty():
+		shell.bg_color=Color(Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","shell","29333e")).darkened(.28)
 	if campus_style:
 		shell.bg_color=Color("062738")
 		shell.border_color=Color("1c5669")
@@ -46,6 +50,10 @@ func _ready() -> void:
 		var close := preload("res://scripts/ui/design_system/widgets.gd").action("Close","close",func():close_requested.emit())
 		header.add_child(close)
 	var lcd := PanelContainer.new();var lcd_style := StyleBoxFlat.new();lcd_style.bg_color=Color("0d4553") if campus_style else Color("d5dfcf");lcd_style.set_content_margin_all(10);lcd_style.set_corner_radius_all(5);lcd.add_theme_stylebox_override("panel",lcd_style);body.add_child(lcd)
+	if not equipment_options.is_empty():
+		lcd_style.bg_color=Color(Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","screen_color","d5dfcf"))
+		var display_scale: float=Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","screen",1.0)
+		lcd.custom_minimum_size.y=72.0*display_scale
 	if campus_style:
 		lcd_style.set_corner_radius_all(10)
 		lcd_style.border_color=Color("358598")
@@ -56,8 +64,10 @@ func _ready() -> void:
 	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));result.clip_text=true;lines.add_child(result)
 	if campus_style:result.add_theme_font_size_override("font_size",34)
 	var grid := GridContainer.new();grid.columns=4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
-	if basic or financial:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	var keys := keypad_keys(model)
+	grid.columns=Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","columns",grid.columns)
+	if basic or financial or campus_style:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	var keys: Array=equipment_options.get("keypad",keypad_keys(model))
+	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","key_style",false)
 	if financial:
 		finance_help=Label.new()
 		finance_help.text="Choose a finance key for its inputs"
@@ -67,26 +77,24 @@ func _ready() -> void:
 		body.move_child(finance_help,2)
 	for key in keys:
 		var button := Button.new();button.text=key;button.custom_minimum_size=Vector2(44,32 if show_close else 40);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",15);button.tooltip_text={"DEG":"Toggle degrees / radians","AC":"Clear expression","DEL":"Delete previous character","=":"Evaluate expression","MR":"Recall memory","MC":"Clear memory"}.get(key,key)
-		if basic or financial:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
+		if basic or financial or campus_style:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		if financial and Finance.ARGUMENTS.has(key):button.tooltip_text=Finance.ARGUMENTS[key]
 		var style := StyleBoxFlat.new();style.bg_color=(Color("2e5267") if campus_style else Color("647781")) if key.is_valid_int() or key=="." else (Color("103c55") if campus_style else Color("3e4b59"))
+		if not equipment_options.is_empty():
+			style.bg_color=Color(Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","keys","60747e"))
+			if not key.is_valid_int() and key!=".":style.bg_color=style.bg_color.darkened(.18)
 		if key=="=":style.bg_color=Color("068f84") if campus_style else Color("408873")
 		if key in ["DEL","AC"]:style.bg_color=Color("a94749") if campus_style else Color("925d52")
 		if campus_style:
 			style.border_color=style.bg_color.lightened(.14)
 			style.set_border_width_all(1)
-		style.set_corner_radius_all(6);button.add_theme_stylebox_override("normal",style);var hover: StyleBoxFlat=style.duplicate();hover.bg_color=hover.bg_color.lightened(.15);button.add_theme_stylebox_override("hover",hover);button.add_theme_stylebox_override("pressed",hover)
+		style.set_corner_radius_all(20 if round_keys else 6);button.add_theme_stylebox_override("normal",style);var hover: StyleBoxFlat=style.duplicate();hover.bg_color=hover.bg_color.lightened(.15);button.add_theme_stylebox_override("hover",hover);button.add_theme_stylebox_override("pressed",hover)
+		if style.bg_color.get_luminance()>.45:
+			for state in ["font_color","font_hover_color","font_pressed_color"]:button.add_theme_color_override(state,Color("192934"))
 		button.pressed.connect(func():press(key));grid.add_child(button)
 		if key=="DEG":mode=button
 static func keypad_keys(model_id: String) -> Array:
-	var arithmetic := ["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","=","+"]
-	return arithmetic+["AC","DEL"] if model_id=="calculator_basic" else ["N","I%","PV","PMT","FV",
-		"NPV","IRR","EFF","NOM","%CHG",
-		"MU","MAR","SL","BEP",",",
-		"7","8","9","÷","DEL",
-		"4","5","6","×","AC",
-		"1","2","3","−","(",
-		"0",".","=","+",")"] if model_id=="calculator_financial" else ["DEG","MC","MR","M+","M−","sin","cos","tan","(",")","asin","acos","atan","ln","log","√","x²","xʸ","1/x","π","7","8","9","DEL","AC","4","5","6","×","÷","1","2","3","+","−","0",".","±","Ans","="]
+	return Equipment.Keypad.keys(model_id)
 
 func press(key: String) -> void:
 	if model=="calculator_financial" and Finance.ARGUMENTS.has(key):

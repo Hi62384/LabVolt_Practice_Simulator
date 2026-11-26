@@ -1,8 +1,8 @@
 extends Node3D
 ## M103-only presentation layer. The shell, doors, bench collisions and devices stay authoritative.
 const ROOM_ID := "dc_lab"
-const FLOOR := Color("8999ad")
-const FLOOR_ALT := Color("93a2b4")
+const FLOOR := Color("7c8b9e")
+const FLOOR_ALT := Color("8795a7")
 const WALL_BLUE := Color("587587")
 const WALL_WHITE := Color("dcdfe5")
 const FRAME := Color("344d59")
@@ -20,7 +20,7 @@ func mount(campus: Node3D, registry: Object) -> bool:
 	var high: Array=room.get("bounds_max",[])
 	if low.size()!=3 or high.size()!=3: return false
 	if absf(float(low[0])+10.0)>.01 or absf(float(high[0])-10.0)>.01 or absf(float(low[2])-13.0)>.01 or absf(float(high[2])-25.0)>.01: return false
-	root=Node3D.new();root.name="M103RoomFinish";campus.add_child(root)
+	root=Node3D.new();root.name="M103RoomFinish";root.set_meta("stable_fixture_shadows",true);campus.add_child(root)
 	# The finish supplies the visible tile tops above the solid room shell.
 	var groups: Array = []
 	for variant in range(2):
@@ -29,7 +29,8 @@ func mount(campus: Node3D, registry: Object) -> bool:
 			for z in range(12):
 				if int((x*7+z*3)%9<2)==variant: points.append(Vector3(-9.5+x,.003,13.5+z))
 		groups.append({"points":points, "color":FLOOR_ALT if variant==1 else FLOOR})
-	preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.994,.994), .018, .28)
+	var tiles := preload("res://scripts/campus/performance/lit_tile_batches.gd").room_floor(root, groups, Vector2(.994,.994), .018, .55)
+	(tiles.material_override as StandardMaterial3D).metallic_specular=.24
 	# All wall details sit within the room shell; the east entrance stays open.
 	for z in [13.105,24.895]:
 		_box(Vector3(0,2.62,z),Vector3(19.68,2.57,.025),WALL_WHITE)

@@ -1,4 +1,5 @@
 extends Node3D
+const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 const Whiteboard = preload("res://scripts/ui/paper_workspace/whiteboard_workspace.gd")
 const Toon = preload("res://scripts/toon_character.gd")
 var game: Node
@@ -158,6 +159,9 @@ func _create(paper: Dictionary) -> void:
 	var shape := BoxShape3D.new()
 	var board_size: Vector2=paper.get("board_size",Vector2(1.35,.78))
 	var backpack := supply.begins_with("bag:")
+	var notebook: Dictionary=paper.get("notebook_configuration",{})
+	var calculator_options: Dictionary=paper.get("supply_configuration",{}) if paper.get("calculator",false) else {}
+	const NotebookModel = preload("res://scripts/campus/items/notebook_model.gd")
 	var bag_model := str(paper.get("supply_model","backpack_small"))
 	match supply:
 		"whiteboard": shape.size=Vector3(board_size.x,.035,board_size.y)
@@ -168,11 +172,12 @@ func _create(paper: Dictionary) -> void:
 		"notebook": shape.size=Vector3(.23,.034,.31)
 		_:
 			if backpack:
-				var bag_scale: float={"backpack_small":1.0,"backpack_medium":1.14,"backpack_large":1.28,"backpack_giant":1.44}.get(bag_model,1.0)
-				shape.size=Vector3(.29,.38,.22)*bag_scale
+				shape.size=preload("res://scripts/campus/dorms/authority/backpack_inventory.gd").dimensions(bag_model)
 				hit.position.y=shape.size.y*.5
 			elif paper.get("calculator",false):shape.size=Vector3(.135,.026,.215)
 			else:shape.size=Vector3(.32,.018,.44)
+	if not notebook.is_empty():shape.size=NotebookModel.dimensions(notebook)
+	if not calculator_options.is_empty():shape.size=Equipment.value(Equipment.CALCULATOR,calculator_options,"hardware","size",shape.size)
 	hit.shape=shape
 	root.add_child(hit)
 	var viewport := SubViewport.new()
@@ -192,12 +197,16 @@ func _create(paper: Dictionary) -> void:
 	mesh.material_override=material
 	root.add_child(mesh)
 	var prop: Node3D
-	if paper.get("calculator",false):
+	if not notebook.is_empty():
+		mesh.hide()
+		viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED
+		prop=NotebookModel.build(root,notebook)
+	elif paper.get("calculator",false):
 		mesh.hide()
 		viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED
 		prop=Node3D.new()
 		root.add_child(prop)
-		_build_calculator_prop(prop,shape.size,supply)
+		_build_calculator_prop(prop,shape.size,Equipment.Keypad.model_for(supply),calculator_options)
 	elif supply in ["lab_goggles","flashlight","marker"]:
 		mesh.hide()
 		prop=Node3D.new()
@@ -205,9 +214,7 @@ func _create(paper: Dictionary) -> void:
 		_build_supply_prop(prop,supply)
 	elif backpack:
 		mesh.hide()
-		prop=Node3D.new()
-		root.add_child(prop)
-		_build_backpack(prop,shape.size,bag_model)
+		prop=preload("res://scripts/campus/items/backpack_model.gd").build(root,bag_model,paper.get("supply_configuration",{}))
 	if supply=="pencil_case":
 		mesh.hide()
 		var material_pouch := Toon.material("a45652")
@@ -226,29 +233,43 @@ func _create(paper: Dictionary) -> void:
 	backing.ignore_occlusion_culling=true
 	visuals[paper.id]={"root":root,"hit":hit,"mesh":mesh,"backing":backing,"viewport":viewport,"page_view":null,"revision":-1,"prop":prop}
 
-func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String) -> void:
+func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, options: Dictionary = {}) -> void:
 	var width := dimensions.x
 	var length := dimensions.z
 	var face := dimensions.y*.5
 	var basic := model=="calculator_basic"
 	var shell: Color = {"calculator_basic":Color("171b1f"),"calculator_financial":Color("39473c")}.get(model,Color("293748"))
-	game._box(prop,Vector3.ZERO,Vector3(width,length,dimensions.y),shell)
-	game._box(prop,Vector3(0,0,face),Vector3(width*.95,length*.96,.004),shell.lightened(.10))
-	game._box(prop,Vector3(0,length*.30,face+.003),Vector3(width*.88,length*.24,.006),Color("141f24"))
-	game._box(prop,Vector3(0,length*.30,face+.006),Vector3(width*.81,length*.185,.002),Color("b0c398"))
+	shell=Color(Equipment.value(Equipment.CALCULATOR,options,"appearance","shell",shell.to_html(false)))
+	var casing: MeshInstance3D=game._box(prop,Vector3.ZERO,Vector3(width,length,dimensions.y),shell)
+	var plate: MeshInstance3D=game._box(prop,Vector3(0,0,face),Vector3(width*.95,length*.96,.004),shell.lightened(.10))
+	var finish: Vector2=Equipment.value(Equipment.CALCULATOR,options,"appearance","finish",Vector2(.60,0))
+	for surface in [casing,plate]:
+		surface.material_override=surface.get_active_material(0).duplicate()
+		surface.material_override.roughness=finish.x
+		surface.material_override.metallic=finish.y
+	var display_scale: float=Equipment.value(Equipment.CALCULATOR,options,"hardware","screen",1.0)
+	var display_color:=Color(Equipment.value(Equipment.CALCULATOR,options,"appearance","screen_color","b0c398"))
+	game._box(prop,Vector3(0,length*.30,face+.003),Vector3(width*.88,length*.24*display_scale,.006),Color("141f24"))
+	game._box(prop,Vector3(0,length*.30,face+.006),Vector3(width*.81,length*.185*display_scale,.002),display_color)
 	_calculator_mark(prop,"0",Vector3(width*.33,length*.29,face+.0075),.00053,Color("233b30"))
-	var keys := preload("res://scripts/scientific_calculator.gd").keypad_keys(model)
-	var columns := 4 if basic else 5
-	var rows := ceili(float(keys.size())/columns)
+	var keys: Array=options.get("keypad",Equipment.Keypad.keys(model))
+	var columns: int=Equipment.value(Equipment.CALCULATOR,options,"hardware","columns",4 if basic else 5)
+	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,options,"appearance","key_style",false)
+	var rows := maxi(1,ceili(float(keys.size())/columns))
 	var step := Vector2(width*.88/columns,length*.60/rows)
 	for index in keys.size():
 		var key: String=keys[index]
 		var at := Vector3((index%columns-(columns-1)*.5)*step.x,length*.13-(floorf(float(index)/columns)+.5)*step.y,face+.005)
 		var tint := Color("8297a2") if key.is_valid_int() or key=="." else Color("485968")
+		if not options.is_empty():
+			tint=Color(Equipment.value(Equipment.CALCULATOR,options,"appearance","keys","60747e"))
+			if not key.is_valid_int() and key!=".":tint=tint.darkened(.18)
 		if key=="=":tint=Color("478f7e")
 		if key in ["AC","DEL"]:tint=Color("a76658")
-		game._box(prop,at,Vector3(step.x*.86,step.y*.79,.007 if basic else .004),tint)
-		_calculator_mark(prop,key,at+Vector3(0,0,.004),.00032 if basic else .00022,Color("f2f5ef"))
+		if round_keys:Toon.ellipsoid(prop,at,Vector3(step.x*.43,step.y*.395,.0035),Toon.material(tint.to_html(false)),key+" key")
+		else:game._box(prop,at,Vector3(step.x*.86,step.y*.79,.007 if basic else .004),tint)
+		_calculator_mark(prop,key,at+Vector3(0,0,.004),.00032 if basic else .00022,Color("1a2631") if tint.get_luminance()>.45 else Color("f2f5ef"))
+	preload("res://scripts/campus/items/decoration_surface.gd").attach(prop,options.get("decoration",[]),Vector3(0,0,-face-.0005),Vector3(0,PI,0),Vector2(width*.83,length*.86))
 
 func _calculator_mark(parent: Node3D, value: String, at: Vector3, pixel: float, tint: Color) -> void:
 	var mark := Label3D.new()
@@ -259,19 +280,6 @@ func _calculator_mark(parent: Node3D, value: String, at: Vector3, pixel: float, 
 	mark.outline_size=0
 	mark.position=at
 	parent.add_child(mark)
-
-func _build_backpack(prop: Node3D, dimensions: Vector3, model: String) -> void:
-	prop.scale=dimensions/Vector3(.29,.38,.22)
-	var shell: String={"backpack_small":"607b58","backpack_medium":"3b7283","backpack_large":"8e5544","backpack_giant":"645780"}.get(model,"607b58")
-	var trim := Toon.material("283e4b")
-	var zipper := Toon.material("c3ab82")
-	Toon.ellipsoid(prop,Vector3(0,-.01,0),Vector3(.141,.174,.087),Toon.material(shell),"Fabric shell")
-	Toon.ellipsoid(prop,Vector3(0,-.071,.073),Vector3(.109,.080,.039),trim,"Front pocket")
-	Toon.link(prop,Vector3(-.082,-.044,.106),Vector3(.082,-.044,.106),.004,zipper)
-	Toon.line(prop,[Vector3(-.045,.145,0),Vector3(-.036,.179,0),Vector3(.036,.179,0),Vector3(.045,.145,0)],.009,trim)
-	for side in [-1.0,1.0]:
-		var x: float=side*.079
-		Toon.line(prop,[Vector3(x,.118,-.059),Vector3(x,.063,-.112),Vector3(x,-.074,-.113),Vector3(x,-.141,-.057)],.014,trim)
 
 func _build_supply_prop(prop: Node3D, supply: String) -> void:
 	if supply=="lab_goggles":
@@ -362,6 +370,9 @@ func _page(visual: Dictionary,paper: Dictionary) -> void:
 		visual.revision=paper.revision
 		visual.viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 		return
+	if paper.get("notebook",false) and not paper.get("notebook_configuration",{}).is_empty():
+		visual.revision=paper.revision
+		return
 	if paper.get("notebook",false):
 		var cover := ColorRect.new()
 		cover.color=Color("416b78")
@@ -412,10 +423,12 @@ func _process(delta: float) -> void:
 		if p.get("stowed",false):v.root.visible=false;v.hit.disabled=true;continue
 		var supply := str(p.get("supply_id",""))
 		var backpack := supply.begins_with("bag:")
+		var configured_notebook: bool=not p.get("notebook_configuration",{}).is_empty()
 		var shape: Vector3=v.hit.shape.size
 		v.hit.disabled=p.held and p.owner==multiplayer.get_unique_id()
 		v.hit.rotation.x=PI/2 if p.held and not backpack else 0
 		if backpack:v.hit.position.y=0.0 if p.held else shape.y*.5
+		if configured_notebook:v.hit.position.y=0.0 if p.held else shape.y*.5
 		if p.get("calculator",false):v.hit.position.y=0.0 if p.held else shape.y*.5
 		if p.held:
 			v.backing.visible=not is_instance_valid(v.prop) and supply!="pencil_case"
@@ -452,6 +465,10 @@ func _process(delta: float) -> void:
 				if supply=="calculator_basic":carry_basis=carry_basis.scaled(Vector3.ONE*1.23)
 				var grip_offset := Vector3(shape.x*.54,-shape.z*.27,-shape.y*.21)
 				v.root.global_transform=Transform3D(carry_basis,hand-carry_basis*grip_offset)
+			elif configured_notebook:
+				v.prop.rotation.x=PI/2
+				v.prop.position.z=-shape.y*.5
+				v.root.global_transform=Transform3D(basis,hand-basis*Vector3(shape.x*.43,-shape.z*.32,0))
 			elif supply=="pencil_case" or is_instance_valid(v.prop):
 				v.root.global_transform=Transform3D(basis,hand-basis*Vector3(.073,0,.012))
 			else:
@@ -481,6 +498,9 @@ func _process(delta: float) -> void:
 			v.mesh.rotation.x=-PI/2
 			v.mesh.position.y=.034
 			if p.get("calculator",false):v.prop.position.y=shape.y*.5
+			if configured_notebook:
+				v.prop.rotation=Vector3.ZERO
+				v.prop.position=Vector3.ZERO
 
 func use_supply(button: int, continuation := false) -> bool:
 	var held_id: int=school.held(multiplayer.get_unique_id())
@@ -519,7 +539,7 @@ func interact_held() -> bool:
 	var item: Dictionary=school.papers.get(id,{})
 	var supply := str(item.get("supply_id",""))
 	if item.get("calculator",false):
-		game.open_carried_calculator(supply)
+		game.open_carried_calculator(supply,item.get("supply_configuration",{}))
 	elif item.get("notebook",false) or supply.is_empty():
 		game.paper_ui.open_sheet(id)
 	elif supply=="lab_goggles":
@@ -579,7 +599,7 @@ func interact(target: StaticBody3D,right_click: bool) -> bool:
 			var id: int=target.get_meta("paper_id")
 			var item: Dictionary = school.papers.get(id,{})
 			if right_click and item.get("calculator",false):
-				if item.owner==multiplayer.get_unique_id():game.open_carried_calculator(str(item.get("supply_id","calculator")))
+				if item.owner==multiplayer.get_unique_id():game.open_carried_calculator(str(item.get("supply_id","calculator")),item.get("supply_configuration",{}))
 			elif right_click:
 				if item.get("supply_id","").is_empty() or item.get("notebook",false):game.paper_ui.open_sheet(id)
 			else:school.request({"op":"pickup","id":id})

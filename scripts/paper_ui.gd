@@ -346,7 +346,7 @@ func _build_reader() -> void:
 	var previous := _button(toolbar,"‹",func():turn_page(-1));previous.disabled=page_index==0
 	page_label=_label(toolbar,"%d / %d"%[page_index+1,_page_count(paper)]);page_label.custom_minimum_size.x=65;page_label.size_flags_horizontal=Control.SIZE_SHRINK_CENTER
 	var next := _button(toolbar,"›",func():turn_page(1));next.disabled=page_index>=_page_count(paper)-1
-	if paper.get("notebook",false) and _editable(paper) and _page_count(paper)<100:
+	if paper.get("notebook",false) and _editable(paper) and _page_count(paper)<int(paper.get("notebook_page_limit",100)):
 		_button(toolbar,"Add page",func():
 			flush()
 			school.request({"op":"notebook_page","id":document_id}))
@@ -447,7 +447,10 @@ func _build_reader() -> void:
 			page_index=school.page_count(paper)-1 if checking else int(paper.project.get("lesson_stages",[]).size()) if str(paper.project.get("course_id","")).begins_with("MTH") else school.page_count(paper)-2
 			_build_reader())
 	calculator_widget=preload("res://scripts/scientific_calculator.gd").new()
-	calculator_widget.model=carried_calculator if calculator_carried else "calculator"
+	const Supplies = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+	calculator_widget.model=Supplies.Keypad.model_for(carried_calculator) if calculator_carried else "calculator"
+	if calculator_carried:
+		calculator_widget.equipment_options=Supplies.supply_configuration(game.electronics.profile.data.get("dorm",{}),carried_calculator)
 	var calculator_allowed := calculator_carried and (not str(paper.project.get("course_id","")).begins_with("MTH") or bool(paper.get("math_policy",{}).get("calculator_allowed",false)))
 	if calculator_allowed and ResourceLoader.exists("res://scripts/ui/paper_workspace/calculator/drawer.gd"):
 		calculator_drawer=load("res://scripts/ui/paper_workspace/calculator/drawer.gd").new();surface.add_child(calculator_drawer);calculator_drawer.configure(calculator_widget)

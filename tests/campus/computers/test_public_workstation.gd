@@ -62,6 +62,9 @@ func run() -> void:
 	computers.request({"op":"enter","station":id})
 	if not computers.sessions.has(1) or not computers.local_snapshot.get("public_device",false):
 		push_error("Public desktop did not open");quit(1);return
+	if game.player.seated!=null:
+		push_error("Using a workstation forced the player into its chair");quit(1);return
+	game._request_chair(int(computers.stations[id].chair))
 	if not game.computer_room_adapter.desktop.power_button.visible:
 		push_error("Desktop power control missing");quit(1);return
 	await process_frame
@@ -120,6 +123,7 @@ func run() -> void:
 		return
 	computers.last_request.erase(1)
 	desktop._switch_app("Files")
+	desktop._navigate_folder("")
 	if not desktop.folder_button.visible or not desktop.delete_button.visible:
 		push_error("Public file controls missing");quit(1);return
 	desktop.folder_button.pressed.emit()
@@ -194,10 +198,6 @@ func run() -> void:
 	assert(not desktop.windows.has("Circuit Lab"))
 	desktop._switch_app("Code editor")
 	assert(desktop.windows.has("Text editor") and desktop.windows.has("Code editor"))
-	var language=load("res://scripts/campus/computers/campus_script.gd").new()
-	assert(is_equal_approx(float(language.run("let z = 2\nrepeat 2\nlet z = z + 3\nend\nprint z")),8.0))
-	assert(is_equal_approx(float(language.run("print 12 / 100")),0.12))
-	assert(language.run("print load(1)")=="Unsupported expression.")
 	computers.last_request.erase(1)
 	computers.request({"op":"save","lease":computers.local_snapshot.lease,"revision":computers.local_snapshot.revision,"path":"discard.txt","text":"temporary","version":0})
 	if not computers.local_snapshot.files.has("discard.txt"):push_error("Pre-shutdown save failed");quit(1);return
@@ -245,28 +245,84 @@ func verify_sampler(desktop: Control, computers: Node) -> bool:
 	if desktop.active_app!="Code editor" or not desktop.editor.text.contains("def greet"):
 		push_error("Extracted Python file did not open in Code editor.")
 		return false
+	if desktop.windows["Code editor"].saved_location.text!="Workspace/Downloads/Sampler/code/hello.py":
+		push_error("Code editor did not show where the file is saved.")
+		return false
+	if OS.get_environment("LABVOLT_TEST_MONACO")=="1":
+		var monaco: Variant=desktop.windows["Code editor"].get("monaco")
+		if not is_instance_valid(monaco):push_error("Monaco was not created.");return false
+		var limit:=Time.get_ticks_msec()+12000
+		while not monaco.initialized and Time.get_ticks_msec()<limit:await process_frame
+		if not monaco.initialized:push_error("Bundled Monaco did not initialize: "+str(monaco.browser.get_title()));return false
+		monaco.browser.execute_javascript("monaco.editor.getModels().find(model=>model.uri.path.endsWith('/hello.py')).setValue('print(42)')")
+		for attempt in 30:
+			if desktop.editor.text=="print(42)":break
+			await create_timer(.05).timeout
+		if desktop.editor.text!="print(42)":push_error("Monaco edits did not reach the Campus workspace.");return false
+	desktop._reveal_current_file()
+	if desktop.folder_path!="Downloads/Sampler/code" or desktop._selected_entry().get("path")!="Downloads/Sampler/code/hello.py":
+		push_error("Show in Files did not locate the source file.")
+		return false
+	var downloads:=find_button(desktop.breadcrumbs,"Downloads")
+	if downloads==null:
+		push_error("The parent folder was missing from the path bar.")
+		return false
+	downloads.pressed.emit()
+	if desktop.folder_path!="Downloads" or desktop._file_icon("sample.zip")==desktop._file_icon("picture.jpg"):
+		push_error("File breadcrumbs or archive icon did not work.")
+		return false
+	if OS.get_environment("LABVOLT_TEST_PDF")=="1":
+		computers.last_request.erase(1)
+		desktop._open_workspace_file("Downloads/Sampler/notes/preview.pdf")
+		var viewer: Control=desktop.file_viewer
+		if not is_instance_valid(viewer) or not is_instance_valid(viewer.browser):
+			push_error("The PDF did not open in its document viewer.")
+			return false
+		var pdf_view: TextureRect=viewer.body.find_children("*","TextureRect",true,false)[0]
+		var rendered:=false
+		for attempt in 24:
+			await create_timer(.25).timeout
+			if pdf_view.texture==null:continue
+			var frame:=pdf_view.texture.get_image()
+			if frame==null or frame.is_empty():continue
+			var pixel:=frame.get_pixel(frame.get_width()/2,frame.get_height()/2)
+			if pixel.r>.85 and pixel.g>.85 and pixel.b>.85:
+				rendered=true
+				break
+		if not rendered:
+			push_error("The PDF viewer did not render the document page.")
+			return false
+		desktop._close_window("viewer:Downloads/Sampler/notes/preview.pdf")
+		await process_frame
 	computers.last_request.erase(1)
 	desktop._open_workspace_file("Downloads/Sampler/audio/tone.wav")
 	if not is_instance_valid(desktop.file_viewer) or desktop.file_viewer.audio==null:
 		push_error("WAV file did not open in the audio viewer.")
 		return false
-	desktop.file_viewer.queue_free()
-	await process_frame
 	computers.last_request.erase(1)
 	desktop._open_workspace_file("Downloads/Sampler/models/tetrahedron.glb")
 	if not is_instance_valid(desktop.file_viewer) or desktop.file_viewer.model_camera==null:
 		push_error("GLB file did not open in the model viewer.")
 		return false
-	desktop.file_viewer.queue_free()
+	computers.last_request.erase(1)
+	desktop._open_workspace_file("Downloads/Sampler/models/tetrahedron.gltf")
+	if not is_instance_valid(desktop.file_viewer) or desktop.file_viewer.model_camera==null:
+		push_error("Text-encoded glTF did not open in the model viewer.")
+		return false
+	if not desktop.windows.has("viewer:Downloads/Sampler/audio/tone.wav"):push_error("Opening a second viewer closed the audio window.");return false
+	desktop._close_window("viewer:Downloads/Sampler/models/tetrahedron.glb")
+	desktop._close_window("viewer:Downloads/Sampler/models/tetrahedron.gltf")
+	desktop._close_window("viewer:Downloads/Sampler/audio/tone.wav")
 	await process_frame
 	computers.last_request.erase(1)
-	desktop._run_workspace_script("Downloads/Sampler/code/hello.campus")
+	send.call({"op":"save","path":"Sample.json","text":"{\"hello\":\"world\"}","version":0})
+	computers.last_request.erase(1)
+	desktop._run_workspace_script("Sample.json")
 	await process_frame
 	await process_frame
 	var terminal: Variant=desktop.windows.get("Terminal",{}).get("terminal")
-	var output: PackedStringArray=str(terminal.lines.back()).split("\n",false) if is_instance_valid(terminal) else PackedStringArray()
-	if output.size()!=3 or not Array(output).all(func(line):return line.is_valid_float() and is_equal_approx(float(line),6.0)):
-		push_error("CampusScript did not run in the Terminal.")
+	if not is_instance_valid(terminal) or terminal.lines.back()!="Valid JSON":
+		push_error("Terminal did not route JSON through the execution manager.")
 		return false
 	return true
 
@@ -284,6 +340,21 @@ func verify_website_download(desktop: Control,computers: Node,id: String,url: St
 		await process_frame
 	if str(browser.get_title())!="WEBSITE_DOWNLOAD":
 		push_error("The website's download form did not load")
+		return false
+	var render: SubViewport=desktop.game.computer_room_adapter.desktop_render
+	var initial_pixels: Vector2=browser_surface.tabs[0].surface.get_meta("cef_pixels",Vector2.ZERO)
+	desktop._request_exit()
+	await process_frame
+	render.set_meta("parked_preview",true)
+	render.size=Vector2i(384,216)
+	browser_surface._resize_tabs()
+	if browser_surface.tabs[0].surface.get_meta("cef_pixels",Vector2.ZERO)!=initial_pixels:
+		push_error("Parked preview resized the active browser")
+		return false
+	computers.request({"op":"enter","station":id})
+	await process_frame
+	if not is_same(desktop.browser_surface,browser_surface) or not is_same(browser_surface.tabs[0].browser,browser) or browser.get_title()!="WEBSITE_DOWNLOAD":
+		push_error("Reopening the workstation restarted its browser")
 		return false
 	await create_timer(.3).timeout
 	var photo_digest:="1c3b8a632083272ce5a3de701dda84f2615243fef8cadc818c6626c0780b7978"
@@ -314,8 +385,12 @@ func verify_website_download(desktop: Control,computers: Node,id: String,url: St
 	browser_surface.address.text=url+"/direct-photo.png"
 	browser_surface._download_address()
 	deadline=Time.get_ticks_msec()+12000
-	while not computers.local_snapshot.binary_files.has("Downloads/direct-photo.png") and Time.get_ticks_msec()<deadline:
+	while not is_instance_valid(browser_surface.download_dialog) and Time.get_ticks_msec()<deadline:
 		await process_frame
+	if not is_instance_valid(browser_surface.download_dialog):
+		push_error("Direct download did not show a save confirmation: "+browser_surface.status.text)
+		return false
+	browser_surface.download_dialog.confirmed.emit()
 	if not check_download(computers.stations[id].power.drive,"Downloads/direct-photo.png",photo_digest):return false
 	desktop._close_window("Browser")
 	print("WORKSTATION_NATIVE_DOWNLOAD PASS")
@@ -323,6 +398,9 @@ func verify_website_download(desktop: Control,computers: Node,id: String,url: St
 
 func check_download(drive: RefCounted,path: String,expected_digest: String) -> bool:
 	var data: PackedByteArray=drive.entries.get(path,{}).get("data",PackedByteArray())
+	if data.is_empty():
+		push_error("The virtual drive has no data for "+path)
+		return false
 	var hash:=HashingContext.new()
 	hash.start(HashingContext.HASH_SHA256)
 	hash.update(data)

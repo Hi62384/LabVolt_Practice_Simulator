@@ -2,8 +2,14 @@ extends RefCounted
 ## An isolated virtual drive. Paths never refer to the host operating system.
 const MAX_CAPACITY := 150 * 1024 * 1024
 const MAX_ENTRIES := 4096
+const ExecutableIcons = preload("res://scripts/campus/computers/ExecutableIcon.cs")
 var capacity: int
-var entries: Dictionary = {}
+var _executable_icons: Dictionary = {}
+var _icon_reader: RefCounted
+var entries: Dictionary = {}:
+	set(value):
+		entries=value
+		_executable_icons.clear()
 
 func _init(bytes: int = MAX_CAPACITY) -> void:
 	capacity = clampi(bytes, 0, MAX_CAPACITY)
@@ -33,6 +39,16 @@ func used_bytes() -> int:
 		if entry.type == "file": used += entry.data.size()
 	return used
 
+func executable_icon(path: String) -> PackedByteArray:
+	var file: Dictionary=entries.get(path,{})
+	if file.get("type","")!="file":return PackedByteArray()
+	if _executable_icons.has(path):return _executable_icons[path]
+	if _icon_reader==null:_icon_reader=ExecutableIcons.new()
+	var icon: PackedByteArray=_icon_reader.ReadIcon(file.data)
+	if _executable_icons.size()>=128:_executable_icons.erase(_executable_icons.keys()[0])
+	_executable_icons[path]=icon
+	return icon
+
 func make_folder(path: String) -> bool:
 	if not valid_path(path) or not _parent_exists(path) or entries.has(path) or entries.size() >= MAX_ENTRIES:
 		return false
@@ -47,12 +63,15 @@ func write_file(path: String, data: PackedByteArray) -> bool:
 	var old_size: int = previous.get("data", PackedByteArray()).size()
 	if used_bytes() - old_size + data.size() > capacity: return false
 	entries[path] = {"type": "file", "data": data.duplicate(), "modified": int(Time.get_unix_time_from_system())}
+	_executable_icons.erase(path)
 	return true
 
 func remove(path: String) -> bool:
 	if not entries.has(path): return false
 	for name in entries.keys():
-		if name == path or str(name).begins_with(path + "/"): entries.erase(name)
+		if name == path or str(name).begins_with(path + "/"):
+			entries.erase(name)
+			_executable_icons.erase(name)
 	return true
 
 func move(source: String, target: String) -> bool:

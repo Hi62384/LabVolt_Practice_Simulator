@@ -23,7 +23,7 @@ const AUDIO_EXTENSIONS := ["mp3","wav","ogg","oga","flac","m4a","aac"]
 const VIDEO_EXTENSIONS := ["mp4","m4v","webm","ogv","mov","mkv","avi"]
 const MODEL_EXTENSIONS := ["glb","gltf","obj","stl","ply","fbx","dae","3mf","blend"]
 const IMAGE_EXTENSIONS := ["png","jpg","jpeg","webp","gif","bmp","ico","avif","tif","tiff"]
-const STORED_EXTENSIONS := ["pdf","zip","7z","rar","tar","gz","tgz","bz2","xz","doc","docx","xls","xlsx","ppt","pptx","odt","ods","odp","epub","rtf","wasm","woff","woff2","ttf","otf"]
+const STORED_EXTENSIONS := ["pdf","zip","campusapp","7z","rar","tar","gz","tgz","bz2","xz","doc","docx","xls","xlsx","ppt","pptx","odt","ods","odp","epub","rtf","exe","msi","msix","msixbundle","dll","wasm","woff","woff2","ttf","otf"]
 const PAGE_CHUNK := 2048
 
 static func filename(original: String, extension: String) -> String:
@@ -107,5 +107,8 @@ static func valid(body: PackedByteArray, extension: String) -> bool:
 		"jpg","jpeg":return body.slice(0,3)==PackedByteArray([255,216,255])
 		"webp":return body.slice(0,4)=="RIFF".to_ascii_buffer() and body.slice(8,12)=="WEBP".to_ascii_buffer()
 		"pdf":return body.slice(0,5)=="%PDF-".to_ascii_buffer()
-		"zip":return body.slice(0,4) in [PackedByteArray([80,75,3,4]),PackedByteArray([80,75,5,6])]
+		"zip","campusapp":return body.slice(0,4) in [PackedByteArray([80,75,3,4]),PackedByteArray([80,75,5,6])]
+		"msix","msixbundle":return body.slice(0,4)==PackedByteArray([80,75,3,4])
+		"exe","dll":return body.size()>=64 and body[0]==77 and body[1]==90
+		"msi":return body.slice(0,8)==PackedByteArray([208,207,17,224,161,177,26,225])
 	return not extension.is_empty() and not body.is_empty() and extension_for("file."+extension,"")==extension

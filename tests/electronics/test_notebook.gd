@@ -34,18 +34,39 @@ func run():
 	assert(restored.page==2 and restored.strokes==saved.strokes and restored.document_uid==legacy_uid)
 	var legacy_id: int=restored.id
 	game.school.request({"op":"stow","id":legacy_id})
-	var purchase: String=game.electronics.profile.buy_study_tool("notebook")
+	const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
+	var options := Equipment.defaults(Equipment.NOTEBOOK)
+	options.hardware.merge({"pages":1,"ruling":1,"size":1,"orientation":1},true)
+	options.appearance.merge({"cover":1,"shell":2},true)
+	var balance: int=game.electronics.profile.data.dollars
+	var purchase: String=game.electronics.profile.buy_study_tool("notebook",6,options)
 	assert(game.electronics.profile.operation_succeeded,purchase)
 	var supplies=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+	var price: int=Equipment.quote("notebook",supplies.TOOL_PRICES.notebook,options).price
+	var debit:=preload("res://scripts/economy/temporary_playtest/policy.gd").purchase_debit(balance,price,true)
+	assert(price>supplies.TOOL_PRICES.notebook and int(game.electronics.profile.data.dollars)==debit.next_balance)
 	var copies: Array=game.electronics.profile.data.dorm.carry_items.filter(func(item):return not supplies.notebook_uid(item).is_empty())
 	assert(copies.size()==1)
 	var key: String=copies[0]
 	var uid: String=supplies.notebook_uid(key)
+	var transfer=preload("res://scripts/ui/personal_inventory/discard_transfer.gd")
+	var removed: Dictionary=transfer.take(game.electronics.profile.data,{"location":"hotbar","item":{"kind":"supply","id":key}},{})
+	assert(removed.ok and removed.parcel.notebook_options[key]==options)
+	var received: Dictionary=transfer.give(removed.profile,removed.parcel,6)
+	assert(received.ok and received.profile.dorm.notebook_options[key]==options)
 	game.electronics.open("notes",1)
 	await game.electronics.open_notebook(key)
 	var new_papers: Array=game.school.papers.values().filter(func(paper):return paper.get("document_uid","")==uid)
 	assert(new_papers.size()==1 and new_papers[0].strokes.is_empty())
 	var copy: Dictionary=new_papers[0]
+	assert(game.school.page_count(copy)==32 and copy.notebook_configuration==options)
+	await process_frame
+	assert(game.paper_ui.page_view.custom_minimum_size==Vector2(830,590))
+	var visual: Dictionary=game.school_world.visuals[copy.id]
+	assert(visual.hit.shape.size.x>visual.hit.shape.size.z)
+	assert(visual.prop.get_meta("equipment_shell")[0].material_override.albedo_color.is_equal_approx(Color("27745e")))
+	game.school.request({"op":"notebook_page","id":copy.id})
+	assert(game.school.page_count(copy)==32)
 	assert(game.paper_ui._reader_key(copy)!=game.paper_ui._reader_key(restored))
 	game.school.request({"op":"stroke","id":copy.id,"page":0,"points":[Vector2(.2,.2),Vector2(.7,.4)],"color":"AA3322","width":8.0})
 	game.electronics.save_notebook()
@@ -56,7 +77,7 @@ func run():
 	game.school.papers.erase(copy.id)
 	game.school.request({"op":key})
 	new_papers=game.school.papers.values().filter(func(paper):return paper.get("document_uid","")==uid)
-	assert(new_papers.size()==1 and new_papers[0].strokes==modern.strokes)
+	assert(new_papers.size()==1 and new_papers[0].strokes==modern.strokes and new_papers[0].notebook_configuration==options)
 	var assignment := {"title":"Identical worksheet","questions":[]}
 	var first: int=game.school._give(1,assignment,false,false)
 	var second: int=game.school._give(1,assignment,false,false)

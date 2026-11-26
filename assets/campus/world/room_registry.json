@@ -615,6 +615,13 @@
       "neighbors": ["hall_f0"], "bounds_min": [-10, 0, 60], "bounds_max": [10, 4, 68]
     },
     {
+      "id": "charging_room", "number": "M110", "title": "Device Charging",
+      "kind": "charging_room", "building": "MAIN", "floor": 0, "zone": "charging_room",
+      "center": [26, 0, 64], "size": [20, 4, 8], "door": [16, 0, 64],
+      "door_width": 2.4, "approach": [13, 0, 64], "anchor": [26, 0, 64],
+      "neighbors": ["hall_f0"], "bounds_min": [16, 0, 60], "bounds_max": [36, 4, 68]
+    },
+    {
       "id": "elm253_lecture",
       "number": "M201",
       "title": "Lecture Classroom",

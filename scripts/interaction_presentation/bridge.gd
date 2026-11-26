@@ -381,6 +381,17 @@ func _frame_workout_weight(camera: Camera3D,grip: Vector3) -> Vector3:
 	var vertical_margin:=vertical_tangent*depth*.76
 	return Vector3(grip.x,clampf(grip.y,-vertical_margin,vertical_margin),-depth)
 
+func _hinge_grip_world(exercise: String, side_offset: float, raised: float) -> Vector3:
+	var facing := Basis(Vector3.UP, float(workout_state.get("workout_facing", game.player.yaw_target)))
+	var start := Vector3(side_offset, .32, -.64)
+	var finish := Vector3(side_offset, 1.04, -.52)
+	if exercise == "romanian_deadlift":
+		start.y = .53
+	elif exercise == "bent_over_row":
+		start.y = .54
+		finish = Vector3(side_offset, 1.06, -.70)
+	return game.player.global_position + facing * start.lerp(finish, raised)
+
 func _cable_grip(movement: String, side: float, raised: float) -> Vector3:
 	var start:=Vector3(side*.24,-.28,-.54)
 	var end:=Vector3(side*.21,-.12,-.67)
@@ -458,6 +469,7 @@ func _update_workout(delta: float) -> void:
 		machine.position_local_grips(game.multiplayer.get_unique_id(),eye+base*_cable_grip(exercise,-1,raised),eye+base*_cable_grip(exercise,1,raised))
 	var handheld_bar: Node3D = game.gym_barbells.bar_hand
 	var pair: Node3D = game.gym_weights.held_visual
+	var standing_hinge := not workout_state.has("bench_position") and exercise in ["deadlift", "romanian_deadlift", "bent_over_row"]
 	var on_mat := active and exercise in ["pushup","pike_pushup"] and workout_state.get("mat_position") is Vector3
 	var flex:=0.0
 	if on_mat or exercise in ["benchpress","incline_press","overhead_press","dip","overhead_extension"]:
@@ -508,7 +520,8 @@ func _update_workout(delta: float) -> void:
 						var elbow:=Vector3(side*.28,-.51,-.34)
 						var arc:=lerpf(.20,2.15,raised)
 						grip=elbow+Vector3(0,-cos(arc),-sin(arc))*.30
-						weight.rotation=Vector3(arc-PI*.5,PI*.5,0)
+						# The grip runs across the body as the elbow bends.
+						weight.rotation=Vector3(0,PI*.5,0)
 					"lateral_raise":
 						var arc:=lerpf(.15,PI*.48,raised)
 						grip=Vector3(side*(.30+.41*sin(arc)),-.25-.56*cos(arc),lerpf(-.34,-.66,raised))
@@ -523,10 +536,6 @@ func _update_workout(delta: float) -> void:
 					"bent_over_row","chest_supported_row","cable_row":
 						grip=Vector3(side*.24,lerpf(-.67,-.29,raised),lerpf(-.73,-.56,raised))
 						weight.rotation=Vector3.ZERO
-					"romanian_deadlift", "deadlift":
-						var bottom:= -.66 if exercise=="romanian_deadlift" else -.80
-						grip = Vector3(side*.27,lerpf(bottom,-.49,raised),lerpf(-.69,-.58,raised))
-						weight.rotation = Vector3(raised*.38, PI*.5, 0)
 					"wrist_curl":
 						grip = Vector3(side*.26, -.59 + .05 * raised, -.58)
 						weight.rotation = Vector3(-.55 + raised, PI*.5, 0)
@@ -551,7 +560,11 @@ func _update_workout(delta: float) -> void:
 					"good_morning":
 						grip=Vector3(side*.34,-.30,-.45)
 						weight.rotation=Vector3.ZERO
-				grip=_frame_workout_weight(camera,grip)
+				if standing_hinge:
+					grip = camera.to_local(_hinge_grip_world(exercise, side * .27, raised))
+					weight.rotation = Vector3.ZERO
+				else:
+					grip = _frame_workout_weight(camera, grip)
 				weight.position=grip
 		elif is_instance_valid(handheld_bar) and workout_state.get("equipment") == "barbell":
 			var shaft := Vector3(0, grip.y, grip.z)
@@ -559,15 +572,10 @@ func _update_workout(delta: float) -> void:
 				"curl":
 					var angle := lerpf(.15,2.25,raised)
 					shaft = Vector3(0,-.61-.31*cos(angle),-.24-.31*sin(angle))
-				"bent_over_row":
-					shaft = Vector3(0,lerpf(-.85,-.49,raised),lerpf(-.58,-.32,raised))
 				"chest_supported_row":
 					shaft = Vector3(0,lerpf(-.62,-.30,raised),lerpf(-.75,-.58,raised))
 				"overhead_press":
 					shaft = Vector3(0,lerpf(-.35,.31,raised),lerpf(-.40,-.28,raised))
-				"deadlift", "romanian_deadlift":
-					var bottom:= -.66 if exercise=="romanian_deadlift" else -.80
-					shaft = Vector3(0,lerpf(bottom,-.49,raised),lerpf(-.69,-.58,raised))
 				"good_morning", "squat":
 					shaft = Vector3(0,-.29,.13)
 				"overhead_extension":
@@ -585,7 +593,14 @@ func _update_workout(delta: float) -> void:
 					shaft = Vector3(0,-.61 + .06 * raised,-.52)
 			# Back-racked lifts keep the bar on the shoulders. Front-held
 			# lifts keep their equipment inside the first-person view.
-			handheld_bar.position = shaft if exercise in ["good_morning","squat"] else _frame_workout_weight(camera,shaft)
+			if standing_hinge:
+				# Keep the shaft level as the player's view pitches during the lift.
+				var facing := float(workout_state.get("workout_facing", game.player.yaw_target))
+				var bar_basis := Basis(Vector3.UP, facing).scaled(handheld_bar.scale)
+				handheld_bar.global_transform = Transform3D(bar_basis, _hinge_grip_world(exercise, 0.0, raised))
+			else:
+				handheld_bar.rotation = Vector3.ZERO
+				handheld_bar.position = shaft if exercise in ["good_morning","squat"] else _frame_workout_weight(camera,shaft)
 			grip=camera.to_local(handheld_bar.to_global(Vector3(side*.35,0,0)))
 		_pose_gym_arm(arm,shoulder,grip)
 

@@ -345,12 +345,63 @@ func study_supplies() -> void:
 	body.add_child(grid)
 	var dorm := preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 	for id in dorm.TOOLS:
-		if id!="lab_goggles":_study_supply_card(grid,id)
-	for id in dorm.Backpacks.SIZES:
-		_study_supply_card(grid,id)
-	body.add_child(KitUI.text("PERSONAL ELECTRONICS","Title"))
+		if id not in ["lab_goggles","notebook"] and id not in dorm.CALCULATORS:_study_supply_card(grid,id)
+	body.add_child(KitUI.text("CONFIGURABLE EQUIPMENT","Title"))
 	var electronics:=preload("res://scripts/ui/store_bundles_equipment/module.gd")
-	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone"])
+	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone","notebook","backpack","calculator","power_bank"],_equipment_preview)
+
+func _equipment_preview(kind: String,parent: Node3D,options: Dictionary = {}) -> Node3D:
+	const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
+	const Finish = preload("res://scripts/campus/items/equipment_finish.gd")
+	if kind=="usb":
+		var usb: Node3D=game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))
+		Finish.apply_finish(usb,kind,options)
+		return usb
+	if kind=="smartphone":
+		const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
+		Handset.build(parent)
+		Handset.apply_appearance(parent,Config.phone_appearance({"configuration":options}))
+		return parent
+	if kind=="notebook":return preload("res://scripts/campus/items/notebook_model.gd").build(parent,options)
+	if kind=="backpack":
+		var model: String=Config.value(kind,options,"hardware","size","backpack_small")
+		return preload("res://scripts/campus/items/backpack_model.gd").build(parent,model,options)
+	if kind=="power_bank":return preload("res://scripts/campus/items/power_bank_model.gd").build(parent,options,60)
+	if kind=="calculator":
+		var dimensions: Vector3=Config.value(kind,options,"hardware","size",Vector3(.135,.026,.215))
+		var calculator: String=Config.value(kind,options,"hardware","model","calculator_basic")
+		game.school_world._build_calculator_prop(parent,dimensions,calculator,options)
+		return parent
+	if kind=="kit":
+		var size: String=Config.value(kind,options,"hardware","size","compact")
+		var kit: Node3D=game.kit_world._create_kit_view(0,{"id":"preview","name":"Electronics kit","tier":size,"configuration":options},parent)
+		kit.position.y=-.26
+		var lid: Node3D=kit.get_node("Lid")
+		lid.position=kit.get_meta("lid_open")
+		lid.rotation.x=-1.3
+		return kit
+	var model:=Node3D.new()
+	model.position=Vector3(0,-.15,.05)
+	parent.add_child(model)
+	game.ac_laptops._build_laptop(model,-1)
+	Finish.apply_finish(model,kind,options)
+	return model
+
+func decorate_owned(item: Dictionary) -> void:
+	const Ownership=preload("res://scripts/campus/items/equipment_ownership.gd")
+	var kind:=str(item.get("kind",""))
+	var key:=Ownership.key(item)
+	var slot:=Ownership.slot(profile.data,kind,key)
+	if slot.is_empty():return
+	var dialog:=preload("res://scripts/ui/store_bundles_equipment/equipment_configurator.gd").new()
+	screen.add_child(dialog)
+	var page:=current_page
+	var station:=bench
+	dialog.build(profile,func(message: String):
+		game.hotbar.refresh_portraits()
+		open(page,station)
+		status.text=message,{"kind":kind,"price":0,"name":game.hotbar.title(item)},_equipment_preview,slot.configuration,key)
+	dialog.present()
 
 func _study_supply_card(parent: Control, id: String) -> void:
 	const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
@@ -414,7 +465,7 @@ func shop() -> void:
 	var equipment_mount := VBoxContainer.new()
 	equipment_mount.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	equipment.add_child(equipment_mount)
-	supplies.populate(equipment_mount,profile,func(message: String):open("shop",bench);status.text=message,status,"equipment",Callable(),["lab_goggles","kit"])
+	supplies.populate(equipment_mount,profile,func(message: String):open("shop",bench);status.text=message,status,"equipment",Callable(),["lab_goggles","kit"],_equipment_preview)
 	section.item_selected.connect(func(index: int):
 		shop_section=index
 		components.visible=index==0
@@ -502,6 +553,8 @@ func _kit_library() -> void:
 		contents.add_child(actions)
 		actions.add_child(KitUI.action("Edit","edit",_open_kit.bind(kit_id,false),true))
 		actions.add_child(KitUI.action("Rename","edit",_open_kit.bind(kit_id,true)))
+		if profile.data.kits[kit_id].has("configuration"):
+			actions.add_child(KitUI.action("Decorate","",decorate_owned.bind({"kind":"kit","id":kit_id})))
 
 	if grid.get_child_count()==0:label(body,"Bring a kit from your dorm cabinet in the hotbar or your equipped backpack.")
 
@@ -716,6 +769,9 @@ func _change_kit_part(type: String, amount: int) -> void:
 	status.text=message
 
 func _kit_capacity_text(id: String) -> String:
+	var slots: Dictionary=profile.kit_compartments(id)
+	if int(slots.get("tray",0))>0:
+		return "Main %d/%d  ·  Passive tray %d/%d  %s" % [slots.main_used,slots.main,slots.tray_used,slots.tray,profile.kit_error(id)]
 	return "Capacity  %d/%d  %s" % [profile.kit_used(id),profile.kit_capacity(id),profile.kit_error(id)]
 func _queue_kit_name(generation: int,character: String,id: String,value: String) -> void:
 	if not active or generation!=panel_generation or character!=str(game.characters.selected) or not profile.data.kits.has(id):return

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campus Notes</title>
+  <link rel="stylesheet" href="notes.css">
+  <script src="notes.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Campus Notes</h1>
+      <button type="submit" form="notebook" disabled>Save note</button>
+    </header>
+    <form id="notebook">
+      <label for="note">Your note</label>
+      <textarea id="note" placeholder="Start writing…" rows="8" disabled></textarea>
+    </form>
+    <p id="status" role="status">Opening notebook…</p>
+  </main>
+</body>
+</html>

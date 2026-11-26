@@ -195,36 +195,39 @@ func set_facility_seat(event: Dictionary) -> void:
 func stand_up() -> void:
 	if not is_instance_valid(seated):
 		return
+	var origin:=seated.global_position
 	var candidates: Array[Vector3]=[]
-	if chair_entry_position.distance_to(seated.global_position)<3.0:
-		candidates.append(chair_entry_position)
-	var radii := [0.65,0.8,1.1,1.5,2.0,2.5,3.0] if seated.fixed_seat else [0.8,1.1,1.5,2.0]
+	if chair_entry_position.distance_to(origin)<3.0:
+		candidates.append(Vector3(chair_entry_position.x,origin.y,chair_entry_position.z))
+	var radii := [0.65,0.8,1.1,1.5,2.0,2.5,3.0,3.5,4.0]
 	for radius in radii:
 		for step in range(16):
 			var angle := TAU*float(step)/16.0
-			candidates.append(seated.global_position+Vector3(sin(angle)*radius,0,cos(angle)*radius))
+			candidates.append(origin+Vector3(sin(angle)*radius,0,cos(angle)*radius))
 	var standing_shape := CapsuleShape3D.new()
 	standing_shape.radius=.25
 	standing_shape.height=1.7
+	var space:=get_world_3d().direct_space_state
+	var excluded: Array[RID]=[get_rid(),seated.get_rid()]
+	var clearance:=PhysicsShapeQueryParameters3D.new()
+	clearance.shape=standing_shape
+	clearance.collision_mask=collision_mask
+	clearance.exclude=excluded
 	for candidate in candidates:
-		var floor_query := PhysicsRayQueryParameters3D.create(candidate+Vector3.UP*0.4,candidate-Vector3.UP*1.4,1,[get_rid(),seated.get_rid()])
-		var floor_hit := get_world_3d().direct_space_state.intersect_ray(floor_query)
+		var floor_query:=PhysicsRayQueryParameters3D.create(candidate+Vector3.UP*.42,candidate-Vector3.UP*.65,collision_mask,excluded)
+		var floor_hit:=space.intersect_ray(floor_query)
 		if floor_hit.is_empty() or floor_hit.normal.dot(Vector3.UP)<0.7:
 			continue
 		var destination: Vector3=floor_hit.position+Vector3.UP*0.03
-		if not seated.fixed_seat and not SafeRecovery.is_known_walkable(destination):
-			continue
-		var query := PhysicsShapeQueryParameters3D.new()
-		query.shape=standing_shape
-		query.transform=Transform3D(Basis.IDENTITY,destination+Vector3(0,.85,0))
-		query.collision_mask=1
-		query.exclude=[get_rid(),seated.get_rid()]
-		if get_world_3d().direct_space_state.intersect_shape(query,8).is_empty():
+		clearance.transform=Transform3D(Basis.IDENTITY,destination+Vector3.UP*.85)
+		if space.intersect_shape(clearance,1).is_empty():
 			yaw_target=seated_look.leave(seated.fixed_yaw if seated.fixed_seat else seated.swivel.rotation.y)
 			rotation.y=yaw_target
 			seated.rider=null
 			seated=null
 			global_position=destination
+			velocity=Vector3.ZERO
+			crouched=false
 			(collider.shape as CapsuleShape3D).height=1.7
 			collider.position.y=.85
 			collider.disabled=false

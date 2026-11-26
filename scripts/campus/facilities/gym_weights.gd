@@ -233,7 +233,7 @@ func _sync_remote_visuals() -> void:
   wanted[peer]=id
   var previous: Dictionary=remote_models.get(peer,{})
   if int(previous.get("id",-1))==id and previous.get("body")==body:
-   _update_remote_hands(previous)
+   _update_remote_hands(peer,previous)
    continue
   _clear_remote(peer)
   var parts:=[];var joints:=[]
@@ -250,17 +250,20 @@ func _sync_remote_visuals() -> void:
    else:visual.position=Vector3(0,-.48,.05)
    parts.append(visual)
   remote_models[peer]={"id":id,"body":body,"parts":parts,"joints":joints}
-  _update_remote_hands(remote_models[peer])
+  _update_remote_hands(peer,remote_models[peer])
  for peer in remote_models.keys():
   if not wanted.has(peer):_clear_remote(peer)
-func _update_remote_hands(entry: Dictionary) -> void:
+func _update_remote_hands(peer: int, entry: Dictionary) -> void:
+ var activity: Dictionary=game.campus_services.facilities.controller.visual_states.get(peer,{})
+ var curl: bool=activity.get("activity","") in ["exercise","exercise_exit"] and activity.get("exercise","")=="curl"
  for joint in entry.get("joints",[]):
   var hand: Node3D=joint.hand;var visual: Node3D=joint.visual
   if not is_instance_valid(hand) or not is_instance_valid(visual):continue
   # Hand meshes have non-uniform shape scale; use only their orientation so
   # the dumbbell does not inherit that tiny mesh scale.
   var orientation:=hand.transform.basis.orthonormalized()
-  visual.transform=Transform3D(orientation,hand.position+orientation*Vector3(0,0,.038))
+  var grip_basis:=orientation*Basis(Vector3.UP,PI*.5) if curl else orientation
+  visual.transform=Transform3D(grip_basis,hand.position+orientation*Vector3(0,0,.038))
 func _clear_remote(peer: int) -> void:
  if not remote_models.has(peer):return
  for visual in remote_models[peer].parts:

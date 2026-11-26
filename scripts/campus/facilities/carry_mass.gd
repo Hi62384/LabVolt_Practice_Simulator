@@ -3,6 +3,16 @@ extends RefCounted
 const LB_TO_KG := .45359237
 const SUPPLIES := {"notebook":.30,"calculator":.18,"calculator_basic":.14,"calculator_financial":.20,"pencil_case":.24,"lab_goggles":.08,"flashlight":.25,"whiteboard":.85,"marker":.02}
 const BAGS := {"backpack_small":.55,"backpack_medium":.80,"backpack_large":1.10,"backpack_giant":1.50}
+const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
+
+static func supply_mass(dorm: Dictionary,key: String) -> float:
+	if key.begins_with("power_bank:"):
+		var options: Dictionary=dorm.get("power_banks",{}).get(key,{}).get("configuration",{})
+		var battery: float=Equipment.value(Equipment.POWER_BANK,options,"hardware","capacity",10.0)
+		return .09+(battery*.0012 if options.get("version",1)==2 else battery*.012)
+	var options: Dictionary=dorm.get("calculator_options",{}).get(key,{})
+	if options.has("body"):return float(options.body.weight)
+	return float(SUPPLIES.get(key.get_slice(":",0),.10))
 
 static func component_mass(type: String) -> float:
 	if type.begins_with("battery"):return .05
@@ -23,25 +33,37 @@ static func kit_mass(profile: Dictionary,id: String,seen: Dictionary) -> float:
 	var kit: Dictionary=profile.get("kits",{}).get(id,{})
 	if kit.is_empty():return 0.0
 	var total:=.40+board_mass(kit.get("board",{}))
+	if kit.has("configuration"):
+		var model: String=profile.get("kit_tiers",{}).get(id,"compact")
+		var weights: Dictionary={"compact":.4,"standard":.58,"extended":.75,"large":.99}
+		total+=float(weights.get(model,.4))-.4
+		var tray: float=Equipment.value(Equipment.KIT,kit.configuration,"hardware","tray",0.0)
+		total+=tray*.3
+		if Equipment.value(Equipment.KIT,kit.configuration,"appearance","handle",false):total+=.08
 	for type in kit.get("items",{}):total+=component_mass(str(type))*maxi(0,int(kit.items[type]))
 	return total
 
-static func bag_mass(profile: Dictionary,id: String,seen: Dictionary) -> float:
+static func bag_mass(profile: Dictionary,id: String,seen: Dictionary,worn := false) -> float:
 	if seen.has("bag/"+id):return 0.0
 	seen["bag/"+id]=true
 	var bag: Dictionary=profile.get("dorm",{}).get("backpacks",{}).get(id,{})
 	if bag.is_empty():return 0.0
 	var total: float=float(BAGS.get(str(bag.get("size","")),.55))
+	var options: Dictionary=bag.get("configuration",{})
+	total+=float(Equipment.value(Equipment.BACKPACK,options,"hardware","pockets",0))*.035
+	if float(Equipment.value(Equipment.BACKPACK,options,"hardware","straps",1.0))<1.0:total+=.09
+	var contents:=0.0
 	for item in bag.get("items",[]):
 		if not item is Dictionary:continue
 		match str(item.get("kind","")):
-			"bag":total+=bag_mass(profile,str(item.get("id","")),seen)
-			"kit":total+=kit_mass(profile,str(item.get("id","")),seen)
-			"supply":total+=float(SUPPLIES.get(str(item.get("id","")),.10))
-			"component":total+=component_mass(str(item.get("type","")))
-	return total
+			"bag":contents+=bag_mass(profile,str(item.get("id","")),seen)
+			"kit":contents+=kit_mass(profile,str(item.get("id","")),seen)
+			"supply":contents+=supply_mass(profile.get("dorm",{}),str(item.get("id","")))
+			"component":contents+=component_mass(str(item.get("type","")))
+	var reduction: float=Equipment.value(Equipment.BACKPACK,options,"hardware","reduction",0.0) if worn else 0.0
+	return total+contents*(1.0-reduction)
 
-static func profile_mass(profile: Dictionary) -> float:
+static func profile_mass(profile: Dictionary, worn_comfort := false) -> float:
 	var dorm: Dictionary=profile.get("dorm",{})
 	var seen:={};var total:=0.0
 	for entry in dorm.get("carry_items",[]):
@@ -50,7 +72,7 @@ static func profile_mass(profile: Dictionary) -> float:
 		elif key.begins_with("kit:"):total+=kit_mass(profile,key.trim_prefix("kit:"),seen)
 		elif not seen.has("supply/"+key):
 			seen["supply/"+key]=true
-			total+=float(SUPPLIES.get(key,.10))
+			total+=supply_mass(dorm,key)
 	for item in dorm.get("carried_components",[]):
 		if item is Dictionary:total+=component_mass(str(item.get("type","")))
 	for supply in dorm.get("worn_supplies",{}).values():
@@ -59,7 +81,10 @@ static func profile_mass(profile: Dictionary) -> float:
 			seen["supply/"+key]=true
 			total+=float(SUPPLIES.get(key,.10))
 	for id in dorm.get("backpacks",{}):
-		if dorm.backpacks[id].get("location","")=="back":total+=bag_mass(profile,str(id),seen)
+		var bag: Dictionary=dorm.backpacks[id]
+		if bag.get("location","")!="back":continue
+		var comfort: float=Equipment.value(Equipment.BACKPACK,bag.get("configuration",{}),"hardware","straps",1.0) if worn_comfort else 1.0
+		total+=bag_mass(profile,str(id),seen,worn_comfort)*comfort
 	return total
 
 static func gym_mass(peer: int,dumbbells: Array,bars: Dictionary,belts: Array,plates: Array) -> float:

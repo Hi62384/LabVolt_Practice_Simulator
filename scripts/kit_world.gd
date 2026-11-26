@@ -1,5 +1,6 @@
 extends Node3D
 const Backpacks = preload("res://scripts/campus/dorms/authority/backpack_inventory.gd")
+const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 var game: Node
 var kits := {}
 var placed := {}
@@ -40,6 +41,7 @@ func apply(peer: int,action: Dictionary) -> void:
 		var title := str(profile.kits[id].name).left(32)
 		if kits.has(peer) and not kits[peer].get("stowed",false):return
 		kits[peer]={"id":id,"owner":peer,"name":title,"tier":str(profile.get("kit_tiers",{}).get(id,"standard")),"held":true,"stowed":false,"open":false,"position":pose}
+		if profile.kits[id].has("configuration"):kits[peer].configuration=profile.kits[id].configuration.duplicate(true)
 	elif op in ["place","drop"]:
 		if not kits.has(peer):return
 		var pos=action.get("position")
@@ -151,7 +153,7 @@ func sync() -> void:
 func receive(data: Dictionary,world_kits: Dictionary) -> void:
 	kits=data
 	placed=world_kits
-func _create_kit_view(peer: int,kit: Dictionary) -> StaticBody3D:
+func _create_kit_view(peer: int,kit: Dictionary,parent: Node3D = null) -> StaticBody3D:
 	var tier:=str(kit.get("tier","standard"))
 	var styles:={
 		"compact":{"width":.52,"height":.18,"depth":.34,"body":"566e4b","lid":"92a66f","trim":"cad6a6"},
@@ -159,22 +161,62 @@ func _create_kit_view(peer: int,kit: Dictionary) -> StaticBody3D:
 		"extended":{"width":.72,"height":.22,"depth":.42,"body":"315d82","lid":"70a1c3","trim":"d8c18c"},
 		"large":{"width":.78,"height":.25,"depth":.45,"body":"56416f","lid":"8c72a2","trim":"e5c881"}}
 	var style:Dictionary=styles.get(tier,styles.standard)
+	var options: Dictionary=kit.get("configuration",{})
+	var shell := Color(Equipment.value(Equipment.KIT,options,"appearance","shell",style.body))
+	var lid_color := Color(Equipment.value(Equipment.KIT,options,"appearance","lid",style.lid))
+	var trim := Color(Equipment.value(Equipment.KIT,options,"appearance","trim",style.trim))
+	var interior := Color(Equipment.value(Equipment.KIT,options,"appearance","interior","343e47"))
+	var surface: Vector2=Equipment.value(Equipment.KIT,options,"appearance","finish",Vector2(.6,0))
 	var w:float=style.width;var h:float=style.height;var d:float=style.depth
 	var root:=StaticBody3D.new();root.collision_layer=4;root.collision_mask=0
-	root.set_meta("role","kit");root.set_meta("owner",peer);root.set_meta("kit_id",kit.id);root.set_meta("label",kit.name);root.set_meta("tier",tier);add_child(root)
-	game._box(root,Vector3(0,h*.5,0),Vector3(w,h,d),Color(style.body))
-	var lid=game._box(root,Vector3(0,h+.018,0),Vector3(w+.02,.036,d+.02),Color(style.lid));lid.name="Lid"
+	root.set_meta("role","kit");root.set_meta("owner",peer);root.set_meta("kit_id",kit.id);root.set_meta("label",kit.name);root.set_meta("tier",tier)
+	(self if parent==null else parent).add_child(root)
+	if options.is_empty():
+		game._box(root,Vector3(0,h*.5,0),Vector3(w,h,d),shell)
+	else:
+		_case_piece(root,Vector3(0,.013,0),Vector3(w,.026,d),shell,surface)
+		for side in [-1.0,1.0]:
+			_case_piece(root,Vector3(side*(w*.5-.013),h*.5,0),Vector3(.026,h,d),shell,surface)
+			_case_piece(root,Vector3(0,h*.5,side*(d*.5-.013)),Vector3(w-.052,h,.026),shell,surface)
+		game._box(root,Vector3(0,.034,0),Vector3(w-.054,.014,d-.054),interior)
+		var tray_fraction: float=Equipment.value(Equipment.KIT,options,"hardware","tray",0.0)
+		if tray_fraction>0:
+			var tray_width: float=(w-.06)*tray_fraction
+			var tray_center: float=-w*.5+.03+tray_width*.5
+			var tray: Node3D=game._box(root,Vector3(tray_center,.063,0),Vector3(tray_width,.038,d-.062),interior.lightened(.13))
+			tray.name="Component tray"
+			game._box(root,Vector3(tray_center+tray_width*.5,h*.37,0),Vector3(.012,h*.48,d-.054),interior.darkened(.18))
+			for divider in [-.18,.18]:
+				game._box(root,Vector3(tray_center,h*.37,d*divider),Vector3(tray_width,h*.28,.011),interior.darkened(.18))
+		var reinforced: bool=Equipment.value(Equipment.KIT,options,"appearance","handle",false)
+		var grip_width:=w*(.40 if reinforced else .25)
+		var grip_height:=.035 if reinforced else .021
+		var reach:=.061 if reinforced else .034
+		game._box(root,Vector3(0,h*.50,d*.5+reach),Vector3(grip_width,grip_height,grip_height),trim)
+		for side in [-1.0,1.0]:
+			game._box(root,Vector3(side*(grip_width*.5-.014),h*.5,d*.5+reach*.5),Vector3(.03,grip_height,reach),trim)
+	var lid:=_case_piece(root,Vector3(0,h+.018,0),Vector3(w+.02,.036,d+.02),lid_color,surface);lid.name="Lid"
+	preload("res://scripts/campus/items/decoration_surface.gd").attach(lid,options.get("decoration",[]),Vector3(0,.019,0),Vector3(-PI/2,0,0),Vector2(w*.55,d*.78))
+	if not options.is_empty():game._box(lid,Vector3(0,-.020,0),Vector3(w-.05,.007,d-.05),interior)
 	root.set_meta("lid_closed",Vector3(0,h+.018,0));root.set_meta("lid_open",Vector3(0,h+d*.46,-d*.45))
-	for x in [-w*.32,w*.32]:game._box(root,Vector3(x,h*.65,-d*.505),Vector3(.035,.075,.018),Color(style.trim))
+	for x in [-w*.32,w*.32]:game._box(root,Vector3(x,h*.65,-d*.505),Vector3(.035,.075,.018),trim)
 	if tier in ["extended","large"]:
-		for x in [-w*.37,w*.37]:game._box(lid,Vector3(x,.021,0),Vector3(.032,.008,d*.92),Color(style.trim))
-		game._box(root,Vector3(0,h*.45,-d*.54),Vector3(w*.28,.025,.03),Color(style.trim))
+		for x in [-w*.37,w*.37]:game._box(lid,Vector3(x,.021,0),Vector3(.032,.008,d*.92),trim)
+		if options.is_empty():game._box(root,Vector3(0,h*.45,-d*.54),Vector3(w*.28,.025,.03),trim)
 	if tier=="large":
 		for x in [-w*.42,w*.42]:game._box(root,Vector3(x,.035,d*.49),Vector3(.07,.07,.045),Color("202b38"))
-	elif tier=="compact":game._box(lid,Vector3(0,.021,0),Vector3(.15,.008,.045),Color(style.trim))
+	elif tier=="compact":game._box(lid,Vector3(0,.021,0),Vector3(.15,.008,.045),trim)
 	var hit:=CollisionShape3D.new();var box:=BoxShape3D.new();box.size=Vector3(w+.03,h+.07,d+.04);hit.shape=box;hit.position.y=h*.5;root.add_child(hit)
 	var lid_hit:=CollisionShape3D.new();lid_hit.name="LidHit";var lid_shape:=BoxShape3D.new();lid_shape.size=Vector3(w+.02,.045,d+.02);lid_hit.shape=lid_shape;root.add_child(lid_hit)
 	return root
+
+func _case_piece(parent: Node3D, position: Vector3, size: Vector3, tint: Color, finish: Vector2) -> MeshInstance3D:
+	var piece: MeshInstance3D=game._box(parent,position,size,tint)
+	var material: StandardMaterial3D=piece.get_active_material(0).duplicate()
+	material.roughness=finish.x
+	material.metallic=finish.y
+	piece.material_override=material
+	return piece
 
 func _process(_delta: float) -> void:
 	if not is_instance_valid(game):return

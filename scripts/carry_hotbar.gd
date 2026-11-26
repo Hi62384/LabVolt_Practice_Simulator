@@ -3,6 +3,7 @@ const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const InventoryTheme = preload("res://scripts/ui/design_system/theme.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
 const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+const Ownership = preload("res://scripts/campus/items/equipment_ownership.gd")
 const AccessoryLayout = preload("res://scripts/campus/facilities/accessory_layout.gd")
 const SUPPLY_RARITY := {
 	"calculator":"Rare", "calculator_financial":"Uncommon", "flashlight":"Uncommon",
@@ -27,6 +28,7 @@ var accessory_positions := {}
 var accessory_catalog := {}
 func build(owner_game: Node) -> void:
 	game=owner_game;layer=11
+	portraits.model_builder=game.electronics._equipment_preview
 	var preferences:=ConfigFile.new()
 	if preferences.load("user://accessory_layout.cfg")==OK:
 		var saved: Variant=preferences.get_value("layout","positions",{})
@@ -85,12 +87,14 @@ func title(item: Dictionary) -> String:
 		"ac_usb":return "Laptop USB cable"
 		"smartphone":
 			var phone: Dictionary=game.electronics.profile.data.get("dorm",{}).get("smartphones",{}).get(item.get("id",""),{})
+			if phone.has("configuration"):return "Custom smartphone"
 			return str(preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.get(phone.get("tier",""),{}).get("name","Smartphone"))
 		"usb":
 			var drive: Dictionary=game.electronics.profile.data.get("dorm",{}).get("usb_drives",{}).get(item.get("id",""),{})
 			return "%s · %d MB" % [drive.get("name","USB drive"),int(drive.get("capacity_mb",0))]
 
 		"notebook":return Dorm.supply_title(str(item.get("dorm_item","notebook")))
+		"power_bank":return "Power bank"
 		"calculator":return str(Dorm.TOOLS.get(item.get("type","calculator"),"Calculator"))
 		"pencil_case":return "Pencil case"
 		"lab_goggles":return "Lab goggles"
@@ -153,7 +157,7 @@ func has_item(kind: String) -> bool:
 
 func calculator_type() -> String:
 	for item in slots:
-		if item.get("kind")=="calculator":return str(item.get("type","calculator"))
+		if item.get("kind")=="calculator":return str(item.get("dorm_item",item.get("type","calculator")))
 	return ""
 
 func _sync_dorm_items() -> void:
@@ -162,13 +166,19 @@ func _sync_dorm_items() -> void:
 	if is_instance_valid(game.kit_world):
 		for key in carried.duplicate():
 			if key.begins_with("kit:") and game.kit_world.is_placed(multiplayer.get_unique_id(),key.trim_prefix("kit:")):carried.erase(key)
+	if is_instance_valid(game.portable_laptops):
+		carried=carried.filter(func(key):return not key.begins_with("laptop:") or not game.portable_laptops.placed.has(key.trim_prefix("laptop:")))
+	if is_instance_valid(game.personal_placement) and not game.personal_placement.placed.is_empty():
+		var peer:=multiplayer.get_unique_id()
+		carried=carried.filter(func(key):return not game.personal_placement.is_placed(peer,key))
 	var components: Array = []
 	var quantities := {}
 	for part in dorm.get("carried_components",[]):
 		var key := str(part.type)+"/"+str(part.instance)
 		var ordinal := int(quantities.get(key,0))
 		quantities[key]=ordinal+1
-		components.append({"kind":"component","type":part.type,"instance":part.instance,"ordinal":ordinal})
+		if not is_instance_valid(game.personal_placement) or not game.personal_placement.is_placed(multiplayer.get_unique_id(),"part:%s:%s:%d"%[part.type,part.instance,ordinal]):
+			components.append({"kind":"component","type":part.type,"instance":part.instance,"ordinal":ordinal})
 	for index in range(slots.size()):
 		var key := str(slots[index].get("dorm_item",""))
 		var stored_kit: bool = slots[index].get("kind")=="kit" and slots[index].get("id") in dorm.get("stored_kits",[])
@@ -181,8 +191,10 @@ func _sync_dorm_items() -> void:
 				add_item({"kind":"kit","id":key.trim_prefix("kit:"),"dorm_item":key})
 		elif Dorm.is_notebook(key):
 			add_item({"kind":"notebook","dorm_item":key})
-		elif key in Dorm.CALCULATORS:
-			add_item({"kind":"calculator","type":key,"dorm_item":key})
+		elif Dorm.is_calculator(key):
+			add_item({"kind":"calculator","type":Dorm.Keypad.model_for(key),"dorm_item":key})
+		elif Dorm.PowerBanks.valid_key(key):
+			add_item({"kind":"power_bank","dorm_item":key})
 		elif key.begins_with("bag:"):
 			add_item({"kind":"backpack","id":key.trim_prefix("bag:"),"dorm_item":key})
 		elif key.begins_with("usb:"):
@@ -468,20 +480,6 @@ func select_slot(index: int) -> void:
 	if active==index:active=-1;switching=false;return
 	active=index;var item: Dictionary=slots[index]
 	match item.get("kind",""):
-		"component":
-			var dialog := ConfirmationDialog.new()
-			dialog.title=title(item)
-			dialog.dialog_text="Move this component to your available inventory for kit and board builds?"
-			dialog.ok_button_text="Move to inventory"
-			dialog.confirmed.connect(func():
-				active=-1
-				game.dorm_interactions.component_transfer(str(item.type),str(item.instance),"release_component")
-				dialog.queue_free()
-				game.capture())
-			dialog.canceled.connect(func():active=-1;dialog.queue_free();game.capture())
-			game.ui.add_child(dialog)
-			game.release_mouse()
-			dialog.popup_centered()
 		"notebook", "calculator", "pencil_case", "lab_goggles", "backpack", "flashlight", "marker", "whiteboard":
 			var kind := str(item.get("dorm_item",item.get("type",item.kind)))
 			for document in game.school.papers.values():
@@ -542,6 +540,8 @@ func manager(parent: Node) -> void:
 		tile.set_drag_forwarding(_drag_hotbar_slot.bind(tile,index),_can_drop_hotbar_slot.bind(index),_drop_hotbar_slot.bind(index))
 		var discard_entry := _pack_entry(item)
 		if item.get("kind","") in ["paper","wire","dc_wire","food","board"]:discard_entry=item.duplicate()
+		if item.get("kind","") in ["usb","portable_laptop"]:
+			discard_entry={"kind":"usb" if item.kind=="usb" else "laptop","id":item.id}
 		if not discard_entry.is_empty():
 			tile.tooltip_text+="\nRight click for options"
 			var equip := _equip_inventory_slot.bind(index,item)
@@ -592,6 +592,10 @@ func manager(parent: Node) -> void:
 		var bag: Dictionary=dorm.backpacks[back_id]
 		var capacity: int=Dorm.Backpacks.SIZES[bag.size].capacity
 		parent.add_child(UI.text("Backpack  ·  %d / %d slots" % [bag.items.size(),capacity],"SubtitleLabel"))
+		var pockets := Dorm.Backpacks.pocket_slots(bag)
+		if pockets>0:
+			var parts := mini(Dorm.Backpacks.component_count(bag),pockets)
+			parent.add_child(UI.text("Main compartment  %d / %d   ·   Component pockets  %d / %d" % [bag.items.size()-parts,capacity-pockets,parts,pockets],"MutedLabel"))
 		var contents := preload("res://scripts/ui/design_system/responsive_grid.gd").new()
 		contents.minimum_card_width=105
 		contents.maximum_columns=8
@@ -710,13 +714,20 @@ func _item_menu(event: InputEvent, tile: Button, item: Dictionary, source: Dicti
 	var menu := PopupMenu.new()
 	tile.add_child(menu)
 	if equip.is_valid():menu.add_item("Equip",0)
+	if not Ownership.slot(game.electronics.profile.data,str(item.get("kind","")),Ownership.key(item)).is_empty():menu.add_item("Decorate",3)
+	if source.get("location")=="hotbar" and item.get("kind")=="component":menu.add_item("Move to inventory",2)
 	menu.add_item("Discard",1)
 	menu.id_pressed.connect(func(id: int):
 		if id==0:equip.call()
+		elif id==2:game.dorm_interactions.component_transfer(str(item.type),str(item.instance),"release_component")
+		elif id==3:game.electronics.decorate_owned(item)
 		else:_confirm_discard(title(item),source))
 	menu.popup_hide.connect(menu.queue_free)
 	menu.position=Vector2i(get_viewport().get_mouse_position())
 	menu.popup()
+
+func refresh_portraits() -> void:
+	painted_slots.fill(null)
 
 func _confirm_discard(item_title: String, source: Dictionary) -> void:
 	var dialog := ConfirmationDialog.new()
@@ -761,7 +772,9 @@ func _pack_entry(item: Dictionary) -> Dictionary:
 func _unpack_item(entry: Dictionary) -> Dictionary:
 	if entry.kind=="supply":
 		if Dorm.is_notebook(entry.id):return {"kind":"notebook","dorm_item":entry.id}
-		return {"kind":"calculator" if entry.id in Dorm.CALCULATORS else entry.id,"type":entry.id}
+		if Dorm.is_calculator(entry.id):return {"kind":"calculator","type":Dorm.Keypad.model_for(entry.id),"dorm_item":entry.id}
+		if Dorm.PowerBanks.valid_key(entry.id):return {"kind":"power_bank","dorm_item":entry.id}
+		return {"kind":entry.id,"type":entry.id}
 	if entry.kind=="bag":return {"kind":"backpack","id":entry.id}
 	if entry.kind=="phone":return {"kind":"smartphone","id":entry.id}
 	return entry

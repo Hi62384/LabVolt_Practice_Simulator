@@ -10,6 +10,7 @@ const BENCH_BARBELL_EXERCISES := ["overhead_press","front_raise","curl","wrist_c
 const SEATED_DUMBBELL_EXERCISES := BENCH_DUMBBELL_EXERCISES
 const SEATED_BARBELL_EXERCISES := BENCH_BARBELL_EXERCISES
 const BARBELL_EXERCISES := ["squat","deadlift","romanian_deadlift","curl","front_raise","upright_row","overhead_extension","bent_over_row","shrug","wrist_curl","calf_raise","overhead_press","good_morning"]
+const PINNING_EXERCISES := ["benchpress","incline_press","squat","overhead_press","good_morning"]
 const CABLE_EXERCISES := ["cable_fly","cable_reverse_fly","cable_press","lat_pulldown","cable_row","lateral_raise","front_raise","overhead_press","curl","tricep_pushdown","overhead_extension","cable_crunch"]
 const STATION_EXERCISES := {"pushup":["pushup","crunch","leg_raise","pike_pushup"],"pullup":["pullup","hanging_leg_raise","dip"],"benchpress":BENCH_BARBELL_EXERCISES,"squat":["squat"],"curl":DUMBBELL_EXERCISES,"barbell":BARBELL_EXERCISES,"cable":CABLE_EXERCISES}
 const WEIGHTS := {"pushup":[0],"pullup":[0],"benchpress":[10,20,40],"squat":[10,20,40],"curl":[5,10,20],"crunch":[0],"leg_raise":[0],"pike_pushup":[0],"hanging_leg_raise":[0],"dip":[0]}
@@ -498,7 +499,7 @@ func act(peer: int, request: Dictionary) -> Dictionary:
 		var target: Variant=request.get("target",0)
 		if not target is int or target==peer or not current.is_empty() or not active.has(target):return fail("No player needs help")
 		var trapped: Dictionary=active[target]
-		if trapped.get("type","")!="trapped" or str(trapped.room_id)!=str(c.room_id) or c.position.distance_to(trapped.position)>2.5 or not reachable(c,str(trapped.station)) or not bool(c.get("allowed",false)) or not bool(c.get("grounded",false)) or not activity_valid(trusted(target),trapped):return fail("Move closer to the trapped player")
+		if trapped.get("type","")!="trapped" or str(trapped.room_id)!=str(c.room_id) or c.position.distance_to(trapped.position)>2.5 or not bool(c.get("allowed",false)) or not bool(c.get("grounded",false)) or not activity_valid(trusted(target),trapped):return fail("Move closer to the trapped player")
 		if t-int(last_assist.get(peer,-1000))<1000:return fail("Take a moment before helping again")
 		var helper_capacity: float=GymProgress.capacity(next.gym,str(trapped.exercise))
 		if helper_capacity <= 0:return fail("You lack the strength to help")
@@ -601,7 +602,9 @@ func _lift_effort(peer: int,value: Dictionary,gym: Dictionary,identity: String) 
 	return {"ok":true, "lift":{"phase":value.phase,"lift_progress":value.lift_progress,"reps":value.reps}}
 
 static func _can_pin(value: Dictionary) -> bool:
-	return value.get("equipment","") != "dumbbell" and value.get("exercise","") in ["benchpress","incline_press","squat"] and value.get("station","") in ["gym/benchpress","gym/squat"]
+	var equipment: String=value.get("equipment","")
+	var rack_bar: bool=equipment.is_empty() and value.get("station","") in ["gym/benchpress","gym/squat"]
+	return (equipment=="barbell" or rack_bar) and value.get("exercise","") in PINNING_EXERCISES
 
 func _failed_lift(value: Dictionary, gym: Dictionary, t: int) -> Dictionary:
 	if not _can_pin(value):
@@ -633,9 +636,10 @@ func trapped_damage_rate(peer: int) -> float:
 	return minf(11.0, .6 + 4.1 * pow(maxf(0.0,ratio-.88),1.3))
 
 func trap_event(value: Dictionary) -> Dictionary:
-	var event:={"activity":"trapped","station":value.station,"exercise":value.exercise,"weight":value.weight,"progress":value.progress}
+	var event:={"activity":"trapped","station":value.station,"exercise":value.exercise,"weight":value.weight,"progress":value.progress,"phase":1.0,"workout_position":value.position}
 	if value.has("bench_position"):event.bench_position=value.bench_position
 	if value.has("equipment"):event.equipment=value.equipment
+	if value.has("workout_facing"):event.workout_facing=value.workout_facing
 	return event
 
 func _exercise_event(value: Dictionary) -> Dictionary:

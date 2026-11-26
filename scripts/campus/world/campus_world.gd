@@ -8,6 +8,7 @@ const Signage = preload("res://scripts/campus/presentation/signage/campus_signag
 const HallwayGeometry = preload("res://scripts/campus/presentation/navigation_safety/hallway_geometry.gd")
 const HallwayFinish = preload("res://scripts/campus/presentation/hallway_finish.gd")
 const ExteriorFinish = preload("res://scripts/campus/presentation/exterior_finish.gd")
+const WORKSHOP_WALL_PAINT := "e0e0da"
 var registry = Registry.new()
 var streamer = Streamer.new()
 var room_roots: Dictionary = {}
@@ -152,6 +153,7 @@ func _room(room: Dictionary) -> void:
 	var zmax := center.z+size.z/2
 	var wall_x := xmax if west else xmin
 	var wall_color := "eeece4" if room.kind in ["lecture", "computer"] else "c6cbd6"
+	if room.id=="shop":wall_color=WORKSHOP_WALL_PAINT
 	box(root,center+Vector3(0,-.12,0),Vector3(size.x,.24,size.z),"71829b")
 	_room_wall(root,center+Vector3(0,4.15,0),Vector3(size.x,.2,size.z),"d5d9e2")
 	for z in [zmin,zmax]:
@@ -160,13 +162,15 @@ func _room(room: Dictionary) -> void:
 			_room_wall(root,Vector3(30,center.y+2.04,z),Vector3(12,4.08,.16),wall_color)
 			continue
 		if (room.id == "cafeteria" and z == zmax) or (room.id == "tim_hortons" and z == zmin):
-			# Six-metre passage toward the corridor side of the joined dining area.
-			_room_wall(root,Vector3(17,center.y+2.04,z),Vector3(2,4.08,.16),wall_color)
-			_room_wall(root,Vector3(29,center.y+2.04,z),Vector3(14,4.08,.16),wall_color)
-			_room_wall(root,Vector3(21,center.y+3.54,z),Vector3(6,1.08,.16),wall_color)
+			# The dining connector owns the entire partition and its opening.
 			continue
 		if (room.id == "tim_hortons" and z == zmax) or (room.id == "subway" and z == zmin): continue
 		_room_wall(root,Vector3(center.x,center.y+2.04,z),Vector3(size.x,4.08,.16),wall_color)
+	if room.id=="shop":
+		# The exterior shell projects slightly into this room along the south wall.
+		var liner := box(root,Vector3(center.x,2.62,zmin+.215),Vector3(19.82,2.84,.012),wall_color,false) as MeshInstance3D
+		liner.material_override=_workshop_wall_paint()
+		liner.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_room_wall(root,Vector3(xmin if west else xmax,center.y+2.04,center.z),Vector3(.16,4.08,size.z),wall_color)
 	var side := (size.z-float(room.door_width))/2
 	if room.id not in OPEN_FOOD_ROOMS:
@@ -235,7 +239,9 @@ func _add_door(root: Node3D, point: Vector3, width: float, west: bool, id: Strin
 	if id=="computer_commons":door.swing=1.0
 
 func _room_wall(root: Node3D, point: Vector3, size: Vector3, color: String) -> void:
-	box(root,point,size,color)
+	var wall := box(root,point,size,color) as MeshInstance3D
+	if root.name=="shop" and color==WORKSHOP_WALL_PAINT:
+		wall.material_override=_workshop_wall_paint()
 	if not enable_occlusion or minf(size.x,minf(size.y,size.z))<=.02:return
 	# Inset each occluder inside the solid wall segment, leaving the doorway open.
 	var occluder := OccluderInstance3D.new()
@@ -244,6 +250,16 @@ func _room_wall(root: Node3D, point: Vector3, size: Vector3, color: String) -> v
 	occluder.occluder=geometry
 	occluder.position=point
 	root.add_child(occluder)
+
+func _workshop_wall_paint() -> StandardMaterial3D:
+	if not materials.has("workshop_wall"):
+		var paint := material(WORKSHOP_WALL_PAINT).duplicate() as StandardMaterial3D
+		# Approximate soft bounce on the matte paint between the ceiling fixtures.
+		paint.emission_enabled=true
+		paint.emission=Color("d4d9e4")
+		paint.emission_energy_multiplier=.13
+		materials["workshop_wall"]=paint
+	return materials["workshop_wall"]
 
 func _directory_text() -> String:
 	var lines := PackedStringArray(["DIRECTORY"])
@@ -256,16 +272,16 @@ func _circulation() -> void:
 	box(self,Vector3(26,-.12,26),Vector3(20,.24,2),"71829b")
 	box(self,Vector3(26,4.15,26),Vector3(20,.2,2),"d5d9e2")
 	box(self,Vector3(36,2.04,26),Vector3(.16,4.08,2),"c6cbd6")
-	# Close the unused space between the shells and finish the six-metre passage.
-	box(self,Vector3(17,2.04,26),Vector3(2,4.08,1.84),"c6cbd6")
-	box(self,Vector3(29,2.04,26),Vector3(14,4.08,1.84),"c6cbd6")
-	box(self,Vector3(21,3.54,26),Vector3(6,1.08,1.84),"c6cbd6")
+	# One continuous header above the opening between x=18 and x=24.
+	_room_wall(self,Vector3(17,1.50,26),Vector3(2,3.0,2.16),"c6cbd6")
+	_room_wall(self,Vector3(30,1.50,26),Vector3(12,3.0,2.16),"c6cbd6")
+	_room_wall(self,Vector3(26,3.54,26),Vector3(20,1.08,2.16),"c6cbd6")
 	for x in [18.0,24.0]:
-		box(self,Vector3(x,1.51,26),Vector3(.12,3.02,2.14),"36515d",false)
-	box(self,Vector3(21,3.03,26),Vector3(6.12,.14,2.14),"36515d",false)
+		box(self,Vector3(x,1.48,26),Vector3(.12,2.96,2.20),"36515d",false)
+	box(self,Vector3(21,3.03,26),Vector3(6.12,.14,2.20),"36515d",false)
 	# Continue the same two-tone wainscot and base trim over the partition.
 	for z in [24.91,27.09]:
-		for part in [[17.0,1.8],[29.0,13.8]]:
+		for part in [[17.0,1.8],[30.0,11.8]]:
 			box(self,Vector3(part[0],.66,z),Vector3(part[1],1.28,.025),"4e697e",false)
 			box(self,Vector3(part[0],.09,z),Vector3(part[1],.18,.045),"314757",false)
 	box(self,Vector3(15.91,.66,26),Vector3(.025,1.28,1.8),"4e697e",false)
@@ -284,9 +300,9 @@ func _circulation() -> void:
 	for floor in [0,1]:
 		var y := float(floor)*5
 		if floor==1:
-			box(self,Vector3(13,y-.12,23),Vector3(6,.24,54),"879996")
-			box(self,Vector3(14.5,y-.12,56),Vector3(3,.24,12),"879996")
-			box(self,Vector3(13,y-.12,65),Vector3(6,.24,6),"879996")
+			box(self,Vector3(13,y-.12,23),Vector3(6,.24,54),HallwayFinish.CEILING)
+			box(self,Vector3(14.5,y-.12,56),Vector3(3,.24,12),HallwayFinish.CEILING)
+			box(self,Vector3(13,y-.12,65),Vector3(6,.24,6),HallwayFinish.CEILING)
 		box(self,Vector3(13,y+4.15,23),Vector3(6,.2,54),"d6e0da")
 		if floor==1:
 			box(self,Vector3(13,y+4.15,59),Vector3(6,.2,18),"d5d9e2")
@@ -296,16 +312,14 @@ func _circulation() -> void:
 		else:_upper_hall_extension()
 		for x in [10.0,16.0]:
 			if x==16.0:
-				# The upper-floor computer commons owns this wall, including its
-				# entrance at z=61. Keep the ground-floor wall unchanged.
-				box(self,Vector3(x,y+2,56),Vector3(.16,4,4),"a6b9b4")
-				if floor==0:
-					box(self,Vector3(x,y+2,64),Vector3(.16,4,8),"a6b9b4")
+				# The computer commons and charging room build their own corridor
+				# walls and door openings farther north.
+				box(self,Vector3(x,y+2,56),Vector3(.16,4,4),HallwayGeometry.WALL_COLOR)
 			else:
 				if floor==1:box(self,Vector3(x,y+2,63),Vector3(.16,4,10),"c6cbd6")
 				else:
-					box(self,Vector3(x,y+2,58.4),Vector3(.16,4,8.8),"c6cbd6")
-					box(self,Vector3(x,y+2,66.6),Vector3(.16,4,2.8),"c6cbd6")
+					# Lost and Found owns the wall and doorway from z=60 to z=68.
+					box(self,Vector3(x,y+2,57),Vector3(.16,4,6),HallwayGeometry.WALL_COLOR)
 	# Preserve the play bounds while opening the skyline over a low masonry edge.
 	for x in [-10.,36.]:
 		box(self,Vector3(x,.24,-18),Vector3(.5,.48,14),"697d81")
@@ -342,8 +356,10 @@ func _close_hallway_voids() -> void:
 	# The staircase needs an open ceiling within the corridor, with continuous
 	# outer walls around that opening and an enclosed band between storeys.
 	for x in [10.0,16.0]:
-		box(self,Vector3(x,4.5,59),Vector3(.16,1.04,18),HallwayGeometry.WALL_COLOR)
-	box(self,Vector3(13,4.5,68),Vector3(6,1.04,.16),HallwayGeometry.WALL_COLOR)
+		box(self,Vector3(x,4.5,59),Vector3(.17,1.04,18),HallwayGeometry.WALL_COLOR)
+	box(self,Vector3(13,4.5,68),Vector3(6,1.04,.17),HallwayGeometry.WALL_COLOR)
+	# Close the exposed inter-floor void above the ground corridor ceiling.
+	box(self,Vector3(13,4.40,50),Vector3(5.84,.78,.16),HallwayFinish.CEILING)
 
 func _stairs() -> void:
 	# A single convex wedge provides smooth capsule movement; treads are visual only.
@@ -356,12 +372,13 @@ func _stairs() -> void:
 	add_child(body)
 	for i in range(30):
 		var height := (i+1)*5.0/30
-		box(self,Vector3(11.5,height/2,50+(i+.5)*.4),Vector3(3,height,.4),"7f9997",false)
-	for x in [10.1,12.9]:
-		var rail := box(self,Vector3(x,3.5,56),Vector3(.08,.08,13),"34606a",false)
+		box(self,Vector3(11.5,height/2,50+(i+.5)*.4),Vector3(3,height,.4),HallwayFinish.FLOOR_B,false)
+	for x in [10.13,12.87]:
+		var rail := box(self,Vector3(x,3.5,56),Vector3(.08,.08,13),HallwayFinish.FRAME,false)
 		rail.rotation.x=-atan2(5,12)
 	# Guard the exposed edge of the upper corridor. Both stair approaches stay open.
-	box(self,Vector3(13,5.46,55.6),Vector3(.10,.92,11.2),"34606a")
+	box(self,Vector3(13,5.46,55.6),Vector3(.10,.92,11.2),HallwayFinish.UPPER)
+	box(self,Vector3(13,5.938,55.6),Vector3(.12,.036,11.2),HallwayFinish.FRAME,false)
 
 func _elevator() -> void:
 	elevator_geometry = preload("res://scripts/campus/elevator/elevator_geometry.gd").new()

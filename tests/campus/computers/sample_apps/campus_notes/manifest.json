@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "id": "campus.notes",
+  "name": "Campus Notes",
+  "publisher": "LabVolt",
+  "version": "1.0.0",
+  "description": "A pocket notebook for the current Campus OS drive.",
+  "runtime": "web",
+  "entry": "index.html"
+}

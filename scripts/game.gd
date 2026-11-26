@@ -10,6 +10,8 @@ var open_lab_tutorial
 var ac_laptops: Node3D
 var portable_laptops: Node3D
 var smartphones: Node3D
+var device_charging: Node3D
+var personal_placement: Node3D
 var health: Node
 var lost_found_room: Node3D
 
@@ -262,6 +264,10 @@ func _ready() -> void:
 	portable_laptops.name="PortableLaptops";add_child(portable_laptops);portable_laptops.build(self)
 	smartphones=preload("res://scripts/campus/phones/phone_service.gd").new()
 	smartphones.name="Smartphones";add_child(smartphones);smartphones.build(self)
+	personal_placement=preload("res://scripts/campus/items/personal_placement.gd").new()
+	personal_placement.name="PersonalPlacement";add_child(personal_placement);personal_placement.build(self)
+	device_charging=preload("res://scripts/campus/items/device_charging.gd").new()
+	device_charging.name="DeviceCharging";add_child(device_charging);device_charging.build(self)
 	health=preload("res://scripts/campus/health/service.gd").new()
 	health.name="Health";add_child(health);health.build(self)
 	shop_room=preload("res://scripts/shop_room.gd").new();add_child(shop_room);shop_room.build_campus(self,campus)
@@ -467,11 +473,15 @@ func install_dorm_rest(authority: Object) -> void:
 	dorm_rest.name="DormRest";add_child(dorm_rest);dorm_rest.configure(self,authority)
 	session.rest_pose_guard=dorm_rest.canonical_pose
 
-func open_carried_calculator(model := "") -> void:
-	if model.is_empty():model=hotbar.calculator_type()
+func open_carried_calculator(item := "", equipment_options: Dictionary = {}) -> void:
+	const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
+	if item.is_empty():item=hotbar.calculator_type()
+	var model:=Dorm.Keypad.model_for(item)
 	if model.is_empty():return
+	if equipment_options.is_empty():
+		equipment_options=Dorm.supply_configuration(electronics.profile.data.get("dorm",{}),item)
 	var window := Window.new()
-	window.title = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd").TOOLS.get(model,"Scientific calculator")
+	window.title = Dorm.supply_title(item)
 	window.borderless = true
 	window.transient = true
 	window.exclusive = true
@@ -479,6 +489,7 @@ func open_carried_calculator(model := "") -> void:
 	ui.add_child(window)
 	var calculator := preload("res://scripts/scientific_calculator.gd").new()
 	calculator.model=model
+	calculator.equipment_options=equipment_options
 	calculator.show_close=true
 	window.add_child(calculator)
 	calculator.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -494,7 +505,7 @@ func open_carried_calculator(model := "") -> void:
 			dismiss.call())
 	release_mouse()
 	var minimum := calculator.get_combined_minimum_size()
-	var calculator_size := Vector2i(ceili(minimum.x) if model=="calculator_basic" else 420, ceili(minimum.y))
+	var calculator_size := Vector2i(maxi(ceili(minimum.x),420 if model!="calculator_basic" else 260),ceili(minimum.y))
 	window.popup_centered(calculator_size)
 
 func _input(event: InputEvent) -> void:
@@ -610,6 +621,7 @@ func _input(event: InputEvent) -> void:
 			drag_knob = ""
 			interaction_presentation.cancel_actor(multiplayer.get_unique_id())
 		elif event.pressed:
+			if event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT] and personal_placement.interact(current_target,event.button_index==MOUSE_BUTTON_RIGHT):return
 			if event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT] and is_instance_valid(portable_laptops) and portable_laptops.interact(current_target,event.button_index==MOUSE_BUTTON_RIGHT):return
 			if event.button_index==MOUSE_BUTTON_LEFT and is_instance_valid(gym_barbells) and gym_barbells.click_bar_target(current_target):return
 			if event.button_index==MOUSE_BUTTON_RIGHT and is_instance_valid(gym_barbells) and not gym_barbells.held_bar(multiplayer.get_unique_id()).is_empty():
@@ -640,7 +652,8 @@ func _input(event: InputEvent) -> void:
 				elif not school_world.interact(current_target,true):unplug()
 			elif event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
 				var amount := 1.0 if event.button_index==MOUSE_BUTTON_WHEEL_UP else -1.0
-				if _aims_at_control("variable") or _aims_at_control("dyn_load"):
+				if is_instance_valid(computer_room_adapter) and computer_room_adapter.scroll_volume(current_target,amount):pass
+				elif _aims_at_control("variable") or _aims_at_control("dyn_load"):
 					_request({"op":"voltage" if _aims_at_control("variable") else "dyn_load","delta":amount*.025})
 				elif _aims_at_control("supply_meter"):
 					_request({"op":"supply_meter","delta":amount})
@@ -687,7 +700,7 @@ func _input(event: InputEvent) -> void:
 func _placement_surface() -> Dictionary:
 	var peer := multiplayer.get_unique_id()
 	var ray := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3.0,5)
-	var hit: Dictionary=get_world_3d().direct_space_state.intersect_ray(ray)
+	var hit: Dictionary=portable_laptops._placement_hit(ray)
 	return preload("res://scripts/campus/items/placement_target.gd").choose(hit,player.global_position,func(point):return school.ground_drop_position(point,peer))
 
 func _place_held_item() -> void:
@@ -721,7 +734,8 @@ func _place_held_item() -> void:
 	var holding_food: bool=not hotbar.selected_food().is_empty()
 	var holding_lead: bool=school._holding_cable(peer)
 	if paper_id==0 and board<0 and not holding_kit and not holding_food and not holding_lead:
-		if is_instance_valid(portable_laptops):portable_laptops.place_selected()
+		if portable_laptops.place_selected():return
+		personal_placement.place_selected(surface)
 		return
 	if paper_id!=0 and school.papers.get(paper_id,{}).get("supply_id","")=="whiteboard":
 		var wall_ray := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3.0,1)
@@ -748,12 +762,14 @@ func _place_held_item() -> void:
 		if floor_point is Vector3:school.request({"op":"drop_floor_lead","position":floor_point})
 
 func activate(from_interact_key := true) -> void:
+	if is_instance_valid(device_charging) and device_charging.interact(current_target):return
+	if personal_placement.interact(current_target,from_interact_key):return
 	if is_instance_valid(invention_world) and invention_world.interact(current_target,false):return
-	if is_instance_valid(portable_laptops) and portable_laptops.interact(current_target,false):return
+	if is_instance_valid(portable_laptops) and portable_laptops.interact(current_target,false,from_interact_key):return
 	if is_instance_valid(faculty) and faculty.interact(current_target):return
 	if is_instance_valid(gym_barbells) and gym_barbells.interact(current_target, from_interact_key):return
 	if is_instance_valid(gym_weights) and gym_weights.interact(current_target):return
-	if is_instance_valid(ac_laptops) and ac_laptops.interact(current_target,false):return
+	if is_instance_valid(ac_laptops) and ac_laptops.interact(current_target,from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","")=="ac_laptop"):return
 	if from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","")=="table":return
 	if is_instance_valid(dorm_rest) and player.resting:return
 	if not from_interact_key and is_instance_valid(current_target) and current_target.get_meta("role","") in ["dorm_room_prop","dorm_personal_station","dorm_decorate","dorm_door","shop_station"]:
@@ -841,6 +857,11 @@ func _get_target() -> StaticBody3D:
 		return null
 	var query := PhysicsRayQueryParameters3D.create(camera.global_position,camera.global_position-camera.global_basis.z*3.0,5)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var seat_id: String=player.facility_seat.get("station","")
+	var collider: CollisionObject3D=hit.get("collider")
+	if not seat_id.is_empty() and is_instance_valid(collider) and collider.get_meta("role","")=="facility_seat" and collider.get_meta("station","")==seat_id:
+		query.exclude=[collider.get_rid()]
+		hit=get_world_3d().direct_space_state.intersect_ray(query)
 	return _resolve_invention_hit(hit.get("collider") as StaticBody3D)
 
 func _set_highlighted_target(target: StaticBody3D) -> void:
@@ -918,6 +939,12 @@ func _physics_process(delta: float) -> void:
 		held_hint.text="%s: place laptop on a flat surface" % OS.get_keycode_string(player.keys.place_item)
 	elif is_instance_valid(ac_laptops) and ac_laptops._held("cables")>=0:
 		held_hint.text="Click laptop USB, then DAQ Computer I/O  •  Return cable to cabinet"
+	elif is_instance_valid(smartphones) and not smartphones.selected().is_empty():
+		held_hint.text=("Left-click: photo  •  Right-click: open  •  O: power off" if smartphones.is_powered(smartphones.selected()) else "Right-click: open phone  •  O: power on")+"  •  %s: place"%OS.get_keycode_string(player.keys.place_item)
+	elif hotbar.active in range(hotbar.slots.size()) and hotbar.slots[hotbar.active].get("kind","")=="power_bank":
+		held_hint.text="%s  •  %s: place"%[device_charging.bank_label(hotbar.slots[hotbar.active].dorm_item),OS.get_keycode_string(player.keys.place_item)]
+	elif hotbar.active in range(hotbar.slots.size()) and hotbar.slots[hotbar.active].get("kind","") in ["usb","component","portable_laptop"]:
+		held_hint.text="%s: place on a flat surface"%OS.get_keycode_string(player.keys.place_item)
 	elif (is_instance_valid(school) and school.held(multiplayer.get_unique_id())!=0) or kit_world.held() or dc_lab.held_board()>=0 or not hotbar.selected_food().is_empty():
 		var drop_hint := "%s: place on a flat surface" % OS.get_keycode_string(player.keys.place_item)
 		if held_hint.text.is_empty():held_hint.text=drop_hint
@@ -1010,8 +1037,25 @@ func _physics_process(delta: float) -> void:
 			hint=str(current_target.get_meta("label",current_target.get_meta("dc_port")))+" · Click: connect lead · Right click: disconnect"
 		elif role=="computer":
 			hint="%s - Classroom computer" % key_name
+		elif role=="portable_laptop":
+			hint=portable_laptops.hint(current_target,key_name)
+		elif role=="placed_personal_item":
+			hint=personal_placement.hint(current_target,key_name)
+		elif role=="device_charger":
+			hint=device_charging.charger_hint(int(current_target.get_meta("charger",-1)),key_name)
+		elif role=="charging_port":
+			hint=device_charging.port_hint(current_target,key_name)
+		elif role=="public_computer_power" and current_target.has_meta("portable_id"):
+			hint="%s / Click: %s" % [key_name,str(current_target.get_meta("label","")).to_lower()]
 		elif role=="public_computer_usb":
-			hint="%s - Connect or remove USB drive" % key_name
+			var station_id: String=str(current_target.get_meta("station",""))
+			if computer_room_adapter.power_states.get(station_id,false):
+				hint="Turn off the %s to change the USB drive" % ("laptop" if current_target.has_meta("portable_id") else "computer")
+			else:
+				var action: String="remove" if computers.connected_usb_ports.has(station_id) else "connect"
+				hint="%s / Click: %s USB drive" % [key_name,action]
+		elif role=="computer_volume":
+			hint=computer_room_adapter.volume_hint(current_target)
 		elif role=="teacher":
 			hint="Right click: talk to instructor"
 		elif role=="paper":
@@ -1023,7 +1067,7 @@ func _physics_process(delta: float) -> void:
 		elif role=="table":
 			hint="%s: place board" % OS.get_keycode_string(player.keys.place_item) if dc_lab.held_board()>=0 else ""
 		elif role=="chair":
-			hint="%s - Sit" % key_name
+			hint="%s - Sit" % key_name if player.seated==null else ""
 		elif role=="display":
 			hint="Centre station: circuit experiments"
 		elif role=="drawer":
@@ -1577,8 +1621,13 @@ func _claim_chair(peer: int,index: int) -> void:
 	var dorm_bay := str(chair.get_meta("dorm_study_bay",""))
 	if not dorm_bay.is_empty() and not dorm_interactions.is_owner(dorm_interactions.authenticated_identity(peer),str(dorm_interactions.leases.get(dorm_bay,""))):return
 	if is_instance_valid(computers):
-		for station in computers.stations.values():
-			if station.chair==index and not computers._private_allowed(peer,station):return
+		for station_id in computers.stations:
+			var station: Dictionary=computers.stations[station_id]
+			if station.chair!=index:continue
+			if not computers._private_allowed(peer,station):return
+			for user in computers.sessions:
+				if user!=peer and computers.sessions[user].station==station_id:return
+			break
 	for other in chairs:
 		if other.occupant==peer:
 			return
@@ -1676,7 +1725,7 @@ func _stand_from_chair() -> void:
 	standing_chair_index=chairs.find(player.seated)
 	player.stand_up()
 	if player.seated!=null:
-		ui.log_message("No clear floor beside the chair." if player.seated.fixed_seat else "Move the chair clear of the table before standing.")
+		ui.log_message("No clear floor beside the chair.")
 		return
 	standing_pending=session.online and not multiplayer.is_server()
 	if standing_pending:
@@ -1843,7 +1892,7 @@ func _apply_supply_accessories(peer: int, model: Node3D) -> void:
 				Toon.link(glasses,Vector3(side*.165,.018,.195),Vector3(side*.225,.007,.02),.015,frame)
 			Toon.link(glasses,Vector3(-.032,.026,.218),Vector3(.032,.026,.218),.014,frame)
 	if not str(gear.get("back","")).is_empty():
-		var pack := Node3D.new();pack.name="PhysicalBackpack";model.add_child(pack)
-		var width: float={"backpack_small":.18,"backpack_medium":.22,"backpack_large":.26,"backpack_giant":.29}.get(gear.back,.22)
-		Toon.ellipsoid(pack,Vector3(0,1.05,-.20),Vector3(width,.33,.16),Toon.material("476775"))
-		Toon.ellipsoid(pack,Vector3(0,.94,-.33),Vector3(width*.76,.13,.054),Toon.material("354e5c"))
+		var pack := preload("res://scripts/campus/items/backpack_model.gd").build(model,gear.back,gear.get("back_configuration",{}))
+		pack.name="PhysicalBackpack"
+		pack.position=Vector3(0,1.06,-.23)
+		pack.rotation.y=PI

@@ -1,24 +1,35 @@
 diff --git a/gdcef/browser/src/gdbrowser.cpp b/gdcef/browser/src/gdbrowser.cpp
-index f5b3dcd..7f76025 100644
+index f5b3dcd..6f294e7 100644
 --- a/gdcef/browser/src/gdbrowser.cpp
 +++ b/gdcef/browser/src/gdbrowser.cpp
-@@ -31,6 +31,7 @@
+@@ -31,6 +31,8 @@
  #include <algorithm>
  #include <cstring>
  #include <fstream>
++#include <memory>
 +#include <godot_cpp/variant/packed_byte_array.hpp>
-
+ 
  #include <gdextension_interface.h>
  #include <godot_cpp/core/class_db.hpp>
-@@ -259,6 +260,7 @@ void GdBrowserView::_bind_methods()
+@@ -38,6 +40,7 @@
+ #include <godot_cpp/godot.hpp>
+ 
+ #include <base/cef_logging.h>
++#include "wrapper/cef_stream_resource_handler.h"
+ 
+ #ifdef _OPENMP
+ #    include <omp.h>
+@@ -259,6 +262,9 @@ void GdBrowserView::_bind_methods()
      // Methods
      ClassDB::bind_method(D_METHOD("close"), &GdBrowserView::close);
      ClassDB::bind_method(D_METHOD("id"), &GdBrowserView::id);
++    ClassDB::bind_method(D_METHOD("is_offline_project"), &GdBrowserView::isOfflineProject);
++    ClassDB::bind_method(D_METHOD("get_offline_state"), &GdBrowserView::getOfflineState);
 +    ClassDB::bind_method(D_METHOD("blocked_file_dialogs"), &GdBrowserView::blockedFileDialogs);
      ClassDB::bind_method(D_METHOD("get_error"), &GdBrowserView::getError);
      ClassDB::bind_method(D_METHOD("is_valid"), &GdBrowserView::isValid);
      ClassDB::bind_method(D_METHOD("set_texture", "texture"),
-@@ -271,6 +273,8 @@ void GdBrowserView::_bind_methods()
+@@ -271,6 +277,8 @@ void GdBrowserView::_bind_methods()
      ClassDB::bind_method(D_METHOD("load_url"), &GdBrowserView::loadURL);
      ClassDB::bind_method(D_METHOD("load_data_uri"),
                           &GdBrowserView::loadDataURI);
@@ -27,9 +38,22 @@ index f5b3dcd..7f76025 100644
      ClassDB::bind_method(D_METHOD("download_file"),
                           &GdBrowserView::downloadFile);
      ClassDB::bind_method(D_METHOD("allow_downloads"),
-@@ -384,6 +388,14 @@ void GdBrowserView::_bind_methods()
+@@ -338,9 +346,12 @@ void GdBrowserView::_bind_methods()
+     ClassDB::bind_method(D_METHOD("set_touch_cancel", "id"),
+                          &GdBrowserView::touchCancel);
+     ClassDB::bind_method(D_METHOD("set_muted"), &GdBrowserView::mute);
++    ClassDB::bind_method(D_METHOD("set_page_suspended", "suspended"),
++                         &GdBrowserView::set_page_suspended);
+     ClassDB::bind_method(D_METHOD("is_muted"), &GdBrowserView::muted);
+     ClassDB::bind_method(D_METHOD("set_audio_stream", "audio"),
+                          &GdBrowserView::setAudioStreamer);
++    ClassDB::bind_method(D_METHOD("set_audio_drive", "drive"), &GdBrowserView::setAudioDrive);
+     ClassDB::bind_method(D_METHOD("get_audio_stream"),
+                          &GdBrowserView::getAudioStreamer);
+     ClassDB::bind_method(D_METHOD("get_pixel_color", "x", "y"),
+@@ -384,6 +395,14 @@ void GdBrowserView::_bind_methods()
                           &GdBrowserView::endDragging);
-
+ 
      // Signals
 +    ADD_SIGNAL(MethodInfo("virtual_download_progress",
 +                          PropertyInfo(Variant::INT, "received"),
@@ -42,26 +66,36 @@ index f5b3dcd..7f76025 100644
      ADD_SIGNAL(MethodInfo("on_download_updated",
                            PropertyInfo(Variant::STRING, "file"),
                            PropertyInfo(Variant::INT, "percentage"),
-@@ -463,7 +475,8 @@ godot::String GdBrowserView::getError()
+@@ -463,7 +482,9 @@ godot::String GdBrowserView::getError()
  //------------------------------------------------------------------------------
  int GdBrowserView::init(godot::String const& url,
                          CefBrowserSettings const& settings,
 -                        CefWindowInfo const& window_info)
 +                        CefWindowInfo const& window_info,
-+                        CefRefPtr<CefRequestContext> context)
++                        CefRefPtr<CefRequestContext> context,
++                        const godot::Dictionary& offline_files)
  {
      // Allocate the CEF client and the Godot rendering resources here instead of
      // in the constructor: Godot also builds throw-away instances of registered
-@@ -491,7 +504,7 @@ int GdBrowserView::init(godot::String const& url,
+@@ -471,7 +492,7 @@ int GdBrowserView::init(godot::String const& url,
+     // the class documentation) and none of this is needed for them.
+     if (m_impl == nullptr)
+     {
+-        m_impl = new GdBrowserView::Impl(*this);
++        m_impl = new GdBrowserView::Impl(*this, offline_files);
+         if (m_impl == nullptr)
+         {
+             BROWSER_ERROR("Failed allocating GdBrowserView::Impl");
+@@ -491,7 +512,7 @@ int GdBrowserView::init(godot::String const& url,
      // passed to CefRenderProcessHandler::OnBrowserCreated() in the render
      // process.
      m_browser = CefBrowserHost::CreateBrowserSync(
 -        window_info, m_impl, url.utf8().get_data(), settings, nullptr, nullptr);
 +        window_info, m_impl, url.utf8().get_data(), settings, nullptr, context);
-
+ 
      if ((m_browser == nullptr) || (m_browser->GetHost() == nullptr))
      {
-@@ -1206,6 +1219,14 @@ bool GdBrowserView::isValid() const
+@@ -1206,6 +1227,14 @@ bool GdBrowserView::isValid() const
  //------------------------------------------------------------------------------
  void GdBrowserView::close()
  {
@@ -76,15 +110,105 @@ index f5b3dcd..7f76025 100644
      // CEF closes the browser asynchronously and keeps calling m_impl until it
      // is really closed, while this node may be freed meanwhile: m_impl shall
      // no longer reach it.
-@@ -1355,62 +1376,125 @@ void GdBrowserView::downloadFile(godot::String url)
+@@ -1252,45 +1281,59 @@ bool GdBrowserView::muted()
+     return m_browser->GetHost()->IsAudioMuted();
  }
-
+ 
+-//------------------------------------------------------------------------------
+-void GdBrowserView::onAudioStreamStarted(CefRefPtr<CefBrowser> browser,
+-                                         const CefAudioParameters& params,
+-                                         int channels)
++void GdBrowserView::set_page_suspended(bool suspended)
+ {
+-    if (m_impl == nullptr)
++    CEF_REQUIRE_UI_THREAD();
++    if (!m_browser)
+         return;
+-
+-    // Note: params.channel_layout is an enum and not a number of channels.
+-    m_impl->m_audio.channels = channels;
++    auto host = m_browser->GetHost();
++    host->WasHidden(suspended);
++    auto parameters = CefDictionaryValue::Create();
++    parameters->SetString("state", suspended ? "frozen" : "active");
++    host->ExecuteDevToolsMethod(0, "Page.setWebLifecycleState", parameters);
++    if (!suspended)
++        host->Invalidate(PET_VIEW);
+ }
+ 
+ //------------------------------------------------------------------------------
+-void GdBrowserView::onAudioStreamPacket(CefRefPtr<CefBrowser> browser,
+-                                        const float** data,
+-                                        int frames,
+-                                        int64_t pts)
++void GdBrowserView::Impl::push_audio_packet(const float** data, int frames)
+ {
+-    if ((m_impl == nullptr) || (m_impl->m_audio.streamer == nullptr))
+-    {
++    std::lock_guard lock(m_audio.mutex);
++    if (m_audio.streamer.is_null() || data == nullptr || frames <= 0 ||
++        m_audio.channels <= 0)
+         return;
+-    }
+ 
+-    int const channels = m_impl->m_audio.channels;
+-    if ((data == nullptr) || (frames <= 0) || (channels <= 0))
++    auto& streamer = *m_audio.streamer.ptr();
++    const int available = streamer.get_frames_available();
++    m_audio.capacity = std::max(m_audio.capacity, available);
++    if (available == m_audio.capacity)
++        m_audio.primed = false;
++
++    // Refill a short cushion after silence or an underrun. Playing each packet
++    // immediately leaves no room for normal differences in callback timing.
++    auto& samples = m_audio.primed ? m_audio.packet : m_audio.buffer;
++    const int first = m_audio.primed ? 0 : samples.size();
++    if (first + frames > available)
+         return;
+-
+-    // data[c] holds the samples of the channel c. Godot plays stereo frames:
+-    // a mono stream is played on both sides and extra channels are dropped.
++    samples.resize(first + frames);
++    auto* out = samples.ptrw() + first;
+     const float* left = data[0];
+-    const float* right = (channels >= 2) ? data[1] : data[0];
+-
+-    auto& streamer = *(m_impl->m_audio.streamer.ptr());
+-    if (streamer.can_push_buffer(frames))
++    const float* right = m_audio.channels >= 2 ? data[1] : left;
++    const float drive = m_audio.drive;
++    for (int i = 0; i < frames; ++i)
+     {
+-        for (int i = 0; i < frames; i++)
+-        {
+-            streamer.push_frame(godot::Vector2(left[i], right[i]));
+-        }
++        out[i] = godot::Vector2(std::clamp(left[i] * drive, -1.0f, 1.0f),
++                                std::clamp(right[i] * drive, -1.0f, 1.0f));
++    }
++    if (m_audio.primed)
++    {
++        streamer.push_buffer(samples);
++    }
++    else if (samples.size() >= std::min(m_audio.prebuffer_frames, m_audio.capacity / 2) &&
++             streamer.push_buffer(samples))
++    {
++        m_audio.primed = true;
++        samples.clear();
+     }
+ }
+ 
+@@ -1355,68 +1398,132 @@ void GdBrowserView::downloadFile(godot::String url)
+ }
+ 
  //------------------------------------------------------------------------------
 -bool GdBrowserView::canDownload(CefRefPtr<CefBrowser> browser,
 -                                const CefString& url,
 -                                const CefString& request_method)
 +bool GdBrowserView::enableVirtualDownloads(godot::String directory)
-+{
+ {
+-    // TODO add a whitelist ["*"]
+-    return m_allow_downloads;
 +    if (!m_virtual_download_directory.empty())
 +        return false;
 +    const auto path = utf8_to_path(directory.utf8().get_data()).make_preferred();
@@ -120,12 +244,10 @@ index f5b3dcd..7f76025 100644
 +bool GdBrowserView::canDownload(CefRefPtr<CefBrowser>,
 +                                const CefString&,
 +                                const CefString&)
- {
--    // TODO add a whitelist ["*"]
--    return m_allow_downloads;
++{
 +    return !m_virtual_download_directory.empty() && m_virtual_download_id < 0;
  }
-
+ 
  //------------------------------------------------------------------------------
  bool GdBrowserView::onBeforeDownload(
 -    CefRefPtr<CefBrowser> browser,
@@ -171,7 +293,7 @@ index f5b3dcd..7f76025 100644
 +    callback->Continue(path_to_utf8(m_virtual_download_payload), false);
 +    return true;
  }
-
+ 
  //------------------------------------------------------------------------------
  void GdBrowserView::onDownloadUpdated(
 -    CefRefPtr<CefBrowser> browser,
@@ -238,13 +360,120 @@ index f5b3dcd..7f76025 100644
 +    clearVirtualDownload();
 +    emit_signal("virtual_download_finished", name, mime, body, error);
  }
-
+ 
  //------------------------------------------------------------------------------
+ bool GdBrowserView::registerGodotMethod(godot::Object* object,
+                                         godot::String method_name)
+ {
++    if (isOfflineProject()) return false;
+     BROWSER_DEBUG("Registering gdscript method "
+                   << method_name.utf8().get_data());
+ 
+@@ -1441,6 +1548,99 @@ bool GdBrowserView::registerGodotMethod(godot::Object* object,
+     return true;
+ }
+ 
++namespace
++{
++constexpr size_t app_state_max = 4096;
++
++class StateResponse final : public CefStreamResourceHandler
++{
++public:
++    StateResponse(CefResponse::HeaderMap headers, std::shared_ptr<std::string> data)
++        : CefStreamResourceHandler(200, "OK", "application/json", std::move(headers),
++              CefStreamReader::CreateForData(data->data(), data->size())),
++          data_(std::move(data)) {}
++private:
++    const std::shared_ptr<std::string> data_;
++};
++}
++
++godot::String GdBrowserView::getOfflineState()
++{
++    if (!isOfflineProject()) return {};
++    std::lock_guard guard(m_impl->m_offline_state_mutex);
++    return godot::String::utf8(m_impl->m_offline_state.data(), m_impl->m_offline_state.size());
++}
++
++std::string GdBrowserView::Impl::offlinePath(CefRefPtr<CefRequest> request)
++{
++    const std::string url = request->GetURL().ToString();
++    constexpr std::string_view origin = "https://campus-app.invalid/";
++    if (!url.starts_with(origin))
++        return {};
++    const auto end = url.find_first_of("?#", origin.size());
++    auto path = CefURIDecode(url.substr(origin.size(), end - origin.size()), false,
++        static_cast<cef_uri_unescape_rule_t>(UU_NORMAL | UU_SPACES |
++            UU_URL_SPECIAL_CHARS_EXCEPT_PATH_SEPARATORS)).ToString();
++    const auto method = request->GetMethod();
++    return method == "GET" || (method == "PUT" && path == offline_state_path) ? path : std::string{};
++}
++
++CefRefPtr<CefResourceHandler>
++GdBrowserView::Impl::GetResourceHandler(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
++                                      CefRefPtr<CefRequest> request)
++{
++    const auto path = offlinePath(request);
++    const auto asset = m_offline_files.find(path);
++    if (asset == m_offline_files.end() && path != offline_state_path)
++        return nullptr;
++
++    const auto dot = path.rfind('.');
++    const auto suffix = dot == std::string::npos ? std::string{} : path.substr(dot + 1);
++    static const std::unordered_map<std::string, std::string> mime_types = {
++        {"html","text/html"},{"htm","text/html"},{"css","text/css"},
++        {"js","text/javascript"},{"mjs","text/javascript"},{"json","application/json"},
++        {"jpg","image/jpeg"},{"jpeg","image/jpeg"},{"png","image/png"},
++        {"svg","image/svg+xml"},{"gif","image/gif"},{"webp","image/webp"},
++        {"avif","image/avif"},{"ico","image/x-icon"},{"woff","font/woff"},
++        {"woff2","font/woff2"},{"ttf","font/ttf"},{"otf","font/otf"},
++        {"wav","audio/wav"},{"mp3","audio/mpeg"},{"ogg","audio/ogg"},
++        {"mp4","video/mp4"},{"webm","video/webm"},{"wasm","application/wasm"},
++        {"txt","text/plain"},{"md","text/plain"}
++    };
++    const auto mime = mime_types.find(suffix);
++    if (mime == mime_types.end()) return nullptr;
++    CefResponse::HeaderMap headers{
++        {"Content-Security-Policy", "default-src 'none'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; worker-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'none'; base-uri 'none'; webrtc 'block'"},
++        {"Permissions-Policy", "camera=(), microphone=(), geolocation=(), display-capture=(), usb=(), serial=(), hid=(), bluetooth=(), clipboard-read=(), clipboard-write=()"},
++        {"Referrer-Policy", "no-referrer"},
++        {"X-Content-Type-Options", "nosniff"},
++        {"X-DNS-Prefetch-Control", "off"},
++        {"Cache-Control", "no-store"}
++    };
++    if (path == offline_state_path)
++    {
++        std::lock_guard guard(m_offline_state_mutex);
++        if (m_offline_state.empty()) return nullptr;
++        if (request->GetMethod() == "PUT")
++        {
++            const auto post = request->GetPostData();
++            if (!post || post->GetElementCount() != 1) return nullptr;
++            CefPostData::ElementVector elements;
++            post->GetElements(elements);
++            const auto part = elements.front();
++            if (part->GetType() != PDE_TYPE_BYTES || part->GetBytesCount() > app_state_max) return nullptr;
++            std::string candidate(part->GetBytesCount(), '\0');
++            part->GetBytes(candidate.size(), candidate.data());
++            const auto parsed = CefParseJSON(candidate, JSON_PARSER_RFC);
++            if (!parsed || parsed->GetType() != VTYPE_DICTIONARY) return nullptr;
++            m_offline_state = std::move(candidate);
++        }
++        return new StateResponse(std::move(headers), std::make_shared<std::string>(m_offline_state));
++    }
++    auto stream = CefStreamReader::CreateForData(const_cast<char*>(asset->second.data()), asset->second.size());
++    return new CefStreamResourceHandler(200, "OK", mime->second, headers, stream);
++}
++
+ //------------------------------------------------------------------------------
+ // Recursive method to convert JSON data to native Godot types
+ godot::Variant GdBrowserView::JsonToGodot(const godot::Dictionary& json)
 diff --git a/gdcef/browser/src/gdbrowser.hpp b/gdcef/browser/src/gdbrowser.hpp
-index a49e880..d8fc542 100644
+index a49e880..9796090 100644
 --- a/gdcef/browser/src/gdbrowser.hpp
 +++ b/gdcef/browser/src/gdbrowser.hpp
-@@ -63,9 +63,11 @@
+@@ -63,14 +63,17 @@
  #include "cef_app.h"
  #include "cef_client.h"
  #include "cef_display_handler.h"
@@ -254,9 +483,34 @@ index a49e880..d8fc542 100644
  #include "cef_render_handler.h"
 +#include "cef_request_context.h"
  #include "wrapper/cef_helpers.h"
-
+ 
  #include <array>
-@@ -124,6 +126,7 @@ private: // CEF interfaces
+ #include <chrono>
+ #include <iostream>
++#include <mutex>
+ 
+ #include "ad_blocker.hpp"
+ 
+@@ -105,12 +108,18 @@ private: // CEF interfaces
+     // *************************************************************************
+     struct RoutingAudio
+     {
++        std::mutex mutex;
+         //! \brief Godot audio streamer
+         godot::Ref<godot::AudioStreamGeneratorPlayback> streamer = nullptr;
+         //! \brief Audio received from CEF
+         godot::PackedVector2Array buffer;
++        godot::PackedVector2Array packet;
+         //! \brief Number of audio channels
+         int channels = -1;
++        int capacity = 0;
++        int prebuffer_frames = 0;
++        float drive = 1.0f;
++        bool primed = false;
+     };
+ 
+     // *************************************************************************
+@@ -124,6 +133,7 @@ private: // CEF interfaces
                  public CefAudioHandler,
                  public CefLifeSpanHandler,
                  public CefDownloadHandler,
@@ -264,10 +518,59 @@ index a49e880..d8fc542 100644
                  public CefRequestHandler,
                  public CefResourceRequestHandler,
                  public CefDragHandler,
-@@ -208,6 +211,26 @@ private: // CEF interfaces
+@@ -132,14 +142,28 @@ private: // CEF interfaces
+     public:
+ 
+         friend GdBrowserView;
++        static constexpr const char* offline_state_path = "__campus__/state.json";
+ 
+         // ---------------------------------------------------------------------
+         //! \brief Pass the owner instance.
+         // ---------------------------------------------------------------------
+-        Impl(GdBrowserView& view) : m_owner(&view)
++        Impl(GdBrowserView& view, const godot::Dictionary& offline_files)
++            : m_owner(&view), m_offline(!offline_files.is_empty())
+         {
+             m_ad_blocker = new AdBlocker();
+             assert((m_ad_blocker != nullptr) && "Failed allocating AdBlocker");
++            const auto keys = offline_files.keys();
++            for (int i = 0; i < keys.size(); ++i)
++            {
++                const godot::String path = keys[i];
++                const godot::PackedByteArray bytes = offline_files[keys[i]];
++                std::string data(bytes.is_empty() ? "" : reinterpret_cast<const char*>(bytes.ptr()),
++                                 bytes.size());
++                if (path == offline_state_path)
++                    m_offline_state = std::move(data);
++                else
++                    m_offline_files.emplace(path.utf8().get_data(), std::move(data));
++            }
+         }
+ 
+         // ---------------------------------------------------------------------
+@@ -149,6 +173,8 @@ private: // CEF interfaces
+         // ---------------------------------------------------------------------
+         void detach()
+         {
++            std::lock_guard lock(m_audio.mutex);
++            m_audio.streamer.unref();
+             m_owner = nullptr;
+         }
+ 
+@@ -187,8 +213,7 @@ private: // CEF interfaces
+         // ---------------------------------------------------------------------
+         virtual CefRefPtr<CefAudioHandler> GetAudioHandler() override
+         {
+-            // FIXME this is called once, so we cannot swap modes :( How to do
+-            // that ?
++            std::lock_guard lock(m_audio.mutex);
+             return m_audio.streamer != nullptr ? this : nullptr;
+         }
+ 
+@@ -208,6 +233,26 @@ private: // CEF interfaces
              return this;
          }
-
+ 
 +        // Never expose the host computer's filesystem picker to a web page.
 +        virtual CefRefPtr<CefDialogHandler> GetDialogHandler() override
 +        {
@@ -291,10 +594,116 @@ index a49e880..d8fc542 100644
          // ---------------------------------------------------------------------
          //! \brief Return the handler for request filtering.
          // ---------------------------------------------------------------------
-@@ -613,6 +636,11 @@ public:
+@@ -399,12 +444,23 @@ private: // CEF interfaces
+ 
+     private: // CefAudioHandler interfaces
+ 
++        bool GetAudioParameters(CefRefPtr<CefBrowser> browser,
++                                CefAudioParameters& params) override
++        {
++            params.sample_rate = 48000;
++            params.frames_per_buffer = 480;
++            return true;
++        }
++
+         virtual void OnAudioStreamStarted(CefRefPtr<CefBrowser> browser,
+                                           const CefAudioParameters& params,
+                                           int channels) override
+         {
+-            if (m_owner != nullptr)
+-                m_owner->onAudioStreamStarted(browser, params, channels);
++            std::lock_guard lock(m_audio.mutex);
++            m_audio.channels = channels;
++            m_audio.prebuffer_frames = params.sample_rate * 8 / 100;
++            m_audio.primed = false;
++            m_audio.buffer.clear();
+         }
+ 
+         virtual void OnAudioStreamPacket(CefRefPtr<CefBrowser> browser,
+@@ -412,13 +468,15 @@ private: // CEF interfaces
+                                          int frames,
+                                          int64_t pts) override
+         {
+-            if (m_owner != nullptr)
+-                m_owner->onAudioStreamPacket(browser, data, frames, pts);
++            push_audio_packet(data, frames);
+         }
+ 
+         virtual void
+         OnAudioStreamStopped(CefRefPtr<CefBrowser> browser) override
+         {
++            std::lock_guard lock(m_audio.mutex);
++            m_audio.channels = -1;
++            m_audio.buffer.clear();
+         }
+ 
+         virtual void OnAudioStreamError(CefRefPtr<CefBrowser> browser,
+@@ -458,7 +516,7 @@ private: // CEF interfaces
+             bool* no_javascript_access) override
+         {
+             // Returning true cancels the popup.
+-            if (m_owner == nullptr)
++            if (m_owner == nullptr || m_offline)
+                 return true;
+             return m_owner->onBeforePopup(browser, target_url);
+         }
+@@ -556,6 +614,8 @@ private: // CEF interfaces
+                              CefRefPtr<CefRequest> request,
+                              CefRefPtr<CefCallback> callback) override
+         {
++            if (m_offline)
++                return offlinePath(request).empty() ? RV_CANCEL : RV_CONTINUE;
+             return m_ad_blocker->OnBeforeResourceLoad(
+                 browser, frame, request, callback);
+         }
+@@ -569,15 +629,43 @@ private: // CEF interfaces
+                                   const CefString& request_initiator,
+                                   bool& disable_default_handling) override
+         {
++            if (m_offline)
++            {
++                disable_default_handling = true;
++                return this;
++            }
+             return m_ad_blocker;
+         }
+ 
++        bool OnBeforeBrowse(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
++                            CefRefPtr<CefRequest> request, bool, bool) override
++        {
++            return m_offline && offlinePath(request).empty();
++        }
++
++        CefRefPtr<CefResourceHandler>
++        GetResourceHandler(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
++                           CefRefPtr<CefRequest> request) override;
++
++        void OnProtocolExecution(CefRefPtr<CefBrowser>, CefRefPtr<CefFrame>,
++                                 CefRefPtr<CefRequest>, bool& allowed) override
++        {
++            allowed = false;
++        }
++
++        static std::string offlinePath(CefRefPtr<CefRequest> request);
++
+     private:
+ 
+         //! \brief Owner node, nullptr once detached.
+         GdBrowserView* m_owner;
++        const bool m_offline;
++        std::unordered_map<std::string, std::string> m_offline_files;
++        std::mutex m_offline_state_mutex;
++        std::string m_offline_state;
+         CefRefPtr<AdBlocker> m_ad_blocker;
+         RoutingAudio m_audio;
++        void push_audio_packet(const float** data, int frames);
+     };
+ 
+ public:
+@@ -613,6 +701,11 @@ public:
          return m_id;
      }
-
+ 
 +    inline int blockedFileDialogs() const
 +    {
 +        return m_blocked_file_dialogs;
@@ -303,36 +712,113 @@ index a49e880..d8fc542 100644
      // -------------------------------------------------------------------------
      //! \brief Return the number of browsers created and not yet closed by CEF.
      //! CloseBrowser() being asynchronous, it is used by GdCEF::shutdown() to
-@@ -649,6 +677,8 @@ public:
+@@ -649,6 +742,8 @@ public:
      //! \brief Exported method to Godot script. Download the given file from
      //! URL.
      // -------------------------------------------------------------------------
 +    bool enableVirtualDownloads(godot::String directory);
 +
      void downloadFile(godot::String url);
-
+ 
      // -------------------------------------------------------------------------
-@@ -1193,7 +1223,8 @@ private:
+@@ -976,6 +1071,7 @@ public:
+     //! \return true if the audio has been muted.
+     //--------------------------------------------------------------------------
+     bool mute(bool state);
++    void set_page_suspended(bool suspended);
+ 
+     //--------------------------------------------------------------------------
+     //! \brief Return if the browser has its audio muted.
+@@ -991,17 +1087,31 @@ public:
+     {
+         if (m_impl != nullptr)
+         {
++            std::lock_guard lock(m_impl->m_audio.mutex);
+             m_impl->m_audio.streamer = streamer;
++            m_impl->m_audio.capacity = streamer.is_valid() ? streamer->get_frames_available() : 0;
++            m_impl->m_audio.primed = false;
++            m_impl->m_audio.buffer.clear();
+         }
+     }
+ 
+     // -------------------------------------------------------------------------
+-    //! \brief Get the audio streamer.
++    //! \brief Set gain before clipping the workstation signal.
+     // -------------------------------------------------------------------------
++    void setAudioDrive(float drive)
++    {
++        if (m_impl != nullptr)
++        {
++            std::lock_guard lock(m_impl->m_audio.mutex);
++            m_impl->m_audio.drive = drive;
++        }
++    }
++
+     godot::Ref<godot::AudioStreamGeneratorPlayback> getAudioStreamer()
+     {
+         if (m_impl == nullptr)
+             return nullptr;
++        std::lock_guard lock(m_impl->m_audio.mutex);
+         return m_impl->m_audio.streamer;
+     }
+ 
+@@ -1193,7 +1303,12 @@ private:
      // -------------------------------------------------------------------------
      int init(godot::String const& url,
               CefBrowserSettings const& cef_settings,
 -             CefWindowInfo const& window_info);
 +             CefWindowInfo const& window_info,
-+             CefRefPtr<CefRequestContext> context);
-
++             CefRefPtr<CefRequestContext> context,
++             const godot::Dictionary& offline_files);
++
++    bool isOfflineProject() const { return m_impl != nullptr && m_impl->m_offline; }
++    godot::String getOfflineState();
+ 
      // -------------------------------------------------------------------------
      //! \brief Called by GdBrowserView::Impl::GetViewRect
-@@ -1409,6 +1440,7 @@ private:
+@@ -1260,31 +1375,6 @@ private:
+                      const int errCode,
+                      const CefString& errorText);
+ 
+-    // -------------------------------------------------------------------------
+-    //! \brief Called on a browser audio capture thread when the browser starts
+-    //! streaming audio. OnAudioStreamStopped will always be called after
+-    //! OnAudioStreamStarted; both methods may be called multiple times
+-    //! for the same browser. |params| contains the audio parameters like
+-    //! sample rate and channel layout. |channels| is the number of channels.
+-    // -------------------------------------------------------------------------
+-    void onAudioStreamStarted(CefRefPtr<CefBrowser> browser,
+-                              const CefAudioParameters& params,
+-                              int channels);
+-
+-    // -------------------------------------------------------------------------
+-    //! \brief Called on the audio stream thread when a PCM packet is received
+-    //! for the stream. |data| is an array representing the raw PCM data as a
+-    //! floating point type, i.e. 4-byte value(s). |frames| is the number of
+-    //! frames in the PCM packet. |pts| is the presentation timestamp (in
+-    //! milliseconds since the Unix Epoch) and represents the time at which the
+-    //! decompressed packet should be presented to the user. Based on |frames|
+-    //! and the |channel_layout| value passed to OnAudioStreamStarted you can
+-    //! calculate the size of the |data| array in bytes.
+-    // -------------------------------------------------------------------------
+-    void onAudioStreamPacket(CefRefPtr<CefBrowser> browser,
+-                             const float** data,
+-                             int frames,
+-                             int64_t pts);
+ 
+     // -------------------------------------------------------------------------
+     //! \brief Called to prevent opening page on new windows.
+@@ -1409,6 +1499,7 @@ private:
      //! \brief One to one CEF browser. The GdCEF is the class containing the
      //! whole browsers.
      CefRefPtr<CefBrowser> m_browser = nullptr;
 +    int m_blocked_file_dialogs = 0;
-
+ 
      //! \brief Godot's texture holding the page content (CEF => Godot)
      godot::Ref<godot::ImageTexture> m_texture;
-@@ -1471,6 +1503,13 @@ private:
+@@ -1471,6 +1562,13 @@ private:
      mutable std::stringstream m_error;
-
+ 
      //! \brief Allow downloads (configured from Browser config)
 +    static constexpr int64_t MAX_VIRTUAL_DOWNLOAD_BYTES = 8 * 1024 * 1024;
 +    int64_t m_virtual_download_id = -1;
@@ -342,10 +828,10 @@ index a49e880..d8fc542 100644
 +    CefRefPtr<CefDownloadItemCallback> m_virtual_download_callback;
 +    void clearVirtualDownload();
      bool m_allow_downloads = true;
-
+ 
      //! \brief Download folder (configured from Browser config)
 diff --git a/gdcef/browser/src/gdcef.cpp b/gdcef/browser/src/gdcef.cpp
-index b2c2043..b08bc53 100644
+index b2c2043..f5d291f 100644
 --- a/gdcef/browser/src/gdcef.cpp
 +++ b/gdcef/browser/src/gdcef.cpp
 @@ -224,6 +224,7 @@ void GdCEF::_bind_methods()
@@ -357,18 +843,20 @@ index b2c2043..b08bc53 100644
      ClassDB::bind_method(D_METHOD("is_alive"), &GdCEF::isAlive);
      ClassDB::bind_method(D_METHOD("get_error"), &GdCEF::getError);
 @@ -257,6 +258,7 @@ void GdCEF::shutdown()
-
+ 
      GDCEF_DEBUG("Closing all browsers");
      m_impl->closeAllBrowsers(true);
 +    m_contexts.clear();
-
+ 
      // CloseBrowser() is asynchronous and CefShutdown() requires all browsers
      // to be closed: we are the one pumping the CEF message loop (see
-@@ -753,7 +755,22 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
+@@ -753,7 +755,50 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
      // Complete BrowserView constructor (complete _new())
      CefBrowserSettings settings;
      configureBrowser(settings, config);
 -    int id = browser->init(convert_godot_url(url), settings, windowInfo());
++    const auto offline_files = getConfig(config, "offline_files", godot::Dictionary());
++    const bool offline = !offline_files.is_empty();
 +    std::string key = getConfig(config, "session_key", std::string{});
 +    CefRefPtr<CefRequestContext> context;
 +    if (!key.empty())
@@ -384,14 +872,49 @@ index b2c2043..b08bc53 100644
 +        if (!key.empty())
 +            m_contexts.emplace(key, context);
 +    }
-+    int id = browser->init(convert_godot_url(url), settings, windowInfo(), context);
++    if (offline)
++    {
++        auto proxy = CefDictionaryValue::Create();
++        proxy->SetString("mode", "fixed_servers");
++        proxy->SetString("server", "http://127.0.0.1:9");
++        proxy->SetString("bypass_list", "<-loopback>");
++        auto setting = CefValue::Create();
++        setting->SetDictionary(proxy);
++        CefString error;
++        if (!context->SetPreference("proxy", setting, error))
++        {
++            m_contexts.erase(key);
++            memdelete(browser);
++            GDCEF_ERROR("Could not isolate the project request context: " << error.ToString());
++            return nullptr;
++        }
++        auto rtc = CefValue::Create();
++        rtc->SetString("disable_non_proxied_udp");
++        if (!context->SetPreference("webrtc.ip_handling_policy", rtc, error))
++        {
++            m_contexts.erase(key);
++            memdelete(browser);
++            GDCEF_ERROR("Could not set the offline WebRTC policy: " << error.ToString());
++            return nullptr;
++        }
++    }
++    int id = browser->init(convert_godot_url(url), settings, windowInfo(), context, offline_files);
      if (id < 0)
      {
          GDCEF_ERROR("browser->init() failed: "
-@@ -799,6 +816,11 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
+@@ -765,7 +810,7 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
+     }
+ 
+     // Allow browser to download files
+-    browser->allowDownloads(getConfig(config, "allow_downloads", true));
++    browser->allowDownloads(!offline && getConfig(config, "allow_downloads", true));
+     browser->setDownloadFolder(
+         getConfig(config, "download_folder", godot::String("user://")));
+ 
+@@ -799,6 +844,11 @@ GdBrowserView* GdCEF::createBrowser(godot::String const& url,
      return browser;
  }
-
+ 
 +void GdCEF::releaseContext(godot::String const& key)
 +{
 +    m_contexts.erase(std::string(key.utf8().get_data()));
@@ -405,23 +928,23 @@ index 61920e0..e9ac507 100644
 --- a/gdcef/browser/src/gdcef.hpp
 +++ b/gdcef/browser/src/gdcef.hpp
 @@ -61,7 +61,9 @@
-
+ 
  #include "cef_app.h"
  #include "cef_client.h"
 +#include "cef_request_context.h"
  #include "cef_version.h"
 +#include <unordered_map>
-
+ 
  class GdBrowserView;
-
+ 
 @@ -298,6 +300,8 @@ public:
                                   godot::TextureRect* texture_rect,
                                   godot::Dictionary config);
-
+ 
 +    void releaseContext(godot::String const& key);
 +
  private:
-
+ 
      //! \brief CEF interface implementation
 @@ -338,6 +342,7 @@ private:
      //! \brief Settings for the CEF browser instances (information set from

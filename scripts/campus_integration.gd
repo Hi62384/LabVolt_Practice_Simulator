@@ -293,11 +293,13 @@ func _profile_committed(identity: String) -> void:
 		if authority.ledger.bindings[peer]==identity:authority.send_snapshot(int(peer),authority.ledger.snapshot(int(peer)))
 
 func _process(delta: float) -> void:
+	if not is_instance_valid(game):return
 	if is_instance_valid(facilities) and facilities.rooms.has("gym") and is_instance_valid(facilities.rooms.gym):
-		var aimed: Variant=game.current_target if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED else null
+		var aimed: Node3D
+		if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED and is_instance_valid(game.current_target):
+			aimed=game.current_target
 		for cable_machine in facilities.rooms.gym.gym_cables:cable_machine.highlight_pin(aimed)
 
-	if game==null:return
 	refresh_clock+=delta
 	if refresh_clock<0.2:return
 	refresh_clock=0
@@ -308,7 +310,6 @@ func _process(delta: float) -> void:
 func aimed_prompt() -> String:
 	if not game.player.enabled or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED: return ""
 	var interact_key := OS.get_keycode_string(game.player.keys.interact)
-	if not game.player.facility_seat.is_empty(): return "%s - Stand" % interact_key
 	if game.school.formal_active(): return ""
 	if _aimed_order():return "%s - Pick up %s" % [interact_key,game.current_target.get_meta("label","order")]
 	var target: Node=game.current_target
@@ -319,7 +320,7 @@ func aimed_prompt() -> String:
 			"gym_cable_plate":
 				return "%s - %s weight plate" % [interact_key,"Add" if game.gym_barbells.held_plate(multiplayer.get_unique_id())>=0 else "Remove"]
 	var aimed := _aimed_facility()
-	if aimed.is_empty(): return ""
+	if aimed.is_empty() or (aimed.kind=="seat" and not game.player.facility_seat.is_empty()): return ""
 	if aimed.kind in ["benchpress","seated_bench"]:return "%s - %s" % [interact_key,"Bench" if aimed.kind=="benchpress" else "Use seated bench"]
 	var action := "Open cable exercises" if aimed.kind=="cable" else ("Sit" if aimed.kind=="seat" else ("Cashier" if str(aimed.kind).begins_with("counter:") else str(aimed.kind).capitalize()))
 	return "%s - %s" % [interact_key, action]
@@ -421,12 +422,12 @@ func route_event(event: InputEvent) -> bool:
 		if game.player.enabled and event.physical_keycode==game.player.keys.emotes:
 			game.release_mouse();facility_panel.open_for("", "emotes");return true
 		if game.player.enabled and Input.mouse_mode==Input.MOUSE_MODE_CAPTURED:
-			if not game.player.facility_seat.is_empty() and event.physical_keycode in [game.player.keys.interact,game.player.keys.jump]:
+			if not game.player.facility_seat.is_empty() and event.physical_keycode==game.player.keys.jump:
 				facility_panel.request_direct({"op":"stand"})
 				return true
 			if event.physical_keycode==game.player.keys.interact and not game.school.formal_active():
 				var aimed := _aimed_facility()
-				if not aimed.is_empty():
+				if not aimed.is_empty() and not (aimed.kind=="seat" and not game.player.facility_seat.is_empty()):
 					if aimed.kind=="seat":
 						facility_panel.request_direct({"op":"sit","station":aimed.id})
 					elif aimed.kind=="seated_bench":

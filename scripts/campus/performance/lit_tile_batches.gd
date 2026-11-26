@@ -30,7 +30,7 @@ static func satin_material(tint: Color, vertex_colors := false, lighting_profile
 	material.set_shader_parameter("lighting_profile",lighting_profile)
 	return material
 
-static func room_floor(parent: Node3D, groups: Array, size: Vector2, top: float, roughness: float, satin := false, lighting_profile := 0) -> void:
+static func room_floor(parent: Node3D, groups: Array, size: Vector2, top: float, roughness: float, satin := false, lighting_profile := 0) -> MultiMeshInstance3D:
 	var mesh := PlaneMesh.new()
 	mesh.size = size
 	var material := StandardMaterial3D.new()
@@ -57,3 +57,4 @@ static func room_floor(parent: Node3D, groups: Array, size: Vector2, top: float,
 	if satin:floor_mesh.set_meta("satin_floor",true)
 	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(floor_mesh)
+	return floor_mesh

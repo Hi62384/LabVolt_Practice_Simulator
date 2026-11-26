@@ -17,7 +17,7 @@ func mount(campus: Node3D, registry: Object) -> bool:
 	var low: Array = room.get("bounds_min", []); var high: Array = room.get("bounds_max", [])
 	if low.size()!=3 or high.size()!=3: return false
 	if absf(float(low[0])-PROFILE.west)>.01 or absf(float(high[0])-PROFILE.east)>.01 or absf(float(low[2])-PROFILE.south)>.01 or absf(float(high[2])-PROFILE.north)>.01 or absf(float(low[1])-PROFILE.base)>.01: return false
-	var root := Node3D.new(); root.name = "M101Environment"; campus.add_child(root)
+	var root := Node3D.new(); root.name = "M101Environment"; root.set_meta("stable_fixture_shadows",true); campus.add_child(root)
 	_build_floor(root)
 	_build_walls(root)
 	_build_ceiling(root)

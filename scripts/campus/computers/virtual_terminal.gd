@@ -1,6 +1,5 @@
 extends VBoxContainer
 const UI=preload("res://scripts/ui/design_system/widgets.gd")
-const Interpreter=preload("res://scripts/campus/computers/campus_script.gd")
 var desktop: Control
 var transcript: RichTextLabel
 var lines: Array[String]=[]
@@ -61,7 +60,7 @@ func _run(raw: String) -> void:
 		_execute(_path(command.substr(2)))
 		return
 	match verb:
-		"help":_print("Navigation   pwd, ls [folder], tree, cd <folder>\nFiles        mkdir, touch, cat, head, tail, wc, open, rm\nTransfers    cp <source> <destination>, mv, zip, unzip\nPrograms     run <file.campus>, ./file.campus\nOther        echo, date, clear\nQuote paths that contain spaces.")
+		"help":_print("Navigation   pwd, ls [folder], tree, cd <folder>\nFiles        mkdir, touch, cat, head, tail, wc, open, rm\nTransfers    cp <source> <destination>, mv, zip, unzip\nPrograms     run <file>, python <file>, stop\nOther        echo, date, clear\nQuote paths that contain spaces.")
 		"pwd":_print("/"+folder)
 		"date":_print(Time.get_datetime_string_from_system(false,true))
 		"echo":_print(value)
@@ -87,7 +86,8 @@ func _run(raw: String) -> void:
 				var path:=_path(value)
 				if path in desktop.snapshot.get("folders",[]):folder=path
 				else:_print("Folder not found.")
-		"run":_execute(_path(value))
+		"run","python","python3","node","ruby","lua","php":_execute(_path(value))
+		"stop":desktop.execution.stop()
 		"cp","mv","zip","unzip":
 			var arguments:=_arguments(value)
 			if arguments.size()!=2:_print("Usage: %s <source> <destination>"%verb);return
@@ -154,15 +154,12 @@ func _arguments(value: String) -> PackedStringArray:
 	return parts
 
 func _execute(path: String) -> void:
-	if path.get_extension().to_lower()!="campus":
-		_print("Run a .campus program inside Campus OS.")
-		return
 	if not desktop._virtual_path_exists(path):_print("Program not found.");return
 	desktop._run_workspace_script(path)
 
 func run_program(path: String, text: String) -> void:
-	_print("Running "+path,Color("84e8ad"))
-	_print(Interpreter.new().run(text))
+	_print("Run "+path,Color("84e8ad"))
+	desktop._run_source(path,text,func(result: String):if is_instance_valid(transcript):_print(result))
 
 func _print(text: String,tint := Color("d9eaf4")) -> void:
 	if lines.size()>=160:

@@ -9,13 +9,33 @@ var ink: Control
 var body: VBoxContainer
 const PAPER_SIZE := Vector2(780,1100)
 const INK := Color("263743")
+const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
+
+func _draw_ruling(canvas: Control, ruling: String, spacing: int) -> void:
+	var tint := Color("a2b6bf")
+	var area := Rect2(46,146,canvas.size.x-92,canvas.size.y-206)
+	var end := area.end
+	for y in range(int(area.position.y),int(end.y),spacing):
+		if ruling=="dotted":
+			for x in range(int(area.position.x),int(end.x),spacing):
+				canvas.draw_circle(Vector2(x,y),1.3,tint)
+		else:
+			canvas.draw_line(Vector2(area.position.x,y),Vector2(end.x,y),tint)
+	if ruling=="grid":
+		for x in range(int(area.position.x),int(end.x),spacing):
+			canvas.draw_line(Vector2(x,area.position.y),Vector2(x,end.y),tint)
+
 static func fit_printed_content(content: MarginContainer, column: VBoxContainer, sheet_height: float) -> void:
 	var required := column.get_combined_minimum_size().y + content.get_theme_constant("margin_top") + content.get_theme_constant("margin_bottom")
 	content.pivot_offset = Vector2(content.size.x * .5, 0.0)
 	content.scale = Vector2.ONE * minf(1.0, sheet_height / maxf(1.0, required))
 
 func _ready() -> void:
-	custom_minimum_size=PAPER_SIZE;size=PAPER_SIZE
+	var configuration: Dictionary=paper.get("notebook_configuration",{})
+	var sheet_size: Vector2=Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","size",PAPER_SIZE)
+	if Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","orientation",false):
+		sheet_size=Vector2(sheet_size.y,sheet_size.x)
+	custom_minimum_size=sheet_size;size=sheet_size
 	var paper_theme := Theme.new();paper_theme.default_font_size=18
 	for type in ["Label","LineEdit","OptionButton","Button"]:paper_theme.set_color("font_color",type,INK)
 	for type in ["LineEdit","OptionButton"]:
@@ -28,23 +48,32 @@ func _ready() -> void:
 		paper_theme.set_color("font_disabled_color",control_type,Color("52636a"))
 	theme=paper_theme
 	var background := Panel.new();background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);background.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new();style.bg_color=Color("fcfaf2");style.shadow_color=Color(0,0,0,.35);style.shadow_size=10;style.shadow_offset=Vector2(3,5);background.add_theme_stylebox_override("panel",style);add_child(background)
+	var style := StyleBoxFlat.new();style.bg_color=Color(Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","paper","fcfaf2"));style.shadow_color=Color(0,0,0,.35);style.shadow_size=10;style.shadow_offset=Vector2(3,5);background.add_theme_stylebox_override("panel",style);add_child(background)
+	if paper.get("notebook",false):
+		var ruling: String=Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","ruling","blank")
+		var spacing: int=Equipment.value(Equipment.NOTEBOOK,configuration,"hardware","spacing",24)
+		if ruling!="blank":background.draw.connect(_draw_ruling.bind(background,ruling,spacing))
 	var margin := MarginContainer.new();margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for edge in ["left","right"]:margin.add_theme_constant_override("margin_"+edge,46)
 	for edge in ["top","bottom"]:margin.add_theme_constant_override("margin_"+edge,35)
 	add_child(margin)
 	body=VBoxContainer.new();body.add_theme_constant_override("separation",13);margin.add_child(body)
-	var fit := func():fit_printed_content(margin,body,PAPER_SIZE.y)
+	var fit := func():fit_printed_content(margin,body,sheet_size.y)
 	body.minimum_size_changed.connect(func():fit.call_deferred())
 	fit.call_deferred()
 	var lesson: bool=paper.lesson
 	var p: Dictionary=paper.project
 	var course_id := str(p.get("course_id","ELM253"))
 	var course_title := "DIGITAL ELECTRONICS" if course_id=="DGS266" else ("BASIC DC ELECTRICITY" if course_id=="ETY155" else "AC ELECTRICAL SYSTEMS")
-	text(course_id+"     /     "+course_title,14)
-	text("NOTEBOOK" if paper.get("notebook",false) else "EQUIPMENT GUIDE" if paper.get("guide",false) else "GUIDED LESSON" if lesson else "LABORATORY ASSIGNMENT",13,Color("547c82"))
-	text(p.title,28)
-	text("Name: "+str(paper.owner_name)+"     •     "+["Beginner","Easy","Normal","Hard","Expert"][clampi(int(p.difficulty),0,4)],15)
+	var notebook := bool(paper.get("notebook",false))
+	if notebook:
+		text(p.title,26)
+		text(str(paper.owner_name),15)
+	else:
+		text(course_id+"     /     "+course_title,14)
+		text("EQUIPMENT GUIDE" if paper.get("guide",false) else "GUIDED LESSON" if lesson else "LABORATORY ASSIGNMENT",13,Color("547c82"))
+		text(p.title,28)
+		text("Name: "+str(paper.owner_name)+"     •     "+["Beginner","Easy","Normal","Hard","Expert"][clampi(int(p.difficulty),0,4)],15)
 	var rule := HSeparator.new();body.add_child(rule)
 	var teaching: Dictionary=p.get("teaching",{})
 	if teaching.is_empty():
@@ -52,7 +81,8 @@ func _ready() -> void:
 	var instruction_pages: Array = p.get("practice_instruction_pages",[])
 	if paper.get("guide",false):
 		var entry: Dictionary=p.guide_pages[page]
-		text(entry.title,24);text(entry.text,18)
+		if not notebook:
+			text(entry.title,24);text(entry.text,18)
 	elif page>0 and page<=instruction_pages.size():
 		text("EQUIPMENT & PROCEDURE  ·  %d / %d" % [page,instruction_pages.size()],20)
 		text(str(instruction_pages[page-1]),17)
@@ -111,9 +141,11 @@ func _ready() -> void:
 	var space := Control.new();space.size_flags_vertical=Control.SIZE_EXPAND_FILL;space.custom_minimum_size.y=70;body.add_child(space)
 	var source_text := str(p.source)
 	if p.source is Dictionary:source_text=str(p.source.get("document","Course reference"))+" · pages "+str(p.source.get("pages",""))
-	text("Reference: "+source_text,12,Color("78817e"))
 	var total := int(p.get("guide_pages",[]).size()) if paper.get("guide",false) else 4+instruction_pages.size()
-	text("LAB / VOLT     •     "+("Practice — does not affect your average" if lesson else "Use each question's stated units and tolerance.")+"     •     %d / %d"%[page+1,total],12,Color("78817e"))
+	if notebook:text("Page %d of %d"%[page+1,total],12,Color("78817e"))
+	else:
+		text("Reference: "+source_text,12,Color("78817e"))
+		text("LAB / VOLT     •     "+("Practice — does not affect your average" if lesson else "Use each question's stated units and tolerance.")+"     •     %d / %d"%[page+1,total],12,Color("78817e"))
 	ink=preload("res://scripts/paper_ink.gd").new();ink.background=false;ink.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);ink.editable=writable;ink.strokes=paper.strokes.get(str(page),[]).duplicate(true);ink.stroke_finished.connect(func(stroke):stroke_added.emit(stroke));add_child(ink);set_drawing(false)
 func text(value: String,font_size := 18,color := INK) -> Label:
 	var label := Label.new();label.text=value;label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.add_theme_font_size_override("font_size",font_size);label.add_theme_color_override("font_color",color);body.add_child(label);return label

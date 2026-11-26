@@ -66,6 +66,11 @@ func _run() -> void:
 		var indicator := game.terminal_bodies.DAQ_POWER_A.get_parent().get_node_or_null("DaqPowerIndicator") as MeshInstance3D
 		_check(is_instance_valid(indicator) and not indicator.material_override.emission_enabled, "DAQ indicator must start off")
 	if not is_instance_valid(front) or not is_instance_valid(front.body):_finish();return
+	var practice_store=preload("res://scripts/campus/academics/open_lab/practice/practice_sheet_store.gd")
+	var identity: String=game.school.local_identity
+	var stale_practice: Dictionary={"identity":identity,"project":{"title":"Old session sheet","practice_scope":"ungraded"},"answers":{"old":"work"},"strokes":{}}
+	_check(practice_store.write(identity,{1:stale_practice})==OK,"Could not seed a worksheet from an old session")
+	var old_practice_digest:=FileAccess.get_sha256(practice_store._path(identity))
 	var viewport_rect := root.get_viewport().get_visible_rect()
 	for label in ["Host Game", "Singleplayer", "View Courses", "Join Game", "Character Customizer", "Settings"]:
 		_usable(_button(front.body, label), viewport_rect, label)
@@ -76,9 +81,84 @@ func _run() -> void:
 		route_button.pressed.emit()
 		await process_frame
 		_check(front.page == ("singleplayer" if offline else "host"), label + " did not open Play options")
+		_check(front.menu_scroll.vertical_scroll_mode==ScrollContainer.SCROLL_MODE_DISABLED and not front.menu_scroll.get_v_scroll_bar().visible, label + " Play options can scroll")
+		for caption in ["Back","Play"]:
+			var action := _button(front.body,caption)
+			_check(is_instance_valid(action) and front.menu_scroll.get_global_rect().encloses(action.get_global_rect()) and viewport_rect.encloses(action.get_global_rect()), label + " clips " + caption)
+		var programming := _button(front.body,"Programming Setup")
+		_usable(programming, viewport_rect, label + " Programming Setup")
+		if is_instance_valid(programming):
+			programming.pressed.emit()
+			await process_frame
+			_check(front.page=="programming" and is_instance_valid(_button(front.body,"Use public Judge0")), label+" compiler setup is missing")
+			_button(front.body,"Cancel").pressed.emit()
+			await process_frame
+		var ai_settings := _button(front.body,"OpenAI Settings")
+		_usable(ai_settings, viewport_rect, label + " OpenAI Settings")
+		if is_instance_valid(ai_settings):
+			ai_settings.pressed.emit()
+			await process_frame
+			_check(front.page=="openai", label + " did not open OpenAI Settings")
+			_check(is_instance_valid(_button(front.body,"Connect API Key")), label + " OpenAI key control missing")
+			if not game.host_openai.configured():
+				_check(not is_instance_valid(_button(front.body,"Accept")), label + " showed Accept without an API key")
+			_button(front.body,"Cancel").pressed.emit()
+			await process_frame
+			_check(front.page==("singleplayer" if offline else "host"), label + " OpenAI Cancel returned to the wrong screen")
+			if OS.get_environment("LABVOLT_TEST_OPENAI_FIXTURE")=="1":
+				game.host_openai.set_local_test_endpoint("http://127.0.0.1:%s/v1"%OS.get_environment("LABVOLT_OPENAI_FIXTURE_PORT") if OS.has_environment("LABVOLT_OPENAI_FIXTURE_PORT") else "http://127.0.0.1:28768/v1")
+				_button(front.body,"OpenAI Settings").pressed.emit()
+				await process_frame
+				var controls: VBoxContainer=front.body.get_child(-1)
+				controls.key_field.text="sk-test-12345678901234567890"
+				_button(front.body,"Connect API Key").pressed.emit()
+				var deadline:=Time.get_ticks_msec()+5000
+				while (controls.fetching_models or controls.model_ids.size()<11) and Time.get_ticks_msec()<deadline:await process_frame
+				_check(controls.model_ids.size()==11, label + " did not load the API model list")
+				_check(not controls.key_row.visible and controls.remove_key.visible,label+" connected key controls incorrect")
+				controls.model.pressed.emit()
+				await process_frame
+				var picker_bounds:=Rect2(Vector2(controls.picker.position),Vector2(controls.picker.size))
+				var model_bounds: Rect2=controls.model.get_global_rect()
+				var gap:=minf(absf(picker_bounds.end.y-model_bounds.position.y),absf(picker_bounds.position.y-model_bounds.end.y))
+				_check(picker_bounds.size.y<=410 and gap<=30,label+" model options opened away from the selected category")
+				var rows: Dictionary=controls.picker_models
+				_check(rows.has("gpt-5.4-mini") and not rows.has("text-embedding-3-small") and not rows.has("gpt-image-2.6-sunburst"), label + " text picker mixed model types")
+				_check(rows.get("gpt-5-nano",{}).get("benchmark")==71.2 and rows.get("gpt-5.4-mini",{}).get("benchmark")==88.0, label + " benchmark scores were incorrect")
+				_check(rows.get("gpt-5.4-mini",{}).get("price",{}).get("compare")==5.25, label + " published pricing was missing")
+				controls.picker.hide()
+				controls.model_buttons.image_generation.pressed.emit()
+				_check(controls.picker_models.keys()==["gpt-image-2.6-sunburst"], label + " image generation picker mixed model types")
+				controls.picker.hide()
+				_check(controls.effort_row.visible and controls.model.text.begins_with("gpt-5.4-mini"), label + " text effort control missing")
+				controls.model_buttons.image.pressed.emit()
+				controls._choose_model("gpt-4.1")
+				_check(not controls.image_effort.get_parent().visible, label + " image effort was shown for a model without reasoning")
+				controls.model_buttons.image.pressed.emit()
+				controls._choose_model("gpt-6.2-astra")
+				_check(controls.image_effort.get_parent().visible, label + " image model effort control missing")
+				controls.image_effort.select(4)
+				controls.image_effort.item_selected.emit(4)
+				controls.tts_enabled.button_pressed=true
+				controls.stt_enabled.button_pressed=true
+				controls.ai_test.pressed.emit()
+				var panel: Window=controls.test_panel
+				await process_frame
+				if is_instance_valid(panel):
+					await _check_ai_test(panel,label)
+					panel.queue_free()
+				else:_check(false,label+" AI Test window did not open")
+				controls.output.select(3)
+				var save := _button(front.body,"Accept")
+				if is_instance_valid(save) and not save.disabled:save.pressed.emit()
+				else:_button(front.body,"Cancel").pressed.emit()
+				_check(game.host_openai.max_output_tokens==128 and game.host_openai.enabled, label + " did not accept OpenAI settings")
+				_check(game.host_openai.image_reasoning_effort=="xhigh" and game.host_openai.reasoning_effort.is_empty(),label+" did not save independent reasoning settings")
+				await process_frame
+				_check(front.page==("singleplayer" if offline else "host"), label + " OpenAI Accept returned to the wrong screen")
 		var play := _button(front.body, "Play")
 		if not offline and Session.relay_endpoint().is_empty():
-			_usable(_button(front.body, "Relay account · Not connected"), viewport_rect, "Relay account setup")
+			_usable(_button(front.body, "Relay account Â· Not connected"), viewport_rect, "Relay account setup")
 			_check(is_instance_valid(play) and play.disabled, "Hosting must require a relay account")
 			front.home()
 			continue
@@ -102,8 +182,7 @@ func _run() -> void:
 					host_server.pressed.emit()
 					await process_frame
 					_usable(_button(front.screen, "Copy Room Code"), viewport_rect, "Copy Room Code")
-					_check(is_instance_valid(_button(front.screen, "Use Key")), "Host OpenAI key control missing")
-					_check(is_instance_valid(_button(front.screen, "Test Connection")), "Host OpenAI connection control missing")
+					_check(not is_instance_valid(_button(front.screen, "Use Key")), "OpenAI key field still appears in general settings")
 				front.pause_menu()
 				var resume := _button(front.body, "Resume")
 				if is_instance_valid(resume): resume.pressed.emit()
@@ -111,7 +190,10 @@ func _run() -> void:
 			_check(front.in_game and not front.screen.visible and game.player.enabled,
 				"%s Play failed to enter gameplay (%s)" % [label, front.status.text])
 			_check(game.session.online == not offline, label + " started the wrong session type")
+			_check(not game.school.papers.values().any(func(sheet):return sheet.get("project",{}).get("practice_scope","")=="ungraded"),label + " restored an old practice worksheet")
 			if offline and front.in_game:
+				var paper_id: int=game.school._give(1,{"title":"This session","practice_scope":"ungraded","questions":[],"difficulty":0,"topic":0,"theory":"","data":"","procedure":"","source":"Smoke test"},true,false)
+				_check(paper_id>0,"Current-session practice sheet would not spawn")
 				await _check_singleplayer_pause(game)
 				await _check_invention_world(game)
 		if front.in_game or game.session.online:
@@ -119,6 +201,7 @@ func _run() -> void:
 		else:
 			front.home()
 		await process_frame
+	_check(FileAccess.get_sha256(practice_store._path(identity))==old_practice_digest,"A fresh practice session changed the old worksheet archive")
 	for route in [{"label":"View Courses","page":"view_courses"},{"label":"Character Customizer","page":"characters"},{"label":"Settings","page":"settings"}]:
 		var action := _button(front.body, route.label)
 		if not is_instance_valid(action):continue
@@ -276,3 +359,37 @@ func _finish() -> void:
 	for failure in failures:push_error(failure)
 	print("MENU_ROUTES ", "PASS" if failures.is_empty() else "FAIL (%d)" % failures.size())
 	quit(0 if failures.is_empty() else 1)
+
+func _check_ai_test(panel: Window,label: String) -> void:
+	_check(panel.tabs.tab_count==5,label+" AI Test categories missing")
+	await panel._run_test(true)
+	_check(panel.status.text.begins_with("Connection verified"),label+" text test failed")
+	panel.tabs.current_tab=1
+	_check(panel.model_label.text.contains("Xhigh"),label+" image test did not use draft image effort")
+	var image:=Image.create_empty(2,2,false,Image.FORMAT_RGB8)
+	var image_path: String=ProjectSettings.globalize_path("user://test_image.png")
+	image.save_png(image_path)
+	panel._attach(image_path,true)
+	await panel._run_test(false)
+	_check(panel.status.text.contains("Image answer"),label+" image analysis test failed")
+	panel.tabs.current_tab=2
+	panel.prompt.text="Draw a blue dot"
+	await panel._run_test(false)
+	_check(panel.preview.visible and panel.status.text=="Image generated.",label+" image generation test failed")
+	panel.tabs.current_tab=3
+	_check(panel.voice_row.visible and panel.voice.item_count>1,label+" speech voice picker missing")
+	panel.voice.select(2)
+	await panel._run_test(false)
+	_check(panel.replay.visible and panel.status.text.begins_with("Speech generated."),label+" speech output test failed")
+	panel.tabs.current_tab=4
+	var wav:=AudioStreamWAV.new()
+	wav.format=AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate=16000
+	var samples:=PackedByteArray()
+	samples.resize(32000)
+	wav.data=samples
+	var path: String=ProjectSettings.globalize_path("user://test_voice.wav")
+	wav.save_to_wav(path)
+	panel._attach(path,false)
+	await panel._run_test(false)
+	_check(panel.status.text=="What does the board show?",label+" transcription test failed")

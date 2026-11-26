@@ -10,9 +10,9 @@ func profile_for(peer: int) -> Dictionary:
 	if peer==multiplayer.get_unique_id():return game.electronics.profile.data
 	return {}
 
-func mass_for(peer: int) -> float:
+func mass_for(peer: int, worn_comfort := false) -> float:
 	var profile:=profile_for(peer)
-	var total:=Mass.profile_mass(profile)
+	var total:=Mass.profile_mass(profile,worn_comfort)
 	if is_instance_valid(game.gym_barbells) and is_instance_valid(game.gym_weights):
 		total+=Mass.gym_mass(peer,game.gym_weights.items,game.gym_barbells.bars,game.gym_barbells.belts,game.gym_barbells.plates)
 	if is_instance_valid(game.ac_laptops):
@@ -56,4 +56,4 @@ func _kit_carried(profile: Dictionary,id: String) -> bool:
 func multiplier(peer: int) -> float:
 	var profile:=profile_for(peer)
 	var strength:=Gym.overall_strength(profile.get("facilities",{}).get("gym",{"muscles":{}}))
-	return Mass.speed_multiplier(mass_for(peer),strength)
+	return Mass.speed_multiplier(mass_for(peer,true),strength)

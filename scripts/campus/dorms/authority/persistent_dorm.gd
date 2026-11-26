@@ -5,6 +5,9 @@ const Backpacks=preload("res://scripts/campus/dorms/authority/backpack_inventory
 const UsbInventory=preload("res://scripts/campus/computers/usb_inventory.gd")
 const LaptopInventory=preload("res://scripts/campus/computers/laptop_inventory.gd")
 const PhoneInventory=preload("res://scripts/campus/phones/phone_inventory.gd")
+const Keypad=preload("res://scripts/campus/items/calculator_layout.gd")
+const Equipment=preload("res://scripts/campus/items/equipment_configuration.gd")
+const PowerBanks=preload("res://scripts/campus/items/power_bank_inventory.gd")
 const DEFAULTS=["bed","bedside","wardrobe","study_desk","study_chair","desk_laptop","storage_cabinet","shelf","rug","plant","bedside_lamp","desk_lamp"]
 const TOOLS = {"notebook":"Notebook","calculator":"Scientific calculator","pencil_case":"Pencil case","calculator_basic":"Basic calculator","calculator_financial":"Financial calculator","lab_goggles":"Lab goggles","flashlight":"Flashlight","whiteboard":"Whiteboard","marker":"Dry-erase marker"}
 const TOOL_PRICES = {"notebook":5,"calculator":24,"pencil_case":9,"calculator_basic":10,"calculator_financial":32,"lab_goggles":12,"flashlight":15,"whiteboard":28,"marker":4}
@@ -13,6 +16,15 @@ const CALCULATORS := ["calculator","calculator_basic","calculator_financial"]
 const CAPACITY := 64
 const NOTEBOOK_PREFIX := "notebook:"
 const MAX_NOTEBOOK_COPIES := 64
+const MAX_CALCULATOR_COPIES := 32
+
+static func is_calculator(item: String) -> bool:
+	return not Keypad.model_for(item).is_empty()
+
+static func supply_configuration(d: Dictionary, item: String) -> Dictionary:
+	if is_notebook(item):return d.get("notebook_options",{}).get(item,{})
+	if is_calculator(item):return d.get("calculator_options",{}).get(item,{})
+	return {}
 
 static func notebook_uid(item: String) -> String:
 	if not item.begins_with(NOTEBOOK_PREFIX):return ""
@@ -23,11 +35,14 @@ static func is_notebook(item: String) -> bool:
 	return item=="notebook" or not notebook_uid(item).is_empty()
 
 static func is_supply(item: String) -> bool:
-	return TOOLS.has(item) or is_notebook(item)
+	return TOOLS.has(item) or is_notebook(item) or is_calculator(item) or PowerBanks.valid_key(item)
 
 static func supply_title(item: String) -> String:
+	if PowerBanks.valid_key(item):return "Power bank"
 	var uid := notebook_uid(item)
-	return str(TOOLS.get(item,"Supply")) if uid.is_empty() else "Notebook · "+uid.right(5)
+	if not uid.is_empty():return "Notebook · "+uid.right(5)
+	var model := Keypad.model_for(item)
+	return str(TOOLS.get(model if not model.is_empty() else item,"Supply"))
 
 static func supply_counts(d: Dictionary) -> Dictionary:
 	if d.has("supply_counts"):return d.supply_counts.duplicate()
@@ -38,7 +53,7 @@ static func supply_counts(d: Dictionary) -> Dictionary:
 
 static func carried_calculator(d: Dictionary) -> String:
 	for item in d.get("carry_items",[]):
-		if item in CALCULATORS:return item
+		if is_calculator(item):return item
 	return ""
 
 static func cabinet_supply_count(d: Dictionary, item: String) -> int:
@@ -79,14 +94,14 @@ static func storage_used(d: Dictionary) -> int:
 static func receive_purchase(d: Dictionary, kind: String, id: String, hotbar_limit: int) -> String:
 	var carried: Array = d.get("carry_items",[]).duplicate()
 	var key := id if kind=="supply" else kind+":"+id
-	var compatible := key not in carried and (id not in CALCULATORS or carried_calculator(d).is_empty())
+	var compatible := key not in carried and (not is_calculator(id) or carried_calculator(d).is_empty())
 	var destination := ""
 	var bag_id := Backpacks.equipped(d)
 	if compatible and carried.size()+d.get("carried_components",[]).size()<hotbar_limit:
 		carried.append(key)
 		d.carry_items=carried
 		destination="hotbar"
-	elif not bag_id.is_empty() and d.backpacks[bag_id].items.size()<int(Backpacks.SIZES[d.backpacks[bag_id].size].capacity):
+	elif not bag_id.is_empty() and Backpacks.can_add(d.backpacks[bag_id],kind):
 		d.backpacks[bag_id].items.append({"kind":kind,"id":id})
 		destination="backpack"
 	elif storage_used(d)<CAPACITY:
@@ -97,7 +112,7 @@ static func receive_purchase(d: Dictionary, kind: String, id: String, hotbar_lim
 			d.stored_kits=stored
 	return destination
 
-static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bool) -> Dictionary:
+static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bool, configuration: Dictionary = {}) -> Dictionary:
 	if not is_supply(item) or not profile.has("dorm") or not profile.get("pending_trade",{}).is_empty():
 		return fail("Study supply unavailable")
 	var next := profile.duplicate(true)
@@ -105,17 +120,22 @@ static func move_world_supply(profile: Dictionary, item: String, into_hotbar: bo
 	var counts := supply_counts(d)
 	var carried: Array=d.get("carry_items",[]).duplicate()
 	if into_hotbar:
-		if item in CALCULATORS and not carried_calculator(d).is_empty():return fail("Store your current calculator first")
+		if is_calculator(item) and not carried_calculator(d).is_empty():return fail("Store your current calculator first")
 		if item in carried:return fail("Store the copy in your hotbar first")
 		if carried.size()+d.get("carried_components",[]).size()>=6:return fail("No free hotbar slot")
-		if not notebook_uid(item).is_empty() and counts.has(item):return fail("This notebook is already inventoried")
+		if item.contains(":") and counts.has(item):return fail("This copy is already inventoried")
 		counts[item]=int(counts.get(item,0))+1
 		carried.append(item)
+		if not configuration.is_empty():
+			var key := "notebook_options" if is_notebook(item) else "calculator_options"
+			d.get_or_add(key,{})[item]=configuration.duplicate(true)
 	else:
 		if item not in carried or int(counts.get(item,0))<=0:return fail("The supply is no longer in your hotbar")
 		carried.erase(item)
 		if int(counts[item])==1:counts.erase(item)
 		else:counts[item]=int(counts[item])-1
+		d.get("notebook_options",{}).erase(item)
+		d.get("calculator_options",{}).erase(item)
 	d.supply_counts=counts
 	d.erase("owned_tools")
 	d.carry_items=carried
@@ -182,13 +202,17 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 		if held_id.length()!=32 or not held_id.is_valid_hex_number() or held_id!=held_id.to_lower() or str(custody.room).length()>64 or str(custody.teacher).length()>64:return false
 		if d.get("smartphones",{}).get(held_id,{}).get("location","")!="hotbar" or ("phone:"+held_id) not in carry:return false
 	if d.has("supply_counts"):
-		if not d.supply_counts is Dictionary or d.supply_counts.size()>TOOLS.size()+MAX_NOTEBOOK_COPIES:return false
+		if not d.supply_counts is Dictionary or d.supply_counts.size()>TOOLS.size()+MAX_NOTEBOOK_COPIES+MAX_CALCULATOR_COPIES+PowerBanks.LIMIT:return false
 		var notebook_copies := 0
+		var calculator_copies := 0
 		for item in d.supply_counts:
 			if not item is String or not is_supply(item) or not whole(d.supply_counts[item]) or int(d.supply_counts[item])<1:return false
 			if not notebook_uid(item).is_empty():
 				notebook_copies+=1
 				if int(d.supply_counts[item])!=1 or notebook_copies>MAX_NOTEBOOK_COPIES:return false
+			elif item.contains(":") and is_calculator(item):
+				calculator_copies+=1
+				if int(d.supply_counts[item])!=1 or calculator_copies>MAX_CALCULATOR_COPIES:return false
 	else:
 		var tools: Variant = d.get("owned_tools",STARTER_TOOLS)
 		if not tools is Array or tools.size()>STARTER_TOOLS.size():return false
@@ -197,12 +221,29 @@ static func valid(d: Variant,stock: Dictionary,registry: Dictionary) -> bool:
 			if not tool is String or tool not in STARTER_TOOLS or tool_seen.has(tool):return false
 			tool_seen[tool]=true
 	var counts_by_supply := supply_counts(d)
+	var banks: Variant=d.get("power_banks",{})
+	if not banks is Dictionary or banks.size()>PowerBanks.LIMIT:return false
+	for key in counts_by_supply:
+		if PowerBanks.valid_key(key) and (int(counts_by_supply[key])!=1 or not banks.has(key)):return false
+	for key in banks:
+		if not key is String or not PowerBanks.valid_key(key) or not counts_by_supply.has(key) or not PowerBanks.valid(banks[key]):return false
+	var notebooks: Variant=d.get("notebook_options",{})
+	if not notebooks is Dictionary or notebooks.size()>MAX_NOTEBOOK_COPIES:return false
+	for notebook in notebooks:
+		if not notebook is String or notebook_uid(notebook).is_empty() or not counts_by_supply.has(notebook):return false
+		if Equipment.quote(Equipment.NOTEBOOK,0,notebooks[notebook]).is_empty():return false
+	var calculators: Variant=d.get("calculator_options",{})
+	if not calculators is Dictionary or calculators.size()!=int(counts_by_supply.keys().filter(func(key):return str(key).contains(":") and is_calculator(key)).size()):return false
+	for calculator in calculators:
+		if not calculator is String or not calculator.contains(":") or not is_calculator(calculator) or not counts_by_supply.has(calculator):return false
+		var quote:=Equipment.quote(Equipment.CALCULATOR,0,calculators[calculator])
+		if quote.is_empty() or Equipment.value(Equipment.CALCULATOR,quote.configuration,"hardware","model","")!=Keypad.model_for(calculator):return false
 	if not carry is Array or carry.size()>6:return false
 	var carry_seen := {}
 	var calculator_count := 0
 	for item in carry:
 		if not item is String or (item not in counts_by_supply and not item.begins_with("kit:") and not item.begins_with("bag:") and not item.begins_with("usb:") and not item.begins_with("laptop:") and not item.begins_with("phone:")) or carry_seen.has(item):return false
-		if item in CALCULATORS:calculator_count+=1
+		if is_calculator(item):calculator_count+=1
 		carry_seen[item]=true
 	if calculator_count>1:return false
 	var worn: Variant=d.get("worn_supplies",{})
@@ -427,7 +468,7 @@ static func apply_intent(profile: Dictionary,owner: String,intent: Dictionary,de
 					return fail("Unpack this phone from its backpack first")
 				if d.supply_counts.has(item) and cabinet_supply_count(d, item) == 0:
 					return fail("No copies of this item are in the cabinet")
-				if item in CALCULATORS and not carried_calculator(d).is_empty():return fail("Store your current calculator first")
+				if is_calculator(item) and not carried_calculator(d).is_empty():return fail("Store your current calculator first")
 				if carried.has(item) or carried.size()+d.get("carried_components",[]).size()>=6:return fail("No free hotbar slot")
 				carried.append(item)
 			elif not carried.has(item):

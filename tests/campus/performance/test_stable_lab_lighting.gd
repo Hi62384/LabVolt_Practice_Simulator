@@ -28,6 +28,14 @@ func run() -> void:
   var expected=lab.find_children("*","SpotLight3D",true,false).size()
   if count!=expected:push_error("Shadow setting did not restore the stable fixtures");quit(1);return
  var representative: SpotLight3D=lab_roots[0].find_children("*","SpotLight3D",true,false)[0]
+ var camera: Camera3D=root.get_camera_3d()
+ if camera==null:push_error("No camera for the distance check");quit(1);return
+ var original_eye:=camera.global_position
+ var opacity:=representative.shadow_opacity
+ camera.global_position=representative.global_position+Vector3(0,0,50)
+ settings._update_fixture_shadow_opacity()
+ camera.global_position=original_eye
+ if not is_equal_approx(representative.shadow_opacity,opacity):push_error("Lab shadow opacity changed with camera distance");quit(1);return
  var base_energy:=representative.light_energy
  var base_tint:=representative.light_color
  settings.set_option("indoor_intensity",1.4)

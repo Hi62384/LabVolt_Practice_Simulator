@@ -22,6 +22,7 @@ static func down(parent: Node3D, point: Vector3, energy: float, reach: float, ai
 	light.spot_attenuation = 1.05
 	light.spot_angle_attenuation = .62
 	light.distance_fade_enabled=false
+	if parent.get_meta("stable_fixture_shadows",false):light.set_meta("stable_fixture_shadows",true)
 	light.set_meta("ultra_distance_fade", true)
 	light.distance_fade_begin=34.0
 	light.distance_fade_length=6.0

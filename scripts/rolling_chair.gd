@@ -18,7 +18,9 @@ var swivel: Node3D
 var spin := 0.0
 var spin_goal := 0.0
 var previous_turn_target := 0.0
-var wheels: Array = []
+var wheels: Array[Node3D] = []
+var wheel_spin := 0.0
+var wheel_position_ready := false
 var idle_floor_check := 0.0
 
 func build(game: Node3D) -> void:
@@ -52,9 +54,12 @@ func build(game: Node3D) -> void:
 		var angle := TAU*i/5
 		var tip := Vector3(sin(angle)*.32,.10,cos(angle)*.32)
 		game._line(self,Vector3(0,.16,0),tip,.025,Color("7b858c"),.8)
-		var wheel: MeshInstance3D = game._cylinder(self,tip-Vector3(0,.045,0),.055,.065,Color("20262b"))
+		var caster:=Node3D.new()
+		caster.position=tip-Vector3(0,.045,0)
+		add_child(caster)
+		var wheel: MeshInstance3D = game._cylinder(caster,Vector3.ZERO,.055,.065,Color("20262b"))
 		wheel.rotation.z=PI*.5
-		wheels.append(wheel)
+		wheels.append(caster)
 	swivel=Node3D.new()
 	add_child(swivel)
 	game._box(swivel,Vector3(0,.51,0),Vector3(.55,.12,.53),Color("30434d"))
@@ -75,6 +80,8 @@ func build(game: Node3D) -> void:
 	add_collision_exception_with(target)
 
 func _physics_process(delta: float) -> void:
+	if wheel_position_ready:_roll_casters(position-previous_position,delta)
+	wheel_position_ready=true
 	var moved_externally := position.distance_squared_to(previous_position)>0.00000001
 	var travelled := position.distance_to(previous_position)
 	previous_position=position
@@ -154,6 +161,19 @@ func _physics_process(delta: float) -> void:
 			var rebound := Vector3(impact_velocity.x,0,impact_velocity.z) - normal * (1.45*incoming)
 			velocity.x=rebound.x;velocity.z=rebound.z
 			break
-	for wheel in wheels:
-		wheel.rotate_y(Vector2(velocity.x,velocity.z).length()*delta/.055)
+func _roll_casters(displacement: Vector3,delta: float) -> void:
+	if wheels.is_empty():return
+	var local_motion:=basis.inverse()*displacement
+	local_motion.y=0
+	if local_motion.length_squared()<0.00000004:return
+	var direction:=atan2(local_motion.x,local_motion.z)
+	var turn:=1.0-exp(-18.0*delta)
+	var yaw:=lerp_angle(wheels[0].rotation.y,direction,turn)
+	var forward:=Vector3(sin(yaw),0,cos(yaw))
+	wheel_spin=fposmod(wheel_spin+local_motion.dot(forward)/.055,TAU)
+	var rotation:=Basis(Vector3.RIGHT,wheel_spin)*Basis(Vector3.BACK,PI*.5)
+	for caster in wheels:
+		caster.rotation.y=yaw
+		var wheel:=caster.get_child(0) as MeshInstance3D
+		wheel.basis=rotation
 

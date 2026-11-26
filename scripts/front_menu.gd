@@ -14,6 +14,7 @@ var campus_tick := 0.0
 var game: Node
 var screen: Control
 var body: VBoxContainer
+var openai_offline := true
 var title: Label
 var status: Label
 var in_game := false
@@ -96,6 +97,8 @@ func build(owner_game: Node) -> void:
 	status.add_theme_font_size_override("font_size",14)
 	column.add_child(status)
 	screen.resized.connect(_layout_menu)
+	panel.minimum_size_changed.connect(func():
+		if page in ["host","singleplayer"]:_layout_menu.call_deferred())
 	game.ui.menu.hide()
 
 	game.session.message_received.connect(func(text):status.text=text)
@@ -135,7 +138,8 @@ func clear(next_page: String,heading: String) -> void:
 	page=next_page
 	body.add_theme_constant_override("separation", 7 if next_page=="home" else 12)
 	title.text=heading
-	menu_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED if next_page in ["home","characters","join"] else ScrollContainer.SCROLL_MODE_AUTO
+	menu_scroll.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED if next_page in ["home","characters","join","host","singleplayer"] else ScrollContainer.SCROLL_MODE_AUTO
+	status.custom_minimum_size.y=0 if next_page in ["host","singleplayer"] else 40
 	title.add_theme_font_size_override("font_size", 30 if next_page in ["join","host","singleplayer"] else 38)
 	for child in body.get_children():
 		body.remove_child(child)
@@ -152,10 +156,12 @@ func _layout_menu() -> void:
 	panel.position=Vector2(32,32)
 	panel.custom_minimum_size=Vector2.ZERO
 	var target_width := 440
-	if page in ["join","host","singleplayer"]:
-		panel.size = Vector2(minf(456.0, available.x - 32), minf(448.0, available.y - 16))
+	if page in ["host","singleplayer","join"]:
+		var height := minf(448.0, available.y - 16) if page=="join" else panel.get_combined_minimum_size().y
+		panel.size = Vector2(minf(456.0, available.x - 32), height)
 		panel.position.y = maxf(16, (screen.size.y - panel.size.y) * .5)
 		return
+	if page=="openai":target_width=620
 	var target_height := minf(620, available.y-16)
 	panel.size=Vector2(maxf(1,minf(target_width,available.x-32)),maxf(1,target_height))
 func _action_icon(value: String) -> String:
@@ -279,8 +285,59 @@ func _build_play(offline: bool) -> void:
 		var connected := relay_account.connected()
 		var caption := "Relay account · Connected" if connected else "Relay account · Not connected"
 		fields.add_child(MenuWidgets.action(caption, "settings", relay_account_page))
+	fields.add_child(MenuWidgets.action("OpenAI Settings","settings",_openai_page.bind(offline)))
+	fields.add_child(MenuWidgets.action("Programming Setup","code",_programming_page.bind(offline)))
 	var actions := _session_actions("Play", "play", _start_play.bind(offline))
 	actions.get_child(1).disabled = not offline and not relay_account.connected() and Session.relay_endpoint().is_empty()
+
+func _programming_page(offline: bool) -> void:
+	clear("programming","Programming Setup")
+	text("Judge0 runs code on a remote server. The Code Editor asks before sending a program and its input. HTML previews and JSON checks run locally.")
+	var runner:=preload("res://scripts/campus/computers/ide_execution.gd").new()
+	body.add_child(runner)
+	runner.configure_from_host()
+	var address:=LineEdit.new()
+	address.placeholder_text="HTTPS compiler address"
+	address.text=runner.endpoint
+	body.add_child(address)
+	var token:=LineEdit.new()
+	token.placeholder_text="Optional API token for this run"
+	token.secret=true
+	token.text=runner.credential
+	body.add_child(token)
+	address.text_changed.connect(func(_value: String):token.clear())
+	_host_button("Use public Judge0",body,func():address.text=runner.PUBLIC_ENDPOINT;token.clear())
+	var feedback:=_host_label("",body)
+	_host_button("Test Connection",body,func():
+		if not runner.set_provider(address.text,token.text) or runner.endpoint.is_empty():
+			feedback.text="Enter a valid compiler address."
+			return
+		feedback.text="Checking available languages…"
+		var result: Dictionary=await runner.supported_runtimes()
+		if is_instance_valid(feedback):
+			feedback.text=str(result.error) if result.has("error") else "Connected · %d runtimes"%result.runtimes.size())
+	var back:=func():
+		if offline:singleplayer_page()
+		else:network_page(false)
+	_host_button("Save",body,func():
+		if not runner.set_provider(address.text,token.text):
+			feedback.text="Enter a valid HTTPS compiler address."
+		elif runner.save_provider()!=OK:feedback.text="Could not save programming settings."
+		else:back.call())
+	_host_button("Cancel",body,back)
+
+func _openai_page(offline: bool) -> void:
+	openai_offline=offline
+	clear("openai","OpenAI Settings")
+	_host_button("Back",body,_back_from_openai)
+	var controls:=preload("res://scripts/campus/ui/openai_settings.gd").new()
+	controls.add_theme_constant_override("separation",8)
+	body.add_child(controls)
+	controls.build(game,func(value: String):status.text=value,_back_from_openai)
+
+func _back_from_openai() -> void:
+	if openai_offline:singleplayer_page()
+	else:network_page(false)
 
 func relay_account_page() -> void:
 	clear("relay_account", "RELAY ACCOUNT")
@@ -584,6 +641,22 @@ func pause_menu() -> void:
 			DisplayServer.clipboard_set(code)
 			copy.text = "Copied"
 		)
+	var connections:=HBoxContainer.new()
+	connections.add_theme_constant_override("separation",12)
+	body.add_child(connections)
+	var runner:=preload("res://scripts/campus/computers/ide_execution.gd").new()
+	runner.configure_from_host()
+	var ai_status: String="Not connected"
+	if game.host_openai.configured() and game.host_openai.enabled:
+		ai_status="Connected" if game.host_openai.verified_for_class() else "Key connected"
+	for service in [["OpenAI",ai_status],["Judge0",runner.connection_status()]]:
+		var badge:=PanelContainer.new()
+		badge.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		badge.theme_type_variation="CardPanel"
+		connections.add_child(badge)
+		var label:=_host_label("%s · %s"%service,badge,13)
+		label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	runner.free()
 	button("Resume",func():game.capture())
 	button("View Courses",view_courses_page)
 	button("Settings",settings_page)
@@ -627,6 +700,7 @@ func _input(event: InputEvent) -> void:
 
 func escape() -> void:
 	if screen.visible:
+		if page=="openai":_back_from_openai();return
 		if page not in ["home","pause"]:
 			if in_game:pause_menu()
 			else:home()
@@ -657,7 +731,8 @@ func _process(delta: float) -> void:
 	if is_instance_valid(campus_hud):
 		var computer_open: bool=is_instance_valid(game.computer_room_adapter) and is_instance_valid(game.computer_room_adapter.desktop) and game.computer_room_adapter.desktop.visible
 		var paper_open: bool=is_instance_valid(game.paper_ui) and game.paper_ui.screen.visible
-		campus_hud.visible=in_game and not screen.visible and not computer_open and not paper_open and game.client_preferences.values.hud
+		var phone_open: bool=is_instance_valid(game.smartphones) and game.smartphones.is_ui_open()
+		campus_hud.visible=in_game and not screen.visible and not computer_open and not paper_open and not phone_open and game.client_preferences.values.hud
 		if in_game and campus_tick>=0.25 and is_instance_valid(campus_adapter) and is_instance_valid(campus_adapter.registry):
 			campus_tick=0.0
 			var registry: Object=campus_adapter.registry

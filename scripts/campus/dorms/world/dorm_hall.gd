@@ -135,7 +135,10 @@ func _build_room(contract: Dictionary) -> void:
 		Fixtures.ceiling_omni(root,panel-Vector3.UP*.025,1.18,6.4)
 		Fixtures.ceiling_spill(root,panel-Vector3.UP*.14)
 	_solid(root, "OuterWall", Vector3(outer_x, 2.0, center.z), Vector3(0.16, 4.0, Layout.ROOM_DEPTH), "dcdde1")
+	# At the campus seam the room shell already closes both sides of this wall.
+	var adjoining_room: Node=get_parent().get_node_or_null("lost_found" if west else "charging_room") if get_parent()!=null else null
 	for z in [z_min, z_max]:
+		if is_equal_approx(z,Layout.ENTRY_Z) and adjoining_room!=null:continue
 		_solid(root, "Partition", Vector3(center.x, 2.0, z), Vector3(Layout.ROOM_WIDTH, 4.0, 0.16), "dcdde1")
 	var side_span := (Layout.ROOM_DEPTH - Layout.DOOR_WIDTH) / 2.0
 	for direction in [-1.0, 1.0]:

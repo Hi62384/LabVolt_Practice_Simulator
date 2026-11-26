@@ -44,7 +44,7 @@ func _accept(peer: int, floor_id: int, button: int) -> void:
 	if now - int(request_times.get(peer, -1000)) < 180: return
 	request_times[peer] = now
 	var position_value := _position(peer)
-	if (position_value + Vector3.UP * 1.2).distance_to(Geometry.control_position(floor_id, button)) > 2.1: return
+	if (position_value + Vector3.UP * 1.2).distance_to(Geometry.control_position(floor_id, button)) > (2.1 if button<0 else 2.8): return
 	# Front/back sided controls cannot be activated through the shut doors.
 	if button < 0:
 		if position_value.x > 16.0: return

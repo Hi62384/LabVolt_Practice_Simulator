@@ -83,6 +83,10 @@ func run() -> void:
 	assert(host.act(1,request).ok and is_equal_approx(host.active[1].weight,70 * 0.45359237 + 6.25) and host.active[1].selector_weight==70)
 	assert(not host.set_cable_weight(1,"gym/cable_0",40).ok)
 	_check_drop_set()
+	_check_carried_bar_pin("gym/seated_bench_1","benchpress")
+	_check_carried_bar_pin("gym/barbell","squat")
+	_check_carried_bar_pin("gym/barbell","overhead_press")
+	_check_carried_bar_pin("gym/barbell","good_morning")
 	print("LIVE_LIFT PASS")
 	quit()
 
@@ -125,6 +129,41 @@ func _check_drop_set() -> void:
 func _start_curl(host: RefCounted) -> Dictionary:
 	now+=100
 	return host.act(1,{"op":"start","station":"gym/dumbbell","exercise":"curl","sequence":int(saved.last_sequence)+1})
+
+func _check_carried_bar_pin(station: String,exercise: String) -> void:
+	saved=Host.empty_profile()
+	var host:=Host.new()
+	host.live_lifts=true
+	host.authority=func():return true
+	host.clock=func():return now
+	host.context=func(peer):return {"identity":str(peer),"position":Vector3.ZERO if peer==1 else Vector3.RIGHT,"room_id":"gym","allowed":true,"grounded":true}
+	var helper:={"profile":Host.empty_profile()}
+	host.load_profile=func(identity):return saved if identity=="1" else helper.profile
+	host.commit_profile=func(identity,_dollars,value):
+		if identity=="1":saved=value.duplicate(true)
+		else:helper.profile=value.duplicate(true)
+		return true
+	host.held_barbell_mass=func(_peer):return 105.0
+	host.anchors["gym/seated_bench_1"]={"kind":"seated_bench","position":Vector3.ZERO,"bench_position":Vector3(0,0,-1),"room_id":"gym"}
+	host.public_event.connect(func(_room,_peer,event):
+		if event.get("activity")!="assist":last_event=event.duplicate())
+	now+=100
+	assert(host.act(1,{"op":"start","station":station,"exercise":exercise,"equipment":"barbell","sequence":1}).ok)
+	assert(not _action(host,"cancel").ok)
+	assert(_action(host,"effort").ok)
+	now+=12000
+	host.tick()
+	assert(host.active[1].type=="trapped" and last_event.equipment=="barbell" and last_event.phase==1.0 and last_event.exercise==exercise)
+	assert(not _action(host,"stop").ok)
+	now+=1000
+	assert(host.act(2,{"op":"assist","sequence":1,"target":1}).ok and host.active[1].progress>0.0)
+	for attempt in 32:
+		if host.active[1].type!="trapped":break
+		now+=700
+		assert(host.act(1,{"op":"wiggle","sequence":int(saved.last_sequence)+1,"direction":host.active[1].direction}).ok)
+	assert(host.active[1].type=="exercise" and host.active[1].phase==0)
+	assert(_action(host,"cancel").ok)
+	_finish_exit(host)
 
 func _action(host: RefCounted, op: String) -> Dictionary:
 	now += 100

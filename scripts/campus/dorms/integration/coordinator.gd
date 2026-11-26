@@ -352,6 +352,8 @@ func submit_intent(operation_id: String,intent: Dictionary) -> Dictionary:
 	for type in profile.data.get("dorm",{}).get("storage",{}):reservations.counts[type]=int(reservations.counts.get(type,0))-int(profile.data.dorm.storage[type])
 	for id in profile.data.get("dorm",{}).get("instances",[]):reservations.instance_ids.erase(id)
 	if game.kit_world.blocks_dorm_transfer(multiplayer.get_unique_id(),intent):return {"ok":false,"error":"Pick up and stow the kit before transferring it"}
+	if game.portable_laptops.blocks_dorm_transfer(multiplayer.get_unique_id(),intent):return {"ok":false,"error":"Pick up the laptop before storing it"}
+	if game.personal_placement.is_placed(multiplayer.get_unique_id(),str(intent.get("item",""))):return {"ok":false,"error":"Pick up the item before storing it"}
 	var applied: Dictionary=Dorm.apply_intent(profile.data,game.school.local_identity,intent,reservations)
 	if not applied.ok:return applied
 	var accessories=preload("res://scripts/campus/facilities/accessory_layout.gd")
@@ -370,11 +372,11 @@ func storage_transfer(identity: String,room: String,operation_id: String,item: S
 	var d: Dictionary=game.electronics.profile.data.get("dorm",{})
 	return submit_intent(operation_id,{"op":"storage","revision":int(d.get("revision",-1)),"item":item,"delta":quantity if into_storage else -quantity,"instances":instances})
 
-func move_world_supply(peer: int, item: String, into_hotbar: bool) -> Dictionary:
+func move_world_supply(peer: int, item: String, into_hotbar: bool, configuration: Dictionary = {}) -> Dictionary:
 	if not multiplayer.is_server():return {"ok":false,"error":"Host required"}
 	var identity := authenticated_identity(peer)
 	if identity.is_empty():return {"ok":false,"error":"Profile unavailable"}
-	var applied := Dorm.move_world_supply(_profile(identity),item,into_hotbar)
+	var applied := Dorm.move_world_supply(_profile(identity),item,into_hotbar,configuration)
 	if not applied.ok:return applied
 	return _commit_world_inventory(peer,identity,applied.profile)
 
@@ -399,7 +401,7 @@ func _commit_world_inventory(peer: int, identity: String, updated: Dictionary, d
 		next.accounts[identity].revision+=1
 		if not ledger.stage_lost_found_receipt(next,claim_token,claim_holder):return {"ok":false,"error":"Too many unconfirmed lost-and-found deliveries"}
 		if not ledger.persist(next):return {"ok":false,"error":"Could not save supply transfer"}
-		game.electronics_trade.authority.send_snapshot(peer,ledger.snapshot(peer))
+		if ledger.bindings.get(peer,"")==identity:game.electronics_trade.authority.send_snapshot(peer,ledger.snapshot(peer))
 	else:
 		var profile: RefCounted=game.electronics.profile
 		var previous: Dictionary=profile.data
@@ -540,7 +542,8 @@ func _build_storage() -> void:
 	panels.add_child(VSeparator.new())
 	var stored := _cabinet_column(panels,"Dorm storage",true)
 	for tool in Dorm.supply_counts(dorm_data):
-		var item := {"kind":"calculator" if tool in Dorm.CALCULATORS else "notebook" if Dorm.is_notebook(tool) else str(tool),"type":tool}
+		var item := {"kind":"calculator" if Dorm.is_calculator(tool) else "notebook" if Dorm.is_notebook(tool) else str(tool),"type":Dorm.Keypad.model_for(tool) if Dorm.is_calculator(tool) else tool}
+		if Dorm.PowerBanks.valid_key(tool):item.kind="power_bank"
 		var count := Dorm.cabinet_supply_count(dorm_data,tool)
 		if tool in dorm_data.get("carry_items",[]):
 			_cabinet_tile(carried,Dorm.supply_title(tool),item,"Store",_cabinet_transfer.bind({"op":"carry_item","item":tool,"carry":false},false))
