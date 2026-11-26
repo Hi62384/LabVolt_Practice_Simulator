@@ -13,6 +13,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace LabVolt.Toolchain {
 public sealed class WindowsSandbox : IDisposable {
+    [StructLayout(LayoutKind.Sequential)] struct SID_AND_ATTRIBUTES { public IntPtr sid; public uint attributes; }
     [StructLayout(LayoutKind.Sequential)] struct SECURITY_CAPABILITIES { public IntPtr sid, capabilities; public uint count, reserved; }
     [StructLayout(LayoutKind.Sequential)] struct SECURITY_ATTRIBUTES { public int length; public IntPtr descriptor; [MarshalAs(UnmanagedType.Bool)] public bool inherit; }
     [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] struct STARTUPINFO { public int cb; public string reserved,desktop,title; public int x,y,cx,cy,xchars,ychars,fill,flags; public short show,reserved2; public IntPtr reservedPtr,input,output,error; }
@@ -51,19 +52,26 @@ public sealed class WindowsSandbox : IDisposable {
     [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetFileInformationByHandle(IntPtr handle,out FILE_INFO info);
     [DllImport("user32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern IntPtr CreateDesktop(string name,IntPtr device,IntPtr mode,uint flags,uint access,ref SECURITY_ATTRIBUTES attributes);
     [DllImport("user32.dll",SetLastError=true)] static extern bool CloseDesktop(IntPtr desktop);
+    [DllImport("kernelbase.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+    static extern bool DeriveCapabilitySidsFromName(string capability,out IntPtr groups,out uint groupCount,out IntPtr sids,out uint count);
+    [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr value);
     readonly string profile="LabVolt.Compiler."+Guid.NewGuid().ToString("N");
     IntPtr sid=IntPtr.Zero,job=IntPtr.Zero;
     readonly List<KeyValuePair<string,byte[]>> aclBackups=new List<KeyValuePair<string,byte[]>>();
     readonly Stopwatch lifetime=Stopwatch.StartNew();
     readonly bool desktopApplication;
     readonly bool lessPrivileged;
+    readonly bool graphics;
     public bool IsolationExercised { get; private set; }
-    public string Isolation { get { return lessPrivileged ? "Windows LPAC, no capabilities, one process" : "Windows AppContainer, no capabilities, job-limited"; } }
+    public string Isolation { get { return lessPrivileged ? (graphics?"Windows LPAC, display-driver registry reads, one process":"Windows LPAC, no capabilities, one process") : "Windows AppContainer, no capabilities, job-limited"; } }
     public WindowsSandbox() : this(false) {}
     public WindowsSandbox(bool desktopApplication) : this(desktopApplication,desktopApplication) {}
-    public WindowsSandbox(bool desktopApplication,bool lessPrivileged) {
+    public WindowsSandbox(bool desktopApplication,bool lessPrivileged) : this(desktopApplication,lessPrivileged,false) {}
+    public WindowsSandbox(bool desktopApplication,bool lessPrivileged,bool graphics) {
+        if(graphics&&(!desktopApplication||!lessPrivileged))throw new ArgumentException("Graphics requires the desktop LPAC.");
         this.desktopApplication=desktopApplication;
         this.lessPrivileged=lessPrivileged;
+        this.graphics=graphics;
         if(lessPrivileged&&!desktopApplication)throw new ArgumentException("This mode requires desktop process restrictions.");
         int hr=CreateAppContainerProfile(profile,"LabVolt isolated compiler","Temporary offline firmware compiler",IntPtr.Zero,0,out sid);
         if(hr!=0) throw new InvalidOperationException("CreateAppContainerProfile failed: 0x"+hr.ToString("X8")+". No compiler executed; no reduced-isolation fallback.");
@@ -146,7 +154,8 @@ public sealed class WindowsSandbox : IDisposable {
         int wallLimit=desktopApplication?10*60*1000:90000;
         if(lifetime.ElapsedMilliseconds>wallLimit)throw new TimeoutException("Aggregate process wall limit reached");
         IntPtr list=IntPtr.Zero,size=IntPtr.Zero,caps=IntPtr.Zero,handles=IntPtr.Zero,environment=IntPtr.Zero;
-        IntPtr policies=IntPtr.Zero;
+        IntPtr policies=IntPtr.Zero, driverCapability=IntPtr.Zero;
+        var capabilityAllocations=new List<IntPtr>();
         IntPtr stdout=IntPtr.Zero,stdin=IntPtr.Zero;PROCESS_INFORMATION process=new PROCESS_INFORMATION();bool created=false,assigned=false;IntPtr desktop=IntPtr.Zero;
         try {
             SECURITY_ATTRIBUTES security=new SECURITY_ATTRIBUTES();security.length=Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));security.inherit=true;
@@ -157,6 +166,17 @@ public sealed class WindowsSandbox : IDisposable {
             InitializeProcThreadAttributeList(IntPtr.Zero,attributes,0,ref size);list=Marshal.AllocHGlobal(size);
             Ensure(InitializeProcThreadAttributeList(list,attributes,0,ref size),"InitializeProcThreadAttributeList");
             SECURITY_CAPABILITIES capabilities=new SECURITY_CAPABILITIES();capabilities.sid=sid;
+            if(graphics) {
+                IntPtr groups, capSids; uint groupCount, sidCount;
+                Ensure(DeriveCapabilitySidsFromName("registryRead",out groups,out groupCount,out capSids,out sidCount),"Resolve graphics registry capability");
+                CollectCapabilityMemory(groups,groupCount,capabilityAllocations);
+                CollectCapabilityMemory(capSids,sidCount,capabilityAllocations);
+                Ensure(sidCount==1,"Read graphics registry capability");
+                driverCapability=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SID_AND_ATTRIBUTES)));
+                Marshal.StructureToPtr(new SID_AND_ATTRIBUTES{sid=Marshal.ReadIntPtr(capSids),attributes=4},driverCapability,false);
+                capabilities.capabilities=driverCapability;
+                capabilities.count=1;
+            }
             caps=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)));Marshal.StructureToPtr(capabilities,caps,false);
             Ensure(UpdateProcThreadAttribute(list,0,(IntPtr)0x20009,caps,(IntPtr)Marshal.SizeOf(typeof(SECURITY_CAPABILITIES)),IntPtr.Zero,IntPtr.Zero),"Set AppContainer capabilities");
             // The one-process Job Object blocks children before resuming the guest.
@@ -229,8 +249,18 @@ public sealed class WindowsSandbox : IDisposable {
             if(stdout!=IntPtr.Zero&&stdout!=new IntPtr(-1))CloseHandle(stdout);if(stdin!=IntPtr.Zero&&stdin!=new IntPtr(-1))CloseHandle(stdin);
             if(list!=IntPtr.Zero){DeleteProcThreadAttributeList(list);Marshal.FreeHGlobal(list);}if(caps!=IntPtr.Zero)Marshal.FreeHGlobal(caps);if(handles!=IntPtr.Zero)Marshal.FreeHGlobal(handles);if(environment!=IntPtr.Zero)Marshal.FreeHGlobal(environment);
             if(policies!=IntPtr.Zero)Marshal.FreeHGlobal(policies);
+            if(driverCapability!=IntPtr.Zero)Marshal.FreeHGlobal(driverCapability);
+            foreach(IntPtr value in capabilityAllocations)LocalFree(value);
             if(desktop!=IntPtr.Zero)CloseDesktop(desktop);
         }
+    }
+    static void CollectCapabilityMemory(IntPtr array,uint count,List<IntPtr> allocations) {
+        if(array==IntPtr.Zero)return;
+        for(int i=0;i<count;i++) {
+            IntPtr entry=Marshal.ReadIntPtr(array,i*IntPtr.Size);
+            if(entry!=IntPtr.Zero)allocations.Add(entry);
+        }
+        allocations.Add(array);
     }
     void VerifyDesktopToken(IntPtr process) {
         IntPtr token;

@@ -1,6 +1,8 @@
 extends RefCounted
 
 const Packages=preload("res://scripts/campus/computers/application_package.gd")
+const WindowsPackage=preload("res://scripts/campus/computers/WindowsPortablePackage.cs")
+const WINDOWS_FORMATS:=["exe","msi","msix"]
 const Inspector=preload("res://scripts/campus/computers/WindowsExecutableInspector.cs")
 const Drive=preload("res://scripts/campus/computers/device_filesystem.gd")
 const Files=preload("res://scripts/campus/computers/virtual_files.gd")
@@ -77,19 +79,22 @@ static func apply(drive: RefCounted,action: Dictionary) -> String:
 		return ""
 	if op!="install_app":return "Unknown installation action."
 	var path:=str(action.get("path",""))
-	if not Drive.valid_path(path) or managed(path) or path.get_extension().to_lower() not in ["campusapp","zip","exe"]:
+	if not Drive.valid_path(path) or managed(path) or path.get_extension().to_lower() not in ["campusapp","zip"]+WINDOWS_FORMATS:
 		return "Choose a Campus OS application package."
 	var file: Dictionary=drive.entries.get(path,{})
 	if file.get("type")!="file":return "The selected package is unavailable."
-	var native:=path.get_extension().to_lower()=="exe"
+	var format:=path.get_extension().to_lower()
+	var native: bool=format in WINDOWS_FORMATS
 	var digest:=sha256(file.data)
 	if digest!=action.get("sha256",""):return "The package changed. Reopen it to review the new contents."
 	var manifest: Dictionary
+	var installed_bytes: PackedByteArray=file.data
 	if native:
-		var inspect: Dictionary=Inspector.new().Inspect(file.data)
-		if not _supported_windows(inspect):return "This file does not contain a supported native Windows desktop application."
+		var payload:=windows_image(format, file.data)
+		if payload.has("error"):return str(payload.error)
+		installed_bytes=payload.image
 		manifest={"id":"windows."+digest.left(32),"name":path.get_file().get_basename().left(64),
-			"version":"1.0.0","publisher":"Portable Windows application"}
+			"version":"1.0.0","publisher":"Windows "+format.to_upper()+" application"}
 	else:
 		var package:=Packages.inspect(file.data)
 		if package.has("error"):return str(package.error)
@@ -112,11 +117,16 @@ static func apply(drive: RefCounted,action: Dictionary) -> String:
 	if not staging.entries.has(ROOT) and not staging.make_folder(ROOT):return "Could not create Program Files."
 	if not staging.entries.has(target) and not staging.make_folder(target):return "Could not create the installation folder."
 	var record:={"id":manifest.id,"name":manifest.name,"publisher":manifest.publisher,"version":manifest.version,
-		"sha256":digest,"runtime":"windows" if native else "web","shortcut":action.get("shortcut",true)==true,"desktop_shortcut":action.get("desktop_shortcut",false)==true}
-	if not staging.write_file(target+"/"+(NATIVE_IMAGE if native else ARCHIVE),file.data) or not staging.write_file(target+"/"+RECORD,JSON.stringify(record).to_utf8_buffer()):
+		"sha256":sha256(installed_bytes) if native else digest,"runtime":"windows" if native else "web","shortcut":action.get("shortcut",true)==true,"desktop_shortcut":action.get("desktop_shortcut",false)==true}
+	if not staging.write_file(target+"/"+(NATIVE_IMAGE if native else ARCHIVE),installed_bytes) or not staging.write_file(target+"/"+RECORD,JSON.stringify(record).to_utf8_buffer()):
 		return "There is insufficient space to install this package."
 	drive.entries=staging.entries
 	return ""
+
+static func windows_image(format: String, bytes: PackedByteArray) -> Dictionary:
+	if format in ["msi","msix"]:return WindowsPackage.new().Read(format,bytes)
+	if format=="exe" and _supported_windows(Inspector.new().Inspect(bytes)):return {"image":bytes}
+	return {"error":"This file does not contain a supported native Windows desktop application."}
 
 static func _supported_windows(info: Dictionary) -> bool:
 	return not info.has("error") and info.get("architecture") in ["x64","x86"] and info.get("kind")=="Desktop application" and info.get("runtime")=="Native entry point"

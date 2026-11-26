@@ -294,6 +294,8 @@ func _accept(peer: int, action: Dictionary) -> void:
 	match op:
 		"install_app","uninstall_app","save_app_state":
 			if not file_device:_error(peer,"Installation requires a virtual drive.");return
+			if op=="install_app" and game.session.online and str(action.get("path","")).get_extension().to_lower() in Apps.WINDOWS_FORMATS:
+				_error(peer,"Windows package installation requires a local session.");return
 			var app_error:=Apps.apply(entry.power.drive,action)
 			if not app_error.is_empty():_error(peer,app_error);return
 		"save_preferences":

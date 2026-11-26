@@ -47,5 +47,12 @@ static func measurement(id: String,purpose: String,preview := "",mode := "standa
 static func score(id: String,purpose: String,preview := "",mode := "standard") -> float:
 	return float(measurement(id,purpose,preview,mode).get("score_percent",-1.0))
 
+static func published_reference(id: String,purpose: String) -> Dictionary:
+	var records:=benchmark_records(id,purpose)
+	if records.is_empty():return {}
+	var record:=records[0]
+	record.reference=true
+	return record
+
 static func pricing(id: String,purpose: String,tier := "standard",inputs := 0,date := "") -> Dictionary:
 	return Pricing.pricing(id,purpose,tier,inputs,date)

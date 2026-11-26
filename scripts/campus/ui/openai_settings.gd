@@ -11,6 +11,10 @@ const PURPOSES:={"text":"Text","image":"Image analysis","image_generation":"Imag
 const EFFORTS:=["","none","minimal","low","medium","high","xhigh","max"]
 const SCENARIOS:={"Teacher reply":[800,200],"Teaching explanation":[1800,500],"Lesson plan":[4000,1000],"Image analysis":[1400,260],"Custom":[1000,300]}
 const SORTS:=["Benchmark","Estimated cost","Input rate","Output rate","Latency","Newest snapshot","Model name","Local requests"]
+const METRIC_SCORE:=Color("8de4cc")
+const METRIC_TIME:=Color("8abef5")
+const METRIC_PRICE:=Color("f2bd88")
+const METRIC_REQUESTS:=Color("cbb1f3")
 
 var game: Node
 var show_notice: Callable
@@ -398,8 +402,14 @@ func _preview_measurement(id: String) -> Dictionary:
 	var published:=Comparison.measurement(id,picker_purpose,level,mode)
 	if compare_measurements.button_pressed and picker_purpose=="text" and published.get("status","")!="unsupported":
 		var record:=evaluation.record(id,level,mode)
-		return record if not record.is_empty() else {"status":"missing","label":"No local test at "+Comparison.display_effort(level)}
-	return published
+		if not record.is_empty():return record
+		published={"status":"missing","label":"No local test at "+Comparison.display_effort(level)}
+	elif published.has("score_percent"):
+		return published
+	var reference:=Comparison.published_reference(id,picker_purpose)
+	if reference.is_empty():return published
+	reference.preview_status=published.label
+	return reference
 
 func _sort_key(row: Dictionary, method: String) -> Variant:
 	match method:
@@ -426,6 +436,7 @@ func _refresh_picker() -> void:
 	custom_input.visible=text_category and str(scenario.get_selected_metadata())=="Custom"
 	custom_output.visible=custom_input.visible
 	assumptions.text="%d input · %d output tokens · no cache. Thinking-token usage varies by effort."%workload if text_category else "Published rates in USD. Image and speech costs depend on the measured token or audio usage."
+	assumptions.text+=" Benchmark bars use a 0–100% scale. Other bars compare the visible models."
 	var query:=model_search.text.strip_edges().to_lower()
 	var candidates:=model_ids.filter(func(id: String):
 		return Models.supports(id,picker_purpose))
@@ -456,21 +467,68 @@ func _refresh_picker() -> void:
 		_label("No matching models.",15,T.MUTED,model_rows)
 		return
 	if not detail_id.is_empty() and picker_models.has(detail_id):_build_detail(picker_models[detail_id])
-	for row in rows:_build_model_row(row)
+	var maxima: Dictionary={}
+	for row in rows:
+		_record_maximum(maxima,"latency",row.latency)
+		_record_maximum(maxima,"cost",row.cost)
+		_record_maximum(maxima,"requests",float(row.usage.get("requests",-1)))
+		for rate in _rate_metrics(row.price):
+			_record_maximum(maxima,rate.key,rate.amount)
+	for row in rows:_build_model_row(row,maxima)
 
-func _cell(parent: Control,title: String,value: String, ratio: float) -> void:
+func _record_maximum(maxima: Dictionary,key: String,value: float) -> void:
+	if is_finite(value) and value>=0.:
+		maxima[key]=maxf(maxima.get(key,0.),value)
+
+func _rate_metrics(price: Dictionary) -> Array[Dictionary]:
+	var result: Array[Dictionary]=[]
+	for item in [["input","Input"],["output","Output"],["text_input","Text in"],["image_output","Image out"]]:
+		if not price.has(item[0]):continue
+		var amount:=float(price[item[0]])
+		result.append({"key":item[0],"amount":amount,"label":"%s $%s"%[item[1],Pricing.money_rate(amount)]})
+	if price.has("rate"):
+		result.append({"key":price.unit,"amount":float(price.rate),"label":str(price.label)})
+	return result
+
+func _metric_cell(parent: Control,title: String, ratio: float) -> VBoxContainer:
 	var cell:=VBoxContainer.new()
+	cell.add_theme_constant_override("separation",5)
 	cell.size_flags_horizontal=SIZE_EXPAND_FILL
 	cell.size_flags_stretch_ratio=ratio
 	parent.add_child(cell)
 	_label(title,11,T.MUTED,cell,true)
-	_label(value,13,T.INK,cell,true)
+	return cell
 
-func _build_model_row(row: Dictionary) -> void:
+func _meter(cell: Control, label: String, value: float, maximum: float, accent: Color, scale: String) -> void:
+	var available:=is_finite(value) and value>=0.
+	var meter:=VBoxContainer.new()
+	meter.add_theme_constant_override("separation",3)
+	cell.add_child(meter)
+	var number:=_label(label,13,T.INK if available else T.MUTED,meter,true)
+	number.mouse_filter=MOUSE_FILTER_PASS
+	number.tooltip_text=scale
+	var bar:=ProgressBar.new()
+	bar.custom_minimum_size.y=7
+	bar.show_percentage=false
+	bar.max_value=maximum if maximum>0. else 1.
+	bar.step=0.
+	bar.value=value if available else 0.
+	bar.mouse_filter=MOUSE_FILTER_PASS
+	bar.tooltip_text=scale
+	var track:=T.surface(Color("0a1d28"),Color("345365") if available else Color("263f4d"),0)
+	track.set_corner_radius_all(4)
+	var fill:=T.surface(accent,accent,0)
+	fill.set_corner_radius_all(4)
+	bar.add_theme_stylebox_override("background",track)
+	bar.add_theme_stylebox_override("fill",fill)
+	meter.add_child(bar)
+
+func _build_model_row(row: Dictionary,maxima: Dictionary) -> void:
 	var surface:=PanelContainer.new()
 	surface.add_theme_stylebox_override("panel",T.surface(Color("173341"),Color("355363"),8))
 	model_rows.add_child(surface)
 	var split:=VBoxContainer.new()
+	split.add_theme_constant_override("separation",9)
 	surface.add_child(split)
 	var header:=HBoxContainer.new()
 	split.add_child(header)
@@ -488,12 +546,29 @@ func _build_model_row(row: Dictionary) -> void:
 	stats.add_theme_constant_override("separation",9)
 	split.add_child(stats)
 	var record: Dictionary=row.measurement
-	var benchmark: String="%0.1f%% · %s"%[row.benchmark,Comparison.display_effort(record.reasoning_effort) if not str(record.reasoning_effort).is_empty() else "Effort unspecified"] if row.benchmark>=0. else str(record.get("label","Not benchmarked"))
-	_cell(stats,record.get("benchmark",Comparison.benchmark_name(picker_purpose)),benchmark,1.55)
-	_cell(stats,"Measured latency","%.2f s"%(row.latency/1000.) if is_finite(row.latency) else "Unavailable",.75)
-	_cell(stats,"Published rate",str(row.price.get("label","Rate unavailable")),1.40)
-	_cell(stats,"Estimate / request",Pricing.usd(row.cost) if row.cost>=0 else "Unavailable",.85)
-	_cell(stats,"Local requests",str(row.usage.get("requests","—")),.65)
+	var benchmark:=_metric_cell(stats,record.get("benchmark",Comparison.benchmark_name(picker_purpose)),1.40)
+	_meter(benchmark,"%.1f%%"%row.benchmark if row.benchmark>=0. else str(record.get("label","Not benchmarked")),
+		row.benchmark,100.,METRIC_SCORE,str(record.get("preview_status","Benchmark score out of 100%")))
+	if row.benchmark>=0.:
+		var tested_effort:=str(record.reasoning_effort)
+		var effort_label:=Comparison.display_effort(tested_effort) if not tested_effort.is_empty() else "Effort unspecified"
+		_label(("Reference · " if record.get("reference",false) else "")+effort_label,11,T.MUTED,benchmark,true)
+	var latency:=_metric_cell(stats,"Measured latency",.95)
+	_meter(latency,"%.2f s"%(row.latency/1000.) if is_finite(row.latency) else "Unavailable",
+		row.latency,maxima.get("latency",0.),METRIC_TIME,"Time relative to the slowest visible measurement")
+	var rate_title:="Published rate"
+	if row.price.get("basis") in ["tokens","image_tokens"]:rate_title+=" / 1M tokens"
+	var published:=_metric_cell(stats,rate_title,1.35)
+	var rates:=_rate_metrics(row.price)
+	if rates.is_empty():_meter(published,"Rate unavailable",-1.,0.,METRIC_PRICE,"No rate in this rate card")
+	for rate in rates:
+		_meter(published,rate.label,rate.amount,maxima.get(rate.key,0.),METRIC_PRICE,"Relative to the highest visible rate for this unit")
+	var estimate:=_metric_cell(stats,"Estimate / request",1.0)
+	_meter(estimate,Pricing.usd(row.cost) if row.cost>=0 else "Unavailable",row.cost,maxima.get("cost",0.),
+		METRIC_PRICE,"Cost relative to the highest visible estimate for this workload")
+	var requests:=_metric_cell(stats,"Local requests",.8)
+	_meter(requests,str(row.usage.get("requests","—")),float(row.usage.get("requests",-1)),maxima.get("requests",0.),
+		METRIC_REQUESTS,"Requests recorded for this connection profile relative to the highest visible count")
 
 func _build_detail(row: Dictionary) -> void:
 	var surface:=PanelContainer.new()
@@ -544,6 +619,7 @@ func _build_detail(row: Dictionary) -> void:
 		_label("Historical installation totals are saved separately from this connection profile.",13,T.MUTED,body,true)
 	var record: Dictionary=row.measurement
 	if record.get("source_type","")=="published":
+		if record.get("reference",false):_label(str(record.preview_status)+" · Showing a published reference score",13,T.MUTED,body,true)
 		_label(str(record.methodology)+" · Verified "+str(record.verified_at),13,T.MUTED,body,true)
 		_link(body,"Published benchmark source",str(record.source_url))
 	elif record.get("source_type","")=="local":

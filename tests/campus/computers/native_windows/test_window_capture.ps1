@@ -6,7 +6,7 @@ $broker = Join-Path $project 'scripts/firmware_toolchain/windows_sandbox.cs'
 
 if ($FixtureRoot) {
     Add-Type -Path $broker
-    $sandbox = New-Object LabVolt.Toolchain.WindowsSandbox -ArgumentList ([bool]($LessPrivileged -or $DesktopIsolation)),([bool]$LessPrivileged)
+    $sandbox = [LabVolt.Toolchain.WindowsSandbox]::new([bool]($LessPrivileged -or $DesktopIsolation),[bool]$LessPrivileged,[bool]($LessPrivileged -and $VerifyGpuAndInput))
     try {
         $payload = Join-Path $FixtureRoot 'payload'
         $sandbox.GrantDirectory($payload, $true)

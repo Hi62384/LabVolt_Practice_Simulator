@@ -145,8 +145,11 @@ func _windows_application(path: String, extension: String, bytes: PackedByteArra
 			_action(toolbar,"Install portable copy…",func():install_windows.emit(path))
 			_action(toolbar,"Run setup…",func():run_setup.emit(path))
 		_note("A standalone Windows app opens on a private Windows desktop with limited access.")
+	elif extension in ["msi","msix"] and native_enabled:
+		_action(toolbar,"Install into Campus OS…",func():install_windows.emit(path)).theme_type_variation="PrimaryButton"
+		_note("Compatible packages can install a standalone desktop app into Program Files. Windows registration and system changes are unavailable.")
 	else:
-		_note("This file can be inspected and stored. The current runtime opens standalone x86 and x64 desktop EXEs.")
+		_note("This file can be inspected and stored. The current runtime opens standalone x86 and x64 desktop apps.")
 
 func _text(value: String, heading: String) -> void:
 	_note(heading)

@@ -2520,10 +2520,17 @@ func _open_windows_runtime(title: String, bytes: PackedByteArray, storage_key: S
 
 func _confirm_portable_install(path: String, bytes: PackedByteArray) -> void:
 	if not _native_allowed():return
+	var format:=path.get_extension().to_lower()
+	var package:=Apps.windows_image(format,bytes)
+	if package.has("error"):
+		_message("This package cannot install",str(package.error))
+		return
 	var digest:=Apps.sha256(bytes)
 	var record: Dictionary=snapshot.get("installed_apps",{}).get("windows."+digest.left(32),{})
 	var lease: Variant=snapshot.lease
-	_confirm_action("Install a portable copy of "+path.get_file()+" on the active virtual drive?",func():
+	var description: String="Install "+path.get_file()+" into Campus OS Program Files?"
+	if format!="exe":description+="\nCampus OS extracts the app without registering the package in Windows."
+	_confirm_action(description,func():
 		if lease==snapshot.get("lease") and _native_allowed():
 			_send({"op":"install_app","path":path,"sha256":digest,"folder":"win-"+digest.left(17),
 				"replace":not record.is_empty(),"shortcut":true,"desktop_shortcut":true}))

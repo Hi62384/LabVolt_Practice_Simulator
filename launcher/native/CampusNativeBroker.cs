@@ -68,7 +68,7 @@ internal sealed class CampusNativeBroker
             var stop = new Thread(delegate() { Receive(reader); }) { IsBackground = true };
             stop.Start();
             var clock = Stopwatch.StartNew();
-            using (var box = new WindowsSandbox(true, true))
+            using (var box = new WindowsSandbox(true, true, true))
             {
                 stopGuest = box.Stop;
                 box.GrantDirectory(bin, false);
