@@ -312,11 +312,9 @@ func _circulation() -> void:
 		else:_upper_hall_extension()
 		for x in [10.0,16.0]:
 			if x==16.0:
-				# The upper-floor computer commons owns this wall, including its
-				# entrance at z=61. Keep the ground-floor wall unchanged.
+				# The computer commons and charging room build their own corridor
+				# walls and door openings farther north.
 				box(self,Vector3(x,y+2,56),Vector3(.16,4,4),HallwayGeometry.WALL_COLOR)
-				if floor==0:
-					box(self,Vector3(x,y+2,64),Vector3(.16,4,8),HallwayGeometry.WALL_COLOR)
 			else:
 				if floor==1:box(self,Vector3(x,y+2,63),Vector3(.16,4,10),"c6cbd6")
 				else:

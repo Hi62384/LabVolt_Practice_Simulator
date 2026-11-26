@@ -15,6 +15,14 @@ func run() -> void:
 	var room: Dictionary=game.campus.registry.get_room("charging_room")
 	assert(room.number=="M110")
 	assert(game.campus.room_roots["charging_room"].get_node("ChargingStations").is_inside_tree())
+	var door: Node3D=game.campus.room_roots["charging_room"].get_node("Door_charging_room")
+	door._set_open(true)
+	await create_timer(.72).timeout
+	await physics_frame
+	for z in [63.45,64.0,64.55]:
+		for y in [.45,1.4]:
+			var entrance:=PhysicsRayQueryParameters3D.create(Vector3(14.4,y,z),Vector3(17.6,y,z),1)
+			assert(game.get_world_3d().direct_space_state.intersect_ray(entrance).is_empty(),"M110 entrance is blocked")
 	assert(charging.sockets.size()==4)
 	var point: Vector3=charging.sockets[0]-Vector3(0,.12,.40)
 	game.player.global_position=point

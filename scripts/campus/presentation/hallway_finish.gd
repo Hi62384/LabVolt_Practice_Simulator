@@ -45,7 +45,8 @@ static func apply(world: Node3D) -> void:
 	for floor in [0,1]:
 		var base := float(floor)*5.0
 		_add_wall_run(world, 15.91, base, 54.0, 58.0)
-		_add_wall_run(world, 15.91, base, 60.0, 68.0 if floor==0 else 62.0)
+		# M110's shell already supplies both wall runs around its doorway.
+		if floor==1:_add_wall_run(world, 15.91, base, 60.0, 62.0)
 	_add_floor_tiles(world, 0, -11.0, 68.0)
 	_add_floor_tiles(world, 1, -4.0, 50.0)
 	_add_floor_tiles(world, 1, 50.0, float(world.registry.data.corridor.upper_z_max))

@@ -133,13 +133,13 @@ func _landing(floor_id: int) -> void:
 	light.light_energy = .74
 	light.shadow_enabled = false
 	add_child(light)
-	# Waiting furniture against the west wall, beyond the stair landing.
-	# Cabin and Z58..60 aperture stay clear. The X13..16 upper route stays entirely clear.
+	# Keep waiting furniture clear of the elevator and the M110 entrance.
 	var bench_x := 15.45 if floor_id==0 else 10.55
 	var back_x := 15.78 if floor_id==0 else 10.22
-	_box(Vector3(bench_x, y + 0.46, 64.4), Vector3(0.55, 0.12, 1.8), "486879")
-	_box(Vector3(back_x, y + 0.85, 64.4), Vector3(0.09, 0.65, 1.8), "859aa5")
-	for z in [63.75, 65.05]: _box(Vector3(bench_x, y + 0.2, z), Vector3(0.4, 0.4, 0.09), "294e68")
+	var bench_z := 66.85 if floor_id==0 else 64.4
+	_box(Vector3(bench_x, y + 0.46, bench_z), Vector3(0.55, 0.12, 1.8), "486879")
+	_box(Vector3(back_x, y + 0.85, bench_z), Vector3(0.09, 0.65, 1.8), "859aa5")
+	for offset in [-.65,.65]: _box(Vector3(bench_x, y + 0.2, bench_z+offset), Vector3(0.4, 0.4, 0.09), "294e68")
 	_box(Vector3(10.55, y + 0.25, 66), Vector3(0.45, 0.5, 0.45), "7c898e")
 	_box(Vector3(10.55, y + 0.8, 66), Vector3(0.5, 0.7, 0.5), "6f8b79", false)
 
