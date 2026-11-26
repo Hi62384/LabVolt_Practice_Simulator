@@ -144,6 +144,10 @@ func _device(peer: int,kind: String,id: String,tier: String) -> Dictionary:
 	var key:=kind+":"+id
 	var record: Dictionary=devices.get_or_add(key,{"peer":peer,"id":id,"kind":kind,"tier":tier,"charge":1.0,"socket":-1,"active_until":0,"reported":100})
 	record.peer=peer
+	if kind=="laptop":
+		var configuration: Dictionary=game.computers.stations.get(id,{}).get("configuration",{})
+		record.runtime_seconds=Configuration.value(Configuration.LAPTOP,configuration,"hardware","battery",LAPTOP_RUNTIME.get(tier,900.0))
+		record.recharge_seconds=Configuration.value(Configuration.LAPTOP,configuration,"hardware","charging",RECHARGE_TIME.get(tier,120.0))
 	return record
 
 func _phone_device(peer: int,id: String,item: Dictionary) -> Dictionary:

@@ -3,6 +3,11 @@ extends RefCounted
 
 const VERSION := 1
 const PHONE := "smartphone"
+const LAPTOP := "portable_laptop"
+const USB := "usb"
+const CASE_OPTIONS := {"label":"Case","labels":["Slate","Deep blue","Jade","Coral"],"values":["667b84","25457a","27745e","b95755"],"prices":[0,18,18,18]}
+const TRIM_OPTIONS := {"label":"Trim","labels":["Silver","Copper","Black"],"values":["b7c2ca","b6764b","222831"],"prices":[0,12,12]}
+const FINISH_OPTIONS := {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,35]}
 const DEFINITIONS := {
 	PHONE: {
 		"hardware": {
@@ -16,6 +21,27 @@ const DEFINITIONS := {
 			"shell": {"label": "Case", "labels": ["Graphite", "Deep blue", "Jade", "Coral", "Lilac"], "values": ["243943", "25457a", "27745e", "b95755", "8074a0"], "prices": [0, 18, 18, 18, 18]},
 			"trim": {"label": "Buttons and trim", "labels": ["Steel", "Silver", "Copper", "Black"], "values": ["7597a3", "b7c2ca", "b6764b", "222831"], "prices": [0, 12, 12, 12]},
 			"finish": {"label": "Surface finish", "labels": ["Satin", "Matte", "Brushed metal"], "values": [Vector2(.45, .0), Vector2(.78, .0), Vector2(.32, .65)], "prices": [0, 0, 35]},
+		},
+	},
+	LAPTOP: {
+		"hardware": {
+			"processor": {"label":"Boot time","labels":["1.6 sec","0.9 sec","0.35 sec"],"values":[1600,900,350],"prices":[0,240,560]},
+			"display": {"label":"Display quality","labels":["Standard","Sharp","Full resolution"],"values":[.58,.78,1.0],"prices":[0,180,460]},
+			"battery": {"label":"Battery life","labels":["15 min","25 min","38 min"],"values":[900.0,1500.0,2300.0],"prices":[0,220,520]},
+			"charging": {"label":"Full charge","labels":["120 sec","82 sec","55 sec"],"values":[120.0,82.0,55.0],"prices":[0,95,220]},
+		},
+		"appearance": {"shell":CASE_OPTIONS,"trim":TRIM_OPTIONS,"finish":FINISH_OPTIONS},
+	},
+	USB: {
+		"hardware": {
+			"storage": {"label":"Storage","labels":["8 MB","32 MB","64 MB","150 MB"],"values":[8,32,64,150],"prices":[0,20,45,100]},
+			"read": {"label":"Read speed","labels":["4 MB/s","12 MB/s","24 MB/s"],"values":[4,12,24],"prices":[0,10,24]},
+			"write": {"label":"Write speed","labels":["4 MB/s","12 MB/s","24 MB/s"],"values":[4,12,24],"prices":[0,12,28]},
+		},
+		"appearance": {
+			"shell": {"label":"Case","labels":["Teal","Deep blue","Jade","Coral"],"values":["287e84","25457a","27745e","b95755"],"prices":[0,6,6,6]},
+			"trim": {"label":"Detail","labels":["Mint","Silver","Copper","Black"],"values":["b5eadb","b7c2ca","b6764b","222831"],"prices":[0,4,4,4]},
+			"finish": {"label":"Finish","labels":["Satin","Matte","Brushed metal"],"values":[Vector2(.45,0),Vector2(.78,0),Vector2(.32,.65)],"prices":[0,0,9]},
 		},
 	},
 }
@@ -67,6 +93,21 @@ static func phone_appearance(item: Dictionary) -> Dictionary:
 	return item.get("configuration", {}).get("appearance", {})
 
 static func same_phone_configuration(left: Dictionary, right: Dictionary) -> bool:
+	return same_configuration(PHONE,left,right)
+
+static func same_configuration(kind: String, left: Dictionary, right: Dictionary) -> bool:
 	if left.is_empty() or right.is_empty():return left.is_empty() and right.is_empty()
-	var canonical := quote(PHONE,0,left)
-	return not canonical.is_empty() and canonical==quote(PHONE,0,right)
+	var canonical := quote(kind,0,left)
+	return not canonical.is_empty() and canonical==quote(kind,0,right)
+
+static func usb_capacity(pending: Variant) -> int:
+	var capacity: Variant=pending.get("capacity_mb") if pending is Dictionary else pending
+	if not (capacity is int or capacity is float) or not is_finite(capacity) or capacity!=floor(capacity) or capacity not in [8,32,64,150]:return 0
+	return int(capacity)
+
+static func valid_usb_pending(pending: Variant) -> bool:
+	var capacity:=usb_capacity(pending)
+	if capacity==0:return false
+	if not pending is Dictionary:return true
+	if pending.size()!=2 or quote(USB,0,pending.get("configuration")).is_empty():return false
+	return value(USB,pending.configuration,"hardware","storage",0)==capacity

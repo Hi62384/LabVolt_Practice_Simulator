@@ -2,12 +2,14 @@ extends ConfirmationDialog
 
 const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
 const Handset = preload("res://scripts/campus/phones/phone_handset.gd")
+const Finish = preload("res://scripts/campus/items/equipment_finish.gd")
 const Widgets = preload("res://scripts/ui/design_system/widgets.gd")
-const PhoneTiers = preload("res://scripts/campus/phones/phone_tiers.gd")
 
 var profile: RefCounted
 var bought: Callable
-var configuration := Config.defaults(Config.PHONE)
+var configuration: Dictionary
+var kind: String
+var base_price: int
 var stage := 0
 var headings: Label
 var price: Label
@@ -16,11 +18,15 @@ var back: Button
 var sections: Array[GridContainer] = []
 var preview: SubViewport
 var phone: Node3D
+var rendered_product: Node3D
 
-func build(owner: RefCounted, purchase_completed: Callable) -> void:
+func build(owner: RefCounted, purchase_completed: Callable, product: Dictionary, model_builder: Callable) -> void:
 	profile=owner
 	bought=purchase_completed
-	title="Configure your smartphone"
+	kind=product.kind
+	base_price=product.price
+	configuration=Config.defaults(kind)
+	title="Configure " + str(product.name).to_lower()
 	dialog_hide_on_ok=false
 	var layout:=VBoxContainer.new()
 	layout.custom_minimum_size=Vector2(610,350)
@@ -37,7 +43,7 @@ func build(owner: RefCounted, purchase_completed: Callable) -> void:
 	workbench.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	workbench.add_theme_constant_override("separation",16)
 	layout.add_child(workbench)
-	_build_preview(workbench)
+	_build_preview(workbench,model_builder)
 	var options:=VBoxContainer.new()
 	options.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	workbench.add_child(options)
@@ -48,8 +54,8 @@ func build(owner: RefCounted, purchase_completed: Callable) -> void:
 		fields.add_theme_constant_override("v_separation",8)
 		options.add_child(fields)
 		sections.append(fields)
-		for key in Config.DEFINITIONS[Config.PHONE][group]:
-			var option: Dictionary=Config.DEFINITIONS[Config.PHONE][group][key]
+		for key in Config.DEFINITIONS[kind][group]:
+			var option: Dictionary=Config.DEFINITIONS[kind][group][key]
 			fields.add_child(Widgets.text(option.label))
 			var selector:=OptionButton.new()
 			selector.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -67,7 +73,7 @@ func build(owner: RefCounted, purchase_completed: Callable) -> void:
 	_show_stage(0)
 	_update_quote()
 
-func _build_preview(parent: Control) -> void:
+func _build_preview(parent: Control, model_builder: Callable) -> void:
 	var frame:=PanelContainer.new()
 	frame.theme_type_variation="CardPanel"
 	frame.custom_minimum_size=Vector2(200,265)
@@ -82,10 +88,14 @@ func _build_preview(parent: Control) -> void:
 	display.add_child(preview)
 	phone=Node3D.new()
 	preview.add_child(phone)
-	Handset.build(phone)
-	phone.rotation=Vector3(-.12,-.38,.09)
+	if kind==Config.PHONE:
+		Handset.build(phone)
+		rendered_product=phone
+	else:
+		rendered_product=model_builder.call(kind,phone)
+	phone.rotation=Vector3(.28 if kind==Config.LAPTOP else -.12,-.38,.09)
 	var camera:=Camera3D.new()
-	camera.position=Vector3(0,0,.36)
+	camera.position=Vector3(0,0,{Config.PHONE:.36,Config.LAPTOP:.98,Config.USB:.21}[kind])
 	camera.fov=42
 	preview.add_child(camera)
 	for setup in [[Vector3(-26,-30,0),1.4],[Vector3(15,63,0),.8]]:
@@ -93,7 +103,7 @@ func _build_preview(parent: Control) -> void:
 		light.rotation_degrees=setup[0]
 		light.light_energy=setup[1]
 		preview.add_child(light)
-	display.tooltip_text="Drag to rotate the phone"
+	display.tooltip_text="Drag to rotate the preview"
 	display.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
 			phone.rotate_y(event.relative.x*.013)
@@ -106,12 +116,13 @@ func _select(index: int, group: String, key: String) -> void:
 	_update_quote()
 
 func _quote() -> Dictionary:
-	return Config.quote(Config.PHONE,int(PhoneTiers.TIERS.basic.price),configuration)
+	return Config.quote(kind,base_price,configuration)
 
 func _update_quote() -> void:
 	var quoted:=_quote()
 	price.text="$%d"%quoted.price
-	Handset.apply_appearance(phone,configuration.appearance)
+	if kind==Config.PHONE:Handset.apply_appearance(phone,configuration.appearance)
+	else:Finish.apply_finish(rendered_product,kind,configuration)
 	preview.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func _show_stage(index: int) -> void:
@@ -124,8 +135,8 @@ func _show_stage(index: int) -> void:
 	if stage==2:
 		var lines:=PackedStringArray()
 		for group in ["hardware","appearance"]:
-			for key in Config.DEFINITIONS[Config.PHONE][group]:
-				var option: Dictionary=Config.DEFINITIONS[Config.PHONE][group][key]
+			for key in Config.DEFINITIONS[kind][group]:
+				var option: Dictionary=Config.DEFINITIONS[kind][group][key]
 				lines.append("%s  ·  %s"%[option.label,option.labels[configuration[group][key]]])
 		review.text="\n".join(lines)
 
@@ -134,7 +145,13 @@ func _advance() -> void:
 		_show_stage(stage+1)
 		return
 	get_ok_button().disabled=true
-	var message: String=profile.buy_smartphone("basic",6,"",configuration)
+	var message: String
+	match kind:
+		Config.PHONE:message=profile.buy_smartphone("basic",6,"",configuration)
+		Config.LAPTOP:message=profile.buy_portable_laptop("basic",6,"",configuration)
+		Config.USB:
+			var capacity:=int(Config.value(Config.USB,configuration,"hardware","storage",8))
+			message=profile.buy_usb(capacity,6,"",configuration)
 	hide()
 	queue_free()
 	bought.call(message)

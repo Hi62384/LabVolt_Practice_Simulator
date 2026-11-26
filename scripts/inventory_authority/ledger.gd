@@ -71,7 +71,8 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 					if not imported.has("laptop_purchase_resolved"):imported.laptop_purchase_resolved={}
 					imported.laptop_purchase_resolved[laptop_id]=true
 					continue
-				if not previous_laptops.has(laptop_id) or imported.laptop_purchase_pending[laptop_id].tier!=purchase.item.tier or (incoming_laptops.has(laptop_id) and not adopted_host_dorm):return failure("Pending laptop purchase conflicts with host record")
+				var pending: Dictionary=imported.laptop_purchase_pending[laptop_id]
+				if not previous_laptops.has(laptop_id) or pending.tier!=purchase.item.tier or not Profile.EquipmentConfiguration.same_configuration("portable_laptop",pending.get("configuration",{}),purchase.item.get("configuration",{})) or (incoming_laptops.has(laptop_id) and not adopted_host_dorm):return failure("Pending laptop purchase conflicts with host record")
 				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending laptop purchase")
 				imported.dollars-=int(purchase.debit)
 				if adopted_host_dorm:
@@ -118,7 +119,9 @@ func bind(peer: int,identity: String,secret: String,initial: Dictionary) -> Dict
 					if not imported.has("usb_purchase_resolved"):imported.usb_purchase_resolved={}
 					imported.usb_purchase_resolved[usb_id]=true
 					continue
-				if not previous_drives.has(usb_id) or int(imported.usb_purchase_pending[usb_id])!=int(purchase.item.capacity_mb):return failure("Pending USB purchase conflicts with host record")
+				var pending: Variant=imported.usb_purchase_pending[usb_id]
+				var configuration: Dictionary=pending.get("configuration",{}) if pending is Dictionary else {}
+				if not previous_drives.has(usb_id) or Profile.EquipmentConfiguration.usb_capacity(pending)!=int(purchase.item.capacity_mb) or not Profile.EquipmentConfiguration.same_configuration("usb",configuration,purchase.item.get("configuration",{})):return failure("Pending USB purchase conflicts with host record")
 				if incoming_drives.has(usb_id) and not adopted_host_dorm:return failure("Pending USB purchase conflicts with inventory")
 				if float(imported.dollars)<int(purchase.debit):return failure("Insufficient balance to reconcile a pending USB purchase")
 				imported.dollars-=int(purchase.debit)
@@ -323,16 +326,16 @@ func transact(peer: int,id: String,op: String,args: Array,live_design: Dictionar
 			message=p.buy_study_tool(args[0],args[1] if args.size()==2 else 6)
 			if not p.operation_succeeded:return failure(message)
 		"buy_usb":
-			if args.size()!=3 or not args[0] is int or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid USB purchase")
+			if args.size() not in [3,4] or not args[0] is int or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid USB purchase")
 			for account_data in state.accounts.values():
 				if account_data.profile.get("dorm",{}).get("usb_drives",{}).has(args[2]):return failure("USB identity already exists")
-			message=p.buy_usb(args[0],args[1],args[2])
+			message=p.buy_usb(args[0],args[1],args[2],args[3] if args.size()==4 else {})
 			if not p.operation_succeeded:return failure(message)
 		"buy_portable_laptop":
-			if args.size()!=3 or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid laptop purchase")
+			if args.size() not in [3,4] or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid laptop purchase")
 			for account_data in state.accounts.values():
 				if account_data.profile.get("dorm",{}).get("portable_laptops",{}).has(args[2]):return failure("Laptop identity already exists")
-			message=p.buy_portable_laptop(args[0],args[1],args[2])
+			message=p.buy_portable_laptop(args[0],args[1],args[2],args[3] if args.size()==4 else {})
 			if not p.operation_succeeded:return failure(message)
 		"buy_smartphone":
 			if args.size() not in [3,4] or not args[0] is String or not args[1] is int or args[1] not in range(7) or not args[2] is String or args[2].length()!=32 or not args[2].is_valid_hex_number():return failure("Invalid phone purchase")

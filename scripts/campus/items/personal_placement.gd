@@ -4,6 +4,7 @@ const Dorm=preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Phones=preload("res://scripts/campus/phones/phone_tiers.gd")
 const Configuration=preload("res://scripts/campus/items/equipment_configuration.gd")
 const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
+const EquipmentFinish=preload("res://scripts/campus/items/equipment_finish.gd")
 var game: Node
 var placed: Dictionary={}
 var models: Dictionary={}
@@ -71,6 +72,9 @@ func _place(peer: int,key: String,point: Vector3,yaw: float) -> void:
 	if key.begins_with("phone:"):
 		var appearance:=Configuration.phone_appearance(dorm.smartphones[key.trim_prefix("phone:")])
 		if not appearance.is_empty():placed[key_for(peer,key)].appearance=appearance
+	elif key.begins_with("usb:"):
+		var configuration: Dictionary=dorm.usb_drives[key.trim_prefix("usb:")].get("configuration",{})
+		if not configuration.is_empty():placed[key_for(peer,key)].configuration=configuration
 	_sync_models()
 	_publish()
 
@@ -175,7 +179,8 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 		body.set_meta("phone_screen",screen)
 	elif key.begins_with("usb:"):
 		shape.size=Vector3(.16,.05,.08)
-		game.computer_room_adapter._build_usb_visual(body,Vector3(-.04,.013,0))
+		var usb: Node3D=game.computer_room_adapter._build_usb_visual(body,Vector3(-.04,.013,0))
+		EquipmentFinish.apply_finish(usb,Configuration.USB,entry.get("configuration",{}))
 	else:
 		game.discarded_items._add_item_visual(body,str(entry.visual),entry)
 	return body

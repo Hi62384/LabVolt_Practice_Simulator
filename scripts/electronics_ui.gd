@@ -350,7 +350,15 @@ func study_supplies() -> void:
 		_study_supply_card(grid,id)
 	body.add_child(KitUI.text("PERSONAL ELECTRONICS","Title"))
 	var electronics:=preload("res://scripts/ui/store_bundles_equipment/module.gd")
-	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone"])
+	electronics.populate(body,profile,func(message: String):open("supplies");status.text=message,status,"equipment",Callable(),["usb","portable_laptop","smartphone"],_equipment_preview)
+
+func _equipment_preview(kind: String,parent: Node3D) -> Node3D:
+	if kind=="usb":return game.computer_room_adapter._build_usb_visual(parent,Vector3(0,0,-.02))
+	var model:=Node3D.new()
+	model.position=Vector3(0,-.15,.05)
+	parent.add_child(model)
+	game.ac_laptops._build_laptop(model,-1)
+	return model
 
 func _study_supply_card(parent: Control, id: String) -> void:
 	const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")

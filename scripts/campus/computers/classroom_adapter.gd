@@ -2,6 +2,8 @@ extends Node
 ## Composition layer: static room anchors + existing chair authority + one local UI.
 const Desktop = preload("res://scripts/campus/computers/course_desktop.gd")
 const Preferences = preload("res://scripts/campus/computers/desktop_preferences.gd")
+const EquipmentFinish = preload("res://scripts/campus/items/equipment_finish.gd")
+const EquipmentConfig = preload("res://scripts/campus/items/equipment_configuration.gd")
 const Board = preload("res://scripts/campus/academics/teaching_board.gd")
 var game: Node
 var room: Node3D
@@ -33,6 +35,7 @@ var live_preview_station := ""
 var volume_knobs := {}
 var usb_visuals := {}
 var held_usb: Node3D
+var visible_usb_id := ""
 var power_states := {}
 var active := false
 var ui_was_open := false
@@ -100,7 +103,8 @@ func _resize_desktop(bounds: Control) -> void:
 	if is_instance_valid(desktop) and not desktop.parked_device.is_empty() and desktop.snapshot.is_empty():return
 	var logical:=Vector2i(bounds.size.round())
 	if logical.x<2 or logical.y<2:return
-	var display_scale:=get_viewport().get_stretch_transform().get_scale()
+	var hardware_scale: float=desktop.snapshot.get("display_scale",1.0) if is_instance_valid(desktop) else 1.0
+	var display_scale:=get_viewport().get_stretch_transform().get_scale()*hardware_scale
 	var pixels:=Vector2i((Vector2(logical)*display_scale).round()).max(Vector2i(2,2))
 	# Keep the desktop layout in logical units and render its text into native
 	# pixels. Inverse container scaling keeps pointer coordinates aligned.
@@ -233,6 +237,8 @@ func _build_usb_visual(parent: Node3D, at: Vector3) -> Node3D:
 		piece.position=part[0]
 		piece.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		drive.add_child(piece)
+	drive.set_meta("equipment_shell",[drive.get_child(1)])
+	drive.set_meta("equipment_trim",[drive.get_child(2)])
 	return drive
 
 func mount_usb_visual(port: Node3D, id: String, at: Vector3, yaw: float) -> void:
@@ -244,7 +250,12 @@ func mount_usb_visual(port: Node3D, id: String, at: Vector3, yaw: float) -> void
 
 func _update_usb_visuals(ports: Dictionary) -> void:
 	for id in usb_visuals:
-		if is_instance_valid(usb_visuals[id]):usb_visuals[id].visible=ports.has(id)
+		if not is_instance_valid(usb_visuals[id]):continue
+		var model: Node3D=usb_visuals[id]
+		model.visible=ports.has(id)
+		if not model.visible:continue
+		var appearance: Variant=ports[id]
+		EquipmentFinish.apply_finish(model,EquipmentConfig.USB,appearance if appearance is Dictionary else EquipmentConfig.defaults(EquipmentConfig.USB))
 
 func mount_portable_display(id: String, model: Node3D) -> void:
 	indicators[id]=model
@@ -304,6 +315,8 @@ func _desktop_changed(snapshot: Dictionary) -> void:
 	if not snapshot.is_empty():
 		desktop_render.set_meta("parked_preview",false)
 		_resize_desktop(desktop_overlay.get_parent())
+		# The desktop's own signal can apply the new snapshot after this handler.
+		_resize_desktop.call_deferred(desktop_overlay.get_parent())
 	desktop_render.render_target_update_mode=SubViewport.UPDATE_DISABLED if snapshot.is_empty() else SubViewport.UPDATE_WHEN_VISIBLE
 	_update_indicators()
 	if snapshot.is_empty():
@@ -420,9 +433,9 @@ func _boot_changed(state: Dictionary) -> void:
 	for id in boot_until.keys():
 		if not state.has(id):boot_until.erase(id)
 	for id in state:
-		if boot_seen.get(id,-1)==state[id]:continue
-		boot_seen[id]=state[id]
-		boot_until[id]=Time.get_ticks_msec()+1600
+		if boot_seen.get(id,-1)==state[id].cycle:continue
+		boot_seen[id]=state[id].cycle
+		boot_until[id]=Time.get_ticks_msec()+clampi(int(state[id].remaining),0,1600)
 	if not boot_until.is_empty() and boot_timer.is_stopped():boot_timer.start()
 	_tick_boot()
 	_update_indicators()
@@ -457,6 +470,12 @@ func _tick_monitor_mirror() -> void:
 	var now := Time.get_ticks_msec()
 	var slot: int=game.hotbar.active
 	held_usb.visible=game.front.in_game and game.player.enabled and slot in range(game.hotbar.slots.size()) and game.hotbar.slots[slot].get("kind","")=="usb"
+	if held_usb.visible:
+		var usb_id: String=game.hotbar.slots[slot].id
+		if usb_id!=visible_usb_id:
+			visible_usb_id=usb_id
+			var item: Dictionary=game.electronics.profile.data.get("dorm",{}).get("usb_drives",{}).get(usb_id,{})
+			EquipmentFinish.apply_finish(held_usb,EquipmentConfig.USB,item.get("configuration",EquipmentConfig.defaults(EquipmentConfig.USB)))
 	if local_screen_station.is_empty():
 		_tick_parked_screen(now)
 	var changed := false
@@ -523,6 +542,7 @@ func _tick_parked_screen(now: int) -> void:
 	desktop_render.set_meta("parked_preview",true)
 	var logical:=Vector2(desktop_render.size_2d_override)
 	var scale:=float(game.ui.graphics_controller.screen_previews.computer_scale)
+	if indicators.has(id):scale*=float(indicators[id].get_meta("display_scale",1.0))
 	desktop_render.size=Vector2i((logical*scale*minf(384.0/logical.x,216.0/logical.y)).round())
 	desktop.show()
 	desktop_render.render_target_update_mode=SubViewport.UPDATE_ONCE

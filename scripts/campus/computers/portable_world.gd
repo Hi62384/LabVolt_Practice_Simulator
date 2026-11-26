@@ -1,4 +1,6 @@
 extends Node3D
+const EquipmentFinish=preload("res://scripts/campus/items/equipment_finish.gd")
+const EquipmentConfig=preload("res://scripts/campus/items/equipment_configuration.gd")
 ## Ownership stays in the player's
 ## hotbar while placed so a session restart cannot destroy the purchase.
 const WorkstationDisplay=preload("res://scripts/campus/presentation/decor/computer_rooms/computer_station.gd")
@@ -80,12 +82,13 @@ func _place_for(peer: int,id: String,point: Vector3,yaw: float) -> bool:
 		if surface.is_empty() or surface.normal.y<.9:return false
 		point=surface.position
 	var station:=id
-	if not game.computers.register_portable(station,point,str(dorm.owner),str(item.tier)):return false
-	_spawn(id,point,yaw,peer,identity,str(item.tier),false)
+	var configuration: Dictionary=item.get("configuration",{})
+	if not game.computers.register_portable(station,point,str(dorm.owner),str(item.tier),configuration):return false
+	_spawn(id,point,yaw,peer,identity,str(item.tier),false,configuration)
 	_publish()
 	return true
 
-func _spawn(id: String,point: Vector3,yaw: float,owner_peer: int,owner: String,tier: String,opened: bool) -> void:
+func _spawn(id: String,point: Vector3,yaw: float,owner_peer: int,owner: String,tier: String,opened: bool,configuration: Dictionary={}) -> void:
 	var station:=id
 	var model:=WorkstationDisplay.new()
 	model.set_meta("portable",true)
@@ -93,6 +96,8 @@ func _spawn(id: String,point: Vector3,yaw: float,owner_peer: int,owner: String,t
 	model.rotation.y=yaw
 	add_child(model)
 	game.ac_laptops._build_laptop(model,-1)
+	EquipmentFinish.apply_finish(model,EquipmentConfig.LAPTOP,configuration)
+	model.set_meta("display_scale",EquipmentConfig.value(EquipmentConfig.LAPTOP,configuration,"hardware","display",1.0))
 	for body in model.find_children("*","StaticBody3D",true,false):
 		if body.get_meta("role","")=="ac_laptop":
 			body.set_meta("role","portable_laptop")
@@ -130,7 +135,7 @@ func _spawn(id: String,point: Vector3,yaw: float,owner_peer: int,owner: String,t
 	display_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
 	model.screen.material_override=display_material
 	model.get_node("Lid").add_child(model.screen)
-	placed[id]={"model":model,"station":station,"open":opened,"peer":owner_peer,"owner":owner,"tier":tier,"position":point,"yaw":yaw}
+	placed[id]={"model":model,"station":station,"open":opened,"peer":owner_peer,"owner":owner,"tier":tier,"position":point,"yaw":yaw,"configuration":configuration}
 	_set_lid(placed[id],opened)
 	if game.computers.stations.has(id):
 		game.computers.stations[id].speaker_position=model.to_global(Vector3(0,.064,.07))
@@ -213,7 +218,7 @@ func _publish() -> void:
 	var state:={}
 	for id in placed:
 		var entry: Dictionary=placed[id]
-		state[id]={"position":entry.position,"yaw":entry.yaw,"peer":entry.peer,"owner":entry.owner,"tier":entry.tier,"open":entry.open}
+		state[id]={"position":entry.position,"yaw":entry.yaw,"peer":entry.peer,"owner":entry.owner,"tier":entry.tier,"open":entry.open,"configuration":entry.get("configuration",{})}
 	_receive.rpc(state)
 
 @rpc("authority","call_remote","reliable")
@@ -223,7 +228,7 @@ func _receive(state: Dictionary) -> void:
 		if not state.has(id):placed[id].model.queue_free();placed.erase(id)
 	for id in state:
 		var entry: Dictionary=state[id]
-		if not placed.has(id):_spawn(id,entry.position,entry.yaw,entry.peer,entry.owner,entry.tier,entry.open)
+		if not placed.has(id):_spawn(id,entry.position,entry.yaw,entry.peer,entry.owner,entry.tier,entry.open,entry.get("configuration",{}))
 		else:_set_lid(placed[id],entry.open)
 
 func _profile_ready(_peer: int) -> void:

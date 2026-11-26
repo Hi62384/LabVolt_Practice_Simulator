@@ -97,7 +97,7 @@ func _coiled_cable(parent: Node3D) -> void:
   _box(parent,Vector3(x+(.025 if x>0 else -.025),0,0),Vector3(.014,.012,.018),Color("c0c8c4"))
 func _build_laptop(root: Node3D,id: int) -> void:
  var body:=_target(root,"ac_laptop",id,Vector3(0,.035,0),Vector3(.46,.10,.33))
- _box(body,Vector3.ZERO,Vector3(.46,.045,.32),Color("667b84"))
+ var chassis:=_box(body,Vector3.ZERO,Vector3(.46,.045,.32),Color("667b84"))
  _box(body,Vector3(0,.026,-.035),Vector3(.40,.007,.185),Color("273a46"))
  if keyboard_instances==null:
   keyboard_instances=MultiMesh.new();keyboard_instances.transform_format=MultiMesh.TRANSFORM_3D
@@ -106,13 +106,15 @@ func _build_laptop(root: Node3D,id: int) -> void:
    for col in 10:keyboard_instances.set_instance_transform(row*10+col,Transform3D(Basis.IDENTITY,Vector3(-.174+col*.038,.031,-.108+row*.041)))
   keyboard_material=_material(Color("a4b5b4"))
  var keys:=MultiMeshInstance3D.new();keys.multimesh=keyboard_instances;keys.material_override=keyboard_material;keys.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;body.add_child(keys)
- _box(body,Vector3(0,.028,.108),Vector3(.13,.004,.065),Color("91a5a9"))
+ var trackpad:=_box(body,Vector3(0,.028,.108),Vector3(.13,.004,.065),Color("91a5a9"))
  var lid:=Node3D.new();lid.name="Lid";lid.position=Vector3(0,.06,-.15);root.add_child(lid)
  _target(lid,"ac_laptop",id,Vector3(0,.13,.008),Vector3(.46,.26,.034))
- _box(lid,Vector3(0,.13,0),Vector3(.46,.26,.025),Color("718892"))
+ var lid_case:=_box(lid,Vector3(0,.13,0),Vector3(.46,.26,.025),Color("718892"))
  _box(lid,Vector3(0,.13,.014),Vector3(.42,.225,.006),Color("182b36"))
  _box(lid,Vector3(0,.13,.018),Vector3(.385,.188,.003),Color("315e70"))
- _box(lid,Vector3(0,.13,-.014),Vector3(.08,.012,.003),Color("c1d4d2"))
+ var badge:=_box(lid,Vector3(0,.13,-.014),Vector3(.08,.012,.003),Color("c1d4d2"))
+ root.set_meta("equipment_shell",[chassis,lid_case])
+ root.set_meta("equipment_trim",[trackpad,badge])
  var port:=_target(root,"ac_laptop_usb",id,Vector3(.23,.045,0),Vector3(.055,.08,.12))
  _box(port,Vector3(.002,0,0),Vector3(.002,.014,.055),Color("10151b"))
 

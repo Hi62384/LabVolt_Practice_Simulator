@@ -6,6 +6,7 @@ const Catalog = preload("res://scripts/electronics_catalog.gd")
 const Dorm = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Profile = preload("res://scripts/electronics_profile.gd")
 const Portraits = preload("res://scripts/ui/personal_inventory/item_portraits.gd")
+const Config = preload("res://scripts/campus/items/equipment_configuration.gd")
 
 static func products(profile: Variant) -> Array:
 	var result: Array=[]
@@ -36,18 +37,15 @@ static func equipment_products() -> Array:
 			"kind": "kit", "tier": tier, "name": kit.name, "price": kit.price, "rarity": kit.rarity,
 			"summary": summary, "description": "%s." % summary
 		})
-	for capacity in preload("res://scripts/campus/computers/usb_inventory.gd").PRICES:
-		result.append({"kind":"usb","capacity_mb":capacity,"name":"%d MB USB drive"%capacity,"price":preload("res://scripts/campus/computers/usb_inventory.gd").PRICES[capacity],"rarity":"Common","summary":"Portable file storage","description":"Save computer files on a removable USB drive."})
-	var laptops: Dictionary=preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS
-	for tier in ["basic","standard","premium"]:
-		var laptop: Dictionary=laptops[tier]
-		var summary: String={"basic":"Entry-level performance","standard":"Faster performance","premium":"Full-speed performance"}[tier]
-		result.append({"kind":"portable_laptop","tier":tier,"name":laptop.name,"price":laptop.price,"rarity":{"basic":"Uncommon","standard":"Rare","premium":"Epic"}[tier],"summary":summary,"description":"Portable computer with %s. Select it and press F to place it; right-click to open and use it. Connect a USB drive to keep files after power-off."%summary.to_lower()})
+	var usb_price: int=preload("res://scripts/campus/computers/usb_inventory.gd").PRICES[8]
+	result.append({"kind":"usb","name":"USB drive","price":usb_price,"rarity":"Common","summary":"Configurable","description":"Choose capacity, transfer speeds and appearance for removable storage."})
+	var laptop: Dictionary=preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS.basic
+	result.append({"kind":"portable_laptop","name":"Laptop","price":laptop.price,"rarity":"Uncommon","summary":"Configurable","description":"Choose boot time, display quality, battery and finish. Save files to USB to keep them after power-off."})
 	var phone: Dictionary=preload("res://scripts/campus/phones/phone_tiers.gd").TIERS.basic
 	result.append({"kind":"smartphone","name":"Smartphone","price":phone.price,"rarity":"Uncommon","summary":"Configurable","description":"Set the phone’s hardware and finish before purchase. Right-click to open the phone."})
 	return result
 
-static func populate(parent: Node, profile: Variant, refresh: Callable, status: Label, section: String, reveal := Callable(), product_kinds: Array = []) -> void:
+static func populate(parent: Node, profile: Variant, refresh: Callable, status: Label, section: String, reveal := Callable(), product_kinds: Array = [], model_builder:=Callable()) -> void:
 	# The shell mounts Bundles and Equipment in separate section containers.
 	assert(section in ["bundles", "equipment"])
 	var layout := HBoxContainer.new()
@@ -76,7 +74,7 @@ static func populate(parent: Node, profile: Variant, refresh: Callable, status: 
 		tile.custom_minimum_size = Vector2(92,92)
 		var picture: TextureRect = tile.get_child(0)
 		picture.texture = bundle_art(product.name) if is_bundle else portraits.texture(product,profile)
-		var button := UI.action("Details","info",func():details(details_body,profile,product,refresh,status,reveal))
+		var button := UI.action("Details","info",func():details(details_body,profile,product,refresh,status,reveal,model_builder))
 		card.get_node("Content/Copy").add_child(button)
 
 static func bundle_art(name: String, opened := false) -> Texture2D:
@@ -90,7 +88,7 @@ static func bundle_art(name: String, opened := false) -> Texture2D:
 	for id in samples.get(name,[]): entries.append(catalog[id])
 	return Art.bundle(entries, colors.get(name,"527071"), opened)
 
-static func details(parent: Node, profile: Variant, product: Dictionary, refresh: Callable, status: Label, reveal: Callable) -> void:
+static func details(parent: Node, profile: Variant, product: Dictionary, refresh: Callable, status: Label, reveal: Callable, model_builder:=Callable()) -> void:
 	for child in parent.get_children():
 		parent.remove_child(child)
 		child.queue_free()
@@ -124,12 +122,12 @@ static func details(parent: Node, profile: Variant, product: Dictionary, refresh
 		parent.add_child(description)
 		parent.add_child(UI.text("Goes to your hotbar or dorm cabinet." if kind in ["usb","portable_laptop","smartphone"] else "Goes to your hotbar, equipped backpack, or dorm cabinet, in that order.","MutedLabel"))
 	var buy := UI.action("Buy for $%d"%product.price,"cart",Callable())
-	if kind=="smartphone":
+	if Config.DEFINITIONS.has(kind):
 		buy.text="Configure from $%d"%product.price
 		buy.pressed.connect(func():
-			var configurator:=preload("res://scripts/ui/store_bundles_equipment/phone_configurator.gd").new()
+			var configurator:=preload("res://scripts/ui/store_bundles_equipment/equipment_configurator.gd").new()
 			parent.add_child(configurator)
-			configurator.build(profile,refresh)
+			configurator.build(profile,refresh,product,model_builder)
 			configurator.popup_centered())
 		parent.add_child(buy)
 		return
@@ -142,8 +140,6 @@ static func details(parent: Node, profile: Variant, product: Dictionary, refresh
 			"random": message=profile.buy_box(product.name)
 			"lab_goggles": message=profile.buy_study_tool("lab_goggles")
 			"kit": message=profile.create_kit(product.tier)
-			"usb": message=profile.buy_usb(int(product.capacity_mb))
-			"portable_laptop": message=profile.buy_portable_laptop(str(product.tier))
 		var items: Dictionary = profile.last_bundle_receipt if kind in ["guaranteed", "random"] else {}
 		refresh.call(message)
 		if reveal.is_valid() and not items.is_empty():

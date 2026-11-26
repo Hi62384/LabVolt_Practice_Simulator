@@ -260,14 +260,14 @@ func receive_snapshot(result: Dictionary) -> void:
 	var operation := ""
 	if not pending.is_empty() and pending[0].id==id:
 		operation=str(pending[0].get("op",""))
-		if operation=="buy_usb" and not result.get("ok",false) and pending[0].args.size()==3:
+		if operation=="buy_usb" and not result.get("ok",false) and pending[0].args.size() in [3,4]:
 			var profile=game.electronics.profile
 			var before: Dictionary=profile.data.duplicate(true)
 			profile.data.get("usb_purchase_pending",{}).erase(str(pending[0].args[2]))
 			var callback: Callable=profile.authority_submit;profile.authority_submit=Callable()
 			if profile.save()!=OK:profile.data=before
 			profile.authority_submit=callback
-		if operation=="buy_portable_laptop" and not result.get("ok",false) and pending[0].args.size()==3:
+		if operation=="buy_portable_laptop" and not result.get("ok",false) and pending[0].args.size() in [3,4]:
 			var profile=game.electronics.profile
 			var before: Dictionary=profile.data.duplicate(true)
 			profile.data.get("laptop_purchase_pending",{}).erase(str(pending[0].args[2]))

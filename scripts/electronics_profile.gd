@@ -134,8 +134,7 @@ static func valid(value: Variant) -> bool:
 	var purchase_pending: Variant=value.get("usb_purchase_pending",{})
 	if not purchase_pending is Dictionary or purchase_pending.size()>16:return false
 	for usb_id in purchase_pending:
-		var capacity: Variant=purchase_pending[usb_id]
-		if not usb_id is String or usb_id.length()!=32 or not usb_id.is_valid_hex_number() or not (capacity is int or capacity is float) or not is_finite(float(capacity)) or float(capacity)!=floor(float(capacity)) or int(capacity) not in [8,32,64,150]:return false
+		if not usb_id is String or usb_id.length()!=32 or not usb_id.is_valid_hex_number() or not EquipmentConfiguration.valid_usb_pending(purchase_pending[usb_id]):return false
 	var purchase_resolved: Variant=value.get("usb_purchase_resolved",{})
 	if not purchase_resolved is Dictionary or purchase_resolved.size()>1024:return false
 	for usb_id in purchase_resolved:
@@ -144,7 +143,9 @@ static func valid(value: Variant) -> bool:
 	if not laptop_pending is Dictionary or laptop_pending.size()>16:return false
 	for laptop_id in laptop_pending:
 		var pending: Variant=laptop_pending[laptop_id]
-		if not laptop_id is String or laptop_id.length()!=32 or not laptop_id.is_valid_hex_number() or laptop_id!=laptop_id.to_lower() or not pending is Dictionary or pending.size()!=2 or not preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS.has(pending.get("tier","")) or not pending.get("host") is String or pending.host.is_empty() or pending.host.length()>96:return false
+		if not laptop_id is String or laptop_id.length()!=32 or not laptop_id.is_valid_hex_number() or laptop_id!=laptop_id.to_lower() or not pending is Dictionary or not preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS.has(pending.get("tier","")) or not pending.get("host") is String or pending.host.is_empty() or pending.host.length()>96:return false
+		if pending.size()!=2+int(pending.has("configuration")):return false
+		if pending.has("configuration") and (pending.tier!="basic" or EquipmentConfiguration.quote(EquipmentConfiguration.LAPTOP,0,pending.configuration).is_empty()):return false
 	var laptop_resolved: Variant=value.get("laptop_purchase_resolved",{})
 	if not laptop_resolved is Dictionary or laptop_resolved.size()>1024:return false
 	for laptop_id in laptop_resolved:
@@ -369,11 +370,19 @@ func buy_study_tool(id: String, hotbar_limit := 6) -> String:
 	operation_succeeded=true
 	return "%s added to your %s" % [Dorm.TOOLS.get(id,bag.get("name","Supply")),destination]
 
-func buy_usb(capacity_mb: int, hotbar_limit := 6, requested_id := "") -> String:
+func buy_usb(capacity_mb: int, hotbar_limit := 6, requested_id := "", configuration: Variant = {}) -> String:
 	if purchase_hotbar_limit.is_valid():hotbar_limit=mini(hotbar_limit,purchase_hotbar_limit.call())
 	operation_succeeded=false
 	var usb=preload("res://scripts/campus/computers/usb_inventory.gd")
 	if not usb.PRICES.has(capacity_mb) or not data.has("dorm"):return "USB drive unavailable"
+	if not configuration is Dictionary:return "Invalid USB configuration"
+	var price:=int(usb.PRICES[capacity_mb])
+	var selected: Dictionary={}
+	if not configuration.is_empty():
+		var quote:=EquipmentConfiguration.quote(EquipmentConfiguration.USB,int(usb.PRICES[8]),configuration)
+		if quote.is_empty() or EquipmentConfiguration.value(EquipmentConfiguration.USB,quote.configuration,"hardware","storage",0)!=capacity_mb:return "Invalid USB configuration"
+		price=int(quote.price)
+		selected=quote.configuration
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var dorm: Dictionary=data.dorm
 	var id:=requested_id if not requested_id.is_empty() else Crypto.new().generate_random_bytes(16).hex_encode()
@@ -385,16 +394,16 @@ func buy_usb(capacity_mb: int, hotbar_limit := 6, requested_id := "") -> String:
 		if archive.save(dorm.owner,id,"USB drive",capacity_mb,preload("res://scripts/campus/computers/device_filesystem.gd").new(capacity_mb*1024*1024))!=OK:return "Could not create the USB archive"
 		var before: Dictionary=data.duplicate(true)
 		if not data.has("usb_purchase_pending"):data.usb_purchase_pending={}
-		data.usb_purchase_pending[id]=capacity_mb
+		data.usb_purchase_pending[id]=capacity_mb if selected.is_empty() else {"capacity_mb":capacity_mb,"configuration":selected}
 		var callback:=authority_submit;authority_submit=Callable()
 		var error:=save();authority_submit=callback
 		if error!=OK:data=before;return "Could not save the pending USB purchase"
-		return queued("buy_usb",[capacity_mb,hotbar_limit,id])
+		return queued("buy_usb",[capacity_mb,hotbar_limit,id] if selected.is_empty() else [capacity_mb,hotbar_limit,id,selected])
 	if dorm.get("usb_drives",{}).size()>=usb.MAX_DRIVES:return "USB drive limit reached"
 	var carried: Array=dorm.get("carry_items",[])
 	var hotbar: bool=carried.size()+dorm.get("carried_components",[]).size()<hotbar_limit
 	if not hotbar and Dorm.storage_used(dorm)>=Dorm.CAPACITY:return "No room in your hotbar or dorm cabinet"
-	var debit:=Economy.purchase_debit(int(data.dollars),int(usb.PRICES[capacity_mb]),true)
+	var debit:=Economy.purchase_debit(int(data.dollars),price,true)
 	if not debit.ok:return debit.error
 	var before:=data.duplicate(true)
 	if not path.is_empty():
@@ -403,17 +412,26 @@ func buy_usb(capacity_mb: int, hotbar_limit := 6, requested_id := "") -> String:
 		if archive.save(dorm.owner,id,"USB drive",capacity_mb,preload("res://scripts/campus/computers/device_filesystem.gd").new(capacity_mb*1024*1024))!=OK:return "Could not create the USB archive"
 	if not dorm.has("usb_drives"):dorm.usb_drives={}
 	dorm.usb_drives[id]={"name":"USB drive","capacity_mb":capacity_mb,"location":"hotbar" if hotbar else "cabinet"}
+	if not selected.is_empty():dorm.usb_drives[id].configuration=selected
 	if hotbar:dorm.carry_items=carried+["usb:"+id]
 	dorm.revision=int(dorm.revision)+1;data.dollars=debit.next_balance
 	if save()!=OK:data=before;return "USB purchase could not be saved"
 	operation_succeeded=true
 	return "%d MB USB drive added to your %s" % [capacity_mb,"hotbar" if hotbar else "dorm cabinet"]
 
-func buy_portable_laptop(tier: String, hotbar_limit := 6, requested_id := "") -> String:
+func buy_portable_laptop(tier: String, hotbar_limit := 6, requested_id := "", configuration: Variant = {}) -> String:
 	if purchase_hotbar_limit.is_valid():hotbar_limit=mini(hotbar_limit,purchase_hotbar_limit.call())
 	operation_succeeded=false
 	var laptops=preload("res://scripts/campus/computers/laptop_inventory.gd")
 	if not laptops.TIERS.has(tier) or not data.has("dorm"):return "Laptop unavailable"
+	if not configuration is Dictionary:return "Invalid laptop configuration"
+	var price:=int(laptops.TIERS[tier].price)
+	var selected: Dictionary={}
+	if not configuration.is_empty():
+		var quote:=EquipmentConfiguration.quote(EquipmentConfiguration.LAPTOP,price,configuration)
+		if tier!="basic" or quote.is_empty():return "Invalid laptop configuration"
+		price=int(quote.price)
+		selected=quote.configuration
 	if not data.get("pending_trade",{}).is_empty():return "Finish the pending trade first"
 	var dorm: Dictionary=data.dorm
 	var id:=requested_id if not requested_id.is_empty() else Crypto.new().generate_random_bytes(16).hex_encode()
@@ -426,24 +444,26 @@ func buy_portable_laptop(tier: String, hotbar_limit := 6, requested_id := "") ->
 		var original: Dictionary=data.duplicate(true)
 		if not data.has("laptop_purchase_pending"):data.laptop_purchase_pending={}
 		data.laptop_purchase_pending[id]={"tier":tier,"host":host}
+		if not selected.is_empty():data.laptop_purchase_pending[id].configuration=selected
 		var callback:=authority_submit;authority_submit=Callable()
 		var error:=save();authority_submit=callback
 		if error!=OK:data=original;return "Could not save the pending laptop purchase"
-		return queued("buy_portable_laptop",[tier,hotbar_limit,id])
+		return queued("buy_portable_laptop",[tier,hotbar_limit,id] if selected.is_empty() else [tier,hotbar_limit,id,selected])
 	if dorm.get("portable_laptops",{}).size()>=laptops.MAX_LAPTOPS:return "Laptop limit reached"
 	var carried: Array=dorm.get("carry_items",[])
 	var hotbar: bool=carried.size()+dorm.get("carried_components",[]).size()<hotbar_limit
 	if not hotbar and Dorm.storage_used(dorm)>=Dorm.CAPACITY:return "No room in your hotbar or dorm cabinet"
-	var debit:=Economy.purchase_debit(int(data.dollars),int(laptops.TIERS[tier].price),true)
+	var debit:=Economy.purchase_debit(int(data.dollars),price,true)
 	if not debit.ok:return debit.error
 	var before:=data.duplicate(true)
 	if not dorm.has("portable_laptops"):dorm.portable_laptops={}
 	dorm.portable_laptops[id]={"tier":tier,"location":"hotbar" if hotbar else "cabinet"}
+	if not selected.is_empty():dorm.portable_laptops[id].configuration=selected
 	if hotbar:dorm.carry_items=carried+["laptop:"+id]
 	dorm.revision=int(dorm.revision)+1;data.dollars=debit.next_balance
 	if save()!=OK:data=before;return "Laptop purchase could not be saved"
 	operation_succeeded=true
-	return "%s added to your %s" % [laptops.TIERS[tier].name,"hotbar" if hotbar else "dorm cabinet"]
+	return "%s added to your %s" % [laptops.TIERS[tier].name if selected.is_empty() else "Custom laptop","hotbar" if hotbar else "dorm cabinet"]
 
 func buy_smartphone(tier: String,hotbar_limit := 6,requested_id := "",configuration: Variant = {}) -> String:
 	operation_succeeded=false
