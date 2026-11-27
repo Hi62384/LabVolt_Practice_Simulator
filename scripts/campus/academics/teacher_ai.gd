@@ -62,7 +62,7 @@ static func lesson_prompt(activity: Dictionary, teacher_id: String, board: Dicti
 static func safe_reply(value: String) -> String:
 	var cleaned:=value.strip_edges().replace("\n"," ").replace("\r"," ")
 	var lower:=cleaned.to_lower().replace("’","'")
-	for phrase in ["as an ai","i'm an ai","i am an ai","as a language model","i am a language model","i don't have a physical body","i do not have a physical body","how can i assist you","i don't have arms","i cannot experience emotions","virtual assistant"]:
+	for phrase in ["as an ai","i'm an ai","i am an ai","as a language model","i am a language model","i'm a fictional character","i am a fictional character","i don't have a body","i don't have a physical body","i do not have a physical body","how can i assist you","i don't have arms","i don't have personal experiences","i cannot experience emotions","virtual assistant"]:
 		if phrase in lower:return ""
 	return cleaned.left(320)
 

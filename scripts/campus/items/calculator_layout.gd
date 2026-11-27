@@ -52,8 +52,10 @@ static func with_required(layout: Array) -> Array:
 		if key not in normalized:normalized.append(key)
 	return normalized
 
-const SLOTS := 36
-const COLUMNS := 6
+const SLOTS := 49
+const COLUMNS := 7
+const LEGACY_SLOTS := 36
+const LEGACY_COLUMNS := 6
 const CATEGORIES := ["Numbers and decimal","Basic arithmetic","Calculation controls","Memory","Powers and roots","Trigonometry","Logarithms","Constants","Algebra and variables","Complex numbers","Financial functions","Other supported functions"]
 # Name, description, example, category index, price, required hardware.
 const BUTTONS := {
@@ -131,6 +133,9 @@ static func occupied_rows(layout: Array,columns: int) -> int:
 		if not str(layout[index]).is_empty():return ceili(float(index+1)/columns)
 	return 0
 
+static func design_columns(layout: Array) -> int:
+	return LEGACY_COLUMNS if layout.size()==LEGACY_SLOTS else COLUMNS
+
 static func new_slots(keys: Array) -> Array:
 	var layout:=keys.duplicate()
 	while layout.size()<SLOTS:layout.append("")
@@ -138,12 +143,12 @@ static func new_slots(keys: Array) -> Array:
 
 static func default_slots() -> Array:
 	var layout:=new_slots([])
-	var positions:={0:"7",1:"8",2:"9",5:"AC",6:"4",7:"5",8:"6",12:"1",13:"2",14:"3",18:"0",20:"="}
+	var positions:={0:"7",1:"8",2:"9",6:"AC",7:"4",8:"5",9:"6",14:"1",15:"2",16:"3",21:"0",23:"="}
 	for index in positions:layout[index]=positions[index]
 	return layout
 
 static func design_price(layout: Variant, hardware: Dictionary) -> int:
-	if not layout is Array or layout.size()!=SLOTS:return -1
+	if not layout is Array or layout.size() not in [LEGACY_SLOTS,SLOTS]:return -1
 	var price:=0
 	var seen:={}
 	for symbol in layout:
@@ -161,7 +166,7 @@ static func preset(name: String) -> Dictionary:
 	match name:
 		"Basic":
 			var layout:=default_slots()
-			var operations:={3:"÷",9:"×",11:"DEL",15:"−",19:".",21:"+"}
+			var operations:={3:"÷",10:"×",13:"DEL",17:"−",22:".",24:"+"}
 			for index in operations:layout[index]=operations[index]
 			return {"keypad":layout,"hardware":hardware}
 		"Scientific":

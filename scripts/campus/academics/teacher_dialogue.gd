@@ -1,15 +1,11 @@
 extends RefCounted
 ## Shared offline wording; never changes a grade, inventory, or course answer.
-const DATA_PATH := "res://assets/campus/faculty/personalities.json"
+const Characters=preload("res://scripts/campus/academics/class_character_profile.gd")
+const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
 static var _config: Dictionary={}
 static func personalities() -> Dictionary:
  if _config.is_empty():
-  var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
-  if parsed is Dictionary and parsed.get("version",0)==1:
-   _config=parsed.get("teachers",{})
-   for personality in _config.values():
-    for trait_name in ["teaching","focus","difficulty","talkativeness"]:
-     if personality.get(trait_name)==null:personality[trait_name]=.5
+  for id in Roster.PEOPLE:_config[id]=Characters.classroom(id)
  return _config
 
 ## Deliberately limited keyword recognition, not a claim to understand free speech.

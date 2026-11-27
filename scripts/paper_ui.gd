@@ -309,6 +309,7 @@ func _build_reader() -> void:
 	if is_instance_valid(calculator_widget):
 		calculator_state=calculator_widget.display.text
 		calc_saved={"degrees":calculator_widget.degrees,"answer":calculator_widget.answer,"memory":calculator_widget.memory,"result":calculator_widget.result.text,"caret":calculator_widget.display.caret_column,"selection_begin":calculator_widget.display.get_selection_from_column() if calculator_widget.display.has_selection() else -1,"selection_end":calculator_widget.display.get_selection_to_column() if calculator_widget.display.has_selection() else -1}
+		calc_saved.merge({"pending_number":calculator_widget.pending_number,"pending_operator":calculator_widget.pending_operator,"replace_number":calculator_widget.replace_number})
 	if is_instance_valid(calculator_drawer) and calculator_drawer.has_method("snapshot_state"):drawer_saved=calculator_drawer.snapshot_state()
 	_clear()
 	if not school.papers.has(document_id):close();return
@@ -441,6 +442,9 @@ func _build_reader() -> void:
 		calculator=calculator_widget.display;calculator.text=calculator_state
 		if not calc_saved.is_empty():
 			calculator_widget.degrees=calc_saved.degrees;calculator_widget.answer=calc_saved.answer;calculator_widget.memory=calc_saved.memory;calculator_widget.result.text=calc_saved.result
+			calculator_widget.pending_number=calc_saved.get("pending_number",0.0)
+			calculator_widget.pending_operator=calc_saved.get("pending_operator","")
+			calculator_widget.replace_number=calc_saved.get("replace_number",calculator_state.is_empty())
 			if is_instance_valid(calculator_widget.mode):
 				calculator_widget.mode.text="DEG" if calc_saved.degrees else "RAD"
 				calculator_widget.memory_label.text=calculator_widget.mode.text+("   M" if calc_saved.memory!=0 else "")

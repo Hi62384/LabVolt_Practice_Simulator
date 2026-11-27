@@ -490,12 +490,17 @@ func open_carried_calculator(item := "", equipment_options: Dictionary = {}) -> 
 	window.exclusive = true
 	window.transparent_bg = true
 	ui.add_child(window)
+	var scroll:=ScrollContainer.new()
+	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus=true
+	window.add_child(scroll)
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var calculator := preload("res://scripts/scientific_calculator.gd").new()
 	calculator.model=model
 	calculator.equipment_options=equipment_options
 	calculator.show_close=true
-	window.add_child(calculator)
-	calculator.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	calculator.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	scroll.add_child(calculator)
 	var dismiss := func():
 		window.hide()
 		window.queue_free()
@@ -508,7 +513,11 @@ func open_carried_calculator(item := "", equipment_options: Dictionary = {}) -> 
 			dismiss.call())
 	release_mouse()
 	var minimum := calculator.get_combined_minimum_size()
-	var calculator_size := Vector2i(maxi(ceili(minimum.x),420 if model!="calculator_basic" else 260),ceili(minimum.y))
+	var available:=Vector2i(get_viewport().get_visible_rect().size)-Vector2i(32,32)
+	var overflow:=ceili(minimum.y)>available.y
+	var width:=maxi(ceili(minimum.x),420 if model!="calculator_basic" else 260)
+	if overflow:width+=ceili(scroll.get_v_scroll_bar().get_combined_minimum_size().x)
+	var calculator_size:=Vector2i(mini(width,available.x),mini(ceili(minimum.y),available.y))
 	window.popup_centered(calculator_size)
 
 func _input(event: InputEvent) -> void:

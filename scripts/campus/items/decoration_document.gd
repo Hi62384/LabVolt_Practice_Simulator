@@ -1,6 +1,5 @@
 extends RefCounted
 
-const LAYERS := 6
 const PIXELS := 512
 const MAX_IMAGE := 36*1024
 const MAX_DOCUMENT := 84*1024
@@ -23,7 +22,7 @@ static func layer(kind: String) -> Dictionary:
 		"width":1.0,"height":1.0,"lock_aspect":true}
 
 static func clean(value: Variant) -> Variant:
-	if not value is Array or value.size()>LAYERS:return null
+	if not value is Array:return null
 	var design := []
 	var encoded_size := 0
 	for raw in value:
@@ -123,17 +122,55 @@ static func valid_image(data: String) -> bool:
 	validated_images[hash]=true
 	return true
 
-static func encode(image: Image) -> String:
+static func encode(image: Image, byte_limit := MAX_IMAGE, min_side := 64) -> String:
 	if image==null or image.is_empty():return ""
 	var dimensions:=image.get_size()
 	var scale:=float(PIXELS)/float(maxi(dimensions.x,dimensions.y))
 	if scale<1.0:image.resize(maxi(1,roundi(dimensions.x*scale)),maxi(1,roundi(dimensions.y*scale)),Image.INTERPOLATE_LANCZOS)
 	var bytes:=image.save_png_to_buffer()
-	while bytes.size()>MAX_IMAGE and maxi(image.get_width(),image.get_height())>64:
-		var reduction:=clampf(sqrt(float(MAX_IMAGE)/float(bytes.size())),.62,.9)
-		image.resize(maxi(1,roundi(image.get_width()*reduction)),maxi(1,roundi(image.get_height()*reduction)),Image.INTERPOLATE_LANCZOS)
+	while bytes.size()>byte_limit and maxi(image.get_width(),image.get_height())>min_side:
+		var reduction:=clampf(sqrt(float(byte_limit)/float(bytes.size())),.62,.9)
+		image.resize(maxi(1,floori(image.get_width()*reduction)),maxi(1,floori(image.get_height()*reduction)),Image.INTERPOLATE_LANCZOS)
 		bytes=image.save_png_to_buffer()
-	return Marshalls.raw_to_base64(bytes) if bytes.size()<=MAX_IMAGE else ""
+	return Marshalls.raw_to_base64(bytes) if bytes.size()<=byte_limit else ""
+
+static func encode_stroke(design: Array, layer_index: int, updates: Dictionary) -> Variant:
+	var available:=MAX_DOCUMENT
+	for index in design.size():
+		var layer_data: Dictionary=design[index]
+		if layer_data.kind in ["paint","image"]:available-=str(layer_data.data).length()
+		for key in layer_data.get("mesh_paint",{}):
+			if index!=layer_index or not updates.has(key):available-=str(layer_data.mesh_paint[key]).length()
+	var saved: Dictionary=design[layer_index].get("mesh_paint",{}).duplicate()
+	var changed: Dictionary={}
+	var remaining_size:=0
+	for key in updates:
+		var artwork: Image=updates[key]
+		if artwork.is_invisible():
+			saved.erase(key)
+			continue
+		var data:=encode(artwork)
+		if data.is_empty():return null
+		changed[key]=data
+		remaining_size+=data.length()
+	if remaining_size>available:
+		# Allocate the shared budget to the touched surfaces only. Keep all
+		# other artwork byte-for-byte, including surfaces in the same layer.
+		var slots:=changed.size()
+		const MIN_ENCODED:=128
+		if available<slots*MIN_ENCODED:return null
+		for key in changed:
+			var original_size:=str(changed[key]).length()
+			var share:=MIN_ENCODED+floori(float(available-slots*MIN_ENCODED)*original_size/remaining_size)
+			if original_size>share:
+				var data:=encode(updates[key],mini(MAX_IMAGE,(share/4)*3),1)
+				if data.is_empty():return null
+				changed[key]=data
+			available-=str(changed[key]).length()
+			remaining_size-=original_size
+			slots-=1
+	saved.merge(changed,true)
+	return saved
 
 static func decode(data: String) -> Image:
 	if not valid_image(data):return null

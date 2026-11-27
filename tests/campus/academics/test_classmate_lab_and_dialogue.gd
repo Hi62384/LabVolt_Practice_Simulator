@@ -68,9 +68,9 @@ func run() -> void:
 	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Do you like my outfit?"})
 	assert("see" in faculty.conversation_text.text and "Fitted Tee" not in faculty.conversation_text.text)
 	game.cosmetic_appearances.erase(1)
-	for index in range(6):
+	for index in range(8):
 		faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"You're an idiot."})
-	assert(faculty.conversation_text.text==member.profile.lines.boundary)
+	assert(faculty.conversation_text.text=="They turn back to their work.")
 	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"I'm sorry."})
 	assert(faculty.conversation_text.text==member.profile.lines.apology)
 	var previous: String=faculty.conversation_text.text
@@ -317,6 +317,15 @@ func run() -> void:
 	listener.erase("line")
 	classmates._before_class(preclass,now+65.)
 	assert("We've been close" in speaker.line)
+	game.player.global_position=origin+Vector3(.5,0.,0.)
+	speaker.erase("line")
+	speaker.arrived=true
+	var arrival_greeting:={"phase":"arrival","deadline":now+90.,"classmates":{intro_profile.id:speaker}}
+	classmates._greet_nearby_player(arrival_greeting,lecture_room,now+70.)
+	assert(arrival_greeting.get("greeted_players",{}).has(human) and speaker.action=="chatting")
+	speaker.erase("line")
+	classmates._greet_nearby_player(arrival_greeting,lecture_room,now+78.)
+	assert(not speaker.has("line"))
 	classes.classes.erase(lecture_room)
 	if faculty.current.get("ac_lab","").is_empty():faculty._rotate("ac_lab")
 	var visit: Dictionary=faculty._ai_activity("ac_lab")

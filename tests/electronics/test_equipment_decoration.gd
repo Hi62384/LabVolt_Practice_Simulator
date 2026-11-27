@@ -49,7 +49,7 @@ func run() -> void:
 		var saved:=Config.quote(kind,20,JSON.parse_string(JSON.stringify(dialog.configuration)))
 		assert(not saved.is_empty() and Config.same_configuration(kind,saved.configuration,dialog.configuration))
 		var tampered: Dictionary=dialog.configuration.duplicate(true)
-		tampered.decoration[0].size=8.0
+		tampered.decoration[0].size=Document.MAX_IMAGE_SCALE+1.0
 		assert(Config.quote(kind,20,tampered).is_empty())
 		dialog.decoration_editor._add("paint","")
 		dialog.decoration_editor._set_layer("data",data,false)

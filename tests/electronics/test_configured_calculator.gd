@@ -40,7 +40,19 @@ func run() -> void:
 	dialog.confirmed.emit()
 	assert(dialog.stage==1 and dialog.keypad_designer.visible)
 	var designer: VBoxContainer=dialog.keypad_designer
-	assert(designer.grid.columns==6 and designer.grid.get_child_count()==36)
+	assert(designer.grid.columns==7 and designer.grid.get_child_count()==49)
+	var full_layout:=Equipment.defaults(Equipment.CALCULATOR)
+	full_layout.hardware={"equation":1,"algebra":1,"complex":1,"graph":2}
+	var symbols: Array=Equipment.Keypad.REQUIRED.duplicate()
+	symbols.append_array(Equipment.Keypad.BUTTONS.keys().filter(func(key):return key not in symbols))
+	full_layout.keypad=symbols.slice(0,49)
+	assert(full_layout.keypad.size()==49 and not Equipment.quote(Equipment.CALCULATOR,10,full_layout).is_empty())
+	var legacy_layout:=full_layout.duplicate(true)
+	legacy_layout.keypad=legacy_layout.keypad.slice(0,36)
+	assert(not Equipment.quote(Equipment.CALCULATOR,10,legacy_layout).is_empty())
+	assert(Equipment.value(Equipment.CALCULATOR,legacy_layout,"hardware","columns",4)==6)
+	full_layout.keypad.append("")
+	assert(Equipment.quote(Equipment.CALCULATOR,10,full_layout).is_empty())
 	if DisplayServer.get_name()!="headless":
 		for frame in 4:await process_frame
 		var source: Rect2=designer.grid.get_child(0).get_global_rect()
@@ -79,9 +91,9 @@ func run() -> void:
 	var points: PackedVector3Array=math_engine.Curve(parser.parse("x + 2y = z").tree,2,"rad",3.)
 	assert(not points.is_empty() and points[0].is_equal_approx(Vector3(-3,-3,-9)))
 	designer.apply_preset("Algebra")
-	assert(designer.add_key("sin",32))
-	designer.move_key(32,35)
-	assert(designer.slots[32]=="" and designer.slots[35]=="sin")
+	assert(designer.add_key("sin",42))
+	designer.move_key(42,48)
+	assert(designer.slots[42]=="" and designer.slots[48]=="sin")
 	designer.remove_key(designer.slots.find("AC"))
 	assert(designer.feedback.text.contains("AC"))
 	var options: Dictionary=dialog._quote().configuration
@@ -109,19 +121,41 @@ func run() -> void:
 	calculator.equipment_options=options
 	root.add_child(calculator)
 	var keypad: GridContainer=calculator.find_children("*","GridContainer",true,false)[0]
-	assert(keypad.columns==6 and keypad.get_child(35).text=="sin" and not keypad.get_child(32) is Button)
+	assert(keypad.columns==7 and keypad.get_child(48).text=="sin" and not keypad.get_child(42) is Button)
 	calculator.press("sin")
 	calculator.press("3")
 	calculator.press("0")
 	calculator.press("=")
 	assert(is_equal_approx(calculator.answer,.5))
+	calculator.display.text="9+8(9)"
+	calculator.display.caret_column=calculator.display.text.length()
+	_press(calculator,"←")
+	assert(calculator.display.caret_column==5)
+	_press(calculator,"→")
+	assert(calculator.display.caret_column==6)
+	calculator.press("=")
+	assert(is_equal_approx(calculator.answer,81.0))
+	game.open_carried_calculator("calculator_basic",options)
+	await process_frame
+	var calculator_window:=game.ui.get_child(-1) as Window
+	var calculator_scroll:=calculator_window.get_child(0) as ScrollContainer
+	assert(calculator_scroll!=null and calculator_scroll.follow_focus)
+	calculator_window.size.y=280
+	for frame in 3:await process_frame
+	var scrollbar:=calculator_scroll.get_v_scroll_bar()
+	assert(scrollbar.visible and scrollbar.max_value>scrollbar.page)
+	var calculator_keys: Array[Node]=calculator_scroll.find_children("*","GridContainer",true,false)
+	calculator_scroll.ensure_control_visible(calculator_keys[0].get_child(48))
+	assert(calculator_scroll.scroll_vertical>0)
+	calculator_window.close_requested.emit()
+	_check_number_mode()
 	var server:=Ledger.new()
 	assert(server.open("user://configured-calculator-ledger")==OK)
 	var fresh:=Profile.new()
 	fresh.open("configured-calculator-player")
 	assert(server.bind(2,fresh.data.dorm.owner,"a".repeat(64),fresh.data).ok)
 	var invalid:=options.duplicate(true)
-	invalid.keypad[32]="sin"
+	invalid.keypad[42]="sin"
 	assert(not server.transact(2,"duplicate-key","study_tool",["calculator",6,invalid]).ok)
 	invalid=options.duplicate(true)
 	invalid.hardware.equation=0
@@ -137,6 +171,30 @@ func run() -> void:
 	game.queue_free()
 	await process_frame
 	quit()
+
+func _check_number_mode() -> void:
+	var calculator=preload("res://scripts/scientific_calculator.gd").new()
+	calculator.model="calculator_basic"
+	calculator.equipment_options=Equipment.defaults(Equipment.CALCULATOR)
+	root.add_child(calculator)
+	assert(not calculator.equation_enabled)
+	for key in ["8","+","4","="]:calculator.press(key)
+	assert(float(calculator.display.text)==12.0)
+	calculator.press("×")
+	assert(float(calculator.display.text)==12.0)
+	calculator.press("3")
+	assert(calculator.display.text=="3")
+	calculator.press("=")
+	assert(calculator.answer==36.0)
+	for key in ["2","+","3","×","4","="]:calculator.press(key)
+	assert(calculator.answer==20.0)
+	for key in ["AC","8","+","÷","=","2","="]:calculator.press(key)
+	assert(calculator.answer==4.0)
+	for key in ["÷","0","="]:calculator.press(key)
+	assert(calculator.result.text=="Cannot divide by zero.")
+	for key in ["AC","9","M+","AC","9","÷","MR","="]:calculator.press(key)
+	assert(is_equal_approx(calculator.answer,1.0))
+	calculator.queue_free()
 
 func _press(parent: Node, label: String) -> void:
 	for button in parent.find_children("*","Button",true,false):

@@ -32,6 +32,15 @@ var render_preview: Callable
 func _ready() -> void:
 	mouse_filter=Control.MOUSE_FILTER_IGNORE
 
+func _input(event: InputEvent) -> void:
+	if drag=="brush" and event is InputEventMouseButton and event.button_index==drag_button and not event.pressed:
+		finish()
+		get_viewport().set_input_as_handled()
+
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT,NOTIFICATION_WM_WINDOW_FOCUS_OUT] and drag=="brush":
+		finish()
+
 func refresh_geometry(root: Node3D) -> void:
 	if not is_instance_valid(root):return
 	var current:=Artwork.surfaces(root,true)
@@ -273,15 +282,19 @@ func _move_on_image_plane(point: Vector2) -> void:
 func finish() -> void:
 	var committed:=true
 	if drag=="brush":
-		var images: Dictionary=original.get("mesh_paint",{}).duplicate()
+		var updates: Dictionary={}
 		for id in paint_textures:
-			var image:=Image.create_from_data(Document.PIXELS,Document.PIXELS,false,Image.FORMAT_RGBA8,raw_pixels[id])
-			if image.is_invisible():images.erase(id)
-			else:images[id]=Document.encode(image)
-		if not paint_textures.is_empty():
-			var changed:=original.duplicate(true)
-			changed.mesh_paint=images
-			committed=editor.replace_active(changed,false)
+			updates[id]=Image.create_from_data(Document.PIXELS,Document.PIXELS,false,Image.FORMAT_RGBA8,raw_pixels[id])
+		if not updates.is_empty():
+			committed=false
+			if layer()==original:
+				var images: Variant=Document.encode_stroke(editor.design,editor.active,updates)
+				if images!=null:
+					var changed:=original.duplicate(true)
+					changed.mesh_paint=images
+					committed=editor.replace_active(changed,false)
+				else:
+					editor.notice.text="There’s no room left to save this stroke. Clear unused artwork and try again."
 	elif not pending.is_empty():
 		committed=editor.replace_active(pending)
 	drag=""

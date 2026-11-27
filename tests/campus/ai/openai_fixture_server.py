@@ -59,7 +59,10 @@ class Handler(BaseHTTPRequestHandler):
             with wave.open(data, "wb") as audio:
                 audio.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
                 audio.writeframes(b"".join(struct.pack("<h", int(800 * math.sin(i * .09))) for i in range(16000)))
-            return self._reply_bytes(200, data.getvalue(), "audio/wav")
+            streamed = bytearray(data.getvalue())
+            streamed[4:8] = b"\xff" * 4
+            streamed[40:44] = b"\xff" * 4
+            return self._reply_bytes(200, streamed, "audio/wav")
         if self.path == "/v1/images/generations":
             if body != {"model": "gpt-image-2.6-sunburst", "prompt": "Draw a blue dot", "size": "1024x1024",
                         "output_format": "png", "quality": "low", "n": 1}:
@@ -116,7 +119,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self._reply(400, {"error": {"message": "player content reached trusted instructions"}})
             if body.get("store") is not False:
                 return self._reply(400, {"error": {"message": "request stored"}})
-            return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "The board shows a current path."}]}]})
+            answer = "The board shows a current path."
+            if "Return JSON with speech, event, memory, and biography" in instructions:
+                if "decision" not in character_input["context"]:
+                    return self._reply(400, {"error": {"message": "missing authoritative character decision"}})
+                answer = json.dumps({"speech": answer, "event": "", "memory": "", "biography": None})
+            return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": answer}]}]})
         if self.path == "/v1/responses" and body.get("store") is False:
             request_input = body.get("input")
             if isinstance(request_input, str) and request_input.startswith("Choose one answer."):

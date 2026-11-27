@@ -7,22 +7,30 @@ var local_out:=false
 var local_assessment:=""
 var alert_clock:=0.0
 var application_focused:=true
+var assessment_at_focus_loss:=""
 
 func build(owner_game: Node) -> void:
  game=owner_game
  process_mode=Node.PROCESS_MODE_ALWAYS
  game.session.roster_changed.connect(_prune)
- game.session.leaving.connect(func():reports.clear();local_out=false;local_assessment="")
+ game.session.leaving.connect(func():reports.clear();local_out=false;local_assessment="";assessment_at_focus_loss="")
 
 func _notification(what: int) -> void:
- if what==NOTIFICATION_APPLICATION_FOCUS_OUT:application_focused=false
- elif what==NOTIFICATION_APPLICATION_FOCUS_IN:application_focused=true
+ if what==NOTIFICATION_APPLICATION_FOCUS_OUT and application_focused:
+  application_focused=false
+  # A paper issued while the game is already in the background belongs to
+  # the next focus cycle. Losing focus during the lecture cannot grade it.
+  if is_instance_valid(game) and is_instance_valid(game.front) and game.front.in_game:
+   assessment_at_focus_loss=_local_assessment(multiplayer.get_unique_id())
+ elif what==NOTIFICATION_APPLICATION_FOCUS_IN:
+  application_focused=true
+  assessment_at_focus_loss=""
 
 func _process(delta: float) -> void:
  if not is_instance_valid(game) or not is_instance_valid(game.front):return
  var peer:=multiplayer.get_unique_id()
  var assignment:=_local_assessment(peer) if game.front.in_game else ""
- var unfocused:=not application_focused and not assignment.is_empty()
+ var unfocused:=not application_focused and not assignment.is_empty() and assignment==assessment_at_focus_loss
  if unfocused and (not local_out or assignment!=local_assessment):
   local_out=true;local_assessment=assignment;alert_clock=0
   game.sfx.play("trip")

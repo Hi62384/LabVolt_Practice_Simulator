@@ -2,6 +2,25 @@ extends RefCounted
 ## The authored anchors describe different aspects of a person. Related traits
 ## are derived together so a generated classmate's habits agree with their speech.
 
+static func author_overrides(id: String) -> Dictionary:
+	match id:
+		"chad":
+			return {"confidence":.98,"arrogance":.96,"selfishness":.86,"meanness":.85,"empathy":.14,
+				"ambition":.99,"generosity":.17,"willingness_to_help":.19,"interest_in_student_success":.21,
+				"dominance":.90,"humility":.09,"respectfulness":.30,"competitiveness":.96,"teaching_patience":.28,"confrontation":.77}
+		"mr_bro":
+			return {"confidence":.87,"arrogance":.35,"empathy":.68,"ambition":.77,"generosity":.63,"slang":.96,
+				"willingness_to_help":.63,"storytelling":.89,"teaching_patience":.59,"playfulness":.89}
+		"ms_rivera":
+			return {"willingness_to_help":.28,"teaching_patience":.38,"interest_in_student_success":.30,"professionalism":.54,"focus":.16}
+		"ms_bird_heart":
+			return {"empathy":.97,"generosity":.94,"willingness_to_help":.98,"interest_in_student_success":.99,"assertiveness":.78}
+		"mr_stone":
+			return {"dominance":.96,"discipline":.99,"professionalism":.94,"slang":.02,"interruption_tolerance":.07}
+		"brian":
+			return {"confrontation":.88,"teaching_patience":.13,"interruption_tolerance":.12,"self_control":.46}
+	return {}
+
 static func expand(base: Dictionary, social: float, confidence: float, focus: float, curiosity: float, strictness: float) -> Dictionary:
 	var warmth:=float(base.warmth)
 	var patience:=float(base.patience)
@@ -52,6 +71,11 @@ static func expand(base: Dictionary, social: float, confidence: float, focus: fl
 		"interruption_tolerance":patience*(1.-strictness*.45),"demonstrations":float(base.get("demonstrations",.3)),
 		"academic_confidence":lerpf(confidence,reasoning,.4),"study_interest":curiosity,
 		"academic_motivation":lerpf(curiosity,effort,.5),"study_habits":lerpf(discipline,focus,.4),
+		"selfishness":1.-empathy,"generosity":warmth*.85,"dominance":confidence*.8,"respectfulness":lerpf(empathy,discipline,.4),
+		"arrogance":confidence*(1.-empathy),"humility":empathy*(1.-confidence*.45),"jealousy":(1.-resilience)*.7,
+		"ambition":lerpf(confidence,effort,.4),"conversational_confidence":lerpf(confidence,social,.4),
+		"willingness_to_disagree":lerpf(strictness,confidence,.5),"mischievousness":play*(1.-discipline*.65),
+		"teaching_creativity":lerpf(teaching,curiosity,.55),"interest_in_student_success":lerpf(warmth,effort,.4),
 	},true)
 	return values
 

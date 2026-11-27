@@ -30,6 +30,23 @@ func run() -> void:
 	var image:=Image.create_empty(32,24,false,Image.FORMAT_RGBA8)
 	image.fill(Color("e727a1"))
 	var data:=Document.encode(image)
+	var paint:=Document.layer("paint")
+	paint.mesh_paint={"case:0":data}
+	var updates: Dictionary={}
+	var crypto:=Crypto.new()
+	var unconstrained:=0
+	for id in ["case:1","case:2","case:3"]:
+		var detail:=Image.create_from_data(256,256,false,Image.FORMAT_RGBA8,crypto.generate_random_bytes(256*256*4))
+		unconstrained+=Document.encode(detail.duplicate()).length()
+		updates[id]=detail
+	assert(unconstrained>Document.MAX_DOCUMENT)
+	var packed: Variant=Document.encode_stroke([paint],0,updates)
+	assert(packed!=null and packed.size()==4 and packed["case:0"]==data)
+	paint.mesh_paint=packed
+	assert(Document.clean([paint])!=null)
+	var many_layers: Array=[]
+	for index in 140:many_layers.append(Document.layer("paint"))
+	assert(Document.clean(many_layers).size()==140)
 	var phone_art: Dictionary={}
 	for kind in Config.DEFINITIONS:
 		var dialog:=Dialog.new()
@@ -82,7 +99,10 @@ func run() -> void:
 		start=Time.get_ticks_usec()
 		surface.input(_pointer(at+Vector2(2,3)))
 		var follow:=Time.get_ticks_usec()-start
-		assert(surface.input(_button(at,false)))
+		if kind==Config.LAPTOP:
+			surface._input(_button(Vector2(-30.,-30.),false))
+			assert(surface.drag.is_empty(),"Releasing over other controls must finish the stroke")
+		else:assert(surface.input(_button(at,false)))
 		print("Surface brush ",kind," start ",first," us, drag ",follow," us, commit ",Time.get_ticks_usec()-start-follow," us")
 		assert(not edit.design[0].get("mesh_paint",{}).is_empty(),"Paint missing on "+kind)
 		var painted: Dictionary=edit.design[0].mesh_paint.duplicate()
@@ -168,6 +188,12 @@ func run() -> void:
 		edit._reset()
 		edit._load()
 		assert(edit.design[1].has("projection"))
+		if kind==Config.LAPTOP:
+			for index in 8:edit._add("paint","")
+			var before_duplicate: int=edit.design.size()
+			assert(before_duplicate>6)
+			edit._duplicate()
+			assert(edit.design.size()==before_duplicate+1)
 		dialog.queue_free()
 		await process_frame
 	var player: RefCounted=game.electronics.profile

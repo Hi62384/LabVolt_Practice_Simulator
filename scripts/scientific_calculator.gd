@@ -24,6 +24,7 @@ var functions: VBoxContainer
 var operation: OptionButton
 var pending_number:=0.0
 var pending_operator:=""
+var replace_number:=true
 var finance_help: Label
 var model := "calculator"
 var equipment_options: Dictionary={}
@@ -58,7 +59,7 @@ func _ready() -> void:
 		shell.border_color=Color("1c5669")
 		shell.set_border_width_all(1)
 	shell.set_corner_radius_all(18);shell.set_content_margin_all(12);add_theme_stylebox_override("panel",shell)
-	var body := VBoxContainer.new();body.add_theme_constant_override("separation",6);add_child(body)
+	var body := VBoxContainer.new();body.add_theme_constant_override("separation",4 if show_close else 6);add_child(body)
 	var header := HBoxContainer.new();body.add_child(header)
 	var brand := Label.new();brand.text=Supplies.TOOLS.get(model,"Scientific calculator");brand.add_theme_font_size_override("font_size",16);header.add_child(brand)
 	brand.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -91,6 +92,14 @@ func _ready() -> void:
 	display=LineEdit.new();display.placeholder_text="0";display.max_length=180;display.add_theme_font_size_override("font_size",18);display.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));display.add_theme_color_override("font_placeholder_color",Color("8cbcc8") if campus_style else Color("617367"));display.add_theme_stylebox_override("normal",StyleBoxEmpty.new());display.add_theme_stylebox_override("focus",StyleBoxEmpty.new());display.text_submitted.connect(func(_text):_schedule(evaluate));lines.add_child(display)
 	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));result.clip_text=true;lines.add_child(result)
 	if campus_style:result.add_theme_font_size_override("font_size",34)
+	if _number_mode():
+		display.alignment=HORIZONTAL_ALIGNMENT_RIGHT
+		display.add_theme_font_size_override("font_size",26)
+		display.gui_input.connect(_number_keyboard_input)
+		display.text_changed.connect(func(_text):replace_number=false)
+		result.add_theme_font_size_override("font_size",14)
+		result.text=""
+		lines.move_child(result,1)
 	if equation_enabled:
 		display_equation=Equation.new()
 		result_equation=Equation.new()
@@ -100,6 +109,19 @@ func _ready() -> void:
 			view.hide()
 		display.text_changed.connect(func(_text):_refresh_equation())
 		display.placeholder_text="Enter an expression"
+		var entry_row:=HBoxContainer.new()
+		lines.add_child(entry_row)
+		lines.move_child(entry_row,display.get_index())
+		display.reparent(entry_row)
+		display.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		for direction in [-1,1]:
+			var cursor_button:=Button.new()
+			cursor_button.text="←" if direction<0 else "→"
+			cursor_button.tooltip_text="Move cursor left" if direction<0 else "Move cursor right"
+			cursor_button.accessibility_name=cursor_button.tooltip_text
+			cursor_button.custom_minimum_size=Vector2(38,26)
+			cursor_button.pressed.connect(func():_schedule(_move_cursor.bind(direction)))
+			entry_row.add_child(cursor_button)
 	if algebra_enabled or complex_enabled:
 		var tools:=HBoxContainer.new()
 		body.add_child(tools)
@@ -181,18 +203,16 @@ static func keypad_keys(model_id: String) -> Array:
 	return Equipment.Keypad.keys(model_id)
 
 func press(key: String) -> void:
-	if configured and not equation_enabled and not algebra_enabled and key in ["+","−","-","×","÷"]:
-		if not evaluate():return
-		pending_number=answer
-		pending_operator=key
-		display.clear()
-		return
 	if (model=="calculator_financial" or configured) and Finance.ARGUMENTS.has(key):
+		pending_operator=""
 		display.text=key+"("
 		display.caret_column=display.text.length()
 		if is_instance_valid(finance_help):
 			finance_help.text=key+" · "+Finance.ARGUMENTS[key]
 			finance_help.tooltip_text=finance_help.text
+		return
+	if _number_mode() and (not _finance_input() or key=="AC"):
+		_press_number(key)
 		return
 	match key:
 		"=":evaluate()
@@ -207,9 +227,7 @@ func press(key: String) -> void:
 			if evaluate():memory+=answer*(1 if key=="M+" else -1)
 		"Ans":_insert(str(answer))
 		"±":
-			if configured and not equation_enabled and not algebra_enabled and display.text.is_valid_float():
-				display.text=str(-float(display.text))
-			else:display.text="-("+display.text+")"
+			display.text="-("+display.text+")"
 			display.caret_column=display.text.length()
 		"sin","cos","tan","asin","acos","atan","ln","log":_insert(key+"(")
 		"√":_insert("sqrt(")
@@ -220,6 +238,128 @@ func press(key: String) -> void:
 		_:_insert({"×":"*","÷":"/","−":"-","π":"pi"}.get(key,key))
 	memory_label.text=angle_mode.to_upper()+("   M" if memory!=0 else "")
 	_refresh_equation()
+
+func _move_cursor(direction: int) -> void:
+	var column:=display.caret_column
+	if display.has_selection():
+		column=display.get_selection_from_column() if direction<0 else display.get_selection_to_column()
+	else:
+		column+=direction
+	display.grab_focus()
+	display.deselect()
+	display.caret_column=clampi(column,0,display.text.length())
+
+func _number_mode() -> bool:
+	return configured and not equation_enabled
+
+func _finance_input() -> bool:
+	return "(" in display.text and Finance.ARGUMENTS.has(display.text.get_slice("(",0).to_upper())
+
+func _number_keyboard_input(event: InputEvent) -> void:
+	if not event is InputEventKey or not event.pressed or event.ctrl_pressed or event.alt_pressed or event.meta_pressed or _finance_input():
+		return
+	var character:=String.chr(event.unicode) if event.unicode>=32 else ""
+	var key: String={"*":"×","/":"÷","-":"−"}.get(character,character)
+	if event.keycode==KEY_BACKSPACE:
+		key="DEL"
+	elif event.keycode==KEY_DELETE:
+		if replace_number:
+			display.accept_event()
+		return
+	if key in ["+","−","×","÷",".","=","DEL"] or (key.length()==1 and key.is_valid_int()):
+		display.accept_event()
+		_schedule(press.bind(key))
+	elif not character.is_empty():
+		display.accept_event()
+
+func _press_number(key: String) -> void:
+	if key.length()==1 and (key.is_valid_int() or key=="."):
+		if replace_number:
+			_set_number_text("")
+		replace_number=false
+		if key==".":
+			var remaining:=display.text
+			if display.has_selection():
+				var from:=display.get_selection_from_column()
+				remaining=remaining.left(from)+remaining.substr(display.get_selection_to_column())
+			if "." in remaining or "e" in remaining.to_lower():return
+			if remaining.is_empty():key="0."
+		_insert(key)
+	elif key in ["+","−","-","×","÷"]:
+		if (pending_operator.is_empty() or not replace_number) and not _evaluate_number():
+			return
+		pending_number=answer
+		pending_operator="−" if key=="-" else key
+		_show_pending_number()
+	else:
+		match key:
+			"=":
+				if pending_operator.is_empty() or not replace_number:_evaluate_number()
+				return
+			"AC":
+				answer=0.0
+				pending_number=0.0
+				pending_operator=""
+				replace_number=true
+				_set_number_text("")
+			"DEL":
+				if not pending_operator.is_empty() and replace_number:return
+				if display.has_selection():
+					display.delete_text(display.get_selection_from_column(),display.get_selection_to_column())
+				elif display.caret_column>0:
+					var column:=display.caret_column
+					display.delete_text(column-1,column)
+					display.caret_column=column-1
+				replace_number=false
+			"±","%":
+				var current:=_current_number()
+				if is_finite(current):_enter_number(-current if key=="±" else current*.01)
+			"Ans":_enter_number(answer)
+			"MC":memory=0.0
+			"MR":_enter_number(memory)
+			"M+","M−":
+				var current:=_current_number()
+				if is_finite(current):memory+=current*(1 if key=="M+" else -1)
+		memory_label.text=angle_mode.to_upper()+("   M" if memory!=0 else "")
+		_show_pending_number()
+
+func _current_number() -> float:
+	var entered:=display.text.strip_edges()
+	if entered.is_empty():return 0.0
+	return float(entered) if entered.is_valid_float() else NAN
+
+func _set_number_text(value: String) -> void:
+	display.text=value
+	display.caret_column=value.length()
+
+func _enter_number(value: float) -> void:
+	_set_number_text(str(value))
+	replace_number=false
+
+func _show_pending_number() -> void:
+	var expression:="" if pending_operator.is_empty() else "%s %s"%[pending_number,pending_operator]
+	_display_calculation({"text":expression})
+
+func _evaluate_number() -> bool:
+	if not pending_operator.is_empty() and replace_number:return true
+	var value:=_current_number()
+	if not is_finite(value):
+		return _display_calculation({"error":"Enter a valid number."})
+	match pending_operator:
+		"+":value=pending_number+value
+		"−":value=pending_number-value
+		"×":value=pending_number*value
+		"÷":
+			if value==0.0:return _display_calculation({"error":"Cannot divide by zero."})
+			value=pending_number/value
+	if not is_finite(value):return _display_calculation({"error":"Result out of range."})
+	answer=value
+	pending_operator=""
+	replace_number=true
+	_set_number_text(str(value))
+	_show_pending_number()
+	return true
+
 func _insert(value: String) -> void:
 	display.insert_text_at_caret(value)
 func _divide_percent() -> void:
@@ -246,13 +386,18 @@ func _display_calculation(outcome: Dictionary) -> bool:
 	return successful
 
 func evaluate() -> bool:
+	if _number_mode() and not _finance_input():return _evaluate_number()
 	display.text=close_parentheses(display.text)
 	display.caret_column=display.text.length()
 	_refresh_equation()
 	if (configured or advanced_app) and Finance.ARGUMENTS.has(display.text.get_slice("(",0).to_upper()):
 		var operation_name:=display.text.get_slice("(",0).to_upper()
 		var financial_result:=Finance.evaluate(operation_name,display.text.substr(display.text.find("(")+1).trim_suffix(")"))
-		if financial_result.get("ok",false):return _display_calculation({"real":financial_result.value,"text":str(financial_result.value)})
+		if financial_result.get("ok",false):
+			if _number_mode():
+				_enter_number(float(financial_result.value))
+				return _evaluate_number()
+			return _display_calculation({"real":financial_result.value,"text":str(financial_result.value)})
 		return _display_calculation({"error":financial_result.get("error","Math error")})
 	if equation_enabled or algebra_enabled:
 		var selected:=str(operation.get_selected_metadata()) if is_instance_valid(operation) else "evaluate"
@@ -265,18 +410,6 @@ func evaluate() -> bool:
 			return _display_calculation({"text":"%s %s %si"%[snappedf(radius*cos(angle),1e-8),"-" if sin(angle)<0 else "+",snappedf(absf(radius*sin(angle)),1e-8)]})
 		var expression: Dictionary=Parser.new().parse(display.text)
 		return _display_calculation(math_engine.Calculate(expression.tree,selected,complex_enabled,angle_mode) if expression.ok else {"error":expression.error})
-	if configured:
-		if not display.text.is_valid_float():return _display_calculation({"error":"Enter one number at a time."})
-		var value:=float(display.text)
-		match pending_operator:
-			"+":value=pending_number+value
-			"−","-":value=pending_number-value
-			"×":value=pending_number*value
-			"÷":
-				if is_zero_approx(value):return _display_calculation({"error":"Cannot divide by zero."})
-				value=pending_number/value
-		pending_operator=""
-		return _display_calculation({"text":str(value),"real":value})
 	var legacy := calculate(display.text,degrees,angle_mode) if model=="calculator" else _limited_calculate(display.text)
 	if not legacy.ok:
 		result.text=legacy.error;result.tooltip_text=str(legacy.error);display.theme_type_variation="ErrorLineEdit";return false

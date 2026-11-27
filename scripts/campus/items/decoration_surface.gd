@@ -51,7 +51,7 @@ static func _add(surface: Node3D, layer: Dictionary, index: int, area: Vector2, 
 	var neutral:=Vector2(absf(cos(angle))*target_aspect+absf(sin(angle)),absf(sin(angle))*target_aspect+absf(cos(angle)))
 	var scale:=minf(minf(area.x/available.x,area.y/available.y),minf(area.x/neutral.x,area.y/neutral.y)*float(layer.size))
 	var footprint:=available*scale
-	var position:=Vector3((float(layer.x)-.5)*(area.x-footprint.x),(.5-float(layer.y))*(area.y-footprint.y),.00012*(index+1))
+	var position:=Vector3((float(layer.x)-.5)*(area.x-footprint.x),(.5-float(layer.y))*(area.y-footprint.y),.00012*mini(index+1,128))
 	if not position.is_finite():return
 	var box:=Vector2(width,height)*scale
 	var tint:=Color(layer.color)
@@ -61,7 +61,8 @@ static func _add(surface: Node3D, layer: Dictionary, index: int, area: Vector2, 
 		text_node.rotation.z=angle
 		text_node.pixel_size=box.y/float(text_node.get_meta("line_height"))
 		text_node.modulate=tint
-		text_node.render_priority=index
+		text_node.render_priority=mini(index,127)
+		text_node.sorting_offset=float(index)*.0001
 		text_node.layers=layers
 		text_node.shaded=float(layer.glow)<=0.0
 		surface.add_child(text_node)
@@ -85,7 +86,8 @@ static func _add(surface: Node3D, layer: Dictionary, index: int, area: Vector2, 
 	material.metallic=layer.metallic
 	material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.blend_mode=[BaseMaterial3D.BLEND_MODE_MIX,BaseMaterial3D.BLEND_MODE_ADD,BaseMaterial3D.BLEND_MODE_MUL][layer.blend]
-	material.render_priority=index
+	material.render_priority=mini(index,127)
+	decal.sorting_offset=float(index)*.0001
 	if float(layer.glow)>0.0:
 		material.emission_enabled=true
 		material.emission=Color(layer.glow_color)

@@ -53,7 +53,45 @@ func run() -> void:
 	assert(paper.owner == returning and paper.answers["0"] == "saved answer")
 	assert(school.papers.size() == 1 and school.archive[identity].size() == 1)
 	assert(not student.done and activity.deadline == deadline)
+	_check_background_transition(game)
 	game.queue_free()
 	await process_frame
-	print("PASS assessment persistence retry, paper retry and guest identity rebind")
+	print("PASS assessment persistence, guest identity rebind and background lecture transition")
 	quit()
+
+func _check_background_transition(game: Node) -> void:
+	var school: Node = game.school
+	var classes: Node = game.lecture_classes
+	var guard: Node = game.assessment_focus_guard
+	var lecture := "ety155_lecture"
+	var identity: String = school.local_identity
+	assert(not identity.is_empty())
+	school.identities[1] = identity
+	game.player.global_position = classes.signs[lecture].desk
+	assert(classes._start(lecture,{"kind":"lecture","course_id":"ETY155","week":1,"difficulty":1}) == "")
+	assert(classes._sign(1,lecture) == "")
+	var activity: Dictionary = classes.classes[lecture]
+	activity.phase = "lesson"
+	activity.deadline = classes._now() - 1.0
+	guard.set_process(false)
+	guard.notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	guard.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	guard._process(.1)
+	classes._advance()
+	assert(activity.phase == "assignment")
+	var student: Dictionary = activity.students[identity]
+	assert(student.paper > 0)
+	var paper: Dictionary = school.papers[student.paper]
+	guard.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	guard._process(6.0)
+	assert(not guard.reports.has(1) and paper.mark.is_empty() and not student.done)
+	guard.notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	guard._process(.1)
+	classes._advance()
+	assert(classes.classes.has(lecture) and classes.classes[lecture].id == activity.id)
+	guard.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	guard._process(.1)
+	assert(guard.reports.get(1,{}).get("id","") == activity.id)
+	guard.notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	guard._process(.1)
+	assert(not guard.reports.has(1) and paper.mark.is_empty() and not student.done)

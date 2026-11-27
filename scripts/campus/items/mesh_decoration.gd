@@ -140,7 +140,8 @@ static func _overlay(target: MeshInstance3D, texture: Texture2D, layer: Dictiona
 	overlay.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material:=ShaderMaterial.new()
 	material.shader=ShaderResource
-	material.render_priority=index
+	material.render_priority=mini(index,127)
+	overlay.sorting_offset=float(index)*.0001
 	var tint:=Color(layer.color)
 	tint.a=layer.opacity
 	material.set_shader_parameter("tint",tint)

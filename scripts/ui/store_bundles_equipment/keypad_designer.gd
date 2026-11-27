@@ -64,7 +64,6 @@ func build(layout: Array, features: Dictionary) -> void:
 		_compact(button)
 		tools.add_child(button)
 	grid=GridContainer.new()
-	grid.columns=Catalog.COLUMNS
 	grid.add_theme_constant_override("h_separation",5)
 	grid.add_theme_constant_override("v_separation",5)
 	installed.add_child(grid)
@@ -140,7 +139,8 @@ func _clear_children(parent: Node) -> void:
 
 func _render() -> void:
 	_clear_children(grid)
-	counter.text="%d / %d installed"%[Catalog.SLOTS-slots.count(""),Catalog.SLOTS]
+	grid.columns=Catalog.design_columns(slots)
+	counter.text="%d / %d installed"%[slots.size()-slots.count(""),slots.size()]
 	undo_button.disabled=undo_steps.is_empty()
 	redo_button.disabled=redo_steps.is_empty()
 	remove_button.disabled=selected_slot<0 or slots[selected_slot].is_empty()

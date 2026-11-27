@@ -310,7 +310,7 @@ func _process(delta: float) -> void:
 		publish_clock+=delta
 		if check_clock>=.2:
 			for room in classes:
-				classroom_students.step(classes[room],_now(),check_clock)
+				classroom_students.step(classes[room],_now(),check_clock,room)
 				_hand_turn(room,classes[room],_now())
 				Visuals.advance(classes[room],_now(),game.faculty.lesson_question_active(room))
 			var ac: Dictionary=classes.get("ac_lab",{})

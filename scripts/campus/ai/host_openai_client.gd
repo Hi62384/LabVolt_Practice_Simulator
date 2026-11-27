@@ -207,7 +207,15 @@ func plan_visual(prompt: String) -> Dictionary:
 	return await _request_text(prompt,model,clampi(max_output_tokens,1600,2400),reasoning_effort,true,{},24.)
 
 func respond_character(instructions: String,context: Dictionary,dialogue: String,visual := false) -> Dictionary:
-	var input:=JSON.stringify({"context":context,"player_dialogue":dialogue.left(500)})
+	var request:={"context":context.duplicate(true),"player_dialogue":dialogue.left(500)}
+	var input:=JSON.stringify(request)
+	for field in ["recent_experiences","earlier_turns","prior_turns","reported_facts"]:
+		var entries: Variant=request.context.get(field)
+		if not entries is Array:continue
+		while input.length()>MAX_INPUT_CHARS and not entries.is_empty():
+			if field=="reported_facts":entries.pop_back()
+			else:entries.pop_front()
+			input=JSON.stringify(request)
 	if input.length()>MAX_INPUT_CHARS or instructions.length()>2*MAX_INPUT_CHARS:
 		return {"ok":false,"error":"Classroom context is too large."}
 	var output:=clampi(max_output_tokens,1600,2400) if visual else max_output_tokens
@@ -373,7 +381,9 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 	if path=="/audio/speech":
 		if body.size()<44 or body.slice(0,4).get_string_from_ascii()!="RIFF" or body.slice(8,12).get_string_from_ascii()!="WAVE":
 			return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
-		var stream:=AudioStreamWAV.load_from_buffer(body)
+		var wav:=_finish_streamed_wav(body)
+		if wav.is_empty():return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
+		var stream:=AudioStreamWAV.load_from_buffer(wav)
 		if stream==null or stream.data.is_empty():return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
 		return {"ok":true,"stream":stream}
 	var parsed: Variant=JSON.parse_string(body.get_string_from_utf8())
@@ -391,6 +401,23 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 	var response:=_decode_body(path,parsed)
 	response._api_metadata={"usage":parsed.get("usage",{}),"model":parsed.get("model",""),"service_tier":parsed.get("service_tier",""),"reasoning":parsed.get("reasoning",{})}
 	return response
+
+static func _finish_streamed_wav(wav: PackedByteArray) -> PackedByteArray:
+	# Streamed responses can leave both RIFF lengths unknown. Godot receives the
+	# completed HTTP body, so the final data chunk's exact size is available.
+	const UNKNOWN_LENGTH := 0xffffffff
+	if wav.decode_u32(4)!=UNKNOWN_LENGTH:return wav
+	var offset:=12
+	while offset+8<=wav.size():
+		var length:=wav.decode_u32(offset+4)
+		if length==UNKNOWN_LENGTH:
+			if wav.slice(offset,offset+4).get_string_from_ascii()!="data":return PackedByteArray()
+			wav.encode_u32(offset+4,wav.size()-offset-8)
+			break
+		if length>wav.size()-offset-8:return PackedByteArray()
+		offset+=8+length+(length&1)
+	wav.encode_u32(4,wav.size()-8)
+	return wav
 
 func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 	if path=="/images/generations":

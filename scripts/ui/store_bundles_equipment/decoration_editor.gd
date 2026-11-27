@@ -658,9 +658,6 @@ func _set_layer(key: String,value: Variant,rebuild: bool) -> void:
 	_commit(next,rebuild)
 
 func _add(kind: String,data: String) -> void:
-	if design.size()>=Document.LAYERS:
-		notice.text="A design can have up to %d layers."%Document.LAYERS
-		return
 	var next:=design.duplicate(true)
 	var layer:=Document.layer(kind)
 	layer.name="Drawing Layer" if kind=="paint" else "Image Layer"
@@ -678,7 +675,7 @@ func _move_layer(source: int,destination: int) -> void:
 	_commit(next)
 
 func _duplicate() -> void:
-	if active<0 or design.size()>=Document.LAYERS:return
+	if active<0:return
 	var next:=design.duplicate(true)
 	var copy: Dictionary=next[active].duplicate(true)
 	copy.name=copy.name.left(23)+" copy"

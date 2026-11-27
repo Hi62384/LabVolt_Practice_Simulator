@@ -206,7 +206,7 @@ static func body_size(configuration: Dictionary) -> Vector3:
 	var length:=.182
 	if int(configuration.get("version",1))==DESIGN_VERSION:
 		var layout: Array=configuration.get("keypad",[])
-		length=.062+.020*Keypad.occupied_rows(layout,Keypad.COLUMNS)
+		length=.062+.020*Keypad.occupied_rows(layout,Keypad.design_columns(layout))
 	return Vector3(body.width,body.height,length)
 
 static func kit_capacity(configuration: Dictionary, fallback: int) -> int:
@@ -312,7 +312,8 @@ static func value(kind: String, configuration: Dictionary, group: String, key: S
 		if kind==CALCULATOR:
 			if key=="model":return "calculator_basic"
 			if key=="size":return body_size(configuration)
-			if key=="columns":return 6
+			if key=="columns":
+				return Keypad.design_columns(configuration.get("keypad",[])) if version==DESIGN_VERSION else Keypad.LEGACY_COLUMNS
 		if kind==KIT and key=="size":
 			var capacity:=kit_capacity(configuration,5)
 			return "compact" if capacity<=20 else "standard" if capacity<=40 else "extended" if capacity<=70 else "large"

@@ -5,6 +5,7 @@ var incidents:={}
 var reaction_times:={}
 var relationships:={}
 var conversations:={}
+var biographies:={}
 var memory_dirty:=false
 var memory_blocked:=false
 const COOLDOWN_MS:=12000
@@ -15,7 +16,8 @@ const MAX_REACTION_KEYS:=2048
 const MAX_INCIDENT_KEYS:=2048
 const MAX_CONVERSATIONS:=192
 const MAX_TURNS:=28
-const EPISODES:=["help","study","disagreement","disruption","hazard","competition","insult","apology","compliment"]
+const EPISODES:=["help","study","disagreement","disruption","hazard","competition","insult","apology","compliment","initiative"]
+const Mind=preload("res://scripts/campus/academics/character_mind.gd")
 const Knowledge=preload("res://scripts/campus/academics/character_knowledge.gd")
 
 static func context_allows(kind: String,phase: String,severity: float) -> bool:
@@ -112,6 +114,27 @@ func _store_fact(key: String,subject: String,statement: String,domain: String,no
  facts[subject]={"statement":statement,"domain":domain,"source":"speaker_statement","at":now}
  memory_dirty=true
 
+func character_biography(person: Dictionary) -> Dictionary:
+ var personal: Dictionary=person.get("biography",{}).duplicate()
+ personal.merge(biographies.get(person.id,{}))
+ return personal
+
+func remember_dialogue_details(person: Dictionary,identity: String,question: String,details: Dictionary,now: int) -> void:
+ if memory_blocked:return
+ var key: String=person.id+":"+identity
+ var quote:=str(details.get("memory",""))
+ if relationships.has(key) and quote.length()>=12 and quote in question:
+  var domain:=Knowledge.domain_of(quote.to_lower())
+  _store_fact(key,"reported:"+quote.sha256_text().left(16),quote,domain,now)
+ var proposed: Dictionary=details.get("biography",{})
+ if proposed.is_empty() or not ("your " in question.to_lower() or "you " in question.to_lower()):return
+ var topic:=str(proposed.get("topic",""))
+ if character_biography(person).has(topic) or not topic in Mind.BIO_TOPICS:return
+ if not biographies.has(person.id) and biographies.size()>=80:return
+ var facts: Dictionary=biographies.get_or_add(person.id,{})
+ facts[topic]=proposed.detail
+ memory_dirty=true
+
 func recall_reported_fact(relationship: Dictionary,question: String) -> Dictionary:
  var topic:=Knowledge.question_topic(question)
  var facts: Dictionary=relationship.get("facts",{})
@@ -146,7 +169,7 @@ func remember(id: String,student: String,kind: String,now_unix: int) -> void:
  if not relationships.has(key) and relationships.size()>=MAX_RELATIONSHIPS:return
  var memory:=relationship_at(id,student,now_unix)
  memory.familiarity=mini(100,int(memory.familiarity)+1)
- if kind in ["help","study"]:memory.positive=mini(100,int(memory.positive)+1)
+ if kind in ["help","study","initiative"]:memory.positive=mini(100,int(memory.positive)+1)
  elif kind=="competition":memory.competitions=mini(20,int(memory.get("competitions",0))+1)
  elif kind in ["insult","disagreement"]:memory.resentment=mini(10,int(memory.get("resentment",0))+1)
  elif kind=="apology":memory.resentment=maxi(0,int(memory.get("resentment",0))-2)
@@ -167,7 +190,7 @@ func remember(id: String,student: String,kind: String,now_unix: int) -> void:
 func load_memory() -> bool:
  # Never replace newer, unsaved observations with an older disk snapshot.
  if memory_dirty:return false
- relationships={};conversations={};memory_dirty=false;memory_blocked=false
+ relationships={};conversations={};biographies={};memory_dirty=false;memory_blocked=false
  var primary_exists:=FileAccess.file_exists(memory_path)
  var backup_exists:=FileAccess.file_exists(memory_path+".bak")
  var loaded:=_read_memory(memory_path)
@@ -178,6 +201,7 @@ func load_memory() -> bool:
  if loaded.ok:
   relationships=loaded.relationships
   conversations=loaded.get("conversations",{})
+  biographies=loaded.get("biographies",{})
   memory_dirty=recovered
  else:memory_blocked=primary_exists or backup_exists
  return loaded.ok or not memory_blocked
@@ -240,7 +264,8 @@ func _read_memory(path: String) -> Dictionary:
  if not value is Dictionary or not value.has("relationships"):return {"ok":false}
  if value.get("version")==1 and value.size()==2:return _validate_relationships(value.relationships)
  var version: Variant=value.get("version")
- if (version!=2 and version!=3) or value.size()!=3:return {"ok":false}
+ if version!=2 and version!=3 and version!=4:return {"ok":false}
+ if value.size()!=(4 if version==4 else 3):return {"ok":false}
  var validated:=_validate_relationships(value.relationships)
  var turns: Variant=value.get("conversations")
  if not validated.ok or not turns is Dictionary or turns.size()>MAX_CONVERSATIONS:return {"ok":false}
@@ -250,6 +275,15 @@ func _read_memory(path: String) -> Dictionary:
    if not exchange is Dictionary or exchange.size()!=2 or not exchange.get("student") is String or not exchange.get("teacher") is String:return {"ok":false}
    if exchange.student.length()>220 or exchange.teacher.length()>320:return {"ok":false}
  validated.conversations=turns
+ if version==4:
+  var lives: Variant=value.get("biographies")
+  if not lives is Dictionary or lives.size()>80:return {"ok":false}
+  for id in lives:
+   if not id is String or not id.is_valid_identifier() or id.length()>48 or not lives[id] is Dictionary:return {"ok":false}
+   for topic in lives[id]:
+    var detail: Variant=lives[id][topic]
+    if topic not in Mind.BIO_TOPICS or not detail is String or detail.length()<8 or detail.length()>140:return {"ok":false}
+  validated.biographies=lives
  return validated
 
 func save_memory() -> Error:
@@ -261,6 +295,9 @@ func save_memory() -> Error:
  if file==null:return FileAccess.get_open_error()
  # A remembered dialogue always belongs to an existing relationship record.
  var snapshot:={"version":3,"relationships":validated.relationships,"conversations":conversations}
+ if not biographies.is_empty():
+  snapshot.version=4
+  snapshot.biographies=biographies
  file.store_string(JSON.stringify(snapshot));file.flush()
  var error:=file.get_error();file.close()
  if error!=OK:return error
