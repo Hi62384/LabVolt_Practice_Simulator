@@ -6,12 +6,13 @@ const RADIUS:=0.34
 const HEIGHT:=1.65
 const MAX_CELLS:=38
 
-static func plan(game: Node,room: String,start: Vector3,goal: Vector3,stand_off: float,allowed: Callable=Callable()) -> Array[Vector3]:
+static func plan(game: Node,room: String,start: Vector3,goal: Vector3,stand_off: float,allowed: Callable=Callable(),ignored_bodies: Array[RID]=[]) -> Array[Vector3]:
  var result: Array[Vector3]=[]
  if not start.is_finite() or not goal.is_finite() or not game.campus.registry.room_contains(room,start):return result
  var space: PhysicsDirectSpaceState3D=game.get_world_3d().direct_space_state
  var capsule:=CapsuleShape3D.new();capsule.radius=RADIUS;capsule.height=HEIGHT
  var query:=PhysicsShapeQueryParameters3D.new();query.shape=capsule;query.collision_mask=3
+ query.exclude=ignored_bodies
  var center: Vector3=(start+goal)*.5
  var half:=mini(MAX_CELLS/2,maxi(8,ceili(start.distance_to(goal)/CELL)+5))
  var graph:=AStar3D.new()
@@ -73,7 +74,8 @@ static func _segment_clear(game: Node,space: PhysicsDirectSpaceState3D,query: Ph
   if (allowed.is_valid() and not allowed.call(at)) or not _clear(game,space,query,at):return false
  return true
 
-static func clear_step(game: Node,a: Vector3,b: Vector3,allowed: Callable=Callable()) -> bool:
+static func clear_step(game: Node,a: Vector3,b: Vector3,allowed: Callable=Callable(),ignored_bodies: Array[RID]=[]) -> bool:
  var capsule:=CapsuleShape3D.new();capsule.radius=RADIUS;capsule.height=HEIGHT
  var query:=PhysicsShapeQueryParameters3D.new();query.shape=capsule;query.collision_mask=3
+ query.exclude=ignored_bodies
  return _segment_clear(game,game.get_world_3d().direct_space_state,query,a,b,allowed)

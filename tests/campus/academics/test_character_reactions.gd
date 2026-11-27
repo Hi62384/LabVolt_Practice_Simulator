@@ -14,13 +14,17 @@ func _initialize() -> void:
 	var faculty_greetings: Dictionary={}
 	var biographies: Dictionary={}
 	var faculty_lessons: Dictionary={}
+	var hostile_strategies: Dictionary={}
+	var silent_characters: Array=[]
+	var arguing_characters: Array=[]
 	for person in people:
 		var mind:=Mind.new()
 		var brain:=Brain.new()
 		var id: String=person.id
 		assert(person.traits.size()>=75,id)
 		assert(person.traits.values().all(func(value):return is_finite(value) and value>=0. and value<=1.),id)
-		assert(Mind.instructions(person,"steady").length()<4500,id)
+		assert("300 characters" not in Mind.instructions(person,"steady"),id)
+		assert(str(person.get("worldview","")) in Mind.instructions(person,"steady"),id)
 		assert(not str(person.ambition).is_empty(),id)
 		if person.role=="teacher":
 			biographies[person.biography.personal_story]=true
@@ -39,16 +43,21 @@ func _initialize() -> void:
 		assert(not mind.observe(person,{},"I don't think that follows from your example.",90,"alex","disagreement").closed,id)
 		assert(not mind.observe(person,{},"That explanation was hard to follow.",95,"alex","criticism").closed,id)
 		var first:=mind.observe(person,{},"You're an idiot.",100,"alex")
-		assert(not first.closed,id)
+		assert(not first.reason.is_empty(),id)
 		var last: Dictionary
 		for index in range(8):
 			brain.remember(id,"alex","insult",1000+index)
 			last=mind.observe(person,brain.relationship(id,"alex"),"You're an idiot.",200+index*200,"alex")
-		assert(last.closed and last.line!=first.line,id)
-		assert(mind.observe(person,brain.relationship(id,"alex"),"Another question",2000,"alex").closed,id)
+		hostile_strategies[last.strategy]=true
+		if last.quiet:silent_characters.append(id)
+		if not last.closed:arguing_characters.append(id)
 		assert(not mind.observe(person,{},"Hi",2001,"jordan").closed,id)
-		assert(not mind.observe(person,brain.relationship(id,"alex"),"I'm sorry",2200,"alex").closed,id)
+		var apology:=mind.observe(person,brain.relationship(id,"alex"),"I'm sorry",2200,"alex")
+		assert(apology.event=="apology" and not apology.reason.is_empty(),id)
 		assert(not Mind.assess(person,{},"Calculate 84561723 times 81235609 in your head").allowed,id)
+	assert(hostile_strategies.size()>=4)
+	assert(not silent_characters.is_empty() and not arguing_characters.is_empty())
+	assert("chad" in arguing_characters and "brian" in arguing_characters)
 	assert(faculty_greetings.size()==Roster.PEOPLE.size())
 	assert(biographies.size()==Roster.PEOPLE.size())
 	assert(faculty_lessons.size()>=3)
@@ -74,7 +83,7 @@ func _initialize() -> void:
 		assert(Motion.APPEARANCE.has(Affect.EXPRESSION[key]),key)
 	Affect.apply(affected,stanley.traits,"setback",1.)
 	assert(affected.disappointment>.2 and affected.confidence<float(stanley.traits.confidence))
-	Affect.recover(affected,stanley.traits,300.)
+	Affect.recover(affected,stanley.traits,3600.)
 	assert(is_equal_approx(affected.confidence,float(stanley.traits.confidence)))
 	assert(not Mind.assess(stanley,{},"How much does Fortnite's latest battle pass cost?").allowed)
 	assert(not Mind.assess(stanley,{},"Which surgery is indicated?").allowed)

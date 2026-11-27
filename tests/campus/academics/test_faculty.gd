@@ -5,6 +5,7 @@ func run():
  var game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
  for i in 4:await process_frame
  var faculty=game.faculty
+ game.client_preferences.values.teacher_speech=false
  assert(Roster.PEOPLE.size()==21)
  assert(faculty.current.ac_lab!=faculty.current.dc_lab)
  assert("ELM253" in Roster.PEOPLE[faculty.current.ac_lab].courses)
@@ -19,6 +20,10 @@ func run():
  assert(faculty.current.ac_lab==before)
  game.lecture_classes.classes.erase("ac_lab")
  faculty._process(1)
+ if faculty.lab_handoffs.has("ac_lab"):
+  var exchange: Dictionary=faculty.lab_handoffs.ac_lab
+  assert(exchange.outgoing==before and exchange.incoming!=before)
+  faculty._finish_lab_handoffs(int(exchange.due))
  assert(faculty.current.ac_lab!=before)
  assert(is_instance_valid(faculty.lunch))
  print("PASS faculty roster, eligibility and lab rotation lock")

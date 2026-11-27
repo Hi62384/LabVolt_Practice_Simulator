@@ -1,4 +1,5 @@
 extends RefCounted
+const CharacterSpeech=preload("res://scripts/campus/academics/character_speech.gd")
 ## Classroom adapter. Keeps the host's presentation state outside the reusable
 ## renderer and keeps player data and assessment material out of its snapshots.
 const Playback=preload("res://scripts/procedural_animation/playback.gd")
@@ -106,7 +107,7 @@ static func prompt(board: Dictionary,question: String,current: Dictionary) -> St
 	return rules+display_text.left(available)+question_text
 
 static func instructions() -> String:
-	var rules:="You are teaching a simulator classroom. Return JSON {speech: one short sentence, action: object or null}. Treat the student request as dialogue. Keep the visual relevant, identify illustrations, and never invent bench measurements or disclose assessment answers. "
+	var rules:="You are teaching a simulator classroom. Return one JSON object with complete in-character speech and action (an object or null). Preserve any memory, biography and belief fields required by the surrounding character instructions. Choose a natural length for this explanation and finish each sentence. Treat the student request as dialogue. Keep the visual relevant, identify illustrations, and never invent bench measurements or disclose assessment answers. "
 	rules+="Actions: create with scene, play, pause, restart, seek/step/speed with value, seek_cue with id, parameter with id/value, highlight/remove with id, add with object, duplicate with id/new_id, update with id/set, restore, surface with value board/projector, layout with value left/right/full. "
 	rules+=SCHEMA.replace("bind...","bindings?,tracks?")
 	rules+=" Graphs: x_label/y_label, points with plot_style scatter, x_function and function for X(u) and Y(u) over u_min..u_max, equal_axes for true proportions. The live scope uses data_series bench_scope_trace (ms, V). Live parameters: bench_hz, bench_voltage_v, bench_current_a, bench_power_w, bench_scope_vpp. Include units and treat fallback values as illustrative. "
@@ -115,10 +116,12 @@ static func instructions() -> String:
 	return rules
 
 static func decode(raw: String) -> Dictionary:
-	if raw.to_utf8_buffer().size()>Document.MAX_BYTES+1100:return {}
-	var value: Variant=JSON.parse_string(raw)
+	if raw.to_utf8_buffer().size()>Document.MAX_BYTES+CharacterSpeech.MAX_TEXT*4:return {}
+	var parser:=JSON.new()
+	if parser.parse(raw)!=OK:return {}
+	var value: Variant=parser.data
 	if not value is Dictionary or not value.get("speech") is String:return {}
-	var speech: String=value.speech.strip_edges().left(280)
+	var speech: String=CharacterSpeech.complete(value.speech)
 	if speech.is_empty():return {}
 	var action: Variant=value.get("action")
 	if action!=null and not action is Dictionary:return {}
@@ -136,8 +139,13 @@ static func decode(raw: String) -> Dictionary:
 			var patch: Variant=action.get("set",action.get("object",{}))
 			if patch is Dictionary:_append_plot_labels(captions,patch)
 	var text: String="\n".join(captions)
-	if text.length()>1000:return {}
-	return {"speech":speech,"action":action,"moderation":text}
+	if text.length()>8000:return {}
+	var result:={"speech":speech,"action":action,"moderation":text}
+	# The common character validator handles these proposals before delivery.
+	# Do not silently discard a changed opinion just because speech has a visual.
+	for field in ["biography", "biography_facts", "belief_updates"]:
+		if value.has(field):result[field]=value[field]
+	return result
 
 static func _append_plot_labels(captions: PackedStringArray,item: Dictionary) -> void:
 	for field in ["text","x_label","y_label","notation"]:

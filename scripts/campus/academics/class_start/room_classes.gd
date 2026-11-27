@@ -369,14 +369,16 @@ func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
 	var topic:=str(stage.get("title",""))
 	if topic.is_empty() or activity.get("npc_question_topic","")==topic:return
 	for member in activity.get("classmates",{}).values():
-		if not member.seated or member.action!="raising hand":continue
+		if not member.seated or member.action not in ["raising hand","asking for help"]:continue
 		var question: String="Could you walk us through the first step?" if member.profile.confidence<.6 else "Which part of this should we check first?"
 		member.action="asking a question"
 		member.line=question
 		member.next=now+8.
 		activity.npc_question_topic=topic
 		activity.next_hand=now+45.
-		var answer: String=game.faculty.classroom_character_exchange(activity,member,stage,question)
+		var phase_id:=str(activity.id)
+		var answer: String=await game.faculty.classroom_character_exchange(activity,member,stage,question)
+		if str(classes.get(room,{}).get("id",""))!=phase_id or classes.get(room,{}).get("phase","")!="lesson" or answer.is_empty():return
 		game.faculty.present_class_reaction(room,activity.teacher,"%s, %s"%[str(member.profile.name).get_slice(" ",0),answer],2)
 		break
 

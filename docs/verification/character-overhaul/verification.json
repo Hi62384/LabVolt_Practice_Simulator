@@ -1,0 +1,1055 @@
+{
+  "schema_version": 1,
+  "verified_at_utc": "2026-11-27T19:51:02.050908+00:00",
+  "branch": "character-overhaul-20261127",
+  "base_commit": "4dc13dbc2c7a3bd58b17aa19200dc2a68b432a8e",
+  "production_checkpoint": "e3b53c4c43ef54d5e206e22d71dafc0abed17305",
+  "final_native_tested_head": "d446d5b6cb0c7a297d5e1d1151e88da2ada19527",
+  "verification_tooling_head": "e18951d6da790b6afaeab21f0576906ae6771309",
+  "production_changes_since_checkpoint": [],
+  "status": "native and deterministic integration gates passed; live conversational quality and human review pending",
+  "runtimes": {
+    "native": "Godot 4.5.1 stable Mono Linux x86_64, official f62fdbde1",
+    "dotnet": "8.0.428",
+    "visual": "Godot 4.7.2 Compatibility, actual desktop viewport"
+  },
+  "build": {
+    "command": "dotnet build CollegeSimulator.csproj --configuration Debug --nologo",
+    "exit_code": 0,
+    "warnings": 0,
+    "errors": 0,
+    "seconds": 3.26,
+    "observed_output": "Build succeeded.\n    0 Warning(s)\n    0 Error(s)",
+    "csharp_project_sources_changed_from_base": false
+  },
+  "native_regressions": {
+    "passed": 33,
+    "skipped": 1,
+    "failed": 0,
+    "tests": [
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.94,
+        "markers": [
+          "CHARACTER_PIPELINE PASS checks=45 failures=0 (deterministic fixture, not live AI)"
+        ],
+        "test": "test_character_interaction_pipeline",
+        "log": "logs/native/test_character_interaction_pipeline.log",
+        "sha256": "1150add48422e97bd7532467c173aa388e44caef433f75f01edcd04ad9b7843a",
+        "pass_or_skip_markers": [
+          "CHARACTER_PIPELINE PASS checks=45 failures=0 (deterministic fixture, not live AI)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.92,
+        "markers": [
+          "CHARACTER_EVOLUTION_PIPELINE PASS checks=36 (deterministic provider; not live AI)"
+        ],
+        "test": "test_character_evolution_pipeline",
+        "log": "logs/native/test_character_evolution_pipeline.log",
+        "sha256": "4f8954d6414ccfc70b6310bb1c8f347fedd5175aa9e794990a1828fc8a82cc85",
+        "pass_or_skip_markers": [
+          "CHARACTER_EVOLUTION_PIPELINE PASS checks=36 (deterministic provider; not live AI)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.55,
+        "markers": [
+          "CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 stable students; slow affect; semantic knowledge; real rig eyes/brows/mouth/arms/posture"
+        ],
+        "test": "test_character_worldviews",
+        "log": "logs/native/test_character_worldviews.log",
+        "sha256": "b9b8e0dbad6ac8ae4c31edfe75dcbe55a008fc4fdef4018535401916ca6f5441",
+        "pass_or_skip_markers": [
+          "CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 stable students; slow affect; semantic knowledge; real rig eyes/brows/mouth/arms/posture"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.85,
+        "markers": [
+          "CHARACTER_REACTIONS PASS"
+        ],
+        "test": "test_character_reactions",
+        "log": "logs/native/test_character_reactions.log",
+        "sha256": "bb73b838f5a186bb248a994be753e8b3ebb4d8122636f5ed7782a99b8acd3603",
+        "pass_or_skip_markers": [
+          "CHARACTER_REACTIONS PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.64,
+        "markers": [
+          "CHARACTER_BELIEFS PASS checks=56 source=deterministic_host_validation"
+        ],
+        "test": "test_character_beliefs",
+        "log": "logs/native/test_character_beliefs.log",
+        "sha256": "bc833d894c4ffebc30063476130aad6ed20021afa4bfea6a481426ecd913a62c",
+        "pass_or_skip_markers": [
+          "CHARACTER_BELIEFS PASS checks=56 source=deterministic_host_validation"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.82,
+        "markers": [
+          "CHARACTER_MEMORY_V5 PASS checks=107"
+        ],
+        "test": "test_character_memory_v5",
+        "log": "logs/native/test_character_memory_v5.log",
+        "sha256": "afc68b73de59062a7eca6b094a60821b0677a431df6f68243d4bc85ec44470d5",
+        "pass_or_skip_markers": [
+          "CHARACTER_MEMORY_V5 PASS checks=107"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.74,
+        "markers": [
+          "CHARACTER_MEMORY_MIGRATION PASS versions=1,2,3,4,5 profile_isolation=true affect_only_switch=true"
+        ],
+        "test": "test_character_memory_migration",
+        "log": "logs/native/test_character_memory_migration.log",
+        "sha256": "6cda06a955380c74e14f15fa3455bbd52d9b1aba73cf2fb41c93ecbe8e26f682",
+        "pass_or_skip_markers": [
+          "CHARACTER_MEMORY_MIGRATION PASS versions=1,2,3,4,5 profile_isolation=true affect_only_switch=true"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.67,
+        "markers": [
+          "CHARACTER_MEMORY_RESILIENCE PASS checks=52"
+        ],
+        "test": "test_character_memory_resilience",
+        "log": "logs/native/test_character_memory_resilience.log",
+        "sha256": "b6283426393e27b97e7f7f9b389bead35558f5520d2798ff932ece843194f288",
+        "pass_or_skip_markers": [
+          "CHARACTER_MEMORY_RESILIENCE PASS checks=52"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.63,
+        "markers": [
+          "CHARACTER_PUBLIC_AFFECT PASS: actual public profile, 600 recovery frames, private traits absent, full-profile behavior preserved"
+        ],
+        "test": "test_character_public_affect",
+        "log": "logs/native/test_character_public_affect.log",
+        "sha256": "6517f8a7fe7c927b23ef10bce4e1eb06fe61d3b27eda345d41caf64592d97fdc",
+        "pass_or_skip_markers": [
+          "CHARACTER_PUBLIC_AFFECT PASS: actual public profile, 600 recovery frames, private traits absent, full-profile behavior preserved"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.72,
+        "markers": [
+          "CHARACTER_MEMORY_SUMMARIES PASS checks=35"
+        ],
+        "test": "test_character_memory_summaries",
+        "log": "logs/native/test_character_memory_summaries.log",
+        "sha256": "8d9c8a4146cea6e582ad1776a646a883c63b514ed6075735f062ff1fb871f7f8",
+        "pass_or_skip_markers": [
+          "CHARACTER_MEMORY_SUMMARIES PASS checks=35"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.82,
+        "markers": [
+          "CHARACTER_PRIOR_LEARNING PASS checks=69 source=persisted_host_outcomes_to_real_prepare student=campus_student_00"
+        ],
+        "test": "test_character_prior_learning",
+        "log": "logs/native/test_character_prior_learning.log",
+        "sha256": "a9bf2bafe35498ae04ec7ac2326d9924618b57c44275fcfb6d5d08982e30e245",
+        "pass_or_skip_markers": [
+          "CHARACTER_PRIOR_LEARNING PASS checks=69 source=persisted_host_outcomes_to_real_prepare student=campus_student_00"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 1.78,
+        "markers": [
+          "STUDENT_POPULATION_CORRUPTION PASS (207 checks): damaged bytes preserved, backup recovery, session identity, host isolation, bounded cache"
+        ],
+        "test": "test_student_population_corruption",
+        "log": "logs/native/test_student_population_corruption.log",
+        "sha256": "ef1340347b80728eb85656e552f0bb79f4b3996d7c763794789f6c7c4bf5fc1b",
+        "pass_or_skip_markers": [
+          "STUDENT_POPULATION_CORRUPTION PASS (207 checks): damaged bytes preserved, backup recovery, session identity, host isolation, bounded cache"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.93,
+        "markers": [
+          "STUDENT_POPULATION_BINDING PASS checks=17 failures=0"
+        ],
+        "test": "test_student_population_binding",
+        "log": "logs/native/test_student_population_binding.log",
+        "sha256": "7fd9081ece63b533bf2c8c3875b7796067eb5e61f552394abaa9684136550823",
+        "pass_or_skip_markers": [
+          "STUDENT_POPULATION_BINDING PASS checks=17 failures=0"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.9,
+        "markers": [
+          "STUDENT_POPULATION_AND_DISCIPLINE PASS (30 profiles, 9 assessment reactions)"
+        ],
+        "test": "test_student_population_and_discipline",
+        "log": "logs/native/test_student_population_and_discipline.log",
+        "sha256": "63c50c94df552144f382ba5c5614493e1cc2178758b9c7dd28b241718e39c66a",
+        "pass_or_skip_markers": [
+          "STUDENT_POPULATION_AND_DISCIPLINE PASS (30 profiles, 9 assessment reactions)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 14.28,
+        "markers": [
+          "STUDENT_DISCIPLINE_ROUTES PASS"
+        ],
+        "test": "test_student_discipline_routes",
+        "log": "logs/native/test_student_discipline_routes.log",
+        "sha256": "8853e3745c2635e89869f49c2d7a4887578ae887705cbf10a83ce552675340dc",
+        "pass_or_skip_markers": [
+          "STUDENT_DISCIPLINE_ROUTES PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 12.19,
+        "markers": [
+          "CHARACTER_ACADEMIC_MEMORY PASS checks=43 source=actual_main_grader_and_station"
+        ],
+        "test": "test_character_academic_memory",
+        "log": "logs/native/test_character_academic_memory.log",
+        "sha256": "d230cdf82c2cde592a94bde458343fb998a350f8b62a675e1097f888dff0f732",
+        "pass_or_skip_markers": [
+          "CHARACTER_ACADEMIC_MEMORY PASS checks=43 source=actual_main_grader_and_station"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 13.11,
+        "markers": [
+          "CHARACTER_HUMAN_ACADEMIC_MEMORY PASS checks=55 source=actual_singleplayer_submit_and_host_grader"
+        ],
+        "test": "test_character_human_academic_memory",
+        "log": "logs/native/test_character_human_academic_memory.log",
+        "sha256": "1f9167c771c02007feccc954417ce83691e4c4dee92f9f32a37e8ac0d9a93c07",
+        "pass_or_skip_markers": [
+          "CHARACTER_HUMAN_ACADEMIC_MEMORY PASS checks=55 source=actual_singleplayer_submit_and_host_grader"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 13.2,
+        "markers": [
+          "ASSIGNMENT_STUDENT_BEHAVIOR PASS checks=553 failures=0 actions={ \"campus_student_14\": { \"working\": true, \"handed in work\": true, \"studying\": true }, \"campus_student_15\": { \"working\": true, \"sleeping\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_16\": { \"working\": true, \"using phone\": true, \"handed in work\": true, \"waiting quietly\": true, \"distracted\": true } }"
+        ],
+        "test": "test_assignment_student_behavior",
+        "log": "logs/native/test_assignment_student_behavior.log",
+        "sha256": "346f2337c13e56d888a52eaf79f08d1a73b997cb7d872fec91766a7d2ec7c89f",
+        "pass_or_skip_markers": [
+          "ASSIGNMENT_STUDENT_BEHAVIOR PASS checks=553 failures=0 actions={ \"campus_student_14\": { \"working\": true, \"handed in work\": true, \"studying\": true }, \"campus_student_15\": { \"working\": true, \"sleeping\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_16\": { \"working\": true, \"using phone\": true, \"handed in work\": true, \"waiting quietly\": true, \"distracted\": true } }"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 12.73,
+        "markers": [
+          "ASSIGNMENT_NPC_DISCIPLINE PASS checks=25 failures=0"
+        ],
+        "test": "test_assignment_npc_discipline",
+        "log": "logs/native/test_assignment_npc_discipline.log",
+        "sha256": "507f130dcaf9d68ec5ea8348d5f294f04ccdf9963f880ed5b2e4978a7c674045",
+        "pass_or_skip_markers": [
+          "ASSIGNMENT_NPC_DISCIPLINE PASS checks=25 failures=0"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 12.64,
+        "markers": [
+          "FACULTY_SPECIALIZED_PATHS PASS checks=45 failures=0 (local provider fixture, not live AI)"
+        ],
+        "test": "test_faculty_specialized_paths",
+        "log": "logs/native/test_faculty_specialized_paths.log",
+        "sha256": "10a4201124ddf7896850368723272481af4d7bae39d5dee2db1014ac9699e61f",
+        "pass_or_skip_markers": [
+          "FACULTY_SPECIALIZED_PATHS PASS checks=45 failures=0 (local provider fixture, not live AI)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 13.48,
+        "markers": [
+          "CHARACTER_GAMEPLAY_OVERHAUL PASS checks=583 failures=0 teachers=21 students=6 (offline, not live AI)"
+        ],
+        "test": "test_character_gameplay_overhaul",
+        "log": "logs/native/test_character_gameplay_overhaul.log",
+        "sha256": "fef55b1be47cb22c7f1879d39faee6eff8f930eadc257cd1cb4e29b86a54378d",
+        "pass_or_skip_markers": [
+          "CHARACTER_GAMEPLAY_OVERHAUL PASS checks=583 failures=0 teachers=21 students=6 (offline, not live AI)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 12.28,
+        "markers": [
+          "STUDENT_WORLD_INTEGRATION PASS"
+        ],
+        "test": "test_student_world_integration",
+        "log": "logs/native/test_student_world_integration.log",
+        "sha256": "be7fe77e6be6f2dc4f2da8102a0e7906ac48e7e25416211f9695ac3a2c8e80cd",
+        "pass_or_skip_markers": [
+          "STUDENT_WORLD_INTEGRATION PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 14.52,
+        "markers": [
+          "CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS"
+        ],
+        "test": "test_classmate_lab_and_dialogue",
+        "log": "logs/native/test_classmate_lab_and_dialogue.log",
+        "sha256": "53307a5469bfe9b4456d4ff4b1073a85b2c0d9c2892ca4757d2fffe513773a2e",
+        "pass_or_skip_markers": [
+          "CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.34,
+        "markers": [
+          "TEACHER_SPEECH_PLAYER PASS"
+        ],
+        "test": "test_teacher_speech_player",
+        "log": "logs/native/test_teacher_speech_player.log",
+        "sha256": "caa6d7cac3b60a077fd697828f8c87dc81626b35ca347c15b4c491f94e2a62e6",
+        "pass_or_skip_markers": [
+          "TEACHER_SPEECH_PLAYER PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.63,
+        "markers": [
+          "TEACHER_SPEECH_SYNTH PASS (adapter only; no real voice)"
+        ],
+        "test": "test_teacher_speech_synth",
+        "log": "logs/native/test_teacher_speech_synth.log",
+        "sha256": "ac2c8f03214830a99b6385a4064cf89a2ed3f06b0066cd32f2398a032f0d3538",
+        "pass_or_skip_markers": [
+          "TEACHER_SPEECH_SYNTH PASS (adapter only; no real voice)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.92,
+        "markers": [
+          "TEACHER_SPEECH_LONG_DELIVERY PASS (native WAV, captions and player; adapter launch, no live voice)"
+        ],
+        "test": "test_teacher_speech_long_delivery",
+        "log": "logs/native/test_teacher_speech_long_delivery.log",
+        "sha256": "a66d20b0f50505cf9e61f3845210ed57d5a008295ef590305fa79979a81a4e5a",
+        "pass_or_skip_markers": [
+          "TEACHER_SPEECH_LONG_DELIVERY PASS (native WAV, captions and player; adapter launch, no live voice)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 12.92,
+        "markers": [
+          "TEACHER_SPEECH_INTEGRATION PASS (fixture audio; no teacher voice asset)"
+        ],
+        "test": "test_teacher_speech_integration",
+        "log": "logs/native/test_teacher_speech_integration.log",
+        "sha256": "1f3b3c85d167bd573fb1daf4b53c0d983f3272ae77c8bd9ab717417c1939518a",
+        "pass_or_skip_markers": [
+          "TEACHER_SPEECH_INTEGRATION PASS (fixture audio; no teacher voice asset)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.35,
+        "markers": [
+          "TEACHER_VOICE_STALE PASS"
+        ],
+        "test": "test_teacher_voice_stale",
+        "log": "logs/native/test_teacher_voice_stale.log",
+        "sha256": "bb7bdfaed46ab574df9c03fa771059c09d5cbabf1d5915649237eefc5a579c0b",
+        "pass_or_skip_markers": [
+          "TEACHER_VOICE_STALE PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 1.46,
+        "markers": [
+          "TEACHER_CLASS_CALL_PROMPT PASS"
+        ],
+        "test": "test_teacher_class_call_prompt",
+        "log": "logs/native/test_teacher_class_call_prompt.log",
+        "sha256": "49f09c07a7a9a061d7846815548fc5accc8f97e8f06e560829de0a9421e24bfe",
+        "pass_or_skip_markers": [
+          "TEACHER_CLASS_CALL_PROMPT PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 12.92,
+        "markers": [
+          "PASS perceived hazard reactions, class messages, cooldown and per-student memory"
+        ],
+        "test": "test_teacher_events",
+        "log": "logs/native/test_teacher_events.log",
+        "sha256": "8b9891d815567990e64b1474bf32774b681da59c71afeddfbce8146ef48e9e55",
+        "pass_or_skip_markers": [
+          "PASS perceived hazard reactions, class messages, cooldown and per-student memory"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 0.46,
+        "markers": [
+          "TEACHER_RELATIONSHIPS PASS"
+        ],
+        "test": "test_teacher_relationships",
+        "log": "logs/native/test_teacher_relationships.log",
+        "sha256": "155139b6de7de7c4a7cc9a240da4997ff28f90c696b266322570b4060f1f6651",
+        "pass_or_skip_markers": [
+          "TEACHER_RELATIONSHIPS PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 11.82,
+        "markers": [
+          "PASS teacher personality values and host-validated conversation"
+        ],
+        "test": "test_teacher_dialogue",
+        "log": "logs/native/test_teacher_dialogue.log",
+        "sha256": "cad61a88098740a4dab9aeb1cbd2b2cf141b287f4b56ca83f8c4da6782a0b4e8",
+        "pass_or_skip_markers": [
+          "PASS teacher personality values and host-validated conversation"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 11.82,
+        "markers": [
+          "PASS faculty roster, eligibility and lab rotation lock"
+        ],
+        "test": "test_faculty",
+        "log": "logs/native/test_faculty.log",
+        "sha256": "6b176f91edc6c758cc7384b415a465ecf10919d4ae0aba906153342a8ffb7ec7",
+        "pass_or_skip_markers": [
+          "PASS faculty roster, eligibility and lab rotation lock"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 2,
+        "passed": false,
+        "skipped": true,
+        "stopped_for": "",
+        "seconds": 0.73,
+        "markers": [
+          "LIVE_CHARACTER_ACCEPTANCE SKIP: OPENAI_API_KEY is unavailable; no live conversations ran."
+        ],
+        "test": "test_live_character_acceptance",
+        "log": "logs/native/test_live_character_acceptance.log",
+        "sha256": "ae1a034e37e993d768b69c239fea72518702756c44557c1c5f710e015b5cd6f6",
+        "pass_or_skip_markers": [
+          "LIVE_CHARACTER_ACCEPTANCE SKIP: OPENAI_API_KEY is unavailable; no live conversations ran."
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      }
+    ]
+  },
+  "classroom_compatibility_regressions": [
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.22,
+      "markers": [
+        "CLASSROOM_MULTIROUND_QUIZ PASS"
+      ],
+      "test": "test_classroom_multiround_quiz",
+      "log": "logs/compatibility/test_classroom_multiround_quiz.log",
+      "sha256": "5bf2ab0e58acff1db4cb9f0e008068d5bbdb4eb4b7ef1b8134272c8a47ce7f66",
+      "pass_or_skip_markers": [
+        "CLASSROOM_MULTIROUND_QUIZ PASS"
+      ],
+      "unexpected_errors": [],
+      "known_platform_error_lines": 3
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.91,
+      "markers": [
+        "CLASSROOM_INTEGRATION_CANDIDATE PASS"
+      ],
+      "test": "test_classroom_integration_candidate",
+      "log": "logs/compatibility/test_classroom_integration_candidate.log",
+      "sha256": "c9ef34be1cd6070bb1c4db0dafd04364028cbc2fe87b525857fc4b32bfdd431e",
+      "pass_or_skip_markers": [
+        "CLASSROOM_INTEGRATION_CANDIDATE PASS"
+      ],
+      "unexpected_errors": [],
+      "known_platform_error_lines": 3
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.92,
+      "markers": [
+        "CLASSROOM_PHYSICAL PASS"
+      ],
+      "test": "test_classroom_physical",
+      "log": "logs/compatibility/test_classroom_physical.log",
+      "sha256": "54fec532e7acac051519673aafabfbd2d1d069fdbbe4cf5090360a9a80f62f76",
+      "pass_or_skip_markers": [
+        "CLASSROOM_PHYSICAL PASS"
+      ],
+      "unexpected_errors": [],
+      "known_platform_error_lines": 3
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 13.58,
+      "markers": [
+        "ROOM_FAILED_RETAKE PASS"
+      ],
+      "test": "test_room_class_failed_retake",
+      "log": "logs/compatibility/test_room_class_failed_retake.log",
+      "sha256": "9785c67c32582cb05013c8752cfa299bb69266915f0ae7a3eb5c2dc47d3c8851",
+      "pass_or_skip_markers": [
+        "ROOM_FAILED_RETAKE PASS"
+      ],
+      "unexpected_errors": [],
+      "known_platform_error_lines": 3
+    }
+  ],
+  "http_transport": {
+    "source": "actual loopback HTTP, authored provider fixture; not live AI",
+    "tests": [
+      {
+        "test": "test_host_openai_client",
+        "exit_code": 0,
+        "passed": true,
+        "script_errors": false,
+        "log": "logs/http/test_host_openai_client.log",
+        "sha256": "22df38f410351401e93a78e50b692ed4ce2cf3297bef1879795c2abb1cee1d0c",
+        "pass_or_skip_markers": [
+          "HOST_OPENAI PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "test": "test_teacher_ai",
+        "exit_code": 0,
+        "passed": true,
+        "script_errors": false,
+        "log": "logs/http/test_teacher_ai.log",
+        "sha256": "abb0477f1c6f060a3fd69e65ffd750c6d46119d51f84eeab3b17952dc36698c7",
+        "pass_or_skip_markers": [
+          "TEACHER_AI PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "test": "test_openai_evaluation",
+        "exit_code": 0,
+        "passed": true,
+        "script_errors": false,
+        "log": "logs/http/test_openai_evaluation.log",
+        "sha256": "ba3e036c9441ca33bfa5fe689bd851a3f5034955effd9633561f25fb0e89b2eb",
+        "pass_or_skip_markers": [
+          "OPENAI_EVALUATION_FIXTURE PASS"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "test": "test_character_http_transport",
+        "exit_code": 0,
+        "passed": true,
+        "script_errors": false,
+        "log": "logs/http/test_character_http_transport.log",
+        "sha256": "1b39c72c0ba98a374d869fa6d00217d639fe3a0f10cd7fea6b19b362125001bc",
+        "pass_or_skip_markers": [
+          "CHARACTER_HTTP_TRANSPORT PASS checks=43 (loopback fixture, not live AI)"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      }
+    ]
+  },
+  "process_restart": {
+    "kind": "two native processes; actual Main and Singleplayer; synthetic data",
+    "passed": true,
+    "distinct_processes": true,
+    "same_disposable_user_data": true,
+    "results": [
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 14.54,
+        "markers": [
+          "CHARACTER_PROCESS_RESTART PASS phase=write pid=5 checks=44"
+        ],
+        "phase": "write",
+        "pid": 5,
+        "log": "logs/restart/write.log",
+        "sha256": "36a5e4119fe90abe753ebdce6d3881db82621d09664bca0baea8e41b5a83566a",
+        "pass_or_skip_markers": [
+          "CHARACTER_PROCESS_RESTART PASS phase=write pid=5 checks=44"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      },
+      {
+        "exit_code": 0,
+        "passed": true,
+        "skipped": false,
+        "stopped_for": "",
+        "seconds": 12.55,
+        "markers": [
+          "CHARACTER_PROCESS_RESTART PASS phase=read pid=25 checks=92"
+        ],
+        "phase": "read",
+        "pid": 25,
+        "log": "logs/restart/read.log",
+        "sha256": "49dfd7d699d95d2f05eb52dc590ea086f3e6f47028fac81de23b820e2b617782",
+        "pass_or_skip_markers": [
+          "CHARACTER_PROCESS_RESTART PASS phase=read pid=25 checks=92"
+        ],
+        "unexpected_errors": [],
+        "known_platform_error_lines": 3
+      }
+    ],
+    "restored_evidence": {
+      "pipeline_exchanges": 32,
+      "population": 31,
+      "complete_affect_owners": 4,
+      "affect_dimensions_per_owner": 16,
+      "data": "synthetic and isolated",
+      "biography_provider": "deterministic fixture, delivered in actual UI"
+    }
+  },
+  "multiplayer": [
+    {
+      "case": "facing",
+      "passed": true,
+      "stage": "integration verification before final native gate",
+      "source": "separate actual native ENet host/client processes",
+      "peers": [
+        {
+          "log": "logs/network/facing-host.log",
+          "sha256": "3d059ce1bb0998436cd0aaa269f46b632d56f466718080b3e530cbbdeea4424c",
+          "pass_or_skip_markers": [
+            "FACING_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "host",
+          "exit_code": 0,
+          "expected_pass": "FACING_HOST PASS",
+          "passed": true
+        },
+        {
+          "log": "logs/network/facing-client.log",
+          "sha256": "5fb234b4591128afafe6cf5cce1c49d33f1d945d032aa894961852e10e46e8da",
+          "pass_or_skip_markers": [
+            "FACING_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "client",
+          "exit_code": 0,
+          "expected_pass": "FACING_CLIENT PASS",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "classmate",
+      "passed": true,
+      "stage": "integration verification before final native gate",
+      "source": "separate actual native ENet host/client processes",
+      "peers": [
+        {
+          "log": "logs/network/classmate-host.log",
+          "sha256": "853b3af5610f411bcf861cbe34b8a83f99f6f86e7acf7d4cac4e5d899c1fbe5d",
+          "pass_or_skip_markers": [
+            "CLASSMATE_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "host",
+          "exit_code": 0,
+          "expected_pass": "CLASSMATE_HOST PASS",
+          "passed": true
+        },
+        {
+          "log": "logs/network/classmate-client.log",
+          "sha256": "14bb9d8446c4b348a2a81ac993f57327947e2655e3e6fdadaa92dc09397b9ee7",
+          "pass_or_skip_markers": [
+            "CLASSMATE_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "client",
+          "exit_code": 0,
+          "expected_pass": "CLASSMATE_CLIENT PASS",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "phone",
+      "passed": true,
+      "stage": "integration verification before final native gate",
+      "source": "separate actual native ENet host/client processes",
+      "peers": [
+        {
+          "log": "logs/network/phone-host.log",
+          "sha256": "468ba114672ac9da46f9fba94fa488aea3fb5f620239eae0c350e80688d09f25",
+          "pass_or_skip_markers": [
+            "PHONE_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "host",
+          "exit_code": 0,
+          "expected_pass": "PHONE_HOST PASS",
+          "passed": true
+        },
+        {
+          "log": "logs/network/phone-client.log",
+          "sha256": "025c1d2c3b5187de5140e9381cddaaba738406142e049e2b0c15a4ccadd74341",
+          "pass_or_skip_markers": [
+            "PHONE_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "client",
+          "exit_code": 0,
+          "expected_pass": "PHONE_CLIENT PASS",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "case": "human_discipline",
+      "passed": true,
+      "seconds": 32.42,
+      "stage": "portable runner verification",
+      "source": "real native ENet peers; isolated host/client saves; no live provider",
+      "peers": [
+        {
+          "log": "logs/network/human_discipline-host.log",
+          "sha256": "08ee409f36dcbf05da53443a6c0ab89423cf14e48623293abe7ae6cb32d00354",
+          "pass_or_skip_markers": [
+            "HUMAN_DISCIPLINE_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "host",
+          "exit_code": 0,
+          "expected_pass": "HUMAN_DISCIPLINE_HOST PASS",
+          "passed": true
+        },
+        {
+          "log": "logs/network/human_discipline-client.log",
+          "sha256": "3f88ede60b88c392e5b460bace8c61d9203f2d226797d257ddc1109cba25584a",
+          "pass_or_skip_markers": [
+            "HUMAN_DISCIPLINE_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "known_platform_error_lines": 3,
+          "role": "client",
+          "exit_code": 0,
+          "expected_pass": "HUMAN_DISCIPLINE_CLIENT PASS",
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "phone_custody": {
+    "log": "logs/phone-discipline.log",
+    "sha256": "94f97407c6ab25f88be3ad7ca268ce427c027789901b0bdc604cf3e8753381f8",
+    "pass_or_skip_markers": [
+      "PHONE_DISCIPLINE_INTEGRATION PASS"
+    ],
+    "unexpected_errors": [],
+    "known_platform_error_lines": 3,
+    "passed": true,
+    "exit_code": 0,
+    "source": "actual Main, owned phone and persistent custody; isolated synthetic profile"
+  },
+  "menu_startup": {
+    "exit_code": 0,
+    "menu_pass": true,
+    "relay_override": "ws://127.0.0.1:8787",
+    "log": "logs/menu/menu.log",
+    "script_errors": [],
+    "source_checkpoint": "e3b53c4c43ef54d5e206e22d71dafc0abed17305",
+    "tested_head": "d446d5b6cb0c7a297d5e1d1151e88da2ada19527",
+    "production_changes_since_checkpoint": [],
+    "runtime": "Godot 4.5.1 Mono Linux",
+    "unexpected_godot_errors": [],
+    "relay_host_upgrade_verified": true,
+    "relay_log": "logs/menu/relay.log",
+    "expected_platform_notes": [
+      "Linux package lacks the Windows-only gdcef native extension.",
+      "Wrangler used its local Request.cf placeholder after an external metadata fetch timed out; local hosting succeeded."
+    ],
+    "sha256": "c67c7bfe8e568349f1a5fc704b55e5e91cef8280b1b6d5eaee8ca5c3581d269e",
+    "pass_or_skip_markers": [
+      "MENU_ROUTES PASS"
+    ],
+    "unexpected_errors": [],
+    "known_platform_error_lines": 3,
+    "relay_sha256": "a421f485c4da8daa542f29101b15d5b577c41d39f16ccebc20fbfbe9f18694ec"
+  },
+  "live_harness": {
+    "default_timeout_seconds": 7500,
+    "provider_conversations_run": 0,
+    "reason": "OPENAI_API_KEY unavailable",
+    "latest_no_key_check": {
+      "exit_code": 2,
+      "passed": false,
+      "skipped": true,
+      "stopped_for": "",
+      "seconds": 0.83,
+      "markers": [
+        "LIVE_CHARACTER_ACCEPTANCE SKIP: OPENAI_API_KEY is unavailable; no live conversations ran."
+      ],
+      "test": "test_live_character_acceptance",
+      "log": "logs/live/test_live_character_acceptance.log",
+      "sha256": "ae1a034e37e993d768b69c239fea72518702756c44557c1c5f710e015b5cd6f6",
+      "pass_or_skip_markers": [
+        "LIVE_CHARACTER_ACCEPTANCE SKIP: OPENAI_API_KEY is unavailable; no live conversations ran."
+      ],
+      "unexpected_errors": [],
+      "known_platform_error_lines": 3
+    }
+  },
+  "offline_transcript": {
+    "path": "offline-dialogue-traces.json",
+    "sha256": "54eb8d079a88dc43cb0297f03f585b7c1c700a3d53699cb36a58de0fd4b8689b",
+    "kind": "observed offline recovery; not live AI",
+    "teachers": 21,
+    "students": 6,
+    "captured_turns": 181,
+    "gameplay_checks": 583,
+    "unique_assessment_replies": 4
+  },
+  "native_visual": {
+    "path": "character_motion.png",
+    "sha256": "2c09767effd5ee2744a55bb5bcc229b65682faa83aa57751e24bc1d0ef75367a",
+    "inspection": "visual-check.md",
+    "scope": "eight static native presentation states; no image generation or image editing"
+  },
+  "limitations": [
+    "No live-provider conversation, microphone, live TTS, audible voice-quality or human blind-identification pass.",
+    "Godot tests used Linux; the Windows-only gdcef embedded browser was not validated on that platform.",
+    "Network, transport and restart gates ran at their integration checkpoints; the full native gate and actual menu startup ran after the final production change.",
+    "Menu smoke emitted actual button signals headlessly; physical pointer interaction was not tested.",
+    "Memory retrieval uses recency, importance, concept associations and exact-source summaries, without an embedding index; arbitrary paraphrase recall is not guaranteed.",
+    "Memory is finite; two unreadable population copies cannot reconstruct customized identities absent a retained in-memory copy.",
+    "Academic evidence supports course-level patterns and bounded familiarity, not diagnosed misconceptions from correctness alone.",
+    "Belief and biography validation checks grounded delivery and bounded revisions but cannot prove every argument or detect every paraphrased contradiction.",
+    "Offline recovery uses finite dialogue choices; the assessment trace has four different replies across six students."
+  ]
+}

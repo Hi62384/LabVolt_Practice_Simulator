@@ -537,16 +537,16 @@ func _apply_classroom_open(peer: int,opened: bool,id: String) -> void:
 	if now<float(classroom_report_at.get(peer,0.0)):return
 	classroom_report_at[peer]=now+15.0
 	if not game.faculty.report_event(peer,str(context.room),"phone_use",context.point,.55):return
-	var strikes: Dictionary=classroom_phone_strikes.get(peer,{})
-	var count: int=int(strikes.get("count",0))+1 if now-float(strikes.get("at",0.0))<120.0 and str(strikes.get("class_id",""))==str(context.class_id) else 1
-	classroom_phone_strikes[peer]={"count":count,"at":now,"class_id":str(context.class_id)}
-	if count>=2:
+	var decision: Dictionary=game.faculty.discipline_action_for(peer,str(context.room))
+	if str(decision.get("action",""))=="confiscate":
 		var custody: Dictionary={"id":id,"room":str(context.room),"teacher":str(context.teacher)}
 		if _commit_custody(peer,str(context.identity),custody):
 			teacher_handoffs[peer]=custody
 			classroom_open.erase(peer)
 			classroom_phone_strikes.erase(peer)
 			_sync_teacher_handoff(peer,id)
+			game.faculty.complete_discipline_action(peer,str(context.room),"confiscate",true)
+		else:game.faculty.complete_discipline_action(peer,str(context.room),"confiscate",false)
 
 func _prune_classroom_open() -> void:
 	if not multiplayer.is_server() or not is_instance_valid(game):return

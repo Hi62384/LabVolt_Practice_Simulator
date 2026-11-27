@@ -4,9 +4,10 @@ signal completed(room: String,serial: int,key: String,stream: AudioStreamWAV,sta
 const Profiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
 const Classmates=preload("res://scripts/campus/academics/classroom_students.gd")
+const SpeechPlayer=preload("res://scripts/campus/academics/teacher_speech_player.gd")
 const MAX_JOBS:=6
 const MAX_LISTENERS:=32
-const TIMEOUT_MS:=12000
+const TIMEOUT_MS:=30000
 var pending: Array[Dictionary]=[]
 var active: Dictionary={}
 var keys: Dictionary={}
@@ -19,7 +20,7 @@ var model_adapter: Callable
 var last_synthesis_ms := 0
 
 func request(room: String,serial: int,id: String,text: String,key: String,priority := 0) -> String:
-	if room.is_empty() or serial<1 or text.is_empty() or text.length()>350 or key.is_empty():return "invalid"
+	if room.is_empty() or serial<1 or text.is_empty() or text.length()>SpeechPlayer.MAX_TEXT or key.is_empty():return "invalid"
 	var profiles: Dictionary=profile_adapter.call() if profile_adapter.is_valid() else Profiles.profiles()
 	var profile: Dictionary=profiles.get(id,{})
 	if profile.is_empty() and Roster.GENERATED.has(id):profile=profiles.get("dr_volts",{})
@@ -64,6 +65,9 @@ func clear_session() -> void:
 	pending.clear();keys.clear()
 	if not active.is_empty():_finish("cancelled",true)
 
+func _exit_tree() -> void:
+	clear_session()
+
 func _start_next() -> void:
 	if not active.is_empty() or pending.is_empty():return
 	var next := 0
@@ -97,9 +101,29 @@ func _start_next() -> void:
 		args=PackedStringArray(["-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File",runner,"-Piper",bundled,"-Model",model_path,"-InputPath",input_path,"-OutputPath",output_path,"-Speaker",str(active.speaker),"-LengthScale",str(1.0/float(active.rate)),"-SentenceSilence",str(float(active.pause)/1000.0)])
 	else:
 		args=PackedStringArray(["--model",model_path,"--config",model_path+".json","--input-file",input_path,"--output-file",output_path,"--speaker",str(active.speaker),"--length-scale",str(1.0/float(active.rate)),"--sentence-silence",str(float(active.pause)/1000.0),"--volume",str(active.gain)])
+	if not launch_adapter.is_valid():
+		executable=_resolve_executable(executable)
+		if executable.is_empty():_finish("engine_unavailable");return
 	var pid: int=launch_adapter.call(executable,args) if launch_adapter.is_valid() else OS.create_process(executable,args,false)
 	if pid<=0:_finish("engine_unavailable");return
 	active.pid=pid;active.started=Time.get_ticks_msec()
+
+static func _resolve_executable(candidate: String) -> String:
+	# An absent optional voice engine is an ordinary unavailable feature, not
+	# a failed OS launch that asks Godot/.NET to format a native error stack.
+	if candidate.is_empty():return ""
+	if candidate.contains("/") or candidate.contains("\\"):
+		var path:=ProjectSettings.globalize_path(candidate)
+		return path if _executable_file(path) else ""
+	var separator:=";" if OS.get_name()=="Windows" else ":"
+	for directory in OS.get_environment("PATH").split(separator,false):
+		var path:=str(directory).path_join(candidate)
+		if _executable_file(path):return path
+	return ""
+
+static func _executable_file(path: String) -> bool:
+	if not FileAccess.file_exists(path):return false
+	return OS.get_name()=="Windows" or (FileAccess.get_unix_permissions(path)&73)!=0
 
 func _process(_delta: float) -> void:
 	if active.is_empty():return
@@ -108,15 +132,13 @@ func _process(_delta: float) -> void:
 	if running:return
 	if not FileAccess.file_exists(active.output):_finish("output_error");return
 	var output_file:=FileAccess.open(active.output,FileAccess.READ)
-	if output_file==null or output_file.get_length()>2000100:
+	if output_file==null or output_file.get_length()>SpeechPlayer.MAX_WAV_BYTES+100:
 		_finish("output_error");return
 	output_file.close()
 	var stream: AudioStreamWAV=load_adapter.call(active.output) if load_adapter.is_valid() else AudioStreamWAV.load_from_file(active.output)
-	if stream==null or stream.format!=AudioStreamWAV.FORMAT_16_BITS or stream.data.is_empty() or stream.data.size()>2000000:_finish("output_error");return
+	if not SpeechPlayer.valid_stream(stream):_finish("output_error");return
 	if active.get("standalone",false) and float(active.gain)!=1.0:
-		var pcm: PackedByteArray=stream.data.duplicate()
-		for i in range(0,pcm.size()-1,2):pcm.encode_s16(i,clampi(roundi(float(pcm.decode_s16(i))*float(active.gain)),-32768,32767))
-		stream.data=pcm
+		stream.set_meta(SpeechPlayer.GAIN_META,clampf(float(active.gain),0.,2.))
 	_finish("ok",false,stream)
 
 func _finish(status: String,kill: bool=false,stream: AudioStreamWAV=null) -> void:

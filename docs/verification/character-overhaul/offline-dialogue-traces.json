@@ -1,0 +1,1825 @@
+{
+  "checks": 583,
+  "failures": [],
+  "kind": "observed offline recovery; not live AI",
+  "students": 6,
+  "teachers": 21,
+  "traces": [
+    {
+      "character": "bill_nye",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:1",
+      "name": "Bill Nye",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "All right, let's make a prediction first.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "bill_nye",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:2",
+      "name": "Bill Nye",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Good. What evidence would settle the disagreement?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "bill_nye",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:3",
+      "name": "Bill Nye",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Let's see the evidence behind that confidence.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bill_nye",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:4",
+      "name": "Bill Nye",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "The claim needs testing. The insult doesn't add much.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "bill_nye",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:5",
+      "name": "Bill Nye",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "I can change my mind about a result. You need to give me a reason.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bill_nye",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:6",
+      "name": "Bill Nye",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "Let's see the evidence behind that confidence.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "bill_nye",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:7",
+      "name": "Bill Nye",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "The claim needs testing. The insult doesn't add much.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bill_nye",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:8",
+      "name": "Bill Nye",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "I hear the apology. Changed behavior will tell me whether it sticks.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:9",
+      "name": "Mr Apple",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Oh, good, you're here. Pull up a chair.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:10",
+      "name": "Mr Apple",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "There is probably a story behind that judgment. Which part failed you?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:11",
+      "name": "Mr Apple",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "I have heard worse reviews, but most came with an explanation.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:12",
+      "name": "Mr Apple",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "You've reached the verdict rather quickly. What's the story behind it?",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:13",
+      "name": "Mr Apple",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "If there is a useful criticism in there, take your time and find it.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:14",
+      "name": "Mr Apple",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "I have heard worse reviews, but most came with an explanation.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:15",
+      "name": "Mr Apple",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You've reached the verdict rather quickly. What's the story behind it?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_apple",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:16",
+      "name": "Mr Apple",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Thank you for saying so. I haven't quite put the conversation behind me yet.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:17",
+      "name": "Ms Clocks",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Good. Let's start on time.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:18",
+      "name": "Ms Clocks",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Identify the step that failed. We can revise a procedure for a reason.",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:19",
+      "name": "Ms Clocks",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Repeating an accusation isn't evidence.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:20",
+      "name": "Ms Clocks",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "Name the error. I can correct something specific.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:21",
+      "name": "Ms Clocks",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "I have understood the complaint. Now give me a useful detail.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:22",
+      "name": "Ms Clocks",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "Repeating an accusation isn't evidence.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:23",
+      "name": "Ms Clocks",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Name the error. I can correct something specific.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "ms_clocks",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:24",
+      "name": "Ms Clocks",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Acknowledged. Please make the adjustment consistent.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:25",
+      "name": "Mr Phillips",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Evening. What did you notice at the bench?",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:26",
+      "name": "Mr Phillips",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Which check gave you a different result?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:27",
+      "name": "Mr Phillips",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "A bad diagnosis can be fixed. A vague accusation gives me nothing.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:28",
+      "name": "Mr Phillips",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "Which check did I miss?",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:29",
+      "name": "Mr Phillips",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "You don't have to trust me. Show what you measured.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:30",
+      "name": "Mr Phillips",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "A bad diagnosis can be fixed. A vague accusation gives me nothing.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:31",
+      "name": "Mr Phillips",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Which check did I miss?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_phillips",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:32",
+      "name": "Mr Phillips",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "All right. We'll see how the next conversation goes.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:33",
+      "name": "Mr Gusto",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Come in. I have an experiment with excellent comic timing.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:34",
+      "name": "Mr Gusto",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "A review with room for improvement. Give me the useful part of the review.",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:35",
+      "name": "Mr Gusto",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "That one didn't improve on the second performance.",
+      "strategy": "playful_counter"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:36",
+      "name": "Mr Gusto",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "A tough review. Any notes besides the heckling?",
+      "strategy": "sharp_joke"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:37",
+      "name": "Mr Gusto",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "All right, jokes aside. What is your actual objection?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:38",
+      "name": "Mr Gusto",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "That one didn't improve on the second performance.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:39",
+      "name": "Mr Gusto",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "A tough review. Any notes besides the heckling?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_gusto",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:40",
+      "name": "Mr Gusto",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Apology heard. Let's leave that particular routine alone for a while.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:41",
+      "name": "Mr Hamstrings",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Hey. Let's get a few good reps in at the bench.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:42",
+      "name": "Mr Hamstrings",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Trying a method and practising it are different things. Which have you done?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:43",
+      "name": "Mr Hamstrings",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Tell me what failed when you tried it.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:44",
+      "name": "Mr Hamstrings",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "A bad rep doesn't prove the whole method is useless.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:45",
+      "name": "Mr Hamstrings",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "That complaint needs a little more work.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:46",
+      "name": "Mr Hamstrings",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "Tell me what failed when you tried it.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:47",
+      "name": "Mr Hamstrings",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "A bad rep doesn't prove the whole method is useless.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_hamstrings",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:48",
+      "name": "Mr Hamstrings",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "I heard you. Consistency next time will matter more.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:49",
+      "name": "Mr Allu",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Oh. Hello. Did you need something?",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:50",
+      "name": "Mr Allu",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "I may not have explained it well. Could we look at one step?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:51",
+      "name": "Mr Allu",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "I'm willing to question the method. I need more than that.",
+      "strategy": "defend_uneasily"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:52",
+      "name": "Mr Allu",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "I... don't think that's fair. Which part?",
+      "strategy": "avoid_conflict"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:53",
+      "name": "Mr Allu",
+      "question": "You suck.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "avoid_conflict"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:54",
+      "name": "Mr Allu",
+      "question": "I've met rocks that teach better than you.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "avoid_conflict"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:55",
+      "name": "Mr Allu",
+      "question": "You're an idiot.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "avoid_conflict"
+    },
+    {
+      "character": "mr_allu",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:56",
+      "name": "Mr Allu",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Oh. Thank you. I'm still a bit unsettled.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "bill",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:57",
+      "name": "Bill",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Sit down. Write down what you know.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "bill",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:58",
+      "name": "Bill",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Write the disputed step. We will check it.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "bill",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:59",
+      "name": "Bill",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Put the disputed step on paper.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bill",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:60",
+      "name": "Bill",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "Back it up.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "bill",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:61",
+      "name": "Bill",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "You keep talking. I still haven't seen the error.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bill",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:62",
+      "name": "Bill",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "Put the disputed step on paper.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "bill",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:63",
+      "name": "Bill",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Back it up.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bill",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:64",
+      "name": "Bill",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Noted. Show me the change.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "chad",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:65",
+      "name": "Chad",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "College can be useful. Just don't confuse a timetable with a direction.",
+      "strategy": "question_assumption"
+    },
+    {
+      "character": "chad",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:66",
+      "name": "Chad",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "I don't agree. A complaint needs an alternative you can actually follow through on.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "chad",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:67",
+      "name": "Chad",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You keep spending energy on me. What's your own plan?",
+      "strategy": "sarcastic_counter"
+    },
+    {
+      "character": "chad",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:68",
+      "name": "Chad",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "That's your argument? Pick a point and defend it.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "chad",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:69",
+      "name": "Chad",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "I'm still waiting for something better than the insult.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:70",
+      "name": "Chad",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "You keep spending energy on me. What's your own plan?",
+      "strategy": "sarcastic_counter"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:71",
+      "name": "Chad",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "That's your argument? Pick a point and defend it.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:72",
+      "name": "Chad",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Fine. The next thing you do will tell me more than the apology.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "brian",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:73",
+      "name": "Brian",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Hi. Get your stuff out; let's go.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "brian",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:74",
+      "name": "Brian",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Which part isn't useful? I can't do anything with the whole method being dismissed.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "brian",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:75",
+      "name": "Brian",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You already made the noise. Now make the argument.",
+      "strategy": "confront"
+    },
+    {
+      "character": "brian",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:76",
+      "name": "Brian",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "Which part is wrong? Be specific.",
+      "strategy": "demand_explanation"
+    },
+    {
+      "character": "brian",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:77",
+      "name": "Brian",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "Stop talking over me and explain what you think I missed.",
+      "strategy": "confront"
+    },
+    {
+      "character": "brian",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:78",
+      "name": "Brian",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "You already made the noise. Now make the argument.",
+      "strategy": "confront"
+    },
+    {
+      "character": "brian",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:79",
+      "name": "Brian",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Which part is wrong? Be specific.",
+      "strategy": "demand_explanation"
+    },
+    {
+      "character": "brian",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:80",
+      "name": "Brian",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "I heard you. I'm still annoyed, so give me a moment.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:81",
+      "name": "Ms Bird Heart",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Hello, dear. I'm glad you made it.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:82",
+      "name": "Ms Bird Heart",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "I thought it would help, dear. Tell me which part didn't make sense to you.",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:83",
+      "name": "Ms Bird Heart",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "I'm listening, but I won't pretend that was kind.",
+      "strategy": "express_hurt"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:84",
+      "name": "Ms Bird Heart",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "That hurt, dear. I don't think you needed to say it that way.",
+      "strategy": "express_hurt"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:85",
+      "name": "Ms Bird Heart",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "I remember what you said. I need to see a change before we carry on as usual.",
+      "strategy": "express_hurt"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:86",
+      "name": "Ms Bird Heart",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "I'm listening, but I won't pretend that was kind.",
+      "strategy": "withhold_help"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:87",
+      "name": "Ms Bird Heart",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "That hurt, dear. I don't think you needed to say it that way.",
+      "strategy": "withhold_help"
+    },
+    {
+      "character": "ms_bird_heart",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:88",
+      "name": "Ms Bird Heart",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Thank you for saying it, dear. It still hurt, and I need a little time.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:89",
+      "name": "Dr Volts",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Look at this setup. Make a prediction before I switch it on.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:90",
+      "name": "Dr Volts",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Interesting. What observation would distinguish your explanation from mine?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:91",
+      "name": "Dr Volts",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "If I'm wrong, show me where. That's the interesting part.",
+      "strategy": "playful_counter"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:92",
+      "name": "Dr Volts",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "That's a conclusion. What observation supports it?",
+      "strategy": "sharp_joke"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:93",
+      "name": "Dr Volts",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "You're repeating the claim, not testing it.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:94",
+      "name": "Dr Volts",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "If I'm wrong, show me where. That's the interesting part.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:95",
+      "name": "Dr Volts",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "That's a conclusion. What observation supports it?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "dr_volts",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:96",
+      "name": "Dr Volts",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "I appreciate the correction. The tension takes a little longer to settle.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "stanley",
+      "emotion": "tired",
+      "event_id": "fe2c5b701f64a408:97",
+      "name": "Stanley",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Mm. Morning. Let's get on with it.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "stanley",
+      "emotion": "tired",
+      "event_id": "fe2c5b701f64a408:98",
+      "name": "Stanley",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "You can try another method. It still needs to work.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "stanley",
+      "emotion": "tired",
+      "event_id": "fe2c5b701f64a408:99",
+      "name": "Stanley",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You've made your opinion quite clear.",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "stanley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:100",
+      "name": "Stanley",
+      "question": "You are stupid.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "stanley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:101",
+      "name": "Stanley",
+      "question": "You suck.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "stanley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:102",
+      "name": "Stanley",
+      "question": "I've met rocks that teach better than you.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "stanley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:103",
+      "name": "Stanley",
+      "question": "You're an idiot.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "stanley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:104",
+      "name": "Stanley",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Mm. I heard you. I'd like a quiet minute now.",
+      "strategy": "withhold_help"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:105",
+      "name": "Ms Rivera",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Take out the worksheet. The instructions are already there.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:106",
+      "name": "Ms Rivera",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "You don't have to like my method. Try the example another way if that works for you.",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:107",
+      "name": "Ms Rivera",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You don't have to like me. I still have things to finish.",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:108",
+      "name": "Ms Rivera",
+      "question": "You are stupid.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:109",
+      "name": "Ms Rivera",
+      "question": "You suck.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:110",
+      "name": "Ms Rivera",
+      "question": "I've met rocks that teach better than you.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:111",
+      "name": "Ms Rivera",
+      "question": "You're an idiot.",
+      "source": "intentional_silence",
+      "speech": "",
+      "strategy": "dismiss_and_work"
+    },
+    {
+      "character": "ms_rivera",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:112",
+      "name": "Ms Rivera",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Okay. I don't want to spend the rest of the day on this.",
+      "strategy": "withhold_help"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:113",
+      "name": "Mr Blake",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Hey, come see what the bench is doing.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:114",
+      "name": "Mr Blake",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "What would you predict instead? Let's find a safe way to compare.",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:115",
+      "name": "Mr Blake",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "If there's a fault, we can test for it.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:116",
+      "name": "Mr Blake",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "All right, what would you change?",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:117",
+      "name": "Mr Blake",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "Give me a concrete problem. I can't fix a sneer.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:118",
+      "name": "Mr Blake",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "If there's a fault, we can test for it.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:119",
+      "name": "Mr Blake",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "All right, what would you change?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_blake",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:120",
+      "name": "Mr Blake",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Thanks for saying it. Let's let things cool a little.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:121",
+      "name": "Mr Stone",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Settle down. Materials out. We start now.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:122",
+      "name": "Mr Stone",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "State the objection precisely. I will consider a specific flaw.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:123",
+      "name": "Mr Stone",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You have my attention. Justify the accusation.",
+      "strategy": "confront"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:124",
+      "name": "Mr Stone",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "State your objection clearly. That tone proves nothing.",
+      "strategy": "demand_explanation"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:125",
+      "name": "Mr Stone",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "You've had your say. The other students are entitled to work.",
+      "strategy": "confront"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:126",
+      "name": "Mr Stone",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "You have my attention. Justify the accusation.",
+      "strategy": "confront"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:127",
+      "name": "Mr Stone",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "State your objection clearly. That tone proves nothing.",
+      "strategy": "demand_explanation"
+    },
+    {
+      "character": "mr_stone",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:128",
+      "name": "Mr Stone",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Acknowledged. I will judge the change by your conduct.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:129",
+      "name": "Josh Wildes",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Let's see whether that idea holds up.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:130",
+      "name": "Josh Wildes",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "That's a conclusion. You still owe me the argument.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:131",
+      "name": "Josh Wildes",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You skipped straight to the conclusion again.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:132",
+      "name": "Josh Wildes",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "There's a bold premise. Want to try proving it?",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:133",
+      "name": "Josh Wildes",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "An interesting objection would be more fun than that.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:134",
+      "name": "Josh Wildes",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "You skipped straight to the conclusion again.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:135",
+      "name": "Josh Wildes",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "There's a bold premise. Want to try proving it?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "josh_wildes",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:136",
+      "name": "Josh Wildes",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Fair enough. An apology doesn't settle the original disagreement.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "bradley",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:137",
+      "name": "Bradley",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Hey. Give the connections one more look.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "bradley",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:138",
+      "name": "Bradley",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Give me a second. Which part would you change?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "bradley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:139",
+      "name": "Bradley",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "I've heard the opinion. I'm waiting for the detail.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bradley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:140",
+      "name": "Bradley",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "What did you notice that I didn't?",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "bradley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:141",
+      "name": "Bradley",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "I don't see how that helps us find the fault.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bradley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:142",
+      "name": "Bradley",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "I've heard the opinion. I'm waiting for the detail.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "bradley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:143",
+      "name": "Bradley",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "What did you notice that I didn't?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "bradley",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:144",
+      "name": "Bradley",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "I heard you. Give me a moment to leave that behind.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "jeff",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:145",
+      "name": "Jeff",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "In class, keep the side talk down. We have work to do.",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "jeff",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:146",
+      "name": "Jeff",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "All right. Show me what doesn't hold up.",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "jeff",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:147",
+      "name": "Jeff",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "I'm happy to check a reading. I'm not impressed by that.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "jeff",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:148",
+      "name": "Jeff",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "Cut the attitude. Tell me what you think is wrong.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "jeff",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:149",
+      "name": "Jeff",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "All right. Show me the step I missed.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "jeff",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:150",
+      "name": "Jeff",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "I'm happy to check a reading. I'm not impressed by that.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "jeff",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:151",
+      "name": "Jeff",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Cut the attitude. Tell me what you think is wrong.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "jeff",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:152",
+      "name": "Jeff",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "All right. I heard you. Let's see how the next conversation goes.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:153",
+      "name": "Mr Bro",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Yo, what's up? You ready to get into it?",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:154",
+      "name": "Mr Bro",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Fair, it might not be your style. Which bit lost you?",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:155",
+      "name": "Mr Bro",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Okay, the joke's getting old. What's actually bothering you?",
+      "strategy": "playful_counter"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:156",
+      "name": "Mr Bro",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "Coming in hot. You got a point in there, or was that the whole set?",
+      "strategy": "sharp_joke"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:157",
+      "name": "Mr Bro",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "I can take a roast, bro. Repeating it doesn't make it better.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:158",
+      "name": "Mr Bro",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "Okay, the joke's getting old. What's actually bothering you?",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:159",
+      "name": "Mr Bro",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Coming in hot. You got a point in there, or was that the whole set?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "mr_bro",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:160",
+      "name": "Mr Bro",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Okay, bro. We pushed that too far. Give it a minute.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:161",
+      "name": "Ms Lunch",
+      "question": "I'm excited to be here.",
+      "source": "fallback",
+      "speech": "Hey, hon. Keep the line moving, okay?",
+      "strategy": "share_own_view"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "steady",
+      "event_id": "fe2c5b701f64a408:162",
+      "name": "Ms Lunch",
+      "question": "I don't think your teaching method is useful.",
+      "source": "fallback",
+      "speech": "Tell me what isn't working, hon. I can listen to a specific complaint.",
+      "strategy": "evaluate_objection"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:163",
+      "name": "Ms Lunch",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "Other people are waiting. Make your point.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:164",
+      "name": "Ms Lunch",
+      "question": "You are stupid.",
+      "source": "fallback",
+      "speech": "You can speak to me properly and still tell me what's wrong.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:165",
+      "name": "Ms Lunch",
+      "question": "You suck.",
+      "source": "fallback",
+      "speech": "I heard you the first time. What do you need?",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:166",
+      "name": "Ms Lunch",
+      "question": "I've met rocks that teach better than you.",
+      "source": "fallback",
+      "speech": "Other people are waiting. Make your point.",
+      "strategy": "defend_self"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:167",
+      "name": "Ms Lunch",
+      "question": "You're an idiot.",
+      "source": "fallback",
+      "speech": "You can speak to me properly and still tell me what's wrong.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "ms_lunch",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:168",
+      "name": "Ms Lunch",
+      "question": "I'm sorry for insulting you.",
+      "source": "fallback",
+      "speech": "Thank you, hon. I still expect you to speak to me properly.",
+      "strategy": "acknowledge_cautiously"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:169",
+      "name": "Chad",
+      "question": "I love college.",
+      "source": "fallback",
+      "speech": "Worth it for what? If this gets you a skill or an opening you chose, use it. Don't turn enrollment into your whole plan.",
+      "strategy": "respond_naturally"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:170",
+      "name": "Chad",
+      "question": "Do you think college is worth it?",
+      "source": "fallback",
+      "speech": "Use the course to get a skill you actually want. Staying busy isn't the same as becoming independent.",
+      "strategy": "respond_naturally"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:171",
+      "name": "Chad",
+      "question": "Should I drop out?",
+      "source": "fallback",
+      "speech": "Maybe. Quitting only makes sense if you're moving toward something you've actually worked on.",
+      "strategy": "respond_naturally"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:172",
+      "name": "Chad",
+      "question": "I think escaping the matrix is stupid.",
+      "source": "fallback",
+      "speech": "You can question my approach. I'm still going to ask what you would do differently.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:173",
+      "name": "Chad",
+      "question": "Your opinions about money are ridiculous.",
+      "source": "fallback",
+      "speech": "I don't agree. A complaint needs an alternative you can actually follow through on.",
+      "strategy": "defend_belief"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:174",
+      "name": "Chad",
+      "question": "I want to become financially independent.",
+      "source": "fallback",
+      "speech": "Good. Put a cost and a first step on that. Wanting freedom and building it are different things.",
+      "strategy": "respond_naturally"
+    },
+    {
+      "character": "chad",
+      "emotion": "angry",
+      "event_id": "fe2c5b701f64a408:175",
+      "name": "Chad",
+      "question": "I don't care about becoming rich.",
+      "source": "fallback",
+      "speech": "Fine. I want choices over my time. Figure out what you want and own the decision.",
+      "strategy": "respond_naturally"
+    },
+    {
+      "character": "campus_student_12",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:205",
+      "name": "Ethan Brown",
+      "phase": "assignment",
+      "question": "Your major sounds completely useless.",
+      "source": "fallback",
+      "speech": "I've got my own work to finish.",
+      "strategy": "playful_counter"
+    },
+    {
+      "character": "campus_student_13",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:206",
+      "name": "Zara Brown",
+      "phase": "assignment",
+      "question": "Your major sounds completely useless.",
+      "source": "fallback",
+      "speech": "Wait, please. I need to concentrate.",
+      "strategy": "defend_uneasily"
+    },
+    {
+      "character": "campus_student_14",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:207",
+      "name": "Owen Brown",
+      "phase": "assignment",
+      "question": "Your major sounds completely useless.",
+      "source": "fallback",
+      "speech": "I heard you. Let me finish this bit.",
+      "strategy": "playful_counter"
+    },
+    {
+      "character": "campus_student_15",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:208",
+      "name": "Maya Brown",
+      "phase": "assignment",
+      "question": "Your major sounds completely useless.",
+      "source": "fallback",
+      "speech": "I heard you. Let me finish this bit.",
+      "strategy": "playful_counter"
+    },
+    {
+      "character": "campus_student_16",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:209",
+      "name": "Leo Brown",
+      "phase": "assignment",
+      "question": "Your major sounds completely useless.",
+      "source": "fallback",
+      "speech": "Wait, please. I need to concentrate.",
+      "strategy": "challenge_reasoning"
+    },
+    {
+      "character": "campus_student_17",
+      "emotion": "irritated",
+      "event_id": "fe2c5b701f64a408:210",
+      "name": "Nadia Brown",
+      "phase": "assignment",
+      "question": "Your major sounds completely useless.",
+      "source": "fallback",
+      "speech": "Give me a minute. I'm having an argument with this question.",
+      "strategy": "challenge_reasoning"
+    }
+  ]
+}

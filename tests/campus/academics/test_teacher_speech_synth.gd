@@ -47,6 +47,17 @@ func run() -> void:
 	assert(synth.request("ac_lab",5,"x","Failure","failure")=="queued")
 	await process_frame
 	assert(events[-1][4]=="engine_unavailable")
+	# A configured but absent optional engine must complete normally before
+	# OS.create_process can emit a native error (including on Mono builds).
+	assert(Synth._resolve_executable(OS.get_executable_path())==OS.get_executable_path())
+	assert(Synth._resolve_executable("labvolt_nonexistent_voice_engine_7e3a").is_empty())
+	var previous_executable:=OS.get_environment("LABVOLT_PIPER_PATH")
+	OS.set_environment("LABVOLT_PIPER_PATH",ProjectSettings.globalize_path("user://absent-piper-engine"))
+	synth.launch_adapter=Callable()
+	assert(synth.request("ac_lab",6,"x","No installed local engine.","missing-engine")=="queued")
+	await process_frame
+	assert(events[-1][4]=="engine_unavailable" and synth.active.is_empty() and synth.keys.is_empty())
+	OS.set_environment("LABVOLT_PIPER_PATH",previous_executable)
 	synth.queue_free()
 	print("TEACHER_SPEECH_SYNTH PASS (adapter only; no real voice)")
 	quit()
