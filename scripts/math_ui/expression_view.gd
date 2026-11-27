@@ -15,11 +15,11 @@ func _init() -> void:
 	background.bg_color=Color("183442")
 	background.set_corner_radius_all(5)
 
-func set_expression(value: Dictionary) -> void:
+func set_expression(value: Dictionary,font_size := 24) -> void:
 	ast = value.duplicate(true)
 	operations.clear()
 	hits.clear()
-	var bounds := _layout(ast, Vector2(12, 12), 24, [], 0)
+	var bounds := _layout(ast, Vector2(12, 12), font_size, [], 0)
 	custom_minimum_size = bounds + Vector2(24, 24)
 	queue_redraw()
 

@@ -2,6 +2,7 @@ extends Control
 ## Reusable letterboxed drawing surface. May be mounted in a SubViewport.
 const Document=preload("res://scripts/procedural_animation/document.gd")
 const Playback=preload("res://scripts/procedural_animation/playback.gd")
+const ExpressionView=preload("res://scripts/math_ui/expression_view.gd")
 const INK:=Color("e2edf4")
 const ACCENT:=Color("46dfc1")
 const TICK:=1./24.
@@ -9,6 +10,7 @@ signal frame_changed
 var player:=Playback.new()
 var accumulator:=0.
 var plot_cache: Dictionary={}
+var notation_cache: Dictionary={}
 var sync_key:=""
 var font: Font
 var data_status:=""
@@ -30,6 +32,7 @@ func show_checkpoint(key: String,state: Dictionary) -> bool:
 	if key!=sync_key:
 		if not player.restore_checkpoint(state):return false
 		plot_cache.clear()
+		notation_cache.clear()
 		sync_key=key
 	elif absf(player.clock-float(state.time))>.4:player.seek(float(state.time))
 	player.playing=bool(state.playing)
@@ -151,8 +154,12 @@ func _draw_object(item: Dictionary,alpha: float) -> void:
 				points.append(points[0])
 			_trace(points,pen,stroke,progress,item.get("dash",false))
 		"text","equation":
-			var label:=_caption(str(item.get("text","")))
-			artwork.draw_string(font,Vector2.ZERO,label.substr(0,ceili(label.length()*progress)),HORIZONTAL_ALIGNMENT_LEFT,dims.x,clampi(roundi(player.property(item,"font")),13,90),pen)
+			var ast: Dictionary=player.compiled.notation.get(item.id,{})
+			var font_size:=clampi(roundi(player.property(item,"font")),13,90)
+			if ast.is_empty():
+				var label:=_caption(str(item.get("text","")))
+				artwork.draw_string(font,Vector2.ZERO,label.substr(0,ceili(label.length()*progress)),HORIZONTAL_ALIGNMENT_LEFT,dims.x,font_size,pen)
+			else:_draw_notation(item.id,ast,font_size,dims.x,progress,pen)
 		"graph":_graph(item,dims,pen,stroke,progress)
 		"particles":
 			var count:=int(item.get("count",12))
@@ -160,6 +167,23 @@ func _draw_object(item: Dictionary,alpha: float) -> void:
 			for i in count:
 				var p:=Vector2(fposmod(float(i)/count+phase,1.)*dims.x,fposmod(i*.618,1.)*dims.y)
 				artwork.draw_circle(p,minf(20.,radius),pen,true,-1.,true)
+
+func _draw_notation(id: String,ast: Dictionary,font_size: int,width: float,progress: float,ink: Color) -> void:
+	const LAYOUT_FONT:=30
+	if not notation_cache.has(id):
+		var layout:=ExpressionView.new()
+		layout.set_expression(ast,LAYOUT_FONT)
+		notation_cache[id]={"operations":layout.operations,"width":layout.custom_minimum_size.x-24.}
+		layout.free()
+	var entry: Dictionary=notation_cache[id]
+	var ratio:=minf(float(font_size)/LAYOUT_FONT,width/maxf(1.,float(entry.width)))
+	var anchor:=Vector2(12.,12.+LAYOUT_FONT)
+	var operations: Array=entry.operations
+	for i in ceili(float(operations.size())*progress):
+		var operation: Array=operations[i]
+		if operation[0]=="text":
+			artwork.draw_string(font,(operation[2]-anchor)*ratio,operation[1],HORIZONTAL_ALIGNMENT_LEFT,-1.,maxi(1,roundi(float(operation[3])*ratio)),ink)
+		else:artwork.draw_line((operation[1]-anchor)*ratio,(operation[2]-anchor)*ratio,ink,maxf(1.,ratio*1.5),true)
 
 func _caption(text: String) -> String:
 	for id in player.compiled.names:

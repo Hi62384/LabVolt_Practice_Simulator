@@ -2,6 +2,7 @@ extends RefCounted
 ## Versioned document validator and compiler. Coordinates use logical pixels
 ## in a shared 960 × 520 canvas. Rejected documents never replace live state.
 const Formula=preload("res://scripts/procedural_animation/formula.gd")
+const MathParser=preload("res://scripts/mth147/parser.gd")
 const SIZE:=Vector2(960.,520.)
 const MAX_BYTES:=12000
 const OBJECTS:=36
@@ -10,7 +11,7 @@ const PROPERTIES:={"x":0.,"y":0.,"width":120.,"height":72.,"rotation":0.,"scale"
 const COLORS:=["071a28","102a39","e2edf4","82c8dc","46dfc1","ffc671","ff8184","b4adff"]
 const LAYOUTS:=["right","left","full"]
 const ROOT_FIELDS:=["version","title","subtitle","duration","loop","parameters","objects","layout"]
-const META_FIELDS:=["id","type","parent","text","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","count","bindings","tracks","dash","easing","layer","start","end"]
+const META_FIELDS:=["id","type","parent","text","notation","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","count","bindings","tracks","dash","easing","layer","start","end"]
 static var id_pattern:=RegEx.create_from_string("^[a-z][a-z0-9_]{0,23}$")
 
 static func parse(source: String) -> Dictionary:
@@ -39,6 +40,7 @@ static func compile(raw: Variant) -> Dictionary:
 	var programs: Dictionary={}
 	var animated_plots: Dictionary={}
 	var series: Dictionary={}
+	var notation: Dictionary={}
 	var camera_id:=""
 	var complexity:=0
 	for object in value:
@@ -51,6 +53,12 @@ static func compile(raw: Variant) -> Dictionary:
 				return _fail("Only one independent camera is supported.")
 			camera_id=id
 		if not _text(object.get("text",""),160) or not _text(object.get("parent",""),24):return _fail("Invalid object text or parent.")
+		if object.has("notation"):
+			if kind!="equation":return _fail("Mathematical notation requires an equation object.")
+			var parsed:=_notation(object.notation)
+			if parsed.is_empty():return _fail("Invalid mathematical notation.")
+			notation[id]=parsed
+			complexity+=4
 		if not _number(object.get("start",0.),0.,raw.duration) or not _number(object.get("end",raw.duration),float(object.get("start",0.)),raw.duration):
 			return _fail("Invalid object visibility interval.")
 		for field in ["x_label","y_label"]:
@@ -117,7 +125,34 @@ static func compile(raw: Variant) -> Dictionary:
 			visited.append(parent)
 			parent=objects[parent].get("parent","")
 	if JSON.stringify(raw).to_utf8_buffer().size()>MAX_BYTES:return _fail("Scene is too large.")
-	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series,"camera_id":camera_id}
+	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series,"camera_id":camera_id,"notation":notation}
+
+static func _notation(source: Variant) -> Dictionary:
+	var parser:=MathParser.new()
+	if _text(source,128):
+		var sides: PackedStringArray=source.split("=")
+		if sides.size()>2:return {}
+		var args: Array[Dictionary]=[]
+		for side in sides:
+			var parsed:=parser.parse(side)
+			if not parsed.ok:return {}
+			args.append(parsed.ast)
+		return args[0] if args.size()==1 else {"op":"equation","args":args}
+	if not source is Array or source.is_empty() or source.size()>4:return {}
+	var rows: Array=[]
+	var cols:=0
+	for row in source:
+		if not row is Array or row.is_empty() or row.size()>4:return {}
+		if cols==0:cols=row.size()
+		if cols!=row.size():return {}
+		var cells: Array[Dictionary]=[]
+		for expression in row:
+			if not _text(expression,32):return {}
+			var parsed:=parser.parse(expression)
+			if not parsed.ok:return {}
+			cells.append(parsed.ast)
+		rows.append(cells)
+	return {"op":"matrix","rows":rows}
 
 static func _known(value: Dictionary, allowed: Array) -> bool:
 	for field in value:

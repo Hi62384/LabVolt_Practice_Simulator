@@ -137,6 +137,25 @@ func run() -> void:
 	var duplicate_camera:=camera_scene.duplicate(true)
 	duplicate_camera.objects.append({"id":"second_camera","type":"camera"})
 	assert(not Document.compile(duplicate_camera).ok)
+	var typeset:={"version":1,"title":"Phasors and coefficient matrices","duration":8.,"objects":[
+		{"id":"phasor_label","type":"text","x":52.,"y":130.,"width":400.,"text":"Phasor magnitude"},
+		{"id":"phasor","type":"equation","x":55.,"y":225.,"width":425.,"font":45.,"notation":"v=sqrt(a^2+b^2)"},
+		{"id":"matrix_label","type":"text","x":500.,"y":130.,"width":400.,"text":"Coefficient matrix"},
+		{"id":"parameters","type":"equation","x":500.,"y":225.,"width":350.,"font":36.,
+			"notation":[["1/2","-2"],["sqrt(3)","omega^2"]]}]}
+	assert(player.load_scene(typeset))
+	assert(player.compiled.notation.phasor.op=="equation")
+	assert(player.compiled.notation.parameters.rows[0][0].op=="div")
+	assert(Visuals.apply(activity,{"op":"create","scene":typeset},13.))
+	board.show_animation("typeset",Visuals.view(activity,true))
+	if OS.get_environment("LABVOLT_CAPTURE_VISUALS")=="1" and DisplayServer.get_name()!="headless":
+		await RenderingServer.frame_post_draw
+		board.viewport.get_texture().get_image().save_png("res://.godot/procedural-notation-board.png")
+		assert(board.animation_canvas.notation_cache.phasor.operations.any(func(item):return item[0]=="line"))
+		assert(board.animation_canvas.notation_cache.parameters.operations.any(func(item):return item[0]=="line"))
+	var uneven:=typeset.duplicate(true)
+	uneven.objects[3].notation[0].pop_back()
+	assert(not Document.compile(uneven).ok)
 	print("PROCEDURAL_ANIMATION_ENGINE_AND_BOARD PASS")
 	board.queue_free()
 	camera.queue_free()
