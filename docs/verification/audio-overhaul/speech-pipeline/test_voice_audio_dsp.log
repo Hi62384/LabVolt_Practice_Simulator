@@ -1,0 +1,3 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+VOICE_AUDIO_DSP PASS (native PCM conversion, speech RMS, dynamics, peak headroom, routing); 1s full GDScript/C# caller us=12134 warm mixer caller us=737 native processing us=1600.6

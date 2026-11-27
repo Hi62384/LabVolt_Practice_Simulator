@@ -6,7 +6,7 @@ Implementation and verification record, 2026-11-27. Development branch: `audio-o
 
 The code integrates permanent voice profiles, current provider transports, expressive delivery, shared microphone capture, natural targeting, authoritative character reasoning, queued positional playback, classroom interruption/resume, multiplayer routing, settings, and diagnostics. Deterministic tests and actual local network peers exercise those paths.
 
-**Acoustic acceptance remains open.** This environment has no configured live OpenAI credential, physical microphone, listening setup, or usable desktop display. No permanent custom voice was created on a real account, no teacher voice was heard or approved, and no actual room echo, speaker feedback, device hotplug, or subjective emotional performance test passed here. The voice studio preserves that distinction: descriptions and provisional presets are not approved custom voices. Synthetic PCM and loopback service fixtures are explicitly identified throughout the tests.
+**Acoustic acceptance remains open.** This environment has no configured live OpenAI credential, physical microphone, listening setup, or usable desktop display. The Windows command connector was also checked and reported its local tunnel client offline. No permanent custom voice was created on a real account, no teacher voice was heard or approved, and no actual room echo, speaker feedback, device hotplug, or subjective emotional performance test passed here. The voice studio preserves that distinction: descriptions and provisional presets are not approved custom voices. Synthetic PCM and loopback service fixtures are explicitly identified throughout the tests.
 
 ## What was repaired
 
@@ -57,7 +57,7 @@ See [provider-contracts.md](provider-contracts.md) for official sources, exact A
 
 Native C# performs input conditioning and stateful resampling to 16 kHz PCM. The capture service emits 20 ms packets, activity metadata, speech onset, and coherent segments. The activity detector preserves preroll, allows ordinary pauses, and carries 30-second chunks under one turn identity. Completed transcription turns are bounded at three minutes/8,000 transcript characters; they do not become unrelated 30-second conversations. This is a local energy/zero-crossing heuristic with noise-floor adaptation, not a claim of a neural speech detector or accurate emotion recognition from waveform alone.
 
-Push-to-talk, voice activation, and mute are explicit modes. NPC recognition is a separate opt-in, disabled by default. Muting, turning recognition off, leaving play, opening a menu, changing a device, or starting a private phone call cancels relevant NPC input. Private call audio is routed only to the call participant and is excluded from NPC hearing/AI. Diagnostic readouts retain numeric state, not microphone recordings or keys.
+Push-to-talk, voice activation, and mute are explicit modes. NPC recognition is a separate opt-in, disabled by default. Muting, turning recognition off, leaving play, opening chat or a menu, losing window/player-control focus, changing a device, or starting a private phone call cancels relevant NPC input. Ordinary push-to-talk release finishes its recording while retaining the conversational target. Private call audio is routed only to the call participant and is excluded from NPC hearing/AI. Diagnostic readouts retain numeric state, not microphone recordings or keys.
 
 The local microphone test does not submit to a provider. **Test transcription** and **Test response and voice** are separate explicit cloud actions in the host's settings. They use the same capture service.
 
@@ -93,10 +93,11 @@ The primary game runtime used was Godot 4.5.1 Mono with the project rebuilt in .
 | --- | --- |
 | .NET project build | Passed, zero warnings/errors |
 | Real Main menu, Singleplayer Play and Host Game Play | Passed with a local Wrangler relay; `MENU_ROUTES PASS` |
-| Natural Main-scene conversation | 18 checks passed: speech onset without E, opt-in, actual HTTP adapter, character memory, positional playback, follow-up, mute, walk-away |
+| Natural Main-scene conversation | Final 20 checks passed: speech onset without E, opt-in, actual HTTP adapter, character memory, positional playback, follow-up, chat-input cancellation, mute, walk-away |
 | Speech pipeline | Ten suites passed: scheduler, playback, long delivery, transport, lifecycle, native DSP, NPC turns, lecture deadline, route cancellation |
 | Speech audio multiplayer | Two real ENet processes passed: identical payload, private reply, pause/resume, cancellation, session change |
 | Existing classmate multiplayer | Host and client passed the existing full-Main network regression |
+| Existing microphone/sensitivity/phone multiplayer | All six peer processes passed, with no errors or warnings; synthetic PCM, real ENet |
 | Provider and Live bridge | HTTP/WebSocket protocol fixtures and real ENet routing passed; transcript mismatch, duplicate delegation, bounded long input, credentials, cancellation, serialization covered |
 | Existing AI HTTP regressions | Host client, teacher AI, evaluation, and character HTTP transport passed |
 | Shared capture and resampling | 62-second coherent-turn test and fragmented 8/11.025/16/22.05/44.1/48/96 kHz boundaries passed |
@@ -104,7 +105,9 @@ The primary game runtime used was Godot 4.5.1 Mono with the project rebuilt in .
 | Conversation context | Addressed sound, stale turns, old-session reservation, invited student gate, and class-phase cancellation passed |
 | Audio and Character Voices layout | Native Control geometry passed at 1280×720 and studio sizes 1060×660 / 720×460; scrolling and controls remain reachable |
 
-The original Linux import cache listed the project's Windows-only optional CEF extension. Initial tests emitted extension-loading errors. For clean Linux verification, only the generated `.godot/extension_list.cfg` was cleared; no tracked CEF configuration or production extension was removed. Pixel screenshots and physical pointer placement were unavailable because the isolated display server could not establish a usable display. Geometry checks are reported separately from visual QA.
+The final integration batch passed 19/19 scene tests with no Godot warnings or errors; its raw results are in [final-regressions/summary.json](final-regressions/summary.json). A subsequent input-focus lifecycle fix passed the expanded 20-check natural gameplay test and both menu Play routes again; [focus-followup/summary.json](focus-followup/summary.json) records the exact router source hash. Pipeline, HTTP, speech-network, classmate-network, and existing voice-network subdirectories contain the complementary results and bounded logs. The updated manual/virtual-cable harness passed syntax checking and actual Main loading in `-- load-only` mode; its physical input mode remains **not run**.
+
+The original Linux import cache listed the project's Windows-only optional CEF extension. Initial tests emitted extension-loading errors. For clean Linux verification, only the generated `.godot/extension_list.cfg` was cleared; no tracked CEF configuration or production extension was removed. Local Wrangler could not fetch optional `Request.cf` metadata through the restricted network and used its documented placeholder, then successfully served the real hosted-menu WebSocket connection. Pixel screenshots and physical pointer placement were unavailable because the isolated display server could not establish a usable display. Geometry checks are reported separately from visual QA.
 
 Useful reproduction commands, after importing assets and building the Mono project:
 

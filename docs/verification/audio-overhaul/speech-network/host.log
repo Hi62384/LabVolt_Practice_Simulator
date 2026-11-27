@@ -1,0 +1,4 @@
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+SPEECH_AUDIO_HOST_READY
+SPEECH_AUDIO_HOST PASS (remote-only generation, identical PCM, interruption, cancellation, session guard)

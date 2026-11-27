@@ -31,7 +31,9 @@ func _submission_permitted() -> bool:
  if not is_instance_valid(game) or not is_instance_valid(game.get("voice_chat")):return false
  var prefs: Dictionary=game.client_preferences.values
  if not prefs.get("teacher_automatic_conversation",false) or prefs.get("microphone_muted",false) or prefs.get("microphone_mode","push_to_talk")=="muted":return false
- if not game.front.in_game or game.front.screen.visible or game.player.chat_typing or not get_window().has_focus():return false
+ if not game.front.in_game or game.front.screen.visible or not game.player.enabled or game.player.chat_typing or not get_window().has_focus():return false
+ var focus:=get_viewport().gui_get_focus_owner()
+ if focus is LineEdit or focus is TextEdit:return false
  if is_instance_valid(game.get("smartphones")) and game.smartphones.comm.local_call.get("state","")=="active":return false
  return true
 
@@ -50,9 +52,7 @@ func _process(delta: float) -> void:
    if not game.session.roster.has(peer) or not faculty.voice_target_valid(peer,remote_turns[peer].target) or now-int(remote_turns[peer].started)>300000:_cancel_host(int(peer),str(remote_turns[peer].token))
  if not _permitted():
   # Releasing PTT ends the recorded turn but preserves the conversational target.
-  var prefs: Dictionary=game.client_preferences.values
-  var cancelled: bool=prefs.get("microphone_muted",false) or not prefs.get("teacher_automatic_conversation",false) or prefs.get("microphone_mode","push_to_talk")=="muted" or not game.front.in_game or game.front.screen.visible
-  if is_instance_valid(game.get("smartphones")) and game.smartphones.comm.local_call.get("state","")=="active":cancelled=true
+  var cancelled:=not _submission_permitted()
   if cancelled and (not current.is_empty() or not turn.is_empty()):cancel_current()
   return
  if not current.is_empty() and not faculty.voice_target_valid(multiplayer.get_unique_id(),current):cancel_current()

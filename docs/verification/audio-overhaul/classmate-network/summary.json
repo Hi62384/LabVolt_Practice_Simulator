@@ -1,0 +1,30 @@
+{
+  "case": "classmate",
+  "script": "tests/campus/academics/test_classmate_network.gd",
+  "seconds": 31.5,
+  "passed": true,
+  "peers": [
+    {
+      "role": "host",
+      "exit_code": 0,
+      "passed": true,
+      "pass_markers": [
+        "CLASSMATE_HOST PASS"
+      ],
+      "unexpected_errors": [],
+      "allowed_environment_errors": [],
+      "log": "host.log"
+    },
+    {
+      "role": "client",
+      "exit_code": 0,
+      "passed": true,
+      "pass_markers": [
+        "CLASSMATE_CLIENT PASS"
+      ],
+      "unexpected_errors": [],
+      "allowed_environment_errors": [],
+      "log": "client.log"
+    }
+  ]
+}

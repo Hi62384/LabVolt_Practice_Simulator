@@ -22,9 +22,9 @@ func wait_for(condition: Callable,seconds: float,message: String) -> bool:
 	check(false,message)
 	return false
 
-func inject_utterance(speech_packets: int=32) -> void:
+func inject_utterance(speech_packets: int=32,silence_packets: int=65) -> void:
 	var microphone: Node=game.faculty.shared_microphone
-	for index in speech_packets+65:
+	for index in speech_packets+silence_packets:
 		var voiced:=index<speech_packets
 		var pcm:=PackedByteArray();pcm.resize(640)
 		if voiced:
@@ -93,6 +93,12 @@ func run() -> void:
 		await wait_for(func():return game.faculty.brain.recall(TEACHER,identity).size()>=2,10.,"Follow-up speech reaches the same character without reopening anything")
 		check(game.faculty.natural_voice.current.get("id","")==TEACHER,"Follow-up retains the ongoing character identity")
 	var remembered: int=game.faculty.brain.recall(TEACHER,identity).size()
+	inject_utterance(25,0)
+	check(not game.faculty.natural_voice.turn.is_empty(),"A fresh sustained microphone turn is active before a text-input interruption")
+	game.player.chat_typing=true
+	game.faculty.natural_voice._process(.25)
+	check(game.faculty.natural_voice.current.is_empty() and game.faculty.natural_voice.turn.is_empty() and game.faculty.natural_voice.remote_turns.is_empty(),"Opening chat cancels the captured turn and authority token so a paused lecture cannot remain stranded")
+	game.player.chat_typing=false
 	game.client_preferences.set_option("microphone_muted",true)
 	inject_utterance()
 	await create_timer(.15).timeout

@@ -1,0 +1,163 @@
+{
+  "commit_under_test": "379e1489a3df0287f370119f5c7c90402e0f67db",
+  "runtime": "Godot 4.5.1 Mono",
+  "live_api": false,
+  "microphone_hardware": false,
+  "voice_listening": false,
+  "pixel_screenshots": false,
+  "menu_host_relay": "real local Wrangler Worker",
+  "cases": [
+    {
+      "case": "test_npc_voice_context",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.78,
+      "warnings": [],
+      "log": "test_npc_voice_context.log"
+    },
+    {
+      "case": "test_microphone_meter",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.53,
+      "warnings": [],
+      "log": "test_microphone_meter.log"
+    },
+    {
+      "case": "test_microphone_meter_settings",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 11.62,
+      "warnings": [],
+      "log": "test_microphone_meter_settings.log"
+    },
+    {
+      "case": "test_teacher_microphone_opt_out",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.34,
+      "warnings": [],
+      "log": "test_teacher_microphone_opt_out.log"
+    },
+    {
+      "case": "test_teacher_voice_stale",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.36,
+      "warnings": [],
+      "log": "test_teacher_voice_stale.log"
+    },
+    {
+      "case": "test_teacher_voice_policy",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.25,
+      "warnings": [],
+      "log": "test_teacher_voice_policy.log"
+    },
+    {
+      "case": "test_teacher_hearing_context",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.53,
+      "warnings": [],
+      "log": "test_teacher_hearing_context.log"
+    },
+    {
+      "case": "test_teacher_voice_profiles",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.34,
+      "warnings": [],
+      "log": "test_teacher_voice_profiles.log"
+    },
+    {
+      "case": "test_natural_voice_gameplay",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.38,
+      "warnings": [],
+      "log": "test_natural_voice_gameplay.log"
+    },
+    {
+      "case": "test_teacher_speech_integration",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 11.34,
+      "warnings": [],
+      "log": "test_teacher_speech_integration.log"
+    },
+    {
+      "case": "test_classmate_lab_and_dialogue",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 14.25,
+      "warnings": [],
+      "log": "test_classmate_lab_and_dialogue.log"
+    },
+    {
+      "case": "test_voice_settings_layout",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 11.72,
+      "warnings": [],
+      "log": "test_voice_settings_layout.log"
+    },
+    {
+      "case": "test_character_voice_identity",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.43,
+      "warnings": [],
+      "log": "test_character_voice_identity.log"
+    },
+    {
+      "case": "test_character_voice_phrases",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.43,
+      "warnings": [],
+      "log": "test_character_voice_phrases.log"
+    },
+    {
+      "case": "test_character_voice_studio",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.93,
+      "warnings": [],
+      "log": "test_character_voice_studio.log"
+    },
+    {
+      "case": "test_shared_microphone",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.44,
+      "warnings": [],
+      "log": "test_shared_microphone.log"
+    },
+    {
+      "case": "test_microphone_resampler_boundaries",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.44,
+      "warnings": [],
+      "log": "test_microphone_resampler_boundaries.log"
+    },
+    {
+      "case": "test_voice_target_privacy",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.36,
+      "warnings": [],
+      "log": "test_voice_target_privacy.log"
+    },
+    {
+      "case": "test_menu_routes",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 14.78,
+      "warnings": [],
+      "log": "test_menu_routes.log"
+    }
+  ]
+}

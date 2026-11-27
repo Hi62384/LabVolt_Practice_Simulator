@@ -1,0 +1,25 @@
+{
+  "base_commit": "379e1489a3df0287f370119f5c7c90402e0f67db",
+  "change": "Cancel active natural turns on focus/text-input/player-control loss; preserve ordinary PTT release",
+  "source_sha256": "7289e286781d51de1f2e770c362f11dac574053a0a96e4d7626b0e3fec4cda34",
+  "runtime": "Godot 4.5.1 Mono",
+  "live_api": false,
+  "microphone_hardware": false,
+  "menu_host_relay": "real local Wrangler Worker",
+  "cases": [
+    {
+      "case": "test_natural_voice_gameplay",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 15.83,
+      "log": "test_natural_voice_gameplay.log"
+    },
+    {
+      "case": "test_menu_routes",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 15.06,
+      "log": "test_menu_routes.log"
+    }
+  ]
+}
