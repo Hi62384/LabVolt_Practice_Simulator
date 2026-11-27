@@ -162,6 +162,38 @@ func run() -> void:
 	assert(group.round.submissions.is_empty() and group.round.participants.size()==1)
 	assert(events.perform(1,lecture_room,lecture.id,group.round.event_id,"explain","I checked the units and wrote down the known values.",now+10.)=="accepted")
 	assert(faculty.brain.relationship(partner.id,human).positive==1)
+	lecture.classmates.erase(partner.id)
+	var demo:={"version":1,"title":"Moving between surfaces","duration":10.,
+		"objects":[{"type":"circle","id":"marker","x":450.,"y":230.,"radius":28.}]}
+	assert(Visuals.apply(lecture,{"op":"create","scene":demo},now))
+	assert(Visuals.apply(lecture,{"op":"pause"},now))
+	assert(Visuals.apply(lecture,{"op":"seek","value":4.},now))
+	classes._publish()
+	classes._update_views()
+	var board: Node3D=classes.signs[lecture_room].board
+	assert(board.active and board.animation_canvas.visible)
+	faculty._answer_question(1,lecture_room,lecture.teacher,lecture.id,"Could you put the animation on the projector?",game.player.global_position)
+	classes._publish()
+	classes._update_views()
+	var projection: Node3D=classes.lesson_projector
+	assert(projection.active and not board.active and projection.animation_canvas.player.clock==4.)
+	assert(Visuals.apply(lecture,{"op":"layout","value":"full"},now))
+	classes._publish()
+	classes._update_views()
+	assert(not projection.lesson_words.visible and projection.animation_canvas.player.clock==4.)
+	assert(Visuals.apply(lecture,Visuals.presentation_request("Put the animation on the left"),now))
+	assert(Visuals.apply(lecture,{"op":"surface","value":"board"},now))
+	classes._publish()
+	classes._update_views()
+	assert(not projection.active and board.active and board.lesson_row.get_child(0)==board.animation_canvas)
+	assert(board.lesson_words.visible and board.animation_canvas.player.clock==4.)
+	var file:=Visuals.file_request("Could you please save animation as scope review?")
+	assert("scope_review" in Visuals.use_local_file(lecture,file,now))
+	assert("already in use" in Visuals.use_local_file(lecture,file,now))
+	var later_class:={"phase":"lesson"}
+	assert("loaded" in Visuals.use_local_file(later_class,Visuals.file_request("load animation scope review"),now+10.))
+	assert(later_class.visual_playback.scene.layout=="left" and later_class.visual_playback.clock==4.)
+	assert(not later_class.visual_playback.playing)
 	var intro_profile:=Profiles.student(1)
 	intro_profile.talk=.8
 	var origin: Vector3=lecture.room.teacher_position

@@ -38,6 +38,7 @@ func run() -> void:
 		if not await wait_for(func():return state.has("visual_playback") and not state.visual_playback.playing,"guest pauses scene",75.):return
 		assert(float(state.visual_playback.scene.parameters.frequency[0])==2.)
 		assert(not classes.classes.has("dc_lab"))
+		if not await wait_for(func():return state.get("visual_surface","")=="projector","guest moves paused scene to projector"):return
 		print("CLASS_VISUAL_HOST PASS")
 		await create_timer(3.).timeout
 	else:
@@ -68,6 +69,14 @@ func run() -> void:
 		var position_before: float=board.animation_canvas.player.clock
 		await create_timer(1.2).timeout
 		assert(absf(position_before-board.animation_canvas.player.clock)<.05)
+		faculty.conversation_input.text="Could you put the animation on the projector?"
+		faculty._submit_question()
+		if not await wait_for(func():
+			var projector: Node3D=classes.lesson_projector
+			return is_instance_valid(projector) and projector.active and projector.animation_canvas.visible,
+			"guest projector shows the animation"):return
+		assert(not board.active)
+		assert(absf(position_before-classes.lesson_projector.animation_canvas.player.clock)<.05)
 		print("CLASS_VISUAL_GUEST PASS")
 		faculty.close_conversation()
 	game.session.leave()

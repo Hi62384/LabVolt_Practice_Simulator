@@ -31,6 +31,8 @@ var received_at := 0
 var sent_animation_revisions: Dictionary={}
 var classroom_events: Node
 var classroom_students: Node3D
+var lesson_projector: Node3D
+var projector_room: String=""
 var lab_practice := preload("res://scripts/campus/academics/classroom_lab_practice.gd").new()
 
 func build(owner: Node) -> void:
@@ -689,6 +691,7 @@ func _update_views() -> void:
 	var visible_cards := []
 	var local_room: String = game.campus.registry.locate(game.player.global_position)
 	var show_local_only := public_classes.has(local_room)
+	var showing_projector:=false
 	for room in signs:
 		var info: Dictionary=public_classes.get(room,{})
 		var sign: Dictionary=signs[room]
@@ -702,17 +705,28 @@ func _update_views() -> void:
 		var projected_event: bool=is_instance_valid(classroom_events) and is_instance_valid(classroom_events.projector) and classroom_events.projector.active_room==room and classroom_events.projector.board.visible
 		var event_board_active: bool=physical_board_event or projected_event
 		var teaching: bool=info.get("phase","")=="lesson" and not event_board_active and not info.get("stage",{}).is_empty() and game.front.in_game and game.campus.registry.room_contains(room,game.player.global_position)
-		if sign.board.active!=teaching:sign.board.set_room_active(teaching)
-		var lesson_key := "%s:%d" % [info.id,int(info.stage.get("index",0))] if teaching else ""
+		var animation: Dictionary=info.get("animation",{})
+		var use_projector: bool=teaching and animation.get("surface","board")=="projector"
+		var board: Node3D=sign.board
+		if use_projector:
+			board=_lesson_projection(room,sign.board)
+			showing_projector=true
+		var use_board:=teaching and not use_projector
+		if sign.board.active!=use_board:sign.board.set_room_active(use_board)
+		if teaching and not board.active:board.set_room_active(true)
+		var lesson_key := "%s:%d:%s" % [info.id,int(info.stage.get("index",0)),str(use_projector)] if teaching else ""
 		if sign.lesson_key!=lesson_key:
 			sign.lesson_key=lesson_key
-			if teaching:sign.board.show_content(info.course,"lesson",info.title,info.stage,"Room "+str(info.number))
+			if teaching:
+				var location: String="Projector · Room " if use_projector else "Room "
+				board.show_content(info.course,"lesson",info.title,info.stage,location+str(info.number))
 			sign.erase("visual_received")
-		if teaching and sign.get("visual_received",-1)!=received_at:
-			sign.visual_received=received_at
-			var animation: Dictionary=info.get("animation",{})
+		if teaching:
 			var key:="%s:%d:%s"%[info.id,int(animation.get("revision",0)),str(animation.get("playing",false))]
-			sign.board.show_animation(key,animation)
+			var visual_stamp:=[received_at,key]
+			if sign.get("visual_received",[])!=visual_stamp:
+				sign.visual_received=visual_stamp
+				board.show_animation(key,animation)
 		if not game.front.in_game or info.is_empty() or (phase!="arrival" and not teaching and (not info.signed or info.done)):continue
 		if show_local_only and room != local_room: continue
 		visible_cards.append(room)
@@ -732,7 +746,23 @@ func _update_views() -> void:
 		if teaching and info.signed:text+="\n[%s] %s"%[OS.get_keycode_string(game.player.keys.raise_hand),"Lower hand" if multiplayer.get_unique_id() in info.get("raised_peers",[]) else "Raise hand"]
 		var label: Label=cards[room].get_child(0)
 		if label.text!=text:label.text=text
+	if not showing_projector and is_instance_valid(lesson_projector) and lesson_projector.active:
+		lesson_projector.set_room_active(false)
+		projector_room=""
 	for room in cards.keys():
 		if room not in visible_cards:
 			cards[room].queue_free()
 			cards.erase(room)
+
+func _lesson_projection(room: String,board: Node3D) -> Node3D:
+	if not is_instance_valid(lesson_projector):
+		lesson_projector=TeachingBoard.new()
+		add_child(lesson_projector)
+		game._box(lesson_projector,Vector3(0,1.27,0),Vector3(5.7,.11,.13),Color("455462"))
+		game._box(lesson_projector,Vector3(0,-1.24,0),Vector3(5.6,.05,.07),Color("394855"))
+	if projector_room!=room:
+		projector_room=room
+		lesson_projector.global_transform=board.global_transform
+		lesson_projector.position.z+=.1
+		lesson_projector.position.y+=.06
+	return lesson_projector

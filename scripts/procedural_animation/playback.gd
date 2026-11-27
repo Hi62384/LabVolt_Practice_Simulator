@@ -114,6 +114,14 @@ func command(action: Variant) -> bool:
 			highlight=target
 		"parameter","add","remove","update","duplicate":
 			return _edit(action,op)
+		"layout":
+			var value: Variant=action.get("value")
+			if value not in Document.LAYOUTS:return false
+			if value==scene.get("layout","right"):return true
+			_remember(snapshot())
+			scene=scene.duplicate(false)
+			scene.layout=value
+			compiled.scene=scene
 		"clear":
 			_remember(snapshot())
 			playing=false

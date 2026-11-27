@@ -1221,7 +1221,15 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
  var identity:=str(game.school.identities.get(peer,""))
  var history: Array=brain.recall(id,identity)
  var client: Node=game.host_openai
- if is_instance_valid(client) and client.enabled and client.configured() and not client.busy:
+ var presentation:=Visuals.presentation_request(question)
+ var visual_file:=Visuals.file_request(question)
+ var active_room: Dictionary=game.lecture_classes.classes.get(room,{})
+ var present_for_visual: bool=active_room.get("id","")==class_id and game.lecture_classes._inside(peer,room)
+ if not visual_file.is_empty() and present_for_visual:
+  reply=Visuals.use_local_file(active_room,visual_file,game.lecture_classes._now()) if peer==multiplayer.get_unique_id() else "The session host manages saved animations."
+ elif not presentation.is_empty() and present_for_visual and Visuals.apply(active_room,presentation,game.lecture_classes._now()):
+  reply=presentation.reply
+ elif is_instance_valid(client) and client.enabled and client.configured() and not client.busy:
   var checked: Dictionary=await client.moderate(question)
   if checked.get("ok",false) and not checked.get("flagged",false):
    var activity: Dictionary=_ai_activity(room)

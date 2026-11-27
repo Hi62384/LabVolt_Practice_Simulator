@@ -17,6 +17,8 @@ var active := false
 var event_mode := false
 var animation_canvas: Control
 var illustration: Control
+var lesson_row: HBoxContainer
+var lesson_words: VBoxContainer
 signal diagram_action_requested(action: String, data: Dictionary)
 
 func _ready() -> void:
@@ -88,10 +90,12 @@ func _lesson(stage: Dictionary) -> void:
 			if not str(entry.get("formula","")).is_empty():note+=" · "+str(entry.formula)
 			_label(_limited(note,62),40,trail,Color("b6d5dd"))
 	var row := HBoxContainer.new()
+	lesson_row=row
 	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation",28)
 	column.add_child(row)
 	var words := VBoxContainer.new()
+	lesson_words=words
 	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	words.size_flags_stretch_ratio = 1.1
 	words.add_theme_constant_override("separation",15)
@@ -149,9 +153,13 @@ func _lesson(stage: Dictionary) -> void:
 func show_animation(key: String,state: Dictionary) -> void:
 	if not active or not is_instance_valid(animation_canvas):return
 	var show_canvas: bool=not state.is_empty() and animation_canvas.show_checkpoint(key,state)
-	if show_canvas==animation_canvas.visible:return
 	animation_canvas.visible=show_canvas
 	if is_instance_valid(illustration):illustration.visible=not show_canvas
+	var layout: String=animation_canvas.player.scene.get("layout","right") if show_canvas else "right"
+	lesson_words.visible=layout!="full"
+	for item in column.get_children():
+		if item!=lesson_row:item.visible=layout!="full"
+	lesson_row.move_child(animation_canvas,0 if layout=="left" else lesson_row.get_child_count()-1)
 	viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func _visual(parent: Node, data: Dictionary) -> void:

@@ -5,8 +5,9 @@ const Playback=preload("res://scripts/procedural_animation/playback.gd")
 const ROOT:="user://procedural_visuals/"
 const MAX_BYTES:=Document.MAX_BYTES+1400
 
-static func save(id: String,player: RefCounted) -> Error:
+static func save(id: String,player: RefCounted,replace := true) -> Error:
 	if not Document._id(id) or player.scene.is_empty():return ERR_INVALID_PARAMETER
+	if not replace and FileAccess.file_exists(ROOT+id+".json"):return ERR_ALREADY_EXISTS
 	var data:=JSON.stringify({"version":1,"checkpoint":player.snapshot()})
 	if data.to_utf8_buffer().size()>MAX_BYTES:return ERR_INVALID_DATA
 	var error:=DirAccess.make_dir_recursive_absolute(ROOT)
