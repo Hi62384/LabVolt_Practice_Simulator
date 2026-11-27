@@ -59,6 +59,12 @@ func input(event: InputEvent) -> bool:
 		finish()
 		return true
 	if not (event is InputEventMouseButton or event is InputEventMouseMotion):return false
+	if event is InputEventMouseButton and event.pressed and event.shift_pressed and accepts_brush():
+		if event.button_index in [MOUSE_BUTTON_WHEEL_UP,MOUSE_BUTTON_WHEEL_DOWN]:
+			hover=event.position
+			editor.brush_size.value+=1. if event.button_index==MOUSE_BUTTON_WHEEL_UP else -1.
+			queue_redraw()
+			return true
 	if not event.shift_pressed:
 		hover=Vector2.INF
 		if not drag.is_empty():
@@ -107,7 +113,10 @@ func input(event: InputEvent) -> bool:
 	return false
 
 func pick(position: Vector2) -> Dictionary:
-	var result: Dictionary=geometry.Pick(camera.project_ray_origin(position),camera.project_ray_normal(position))
+	return _pick_ray(camera.project_ray_origin(position),camera.project_ray_normal(position))
+
+func _pick_ray(origin: Vector3,direction: Vector3) -> Dictionary:
+	var result: Dictionary=geometry.Pick(origin,direction)
 	if result.is_empty():return result
 	var id: String=ids[result.id]
 	if id.begins_with("#"):return {}
@@ -168,7 +177,8 @@ func move_image(point: Vector2) -> void:
 	pending=original.duplicate(true) if pending.is_empty() else pending
 	if drag=="move":
 		var hit:=pick(point)
-		if hit.is_empty():
+		var segment: String=pending.get("target_segment","")
+		if hit.is_empty() or (not segment.is_empty() and hit.surface.get_slice(":",0)!=segment):
 			_move_on_image_plane(point)
 		else:
 			_place_image(hit)
@@ -188,37 +198,77 @@ func move_image(point: Vector2) -> void:
 	queue_redraw()
 
 func _place_image(hit: Dictionary) -> void:
+	_anchor_image(pending,hit,camera.global_basis.x)
+
+func _anchor_image(image_layer: Dictionary,hit: Dictionary,horizontal: Vector3) -> void:
 	var target: MeshInstance3D=surfaces[hit.surface]
 	var shape:=target.get_aabb()
 	var normal: Vector3=hit.local_normal
-	var tangential: Vector3=target.global_basis.inverse()*camera.global_basis.x
+	var tangential: Vector3=target.global_basis.inverse()*horizontal
 	var right:=tangential.slide(normal).normalized()
-	if right.is_zero_approx():return
-	if not pending.has("reference_span"):
-		var previous: MeshInstance3D=surfaces.get(pending.get("projection",{}).get("surface",""),target)
-		var extent:=previous.get_aabb().size*previous.global_basis.get_scale().abs()
-		pending.reference_span=maxf(extent.x,maxf(extent.y,extent.z))
+	if right.is_zero_approx():
+		right=(Vector3.UP if absf(normal.y)<.9 else Vector3.RIGHT).cross(normal).normalized()
+	if not image_layer.has("reference_span"):
+		var previous: MeshInstance3D=surfaces.get(image_layer.get("projection",{}).get("surface",""),target)
+		image_layer.reference_span=Artwork.projection_span(previous,image_layer)
 	var center: Vector3=(hit.local-shape.get_center())/shape.size.max(Vector3.ONE*.00001)
-	pending.projection={"surface":hit.surface,"center":Document.array(center),"normal":Document.array(normal),"right":Document.array(right)}
-	pending.x=.5
-	pending.y=.5
+	image_layer.projection={"surface":hit.surface,"center":Document.array(center),"normal":Document.array(normal),"right":Document.array(right)}
+	image_layer.position_cm=[0.,0.]
+	image_layer.x=.5
+	image_layer.y=.5
+
+func prepare_image(image_layer: Dictionary,index: int) -> Dictionary:
+	if image_layer.has("projection") or not is_instance_valid(product):return image_layer
+	refresh_geometry(product)
+	var anchor: Dictionary=product.get_meta("decoration_anchor",{})
+	if not anchor.is_empty():
+		var part: Node3D=anchor.part
+		var plane:=part.global_transform*Transform3D(Basis.from_euler(anchor.rotation),anchor.position)
+		var world_point:=plane.origin
+		var prior_span:=0.
+		var legacy:=part.get_node_or_null("DecorationSurface")
+		if legacy!=null:
+			for decal in legacy.get_children():
+				if decal.get_meta("decoration_index",-1)==index:
+					world_point=decal.global_position
+					var dimensions: Vector3=decal.get_aabb().size*decal.global_basis.get_scale().abs()
+					prior_span=maxf(dimensions.x/float(image_layer.width),dimensions.y/float(image_layer.height))/float(image_layer.size)
+					break
+		var normal:=plane.basis.z.normalized()
+		var hit:=_pick_ray(world_point+normal*.03,-normal)
+		if not hit.is_empty():
+			if prior_span>=.0001 and prior_span<=4.:image_layer.reference_span=prior_span
+			_anchor_image(image_layer,hit,plane.basis.x)
+	if not image_layer.has("projection"):
+		for offset in [Vector2.ZERO,Vector2(.1,0),Vector2(-.1,0),Vector2(0,.1),Vector2(0,-.1)]:
+			var hit:=pick(size*(Vector2(.5,.5)+offset))
+			if hit.is_empty():continue
+			_anchor_image(image_layer,hit,camera.global_basis.x)
+			break
+	return image_layer
+
+func image_coordinates(image_layer: Dictionary) -> Array:
+	if not image_layer.has("projection"):return [0.,0.]
+	var target: MeshInstance3D=surfaces.get(image_layer.projection.surface)
+	var span:=Artwork.projection_span(target,image_layer) if is_instance_valid(target) else float(image_layer.get("reference_span",1.))
+	return Artwork.image_position(image_layer,span)
 
 func _move_on_image_plane(point: Vector2) -> void:
 	if not pending.has("projection"):return
 	var target: MeshInstance3D=surfaces.get(pending.projection.surface)
 	var texture:=Artwork._texture(pending.data)
 	if not is_instance_valid(target) or texture==null:return
-	var frame: Transform3D=Artwork.image_frame(target,pending,texture.get_size()).transform
+	var image_frame:=Artwork.image_frame(target,pending,texture.get_size())
+	if image_frame.is_empty():return
+	var frame: Transform3D=image_frame.transform
 	var plane:=Plane(frame.basis.z,frame.origin)
 	var hit: Variant=plane.intersects_ray(camera.project_ray_origin(point),camera.project_ray_normal(point))
 	if hit==null:return
-	var shape:=target.get_aabb()
-	var center: Vector3=(target.to_local(hit)-shape.get_center())/shape.size.max(Vector3.ONE*.00001)
-	if not center.is_finite():return
-	if maxf(absf(center.x),maxf(absf(center.y),absf(center.z)))>64.:return
-	pending.projection.center=Document.array(center)
-	pending.x=.5
-	pending.y=.5
+	var delta: Vector3=hit-frame.origin
+	var offset:=Vector2(delta.dot(frame.basis.x),delta.dot(frame.basis.y)).rotated(deg_to_rad(float(pending.angle)))*100.
+	if not offset.is_finite():return
+	var coordinates:=image_coordinates(pending)
+	pending.position_cm=[float(coordinates[0])+offset.x,float(coordinates[1])+offset.y]
 
 func finish() -> void:
 	var committed:=true
@@ -264,6 +314,7 @@ func _draw() -> void:
 	var texture:=Artwork._texture(current.data)
 	if not is_instance_valid(target) or texture==null:return
 	var frame:=Artwork.image_frame(target,current,texture.get_size())
+	if frame.is_empty():return
 	var origin: Transform3D=frame.transform
 	if camera.is_position_behind(origin.origin):return
 	var half: Vector2=frame.size*.5

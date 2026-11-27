@@ -52,6 +52,7 @@ static func _add(surface: Node3D, layer: Dictionary, index: int, area: Vector2, 
 	var scale:=minf(minf(area.x/available.x,area.y/available.y),minf(area.x/neutral.x,area.y/neutral.y)*float(layer.size))
 	var footprint:=available*scale
 	var position:=Vector3((float(layer.x)-.5)*(area.x-footprint.x),(.5-float(layer.y))*(area.y-footprint.y),.00012*(index+1))
+	if not position.is_finite():return
 	var box:=Vector2(width,height)*scale
 	var tint:=Color(layer.color)
 	tint.a=layer.opacity
@@ -66,6 +67,7 @@ static func _add(surface: Node3D, layer: Dictionary, index: int, area: Vector2, 
 		surface.add_child(text_node)
 		return
 	var decal:=MeshInstance3D.new()
+	decal.set_meta("decoration_index",index)
 	decal.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	decal.layers=layers
 	decal.position=position

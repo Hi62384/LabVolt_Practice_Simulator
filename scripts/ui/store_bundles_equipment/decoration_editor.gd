@@ -19,6 +19,8 @@ var redo: Array=[]
 var list: VBoxContainer
 var materials: Dictionary = {}
 var segment_reader: Callable
+var image_coordinates: Callable
+var prepare_image: Callable
 var segment: String
 var layer_scroll: ScrollContainer
 var thumbnail_cache := {}
@@ -313,7 +315,7 @@ func _show_details() -> void:
 			source.add_child(button)
 		source.add_child(UI.text("Show image on","MutedLabel"))
 		_segment_choice(source,layer.get("target_segment",""),layer.locked,func(value: String):_set_layer("target_segment",value,true))
-		source.add_child(UI.text("Shift-drag the image to move it. Drag the corner and rotation handles while holding Shift.","MutedLabel"))
+		source.add_child(UI.text("Shift-click any decoratable face to place the image there. Shift-drag to move, resize, or rotate it.","MutedLabel"))
 		var transform:=_panel(context,"Transform")
 		_transform(transform,layer)
 	elif layer.kind=="paint":
@@ -347,7 +349,7 @@ func _add_canvas(tools: VBoxContainer,settings: VBoxContainer,layer: Dictionary)
 		buttons.add_child(button)
 		paint_buttons.append(button)
 	_segment_choice(tools,paint_segment,layer.locked,func(value: String):paint_segment=value;selection_changed.emit())
-	tools.add_child(UI.text("Shift + left-drag applies the tool. Shift + right-drag erases.","MutedLabel"))
+	tools.add_child(UI.text("Shift-drag to paint or erase. Shift-scroll changes the brush size.","MutedLabel"))
 	var clear:=UI.action("Clear drawing","",func():
 		_confirm("Clear the drawing on this layer?",func():
 			var empty: Dictionary=design[active].duplicate(true)
@@ -417,10 +419,8 @@ func _transform(parent: VBoxContainer,layer: Dictionary) -> void:
 	parent.add_child(grid)
 	var image_layer: bool=layer.kind=="image"
 	var fields:=[["Scale","size",Document.MIN_IMAGE_SCALE*100. if image_layer else 10,Document.MAX_IMAGE_SCALE*100. if image_layer else 100,"%"],["Rotation","angle",-180,180,"°"]]
-	if image_layer and layer.has("projection"):
-		var offset:=Document.MAX_IMAGE_OFFSET*100.
-		fields.push_front(["Vertical offset","y",-offset,offset,"%",.5])
-		fields.push_front(["Horizontal offset","x",-offset,offset,"%",.5])
+	if image_layer:
+		_image_position_fields(grid,layer)
 	else:
 		fields.push_front(["Vertical","y",0,100,"%"])
 		fields.push_front(["Horizontal","x",0,100,"%"])
@@ -447,6 +447,30 @@ func _transform(parent: VBoxContainer,layer: Dictionary) -> void:
 			_transform_value(crop_grid,layer,[edge.capitalize(),crop_key,0,40,"%"])
 	for entry in fields:
 		_transform_value(grid,layer,entry)
+
+func _image_position_fields(grid: GridContainer,layer: Dictionary) -> void:
+	var coordinates: Array=image_coordinates.call(layer) if image_coordinates.is_valid() else layer.get("position_cm",[0.,0.])
+	for axis in 2:
+		grid.add_child(UI.text("X" if axis==0 else "Y"))
+		var field:=_number(-1.,1.,.01,float(coordinates[axis]),true)
+		_compact_entry(field.get_line_edit())
+		field.suffix="cm"
+		field.editable=not layer.locked
+		field.tooltip_text="Offset in centimeters from the placement point on the selected face."
+		field.value_changed.connect(_set_image_coordinate.bind(axis))
+		grid.add_child(field)
+
+func _set_image_coordinate(value: float,axis: int) -> void:
+	if active<0 or design[active].locked or design[active].kind!="image" or not is_finite(value):return
+	var layer: Dictionary=design[active].duplicate(true)
+	if not layer.has("projection") and prepare_image.is_valid():layer=prepare_image.call(layer,active)
+	if not layer.has("projection"):
+		notice.text="Shift-click a face on the object to place the image first."
+		return
+	var coordinates: Array=image_coordinates.call(layer) if image_coordinates.is_valid() else layer.get("position_cm",[0.,0.]).duplicate()
+	coordinates[axis]=value
+	layer.position_cm=coordinates
+	if replace_active(layer,false):selection_changed.emit()
 
 func _transform_value(grid: GridContainer,layer: Dictionary,field: Array) -> void:
 	grid.add_child(UI.text(field[0]))
@@ -581,10 +605,12 @@ func _input(event: InputEvent) -> void:
 	else:return
 	get_viewport().set_input_as_handled()
 
-func _number(low: float,high: float,step: float,value: float) -> SpinBox:
+func _number(low: float,high: float,step: float,value: float,unbounded := false) -> SpinBox:
 	var spin:=SpinBox.new()
 	spin.min_value=low
 	spin.max_value=high
+	spin.allow_greater=unbounded
+	spin.allow_lesser=unbounded
 	spin.step=step
 	spin.value=value
 	spin.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -626,6 +652,8 @@ func _set_flag(index: int,key: String,value: bool) -> void:
 func _set_layer(key: String,value: Variant,rebuild: bool) -> void:
 	if active<0 or (design[active].locked and key not in ["locked","visible"]):return
 	var next:=design.duplicate(true)
+	if key=="data" and not str(value).is_empty() and next[active].kind=="image" and prepare_image.is_valid():
+		next[active]=prepare_image.call(next[active],active)
 	next[active][key]=value
 	_commit(next,rebuild)
 

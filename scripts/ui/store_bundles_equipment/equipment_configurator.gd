@@ -117,6 +117,8 @@ func build(owner: RefCounted, purchase_completed: Callable, product: Dictionary,
 	decoration_editor=preload("res://scripts/ui/store_bundles_equipment/decoration_editor.gd").new()
 	options.add_child(decoration_editor)
 	decoration_editor.segment_reader=func(segment: String):return Config.Materials.from_model(rendered_product,segment)
+	decoration_editor.prepare_image=surface_editor.prepare_image
+	decoration_editor.image_coordinates=surface_editor.image_coordinates
 	decoration_editor.build(profile,kind)
 	decoration_editor.restore(configuration.get("decoration",[]),configuration.get("materials",{}))
 	decoration_editor.design_changed.connect(_set_decoration)

@@ -62,6 +62,14 @@ func run() -> void:
 		assert(at.is_finite(),"No visible paintable geometry for "+kind)
 		assert(not surface.input(_button(at,true)),"Select applied brush")
 		edit.paint_mode=1
+		edit.brush_size.value=4.
+		assert(surface.input(_button(at,true,MOUSE_BUTTON_WHEEL_UP)))
+		assert(edit.brush_size.value==5. and edit.brush_settings().size==5.)
+		edit.paint_mode=2
+		assert(surface.input(_button(at,true,MOUSE_BUTTON_WHEEL_DOWN)))
+		assert(edit.brush_size.value==4.)
+		assert(not surface.input(_button(at,true,MOUSE_BUTTON_WHEEL_UP,false)))
+		edit.paint_mode=1
 		edit.brush_size.value=14.
 		assert(not surface.input(_button(at,true,MOUSE_BUTTON_LEFT,false)),"Pan applied brush")
 		var segment: String=surface.pick(at).surface.get_slice(":",0)
@@ -93,16 +101,32 @@ func run() -> void:
 		assert(surface.input(_button(at,true,MOUSE_BUTTON_RIGHT)))
 		assert(surface.input(_button(at,false,MOUSE_BUTTON_RIGHT)))
 		assert(edit.design[0].mesh_paint!=painted,"Right click did not erase "+kind)
-		edit._add("image",data)
+		edit._add("image","" if kind==Config.NOTEBOOK else data)
 		edit._set_layer("glow",8.,false)
 		edit._set_layer("indent",-2.,false)
 		if kind==Config.PHONE:
 			dialog._camera_view(2)
 			at=dialog.camera.unproject_position(dialog.rendered_product.global_position)
-		assert(surface.input(_button(at,true)))
-		assert(surface.input(_button(at,false)))
+		if kind==Config.NOTEBOOK:
+			edit._set_layer("data",data,true)
+		else:
+			assert(surface.input(_button(at,true)))
+			assert(surface.input(_button(at,false)))
 		assert(edit.design[1].has("projection"),"Image projection missing on "+kind)
 		assert(Document.clean(edit.design)!=null)
+		if kind==Config.PHONE:
+			var coordinates: Array=edit.details.find_children("*","SpinBox",true,false).filter(func(field):return field.suffix=="cm")
+			assert(coordinates.size()==2 and coordinates[0].allow_greater and coordinates[1].allow_lesser)
+			var anchor: MeshInstance3D=Artwork.surfaces(dialog.rendered_product)[edit.design[1].projection.surface]
+			var initial: Transform3D=Artwork.image_frame(anchor,edit.design[1],image.get_size()).transform
+			coordinates[0].value=2.5
+			coordinates[1].value=-1.25
+			var moved: Transform3D=Artwork.image_frame(anchor,edit.design[1],image.get_size()).transform
+			assert(moved.origin.is_equal_approx(initial.origin+initial.basis.x*.025-initial.basis.y*.0125))
+			coordinates[0].value=100000.
+			assert(Document.clean(edit.design)[1].position_cm==[100000.,-1.25])
+			coordinates[0].value=0.
+			coordinates[1].value=0.
 		receiver=Artwork.surfaces(dialog.rendered_product)[edit.design[1].projection.surface]
 		var projected:=_overlay(receiver,true)
 		assert(projected!=null and projected.mesh==receiver.mesh,"Missing mesh-conforming image on "+kind)

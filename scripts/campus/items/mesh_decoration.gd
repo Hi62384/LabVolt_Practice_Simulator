@@ -51,19 +51,26 @@ static func apply(root: Node3D, design: Array) -> void:
 			var texture:=_texture(layer.data)
 			if anchor==null or texture==null:continue
 			var frame:=image_frame(anchor,layer,texture.get_size())
+			if frame.is_empty():continue
 			var from_world: Transform3D=frame.transform.affine_inverse()
-			if depth_builder==null:depth_builder=Geometry.new()
-			if blockers.is_empty():blockers.assign(surfaces(root,true).values())
-			var depth: Image=depth_builder.ProjectionDepth(blockers,from_world,frame.size,frame.thickness)
-			var visibility:=ImageTexture.create_from_image(depth)
 			var target_segment: String=layer.get("target_segment","")
+			var half_size:=Vector3(frame.size.x*.5,frame.size.y*.5,frame.thickness)
+			var projector_bounds:=AABB(-half_size,half_size*2.)
+			var matches: Dictionary={}
 			for id in receivers:
 				if not target_segment.is_empty() and id.get_slice(":",0)!=target_segment:continue
 				var target: MeshInstance3D=receivers[id]
 				var relative:=from_world*target.global_transform
 				var bounds: AABB=relative*target.get_aabb()
-				var half_size:=Vector3(frame.size.x*.5,frame.size.y*.5,frame.thickness)
-				if not bounds.grow(.00005).intersects(AABB(-half_size,half_size*2.)):continue
+				if bounds.grow(.00005).intersects(projector_bounds):matches[id]=relative
+			if matches.is_empty():continue
+			if depth_builder==null:depth_builder=Geometry.new()
+			if blockers.is_empty():blockers.assign(surfaces(root,true).values())
+			var depth: Image=depth_builder.ProjectionDepth(blockers,from_world,frame.size,frame.thickness)
+			var visibility:=ImageTexture.create_from_image(depth)
+			for id in matches:
+				var target: MeshInstance3D=receivers[id]
+				var relative: Transform3D=matches[id]
 				var material:=_overlay(target,texture,layer,index)
 				material.set_shader_parameter("projected",true)
 				material.set_shader_parameter("visibility_depth",visibility)
@@ -100,17 +107,29 @@ static func image_frame(anchor: MeshInstance3D, layer: Dictionary, texture_size:
 	var normal:=(transform.basis.inverse().transposed()*Document.vector(projection.normal)).normalized()
 	var right:=(transform.basis*Document.vector(projection.right)).slide(normal).normalized()
 	var up:=normal.cross(right)
+	var span:=projection_span(anchor,layer)
+	var coordinates:=image_position(layer,span)
+	center+=right*(float(coordinates[0])*.01)+up*(float(coordinates[1])*.01)
+	if not center.is_finite():return {}
 	var angle:=deg_to_rad(float(layer.angle))
 	right=right.rotated(normal,angle)
 	up=up.rotated(normal,angle)
-	var world_size: Vector3=shape.size*transform.basis.get_scale().abs()
-	var span: float=layer.get("reference_span",maxf(world_size.x,maxf(world_size.y,world_size.z)))
 	var crop:=Vector4(layer.crop_left,layer.crop_top,1.-layer.crop_left-layer.crop_right,1.-layer.crop_top-layer.crop_bottom)
 	var aspect:=maxf(.025,texture_size.x*crop.z/maxf(1.,texture_size.y*crop.w))
 	var footprint:=Vector2(aspect,1.)/maxf(1.,aspect)*span*float(layer.size)*Vector2(layer.width,layer.height)
-	center+=(right*(float(layer.x)-.5)+up*(.5-float(layer.y)))*span
 	var thickness:=maxf(.00035,minf(span*.10,minf(footprint.x,footprint.y)*.34))
 	return {"transform":Transform3D(Basis(right,up,normal),center),"size":footprint,"thickness":thickness,"crop":crop}
+
+static func projection_span(anchor: MeshInstance3D,layer: Dictionary) -> float:
+	if layer.has("reference_span"):return float(layer.reference_span)
+	var world_size:=anchor.get_aabb().size*anchor.global_basis.get_scale().abs()
+	return maxf(world_size.x,maxf(world_size.y,world_size.z))
+
+static func image_position(layer: Dictionary,span: float) -> Array:
+	if layer.has("position_cm"):return layer.position_cm.duplicate()
+	var offset:=Vector2(float(layer.x)-.5,.5-float(layer.y))*span*100.
+	offset=offset.rotated(deg_to_rad(float(layer.angle)))
+	return [offset.x,offset.y]
 
 static func _overlay(target: MeshInstance3D, texture: Texture2D, layer: Dictionary, index: int) -> ShaderMaterial:
 	var overlay:=MeshInstance3D.new()

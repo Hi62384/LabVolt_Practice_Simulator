@@ -9,8 +9,7 @@ const MAX_EMISSION := 16.0
 const MAX_INDENT := 8.0
 const MIN_IMAGE_SCALE := .01
 const MAX_IMAGE_SCALE := 10.0
-const MAX_IMAGE_OFFSET := 64.0
-const OPTIONAL := ["width","height","lock_aspect","mesh_paint","projection","target_segment","reference_span","indent"]
+const OPTIONAL := ["width","height","lock_aspect","mesh_paint","projection","position_cm","target_segment","reference_span","indent"]
 const TYPES := ["paint","image","text","shape"]
 const SHAPES := ["Panel","Button","Stud","Trim"]
 const BLENDS := ["Normal","Add","Multiply"]
@@ -46,9 +45,7 @@ static func clean(value: Variant) -> Variant:
 		for key in ["x","y","size","angle","opacity","metallic","roughness","glow","blend","crop_left","crop_right","crop_top","crop_bottom"]:
 			var number: Variant=raw.get(key)
 			if not (number is int or number is float) or not is_finite(number):return null
-		if raw.has("projection"):
-			if absf(raw.x-.5)>MAX_IMAGE_OFFSET or absf(raw.y-.5)>MAX_IMAGE_OFFSET:return null
-		elif raw.x<0 or raw.x>1 or raw.y<0 or raw.y>1:return null
+		if raw.kind!="image" and (raw.x<0 or raw.x>1 or raw.y<0 or raw.y>1):return null
 		if raw.size<(MIN_IMAGE_SCALE if raw.kind=="image" else .10) or raw.size>(MAX_IMAGE_SCALE if raw.kind=="image" else 1.0) or absf(raw.angle)>180.0:return null
 		if raw.opacity<0 or raw.opacity>1.0 or raw.metallic<0 or raw.metallic>1.0 or raw.roughness<0 or raw.roughness>1.0 or raw.glow<0 or raw.glow>MAX_EMISSION:return null
 		if raw.blend!=floor(raw.blend) or int(raw.blend) not in range(BLENDS.size()):return null
@@ -71,6 +68,11 @@ static func clean(value: Variant) -> Variant:
 				encoded_size+=pixels.length()
 				if encoded_size>MAX_DOCUMENT or not valid_image(pixels):return null
 		if raw.has("projection") and (raw.kind!="image" or not _valid_projection(raw.projection)):return null
+		if raw.has("position_cm"):
+			var position: Variant=raw.position_cm
+			if raw.kind!="image" or not raw.has("projection") or not position is Array or position.size()!=2:return null
+			for axis in position:
+				if not (axis is float or axis is int) or not is_finite(float(axis)):return null
 		if raw.has("target_segment"):
 			var target: Variant=raw.target_segment
 			if raw.kind!="image" or not target is String or target.length()>24 or (not target.is_empty() and not target.is_valid_identifier()):return null
