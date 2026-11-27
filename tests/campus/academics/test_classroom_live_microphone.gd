@@ -2,7 +2,6 @@ extends SceneTree
 ## Use a normal audio driver for the guest. Speak into its default microphone
 ## after MIC_READY. The host uses the local HTTP transcription fixture.
 const ROOM := "elm253_lecture"
-const PORT := 26437
 const KEY := "sk-test-12345678901234567890"
 var game: Node
 
@@ -20,6 +19,8 @@ func wait_for(check: Callable, seconds: float, label: String) -> bool:
 
 func run() -> void:
 	var host: bool=OS.get_cmdline_user_args()[0]=="host"
+	var port:=int(OS.get_environment("LABVOLT_MIC_TEST_PORT"))
+	if port<=0:port=26437
 	game=load("res://scenes/Main.tscn").instantiate()
 	root.add_child(game)
 	for i in 4:await process_frame
@@ -30,7 +31,7 @@ func run() -> void:
 	var classes: Node=game.lecture_classes
 	var faculty: Node=game.faculty
 	if host:
-		assert(game.session.host_game("Microphone Host",PORT)==OK)
+		assert(game.session.host_game("Microphone Host",port)==OK)
 		assert(game.host_openai.set_local_test_endpoint("http://127.0.0.1:28769/v1"))
 		assert(game.host_openai.set_session_key(KEY))
 		assert(game.host_openai.configure("gpt-5.4-mini",128,"",true)==OK)
@@ -38,7 +39,7 @@ func run() -> void:
 		assert(classes._start(ROOM,{"kind":"lecture","course_id":"ELM253","week":1,"difficulty":1})=="")
 		var state: Dictionary=classes.classes[ROOM]
 		state.phase="lesson"
-		state.deadline=classes._now()+400.
+		state.deadline=classes._now()+classes.lesson_duration(state)+5.
 		classes._publish()
 		print("MIC_HOST_READY")
 		if not await wait_for(func():return game.session.roster.size()==2,45.,"guest joins"):return
@@ -55,7 +56,7 @@ func run() -> void:
 		print("CLASSROOM_MIC_HOST PASS")
 		await create_timer(3.).timeout
 	else:
-		assert(game.session.join_game("127.0.0.1","Microphone Guest",PORT)==OK)
+		assert(game.session.join_game("127.0.0.1","Microphone Guest",port)==OK)
 		var info: Dictionary=game.campus.registry.activity_room("ELM253","lecture",ROOM)
 		var point: Vector3=info.teacher_position+Vector3(0,0,1.3)
 		if not await wait_for(func():
@@ -71,7 +72,11 @@ func run() -> void:
 			var inputs:=AudioServer.get_input_device_list()
 			var output_name:="CABLE Input (VB-Audio Virtual Cable)"
 			var input_name:="CABLE Output (VB-Audio Virtual Cable)"
-			assert(output_name in outputs and input_name in inputs)
+			if not OS.get_environment("LABVOLT_MIC_TEST_INPUT").is_empty():
+				input_name=OS.get_environment("LABVOLT_MIC_TEST_INPUT")
+			if not OS.get_environment("LABVOLT_MIC_TEST_OUTPUT").is_empty():
+				output_name=OS.get_environment("LABVOLT_MIC_TEST_OUTPUT")
+			assert(output_name in outputs and input_name in inputs,"Audio outputs %s / inputs %s"%[outputs,inputs])
 			AudioServer.output_device=output_name
 			AudioServer.input_device=input_name
 			faculty.set_process(false)
@@ -86,12 +91,15 @@ func run() -> void:
 			playback.stream=AudioStreamWAV.load_from_file(fixture)
 			assert(playback.stream!=null)
 			root.add_child(playback)
-			await create_timer(.7).timeout
+			for i in 20:
+				await create_timer(.05).timeout
+				faculty._consume_voice_capture()
+			print("MIC_ROUTE ",AudioServer.output_device," -> ",AudioServer.input_device)
 			playback.play()
 		var speech: Node=faculty.speech_player
 		if not await wait_for(func():
 			if not fixture.is_empty():faculty._consume_voice_capture()
-			return int(speech.last_serial.get(ROOM,0))>0 and not faculty.voice_room.is_empty(),
+			return speech.subtitles.get(ROOM,{}).get("item",{}).get("text","")=="The board shows a current path." and not faculty.voice_room.is_empty(),
 		22.,"teacher response from recorded speech"):return
 		assert(AudioServer.get_input_device_list().size()>0)
 		print("CLASSROOM_MIC_GUEST PASS")
