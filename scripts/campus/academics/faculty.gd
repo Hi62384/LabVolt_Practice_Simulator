@@ -229,6 +229,19 @@ func _hide_lab(room: String) -> void:
 func _lab_activity(room: String) -> Dictionary:
  var activity: Dictionary=game.lecture_classes.classes.get(room,{}) if multiplayer.is_server() else game.lecture_classes.public_classes.get(room,{})
  return _formal_activity(room) if activity.is_empty() else activity
+
+func _lab_visit(room: String) -> Dictionary:
+ var activity:=_lab_activity(room)
+ if not activity.is_empty() or not _freeplay_lab_available(room):return activity
+ var id:=str(current.get(room,""))
+ if not Roster.has(id):return {}
+ var active: Dictionary=game.lecture_classes.classes if multiplayer.is_server() else game.lecture_classes.public_classes
+ for scheduled in active.values():
+  if scheduled.get("teacher","")==id:return {}
+ var course: String="ELM253" if room=="ac_lab" else "ETY155"
+ if room=="dc_lab" and course not in Roster.entry(id).get("courses",[]):course="DGS266"
+ return {"id":"office:%s:%s"%[room,id],"teacher":id,"phase":"office_hours","course":course,"ai_teaching":false}
+
 func _formal_activity(room: String) -> Dictionary:
  var school: Node=game.school
  if not school.formal_active() or school.activity.get("room",{}).get("id","")!=room:return {}
@@ -242,14 +255,14 @@ func _formal_activity(room: String) -> Dictionary:
   "week":school.activity.get("week",0),"title":school.project.get("title",course)}
 func _sync_lab_teachers() -> void:
  for room in ["ac_lab","dc_lab"]:
-  var activity:=_lab_activity(room)
+  var activity:=_lab_visit(room)
   var id:=str(activity.get("teacher",""))
   var root: Node3D=game.school_world.teacher if room=="ac_lab" else game.school_world.dc_instructor
   var model:=root.get_node_or_null("InstructorModel")
   if Roster.has(id):
    if not is_instance_valid(model) or model.is_queued_for_deletion() or str(model.get_meta("faculty_id",""))!=id or lab_routes.get(room,{}).get("departing",false):
     _hide_lab(room)
-    _show_lab(room,id,bool(activity.get("ai_teaching",false)))
+    _show_lab(room,id,bool(activity.get("ai_teaching",false)) or activity.get("phase","")=="office_hours")
   elif is_instance_valid(model) and not lab_routes.get(room,{}).get("departing",false):
    if not lab_entries.has(room):_hide_lab(room);continue
    var path:=ClassroomRoute.plan(game,room,model.global_position,lab_entries[room],0.0)
@@ -1039,7 +1052,7 @@ func _send_voice_question(room: String,wav: PackedByteArray,student: String,clas
 func _ask_speech(room: String,wav: PackedByteArray) -> void:
  if multiplayer.is_server():_speech_question_request(multiplayer.get_remote_sender_id(),room,wav)
 func _ai_activity(room: String) -> Dictionary:
- if room in ["ac_lab","dc_lab"]:return _lab_activity(room)
+ if room in ["ac_lab","dc_lab"]:return _lab_visit(room)
  if room not in LECTURE_ROOMS:return {}
  var activities: Dictionary=game.lecture_classes.classes if multiplayer.is_server() else game.lecture_classes.public_classes
  return activities.get(room,_formal_activity(room))
@@ -1163,8 +1176,7 @@ func _classmate_reply(room: String,class_id: String,actor: String,line: String,s
  speech_player.configure(bool(game.client_preferences.values.teacher_speech),bool(game.client_preferences.values.teacher_subtitles))
  speech_player.accept("classmate",profile.name,serial,text,2,model,stream)
  if stream==null and speech_player.speech_enabled:speech_synth.request("classmate",serial,actor,text,key,2)
- var toward: Vector3=game.player.global_position-model.global_position
- if Vector2(toward.x,toward.z).length_squared()>.01:model.rotation.y=atan2(toward.x,toward.z)
+ students.focus_on_player(class_id,actor)
 
 func _queue_question(peer: int,room: String,content: Variant) -> void:
  if not multiplayer.is_server() or not game.session.roster.has(peer):return
@@ -1174,6 +1186,7 @@ func _queue_question(peer: int,room: String,content: Variant) -> void:
  if not game.lecture_classes._inside(peer,room):
   _question_status(peer,room,teacher,"Please stay in the classroom to ask a question.")
   return
+ if activity.get("phase","")=="office_hours" and not _near_instructor(peer,room):return
  var count:=0
  for entry in questions:
   if int(entry.peer)==peer:count+=1
@@ -1201,6 +1214,7 @@ func _next_question() -> void:
  if str(activity.get("id",""))!=entry.class or str(activity.get("teacher",""))!=teacher or not game.lecture_classes._inside(peer,room):
   _question_status(peer,room,teacher,"The conversation ended before the teacher could answer.")
   return
+ if activity.get("phase","")=="office_hours" and not _near_instructor(peer,room):return
  var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.ZERO)
  ai_busy[peer]=room
  _question_status(peer,room,teacher,"The teacher is answering…")
@@ -1210,16 +1224,33 @@ func _next_question() -> void:
 func lesson_question_active(room: String) -> bool:
  return room in ai_busy.values() or questions.any(func(entry: Dictionary):return entry.get("room")==room and not entry.has("student"))
 
+func _personal_teacher_reply(id: String,identity: String,question: String,in_lesson: bool) -> String:
+ var topic:=question.strip_edges().to_lower().rstrip("?!.,")
+ var familiarity:=int(brain.relationship(id,identity).familiarity)
+ if topic in ["hi","hello","hey","hello again"] and familiarity>0:
+  return "Good to see you again. What would you like to go over?" if not in_lesson else "Good to see you again. Is there something in today's lesson you'd like to review?"
+ if topic in ["do you remember me","do you remember our last conversation"]:
+  return "Yes, we've spoken before. What would you like to follow up on?" if familiarity>0 else "I don't think we've met yet. What are you working on?"
+ if not in_lesson and topic in ["what do you do for fun","what are your interests","do you have a hobby"]:
+  return "I'm into %s outside of class. What about you?"%str(Characters.teacher(id).interest)
+ return ""
+
 func _answer_question(peer: int,room: String,id: String,class_id: String,question: String,pos: Vector3) -> void:
  var activity_context := _ai_activity(room)
  var current_stage: Dictionary = {}
  if activity_context.get("phase","")=="lesson":
   current_stage=game.lecture_classes._stage(activity_context) if activity_context.has("teaching") else game.school.teaching_stage()
  var lab_evidence:=_ac_measurement_context(peer,activity_context) if room=="ac_lab" else ""
- var fallback:=lab_evidence if not lab_evidence.is_empty() and question.to_lower().contains("inspect") else LectureDirector.answer(question,current_stage)
- var reply:=fallback
+ var inspection:=not lab_evidence.is_empty() and question.to_lower().contains("inspect")
+ var fallback:=lab_evidence if inspection else LectureDirector.answer(question,current_stage)
+ if activity_context.get("phase","")=="office_hours" and not inspection:
+  fallback="I'm here for lab questions. Tell me what you're building or bring your circuit to a bench so we can look at it."
  var identity:=str(game.school.identities.get(peer,""))
  var history: Array=brain.recall(id,identity)
+ var in_lesson: bool=activity_context.get("phase","")=="lesson"
+ var personal:=_personal_teacher_reply(id,identity,question,in_lesson)
+ var reply:=personal if not personal.is_empty() else fallback
+ var remember_reply:=not personal.is_empty()
  var client: Node=game.host_openai
  var presentation:=Visuals.presentation_request(question)
  var visual_file:=Visuals.file_request(question)
@@ -1229,7 +1260,7 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
   reply=Visuals.use_local_file(active_room,visual_file,game.lecture_classes._now()) if peer==multiplayer.get_unique_id() else "The session host manages saved animations."
  elif not presentation.is_empty() and present_for_visual and Visuals.apply(active_room,presentation,game.lecture_classes._now()):
   reply=presentation.reply
- elif is_instance_valid(client) and client.enabled and client.configured() and not client.busy:
+ elif personal.is_empty() and is_instance_valid(client) and client.enabled and client.configured() and not client.busy:
   var checked: Dictionary=await client.moderate(question)
   if checked.get("ok",false) and not checked.get("flagged",false):
    var activity: Dictionary=_ai_activity(room)
@@ -1246,19 +1277,21 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
      var output_check: Dictionary=await client.moderate(str(plan.get("moderation",candidate)))
      if output_check.get("ok",false) and not output_check.get("flagged",false) and not candidate.is_empty():
       reply=candidate
+      remember_reply=true
       if plan.get("action")!=null:
        var live: Dictionary=game.lecture_classes.classes.get(room,{})
        if live.get("id","")!=class_id or not game.lecture_classes._inside(peer,room) or not Visuals.apply(live,plan.action,game.lecture_classes._now()):
         reply="I couldn't make that change. I'll keep the board as it is."
-      if not identity.is_empty() and str(game.school.identities.get(peer,""))==identity:
-       brain.remember_conversation(id,identity,question,candidate,int(Time.get_unix_time_from_system()))
      else:reply="I can't answer that classroom question right now."
     else:reply=fallback
   elif checked.get("flagged",false):reply="Let's keep the classroom question appropriate."
   else:reply=fallback
  ai_busy.erase(peer)
  var current_class: Dictionary=_ai_activity(room)
- if str(current_class.get("id",""))!=class_id or str(current_class.get("teacher",""))!=id:return
+ if str(current_class.get("id",""))!=class_id or str(current_class.get("teacher",""))!=id or not game.lecture_classes._inside(peer,room):return
+ if current_class.get("phase","")=="office_hours" and not _near_instructor(peer,room):return
+ if remember_reply and not identity.is_empty() and str(game.school.identities.get(peer,""))==identity:
+  brain.remember_conversation(id,identity,question,reply,int(Time.get_unix_time_from_system()))
  if current_class.has("visual_playback"):game.lecture_classes._publish()
  _question_status(peer,room,id,reply)
  if reply.length()<=350 and not reply.begins_with("OpenAI"):
@@ -1320,11 +1353,14 @@ func _ac_measurement_context(peer: int,activity: Dictionary) -> String:
   lab.frequency,float(volts.max()) if not volts.is_empty() else 0.,float(amps.max()) if not amps.is_empty() else 0.]
 
 func _inspect_student_circuit(peer: int,room: String,teacher: String,activity: Dictionary,evaluate: bool=false) -> String:
- if not multiplayer.is_server() or room!="dc_lab" or activity.get("phase","")!="lesson" or activity.get("course","")!="ETY155" or str(activity.get("teacher",""))!=teacher:return "Circuit inspection is available during the DC circuit lesson."
+ var office_hours: bool=activity.get("phase","")=="office_hours"
+ var circuit_lesson: bool=activity.get("phase","")=="lesson" and activity.get("course","")=="ETY155"
+ if not multiplayer.is_server() or room!="dc_lab" or not (office_hours or circuit_lesson) or str(activity.get("teacher",""))!=teacher:return "Circuit inspection is available during the DC circuit lesson or office hours."
  var events: Node=game.lecture_classes.classroom_events
  if not is_instance_valid(events) or not bool(events.enabled):return "Circuit inspection is unavailable right now."
  var identity:=str(game.school.identities.get(peer,""))
- if identity.is_empty() or int(activity.get("students",{}).get(identity,{}).get("peer",0))!=peer or not game.lecture_classes._inside(peer,room):return "Sign into this lesson before asking me to inspect your circuit."
+ if identity.is_empty() or not game.lecture_classes._inside(peer,room):return "Your student profile is unavailable."
+ if not office_hours and int(activity.get("students",{}).get(identity,{}).get("peer",0))!=peer:return "Sign into this lesson before asking me to inspect your circuit."
  if not is_instance_valid(game.dc_lab):return "The DC benches are unavailable."
  var selected: Array=[]
  for index in mini(3,game.dc_lab.benches.size()):
@@ -1446,7 +1482,7 @@ func report_event(peer: int,room: String,kind: String,position: Vector3,severity
   if verified_incidents.is_empty() or int(verified_incidents.back().get("peer",0))!=peer or int(verified_incidents.back().get("station",-1))!=station or str(verified_incidents.back().get("fault",""))!=fault or Time.get_ticks_msec()-int(verified_incidents.back().get("time",0))>1000:return false
   verified_incidents.pop_back()
  if kind not in ["lab_hazard","class_message","addressed_speech","voice_noise","ambient_speech","phone_use","seat_departure","thrown_object"] or room not in (["ac_lab","dc_lab"] + LECTURE_ROOMS):return false
- var activity: Dictionary=game.lecture_classes.classes.get(room,{})
+ var activity:=_ai_activity(room)
  var identity:=str(game.school.identities.get(peer,""))
  if identity.is_empty():return false
  if kind in ["voice_noise","phone_use","seat_departure"]:
@@ -1457,7 +1493,7 @@ func report_event(peer: int,room: String,kind: String,position: Vector3,severity
   if is_instance_valid(events) and is_instance_valid(events.service):classroom=events.service.rooms.get(room,{})
   if kind=="voice_noise" and VoicePolicy.permitted(peer,identity,activity,classroom,Time.get_ticks_msec()/1000.0):return false
  if not brain.context_allows(kind,str(activity.get("phase","")),severity):return false
- var id:=str(activity.get("teacher",current.get(room,"")))
+ var id:=str(activity.get("teacher",""))
  if not Roster.has(id):return false
  var origin:=_teacher_position(room)
  if not origin.is_finite():return false
@@ -1515,13 +1551,18 @@ func _teacher_position(room: String) -> Vector3:
  if is_instance_valid(lecture_models.get(room)):return lecture_models[room].global_position
  if game.lecture_classes.signs.has(room):return game.lecture_classes.signs[room].desk
  return Vector3.INF
+
+func _near_instructor(peer: int,room: String) -> bool:
+ var position: Vector3=game.lecture_classes._position(peer)
+ var instructor:=_teacher_position(room)
+ return position.is_finite() and instructor.is_finite() and position.distance_to(instructor)<=4.5
 func _on_player_message(peer: int,_sender: String,message: String) -> void:
  if not multiplayer.is_server():return
  var position: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
  if not position.is_finite():return
  var room: String=game.campus.registry.locate(position)
- var activity: Dictionary=game.lecture_classes.classes.get(room,{})
- var id:=str(activity.get("teacher",current.get(room,"")))
+ var activity:=_ai_activity(room)
+ var id:=str(activity.get("teacher",""))
  if not Roster.has(id):return
  var teacher_name:=str(Roster.entry(id).name).to_lower()
  var words:=message.to_lower()
@@ -1685,7 +1726,7 @@ func _attention(room: String,id: String,point: Vector3) -> void:_set_attention(r
 func _reaction(room: String,id: String,text: String,point: Vector3,serial: int=0,priority: int=1,provider := false) -> void:
  if serial>0 and is_instance_valid(speech_player) and serial<=int(speech_player.last_serial.get(room,0)):return
  if room in ["ac_lab","dc_lab"]:
-  var activity:=_lab_activity(room)
+  var activity:=_lab_visit(room)
   var visible_id:=str(activity.get("teacher",""))
   if visible_id!=id:return
  if room in LECTURE_ROOMS and not is_instance_valid(_model_for_room(room,id)):return

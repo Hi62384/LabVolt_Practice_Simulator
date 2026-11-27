@@ -1,6 +1,7 @@
 extends SceneTree
 const Visuals=preload("res://scripts/campus/academics/classroom_visuals.gd")
 const Profiles=preload("res://scripts/campus/academics/class_character_profile.gd")
+const Breadboard=preload("res://scripts/breadboard_model.gd")
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -40,6 +41,12 @@ func run() -> void:
 	faculty.conversation_input.text="What is your hobby?"
 	faculty._submit_question()
 	assert(member.profile.interest in faculty.conversation_text.text)
+	var original_facing:=model.rotation.y
+	classmates.render(room,classes.public_classes,.2)
+	assert(absf(angle_difference(original_facing,model.rotation.y))>.1)
+	classmates.dialogue_focus.clear()
+	classmates.render(room,classes.public_classes,1.)
+	assert(absf(angle_difference(model.rotation.y,PI))<.01)
 	var exchanges: Array=faculty.brain.recall(member.profile.id,game.school.identities[1])
 	assert(exchanges.size()==1)
 	var previous: String=faculty.conversation_text.text
@@ -202,11 +209,46 @@ func run() -> void:
 	var preclass:={"phase":"arrival","deadline":now+20.,"classmates":{intro_profile.id:speaker,partner.id:listener}}
 	classmates._before_class(preclass,now)
 	assert(speaker.line.begins_with("Hi, I'm") and not listener.has("line"))
+	assert(speaker.look_at==listener.position and listener.look_at==speaker.position)
 	assert(faculty.brain.recall(partner.id,intro_profile.id).is_empty())
 	classmates._show_preclass_reply(preclass,now+3.)
 	assert(listener.line.begins_with("I'm") and faculty.brain.recall(partner.id,intro_profile.id).size()==1)
 	classmates._before_class(preclass,now+5.)
 	assert(not preclass.has("classmate_reply"))
+	classes.classes.erase(lecture_room)
+	if faculty.current.get("ac_lab","").is_empty():faculty._rotate("ac_lab")
+	var visit: Dictionary=faculty._ai_activity("ac_lab")
+	assert(visit.get("phase","")=="office_hours")
+	faculty._sync_lab_teachers()
+	game.player.global_position=faculty._teacher_position("ac_lab")
+	assert(classes._inside(1,"ac_lab"))
+	faculty.open_conversation("ac_lab")
+	faculty._answer_question(1,"ac_lab",visit.teacher,visit.id,"Do you have a hobby?",game.player.global_position)
+	assert("outside of class" in faculty.conversation_text.text)
+	faculty._answer_question(1,"ac_lab",visit.teacher,visit.id,"Hello again",game.player.global_position)
+	assert("Good to see you again" in faculty.conversation_text.text)
+	assert(faculty.brain.recall(visit.teacher,human).size()==2)
+	faculty.close_conversation()
+	classes.classes[lecture_room]={"teacher":visit.teacher}
+	assert(faculty._ai_activity("ac_lab").is_empty())
+	classes.classes.erase(lecture_room)
+	if faculty.current.get("dc_lab","").is_empty():faculty._rotate("dc_lab")
+	var dc_visit: Dictionary=faculty._ai_activity("dc_lab")
+	assert(dc_visit.get("phase","")=="office_hours")
+	faculty._sync_lab_teachers()
+	game.player.global_position=faculty._teacher_position("dc_lab")
+	var dc_bench: RefCounted=game.dc_lab.benches[0]
+	var design:=Breadboard.empty()
+	design.parts=[{"id":"r","type":"r1000","a":"P1","b":"N1"}]
+	assert(dc_bench.apply({"op":"board","design":design})=="")
+	assert(dc_bench.apply({"op":"wire","a":"CH1+","b":"B1"})=="")
+	assert(dc_bench.apply({"op":"wire","a":"CH1-","b":"B2"})=="")
+	assert(dc_bench.apply({"op":"channel","index":0,"key":"enabled","value":true})=="")
+	assert(dc_bench.apply({"op":"master"})=="")
+	for i in 4:dc_bench.step()
+	assert("Place your own board" in faculty._inspect_student_circuit(1,"dc_lab",dc_visit.teacher,dc_visit))
+	dc_bench.board_owner=1
+	assert("host solver has a result" in faculty._inspect_student_circuit(1,"dc_lab",dc_visit.teacher,dc_visit))
 	print("CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS")
 	game.queue_free()
 	await process_frame

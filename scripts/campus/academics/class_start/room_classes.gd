@@ -377,7 +377,9 @@ func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
 		activity.npc_question_topic=topic
 		activity.next_hand=now+45.
 		var answer: String=preload("res://scripts/campus/academics/lecture_director.gd").answer(question,stage)
-		game.faculty.brain.remember_conversation(activity.teacher,member.profile.id,question,answer,int(Time.get_unix_time_from_system()))
+		var timestamp:=int(Time.get_unix_time_from_system())
+		game.faculty.brain.remember_conversation(activity.teacher,member.profile.id,question,answer,timestamp)
+		game.faculty.brain.remember_conversation(member.profile.id,activity.teacher,answer,question,timestamp)
 		game.faculty.present_class_reaction(room,activity.teacher,"%s, %s"%[str(member.profile.name).get_slice(" ",0),answer],2)
 		break
 

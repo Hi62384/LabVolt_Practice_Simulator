@@ -8,6 +8,7 @@ const POOL_SIZE:=12
 const RECORDS:="user://classmate_learning.cfg"
 var game: Node
 var models: Dictionary={}
+var dialogue_focus: Dictionary={}
 var learning: Dictionary={}
 var records:=ConfigFile.new()
 
@@ -102,6 +103,7 @@ func step(activity: Dictionary,now: float,delta: float) -> void:
 			continue
 		if now<float(member.next) or member.get("using_bench",false):continue
 		member.erase("line")
+		member.erase("look_at")
 		if activity.phase=="assignment":
 			_assessment_step(activity,member,now)
 			continue
@@ -134,8 +136,10 @@ func _before_class(activity: Dictionary,now: float) -> void:
 				response="I'm %s. I wanted more practice with the basics."%listener.profile.name.get_slice(" ",0)
 			speaker.line=greeting
 			speaker.action="chatting"
+			speaker.look_at=listener.position
 			speaker.next=now+5.
 			listener.action="listening"
+			listener.look_at=speaker.position
 			listener.next=now+5.
 			activity.classmate_chat=true
 			activity.classmate_reply={"speaker":speaker.profile.id,"listener":listener.profile.id,
@@ -217,11 +221,17 @@ func snapshot(activity: Dictionary,now: float) -> Array:
 	for member in activity.get("classmates",{}).values():
 		if now<float(member.arrival):continue
 		result.append({"id":member.profile.id,"name":member.profile.name,"position":member.position,
-			"walking":member.walking,"seated":member.seated,"action":member.action,"line":member.get("line",""),"class_id":activity.id})
+			"walking":member.walking,"seated":member.seated,"action":member.action,"line":member.get("line",""),
+			"look_at":member.get("look_at",Vector3.INF),"class_id":activity.id})
 	return result
+
+func focus_on_player(class_id: String,actor: String) -> void:
+	var key:=class_id+":"+actor
+	if models.has(key):dialogue_focus[key]=Time.get_ticks_msec()+4500
 
 func render(room: String,public: Dictionary,delta: float) -> void:
 	var seen: Dictionary={}
+	var now:=Time.get_ticks_msec()
 	for member in public.get(room,{}).get("classmates",[]):
 		var key:=str(member.class_id)+":"+str(member.id)
 		seen[key]=true
@@ -265,6 +275,13 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 			label.width=420.
 			model.add_child(label)
 		model.global_position=model.global_position.move_toward(member.position,delta*2.2)
+		var target: Vector3=member.get("look_at",Vector3.INF)
+		if now<int(dialogue_focus.get(key,0)):target=game.player.global_position
+		var direction:=target-model.global_position
+		var facing:=PI
+		if direction.is_finite() and Vector2(direction.x,direction.z).length_squared()>.01:
+			facing=atan2(direction.x,direction.z)
+		model.rotation.y=lerp_angle(model.rotation.y,facing,1.-exp(-delta*9.))
 		Avatar.animate(model,member.walking,member.seated)
 		Avatar.raise_hand(model,member.action=="raising hand",delta)
 		var label:=model.get_node_or_null("StudentName") as Label3D
@@ -277,3 +294,4 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 		if seen.has(key):continue
 		models[key].queue_free()
 		models.erase(key)
+		dialogue_focus.erase(key)
