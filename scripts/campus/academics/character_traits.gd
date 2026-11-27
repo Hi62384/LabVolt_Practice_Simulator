@@ -1,25 +1,69 @@
 extends RefCounted
-## The authored anchors describe different aspects of a person. Related traits
-## are derived together so a generated classmate's habits agree with their speech.
+## Legacy anchors supply defaults; explicit authoring and independent generated
+## dimensions take precedence. Correlated defaults never override saved traits.
 
 static func author_overrides(id: String) -> Dictionary:
 	match id:
 		"chad":
 			return {"confidence":.98,"arrogance":.96,"selfishness":.86,"meanness":.85,"empathy":.14,
 				"ambition":.99,"generosity":.17,"willingness_to_help":.19,"interest_in_student_success":.21,
-				"dominance":.90,"humility":.09,"respectfulness":.30,"competitiveness":.96,"teaching_patience":.28,"confrontation":.77}
+				"dominance":.90,"humility":.09,"respectfulness":.30,"competitiveness":.96,"teaching_patience":.28,"confrontation":.83,"stubbornness":.91,"willingness_to_disagree":.97,"sarcasm":.82,"forgiveness":.22}
 		"mr_bro":
 			return {"confidence":.87,"arrogance":.35,"empathy":.68,"ambition":.77,"generosity":.63,"slang":.96,
-				"willingness_to_help":.63,"storytelling":.89,"teaching_patience":.59,"playfulness":.89}
+				"willingness_to_help":.63,"storytelling":.89,"teaching_patience":.59,"playfulness":.89,"risk_taking":.63,"stubbornness":.57,"confrontation":.66,"shyness":.05}
 		"ms_rivera":
-			return {"willingness_to_help":.28,"teaching_patience":.38,"interest_in_student_success":.30,"professionalism":.54,"focus":.16}
+			return {"willingness_to_help":.28,"teaching_patience":.38,"interest_in_student_success":.30,"professionalism":.54,"focus":.16,"laziness":.87,"motivation":.23,"initiative":.19,"stubbornness":.6,"confidence":.66,"shyness":.25}
 		"ms_bird_heart":
-			return {"empathy":.97,"generosity":.94,"willingness_to_help":.98,"interest_in_student_success":.99,"assertiveness":.78}
+			return {"empathy":.97,"generosity":.94,"willingness_to_help":.98,"interest_in_student_success":.99,"assertiveness":.78,"emotional_sensitivity":.94,"criticism_sensitivity":.8,"confrontation":.28,"stubbornness":.43,"forgiveness":.73}
 		"mr_stone":
-			return {"dominance":.96,"discipline":.99,"professionalism":.94,"slang":.02,"interruption_tolerance":.07}
+			return {"dominance":.96,"discipline":.99,"professionalism":.94,"slang":.02,"interruption_tolerance":.07,"confidence":.94,"confrontation":.82,"stubbornness":.78,"respect_for_authority":.96,"forgiveness":.39,"empathy":.42}
 		"brian":
-			return {"confrontation":.88,"teaching_patience":.13,"interruption_tolerance":.12,"self_control":.46}
+			return {"confrontation":.88,"teaching_patience":.13,"interruption_tolerance":.12,"self_control":.46,"anger_sensitivity":.98,"meanness":.71,"confidence":.86,"stubbornness":.84,"willingness_to_disagree":.95,"empathy":.22,"forgiveness":.25}
+		"stanley":
+			return {"motivation":.12,"energy":.19,"initiative":.08,"confrontation":.12,"shyness":.16,"confidence":.78,"laziness":.82,"stubbornness":.71,"willingness_to_help":.28,"teaching_patience":.35}
+		"ms_clocks":
+			return {"confidence":.88,"organization":.98,"focus":.95,"self_control":.93,"confrontation":.58,"stubbornness":.58,"sarcasm":.34,"respectfulness":.7,"teaching_effort":.9}
+		"dr_volts":
+			return {"confidence":.8,"curiosity":.99,"enthusiasm":.98,"excitability":.95,"focus":.55,"stubbornness":.44,"willingness_to_disagree":.81,"risk_taking":.52,"misbehavior":.08}
+		"mr_gusto":
+			return {"confidence":.85,"playfulness":.96,"sarcasm":.69,"shyness":.06,"confrontation":.5,"stubbornness":.39,"teasing":.82,"empathy":.77}
+		"jeff":
+			return {"confidence":.86,"confrontation":.73,"strictness":.96,"stubbornness":.63,"respect_for_authority":.81,"generosity":.67,"shyness":.08}
+		"bill_nye":
+			return {"confidence":.8,"curiosity":.94,"stubbornness":.28,"willingness_to_disagree":.85,"confrontation":.48,"arrogance":.29,"humility":.76}
+		"mr_apple":
+			return {"confidence":.69,"storytelling":.97,"rambling":.91,"stubbornness":.51,"initiative":.72,"shyness":.1,"organization":.4}
+		"mr_phillips":
+			return {"confidence":.87,"stubbornness":.48,"willingness_to_disagree":.72,"humility":.68,"organization":.84,"confrontation":.52}
+		"mr_hamstrings":
+			return {"confidence":.76,"stubbornness":.62,"competitiveness":.67,"discipline":.81,"initiative":.73,"teasing":.54}
+		"mr_allu":
+			return {"confidence":.38,"shyness":.86,"awkwardness":.82,"initiative":.22,"curiosity":.78,"stubbornness":.32,"respect_for_authority":.39,"willingness_to_disagree":.49,"focus":.24}
+		"bill":
+			return {"confidence":.9,"stubbornness":.81,"confrontation":.7,"organization":.94,"sarcasm":.61,"empathy":.39,"respect_for_authority":.86}
+		"mr_blake":
+			return {"confidence":.8,"curiosity":.9,"stubbornness":.46,"risk_taking":.66,"patience":.49,"initiative":.86,"focus":.41}
+		"josh_wildes":
+			return {"confidence":.84,"stubbornness":.69,"willingness_to_disagree":.94,"respect_for_authority":.36,"playfulness":.55,"competitiveness":.78,"bluntness":.82,"criticism_sensitivity":.46,"teaching_effort":.34,"willingness_to_help":.38}
+		"bradley":
+			return {"confidence":.72,"shyness":.42,"stubbornness":.56,"focus":.83,"confrontation":.36,"self_control":.87,"initiative":.41}
+		"ms_lunch":
+			return {"confidence":.86,"assertiveness":.91,"confrontation":.72,"stubbornness":.64,"empathy":.74,"organization":.91,"patience":.52}
 	return {}
+
+static func independent_student_traits(rng: RandomNumberGenerator) -> Dictionary:
+	var values := {}
+	# Each draw is independent; confident/shy, mean/helpful or diligent/rebellious
+	# combinations remain possible. Biographies and decisions explain the mixture.
+	for key in ["meanness","empathy","anger_sensitivity","confrontation","shyness","confidence","arrogance","humor","sarcasm","friendliness","selfishness","motivation","academic_ability","study_habits","misbehavior","curiosity","emotional_sensitivity","competitiveness","initiative","respect_for_authority","stubbornness","willingness_to_disagree","forgiveness","grudges","generosity","risk_taking","self_control","criticism_sensitivity","academic_motivation","cooperativeness","ambition","teasing"]:
+		values[key] = rng.randf_range(.06,.95)
+	values.patience = rng.randf_range(.1,.94)
+	values.trustfulness = rng.randf_range(.1,.9)
+	values.optimism = rng.randf_range(.08,.92)
+	values.emotional_stability = rng.randf_range(.12,.92)
+	values.academic_confidence = rng.randf_range(.1,.94)
+	values.playfulness = rng.randf_range(.06,.95)
+	return values
 
 static func expand(base: Dictionary, social: float, confidence: float, focus: float, curiosity: float, strictness: float) -> Dictionary:
 	var warmth:=float(base.warmth)
@@ -74,9 +118,10 @@ static func expand(base: Dictionary, social: float, confidence: float, focus: fl
 		"selfishness":1.-empathy,"generosity":warmth*.85,"dominance":confidence*.8,"respectfulness":lerpf(empathy,discipline,.4),
 		"arrogance":confidence*(1.-empathy),"humility":empathy*(1.-confidence*.45),"jealousy":(1.-resilience)*.7,
 		"ambition":lerpf(confidence,effort,.4),"conversational_confidence":lerpf(confidence,social,.4),
-		"willingness_to_disagree":lerpf(strictness,confidence,.5),"mischievousness":play*(1.-discipline*.65),
+		"stubbornness":lerpf(confidence,strictness,.4),"academic_ability":reasoning,"willingness_to_disagree":lerpf(strictness,confidence,.5),"mischievousness":play*(1.-discipline*.65),
 		"teaching_creativity":lerpf(teaching,curiosity,.55),"interest_in_student_success":lerpf(warmth,effort,.4),
 	},true)
+	values.merge(base,true)
 	return values
 
 static func activity_preferences(traits: Dictionary) -> Dictionary:

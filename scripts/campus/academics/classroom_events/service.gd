@@ -175,6 +175,9 @@ func perform(peer: int,room: String,class_id: String,event_id: String,op: String
   "submit":
    if state.round.mode=="duel" and (not state.duel_locked or identity not in state.duel_slots):return "not_selected"
    var result: String=state.round.submit(true,identity,event_id,payload,now)
+   if result=="accepted":
+    var outcome_id:=event_id+(":step:%d"%int(state.round.step_index) if state.round.mode=="pass" else "")
+    _remember_human_outcome(activity,state.round,identity,outcome_id)
    if result=="accepted" and state.hands.selected==identity:
     state.hands.finish_turn(true,event_id);state.called_until=0.0;state.next_call=now+3.0
    return result
@@ -239,6 +242,16 @@ func perform(peer: int,room: String,class_id: String,event_id: String,op: String
      state.group_prompts[team]="A teammate added an explanation. Check it against the question together before you submit."
    return explained
  return "invalid"
+
+func _remember_human_outcome(activity: Dictionary,round: RefCounted,identity: String,event_id: String) -> void:
+ # The accepted host feedback is the sole source of correctness. In a live
+ # prediction round it becomes available only after a valid measurement.
+ var outcome: Dictionary=round.submissions.get(identity,{})
+ if not outcome.get("correct") is bool:return
+ if round.mode=="physical" and (not round.measurement_valid or not round.fault.is_empty()):return
+ var faculty: Node=game.get("faculty")
+ if is_instance_valid(faculty) and faculty.has_method("record_human_academic_outcome"):
+  faculty.record_human_academic_outcome(activity,identity,"quiz",bool(outcome.correct),event_id)
 
 func allow_request(peer: int,now: float) -> bool:
  var bucket: Dictionary=request_budget.get(peer,{"start":now,"count":0})
@@ -484,6 +497,8 @@ func tick(now: float) -> void:
     lifecycle.advance(state.round.event_id,"resolving")
     lifecycle.advance(state.round.event_id,"complete")
    state.round.finish(true)
+   if state.round.mode=="physical":
+    for identity in state.round.submissions:_remember_human_outcome(activity,state.round,str(identity),str(state.round.event_id))
    if state.round.mode in ["board","group"]:state.shared.finish()
    if state.round.mode=="quiz":_award_quiz(state,activity)
    var correct_count:=0
@@ -631,7 +646,7 @@ func _classmate_quiz(room: String,state: Dictionary,activity: Dictionary,now: fl
   if outcome=="accepted":
    state.series.labels[identity]=profile.name
    state.series.teams[identity]="A" if posmod(hash(identity),2)==0 else "B"
-   game.lecture_classes.classroom_students.record_practice(identity,activity.course,round.submissions[identity].get("correct",false),activity.week)
+   game.lecture_classes.classroom_students.record_practice(identity,activity.course,round.submissions[identity].get("correct",false),activity.week,activity,str(round.event_id),"quiz")
 
 func _classmate_group(state: Dictionary,activity: Dictionary,now: float) -> bool:
  var shared: RefCounted=state.shared

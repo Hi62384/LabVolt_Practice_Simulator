@@ -28,7 +28,8 @@ func step(activity: Dictionary,now: float) -> void:
 			var required:=Digital.rows_required(work.digital)
 			ok=evidence.size()==required and evidence.all(func(sample):return sample.correct)
 		var students: Node=game.lecture_classes.classroom_students
-		students.record_practice(member.profile.id,activity.course,ok,activity.week)
+		var safe_lab: bool=ok and (lab.result.get("ok",false) if dc else str(lab.readings.get("fault","")).is_empty())
+		students.record_practice(member.profile.id,activity.course,ok,activity.week,activity,"station_practice","lab",safe_lab)
 		member.action="recorded measurement" if ok else "checking instruments"
 		member.next=now+9.
 		activity.lab_practice_result=measured.duplicate()

@@ -6,6 +6,8 @@ const SETTINGS_PATH := "user://host_openai.cfg"
 const API_BASE := "https://api.openai.com/v1"
 const DEFAULT_MODEL := "gpt-5.4-mini"
 const MAX_INPUT_CHARS := 4000
+const MAX_CHARACTER_INPUT_CHARS := 24000
+const MAX_CHARACTER_INSTRUCTION_CHARS := 20000
 const MAX_RESPONSE_BYTES := 262144
 const MAX_IMAGE_RESPONSE_BYTES := 8 * 1024 * 1024
 const TRANSCRIPTION_MODEL := "gpt-4o-mini-transcribe"
@@ -207,19 +209,34 @@ func plan_visual(prompt: String) -> Dictionary:
 	return await _request_text(prompt,model,clampi(max_output_tokens,1600,2400),reasoning_effort,true,{},24.)
 
 func respond_character(instructions: String,context: Dictionary,dialogue: String,visual := false) -> Dictionary:
-	var request:={"context":context.duplicate(true),"player_dialogue":dialogue.left(500)}
+	return await _character_request(instructions,context,dialogue,clampi(max_output_tokens,1800 if visual else 1400,4096),24.0)
+
+func interpret_character(instructions: String,context: Dictionary,dialogue: String) -> Dictionary:
+	return await _character_request(instructions,context,dialogue,clampi(max_output_tokens,900,2048),18.0)
+
+func _character_request(instructions: String,context: Dictionary,dialogue: String,output: int,timeout: float) -> Dictionary:
+	if dialogue.length()>1000:return {"ok":false,"error":"The character message is too long."}
+	var request:={"context":context.duplicate(true),"player_dialogue":dialogue}
 	var input:=JSON.stringify(request)
-	for field in ["recent_experiences","earlier_turns","prior_turns","reported_facts"]:
+	var reduced: Array[String]=[]
+	# Retain identity, worldview, current affect, semantic interpretation and the
+	# most recent turns. Retrieval storage is not truncated when prompt size grows.
+	for field in ["recent_experiences","memories","reported_facts","topic_summaries","earlier_turns","prior_turns"]:
 		var entries: Variant=request.context.get(field)
 		if not entries is Array:continue
-		while input.length()>MAX_INPUT_CHARS and not entries.is_empty():
-			if field=="reported_facts":entries.pop_back()
+		var keep:=4 if field in ["earlier_turns","prior_turns"] else 2
+		while input.length()>MAX_CHARACTER_INPUT_CHARS and entries.size()>keep:
+			if field in ["reported_facts","memories","topic_summaries"]:entries.pop_back()
 			else:entries.pop_front()
+			if field not in reduced:reduced.append(field)
 			input=JSON.stringify(request)
-	if input.length()>MAX_INPUT_CHARS or instructions.length()>2*MAX_INPUT_CHARS:
-		return {"ok":false,"error":"Classroom context is too large."}
-	var output:=clampi(max_output_tokens,1600,2400) if visual else max_output_tokens
-	return await _request_text(input,model,output,reasoning_effort,true,{},24. if visual else 18.,instructions)
+	if input.length()>MAX_CHARACTER_INPUT_CHARS or instructions.length()>MAX_CHARACTER_INSTRUCTION_CHARS:
+		return {"ok":false,"error":"Character context exceeds its bounded budget.","context_chars":input.length(),"instruction_chars":instructions.length(),"reduced_fields":reduced}
+	var result:=await _request_text(input,model,output,reasoning_effort,true,{},timeout,instructions)
+	result.context_chars=input.length()
+	result.instruction_chars=instructions.length()
+	result.reduced_fields=reduced
+	return result
 
 func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
@@ -235,7 +252,7 @@ func speak(text: String,draft: Dictionary={},voice := "alloy",delivery: Dictiona
 	if not bool(draft.get("tts_enabled",tts_enabled)) or not Models.available_for(choice,"tts"):
 		return {"ok":false,"error":"Enable text-to-speech and choose a voice model in OpenAI Settings."}
 	if voice not in Models.speech_voices(choice):return {"ok":false,"error":"This voice is unavailable for the selected speech model."}
-	if text.strip_edges().is_empty() or text.length()>350:return {"ok":false,"error":"Enter up to 350 characters to read aloud."}
+	if text.strip_edges().is_empty() or text.length()>1600:return {"ok":false,"error":"The speech exceeds the conversation playback budget."}
 	var payload:={"model":choice,"input":text,"voice":voice,"response_format":"wav"}
 	if not delivery.is_empty():
 		payload.speed=clampf(float(delivery.get("speed",1.)),.5,1.5)
@@ -281,7 +298,7 @@ func _request_text(input: Variant, choice: String, output: int, effort: String, 
 	return await _call(HTTPClient.METHOD_POST,path,payload,needs_enabled,draft,timeout,category)
 
 func moderate(input: String) -> Dictionary:
-	if input.strip_edges().is_empty() or input.length()>1000:return {"ok":false,"error":"The message is too long."}
+	if input.strip_edges().is_empty() or input.length()>8000:return {"ok":false,"error":"The message is too long."}
 	var result: Dictionary=await _call(HTTPClient.METHOD_POST,"/moderations",{"model":"omni-moderation-latest","input":input},true)
 	return result
 
@@ -340,7 +357,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var started:=Time.get_ticks_msec()
 	var request := HTTPRequest.new()
 	request.timeout=timeout if path in ["/responses","/images/generations","/chat/completions"] else 20.0
-	request.body_size_limit=2097152 if path in ["/models","/audio/speech"] else MAX_RESPONSE_BYTES
+	request.body_size_limit=8388608 if path=="/audio/speech" else (2097152 if path=="/models" else MAX_RESPONSE_BYTES)
 	if path=="/images/generations":request.body_size_limit=MAX_IMAGE_RESPONSE_BYTES
 	request.max_redirects=0
 	add_child(request)
@@ -386,7 +403,9 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 		var stream:=AudioStreamWAV.load_from_buffer(wav)
 		if stream==null or stream.data.is_empty():return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
 		return {"ok":true,"stream":stream}
-	var parsed: Variant=JSON.parse_string(body.get_string_from_utf8())
+	var parser:=JSON.new()
+	if parser.parse(body.get_string_from_utf8())!=OK:return {"ok":false,"error":"OpenAI returned an unreadable response."}
+	var parsed: Variant=parser.data
 	if not parsed is Dictionary:return {"ok":false,"error":"OpenAI returned an unreadable response."}
 	if path=="/models":
 		if not parsed.get("data") is Array:return {"ok":false,"error":"OpenAI did not return a model list."}
@@ -437,10 +456,11 @@ func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 		return {"ok":true,"image":image}
 	if parsed.has("results"):
 		var results: Array=parsed.get("results",[])
-		return {"ok":true,"flagged":bool(results[0].get("flagged",false))} if not results.is_empty() and results[0] is Dictionary else {"ok":false,"error":"OpenAI returned no moderation result."}
+		return {"ok":true,"flagged":bool(results[0].get("flagged",false)),"categories":results[0].get("categories",{})} if not results.is_empty() and results[0] is Dictionary else {"ok":false,"error":"OpenAI returned no moderation result."}
 	if path=="/chat/completions":
 		var choices: Array=parsed.get("choices",[])
 		if choices.is_empty():return {"ok":false,"error":"OpenAI returned no text."}
+		if choices[0].get("finish_reason","")=="length":return {"ok":false,"error":"The response reached the output token limit."}
 		return _text_result(str(choices[0].get("message",{}).get("content","")))
 	if parsed.get("status","")!="completed":
 		var incomplete: Variant=parsed.get("incomplete_details")
@@ -455,7 +475,8 @@ func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 	return _text_result("\n".join(parts))
 
 func _text_result(value: String) -> Dictionary:
-	var answer:=value.strip_edges().left(16000)
+	var answer:=value.strip_edges()
+	if answer.length()>16000:return {"ok":false,"error":"The response exceeds the bounded text budget. No partial response was accepted."}
 	return {"ok":true,"text":answer} if not answer.is_empty() else {"ok":false,"error":"OpenAI returned no text."}
 
 func _mode_allowed(choice: String, mode: String) -> bool:

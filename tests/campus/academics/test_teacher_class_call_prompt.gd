@@ -9,6 +9,15 @@ class Session:
  var online:=false
 class School:
  var identities:={1:"alice"}
+ var local_identity:="class-call-host"
+class OfflineClient:
+ extends Node
+ var busy:=false
+ var enabled:=false
+ var tts_enabled:=false
+ var tts_model:="fixture"
+ func ready_for_class() -> bool:return false
+ func configured() -> bool:return false
 class Registry:
  func locate(_position: Vector3) -> String:return "ac_lab"
 class Campus:
@@ -40,17 +49,24 @@ class Game:
  var campus:=Campus.new()
  var lecture_classes:=Classes.new()
  var school_world:=World.new()
+ var host_openai:=OfflineClient.new()
  var player:=Node3D.new()
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
+ create_timer(8.).timeout.connect(func():quit(1))
  var game:=Game.new();root.add_child(game)
+ game.add_child(game.host_openai)
  game.add_child(game.player);game.player.position=Vector3(0,0,2)
  game.add_child(game.school_world.teacher)
- var model:=Node3D.new();model.name="InstructorModel";game.school_world.teacher.add_child(model)
+ game.add_child(game.school_world.dc_instructor)
+ var model:=Node3D.new();model.name="InstructorModel";model.set_meta("faculty_id","jeff");game.school_world.teacher.add_child(model)
  var events:=Events.new();game.add_child(events);events.service=EventService.new();events.add_child(events.service);game.lecture_classes.classroom_events=events
  var hands:=Hands.new();assert(hands.begin(true,"event-1",["alice"]));assert(hands.call_student(true,"event-1","alice"))
  events.service.rooms["ac_lab"]={"class_id":"class-1","hands":hands,"round":Round.new()}
  var faculty:=Faculty.new();faculty.process_mode=Node.PROCESS_MODE_DISABLED;game.add_child(faculty);faculty.game=game;faculty.current={"ac_lab":"jeff"}
+ faculty.brain.bind_mind(faculty.character_mind)
+ assert(faculty.brain.set_host_profile(game.school.local_identity)==OK)
+ faculty.character_interaction.bind(faculty.character_mind,faculty.brain)
  faculty.speech_player=Player.new();faculty.add_child(faculty.speech_player)
  events.enabled=false
  faculty.present_class_call("ac_lab","jeff",1)

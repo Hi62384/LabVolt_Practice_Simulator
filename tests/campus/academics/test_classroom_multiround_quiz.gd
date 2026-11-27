@@ -7,7 +7,12 @@ class Session:
 class School:
  var identities:={1:"alice",2:"bob"}
  var random:=RandomNumberGenerator.new()
+class Students:
+ var completed: Array=[]
+ func record_quiz_rivals(activity: Dictionary,scores: Dictionary) -> void:
+  completed.append({"class_id":activity.id,"scores":scores.duplicate(true)})
 class Classes:
+ var classroom_students:=Students.new()
  var classes:={"room":{"id":"class-1","phase":"lesson","kind":"lecture","deadline":300.0,"course":"DGS266","week":3,"difficulty":0,"students":{"alice":{"peer":1,"done":false},"bob":{"peer":2,"done":false}}}}
  var present:={1:true,2:true}
  func _inside(peer: int,_room: String) -> bool:return present.get(peer,false)
@@ -87,5 +92,8 @@ func run() -> void:
  assert(service.view(2,"room",300.0).rounds_total==1)
  service.tick(330.0);service.tick(338.0)
  assert(service.rooms.is_empty() and service.lifecycle.reservations.is_empty())
+ assert(game.lecture_classes.classroom_students.completed.size()==2)
+ assert(game.lecture_classes.classroom_students.completed[0].class_id=="class-2")
+ assert(game.lecture_classes.classroom_students.completed[1].class_id=="class-3")
  print("CLASSROOM_MULTIROUND_QUIZ PASS")
  service.queue_free();game.queue_free();quit(0)

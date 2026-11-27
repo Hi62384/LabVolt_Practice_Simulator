@@ -1040,6 +1040,7 @@ func _mark(paper: Dictionary,expired: bool,zero_reason: String="") -> void:
 	paper.revision+=1
 	if _class_assessment(paper) and _replay_paper(paper):
 		result.reason = "Replay feedback. Your original grade is preserved."
+		if zero_reason.is_empty() and (not expired or not paper.answers.is_empty()):_remember_human_assessment(paper)
 		_finish_class_paper(paper)
 		if int(paper.owner) > 0:
 			_notice(int(paper.owner), "Replay feedback: %.1f%%. Your original grade is preserved." % result.score)
@@ -1057,11 +1058,36 @@ func _mark(paper: Dictionary,expired: bool,zero_reason: String="") -> void:
 	if PendingAssessment.settle(archive,record,_persist_archive)!=OK:
 		paper.mark={}
 		return
+	if zero_reason.is_empty() and (not expired or not paper.answers.is_empty()):_remember_human_assessment(paper)
 	var owner := int(paper.owner)
 	if owner==1:_receive_grade(record)
 	elif game.session.online and game.session.roster.has(owner):_receive_grade.rpc_id(owner,record)
 	_finish_class_paper(paper)
 	_notice(owner,"Marked: %.1f%%. Your sheet has been returned."%result.score)
+
+func _remember_human_assessment(paper: Dictionary) -> void:
+	# Marking remains authoritative. This callback only projects an outcome once
+	# it has settled (or a replay has been checked), without copying its contents.
+	if not multiplayer.is_server() or not is_instance_valid(game):return
+	var faculty: Node=game.get("faculty")
+	if not is_instance_valid(faculty) or not faculty.has_method("record_human_academic_outcome"):return
+	var id:=str(paper.get("assessment_id",""))
+	var identity:=str(paper.get("identity",""))
+	if id.is_empty() or identity.is_empty():return
+	var observed: Dictionary={}
+	var rooms: Node=game.get("lecture_classes")
+	if is_instance_valid(rooms):
+		for candidate in rooms.classes.values():
+			if str(candidate.get("id",""))==id and candidate.get("students",{}).has(identity):
+				observed=candidate
+				break
+	if observed.is_empty() and id==assessment_id and class_students.has(identity):
+		observed={"id":id,"teacher":activity.get("teacher",""),"course":activity.get("course_id",""),"week":activity.get("week",0),"students":class_students}
+	if observed.is_empty() or str(observed.get("course",""))!=str(paper.project.get("course_id","")):return
+	if int(observed.get("week",0))!=int(paper.project.get("week",0)):return
+	var score: Variant=paper.get("mark",{}).get("score")
+	if not (score is int or score is float) or not is_finite(float(score)):return
+	faculty.record_human_academic_outcome(observed,identity,"assessment",float(score)>=60.,"assessment_submission")
 
 func _finish_class_paper(paper: Dictionary) -> void:
 	var token: String = paper.identity

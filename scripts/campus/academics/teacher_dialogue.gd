@@ -2,6 +2,7 @@ extends RefCounted
 ## Shared offline wording; never changes a grade, inventory, or course answer.
 const Characters=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
+const Speech=preload("res://scripts/campus/academics/character_speech.gd")
 static var _config: Dictionary={}
 static func personalities() -> Dictionary:
  if _config.is_empty():
@@ -166,7 +167,7 @@ static func respond(id: String,intent: String,context: Dictionary,variant: int) 
  if id=="mr_bro" and intent=="chat":output+=" Remember to make time for your workouts."
  elif id=="chad" and intent=="chat":output+=" Keep working toward your goals."
  elif id=="ms_bird_heart" and intent=="chat":output+=" You're doing fine, dear."
- return output.left(350)
+ return Speech.complete(output)
 
 static func _guidance(context: Dictionary) -> String:
  var course:=str(context.get("course","")).to_upper()

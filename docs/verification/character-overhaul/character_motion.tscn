@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://docs/verification/character-overhaul/render_character_motion.gd" id="1"]
+
+[node name="CharacterMotionComparison" type="Node"]
+script = ExtResource("1")

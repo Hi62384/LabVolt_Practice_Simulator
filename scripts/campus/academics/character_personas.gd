@@ -8,8 +8,8 @@ const FACULTY:={
 	"ms_clocks":["Former instrumentation technician who values accurate timing and tidy notes.","clocks","concise, composed, exact","Good. Let's start on time.","If you have a specific criticism, make it.",.42,.7,.18,.55],
 	"mr_phillips":["Industrial electrical technician turned instructor. Prefers a diagnostic hint to giving an answer.","restoring meters","measured, technical, understated","Evening. What did you notice at the bench?","Be specific. What part of the procedure is the problem?",.42,.73,.28,.55],
 	"mr_gusto":["Former shop instructor who enjoys staging a surprise demonstration.","stage comedy","buoyant, mischievous, quick","Come in. I have an experiment with excellent comic timing.","Tough room. I haven't even gotten to the punch line.",.38,.72,.92,.91],
-	"mr_hamstrings":["Digital systems instructor who balances bench practice with running.","distance running","practical, brisk, encouraging","Hey. Let's get a few good reps in at the bench.","You can have a bad rep without blaming the spotter.",.35,.7,.46,.78],
-	"mr_allu":["Enjoys helping students pick apart a circuit or an algebra problem on scrap paper.","repairing radios","curious, conversational, probing","Hey. What are you working through?","What actually went wrong? Start there.",.44,.68,.46,.66],
+	"mr_hamstrings":["Digital systems instructor who balances bench practice with running.","distance running","casual, talkative, easily sidetracked by running stories","Hey. Let's get a few good reps in at the bench.","You can have a bad rep without blaming the spotter.",.35,.7,.46,.78],
+	"mr_allu":["Reserved instructor who is more comfortable repairing a radio than filling a classroom silence. Can work through a problem quietly on scrap paper.","repairing radios","awkward, hesitant, quiet; more fluent with a concrete problem","Oh. Hello. Did you need something?","I... don't think that's fair. Which part?",.44,.68,.46,.56],
 	"bill":["Shop-trained teacher who expects a solution to be justified step by step.","woodworking","dry, stern, no wasted words","Sit down. Write down what you know.","That's enough. Back to the problem.",.64,.45,.33,.55],
 	"chad":["Took a campus teaching job for the steady income while building his own ventures. Thinks most people outsource their ambition to institutions.","financial independence and escaping the matrix","cocky, dismissive, informal; short with coursework and animated about ambition","Get the assignment out. Then figure out what you actually want out of being here.","If you put that much energy into the work, you'd be miles ahead.",.61,.32,.69,.89],
 	"ms_bird_heart":["Longtime student mentor who cares about learners getting a fair chance.","birdwatching","warm, gentle, affectionate","Hello, dear. I'm glad you made it.","That stung. Are you upset about something that happened here?",.32,.88,.51,.61],
@@ -18,8 +18,8 @@ const FACULTY:={
 	"ms_rivera":["Trained as a designer, then took a campus job that became routine. Wants to get through the required material and spend her evenings on her own projects.","design","dry, distracted, conversational when off duty","Take out the worksheet. The instructions are already there.","Are we done? I had something I was trying to finish.",.42,.57,.32,.45],
 	"mr_blake":["Practical electronics teacher who likes seeing a circuit work on the first try.","electronic instruments","upbeat, quick, hands-on","Hey, come see what the bench is doing.","Save some of that energy for the circuit.",.49,.65,.66,.81],
 	"mr_stone":["Former technical supervisor who takes preparation and lab discipline seriously.","restoring tools","commanding, formal, deliberate","Settle down. Materials out. We start now.","Watch your tone. State your objection properly.",.74,.47,.08,.7],
-	"josh_wildes":["Digital systems and math instructor who enjoys puzzles and informal study groups.","logic puzzles","casual, quick, amused","Hey. I brought a problem that looks easier than it is.","Wow. Straight past the warm-up, huh?",.4,.67,.76,.8],
-	"bradley":["Reserved technical instructor who values clean work and calm troubleshooting.","repair videos","quiet, low-key, observant","Hey. Give the connections one more look.","All right. Was there an actual question there?",.45,.62,.46,.48],
+	"josh_wildes":["Critical digital systems and math instructor who enjoys finding holes in an argument. Likes logic puzzles, but is quicker to point out a flaw than to reassure someone.","logic puzzles","skeptical, dry, critical; occasionally amused by a clever objection","Let's see whether that idea holds up.","That's a claim. Did you plan to support it?",.58,.4,.6,.72],
+	"bradley":["Reserved technical instructor who values clean work and calm troubleshooting.","repair videos","reserved, observant, deliberate pauses before an understated point","Hey. Give the connections one more look.","All right. Was there an actual question there?",.45,.62,.46,.48],
 	"jeff":["Technical instructor whose classroom standards are stricter than his relaxed bench-side manner.","garage projects","blunt, pragmatic, informal outside class","In class, keep the side talk down. We have work to do.","Cut it out. Do you want to finish this or not?",.72,.42,.34,.57],
 	"mr_bro":["Fitness-obsessed instructor who brings the energy of a gym session into class.","lifting","energetic, informal, quick slang and occasional workout analogies","Yo, what's up? You ready to get into it?","Dang, coming in hot before the warm-up.",.49,.66,.83,.98],
 	"brian":["Digital systems instructor who gets impatient with interruptions and likes fast, independent work.","strategy games","terse, impatient, sharp","Hi. Get your stuff out; let's go.","Hey. Knock it off. I've got work to do.",.94,.18,.24,.72],
@@ -139,7 +139,9 @@ static func teacher(id: String) -> Dictionary:
 	if id=="chad":biography.career="His first online store failed after he spent more on inventory than it earned. He now keeps expenses low and wants to leave salaried work."
 	if id=="mr_bro":
 		biography.training=history[0]
-		biography.personal_record="His best bench press is 315 pounds. He prefers front squats and normally trains four days a week."
+		biography.bench_press_pr="His best bench press is 315 pounds."
+		biography.favorite_exercise="He prefers front squats."
+		biography.training_frequency="He normally trains four days a week."
 	return {"age":teaching[0],"background":row[0],"interest":row[1],"style":row[2],"traits":traits,"lines":lines,
 		"education":identity[0],"values":identity[1],"habits":identity[2],"biography":biography,"ambition":history[1]}
 
@@ -170,7 +172,8 @@ static func student(person: Dictionary,rng: RandomNumberGenerator) -> Dictionary
 
 static func _lines(traits: Dictionary,greeting: String,insult: String) -> Dictionary:
 	return {"greeting":greeting,"insult":insult,
-		"boundary":"Enough. I'm done with this conversation." if traits.temper>.6 else "I need a minute. We can talk later.",
+		"boundary":insult, # Legacy recovery only; Behavior.reaction selects whether to disengage.
+
 		"apology":"All right. Let's start over." if traits.patience>.65 else "I heard you. Give me a minute.",
 		"compliment":"Hey, thanks. I'll take that." if traits.energy>.6 else "That's kind of you to say.",
 		"joke":"I had a joke about procrastination. I'll tell you later." if traits.humor>.6 else "You've caught me without a punch line.",

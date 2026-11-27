@@ -6,6 +6,7 @@
 /.deps/
 /launcher/dist/
 /launcher/__pycache__/
+/tests/**/__pycache__/
 
 .wrangler/
 /relay/relay-tools-*.zip
