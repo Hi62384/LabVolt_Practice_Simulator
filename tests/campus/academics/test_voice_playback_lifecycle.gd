@@ -44,6 +44,20 @@ func run() -> void:
 	assert(speech.accept("off","Teacher",1,"Pause then disable speech.",1,anchor,wav,1.,pending))
 	speech.pause_for_interruption("off");speech.configure(false,true);speech.resume_suspended("off")
 	assert(not speech.active.has("off"),"Disabling speech must also mute suspended narration.")
+	speech.configure(false,false)
+	assert(speech.accept("authority","Teacher",1,"Muted host still orders the remote speech.",1,anchor,null,1.,{"expect_audio":true,"authoritative_audio":true,"show_subtitles":false}))
+	assert(speech.has_pending("authority",1) and speech.deliver_stream("authority",1,wav))
+	assert(not speech.active.has("authority") and not speech.subtitles.has("authority"))
+	assert(speech.presentations.authority.virtual_audio and int(speech.presentations.authority.until)-Time.get_ticks_msec()>4900,"Muted host must track actual clip duration, not caption or API completion time.")
+	var before_until: int=speech.presentations.authority.until
+	assert(speech.pause_for_interruption("authority"))
+	speech.suspended.authority.back().paused_at-=1000
+	assert(speech.resume_suspended("authority"))
+	assert(int(speech.presentations.authority.until)>=before_until+1000 and not speech.active.has("authority"))
+	speech.configure(true,false)
+	assert(speech.active.has("authority"),"Re-enabling local speech resumes its authoritative timeline.")
+	speech.cancel_utterance("authority",1)
+	assert(speech.was_cancelled("authority",1) and not speech.has_utterance("authority",1))
 	speech.clear_session();speech.queue_free();anchor.queue_free();await process_frame
 	print("VOICE_PLAYBACK_LIFECYCLE PASS (ordered pending, captions, exact pause/resume, cancellation, mute)")
 	quit()

@@ -13,7 +13,7 @@ func run() -> void:
 	assert(faculty.speech_player.active.is_empty() and faculty.speech_player.subtitles.has(room))
 	assert(not faculty.speech_player.accept(room,"Teacher",1,"stale",4,game.school_world.teacher))
 	faculty._reaction(room,id,"Stale bubble",point,1,4)
-	assert(faculty.reaction_labels[room].text=="A class reminder")
+	assert(faculty.speech_player.subtitles[room].item.text=="A class reminder")
 	faculty._show_reaction(room,id,"Safety warning",point,2,4)
 	assert(faculty.speech_player.last_serial[room]==2)
 	faculty._clear_speech()

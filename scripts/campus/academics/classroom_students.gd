@@ -163,6 +163,9 @@ func step(activity: Dictionary,now: float,delta: float,room := "") -> void:
 			continue
 		if activity.phase=="assignment" and not member.get("submitted",false) and now>=float(member.get("academic_due",INF)):
 			_assessment_step(activity,member,now)
+		if member.has("line") and _voice_pending(str(profile.id)):
+			member.next=maxf(float(member.next),now+.4)
+			continue
 		if now<float(member.next) or member.get("using_bench",false):continue
 		member.erase("line")
 		member.erase("look_at")
@@ -249,6 +252,9 @@ func _start_player_greeting(activity: Dictionary,member: Dictionary,peer: int,id
 	member.gesture_point=point
 	member.gesture_until=game.lecture_classes._now()+2.2
 	game.lecture_classes._publish()
+	_present_student_speech(activity,member,room,line,response,1)
+	if game.faculty.has_method("invite_student_voice"):
+		game.faculty.invite_student_voice(peer,room,str(activity.id),str(member.profile.id))
 
 func act(room: String,activity: Dictionary,member: Dictionary,action: String,point: Vector3,now: float) -> bool:
 	if not multiplayer.is_server() or member.get("removed_from_class",false) or member.get("leaving_class",false) or member.get("using_bench",false) or not member.get("arrived",false):return false
@@ -480,7 +486,7 @@ func _before_class(activity: Dictionary,now: float,room: String="") -> void:
 	# the provider, and each pair gets at most one exchange in a phase.
 	if (lesson or assignment) and now<float(activity.get("last_social_at",-60.))+interval:return
 	var actors: Array=activity.get("classmates",{}).values().filter(func(member):
-		return (member.get("seated",false) or member.get("arrived",false)) and member.arrival<=now and not member.has("line") and not member.has("walk") and not member.get("using_bench",false) and not member.get("removed_from_class",false))
+		return (member.get("seated",false) or member.get("arrived",false)) and member.arrival<=now and not member.has("line") and not member.has("walk") and not member.get("using_bench",false) and not member.get("removed_from_class",false) and not _voice_pending(str(member.profile.id)))
 	if assignment:actors=actors.filter(func(member):return member.action!="sleeping")
 	if (lesson or assignment) and not actors.any(func(member):return member.action in ["whispering","joking","arguing","helping classmate"]):return
 	var pairs: Dictionary=activity.get_or_add("social_pairs",{})
@@ -527,6 +533,7 @@ func _start_social_exchange(activity: Dictionary,speaker: Dictionary,listener: D
 	listener.next=now+_speech_seconds(line)+3.
 	game.lecture_classes._publish()
 	game.faculty.character_interaction.record(opening,true)
+	_present_student_speech(activity,speaker,room,line,opening)
 	if not room.is_empty():_observe_student_behavior(room,activity,speaker,now)
 	# The opening was heard now. Record that perception before generating a
 	# delayed reply; a cancelled reply cannot erase the real incoming event.
@@ -542,13 +549,21 @@ func _start_social_exchange(activity: Dictionary,speaker: Dictionary,listener: D
 	if not _social_delivery_current(response,activity,phase) or speaker.get("removed_from_class",false) or listener.get("removed_from_class",false):return
 	activity.classmate_reply={"speaker":speaker.profile.id,"listener":listener.profile.id,"line":str(response.get("line","")),
 		"kind":purpose.kind,"phase":phase,"emotion":str(response.get("emotion",listener.get("mood","steady"))),
-		"source":str(response.get("source","fallback")),"at":maxf(game.lecture_classes._now(),now+_speech_seconds(line)),"room":room,"result":response}
+		"source":str(response.get("source","fallback")),"at":game.lecture_classes._now()+.35,"room":room,"result":response,
+		"speech_wait_started":game.lecture_classes._now()}
 
 func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 	var reply: Dictionary=activity.get("classmate_reply",{})
-	if reply.is_empty() or now<float(reply.at):return
+	if reply.is_empty():return
+	if activity.phase!=reply.get("phase","arrival"):
+		activity.erase("classmate_reply");return
+	# The host speech player's real generation/playback state controls the next
+	# turn. A text-length estimate must not make students talk over each other.
+	if _voice_pending(str(reply.speaker)):
+		reply.at=now+.35
+		return
+	if now<float(reply.at):return
 	activity.erase("classmate_reply")
-	if activity.phase!=reply.get("phase","arrival"):return
 	var response: Dictionary=reply.get("result",{})
 	if not response.is_empty() and not _social_delivery_current(response,activity,str(reply.phase)):return
 	var actor: Dictionary=activity.classmates.get(reply.listener,{})
@@ -567,8 +582,18 @@ func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 	var room:=str(reply.get("room",""))
 	if not room.is_empty():_observe_student_behavior(room,activity,actor,now)
 	if not str(reply.line).is_empty():
+		_present_student_speech(activity,actor,room,str(reply.line),response)
 		activity.social_pending=true
 		_hear_social_reply(activity,initiator,actor,str(reply.line))
+
+func _voice_pending(actor: String) -> bool:
+	return is_instance_valid(game) and is_instance_valid(game.faculty) and game.faculty.has_method("student_speech_pending") and bool(game.faculty.student_speech_pending(actor))
+
+func _present_student_speech(activity: Dictionary,member: Dictionary,room: String,line: String,result: Dictionary={},priority:=0) -> void:
+	if room.is_empty() or line.is_empty() or not is_instance_valid(game) or not is_instance_valid(game.faculty):return
+	if not game.faculty.has_method("present_student_speech"):return
+	var emotions: Dictionary=result.get("emotions",{}) if result.get("emotions",{}) is Dictionary else {}
+	game.faculty.present_student_speech(room,str(activity.get("id","")),str(member.profile.id),line,str(member.get("mood","steady")),emotions,priority)
 
 func _social_delivery_current(result: Dictionary,activity: Dictionary,phase: String) -> bool:
 	if result.is_empty() or result.get("cancelled",false) or not _activity_current(activity,phase):return false

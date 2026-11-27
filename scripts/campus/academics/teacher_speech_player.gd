@@ -14,6 +14,8 @@ const MAX_WAV_BYTES:=16_000_000
 const WAIT_MS:=120000
 const GAIN_META:="teacher_speech_gain"
 var last_serial: Dictionary={}
+var cancel_revisions: Dictionary={}
+var cancelled_serials: Dictionary={}
 var active: Dictionary={}
 var queued: Dictionary={}
 var awaiting: Dictionary={}
@@ -33,8 +35,10 @@ func configure(speech: bool,captions: bool) -> void:
 	if disabling:
 		for channel in active.keys():
 			var item: Dictionary=active[channel].item
+			item.resume_seconds=active[channel].player.get_playback_position()
 			_stop(channel)
-			item.stream=null;item.expect_audio=false
+			if not bool(item.options.get("authoritative_audio",false)):item.stream=null
+			item.expect_audio=false
 			_start(channel,item)
 		for channel in suspended:
 			for snapshot in suspended[channel]:
@@ -43,10 +47,21 @@ func configure(speech: bool,captions: bool) -> void:
 					if is_instance_valid(paused_player):paused_player.stop();paused_player.queue_free()
 					snapshot.active={}
 				if not snapshot.presentation.is_empty():
-					snapshot.presentation.item.stream=null;snapshot.presentation.item.expect_audio=false
+					var item: Dictionary=snapshot.presentation.item
+					if not bool(item.options.get("authoritative_audio",false)):item.stream=null
+					else:snapshot.presentation.virtual_audio=item.stream!=null
+					item.expect_audio=false
 		for channel in awaiting.keys():
 			var pending_items: Dictionary=awaiting[channel].items
-			for serial in pending_items.keys():fail_stream(channel,int(serial),"disabled")
+			for serial in pending_items.keys():
+				if not bool(pending_items[serial].options.get("authoritative_audio",false)):fail_stream(channel,int(serial),"disabled")
+	if speech and not disabling:
+		for channel in presentations.keys():
+			var presentation: Dictionary=presentations[channel]
+			var item: Dictionary=presentation.get("item",{})
+			if bool(presentation.get("virtual_audio",false)) and not bool(item.get("options",{}).get("muted",false)):
+				item.resume_seconds=maxf(0.,float(Time.get_ticks_msec()-int(presentation.started))*.001*float(item.pitch))
+				_start(channel,item)
 	if not captions:
 		for channel in subtitles.keys():_clear_subtitle(channel)
 
@@ -83,10 +98,10 @@ func accept(channel: String,teacher: String,serial: int,text: String,priority: i
 	if stream is AudioStreamWAV and not valid_stream(stream):return false
 	if queued.get(channel,[]).size()>=MAX_QUEUED:return false
 	last_serial[channel]=serial
-	if not speech_enabled:stream=null
+	if not speech_enabled and not bool(options.get("authoritative_audio",false)):stream=null
 	var item:={"teacher":teacher,"serial":serial,"text":text,"priority":priority,"anchor":anchor,"stream":stream,"pitch":pitch,
-		"options":options.duplicate(true),"expect_audio":speech_enabled and bool(options.get("expect_audio",false)),"accepted":Time.get_ticks_msec()}
-	if stream==null and speech_enabled:
+		"options":options.duplicate(true),"expect_audio":(speech_enabled or bool(options.get("authoritative_audio",false))) and bool(options.get("expect_audio",false)),"accepted":Time.get_ticks_msec()}
+	if stream==null and (speech_enabled or bool(options.get("authoritative_audio",false))):
 		if not awaiting.has(channel):awaiting[channel]={"items":{}}
 		awaiting[channel].items[serial]=item
 		awaiting[channel].item=item
@@ -105,7 +120,37 @@ func accept(channel: String,teacher: String,serial: int,text: String,priority: i
 func has_pending(channel: String,serial: int) -> bool:
 	return awaiting.get(channel,{}).get("items",{}).has(serial)
 
+func has_utterance(channel: String,serial: int) -> bool:
+	if int(presentations.get(channel,{}).get("serial",-1))==serial:return true
+	if int(active.get(channel,{}).get("serial",-1))==serial:return true
+	if has_pending(channel,serial):return true
+	for item in queued.get(channel,[]):
+		if int(item.serial)==serial:return true
+	return _is_suspended(channel,serial)
+
+func cancellation_revision(channel: String) -> int:return int(cancel_revisions.get(channel,0))
+
+func was_cancelled(channel: String,serial: int) -> bool:return cancelled_serials.has(channel+"|"+str(serial))
+
+func cancel_utterance(channel: String,serial: int) -> void:
+	cancelled_serials[channel+"|"+str(serial)]=true
+	while cancelled_serials.size()>512:cancelled_serials.erase(cancelled_serials.keys()[0])
+	_erase_pending(channel,serial)
+	var current:=int(presentations.get(channel,{}).get("serial",-1))==serial
+	if int(active.get(channel,{}).get("serial",-1))==serial:_stop(channel);current=true
+	if current:presentations.erase(channel);_clear_subtitle(channel)
+	if queued.has(channel):
+		queued[channel]=queued[channel].filter(func(item):return int(item.serial)!=serial)
+		if queued[channel].is_empty():queued.erase(channel)
+	for snapshot in suspended.get(channel,[]):
+		if int(snapshot.presentation.get("serial",-1))==serial:
+			_discard_snapshot(snapshot)
+			snapshot.active={};snapshot.presentation={};snapshot.subtitle={}
+		snapshot.queued=snapshot.queued.filter(func(item):return int(item.serial)!=serial)
+	if current:_advance_queue(channel)
+
 func cancel(channel: String) -> void:
+	cancel_revisions[channel]=cancellation_revision(channel)+1
 	_stop(channel)
 	queued.erase(channel);awaiting.erase(channel);presentations.erase(channel)
 	_clear_subtitle(channel)
@@ -117,13 +162,15 @@ func clear_session() -> void:
 	for source in [active,queued,awaiting,suspended,subtitles,presentations]:
 		for channel in source.keys():channels[channel]=true
 	for channel in channels:cancel(channel)
-	last_serial.clear();cached.clear();cache_order.clear();cache_bytes=0
+	last_serial.clear();cancel_revisions.clear();cancelled_serials.clear();cached.clear();cache_order.clear();cache_bytes=0
 
 func pause_for_interruption(channel: String) -> bool:
 	if not active.has(channel) and not presentations.has(channel):return false
 	if suspended.get(channel,[]).size()>=4:return false
 	var snapshot:={"active":active.get(channel,{}),"presentation":presentations.get(channel,{}),"queued":queued.get(channel,[]),
 		"subtitle":subtitles.get(channel,{}),"paused_at":Time.get_ticks_msec(),"resume_requested":false}
+	if bool(snapshot.presentation.get("virtual_audio",false)):
+		snapshot.playback_position=maxf(0.,float(Time.get_ticks_msec()-int(snapshot.presentation.started))*.001*float(snapshot.presentation.item.pitch))
 	if not snapshot.active.is_empty():
 		var player: AudioStreamPlayer3D=snapshot.active.get("player")
 		if is_instance_valid(player):
@@ -173,7 +220,9 @@ func resume_suspended(channel: String) -> bool:
 		else:snapshot.subtitle.label.queue_free()
 	if not active.has(channel) and presentations.has(channel):
 		var item: Dictionary=presentations[channel].item
-		if item.stream!=null:_start(channel,item)
+		if item.stream!=null:
+			item.resume_seconds=float(snapshot.get("playback_position",0.))
+			if not bool(presentations[channel].get("virtual_audio",false)) or (speech_enabled and not bool(item.options.get("muted",false))):_start(channel,item)
 		elif not item.expect_audio and not subtitles.has(channel):_start(channel,item)
 	_layout_subtitles();channel_resumed.emit(channel)
 	if not active.has(channel) and not presentations.has(channel):_advance_queue(channel)
@@ -194,12 +243,24 @@ func _start(channel: String,item: Dictionary) -> void:
 	_clear_subtitle(channel)
 	var now:=Time.get_ticks_msec()
 	var duration:=maxi(2000,str(item.text).length()*65)
-	var stream: AudioStreamWAV=item.stream if speech_enabled else null
-	var waiting: bool=stream==null and bool(item.expect_audio) and speech_enabled
-	presentations[channel]={"serial":item.serial,"priority":item.priority,"until":now+(WAIT_MS if waiting else duration),"started":now,"item":item,"waiting":waiting}
+	var can_play: bool=speech_enabled and not bool(item.options.get("muted",false))
+	var stream: AudioStreamWAV=item.stream if can_play else null
+	var virtual_audio: bool=item.stream!=null and not can_play and bool(item.options.get("authoritative_audio",false))
+	var waiting: bool=item.stream==null and bool(item.expect_audio) and (can_play or bool(item.options.get("authoritative_audio",false)))
+	var caption: bool=subtitles_enabled and bool(item.options.get("show_subtitles",true))
+	presentations[channel]={"serial":item.serial,"priority":item.priority,"until":now+(WAIT_MS if waiting else duration),"started":now,"item":item,"waiting":waiting,"virtual_audio":virtual_audio}
+	if virtual_audio:
+		var offset_ms:=int(float(item.get("resume_seconds",0.))*1000./float(item.pitch))
+		duration=maxi(1,int(ceil(item.stream.get_length()*1000./float(item.pitch))))
+		presentations[channel].started=now-offset_ms;presentations[channel].until=now+maxi(1,duration-offset_ms)
+		if caption:
+			_show_subtitle(channel,item,now-offset_ms,duration)
+			subtitles[channel].until=presentations[channel].until
+		_erase_pending(channel,int(item.serial))
+		return
 	if stream==null:
 		if waiting:return
-		if subtitles_enabled:_show_subtitle(channel,item,now,duration)
+		if caption:_show_subtitle(channel,item,now,duration)
 		else:presentations[channel].until=now
 		return
 	var identity:=str(item.options.get("character_id",item.teacher))
@@ -223,16 +284,21 @@ func _start(channel: String,item: Dictionary) -> void:
 	var mouth:=_mouth(anchor)
 	active[channel]={"serial":item.serial,"priority":item.priority,"teacher":item.teacher,"player":player,"mouth":mouth,"item":item,"base_db":player.volume_db,"occlusion_clock":0.0}
 	duration=int(ceil(stream.get_length()*1000./float(item.pitch)))
-	presentations[channel].until=now+duration+750
+	var offset_seconds:=clampf(float(item.get("resume_seconds",0.)),0.,maxf(0.,stream.get_length()-.001))
+	presentations[channel].until=now+duration-int(offset_seconds*1000./float(item.pitch))+750
+	presentations[channel].started=now-int(offset_seconds*1000./float(item.pitch))
 	presentations[channel].waiting=false
-	if subtitles_enabled:_show_subtitle(channel,item,now,maxi(1,duration))
+	if caption:
+		_show_subtitle(channel,item,now,maxi(1,duration))
+		subtitles[channel].until=presentations[channel].until
 	_erase_pending(channel,int(item.serial))
 	player.finished.connect(func():_finished(channel,int(item.serial)))
-	player.play();utterance_started.emit(channel,int(item.serial))
+	player.play(offset_seconds);utterance_started.emit(channel,int(item.serial))
 
 func deliver_stream(channel: String,serial: int,stream: AudioStreamWAV) -> bool:
-	if not speech_enabled or not valid_stream(stream) or not has_pending(channel,serial):return false
+	if not valid_stream(stream) or not has_pending(channel,serial):return false
 	var item: Dictionary=awaiting[channel].items[serial]
+	if not speech_enabled and not bool(item.options.get("authoritative_audio",false)):return false
 	if not is_instance_valid(item.anchor):_erase_pending(channel,serial);return false
 	item.stream=stream;item.expect_audio=false
 	_erase_pending(channel,serial)

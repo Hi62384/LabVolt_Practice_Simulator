@@ -70,6 +70,11 @@ const DEPRECATIONS := "https://developers.openai.com/api/docs/deprecations"
 const LEGACY_CHAT := ["gpt-3.5-turbo","gpt-4","gpt-4-0613"]
 const IMAGE_GENERATORS := ["gpt-image-1-mini","gpt-image-1.5","gpt-image-2","gpt-image-2.5-flare","gpt-image-2.5-sunburst","gpt-image-2.6-flare","gpt-image-2.6-sunburst","chatgpt-image-latest"]
 const TTS := ["tts-1","tts-1-hd","gpt-4o-mini-tts"]
+const REALTIME := ["gpt-realtime-2.1-mini","gpt-realtime-2.1","gpt-realtime-2","gpt-realtime-1.5","gpt-realtime","gpt-realtime-mini"]
+const LIVE := ["gpt-live-1.1","gpt-live-1"]
+const AUDIO_VERIFIED_AT := "2026-11-27"
+const REALTIME_VOICES := ["alloy","ash","ballad","coral","echo","sage","shimmer","verse","marin","cedar"]
+const LIVE_VOICES := ["alloy","ash","ballad","beacon","bossa","brise","calandria","cedar","cinder","compas","coral","delta","destello","echo","flitz","gleam","halo","harema","hornero","juni","luciernaga","marin","meridian","nira","noeul","nuri","pearl","quartz","ripple","sage","shida","shimmer","sillage","stone","tempo","verse","vesper","willow"]
 const STT := ["gpt-transcribe","gpt-4o-transcribe","gpt-4o-mini-transcribe","gpt-4o-transcribe-diarize","whisper-1"]
 const TEXT_ONLY := ["gpt-5.3-codex","gpt-5.2-codex","gpt-5.1-codex-mini","gpt-5-codex","o3-mini"]
 const EXPLICIT_ALIASES := {"gpt-5.6":"gpt-5.6-sol"}
@@ -78,6 +83,7 @@ const DOCUMENTED_SNAPSHOTS := [
 	"gpt-5-2025-08-07","gpt-5-mini-2025-08-07","gpt-5-nano-2025-08-07","gpt-5.1-2025-11-13","gpt-5.2-2025-12-11","gpt-5.4-2026-03-05","gpt-5.4-mini-2026-03-17","gpt-5.4-nano-2026-03-17",
 	"gpt-image-1.5-2025-12-16","gpt-image-2-2026-04-21","gpt-image-2.5-flare-2026-09-08","gpt-image-2.5-sunburst-2026-09-08",
 	"gpt-4o-mini-tts-2025-03-20","gpt-4o-mini-tts-2025-12-15","gpt-4o-mini-transcribe-2025-03-20","gpt-4o-mini-transcribe-2025-12-15",
+	"gpt-realtime-2025-08-28","gpt-realtime-mini-2025-12-15",
 	"o3-2025-04-16","o3-pro-2025-06-10","o4-mini-2025-04-16"
 ]
 const DEFAULT_EFFORT := {
@@ -91,6 +97,12 @@ const LIMITS := {
 	"gpt-5-mini":[400000,128000],"gpt-5-nano":[400000,128000],"gpt-4.1":[1047576,32768],"gpt-4.1-mini":[1047576,32768]
 }
 const LIFECYCLE := {
+	"gpt-5":["2026-12-11","gpt-6.1-sol"],
+	"gpt-5-mini":["2026-12-11","gpt-6.1-terra"],
+	"gpt-5-nano":["2026-12-11","gpt-6-luna"],
+	"gpt-5-pro":["2026-12-11","gpt-6.1-sol in Pro mode"],
+	"gpt-realtime":["2027-01-20","gpt-realtime-2.1"],
+	"gpt-realtime-mini":["2027-01-20","gpt-realtime-2.1-mini"],
 	"gpt-image-1-mini":["2026-12-01","gpt-image-2.6-sunburst / flare"],
 	"gpt-image-1.5":["2026-12-01","gpt-image-2.6-sunburst / flare"],
 	"chatgpt-image-latest":["2026-12-01","gpt-image-2.6-sunburst / flare"],
@@ -129,15 +141,15 @@ static func verified_family(id: String) -> String:
 	if id.begins_with("ft:"):return ""
 	if EXPLICIT_ALIASES.has(id):return EXPLICIT_ALIASES[id]
 	if id in DOCUMENTED_SNAPSHOTS:return family(id)
-	return id if MODELS.has(id) or id in LEGACY_CHAT or id in IMAGE_GENERATORS or id in TTS or id in STT or id=="chat-latest" else ""
+	return id if MODELS.has(id) or id in LEGACY_CHAT or id in IMAGE_GENERATORS or id in TTS or id in STT or id in REALTIME or id in LIVE or id=="chat-latest" else ""
 
 static func lifecycle(id: String,date := "") -> Dictionary:
 	var base:=verified_family(id)
 	if id.begins_with("ft:"):base=verified_family(id.get_slice(":",1))
 	var record: Array=LIFECYCLE.get(id,LIFECYCLE.get(base,[]))
-	if record.is_empty():return {"status":"unknown" if base.is_empty() else "active"}
+	if record.is_empty():return {"status":"unknown" if base.is_empty() else "active","verified_at":AUDIO_VERIFIED_AT,"source_url":DIRECTORY+"/"+base if not base.is_empty() else DIRECTORY}
 	if date.is_empty():date=Time.get_date_string_from_system(true)
-	return {"status":"retired" if date>=str(record[0]) else "deprecated","shutdown":record[0],"replacement":record[1],"source_url":DEPRECATIONS}
+	return {"status":"retired" if date>=str(record[0]) else "deprecated","shutdown":record[0],"replacement":record[1],"source_url":DEPRECATIONS,"verified_at":AUDIO_VERIFIED_AT,"announced":_deprecation_announcement(base)}
 
 static func endpoint(id: String) -> String:
 	var base:=verified_family(id)
@@ -154,7 +166,9 @@ static func supports(id: String,purpose: String) -> bool:
 		"image":
 			return supports(id,"text") and base not in TEXT_ONLY and base not in LEGACY_CHAT and not base.is_empty()
 		"image_generation":return base in IMAGE_GENERATORS
-		"tts":return base in TTS
+		"tts":return base in TTS or base in REALTIME or base in LIVE
+		"live":return base in LIVE
+		"realtime":return base in REALTIME
 		"stt":return base in STT
 	return false
 
@@ -165,11 +179,12 @@ static func metadata(id: String,purpose: String) -> Dictionary:
 	var base:=verified_family(id)
 	var limits: Array=LIMITS.get(base,[0,0])
 	var modes:=["standard","pro"] if has_pro_mode(id) else ["pro"] if base.ends_with("-pro") else ["standard"]
-	var route: String={"image_generation":"/images/generations","tts":"/audio/speech","stt":"/audio/transcriptions"}.get(purpose,endpoint(id))
+	var route: String={"image_generation":"/images/generations","tts":str(voice_capabilities(id).endpoint),"stt":"/audio/transcriptions","live":"/live/sessions","realtime":"/realtime"}.get(purpose,endpoint(id))
 	return {"id":id,"family":base,"snapshot":id if id in DOCUMENTED_SNAPSHOTS else "",
 		"endpoint":route if supports(id,purpose) else "","efforts":efforts(id),"default_effort":DEFAULT_EFFORT.get(base,""),
 		"modes":modes,"context":limits[0],"output":limits[1],"vision":supports(id,"image"),
-		"source_url":DIRECTORY+"/"+base if not base.is_empty() else DIRECTORY,"verified_at":"2026-11-26"}
+		"source_url":DIRECTORY+"/"+base if not base.is_empty() else DIRECTORY,"verified_at":AUDIO_VERIFIED_AT,
+		"voice":voice_capabilities(id)}
 
 static func has_pro_mode(id: String) -> bool:
 	return verified_family(id) in ["gpt-6.2-astra","gpt-6.2-sol","gpt-6.1-sol","gpt-6.1-terra","gpt-6-astra","gpt-6-sol","gpt-6-luna","gpt-5.6-sol","gpt-5.6-terra","gpt-5.6-luna"]
@@ -188,7 +203,7 @@ static func intelligence_rank(id: String, purpose: String) -> int:
 			if base.begins_with("gpt-image-2") or base=="chatgpt-image-latest":return 3
 			return {"gpt-image-1-mini":1,"gpt-image-1":2,"gpt-image-1.5":2}.get(base,-1)
 		"tts":
-			return {"tts-1":1,"tts-1-hd":2,"gpt-4o-mini-tts":3}.get(base,-1)
+			return {"tts-1":1,"tts-1-hd":2,"gpt-4o-mini-tts":3,"gpt-realtime-2.1-mini":3,"gpt-realtime-2.1":3,"gpt-live-1":3,"gpt-live-1.1":3}.get(base,-1)
 		"stt":
 			return {"whisper-1":1,"gpt-4o-mini-transcribe":2,"gpt-4o-transcribe":3,"gpt-4o-transcribe-diarize":3,"gpt-transcribe":3}.get(base,-1)
 	return {"Efficient":1,"Compact":2,"Compact coding":2,"Compact reasoning":2,"General purpose":3,
@@ -202,7 +217,45 @@ static func normalize_effort(id: String, effort: String) -> String:
 
 static func speech_voices(id: String) -> Array:
 	if not supports(id,"tts"):return []
+	if verified_family(id) in LIVE:return LIVE_VOICES.duplicate()
+	if verified_family(id) in REALTIME:return REALTIME_VOICES.duplicate()
 	var voices:=["alloy","ash","coral","echo","fable","nova","onyx","sage","shimmer"]
 	if verified_family(id)=="gpt-4o-mini-tts":voices.append_array(["ballad","cedar","marin","verse"])
 	voices.sort()
 	return voices
+
+static func voice_capabilities(id: String) -> Dictionary:
+	var base:=verified_family(id)
+	var live:=base in LIVE
+	var realtime:=base in REALTIME
+	var legacy:=base in TTS
+	var stt:=base in STT
+	var provider:="openai_live" if live else "openai_realtime" if realtime else "openai_speech" if legacy else "openai_transcription" if stt else ""
+	var route:="/live/sessions" if live else "/realtime" if realtime else "/audio/speech" if legacy else "/audio/transcriptions" if stt else ""
+	return {"family":base,"endpoint":route,"provider":provider,"presets":speech_voices(id),"supported_voices":speech_voices(id),
+		"prompt_voices":live,"recording_voices":live or realtime or base=="gpt-4o-mini-tts",
+		"expressive":live or realtime or base=="gpt-4o-mini-tts","streaming":live or realtime or legacy or base=="gpt-transcribe",
+		"conversation":live or realtime,"full_duplex":live,"transcription":stt or live or realtime,
+		"formats":["pcm16_16000","pcm16_24000"] if live else ["pcm16_24000"] if realtime else ["wav","pcm","mp3","opus","aac","flac"] if legacy else ["wav","flac","mp3","mp4","mpeg","mpga","m4a","ogg","webm"] if stt else [],
+		"verified_at":AUDIO_VERIFIED_AT,"source_url":DIRECTORY+"/"+base if not base.is_empty() else DIRECTORY}
+
+static func voice_compatible(id: String,voice: Variant,voice_type: String="preset") -> bool:
+	if not available_for(id,"tts"):return false
+	if voice is String:return voice_type=="preset" and voice in speech_voices(id)
+	if not voice is Dictionary or voice.keys().size()!=1 or not voice.get("id") is String:return false
+	var custom_id:=str(voice.id)
+	if not custom_id.begins_with("voice_") or not valid_id(custom_id) or custom_id.length()>128:return false
+	var capabilities:=voice_capabilities(id)
+	return bool(capabilities.prompt_voices) if voice_type=="prompt" else bool(capabilities.recording_voices) if voice_type=="audio_sample" else false
+
+static func _deprecation_announcement(base: String) -> String:
+	if base in TTS:return "2026-10-01"
+	if base in ["gpt-realtime","gpt-realtime-mini"]:return "2026-07-20"
+	if base in ["whisper-1","gpt-4o-transcribe","gpt-4o-mini-transcribe","gpt-4o-transcribe-diarize"]:return "2026-08-26"
+	return ""
+
+static func lifecycle_description(id: String) -> String:
+	var life:=lifecycle(id)
+	if life.status=="unknown":return "Unknown — capabilities and lifecycle have not been verified."
+	if life.status=="active":return "Active · verified "+str(life.verified_at)
+	return ("Retired" if life.status=="retired" else "Deprecated")+" · shutdown "+str(life.shutdown)+". Replacement: "+str(life.replacement)+"."

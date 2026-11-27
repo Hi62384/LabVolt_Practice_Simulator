@@ -31,6 +31,7 @@ const IMAGES := {
 }
 const SPEECH := {"tts-1":[15.,"characters"],"tts-1-hd":[30.,"characters"],"gpt-4o-mini-tts":[.015,"minute_estimate"]}
 const TRANSCRIBE := {"gpt-transcribe":[.0045,"minute"],"whisper-1":[.006,"minute"],"gpt-4o-mini-transcribe":[.003,"minute_estimate"],"gpt-4o-transcribe":[.006,"minute_estimate"],"gpt-4o-transcribe-diarize":[.006,"minute_estimate"]}
+const REALTIME_AUDIO:={"gpt-realtime-2.1-mini":[.6,.06,2.4,10.,.3,20.],"gpt-realtime-2.1":[4.,.4,24.,32.,.4,64.]}
 const LONG_CONTEXT := ["gpt-6.2-astra","gpt-6.2-sol","gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna","gpt-5.6-sol","gpt-5.4","gpt-5.4-pro","gpt-5.5","gpt-5.5-pro"]
 const FAST := ["gpt-6.2-astra","gpt-6.2-sol","gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna"]
 const FLEX := ["gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna"]
@@ -75,6 +76,11 @@ static func pricing(id: String,purpose: String,tier := "standard",input_tokens :
 		result.merge({"text_input":rates[0]*scale,"text_cached":rates[1]*scale,"image_input":rates[2]*scale,"image_cached":rates[3]*scale,"image_output":rates[4]*scale,"unit":"USD / 1M tokens","basis":"image_tokens","estimator":IMAGE_CALCULATOR})
 		result.label="$%s text in · $%s image out"%[money_rate(result.text_input),money_rate(result.image_output)]
 		if base=="gpt-image-2":result.source_url=PRICING_URL
+	elif purpose in ["tts","live"] and base in Models.LIVE:
+		result.merge({"rate":.05,"basis":"minute","unit":"USD / active session minute","label":"$0.05 / active min · backend separate","verified_at":"2026-11-27"})
+	elif purpose=="tts" and REALTIME_AUDIO.has(base):
+		var values: Array=REALTIME_AUDIO[base]
+		result.merge({"text_input":values[0],"text_cached":values[1],"text_output":values[2],"audio_input":values[3],"audio_cached":values[4],"audio_output":values[5],"basis":"audio_tokens","unit":"USD / 1M tokens","label":"$%s text in · $%s audio out"%[money_rate(values[0]),money_rate(values[5])],"verified_at":"2026-11-27"})
 	else:
 		var types: Dictionary=SPEECH if purpose=="tts" else TRANSCRIBE if purpose=="stt" else {}
 		if not types.has(base):return {}
@@ -112,3 +118,11 @@ static func image_cost(rate: Dictionary,usage: Dictionary) -> int:
 	var image_cache:=int(usage.get("image_cached",0))
 	if int(usage.get("cached",text_cache+image_cache))!=text_cache+image_cache:return -1
 	return (int(usage.text_input)-text_cache)*roundi(float(rate.text_input)*1000.)+(int(usage.image_input)-image_cache)*roundi(float(rate.image_input)*1000.)+int(usage.image_output)*roundi(float(rate.image_output)*1000.)+text_cache*roundi(float(rate.text_cached)*1000.)+image_cache*roundi(float(rate.image_cached)*1000.)
+
+static func audio_cost(rate: Dictionary,usage: Dictionary) -> int:
+	if not rate.has("audio_output") or not usage.has_all(["text_input","audio_input","text_output","audio_output"]):return -1
+	var cached_text:=int(usage.get("text_cached",0))
+	var cached_audio:=int(usage.get("audio_cached",0))
+	if int(usage.get("image_input",0))>0 or int(usage.get("cached",0))!=cached_text+cached_audio:return -1
+	if cached_text>int(usage.text_input) or cached_audio>int(usage.audio_input):return -1
+	return (int(usage.text_input)-cached_text)*roundi(float(rate.text_input)*1000.)+cached_text*roundi(float(rate.text_cached)*1000.)+int(usage.text_output)*roundi(float(rate.text_output)*1000.)+(int(usage.audio_input)-cached_audio)*roundi(float(rate.audio_input)*1000.)+cached_audio*roundi(float(rate.audio_cached)*1000.)+int(usage.audio_output)*roundi(float(rate.audio_output)*1000.)

@@ -351,7 +351,7 @@ func _toggle_hand(peer: int,room: String,class_id: String) -> void:
 	_publish()
 
 func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
-	if activity.phase!="lesson":return
+	if activity.phase!="lesson" or activity.get("npc_voice_question",false):return
 	var hands: Array=activity.get("hands",[])
 	if now<float(activity.get("next_hand",0.)):return
 	activity.erase("hand_identity")
@@ -377,9 +377,19 @@ func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
 		activity.npc_question_topic=topic
 		activity.next_hand=now+45.
 		var phase_id:=str(activity.id)
+		activity.npc_voice_question=true
+		if game.faculty.has_method("pause_voice_target"):
+			game.faculty.pause_voice_target({"id":str(activity.teacher),"room":room,"class_id":phase_id})
+		if game.faculty.has_method("present_student_speech"):
+			game.faculty.present_student_speech(room,phase_id,str(member.profile.id),question,str(member.get("mood","steady")),{},1)
 		var answer: String=await game.faculty.classroom_character_exchange(activity,member,stage,question)
-		if str(classes.get(room,{}).get("id",""))!=phase_id or classes.get(room,{}).get("phase","")!="lesson" or answer.is_empty():return
-		game.faculty.present_class_reaction(room,activity.teacher,"%s, %s"%[str(member.profile.name).get_slice(" ",0),answer],2)
+		while is_inside_tree() and str(classes.get(room,{}).get("id",""))==phase_id and classes.get(room,{}).get("phase","")=="lesson" and game.faculty.has_method("student_speech_pending") and game.faculty.student_speech_pending(str(member.profile.id)):
+			await get_tree().create_timer(.1).timeout
+		activity.npc_voice_question=false
+		var current: bool=str(classes.get(room,{}).get("id",""))==phase_id and classes.get(room,{}).get("phase","")=="lesson"
+		if current and not answer.is_empty():game.faculty.present_class_reaction(room,activity.teacher,"%s, %s"%[str(member.profile.name).get_slice(" ",0),answer],2)
+		if game.faculty.has_method("resume_voice_channel"):game.faculty.resume_voice_channel(room,room)
+		if not current or answer.is_empty():return
 		break
 
 func _advance() -> void:
@@ -388,14 +398,25 @@ func _advance() -> void:
 	var now:=_now()
 	for room in classes.keys():
 		var activity: Dictionary=classes[room]
-		if activity.phase=="lesson" and now<float(activity.deadline):
-			var elapsed:=clampf(now-float(activity.get("lesson_tick",now)),0.,.6)
+		if activity.phase=="lesson":
+			var previous:=float(activity.get("lesson_tick",now))
+			var elapsed:=maxf(0.,now-previous)
 			activity.lesson_tick=now
-			var spent:=float(activity.get("lesson_pause",0.))
-			if spent<90. and game.faculty.lesson_question_active(room):
-				var pause:=minf(elapsed,90.-spent)
-				activity.deadline+=pause
-				activity.lesson_pause=spent+pause
+			var paused: bool=game.faculty.lesson_question_active(room) or bool(activity.get("npc_voice_question",false))
+			if paused:
+				if not activity.has("voice_pause_remaining"):
+					activity.voice_pause_remaining=maxf(0.,float(activity.deadline)-previous)
+				activity.deadline=now+float(activity.voice_pause_remaining)
+				activity.lesson_pause=float(activity.get("lesson_pause",0.))+elapsed
+				continue
+			if activity.has("voice_pause_remaining"):
+				activity.deadline=now+float(activity.voice_pause_remaining)
+				activity.erase("voice_pause_remaining")
+			# A final explanation queued or restored at the old deadline must
+			# actually finish before the assessment transition clears narration.
+			var speech: Node=game.faculty.get("speech_player") as Node
+			if now>=float(activity.deadline) and is_instance_valid(speech) and (speech.presentations.has(room) or speech.queued.has(room) or speech.has_suspended(room)):
+				continue
 		if activity.phase=="assignment" and activity.students.values().all(func(student):return student.done):
 			classes.erase(room)
 			changed=true

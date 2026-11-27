@@ -3,9 +3,8 @@ extends Node
 ## The legacy process path is isolated behind explicit selection/test adapters.
 signal completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String)
 const Profiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
-const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
-const Classmates=preload("res://scripts/campus/academics/classroom_students.gd")
 const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
+const Delivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
 const SpeechPlayer=preload("res://scripts/campus/academics/teacher_speech_player.gd")
 const MAX_JOBS:=6
 const MAX_LISTENERS:=32
@@ -62,7 +61,7 @@ func request(room: String,serial: int,id: String,text: String,key: String,priori
 	if cloud_pending.size()+cloud_active.size()>=MAX_CLOUD_JOBS:return "busy"
 	request_serial+=1
 	var now:=Time.get_ticks_msec()
-	var details:=delivery.duplicate(true)
+	var details:=Delivery.for_text(delivery,text)
 	var request_id:="voice-%d-%d"%[session_epoch,request_serial]
 	details.request_id=request_id
 	var job:={"room":room,"serial":serial,"id":id,"text":text,"key":key,"priority":clampi(priority,0,14),"delivery":details,"request_id":request_id,

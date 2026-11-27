@@ -65,7 +65,7 @@ func run() -> void:
 	for serial in range(2,Player.MAX_QUEUED+2):assert(player.accept("full","Chad",serial,"Queued.",1,anchor,wav))
 	var accepted_serial:=int(player.last_serial.full)
 	assert(not player.accept("full","Chad",accepted_serial+1,"No space.",1,anchor,wav))
-	assert(int(player.last_serial.full)==accepted_serial and int(player.awaiting.full.item.serial)==accepted_serial)
+	assert(int(player.last_serial.full)==accepted_serial and int(player.queued.full.back().serial)==accepted_serial)
 	player.cancel("full")
 	var malformed:=wav.duplicate() as AudioStreamWAV
 	malformed.data=PackedByteArray([1,2,3])
@@ -128,5 +128,8 @@ func run() -> void:
 	player.clear_session();anchor.queue_free();player.queue_free()
 	await process_frame
 	await process_frame
+	# AudioServer releases stopped stream playbacks on its mixing thread.
+	# Fast headless frames alone can finish before that cleanup has run.
+	await create_timer(.12).timeout
 	print("TEACHER_SPEECH_LONG_DELIVERY PASS (native WAV, captions and player; adapter launch, no live voice)")
 	quit(0)

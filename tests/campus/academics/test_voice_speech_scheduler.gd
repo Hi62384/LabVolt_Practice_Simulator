@@ -10,7 +10,7 @@ class Provider extends Node:
 	func configured() -> bool:return true
 	func cancel_speech_request(request_id: String) -> void:cancellations.append(request_id)
 	func speak(text: String,_draft: Dictionary,voice: Variant,delivery: Dictionary) -> Dictionary:
-		starts.append({"text":text,"voice":voice,"request_id":delivery.request_id})
+		starts.append({"text":text,"voice":voice,"request_id":delivery.request_id,"delivery":delivery.duplicate(true)})
 		running+=1;peak=maxi(peak,running)
 		attempts[text]=int(attempts.get(text,0))+1
 		await get_tree().process_frame
@@ -27,7 +27,7 @@ func run() -> void:
 	var provider:=Provider.new();root.add_child(provider)
 	var synth:=Synth.new();root.add_child(synth);synth.configure_provider(provider)
 	synth.completed.connect(func(channel,serial,key,stream,status):events.append({"channel":channel,"serial":serial,"key":key,"stream":stream,"status":status}))
-	assert(synth.request("one",1,"bro","first","one",1,{"voice":"onyx"})=="queued")
+	assert(synth.request("one",1,"bro","first","one",1,{"voice":"onyx","instructions":"Calm and reserved.","projection":"normal","profile_version":1,"delivery_key":"permanent-bro"})=="queued")
 	assert(synth.request("two",1,"volts","second","two",1,{"voice":"cedar"})=="queued")
 	assert(synth.request("three",1,"bird","third","three",1,{"voice":"sage"})=="queued")
 	assert(synth.request("four",1,"stanley","fourth","four",1,{"voice":"echo"})=="queued")
@@ -35,6 +35,8 @@ func run() -> void:
 	assert(events.size()==4 and provider.peak==3,"Speech runs concurrently without a global single busy failure.")
 	assert(events.all(func(event):return event.status=="ok"))
 	assert(provider.starts[0].voice=="onyx" and provider.starts[1].voice=="cedar")
+	assert("PHRASE PERFORMANCE:" in provider.starts[0].delivery.instructions and provider.starts[0].delivery.phrase_texts==["first"],"The provider must receive finalized phrase guidance for the authoritative words.")
+	assert(provider.starts[0].delivery.profile_version==1 and provider.starts[0].delivery.delivery_key!="permanent-bro" and not provider.starts[0].request_id.is_empty(),"Phrase guidance preserves identity and cancellation while contributing to delivery identity.")
 	events.clear()
 	assert(synth.request("owner",2,"bro","shared phrase","shared",1,{"voice":"onyx"})=="queued")
 	assert(synth.request("listener",2,"bro","shared phrase","shared",1,{"voice":"onyx"})=="duplicate")

@@ -47,7 +47,9 @@ func prepare(client: Node, person: Dictionary, identity: String, activity: Dicti
 	var prepared := {"person": person, "identity": identity, "activity": activity.duplicate(true), "question": question, "safe_question": question, "event_id": event_id, "extra": extra.duplicate(true), "source": "fallback", "fallback_reason": "", "moderated": false, "interpretation_source": "local", "started": Time.get_ticks_msec(), "host_profile": brain.host_profile()}
 	var initial_context := context(person, identity, activity, question, extra)
 	var interpretation := fallback_interpretation(question, activity, person)
-	var online: bool = is_instance_valid(client) and client.ready_for_class() and not client.busy
+	# The host transport queues independent text requests within its bounded
+	# lane. Another character's pending answer does not make this one offline.
+	var online: bool = is_instance_valid(client) and client.ready_for_class()
 	if extra.get("existing_turn") is Dictionary and not str(extra.get("existing_event_id","")).is_empty():
 		prepared.turn=extra.existing_turn.duplicate(true)
 		prepared.event_id=str(extra.existing_event_id)
@@ -86,7 +88,7 @@ func prepare(client: Node, person: Dictionary, identity: String, activity: Dicti
 				interpretation = decoded
 				prepared.interpretation_source = "ai"
 	else:
-		prepared.fallback_reason = "service_busy" if is_instance_valid(client) and client.busy else "service_unavailable"
+		prepared.fallback_reason = "service_unavailable"
 	# Check after every await and before any emotional or relationship mutation.
 	# A profile/session/class change invalidates the original perception context.
 	if not _current(prepared): return _cancel(prepared)
