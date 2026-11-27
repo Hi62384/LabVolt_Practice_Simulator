@@ -209,6 +209,8 @@ func _start(room: String,config: Dictionary) -> String:
 		classes[room].lab_practice={"plan":lesson.get("physical_ac_plan",{}),"leads":lesson.get("physical_wire_steps",[])}
 	elif course=="ETY155":
 		classes[room].lab_practice={"resistance":lesson.get("scenario",{}).get("nominal_resistance",1000.)}
+	elif course=="DGS266" and kind=="lab":
+		classes[room].lab_practice={"digital":lesson.get("lab_validation","")}
 	var present: Array[Vector3]=[]
 	for peer in game.session.roster:
 		if _inside(int(peer),room):present.append(_position(int(peer)))
@@ -310,13 +312,18 @@ func _process(delta: float) -> void:
 				_hand_turn(room,classes[room],_now())
 				Visuals.advance(classes[room],_now(),game.faculty.lesson_question_active(room))
 			var ac: Dictionary=classes.get("ac_lab",{})
-			var use_ac: bool=lab_practice.work.get("domain","ac" if ac.get("phase","")=="lesson" else "dc")=="ac"
-			lab_practice.step(ac if use_ac else classes.get("dc_lab",{}),_now())
+			var dc: Dictionary=classes.get("dc_lab",{})
+			if lab_practice.work.get("domain","ac")=="ac":lab_practice.step(ac,_now())
+			if lab_practice.work.get("domain","dc")=="dc":lab_practice.step(dc,_now())
 			check_clock=0.0
 			_check_students()
 			_advance()
 		if publish_clock>=1.0:
 			publish_clock=0.0
+			for activity in classes.values():
+				if Visuals.uses_bench(activity):
+					var reading:=lab_practice.live_readings(str(activity.id)) if activity.phase=="lesson" else {}
+					Visuals.update_bench(activity,reading)
 			_publish()
 	if is_instance_valid(classroom_events):classroom_events.step(_now())
 	if game.front.in_game:

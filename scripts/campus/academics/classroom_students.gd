@@ -223,7 +223,7 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 		var label:=model.get_node_or_null("StudentName") as Label3D
 		if label!=null:
 			var line: String=member.get("line","")
-			if line.is_empty() and member.action in ["wiring circuit","checking instruments","reading meter","recorded measurement","testing circuit","recorded result"]:
+			if line.is_empty() and member.action in ["wiring circuit","checking instruments","reading meter","reading scope","placing breadboard","setting logic inputs","testing logic gate","recorded measurement"]:
 				line=str(member.action).capitalize()
 			label.text=member.name+("\n"+line if not line.is_empty() else "")
 	for key in models.keys():

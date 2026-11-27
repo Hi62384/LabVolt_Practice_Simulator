@@ -27,7 +27,7 @@ static func scope_sample(station: RefCounted) -> Dictionary:
 		if value<=.2:extremes+=1;low_count+=1
 		elif value>=.8:extremes+=1;high_count+=1
 	if low_count<2 or high_count<2 or float(extremes)/data.size()<.85:return {}
-	return {"gate":"scope","row":0,"required":1,"correct":true}
+	return {"gate":"scope","row":0,"required":1,"correct":true,"frequency":stats.frequency,"vpp":stats.vpp}
 
 static func display_samples(board: Dictionary, wires: Array, result: Dictionary, states: Dictionary, parts: Array) -> Array:
 	if not result.get("ok",false):return []

@@ -13,6 +13,7 @@ var speed:=1.
 var playing:=true
 var highlight:=""
 var history: Array[Dictionary]=[]
+var live_parameters: Dictionary={}
 
 func load_scene(value: Variant) -> bool:
 	var checked:=Document.compile(value)
@@ -38,6 +39,21 @@ func _install(value: Dictionary) -> void:
 	for item in ordered:objects[item.id]=item
 	inputs=[0.,0.,PI,TAU]
 	for id in compiled.names.slice(4):inputs.append(float(scene.parameters[id][0]))
+	live_parameters.clear()
+
+func set_live_parameters(values: Dictionary) -> bool:
+	var next: Dictionary={}
+	var parameters: Dictionary=scene.get("parameters",{})
+	for id in parameters:
+		var bounds: Array=parameters[id]
+		var value: Variant=values.get(id)
+		if Document._number(value,float(bounds[1]),float(bounds[2])):next[id]=float(value)
+	if next==live_parameters:return false
+	live_parameters=next
+	for slot in range(4,inputs.size()):
+		var id: String=compiled.names[slot]
+		inputs[slot]=float(next.get(id,parameters[id][0]))
+	return true
 
 func advance(seconds: float) -> void:
 	if playing and not scene.is_empty() and is_finite(seconds) and seconds>=0.:
@@ -88,6 +104,7 @@ func command(action: Variant) -> bool:
 			compiled={}
 			ordered.clear()
 			objects.clear()
+			live_parameters.clear()
 			highlight=""
 		_:
 			return false

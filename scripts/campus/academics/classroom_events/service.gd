@@ -130,7 +130,14 @@ func start(room: String,now: float,recent_indices: Array=[],mode: String="practi
  if not hands.begin(true,id,members):lifecycle.cancel(id);lifecycle.states.erase(id);return false
  var shared:=SharedWork.new()
  if mode in ["board","group"] and not shared.begin(mode,members):lifecycle.cancel(id);lifecycle.states.erase(id);return false
- if mode=="group":shared.set_question(str(practice.public_question.get("prompt","")))
+ if mode=="group":
+  shared.set_question(str(practice.public_question.get("prompt","")))
+  if members.size()==1:
+   for classmate in activity.get("classmates",{}):
+    var actor: Dictionary=activity.classmates[classmate]
+    if actor.seated:
+     shared.add_member(classmate)
+     break
  lifecycle.advance(id,"preparing");lifecycle.advance(id,"announcing")
  if not staged:lifecycle.advance(id,"active")
  var target:=clampi(floori((time_left-10.0)/(ROUND_SECONDS+RESULTS_SECONDS)),1,QUIZ_ROUNDS) if mode=="quiz" else 1
@@ -459,6 +466,8 @@ func tick(now: float) -> void:
    lifecycle.advance(state.round.event_id,"active");publish(room,now)
   if state.round.mode=="quiz" and not state.round.closed and now>=float(state.open_at):
    _classmate_quiz(room,state,activity,now)
+  if state.round.mode=="group" and now>=float(state.open_at)+7.0 and now<state.round.deadline and not state.round.closed:
+   if _classmate_group(state,activity,now):publish(room,now)
   if now>=state.round.deadline and not state.round.closed:
    if state.round.submissions.is_empty():
     lifecycle.advance(state.round.event_id,"timed_out")
@@ -613,6 +622,30 @@ func _classmate_quiz(room: String,state: Dictionary,activity: Dictionary,now: fl
    state.series.labels[identity]=profile.name
    state.series.teams[identity]="A" if posmod(hash(identity),2)==0 else "B"
    game.lecture_classes.classroom_students.record_practice(identity,activity.course,round.submissions[identity].get("correct",false),activity.week)
+
+func _classmate_group(state: Dictionary,activity: Dictionary,now: float) -> bool:
+ var shared: RefCounted=state.shared
+ for identity in shared.members:
+  var actor: Dictionary=activity.get("classmates",{}).get(identity,{})
+  if actor.is_empty():continue
+  var team: String=shared.groups[identity]
+  var has_partner: bool=state.round.present.keys().any(func(member):return shared.groups.get(member)==team)
+  if not has_partner or not actor.seated:continue
+  var profile: Dictionary=actor.profile
+  var suggestion: String
+  match shared.task_kind:
+   "circuit":
+    suggestion="Let's mark the known readings and their units before choosing a circuit equation."
+   "math":
+    suggestion="We could substitute the result back into the original expression to check it."
+   _:
+    suggestion="Let's compare the assumptions we used. Which detail in the question supports them?"
+  if float(profile.confidence)<.4:suggestion="Could we write down what the question gives us first? That would help me follow."
+  if shared.contribute(identity,suggestion,profile.name)!="accepted":continue
+  actor.action="discussing group work"
+  actor.next=maxf(float(actor.get("next",0.)),now+5.0)
+  return true
+ return false
 
 func sync_roster(room: String,now: float) -> void:
  if not multiplayer.is_server() or not rooms.has(room):return

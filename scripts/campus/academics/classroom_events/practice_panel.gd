@@ -119,7 +119,10 @@ func update_state(state: Dictionary) -> void:
  if is_instance_valid(shared_notes):
   shared_scroll.visible=not shared.is_empty() and not shared.get("entries",[]).is_empty()
   var notes: Array[String]=[]
-  for note in shared.get("entries",[]):notes.append(("• Teammate explanation: " if note.get("kind","")=="explanation" else "• Note: ")+str(note.get("text","")))
+  for note in shared.get("entries",[]):
+   var author: String=note.get("name","")
+   if author.is_empty():author="Teammate explanation" if note.get("kind","")=="explanation" else "Note"
+   notes.append("• %s: %s"%[author,note.get("text","")])
   shared_notes.text="\n".join(notes)
  var can_vote: bool=state.get("mode","")=="group" and not str(shared.get("proposal","")).is_empty() and not str(shared.get("group","")).is_empty()
  if is_instance_valid(vote_label):

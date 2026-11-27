@@ -1,4 +1,6 @@
 extends SceneTree
+const Visuals=preload("res://scripts/campus/academics/classroom_visuals.gd")
+const Profiles=preload("res://scripts/campus/academics/class_character_profile.gd")
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -88,7 +90,72 @@ func run() -> void:
 	classmates.begin_assessment(dc,now)
 	classmates.step(dc,now+30.,.2)
 	assert(worker.action=="handed in work" and classmates.records.has_section_key(worker.profile.id,"ETY155.last_score"))
+	for week in range(1,9):
+		classes.classes.erase("dc_lab")
+		assert(classes._start("dc_lab",{"kind":"lab","course_id":"DGS266","week":week,"difficulty":1})=="")
+		var digital: Dictionary=classes.classes.dc_lab
+		digital.phase="lesson"
+		digital.deadline=now+300.
+		var novice: Dictionary=digital.classmates.values()[0]
+		novice.arrival=now-1.
+		novice.arrived=true
+		novice.position=novice.seat
+		var saw_live_scope:=false
+		if week==1:
+			var scope_scene:={"version":1,"title":"Demonstration scope","duration":10.,
+				"parameters":{"bench_hz":[10.,0.,1000.],"bench_scope_vpp":[1.,0.,20.]},
+				"objects":[{"type":"text","id":"readout","x":35,"y":150,"width":400,"text":"Scope: {bench_hz} Hz"}]}
+			assert(Visuals.apply(digital,{"op":"create","scene":scope_scene},now))
+		for tick in 180:
+			practice.step(digital,now+tick)
+			if not practice.work.is_empty():
+				var station: RefCounted=game.dc_lab.benches[practice.work.bench]
+				if station.generator.enabled:
+					for sample in 120:station.step()
+				elif station.master:
+					for sample in 8:station.step()
+				if week==1:
+					assert(practice.live_readings("different-class").is_empty())
+					Visuals.update_bench(digital,practice.live_readings(digital.id))
+					var live:=Visuals.view(digital,false,false)
+					if live.live_parameters.has("bench_hz"):
+						assert(not live.has("scene") and absf(float(live.live_parameters.bench_hz)-40.)<6.)
+						assert(float(live.live_parameters.bench_scope_vpp)>3.)
+						assert(float(digital.visual_playback.scene.parameters.bench_hz[0])==10.)
+						saw_live_scope=true
+			if digital.has("lab_practice_result") or digital.has("lab_practice_error"):break
+		assert(not digital.has("lab_practice_error"),str(digital.get("lab_practice_error","")))
+		var result: Dictionary=digital.get("lab_practice_result",{})
+		var samples: Array=result.get("samples",[])
+		assert(samples.size()==[1,16,4,4,8,10,4,4][week-1] and samples.all(func(sample):return sample.correct),"Week %d: %s"%[week,result])
+		assert(practice.work.is_empty())
+		if week==1:
+			assert(saw_live_scope)
+			Visuals.update_bench(digital,practice.live_readings(digital.id))
+			assert(Visuals.view(digital).live_parameters.is_empty())
+		for bench in game.dc_lab.benches:
+			assert(not bench.master and not bench.generator.enabled and bench.wires.is_empty() and bench.board.is_empty())
 	assert(not game.session.roster.has(-100))
+	classes.classes.erase("dc_lab")
+	var lecture_room:="ety155_lecture"
+	assert(classes._start(lecture_room,{"kind":"lecture","course_id":"ETY155","week":1,"difficulty":1})=="")
+	var lecture: Dictionary=classes.classes[lecture_room]
+	lecture.phase="lesson"
+	lecture.deadline=now+300.
+	game.player.global_position=lecture.room.teacher_position
+	assert(classes._sign(1,lecture_room)=="")
+	var partner:=Profiles.student(0)
+	lecture.classmates[partner.id]={"seated":true,"profile":partner}
+	var events: Node=classes.classroom_events.service
+	assert(events.start(lecture_room,now,[],"group"))
+	var group: Dictionary=events.rooms[lecture_room]
+	var human: String=game.school.identities[1]
+	assert(events._classmate_group(group,lecture,now+8.))
+	assert(not events._classmate_group(group,lecture,now+9.))
+	var shared: Dictionary=group.shared.view(human)
+	assert(shared.entries.size()==1 and shared.entries[0].name==partner.name and shared.can_explain)
+	assert(group.shared.view("outsider").entries.is_empty())
+	assert(group.round.submissions.is_empty() and group.round.participants.size()==1)
 	print("CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS")
 	game.queue_free()
 	await process_frame

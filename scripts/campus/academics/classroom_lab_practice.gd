@@ -1,6 +1,7 @@
 extends RefCounted
 ## A host-only classmate uses the same station commands and solver as a player.
 const Instructions=preload("res://scripts/beginner_bench_instructions.gd")
+const Digital=preload("res://scripts/campus/academics/classmate_digital_practice.gd")
 const ACTOR_ID:=-100
 var game: Node
 var work: Dictionary={}
@@ -8,7 +9,7 @@ var work: Dictionary={}
 func step(activity: Dictionary,now: float) -> void:
 	if not work.is_empty() and (activity.get("id","")!=work.class_id or activity.get("phase")!="lesson"):
 		finish()
-	if activity.get("phase")!="lesson" or activity.get("course") not in ["ELM253","ETY155"]:return
+	if activity.get("phase")!="lesson" or activity.get("course") not in ["ELM253","ETY155","DGS266"]:return
 	if work.is_empty() and (activity.get("lab_practice_done",false) or not _begin(activity,now)):return
 	if now<float(work.next):return
 	work.next=now+.55
@@ -18,6 +19,11 @@ func step(activity: Dictionary,now: float) -> void:
 	if work.commands.is_empty():
 		var measured: Dictionary={"v":absf(lab.difference("VΩ","COM")),"meter":lab.meter} if dc and lab.result.get("ok",false) else ({} if dc else lab.records)
 		var ok:=not measured.is_empty() and float(measured.get("v",0.))>0.
+		if not str(work.digital).is_empty():
+			var evidence: Array=work.observations.values()
+			measured={"samples":evidence,"kind":work.digital}
+			var required:=Digital.rows_required(work.digital)
+			ok=evidence.size()==required and evidence.all(func(sample):return sample.correct)
 		var students: Node=game.lecture_classes.classroom_students
 		students.record_practice(member.profile.id,activity.course,ok,activity.week)
 		member.action="recorded measurement" if ok else "checking instruments"
@@ -26,6 +32,17 @@ func step(activity: Dictionary,now: float) -> void:
 		finish()
 		return
 	var action: Dictionary=work.commands.pop_front()
+	if action.op=="observe":
+		var row:=int(action.get("row",0))
+		var sample:=Digital.observation(work.digital,lab,row)
+		if sample.is_empty():
+			var remaining:=int(action.get("attempts",8))-1
+			if remaining>0:
+				action.attempts=remaining
+				work.commands.push_front(action)
+		else:work.observations[row]=sample
+		member.action=str(action.label)
+		return
 	var foot: Vector3=work.foot
 	var control:=str(action.get("port",action.get("control","")))
 	if not dc and not control.is_empty() and lab.positions.has(control):
@@ -38,13 +55,17 @@ func step(activity: Dictionary,now: float) -> void:
 		member.action="checking instruments"
 		finish()
 		return
+	if action.op=="board":
+		lab.board_owner=ACTOR_ID
+		lab.board_position=game.dc_lab.board_home(work.bench)
 	member.action=str(action.get("label","wiring circuit"))
 	if dc:game.dc_lab.broadcast()
 	else:game.session.broadcast()
 
 func _begin(activity: Dictionary,now: float) -> bool:
 	var exercise: Dictionary=activity.get("lab_practice",{})
-	var dc: bool=activity.course=="ETY155"
+	var dc: bool=activity.course!="ELM253"
+	var digital: String=exercise.get("digital","")
 	var stations: Array=game.dc_lab.benches if dc else game.session.labs
 	var count:=mini(activity.room.benches.size(),stations.size())
 	if exercise.is_empty() or count==0:return false
@@ -65,10 +86,10 @@ func _begin(activity: Dictionary,now: float) -> bool:
 		if game.session.roster.keys().any(func(peer):
 			var point: Vector3=game.lecture_classes._position(int(peer))
 			return point.is_finite() and point.distance_to(workbench)<2.1):continue
-		var commands:=_dc_commands(exercise) if dc else _commands(lab,exercise)
+		var commands:=Digital.commands(digital) if not digital.is_empty() else (_dc_commands(exercise) if dc else _commands(lab,exercise))
 		if commands.is_empty():continue
 		var foot:=Vector3(workbench.x+(0. if dc else 2.006),chosen.seat.y,workbench.z+1.43)
-		work={"class_id":activity.id,"domain":"dc" if dc else "ac","bench":bench,"next":now+.6,"commands":commands,"baseline":lab.snapshot(),"member":chosen,"foot":foot}
+		work={"class_id":activity.id,"domain":"dc" if dc else "ac","bench":bench,"next":now+.6,"commands":commands,"baseline":lab.snapshot(),"member":chosen,"foot":foot,"digital":digital,"observations":{}}
 		chosen.using_bench=true
 		chosen.position=foot
 		activity.lab_practice_done=true
@@ -127,16 +148,48 @@ func _dc_commands(exercise: Dictionary) -> Array:
 func yield_bench(index: int,domain := "ac") -> void:
 	if work.get("domain","")==domain and int(work.bench)==index:finish()
 
+func live_readings(class_id: String) -> Dictionary:
+	# Only the station reserved for this class's demonstration is public.
+	if work.get("class_id","")!=class_id:return {}
+	var station_number:=int(work.bench)+1
+	if work.domain=="ac":
+		var station: RefCounted=game.session.labs[work.bench]
+		if not station.powered or not str(station.readings.get("fault","")).is_empty():return {}
+		return {"station":station_number,"values":{
+			"bench_hz":station.frequency,"bench_voltage_v":station.readings.voltmeters.max(),
+			"bench_current_a":station.readings.ammeters.max(),
+			"bench_power_w":station.readings.wattmeters[0]+station.readings.wattmeters[1]}}
+	var station: RefCounted=game.dc_lab.benches[work.bench]
+	var values: Dictionary={}
+	if station.generator.enabled:
+		var measured:=Digital.Evidence.scope_sample(station)
+		if not measured.is_empty():
+			values.bench_hz=measured.frequency
+			values.bench_scope_vpp=measured.vpp
+	if station.master and station.solved_revision==station.revision and station.result.get("ok",false):
+		var volts: Dictionary=station.result.get("v",{})
+		var islands: Dictionary=station.result.get("islands",{})
+		if volts.has("VΩ") and volts.has("COM") and islands.has("VΩ") and islands.get("VΩ")==islands.get("COM"):
+			values.bench_voltage_v=absf(station.difference("VΩ","COM"))
+	if values.is_empty():return {}
+	return {"station":station_number,"values":values}
+
 func finish() -> void:
 	if work.is_empty():return
 	if work.domain=="dc":
 		var station: RefCounted=game.dc_lab.benches[work.bench]
 		var original: Dictionary=work.baseline
 		if station.master:station.apply({"op":"master"})
+		if station.generator.enabled:station.apply({"op":"generator","key":"enabled","value":false})
 		while not station.wires.is_empty():
 			station.apply({"op":"unwire","index":station.wires.size()-1})
-		for key in ["voltage","limit","enabled"]:
-			station.apply({"op":"channel","index":0,"key":key,"value":original.channels[0][key]})
+		if station.board_owner==ACTOR_ID:station.apply({"op":"recall"})
+		for index in original.channels.size():
+			for key in ["voltage","limit","enabled"]:
+				station.apply({"op":"channel","index":index,"key":key,"value":original.channels[index][key]})
+		if work.digital=="digital_scope":
+			for key in ["wave","frequency","amplitude","offset","duty"]:
+				station.apply({"op":"generator","key":key,"value":original.generator[key]})
 		station.apply({"op":"resistor","index":0,"value":original.resistance[0]})
 		station.apply({"op":"meter","mode":original.meter_mode})
 		work.member.using_bench=false

@@ -11,6 +11,7 @@ var accumulator:=0.
 var plot_cache: Dictionary={}
 var sync_key:=""
 var font: Font
+var data_status:=""
 
 func _ready() -> void:
 	mouse_filter=MOUSE_FILTER_IGNORE
@@ -24,6 +25,9 @@ func show_checkpoint(key: String,state: Dictionary) -> bool:
 		plot_cache.clear()
 		sync_key=key
 	elif absf(player.clock-float(state.time))>.4:player.seek(float(state.time))
+	player.playing=bool(state.playing)
+	if player.set_live_parameters(state.get("live_parameters",{})):plot_cache.clear()
+	data_status=str(state.get("data_status",""))
 	queue_redraw()
 	frame_changed.emit()
 	return true
@@ -62,6 +66,9 @@ func _draw() -> void:
 		_draw_object(item,float(pose.alpha))
 	draw_set_transform_matrix(frame)
 	var progress:=player.clock/float(player.scene.duration)
+	if not data_status.is_empty():
+		draw_rect(Rect2(17,480,926,24),Color("0b2030"))
+		draw_string(font,Vector2(22,498),data_status,HORIZONTAL_ALIGNMENT_LEFT,916.,16,ACCENT)
 	draw_rect(Rect2(18,505,924,3),Color("254b5a"))
 	draw_rect(Rect2(18,505,924*progress,3),ACCENT)
 

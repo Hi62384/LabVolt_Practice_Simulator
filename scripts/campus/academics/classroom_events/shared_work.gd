@@ -54,7 +54,7 @@ func set_present(identity: String,active: bool) -> void:
  if active:present[identity]=true
  else:present.erase(identity)
 
-func contribute(identity: String,text: Variant) -> String:
+func contribute(identity: String,text: Variant,author_name := "") -> String:
  if closed or not members.has(identity):return "not_participating"
  if not text is String:return "invalid"
  var value: String=text.strip_edges()
@@ -63,7 +63,7 @@ func contribute(identity: String,text: Variant) -> String:
   if entry.author==identity and str(entry.get("kind","note"))=="note":return "already_submitted"
  if entries.size()>=MAX_ENTRIES:return "full"
  serial+=1
- entries.append({"id":serial,"author":identity,"group":groups[identity],"text":value})
+ entries.append({"id":serial,"author":identity,"group":groups[identity],"text":value,"name":author_name})
  return "accepted"
 
 func explain(identity: String,text: Variant) -> String:
@@ -94,7 +94,7 @@ func view(identity: String) -> Dictionary:
  var visible: Array=[]
  for entry in entries:
   if mode=="board" or groups.get(identity,"")==entry.group:
-   visible.append({"id":entry.id,"group":entry.group,"text":entry.text,"kind":str(entry.get("kind","note"))})
+   visible.append({"id":entry.id,"group":entry.group,"text":entry.text,"kind":str(entry.get("kind","note")),"name":entry.get("name","")})
  var submitted:=false
  for entry in entries:
   if entry.author==identity and str(entry.get("kind","note"))=="note":submitted=true;break
