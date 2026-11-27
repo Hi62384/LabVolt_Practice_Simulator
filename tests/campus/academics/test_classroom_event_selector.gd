@@ -2,6 +2,7 @@ extends SceneTree
 const Selector=preload("res://scripts/campus/academics/classroom_events/event_selector.gd")
 func _initialize() -> void:
  var lecture:={"kind":"lecture","course":"ELM253","deadline":420.0,"teaching":{"title":"AC circuit measurements","duration_seconds":420.0,"objectives":["Predict voltage and current in a circuit"],"stages":[{"start_seconds":0.0,"duration_seconds":210.0,"title":"Waveforms","caption":"Compare voltage and current"},{"start_seconds":210.0,"duration_seconds":210.0,"title":"Circuit experiment","caption":"Measure a resistor"}]}}
+ lecture.week=3
  assert(Selector.lesson_focus(lecture,20.0).contains("waveforms"))
  assert(Selector.lesson_focus(lecture,240.0).contains("circuit experiment"))
  var strict:={"teaching":.9,"focus":.9,"difficulty":.8,"talkativeness":.4,"description":"strict in class"}
@@ -25,4 +26,11 @@ func _initialize() -> void:
   if Selector.rank(lecture,strict,2,[],seed_value,240.0,true)[0]=="practice":without_repeat+=1
   if Selector.rank(lecture,strict,2,["practice"],seed_value,240.0,true)[0]=="practice":with_repeat+=1
  assert(with_repeat<without_repeat)
+ var demonstrations:={}
+ for teacher in ["dr_volts","stanley"]:
+  lecture.teacher=teacher
+  demonstrations[teacher]=0
+  for seed_value in 100:
+   if Selector.rank(lecture,strict,2,[],seed_value,240.0,true)[0]=="demonstration":demonstrations[teacher]+=1
+ assert(demonstrations.dr_volts>demonstrations.stanley)
  print("CLASSROOM_EVENT_SELECTOR PASS");quit(0)

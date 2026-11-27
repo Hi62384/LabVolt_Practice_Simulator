@@ -38,12 +38,12 @@ func cache_stream(key: String,stream: AudioStreamWAV) -> bool:
 func stream_for(key: String) -> AudioStreamWAV:
 	return cached.get(key)
 
-func accept(room: String,teacher: String,serial: int,text: String,priority: int,anchor: Node3D,stream: AudioStream=null) -> bool:
+func accept(room: String,teacher: String,serial: int,text: String,priority: int,anchor: Node3D,stream: AudioStream=null,pitch := 1.0) -> bool:
 	if room.is_empty() or teacher.is_empty() or serial<=int(last_serial.get(room,0)) or serial<1 or serial>2147483647:return false
 	if text.is_empty() or text.length()>MAX_TEXT or priority<0 or priority>4 or not is_instance_valid(anchor):return false
 	last_serial[room]=serial
 	if not speech_enabled:stream=null
-	var item:={"teacher":teacher,"serial":serial,"text":text,"priority":priority,"anchor":anchor,"stream":stream}
+	var item:={"teacher":teacher,"serial":serial,"text":text,"priority":priority,"anchor":anchor,"stream":stream,"pitch":pitch}
 	awaiting[room]={"item":item,"until":Time.get_ticks_msec()+16000}
 	if active.has(room) and priority>int(active[room].priority):
 		_stop(room)
@@ -80,6 +80,7 @@ func _start(room: String,item: Dictionary) -> void:
 	var player:=AudioStreamPlayer3D.new()
 	player.name="TeacherSpeech"
 	player.stream=stream
+	player.pitch_scale=item.pitch
 	player.attenuation_model=AudioStreamPlayer3D.ATTENUATION_INVERSE_DISTANCE
 	player.unit_size=12.0
 	player.max_distance=34.0

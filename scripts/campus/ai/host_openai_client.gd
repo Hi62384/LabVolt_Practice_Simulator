@@ -206,6 +206,13 @@ func plan_visual(prompt: String) -> Dictionary:
 		return {"ok":false,"error":"Visual plan context is too large."}
 	return await _request_text(prompt,model,clampi(max_output_tokens,1600,2400),reasoning_effort,true,{},24.)
 
+func respond_character(instructions: String,context: Dictionary,dialogue: String,visual := false) -> Dictionary:
+	var input:=JSON.stringify({"context":context,"player_dialogue":dialogue.left(500)})
+	if input.length()>MAX_INPUT_CHARS or instructions.length()>2*MAX_INPUT_CHARS:
+		return {"ok":false,"error":"Classroom context is too large."}
+	var output:=clampi(max_output_tokens,1600,2400) if visual else max_output_tokens
+	return await _request_text(input,model,output,reasoning_effort,true,{},24. if visual else 18.,instructions)
+
 func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
 	var content: Array=[{"type":"input_text","text":prompt},{"type":"input_image","image_url":"data:image/jpeg;base64,"+Marshalls.raw_to_base64(jpeg),"detail":"low"}]
@@ -238,7 +245,7 @@ func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	var payload:={"model":choice,"prompt":prompt,"size":"1024x1024","output_format":"png","quality":"low","n":1}
 	return await _call(HTTPClient.METHOD_POST,"/images/generations",payload,draft.is_empty(),draft)
 
-func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}, timeout := 180.0) -> Dictionary:
+func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}, timeout := 180.0,trusted_instructions := "") -> Dictionary:
 	var path:=Models.endpoint(choice)
 	if path.is_empty() or Models.lifecycle(choice).status=="retired":
 		return {"ok":false,"error":"Choose an available model for this request."}
@@ -254,9 +261,11 @@ func _request_text(input: Variant, choice: String, output: int, effort: String, 
 		if input is Array:
 			content=[{"type":"text","text":input[0].text},{"type":"image_url","image_url":{"url":input[1].image_url,"detail":"low"}}]
 		payload.messages=[{"role":"user","content":content}]
+		if not trusted_instructions.is_empty():payload.messages.push_front({"role":"system","content":trusted_instructions})
 		payload.max_completion_tokens=output
 	else:
 		payload.input=input if input is String else [{"role":"user","content":input}]
+		if not trusted_instructions.is_empty():payload.instructions=trusted_instructions
 		payload.max_output_tokens=output
 		payload.store=false
 		if not effort.is_empty():payload.reasoning={"effort":effort}

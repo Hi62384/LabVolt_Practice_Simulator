@@ -18,6 +18,7 @@ func run() -> void:
 	assert(faculty.speech_player.last_serial[room]==2)
 	faculty._clear_speech()
 	assert(faculty.speech_player.last_serial.is_empty() and faculty.speech_player.subtitles.is_empty())
+	faculty._sync_lab_teachers()
 	var fixture:=AudioStreamWAV.new();fixture.format=AudioStreamWAV.FORMAT_16_BITS;fixture.mix_rate=22050
 	var pcm:=PackedByteArray();pcm.resize(22050)
 	for i in 11025:

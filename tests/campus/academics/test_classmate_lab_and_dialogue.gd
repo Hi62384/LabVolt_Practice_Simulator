@@ -2,6 +2,7 @@ extends SceneTree
 const Visuals=preload("res://scripts/campus/academics/classroom_visuals.gd")
 const Profiles=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Breadboard=preload("res://scripts/breadboard_model.gd")
+const Route=preload("res://scripts/campus/academics/classroom_teacher_route.gd")
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -49,6 +50,29 @@ func run() -> void:
 	assert(absf(angle_difference(model.rotation.y,PI))<.01)
 	var exchanges: Array=faculty.brain.recall(member.profile.id,game.school.identities[1])
 	assert(exchanges.size()==1)
+	faculty.conversation_input.text="Do you have arms?"
+	faculty._submit_question()
+	assert("Two of them" in faculty.conversation_text.text or "Yes." in faculty.conversation_text.text)
+	var toward: Vector3=model.global_basis.z.normalized()
+	game.player.global_position=model.global_position+toward*.75
+	game.cosmetic_appearances[1]={"equipped":{"top_inner":{"id":"tops.harbor_fitted_tee","parameters":{"primary_color":"E00000"}}}}
+	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Do you like my outfit?"})
+	assert("red Harbor Fitted Tee" in faculty.conversation_text.text)
+	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Raise your hand"})
+	assert(bool(faculty.reaction_pose.get("classmate",{}).get("requested",false)))
+	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Could you wave?"})
+	assert(member.gesture=="wave")
+	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Nod your head"})
+	assert(member.gesture=="nod")
+	game.player.global_position=model.global_position-toward*.75
+	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Do you like my outfit?"})
+	assert("see" in faculty.conversation_text.text and "Fitted Tee" not in faculty.conversation_text.text)
+	game.cosmetic_appearances.erase(1)
+	for index in range(6):
+		faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"You're an idiot."})
+	assert(faculty.conversation_text.text==member.profile.lines.boundary)
+	faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"I'm sorry."})
+	assert(faculty.conversation_text.text==member.profile.lines.apology)
 	var previous: String=faculty.conversation_text.text
 	faculty._classmate_question(1,room,"old_class",member.profile.id,"Thanks")
 	assert(faculty.conversation_text.text==previous)
@@ -213,20 +237,69 @@ func run() -> void:
 	lecture.deadline=classes._now()+290.
 	classes._publish()
 	assert(classes.public_classes[lecture_room].stage.index==0 and classes.public_classes[lecture_room].animation.time==4.)
+	faculty._sync_lectures()
+	var lecturer: Node3D=faculty.lecture_models[lecture_room]
+	game.player.global_position=lecturer.global_position+lecturer.global_basis.z.normalized()*.6
+	assert(classes._inside(1,lecture_room))
+	faculty._answer_question(1,lecture_room,lecture.teacher,lecture.id,"Point to the board",game.player.global_position)
+	var pointing: Dictionary=faculty.reaction_pose.get(lecture_room,{})
+	assert(pointing.get("gesture","")=="point" and pointing.point==board.global_position)
+	var arm: Node3D=lecturer.get_node("Body/ArmR")
+	var before_point:=arm.rotation
+	faculty._process(.2)
+	assert(arm.rotation.distance_to(before_point)>.1)
+	var seat: Vector3=lecture.room.seats[0]
+	var mover:={"profile":partner,"position":seat,"seat":seat,"has_seat":true,"arrived":true,
+		"seated":true,"standing":false,"walking":false,"next":now}
+	assert(classmates.act(lecture_room,lecture,mover,"stand",Vector3.INF,now) and not mover.seated)
+	assert(classmates.act(lecture_room,lecture,mover,"sit",Vector3.INF,now) and mover.seated)
+	var walk_start:=Vector3.INF
+	for offset in [Vector3(2.8,0,0),Vector3(-2.8,0,0),Vector3(0,0,2.8),Vector3(0,0,-2.8)]:
+		var candidate: Vector3=lecturer.global_position+offset
+		if game.campus.registry.room_contains(lecture_room,candidate) and Route.clear_step(game,candidate,candidate):
+			walk_start=candidate
+			break
+	assert(walk_start.is_finite())
+	mover.position=walk_start
+	mover.seat=walk_start
+	mover.seated=false
+	mover.has_seat=false
+	assert(classmates.act(lecture_room,lecture,mover,"approach",game.player.global_position,now))
+	var nearest:=INF
+	for step in range(120):
+		if not mover.has("walk"):break
+		classmates._step_walk(lecture,mover,now+step*.25,.25)
+		nearest=minf(nearest,mover.position.distance_to(game.player.global_position))
+	assert(nearest<2.35 and mover.position.distance_to(walk_start)<.15 and not mover.walking)
 	var intro_profile:=Profiles.student(1)
 	intro_profile.talk=.8
+	intro_profile.traits.initiative=.9
+	partner.traits.initiative=.4
+	partner.traits.cooperativeness=.9
 	var origin: Vector3=lecture.room.teacher_position
 	var speaker:={"profile":intro_profile,"position":origin,"arrival":now-1.,"seated":true}
 	var listener:={"profile":partner,"position":origin+Vector3(0,0,2),"arrival":now-1.,"seated":true}
 	var preclass:={"phase":"arrival","deadline":now+20.,"classmates":{intro_profile.id:speaker,partner.id:listener}}
 	classmates._before_class(preclass,now)
-	assert(speaker.line.begins_with("Hi, I'm") and not listener.has("line"))
+	assert(speaker.line==intro_profile.lines.greeting and not listener.has("line"))
 	assert(speaker.look_at==listener.position and listener.look_at==speaker.position)
 	assert(faculty.brain.recall(partner.id,intro_profile.id).is_empty())
 	classmates._show_preclass_reply(preclass,now+3.)
-	assert(listener.line.begins_with("I'm") and faculty.brain.recall(partner.id,intro_profile.id).size()==1)
+	assert(not str(listener.line).is_empty() and faculty.brain.recall(partner.id,intro_profile.id).size()==1)
 	classmates._before_class(preclass,now+5.)
 	assert(not preclass.has("classmate_reply"))
+	for session in range(4):
+		speaker.erase("line")
+		listener.erase("line")
+		preclass.erase("social_pairs")
+		preclass.erase("social_next")
+		var meeting_time:=now+float(session+1)*15.
+		preclass.deadline=meeting_time+14.
+		classmates._before_class(preclass,meeting_time)
+		classmates._show_preclass_reply(preclass,meeting_time+3.)
+	var friends: Dictionary=faculty.brain.relationship(intro_profile.id,partner.id)
+	assert(int(friends.study_sessions)>=3)
+	assert(float(faculty.brain.social_context(friends).friendship)>.5)
 	var score_table:={partner.id:1100,intro_profile.id:1150,human:100}
 	classmates.record_quiz_rivals(preclass,score_table)
 	classmates.record_quiz_rivals(preclass,score_table)
@@ -237,10 +310,12 @@ func run() -> void:
 	var saved_brain: RefCounted=faculty.brain.get_script().new()
 	assert(saved_brain.load_memory())
 	assert(saved_brain.relationship(partner.id,intro_profile.id).competitions==2)
-	preclass.erase("classmate_chat")
+	assert(int(saved_brain.relationship(intro_profile.id,partner.id).study_sessions)>=3)
+	preclass.erase("social_pairs")
+	preclass.erase("social_next")
 	speaker.erase("line")
 	listener.erase("line")
-	classmates._before_class(preclass,now+6.)
+	classmates._before_class(preclass,now+65.)
 	assert("We've been close" in speaker.line)
 	classes.classes.erase(lecture_room)
 	if faculty.current.get("ac_lab","").is_empty():faculty._rotate("ac_lab")
@@ -251,7 +326,7 @@ func run() -> void:
 	assert(classes._inside(1,"ac_lab"))
 	faculty.open_conversation("ac_lab")
 	faculty._answer_question(1,"ac_lab",visit.teacher,visit.id,"Do you have a hobby?",game.player.global_position)
-	assert("outside of class" in faculty.conversation_text.text)
+	assert("outside of class" in faculty.conversation_text.text or "garage" in faculty.conversation_text.text)
 	faculty._answer_question(1,"ac_lab",visit.teacher,visit.id,"Hello again",game.player.global_position)
 	assert("Good to see you again" in faculty.conversation_text.text)
 	assert(faculty.brain.recall(visit.teacher,human).size()==2)

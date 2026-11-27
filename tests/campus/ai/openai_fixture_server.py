@@ -2,7 +2,9 @@
 
 import io
 import json
+import math
 import os
+import struct
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -56,7 +58,7 @@ class Handler(BaseHTTPRequestHandler):
             data = io.BytesIO()
             with wave.open(data, "wb") as audio:
                 audio.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
-                audio.writeframes(bytes(32000))
+                audio.writeframes(b"".join(struct.pack("<h", int(800 * math.sin(i * .09))) for i in range(16000)))
             return self._reply_bytes(200, data.getvalue(), "audio/wav")
         if self.path == "/v1/images/generations":
             if body != {"model": "gpt-image-2.6-sunburst", "prompt": "Draw a blue dot", "size": "1024x1024",
@@ -73,11 +75,12 @@ class Handler(BaseHTTPRequestHandler):
             if body.get("model") != "omni-moderation-latest":
                 return self._reply(400, {"error": {"message": "bad moderation model"}})
             return self._reply(200, {"results": [{"flagged": body.get("input") == "flag this"}]})
-        if self.path == "/v1/responses" and str(body.get("input", "")).startswith("You are teaching a simulator classroom"):
+        instructions = str(body.get("instructions", ""))
+        if self.path == "/v1/responses" and (instructions or str(body.get("input", ""))).startswith("You are teaching a simulator classroom"):
             if body.get("store") is not False:
                 return self._reply(400, {"error": {"message": "visual requests must not be stored"}})
             prompt = body["input"]
-            request = prompt.split(" Student request: ")[-1]
+            request = json.loads(prompt)["player_dialogue"] if instructions else prompt.split(" Student request: ")[-1]
             if "pause" in request.lower() and "cue" not in request.lower():
                 plan = {"speech": "I have paused the moving arrow.", "action": {"op": "pause"}}
             elif "twice" in request.lower():
@@ -101,9 +104,16 @@ class Handler(BaseHTTPRequestHandler):
                     ]
             return self._reply(200, {"status": "completed", "output": [
                 {"type": "message", "content": [{"type": "output_text", "text": json.dumps(plan)}]}]})
-        if self.path == "/v1/responses" and str(body.get("input", "")).startswith(
-            ("You are a fictional classroom instructor", "Speak in character as this classroom instructor")
+        if self.path == "/v1/responses" and (
+            instructions.startswith("You are ")
+            or str(body.get("input", "")).startswith(("You are a fictional classroom instructor", "Speak in character as this classroom instructor"))
         ):
+            if instructions:
+                character_input = json.loads(body["input"])
+                if "player_dialogue" not in character_input or "context" not in character_input:
+                    return self._reply(400, {"error": {"message": "missing character context or player dialogue"}})
+                if "TEST_INJECTION" in instructions:
+                    return self._reply(400, {"error": {"message": "player content reached trusted instructions"}})
             if body.get("store") is not False:
                 return self._reply(400, {"error": {"message": "request stored"}})
             return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "The board shows a current path."}]}]})

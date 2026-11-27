@@ -13,8 +13,10 @@ var memory_path: String=MEMORY_PATH
 const MAX_RELATIONSHIPS:=2048
 const MAX_REACTION_KEYS:=2048
 const MAX_INCIDENT_KEYS:=2048
-const MAX_CONVERSATIONS:=64
-const MAX_TURNS:=12
+const MAX_CONVERSATIONS:=192
+const MAX_TURNS:=28
+const EPISODES:=["help","study","disagreement","disruption","hazard","competition","insult","apology","compliment"]
+const Knowledge=preload("res://scripts/campus/academics/character_knowledge.gd")
 
 static func context_allows(kind: String,phase: String,severity: float) -> bool:
  if kind=="class_message":return phase in ["lesson","assignment"]
@@ -47,8 +49,83 @@ static func visibility(origin: Vector3,forward: Vector3,point: Vector3,obstructe
 func relationship(id: String,student: String) -> Dictionary:
  return relationships.get(id+":"+student,{"familiarity":0,"positive":0,"disruptions":0,"last_seen":0,"decay_at":0}).duplicate(true)
 
+func relationship_at(id: String,student: String,now_unix: int) -> Dictionary:
+ var memory:=relationship(id,student)
+ _decay_relationship(memory,now_unix)
+ return memory
+
+func _decay_relationship(memory: Dictionary,now_unix: int) -> void:
+ var decay_at:=int(memory.get("decay_at",memory.last_seen))
+ if decay_at<=0:decay_at=now_unix
+ var days:=int(maxi(0,now_unix-decay_at)/86400)
+ # Keep partial days across ordinary conversations instead of restarting the clock.
+ memory.disruptions=maxi(0,int(memory.disruptions)-days)
+ if memory.has("resentment"):memory.resentment=maxi(0,int(memory.resentment)-days)
+ memory.decay_at=decay_at+days*86400
+
+func social_context(memory: Dictionary) -> Dictionary:
+ var familiarity:=clampf(float(memory.familiarity)/12.,0.,1.)
+ var positive:=clampf(float(memory.positive)/8.,0.,1.)
+ var resentment:=clampf(float(memory.get("resentment",0))/6.,0.,1.)
+ var disruption:=clampf(float(memory.disruptions)/8.,0.,1.)
+ return {
+  "familiarity":familiarity,
+  "liking":clampf(.5+.5*positive-.55*resentment,0.,1.),
+  "trust":clampf(.25+.3*familiarity+.4*positive-.4*resentment-.25*disruption,0.,1.),
+  "friendship":clampf(float(memory.get("study_sessions",0))/5.+familiarity*positive*.6,0.,1.)*(1.-resentment),
+  "respect":clampf(.5+.35*positive-.5*disruption-.2*resentment,0.,1.),
+  "rivalry":clampf(float(memory.get("competitions",0))/6.,0.,1.),
+  "resentment":resentment,"disciplinary_reputation":disruption,
+  "comfort":clampf(familiarity*.7+positive*.3-resentment*.5,0.,1.),
+  "annoyance":maxf(resentment,disruption),"admiration":positive*.75,
+  "academic_confidence":clampf(.45+positive*.35-float(memory.get("study_sessions",0))*.01,0.,1.)}
+
 func recall(id: String,student: String) -> Array:
  return conversations.get(id+":"+student,[]).duplicate(true)
+
+func remember_fact(id: String,student: String,question: String,now: int) -> void:
+ if memory_blocked:return
+ var key:=id+":"+student
+ if not relationships.has(key):return
+ var statement:=question.strip_edges().left(140)
+ var lower:=statement.to_lower()
+ for correction in ["actually, ","correction: "]:
+  if lower.begins_with(correction):
+   statement=statement.substr(correction.length())
+   lower=statement.to_lower()
+ var learned_topic:=Knowledge.statement_topic(lower)
+ if not learned_topic.is_empty() and "?" not in lower:
+  _store_fact(key,"learned:"+learned_topic,statement,Knowledge.domain_of(lower),now)
+  return
+ for prefix in ["my favorite ","i prefer ","i struggle with ","i'm studying ","i am studying "]:
+  if not lower.begins_with(prefix) or "?" in lower:continue
+  var domain:=Knowledge.domain_of(lower)
+  var subject: String="academic:"+domain if prefix=="i struggle with " else prefix.strip_edges()
+  if prefix=="my favorite ":subject=lower.get_slice(" is ",0).left(48)
+  if prefix in ["i'm studying ","i am studying "]:subject="program"
+  _store_fact(key,subject,statement,domain,now)
+  return
+
+func _store_fact(key: String,subject: String,statement: String,domain: String,now: int) -> void:
+ var facts: Dictionary=relationships[key].get_or_add("facts",{})
+ if facts.size()>=12 and not facts.has(subject):facts.erase(facts.keys()[0])
+ facts[subject]={"statement":statement,"domain":domain,"source":"speaker_statement","at":now}
+ memory_dirty=true
+
+func recall_reported_fact(relationship: Dictionary,question: String) -> Dictionary:
+ var topic:=Knowledge.question_topic(question)
+ var facts: Dictionary=relationship.get("facts",{})
+ if topic=="fortnite" and not facts.has("learned:"+topic):return facts.get("fortnite is",{})
+ return facts.get("learned:"+topic,{})
+
+func relevant_facts(relationship: Dictionary,domain: String) -> Array:
+ var facts: Dictionary=relationship.get("facts",{})
+ var ordered:=facts.values()
+ ordered.sort_custom(func(a,b):
+  var a_matches: bool=a.domain==domain
+  var b_matches: bool=b.domain==domain
+  return a_matches if a_matches!=b_matches else int(a.at)>int(b.at))
+ return ordered.slice(0,3)
 
 func remember_conversation(id: String,student: String,question: String,reply: String,now: int) -> void:
  if id.is_empty() or student.is_empty() or memory_blocked:return
@@ -63,23 +140,28 @@ func remember_conversation(id: String,student: String,question: String,reply: St
  memory_dirty=true
 
 func remember(id: String,student: String,kind: String,now_unix: int) -> void:
- if id.is_empty() or student.is_empty() or kind not in ["conversation","help","disruption","hazard","competition"]:return
+ if id.is_empty() or student.is_empty() or (kind!="conversation" and kind not in EPISODES):return
  var key:=id+":"+student
  if key.length()>128:return
  if not relationships.has(key) and relationships.size()>=MAX_RELATIONSHIPS:return
- var memory:=relationship(id,student)
- var decay_at:=int(memory.get("decay_at",memory.last_seen))
- if decay_at<=0:decay_at=now_unix
- var days:=int(maxi(0,now_unix-decay_at)/86400)
- # Keep partial days across ordinary conversations instead of restarting the clock.
- memory.disruptions=maxi(0,int(memory.disruptions)-days)
- memory.decay_at=decay_at+days*86400
+ var memory:=relationship_at(id,student,now_unix)
  memory.familiarity=mini(100,int(memory.familiarity)+1)
- if kind=="help":memory.positive=mini(100,int(memory.positive)+1)
+ if kind in ["help","study"]:memory.positive=mini(100,int(memory.positive)+1)
  elif kind=="competition":memory.competitions=mini(20,int(memory.get("competitions",0))+1)
+ elif kind in ["insult","disagreement"]:memory.resentment=mini(10,int(memory.get("resentment",0))+1)
+ elif kind=="apology":memory.resentment=maxi(0,int(memory.get("resentment",0))-2)
+ elif kind=="compliment":memory.positive=mini(100,int(memory.positive)+1)
  elif kind=="disruption":
   if int(memory.disruptions)==0:memory.decay_at=now_unix
   memory.disruptions=mini(20,int(memory.disruptions)+1)
+ if kind=="study":memory.study_sessions=mini(30,int(memory.get("study_sessions",0))+1)
+ if kind!="conversation":
+  var episodes: Array=memory.get_or_add("episodes",[])
+  if not episodes.is_empty() and episodes[-1].event==kind:
+   episodes[-1].count=mini(100,int(episodes[-1].count)+1)
+   episodes[-1].at=now_unix
+  else:episodes.append({"event":kind,"count":1,"at":now_unix})
+  if episodes.size()>12:episodes.pop_front()
  memory.last_seen=now_unix;relationships[key]=memory;memory_dirty=true
 
 func load_memory() -> bool:
@@ -113,31 +195,52 @@ func _validate_relationships(source: Variant) -> Dictionary:
  var validated:={}
  for key in source:
   var entry: Variant=source[key]
-  if not key is String or key.length()>128 or key.find(":")<=0 or key.ends_with(":") or not entry is Dictionary or entry.size() not in [4,5,6]:return {"ok":false}
+  if not key is String or key.length()>128 or key.find(":")<=0 or key.ends_with(":") or not entry is Dictionary:return {"ok":false}
   for character in key:
    if character.unicode_at(0)<32:return {"ok":false}
   for field in ["familiarity","positive","disruptions","last_seen"]:
    if not entry.has(field):return {"ok":false}
   for field in entry:
-   if field not in ["familiarity","positive","disruptions","last_seen","decay_at","competitions"]:return {"ok":false}
+   if field not in ["familiarity","positive","disruptions","last_seen","decay_at","competitions","resentment","study_sessions","facts","episodes"]:return {"ok":false}
   if not _whole(entry.familiarity,100) or not _whole(entry.positive,100) or not _whole(entry.disruptions,20) or not _whole(entry.last_seen,100000000000):return {"ok":false}
   if entry.has("decay_at") and not _whole(entry.decay_at,100000000000):return {"ok":false}
   validated[key]={"familiarity":int(entry.familiarity),"positive":int(entry.positive),"disruptions":int(entry.disruptions),"last_seen":int(entry.last_seen),"decay_at":int(entry.get("decay_at",entry.last_seen))}
   if entry.has("competitions"):
    if not _whole(entry.competitions,20):return {"ok":false}
    validated[key].competitions=int(entry.competitions)
+  if entry.has("resentment"):
+   if not _whole(entry.resentment,10):return {"ok":false}
+   validated[key].resentment=int(entry.resentment)
+  if entry.has("study_sessions"):
+   if not _whole(entry.study_sessions,30):return {"ok":false}
+   validated[key].study_sessions=int(entry.study_sessions)
+  if entry.has("facts"):
+   if not entry.facts is Dictionary or entry.facts.size()>12:return {"ok":false}
+   for subject in entry.facts:
+    var fact: Variant=entry.facts[subject]
+    if not subject is String or subject.length()>48 or not fact is Dictionary or fact.size()!=4:return {"ok":false}
+    if not fact.get("statement") is String or fact.statement.length()>140 or not fact.get("domain") is String or fact.domain.length()>24:return {"ok":false}
+    if fact.get("source")!="speaker_statement" or not _whole(fact.get("at"),100000000000):return {"ok":false}
+   validated[key].facts=entry.facts
+  if entry.has("episodes"):
+   if not entry.episodes is Array or entry.episodes.size()>12:return {"ok":false}
+   for episode in entry.episodes:
+    if not episode is Dictionary or episode.size()!=3 or episode.get("event") not in EPISODES:return {"ok":false}
+    if not _whole(episode.get("at"),100000000000) or not _whole(episode.get("count"),100):return {"ok":false}
+   validated[key].episodes=entry.episodes
  return {"ok":true,"relationships":validated}
 
 func _read_memory(path: String) -> Dictionary:
  if not FileAccess.file_exists(path):return {"ok":false}
  var file:=FileAccess.open(path,FileAccess.READ)
- if file==null or file.get_length()>1024*1024:return {"ok":false}
+ if file==null or file.get_length()>32*1024*1024:return {"ok":false}
  var parser:=JSON.new()
  if parser.parse(file.get_as_text())!=OK:return {"ok":false}
  var value: Variant=parser.data
  if not value is Dictionary or not value.has("relationships"):return {"ok":false}
  if value.get("version")==1 and value.size()==2:return _validate_relationships(value.relationships)
- if value.get("version")!=2 or value.size()!=3:return {"ok":false}
+ var version: Variant=value.get("version")
+ if (version!=2 and version!=3) or value.size()!=3:return {"ok":false}
  var validated:=_validate_relationships(value.relationships)
  var turns: Variant=value.get("conversations")
  if not validated.ok or not turns is Dictionary or turns.size()>MAX_CONVERSATIONS:return {"ok":false}
@@ -156,11 +259,8 @@ func save_memory() -> Error:
  if not validated.ok:return ERR_INVALID_DATA
  var file:=FileAccess.open(memory_path+".tmp",FileAccess.WRITE)
  if file==null:return FileAccess.get_open_error()
- var snapshot:={"version":1,"relationships":validated.relationships}
- if not conversations.is_empty():
-  snapshot.version=2
-  # A remembered dialogue always belongs to an existing relationship record.
-  snapshot.conversations=conversations
+ # A remembered dialogue always belongs to an existing relationship record.
+ var snapshot:={"version":3,"relationships":validated.relationships,"conversations":conversations}
  file.store_string(JSON.stringify(snapshot));file.flush()
  var error:=file.get_error();file.close()
  if error!=OK:return error

@@ -228,7 +228,11 @@ func perform(peer: int,room: String,class_id: String,event_id: String,op: String
     var team:=str(state.shared.groups.get(identity,""))
     for entry in state.shared.entries:
      if entry.group==team and activity.get("classmates",{}).has(entry.author):
-      game.faculty.brain.remember(entry.author,identity,"help",int(Time.get_unix_time_from_system()))
+      var collaborations: Dictionary=state.get_or_add("recorded_collaborations",{})
+      var pair_key:=str(entry.author)+":"+identity
+      if not collaborations.has(pair_key):
+       collaborations[pair_key]=true
+       game.faculty.brain.remember(entry.author,identity,"study",int(Time.get_unix_time_from_system()))
       break
     if not team.is_empty() and now>=float(state.group_notice_at.get(team,0.0)):
      state.group_notice_at[team]=now+8.0

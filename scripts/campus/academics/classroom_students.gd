@@ -3,6 +3,9 @@ extends Node3D
 const Profiles=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Toon=preload("res://scripts/toon_character.gd")
 const Avatar=preload("res://scripts/avatar_model.gd")
+const Social=preload("res://scripts/campus/academics/classmate_social.gd")
+const Motion=preload("res://scripts/campus/academics/character_motion.gd")
+const Route=preload("res://scripts/campus/academics/classroom_teacher_route.gd")
 const MAX_PER_CLASS:=6
 const POOL_SIZE:=12
 const RECORDS:="user://classmate_learning.cfg"
@@ -84,18 +87,36 @@ func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: fl
 	var rotate:=rng.randi_range(0,POOL_SIZE-1)
 	for index in count:
 		var profile:=Profiles.student((rotate+index)%POOL_SIZE)
-		var slot:=rng.randi_range(0,options.size()-1)
+		var slot:=_social_seat(profile,classmates,options,rng)
 		var seat: Vector3=options.pop_at(slot)
 		var arrival:=now+rng.randf_range(0.,16.)
 		classmates[profile.id]={"profile":profile,"seat":seat,"position":seat+Vector3(0,0,1.6),"arrival":arrival,
-			"seated":false,"standing":practical,"arrived":false,"walking":false,"action":"arriving","next":arrival+7.,"turns":0}
+			"seated":false,"standing":practical,"has_seat":seat in seats,"arrived":false,"walking":false,"action":"arriving","next":arrival+7.,"turns":0}
 	activity.classmates=classmates
+
+func _social_seat(profile: Dictionary,classmates: Dictionary,options: Array,rng: RandomNumberGenerator) -> int:
+	var index:=rng.randi_range(0,options.size()-1)
+	var brain: RefCounted=game.faculty.brain
+	var affinity:=.2
+	for other in classmates.values():
+		var bond: Dictionary=brain.social_context(brain.relationship(profile.id,other.profile.id))
+		if float(bond.friendship)<=affinity:continue
+		affinity=float(bond.friendship)
+		var distance:=INF
+		for candidate in options.size():
+			var gap: float=other.seat.distance_squared_to(options[candidate])
+			if gap<distance:
+				index=candidate
+				distance=gap
+	return index
 
 func step(activity: Dictionary,now: float,delta: float) -> void:
 	_show_preclass_reply(activity,now)
 	for member in activity.get("classmates",{}).values():
 		var profile: Dictionary=member.profile
 		if now<float(member.arrival):continue
+		if member.has("walk") and _step_walk(activity,member,now,delta):continue
+		if member.has("gesture") and now>=float(member.gesture_until):member.erase("gesture")
 		if not member.get("arrived",member.seated):
 			var position: Vector3=member.position
 			member.position=position.move_toward(member.seat,delta*1.5)
@@ -111,46 +132,107 @@ func step(activity: Dictionary,now: float,delta: float) -> void:
 			_assessment_step(activity,member,now)
 			continue
 		var choices:=["listening","listening","taking notes","thinking"]
-		if float(profile.confidence)*float(profile.curiosity)>.26:choices.append("raising hand")
-		if float(profile.focus)<.45:choices.append("distracted")
+		var mood: String=game.faculty.character_mind.emotion(profile,Time.get_ticks_msec())
+		if activity.phase=="lesson" and member.action=="listening" and float(profile.traits.attention_span)<.49:
+			mood=game.faculty.character_mind.feel(profile,"idle",.35,Time.get_ticks_msec())
+		member.mood=mood
+		if float(profile.traits.academic_confidence)*float(profile.traits.curiosity)>.26 and mood not in ["anxious","embarrassed"]:choices.append("raising hand")
+		if float(profile.traits.attention_span)<.48 or mood in ["bored","tired"]:choices.append("distracted")
 		member.turns+=1
 		var roll:=posmod(hash([profile.id,activity.id,member.turns]),choices.size())
 		member.action=choices[roll]
 		member.next=now+5.+posmod(hash([profile.id,member.turns]),10)
 	if activity.phase=="arrival":_before_class(activity,now)
 
+func act(room: String,activity: Dictionary,member: Dictionary,action: String,point: Vector3,now: float) -> bool:
+	if not multiplayer.is_server() or activity.phase=="assignment" or member.get("using_bench",false) or not member.get("arrived",false):return false
+	if action in Motion.POSES:
+		member.gesture=action
+		member.gesture_point=point
+		member.gesture_until=now+2.2
+		if point.is_finite():member.look_at=point
+		member.next=maxf(member.next,now+2.3)
+		return true
+	if action=="stand":
+		member.seated=false
+		member.standing=true
+		return true
+	var home: Vector3=member.seat
+	if action=="sit":
+		if not bool(member.get("has_seat",false)) or member.walking or member.position.distance_to(home)>.15:return false
+		for peer in game.session.roster:
+			var position: Vector3=game.lecture_classes._position(int(peer))
+			if position.distance_to(home)<.55:return false
+		member.seated=true
+		member.standing=false
+		return true
+	if action!="approach" or not point.is_finite() or not game.campus.registry.room_contains(room,point) or member.has("walk"):return false
+	var floor_target:=Vector3(point.x,float(member.position.y),point.z)
+	var path:=Route.plan(game,room,member.position,floor_target,1.6)
+	if path.is_empty() or path.back().distance_to(floor_target)>2.35:return false
+	member.walk={"room":room,"path":path,"visited":[member.position],"index":0,"returning":false}
+	member.seated=false
+	member.walking=true
+	member.action="walking"
+	return true
+
+func _step_walk(activity: Dictionary,member: Dictionary,now: float,delta: float) -> bool:
+	var walk: Dictionary=member.walk
+	var path: Array=walk.path
+	var position: Vector3=member.position
+	if activity.phase=="assignment":
+		member.erase("walk")
+		member.walking=false
+		return false
+	if int(walk.index)>=path.size():
+		member.walking=false
+		if bool(walk.returning):
+			member.erase("walk")
+			member.seated=bool(member.get("has_seat",false)) and not member.standing and position.distance_to(member.seat)<.15
+			return false
+		if not walk.has("wait_until"):walk.wait_until=now+2.
+		if now<float(walk.wait_until):return true
+		path=walk.visited.duplicate()
+		path.reverse()
+		walk.path=path
+		walk.index=0
+		walk.returning=true
+	var target: Vector3=path[int(walk.index)]
+	var next:=position.move_toward(target,delta*1.35)
+	if not game.campus.registry.room_contains(walk.room,next) or not Route.clear_step(game,position,next):
+		member.erase("walk")
+		member.walking=false
+		return false
+	member.position=next
+	member.walking=true
+	member.look_at=target
+	if next.is_equal_approx(target):
+		walk.index+=1
+		if not walk.returning:walk.visited.append(target)
+	return true
+
 func _before_class(activity: Dictionary,now: float) -> void:
-	if activity.get("classmate_chat",false) or float(activity.deadline)-now<6.:return
+	if activity.has("classmate_reply") or now<float(activity.get("social_next",0.)) or float(activity.deadline)-now<6.:return
 	var actors: Array=activity.get("classmates",{}).values().filter(func(member):
-		return member.get("seated",false) and member.arrival<=now and not member.has("line"))
-	for speaker in actors:
-		if float(speaker.profile.talk)<.55:continue
-		for listener in actors:
-			if listener.profile.id==speaker.profile.id or (speaker.position as Vector3).distance_to(listener.position)>3.5:continue
-			var brain: RefCounted=game.faculty.brain
-			var met: Dictionary=brain.relationship(speaker.profile.id,listener.profile.id)
-			var greeting: String
-			var response: String
-			if int(met.get("competitions",0))>=2:
-				greeting="Another quiz today, %s? We've been close the last few times."%listener.profile.name.get_slice(" ",0)
-				response="Could be. Let's see what the teacher has planned."
-			elif int(met.familiarity)>=2:
-				greeting="Hey, %s. Want to compare notes again after class?"%listener.profile.name.get_slice(" ",0)
-				response="Sure. I'll make a note of anything I want to go over."
-			else:
-				greeting="Hi, I'm %s. What made you take this class?"%speaker.profile.name.get_slice(" ",0)
-				response="I'm %s. I wanted more practice with the basics."%listener.profile.name.get_slice(" ",0)
-			speaker.line=greeting
-			speaker.action="chatting"
-			speaker.look_at=listener.position
-			speaker.next=now+5.
-			listener.action="listening"
-			listener.look_at=speaker.position
-			listener.next=now+5.
-			activity.classmate_chat=true
-			activity.classmate_reply={"speaker":speaker.profile.id,"listener":listener.profile.id,
-				"greeting":greeting,"line":response,"at":now+2.3}
-			return
+		return (member.get("seated",false) or member.get("arrived",false)) and member.arrival<=now and not member.has("line") and not member.get("using_bench",false))
+	var pairs: Dictionary=activity.get_or_add("social_pairs",{})
+	var selected:=Social.choose(actors,game.faculty.brain,pairs)
+	activity.social_next=now+5.
+	if selected.is_empty():return
+	var speaker: Dictionary=selected[0]
+	var listener: Dictionary=selected[1]
+	var exchange:=Social.exchange(speaker.profile,listener.profile,selected[2],selected[3],str(activity.get("title","")).left(70))
+	speaker.line=exchange.line
+	speaker.action="chatting"
+	speaker.look_at=listener.position
+	speaker.next=now+5.
+	listener.action="listening"
+	listener.look_at=speaker.position
+	listener.next=now+5.
+	pairs[Social.pair_key(speaker.profile.id,listener.profile.id)]=true
+	activity.social_next=now+8.
+	activity.classmate_reply={"speaker":speaker.profile.id,"listener":listener.profile.id,
+		"greeting":exchange.line,"line":exchange.reply,"kind":exchange.kind,"at":now+2.3}
 
 func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 	var reply: Dictionary=activity.get("classmate_reply",{})
@@ -166,6 +248,16 @@ func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 	var stamp:=int(Time.get_unix_time_from_system())
 	brain.remember_conversation(reply.speaker,reply.listener,reply.line,reply.greeting,stamp)
 	brain.remember_conversation(reply.listener,reply.speaker,reply.greeting,reply.line,stamp)
+	if reply.kind=="study":
+		brain.remember(reply.speaker,reply.listener,"study",stamp)
+		brain.remember(reply.listener,reply.speaker,"study",stamp)
+	elif reply.kind=="decline" and float(activity.classmates[reply.speaker].profile.traits.criticism_sensitivity)>.5:
+		brain.remember(reply.speaker,reply.listener,"disagreement",stamp)
+	var affect_event: String={"study":"collaboration","rivalry":"rivalry","decline":"setback"}.get(reply.kind,"")
+	if not affect_event.is_empty():
+		var initiator: Dictionary=activity.classmates[reply.speaker]
+		initiator.mood=game.faculty.character_mind.feel(initiator.profile,affect_event,.75,Time.get_ticks_msec())
+		if reply.kind!="decline":actor.mood=game.faculty.character_mind.feel(actor.profile,affect_event,.75,Time.get_ticks_msec())
 
 func proficiency(id: String,course: String,base: float) -> float:
 	var affinity:=float(posmod(hash([id,course]),101))/1000.-.05
@@ -195,7 +287,10 @@ func record_quiz_rivals(activity: Dictionary,scores: Dictionary) -> void:
 		if observed.has(key):continue
 		observed[key]=true
 		game.faculty.brain.remember(actor,opponent,"competition",timestamp)
-		if classmates.has(opponent):game.faculty.brain.remember(opponent,actor,"competition",timestamp)
+		classmates[actor].mood=game.faculty.character_mind.feel(classmates[actor].profile,"rivalry",.65,Time.get_ticks_msec())
+		if classmates.has(opponent):
+			game.faculty.brain.remember(opponent,actor,"competition",timestamp)
+			classmates[opponent].mood=game.faculty.character_mind.feel(classmates[opponent].profile,"rivalry",.65,Time.get_ticks_msec())
 
 func record_practice(id: String,course: String,correct: bool,week := 0) -> void:
 	if not multiplayer.is_server() or not id.begins_with("campus_student_"):return
@@ -213,6 +308,7 @@ func _save_records() -> void:
 
 func begin_assessment(activity: Dictionary,now: float) -> void:
 	for member in activity.get("classmates",{}).values():
+		member.mood=game.faculty.character_mind.feel(member.profile,"workload",.85,Time.get_ticks_msec())
 		member.action="working"
 		member.next=now+9.+float(posmod(hash([activity.id,member.profile.id]),14))
 
@@ -245,6 +341,7 @@ func _assessment_step(activity: Dictionary,member: Dictionary,now: float) -> voi
 	if not result.has("score"):return
 	records.set_value(id,"%s.last_score"%course,float(result.score))
 	record_practice(id,course,float(result.score)>=60.,week)
+	member.mood=game.faculty.character_mind.feel(member.profile,"success" if float(result.score)>=60. else "setback",.9,Time.get_ticks_msec())
 	member.action="handed in work"
 	member.next=now+60.
 
@@ -254,7 +351,9 @@ func snapshot(activity: Dictionary,now: float) -> Array:
 		if now<float(member.arrival):continue
 		result.append({"id":member.profile.id,"name":member.profile.name,"position":member.position,
 			"walking":member.walking,"seated":member.seated,"action":member.action,"line":member.get("line",""),
-			"look_at":member.get("look_at",Vector3.INF),"class_id":activity.id})
+			"look_at":member.get("look_at",Vector3.INF),"class_id":activity.id,"mood":member.get("mood","steady"),
+			"gesture":member.get("gesture",""),"gesture_point":member.get("gesture_point",Vector3.INF),
+			"gesture_elapsed":clampf(2.2-(float(member.get("gesture_until",0.))-now),0.,2.2)})
 	return result
 
 func focus_on_player(class_id: String,actor: String) -> void:
@@ -276,6 +375,7 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 			config.skin=["c78e64","54382e","f3cbb1","a86c49"][index/3%4]
 			config.top=["405f64","597d7a","675b77","754d41","789129","385c84"][index%6]
 			model=Toon.build(config)
+			model.set_meta("character_outfit",game.faculty._outfit_color(Color.html(str(config.top)))+" "+str(config.outfit))
 			model.rotation.y=PI
 			add_child(model)
 			model.global_position=member.position
@@ -308,14 +408,18 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 			model.add_child(label)
 		model.global_position=model.global_position.move_toward(member.position,delta*2.2)
 		var target: Vector3=member.get("look_at",Vector3.INF)
-		if now<int(dialogue_focus.get(key,0)):target=game.player.global_position
+		if member.get("gesture","")!="point" and now<int(dialogue_focus.get(key,0)):target=game.player.global_position
 		var direction:=target-model.global_position
 		var facing:=PI
 		if direction.is_finite() and Vector2(direction.x,direction.z).length_squared()>.01:
 			facing=atan2(direction.x,direction.z)
 		model.rotation.y=lerp_angle(model.rotation.y,facing,1.-exp(-delta*9.))
 		Avatar.animate(model,member.walking,member.seated)
-		Avatar.raise_hand(model,member.action=="raising hand",delta)
+		if now>=int(model.get_meta("conversation_hand_until",0)):
+			var pose:=str(member.get("gesture",""))
+			if pose.is_empty() and member.action=="raising hand":pose="raise_hand"
+			var gesture_phase:=float(member.get("gesture_elapsed",0.))
+			Motion.express(model,str(member.get("mood","steady")),delta,pose,gesture_phase,member.get("gesture_point",Vector3.INF))
 		var label:=model.get_node_or_null("StudentName") as Label3D
 		if label!=null:
 			var line: String=member.get("line","")

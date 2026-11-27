@@ -23,11 +23,11 @@ static func cue(activity: Dictionary, stage: Dictionary, now: float, personality
 	if not lines.is_empty() and section_slot>=lines.size():return {}
 	var line := lines[section_slot] if not lines.is_empty() else title
 	if slot == 0:
-		line = "Let's begin %s. Our topic is %s. %s" % [activity.course, title, line]
+		line = "%s Today’s topic is %s. %s" % [personality.get("opening","Let's begin %s."%activity.course), title, line]
 	elif elapsed >= duration-30.:
 		line = "Before the assessment, review %s. %s" % [title,line]
 	elif slot % 3 == 2:
-		line = ("Check your reasoning: " if strict else "Try this check with me: ") + line
+		line = str(personality.get("check_in","Check your reasoning: " if strict else "Try this check with me: ")) + line
 	if not line.ends_with(".") and not line.ends_with("?"): line += "."
 	var result := {"key":"%d:%d" % [stage_index,slot],"text":line}
 	if slot % 3 == 0: result.anchor = [0.0,-2.6,2.6][posmod(floori(slot / 3.0),3)]

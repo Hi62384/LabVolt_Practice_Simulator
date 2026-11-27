@@ -1,6 +1,8 @@
 extends RefCounted
 ## Host-side, reproducible ranking. The service still validates the chosen mode.
 const MODES:=["practice","quiz","board","group","demonstration","mistake","teacher","mystery","duel","pass","race"]
+const Characters=preload("res://scripts/campus/academics/class_character_profile.gd")
+const Faculty=preload("res://scripts/campus/academics/faculty_roster.gd")
 
 static func stage_focus(activity: Dictionary,now: float) -> String:
  var teaching: Dictionary=activity.get("teaching",{})
@@ -59,6 +61,15 @@ static func rank(activity: Dictionary,personality: Dictionary,student_count: int
  if "humor" in traits:weights.mystery*=1.5;weights.duel*=1.25
  if "strict" in traits:weights.teacher*=1.4;weights.quiz*=1.2
  if "tired" in traits or "senile" in traits:weights.quiz*=.55;weights.race*=.55
+ var teacher:=str(activity.get("teacher",""))
+ if Faculty.has(teacher):
+  var person:=Characters.teacher(teacher)
+  weights.demonstration*=lerpf(.35,2.15,float(person.activities.demonstration))
+  weights.group*=lerpf(.55,1.6,float(person.activities.group))
+  weights.mystery*=lerpf(.6,1.7,float(person.traits.creativity))
+  weights.board*=lerpf(.55,1.45,float(person.activities.board))
+  weights.practice*=lerpf(.7,1.65,float(person.activities.practice))
+  weights.quiz*=lerpf(.65,1.6,float(person.activities.quiz))
  var choices: Array[String]=[]
  for mode in MODES:
   if mode=="quiz" and recent.is_empty():continue
