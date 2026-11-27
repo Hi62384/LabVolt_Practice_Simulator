@@ -3,9 +3,9 @@ extends RefCounted
 const MODELS := ["calculator_basic","calculator","calculator_financial"]
 const REQUIRED := ["7","8","9","4","5","6","1","2","3","0","=","AC"]
 const NUMERIC_PAD := ["7","8","9","4","5","6","1","2","3","0","."]
-const OPTIONAL := ["Ans","±"]
+const OPTIONAL := ["Ans","±","ⁿ√","←","→"]
 const ARITHMETIC := ["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","=","+","AC","DEL"]
-const SCIENTIFIC := ["DEG","MC","MR","M+","M−","sin","cos","tan","(",")","asin","acos","atan","ln","log","√","x²","xʸ","1/x","π","7","8","9","DEL","AC","4","5","6","×","÷","1","2","3","+","−","0",".","±","Ans","="]
+const SCIENTIFIC := ["DEG","MC","MR","M+","M−","sin","cos","tan","(",")","asin","acos","atan","ln","log","√","x²","xʸ","ⁿ√","1/x","π","7","8","9","DEL","AC","4","5","6","×","÷","1","2","3","+","−","0",".","±","Ans","=","←","→"]
 const FINANCIAL := ["N","I%","PV","PMT","FV","NPV","IRR","EFF","NOM","%CHG","MU","MAR","SL","BEP",",","7","8","9","÷","DEL","4","5","6","×","AC","1","2","3","−","(","0",".","=","+",")"]
 
 static func keys(model: String) -> Array:
@@ -67,6 +67,8 @@ const BUTTONS := {
 	"=":["Equals","Evaluate the current calculation.","2 + 3 =",2,2,""],
 	"AC":["All clear","Clear the input, result, and pending operation.","AC clears 42",2,1,""],
 	"DEL":["Delete","Remove the character before the cursor.","123 → 12",2,1,""],
+	"←":["Move cursor left","Move left through the equation and its fields.","Move into a fraction or exponent",2,1,"equation"],
+	"→":["Move cursor right","Move right through the equation and its fields.","Leave a fraction or exponent to continue",2,1,"equation"],
 	"(":[ "Open parenthesis","Start a grouped expression.","(2 + 4) × 3",2,2,"equation"],
 	")":[ "Close parenthesis","End a grouped expression.","(2 + 4) × 3",2,2,"equation"],
 	"±":["Change sign","Change a positive number to negative or the reverse.","5 → −5",2,2,""],
@@ -81,6 +83,7 @@ const BUTTONS := {
 	"1/x":["Reciprocal","Divide one by the current value.","1/4 = 0.25",4,5,"equation"],
 	"⁻¹":["Inverse power","Raise a value to the power of negative one.","4⁻¹ = 0.25",4,5,"equation"],
 	"xʸ":["General exponent","Raise a value to a chosen power.","2³ = 8",4,7,"equation"],
+	"ⁿ√":["Nth root","Enter the radicand, press ⁿ√, then enter the root degree.","27 ⁿ√ 3 = 3",4,7,"equation"],
 	"sin":["Sine","Find the sine of an angle.","sin(30°) = 0.5",5,6,"equation"],
 	"cos":["Cosine","Find the cosine of an angle.","cos(60°) = 0.5",5,6,"equation"],
 	"tan":["Tangent","Find the tangent of an angle.","tan(45°) = 1",5,6,"equation"],
@@ -171,7 +174,7 @@ static func preset(name: String) -> Dictionary:
 			return {"keypad":layout,"hardware":hardware}
 		"Scientific":
 			hardware.equation=1
-			keys=SCIENTIFIC.filter(func(symbol):return symbol not in ["MC","MR","M+","M−"])
+			keys=SCIENTIFIC.filter(func(symbol):return symbol not in ["MC","MR","M+","M−","←","→"])
 		"Financial":
 			hardware.equation=1
 			keys=FINANCIAL.duplicate()
@@ -179,10 +182,10 @@ static func preset(name: String) -> Dictionary:
 			hardware.equation=1
 			hardware.algebra=1
 			hardware.complex=1
-			keys.append_array(["(",")","x","i","x²","xʸ","√","±","Ans","π"])
+			keys.append_array(["(",")","x","i","x²","xʸ","ⁿ√","√","±","Ans","π"])
 		"Graphing":
 			hardware.equation=1
 			hardware.algebra=1
 			hardware.graph=2
-			keys.append_array(["(",")","x","y","z","x²","xʸ","√","±","sin","cos","tan","π","DEG"])
+			keys.append_array(["(",")","x","y","z","x²","xʸ","ⁿ√","√","±","sin","cos","tan","π","DEG"])
 	return {"keypad":new_slots(keys),"hardware":hardware}

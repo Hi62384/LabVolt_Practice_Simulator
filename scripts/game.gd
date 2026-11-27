@@ -490,17 +490,11 @@ func open_carried_calculator(item := "", equipment_options: Dictionary = {}) -> 
 	window.exclusive = true
 	window.transparent_bg = true
 	ui.add_child(window)
-	var scroll:=ScrollContainer.new()
-	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.follow_focus=true
-	window.add_child(scroll)
-	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var calculator := preload("res://scripts/scientific_calculator.gd").new()
 	calculator.model=model
 	calculator.equipment_options=equipment_options
 	calculator.show_close=true
-	calculator.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	scroll.add_child(calculator)
+	window.add_child(calculator)
 	var dismiss := func():
 		window.hide()
 		window.queue_free()
@@ -512,13 +506,33 @@ func open_carried_calculator(item := "", equipment_options: Dictionary = {}) -> 
 			window.set_input_as_handled()
 			dismiss.call())
 	release_mouse()
-	var minimum := calculator.get_combined_minimum_size()
-	var available:=Vector2i(get_viewport().get_visible_rect().size)-Vector2i(32,32)
-	var overflow:=ceili(minimum.y)>available.y
-	var width:=maxi(ceili(minimum.x),420 if model!="calculator_basic" else 260)
-	if overflow:width+=ceili(scroll.get_v_scroll_bar().get_combined_minimum_size().x)
-	var calculator_size:=Vector2i(mini(width,available.x),mini(ceili(minimum.y),available.y))
-	window.popup_centered(calculator_size)
+	var viewport:=get_viewport()
+	var natural_size:=func() -> Vector2:
+		var natural:=calculator.get_combined_minimum_size().ceil()
+		natural.x=maxf(natural.x,420.0 if model!="calculator_basic" else 260.0)
+		return natural
+	var layout:=func():
+		var natural: Vector2=natural_size.call()
+		var zoom:=minf(1.0,minf(window.size.x/natural.x,window.size.y/natural.y))
+		calculator.size=natural
+		calculator.scale=Vector2.ONE*zoom
+		calculator.position=(Vector2(window.size)-natural*zoom)*.5
+	var fit:=func():
+		var natural: Vector2=natural_size.call()
+		var available:=(viewport.get_visible_rect().size-Vector2(32,32)).max(Vector2.ONE)
+		var zoom:=minf(1.0,minf(available.x/natural.x,available.y/natural.y))
+		var fitted:=Vector2i((natural*zoom).ceil())
+		var center:=viewport.get_visible_rect().get_center()
+		window.position=Vector2i(center-Vector2(fitted)*.5)
+		window.size=fitted
+		layout.call()
+	window.size_changed.connect(layout)
+	calculator.minimum_size_changed.connect(fit,CONNECT_DEFERRED)
+	viewport.size_changed.connect(fit,CONNECT_DEFERRED)
+	window.tree_exiting.connect(func():
+		if viewport.size_changed.is_connected(fit):viewport.size_changed.disconnect(fit))
+	fit.call()
+	window.popup(Rect2i(window.position,window.size))
 
 func _input(event: InputEvent) -> void:
 	if is_instance_valid(smartphones) and smartphones.route(event):return

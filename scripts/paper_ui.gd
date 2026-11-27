@@ -20,7 +20,7 @@ var pending := {}
 var reader_generation := 0
 var flushing := false
 var save_timer := 0.0
-var calculator: LineEdit
+var calculator: Control
 var reading := false
 var open_lab_instructor_visible := false
 var page_view: Control
@@ -308,7 +308,13 @@ func _reader_request(generation: int,id: int,page: int,action: Dictionary) -> vo
 func _build_reader() -> void:
 	if is_instance_valid(calculator_widget):
 		calculator_state=calculator_widget.display.text
-		calc_saved={"degrees":calculator_widget.degrees,"answer":calculator_widget.answer,"memory":calculator_widget.memory,"result":calculator_widget.result.text,"caret":calculator_widget.display.caret_column,"selection_begin":calculator_widget.display.get_selection_from_column() if calculator_widget.display.has_selection() else -1,"selection_end":calculator_widget.display.get_selection_to_column() if calculator_widget.display.has_selection() else -1}
+		calc_saved={"angle_mode":calculator_widget.angle_mode,"answer":calculator_widget.answer,"memory":calculator_widget.memory,"result":calculator_widget.result.text}
+		var entry=calculator_widget.display
+		if calculator_widget.equation_enabled:
+			calc_saved.equation_caret=entry.caret_state()
+			calc_saved.result_visible=calculator_widget.result.visible or calculator_widget.result_equation.visible
+		else:
+			calc_saved.merge({"caret":entry.caret_column,"selection_begin":entry.get_selection_from_column() if entry.has_selection() else -1,"selection_end":entry.get_selection_to_column() if entry.has_selection() else -1})
 		calc_saved.merge({"pending_number":calculator_widget.pending_number,"pending_operator":calculator_widget.pending_operator,"replace_number":calculator_widget.replace_number})
 	if is_instance_valid(calculator_drawer) and calculator_drawer.has_method("snapshot_state"):drawer_saved=calculator_drawer.snapshot_state()
 	_clear()
@@ -439,17 +445,23 @@ func _build_reader() -> void:
 		calculator_widget=null
 		calculator=null
 	if calculator_allowed:
-		calculator=calculator_widget.display;calculator.text=calculator_state
+		var entry=calculator_widget.display
+		calculator=entry
+		entry.text=calculator_state
 		if not calc_saved.is_empty():
-			calculator_widget.degrees=calc_saved.degrees;calculator_widget.answer=calc_saved.answer;calculator_widget.memory=calc_saved.memory;calculator_widget.result.text=calc_saved.result
+			calculator_widget.answer=calc_saved.answer
+			calculator_widget.memory=calc_saved.memory
+			calculator_widget._set_angle_mode(calc_saved.angle_mode)
 			calculator_widget.pending_number=calc_saved.get("pending_number",0.0)
 			calculator_widget.pending_operator=calc_saved.get("pending_operator","")
 			calculator_widget.replace_number=calc_saved.get("replace_number",calculator_state.is_empty())
-			if is_instance_valid(calculator_widget.mode):
-				calculator_widget.mode.text="DEG" if calc_saved.degrees else "RAD"
-				calculator_widget.memory_label.text=calculator_widget.mode.text+("   M" if calc_saved.memory!=0 else "")
-			calculator_widget.display.caret_column=clampi(int(calc_saved.get("caret",calculator_state.length())),0,calculator_state.length())
-			if int(calc_saved.get("selection_begin",-1))>=0:calculator_widget.display.select(int(calc_saved.selection_begin),int(calc_saved.selection_end))
+			if calculator_widget.equation_enabled:
+				entry.restore_caret(calc_saved.get("equation_caret",{}))
+				if calc_saved.get("result_visible",false):calculator_widget._display_calculation({"text":calc_saved.result})
+			else:
+				calculator_widget.result.text=calc_saved.result
+				entry.caret_column=clampi(int(calc_saved.get("caret",calculator_state.length())),0,calculator_state.length())
+				if int(calc_saved.get("selection_begin",-1))>=0:entry.select(int(calc_saved.selection_begin),int(calc_saved.selection_end))
 	if not paper.lesson and paper.owner==multiplayer.get_unique_id() and _editable(paper):
 		_button(toolbar,"Submit test",func():flush();school.request({"op":"submit","id":document_id});close())
 		if paper.project.get("kind","")=="lab":

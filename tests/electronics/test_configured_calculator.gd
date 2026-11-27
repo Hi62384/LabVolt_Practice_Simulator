@@ -66,6 +66,8 @@ func run() -> void:
 	designer._render_palette()
 	assert(designer.palette.get_child_count()==1)
 	assert(not designer.add_key("√"))
+	assert(not designer.add_key("ⁿ√"))
+	assert(not designer.add_key("←"))
 	var base_total: int=dialog._quote().price
 	assert(designer.add_key("."))
 	assert(dialog._quote().price==base_total+1)
@@ -91,6 +93,10 @@ func run() -> void:
 	var points: PackedVector3Array=math_engine.Curve(parser.parse("x + 2y = z").tree,2,"rad",3.)
 	assert(not points.is_empty() and points[0].is_equal_approx(Vector3(-3,-3,-9)))
 	designer.apply_preset("Algebra")
+	assert("ⁿ√" in designer.slots)
+	assert("←" not in designer.slots and "→" not in designer.slots)
+	assert(designer.add_key("←",40))
+	assert(designer.add_key("→",41))
 	assert(designer.add_key("sin",42))
 	designer.move_key(42,48)
 	assert(designer.slots[42]=="" and designer.slots[48]=="sin")
@@ -128,25 +134,23 @@ func run() -> void:
 	calculator.press("=")
 	assert(is_equal_approx(calculator.answer,.5))
 	calculator.display.text="9+8(9)"
-	calculator.display.caret_column=calculator.display.text.length()
+	var end: int=calculator.display.cursor
 	_press(calculator,"←")
-	assert(calculator.display.caret_column==5)
+	assert(calculator.display.cursor==end-1)
 	_press(calculator,"→")
-	assert(calculator.display.caret_column==6)
+	assert(calculator.display.cursor==end)
 	calculator.press("=")
 	assert(is_equal_approx(calculator.answer,81.0))
 	game.open_carried_calculator("calculator_basic",options)
 	await process_frame
 	var calculator_window:=game.ui.get_child(-1) as Window
-	var calculator_scroll:=calculator_window.get_child(0) as ScrollContainer
-	assert(calculator_scroll!=null and calculator_scroll.follow_focus)
+	var handheld:=calculator_window.get_child(0) as Control
+	assert(handheld!=null and not handheld is ScrollContainer)
 	calculator_window.size.y=280
 	for frame in 3:await process_frame
-	var scrollbar:=calculator_scroll.get_v_scroll_bar()
-	assert(scrollbar.visible and scrollbar.max_value>scrollbar.page)
-	var calculator_keys: Array[Node]=calculator_scroll.find_children("*","GridContainer",true,false)
-	calculator_scroll.ensure_control_visible(calculator_keys[0].get_child(48))
-	assert(calculator_scroll.scroll_vertical>0)
+	var last: Control=handheld.find_children("*","GridContainer",true,false)[0].get_child(48)
+	var bottom_right:=last.get_global_transform()*last.size
+	assert(bottom_right.x<=calculator_window.size.x and bottom_right.y<=calculator_window.size.y)
 	calculator_window.close_requested.emit()
 	_check_number_mode()
 	var server:=Ledger.new()

@@ -61,6 +61,22 @@ static func _row(parts: Array, gap: float = 0.0) -> Dictionary:
 		x += part.size.x + gap
 	return {"size":Vector2(maxf(1.0,x - gap),baseline + descent), "baseline":baseline, "commands":commands}
 
+static func _radical(argument: Dictionary, font: Font, size: int, index: Dictionary = {}) -> Dictionary:
+	var root := _text("√", font, size)
+	var clearance := maxf(2.0, float(size)*0.12)
+	var stroke := maxf(1.25, float(size)*0.055)
+	var body_y := clearance + stroke
+	var root_y := maxf(0.0, body_y + argument.baseline - root.baseline)
+	var index_width := 0.0 if index.is_empty() else float(index.size.x)
+	var body_x := index_width + float(root.size.x)
+	var commands := _shift(root.commands, Vector2(index_width,root_y))
+	commands.append_array(_shift(argument.commands, Vector2(body_x + 2.0,body_y)))
+	commands.append({"kind":"line", "a":Vector2(body_x,clearance), "b":Vector2(body_x + argument.size.x + 4.0,clearance), "width":stroke})
+	if not index.is_empty(): commands.append_array(index.commands)
+	var height := maxf(root_y+root.size.y,body_y+argument.size.y)
+	if not index.is_empty(): height = maxf(height,index.size.y)
+	return {"size":Vector2(body_x+argument.size.x+4.0,height), "baseline":body_y+argument.baseline, "commands":commands}
+
 static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dictionary:
 	if depth > Parser.MAX_DEPTH: return _text("?", font, size)
 	var op: String = node.op
@@ -77,16 +93,7 @@ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dict
 		return _text(str(names.get(node.text, node.text)), font, size)
 	if op == "function":
 		var argument := _layout(node.child, font, size, depth+1)
-		if node.name == "sqrt":
-			var root := _text("√", font, size)
-			var clearance := maxf(2.0, float(size)*0.12)
-			var line_y := clearance
-			var body_y := clearance + maxf(1.25, float(size)*0.055)
-			var root_y := maxf(0.0, body_y + argument.baseline - root.baseline)
-			var commands := _shift(root.commands, Vector2(0,root_y))
-			commands.append_array(_shift(argument.commands, Vector2(root.size.x + 2.0,body_y)))
-			commands.append({"kind":"line", "a":Vector2(root.size.x,line_y), "b":Vector2(root.size.x + argument.size.x + 4.0,line_y), "width":maxf(1.25,float(size)*0.055)})
-			return {"size":Vector2(root.size.x+argument.size.x+4.0,maxf(root_y+root.size.y,body_y+argument.size.y)), "baseline":body_y+argument.baseline, "commands":commands}
+		if node.name == "sqrt": return _radical(argument,font,size)
 		var function_name: String = str(node.name)
 		return _row([_text(function_name + "(",font,size),argument,_text(")",font,size)])
 	if op == "matrix": return _matrix(node.rows, font, size, depth+1)
@@ -98,6 +105,9 @@ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dict
 	var right_node: Dictionary = node.right
 	if op in ["/", "^", "_"] and right_node.op == "group": right_node = right_node.child
 	var script_size := maxi(MIN_SCRIPT_SIZE, int(round(float(size)*0.70)))
+	if op == "ⁿ√":
+		if right_node.op == "group": right_node = right_node.child
+		return _radical(left,font,size,_layout(right_node,font,script_size,depth+1))
 	if op in ["^", "_"]:
 		var right := _layout(right_node,font,script_size,depth+1)
 		var rise := maxf(0.0, right.size.y * 0.40) if op == "^" else 0.0

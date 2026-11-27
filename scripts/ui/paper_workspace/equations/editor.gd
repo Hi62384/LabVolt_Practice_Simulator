@@ -10,18 +10,23 @@ const EMPTY := "□"
 var font: Font = ThemeDB.fallback_font
 var font_size := 24
 var ink := Color.BLACK
+var caret_ink := Color("14778b")
+var caret_width := 1.8
+var follow_caret := false
+var empty_source := EMPTY
+var offset := Vector2.ZERO
 var expression: Array = []
-var field: Array
+var field: Array = expression
 var cursor := 0
 var path: Array[Dictionary] = []
 var stops: Array[Dictionary] = []
 var undo_stack: Array[String] = []
 var redo_stack: Array[String] = []
-var plan: Dictionary
+var plan: Dictionary={}
 var loaded_source := ""
 var structure_edited := false
 var text: String:
-	get: return _serialize(expression) if structure_edited else loaded_source
+	get: return (_serialize(expression) if not expression.is_empty() else empty_source) if structure_edited else loaded_source
 	set(value): _load(value)
 
 func _ready() -> void:
@@ -29,7 +34,12 @@ func _ready() -> void:
 	mouse_default_cursor_shape = Control.CURSOR_IBEAM
 	focus_entered.connect(queue_redraw)
 	focus_exited.connect(queue_redraw)
+	resized.connect(queue_redraw)
 	refresh()
+
+func _get_minimum_size() -> Vector2:
+	if not follow_caret:return Vector2.ZERO
+	return Vector2(0,maxf(font.get_height(font_size),plan.get("size",Vector2.ZERO).y)+4.0)
 
 func _load(value: String) -> void:
 	loaded_source = value
@@ -45,7 +55,7 @@ func _import(node: Dictionary) -> Array:
 	match node.op:
 		"atom":
 			return [] if node.text == EMPTY else Array(str(node.text).split(""))
-		"/", "^", "_":
+		"/", "^", "_", "ⁿ√":
 			var left: Dictionary = node.left
 			var right: Dictionary = node.right
 			return [{"op":node.op, "left":_import(left.child if left.op == "group" else left),
@@ -86,7 +96,8 @@ func _model(row: Array, trail: Array) -> Dictionary:
 		if index == row.size(): break
 		var token: Variant = row[index]
 		if token is String:
-			parts.append({"op":"atom","text":token})
+			var glyph: String={"*":"×","-":"−"}.get(token,token) if follow_caret else token
+			parts.append({"op":"atom","text":glyph})
 		elif token.op == "sqrt":
 			parts.append({"op":"function","name":"sqrt","child":_model(token.left, trail + [{"index":index,"key":"left"}])})
 		else:
@@ -100,16 +111,27 @@ func refresh() -> void:
 	stops.clear()
 	for command in plan.commands:
 		if command.kind == "caret": stops.append(command)
+	if follow_caret:update_minimum_size()
 	queue_redraw()
 
 func _draw() -> void:
 	if plan.is_empty(): return
-	Layout.draw(self, plan, Vector2.ZERO, font, ink)
-	if not has_focus(): return
+	if follow_caret:
+		var farthest := minf(0.0,size.x-float(plan.size.x)-6.0)
+		for stop in stops:
+			if stop.trail!=path or stop.index!=cursor:continue
+			offset.x=clampf(offset.x,farthest,0.0)
+			if offset.x+stop.pos.x<4.0:offset.x=minf(0.0,4.0-stop.pos.x)
+			elif offset.x+stop.pos.x>size.x-6.0:offset.x=maxf(farthest,size.x-6.0-stop.pos.x)
+			break
+		offset.y=maxf(0.0,(size.y-float(plan.size.y))*.5)
+	Layout.draw(self, plan, offset, font, ink)
+	if not has_focus() and not follow_caret: return
 	for stop in stops:
 		if stop.trail == path and stop.index == cursor:
-			if stop.empty: draw_rect(Rect2(stop.pos, Vector2(stop.height * .55, stop.height)), Color("49b7c152"))
-			draw_line(stop.pos, stop.pos + Vector2(0,stop.height), Color("14778b"), 1.8)
+			var caret_pos: Vector2=offset+stop.pos+Vector2(1.5,0)
+			if stop.empty: draw_rect(Rect2(caret_pos, Vector2(stop.height * .55, stop.height)), Color("49b7c152"))
+			draw_line(caret_pos, caret_pos + Vector2(0,stop.height), caret_ink, caret_width)
 			break
 
 func _select_stop(stop: Dictionary) -> void:
@@ -134,7 +156,7 @@ func _move_vertical(direction: int) -> void:
 		if cost < distance: nearest = stop; distance = cost
 	if not nearest.is_empty(): _select_stop(nearest)
 
-func _move_horizontal(direction: int) -> void:
+func move_horizontal(direction: int) -> void:
 	for index in stops.size():
 		var stop := stops[index]
 		if stop.trail == path and stop.index == cursor:
@@ -157,17 +179,11 @@ func _commit(before: String) -> void:
 
 func insert_text_at_caret(value: String) -> void:
 	var before := _record()
-	for symbol in value:
+	var symbols := PackedStringArray(["ⁿ√"]) if value=="ⁿ√" else value.split("")
+	for symbol in symbols:
 		if symbol in ["\n", "\r", EMPTY]: continue
-		if symbol in ["/", "^", "_", "√"] and path.size() < 10:
-			var left := []
-			if symbol != "√":
-				while cursor > 0:
-					var preceding: Variant = field[cursor - 1]
-					if preceding is String and preceding in [" ", "+", "-", "=", "×", "÷", ","]: break
-					cursor -= 1
-					left.push_front(field.pop_at(cursor))
-					if preceding is Dictionary: break
+		if symbol in ["/", "^", "_", "√", "ⁿ√"] and path.size() < 10:
+			var left := [] if symbol == "√" else _take_left_operand()
 			var node := {"op":"sqrt","left":[]} if symbol == "√" else {"op":symbol,"left":left,"right":[]}
 			var key := "left" if symbol == "√" or left.is_empty() else "right"
 			field.insert(cursor, node)
@@ -179,6 +195,42 @@ func insert_text_at_caret(value: String) -> void:
 			cursor += 1
 	_commit(before)
 
+func _take_left_operand() -> Array:
+	var left: Array=[]
+	var groups:=0
+	while cursor>0:
+		var preceding: Variant=field[cursor-1]
+		if preceding is String:
+			if preceding in [")","]"]:groups+=1
+			elif preceding in ["(","["]:
+				if groups==0:break
+				groups-=1
+			elif groups==0 and preceding in [" ","+","-","−","=","*","×","÷",","]:
+				break
+		cursor-=1
+		left.push_front(field.pop_at(cursor))
+		if groups==0 and preceding is Dictionary:break
+	return left
+
+func delete_at_caret(backwards: bool) -> void:
+	var index := cursor - int(backwards)
+	if index >= 0 and index < field.size():
+		var before := _record()
+		field.remove_at(index)
+		cursor = index
+		_commit(before)
+	elif not path.is_empty():
+		move_horizontal(-1 if backwards else 1)
+
+func caret_state() -> Dictionary:
+	return {"trail":path.duplicate(true),"index":cursor}
+
+func restore_caret(state: Dictionary) -> void:
+	for stop in stops:
+		if stop.trail==state.get("trail") and stop.index==state.get("index"):
+			_select_stop(stop)
+			return
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		grab_focus()
@@ -186,7 +238,7 @@ func _gui_input(event: InputEvent) -> void:
 		var nearest: Dictionary
 		for stop in stops:
 			var point: Vector2 = stop.pos + Vector2.DOWN * stop.height * .45
-			var cost := point.distance_squared_to(event.position)
+			var cost := point.distance_squared_to(event.position-offset)
 			if cost < distance: nearest = stop; distance = cost
 		if not nearest.is_empty(): _select_stop(nearest)
 		accept_event()
@@ -195,22 +247,13 @@ func _gui_input(event: InputEvent) -> void:
 	match event.keycode:
 		KEY_ESCAPE: finish_requested.emit(false)
 		KEY_ENTER, KEY_KP_ENTER: finish_requested.emit(true)
-		KEY_LEFT: _move_horizontal(-1)
-		KEY_RIGHT: _move_horizontal(1)
+		KEY_LEFT: move_horizontal(-1)
+		KEY_RIGHT: move_horizontal(1)
 		KEY_UP: _move_vertical(-1)
 		KEY_DOWN: _move_vertical(1)
 		KEY_HOME: cursor = 0; queue_redraw()
 		KEY_END: cursor = field.size(); queue_redraw()
-		KEY_BACKSPACE, KEY_DELETE:
-			var before := _record()
-			var index := cursor - (1 if event.keycode == KEY_BACKSPACE else 0)
-			if index >= 0 and index < field.size():
-				field.remove_at(index)
-				cursor = index
-				_commit(before)
-			elif not path.is_empty():
-				var parent_step: Dictionary = path.back()
-				_select_stop({"trail":path.slice(0, -1), "index":parent_step.index})
+		KEY_BACKSPACE, KEY_DELETE: delete_at_caret(event.keycode == KEY_BACKSPACE)
 		KEY_Z, KEY_Y:
 			if event.ctrl_pressed:
 				var redo: bool = event.keycode == KEY_Y or event.shift_pressed

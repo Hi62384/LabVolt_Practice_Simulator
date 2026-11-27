@@ -30,6 +30,8 @@ func parse(source: String) -> Dictionary:
 			_tokens.append({"kind":"atom", "text":source.substr(start, i - start), "pos":start})
 		elif c in "+-*/^_()=,;[]×÷−":
 			_tokens.append({"kind":{"×":"*","÷":"/","−":"-"}.get(c,c), "text":c, "pos":i}); i += 1
+		elif source.substr(i, 2) == "ⁿ√":
+			_tokens.append({"kind":"ⁿ√", "text":"ⁿ√", "pos":i}); i += 2
 		elif c in "□±≠≈≤≥√∑∏∫∂∆δελρσωΓΘΛΠΦ¬∧∨⊕→↔∈∉⊂⊆∪∩∀∃∅∠°⊥∥≅∼△←↑↓⇒⇔↦µ⏚℃℉©®™€£¥§¶•…":
 			_tokens.append({"kind":"atom","text":c,"pos":i}); i += 1
 		else: return _result(source, {}, "Unsupported character '%s' at character %d." % [c, i + 1])
@@ -107,11 +109,11 @@ func _expr(min_bp: int, depth: int) -> Dictionary:
 	while _error.is_empty():
 		kind = _kind()
 		var implicit := kind in ["atom", "(", "["]
-		var bp := 10 if kind in ["=", ","] else (20 if kind in ["+", "-"] else (30 if kind in ["*", "/"] or implicit else (40 if kind in ["^", "_"] else -1)))
+		var bp := 10 if kind in ["=", ","] else (20 if kind in ["+", "-"] else (30 if kind in ["*", "/"] or implicit else (40 if kind in ["^", "_", "ⁿ√"] else -1)))
 		if bp < min_bp: break
 		var operator := "*" if implicit else kind
 		if not implicit: _at += 1
-		var right := _expr(bp if operator in ["^", "_"] else bp + 1, depth + 1)
+		var right := _expr(bp if operator in ["^", "_", "ⁿ√"] else bp + 1, depth + 1)
 		if _error != "": return {}
 		left = {"op":operator, "left":left, "right":right, "implicit":implicit}
 	return left

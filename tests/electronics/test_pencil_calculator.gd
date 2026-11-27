@@ -6,6 +6,11 @@ func _initialize() -> void:
 		assert(value.ok and abs(value.value-entry[1])<0.000001, str(entry))
 	assert(not calculator.calculate("sqrt(8))").ok)
 	assert(not calculator.calculate("sqrt(").ok)
+	for example in [["81ⁿ√4",3.0],["(-27)ⁿ√3",-3.0],["16ⁿ√(-2)",.25],["1+27ⁿ√3*2",7.0]]:
+		var root_result: Dictionary=calculator.calculate(example[0])
+		assert(root_result.ok and is_equal_approx(root_result.value,example[1]),str(example))
+	for example in ["27ⁿ√", "27ⁿ√0", "0ⁿ√(-2)", "(-16)ⁿ√2"]:
+		assert(not calculator.calculate(example).ok,example)
 	var widget = calculator.new()
 	root.add_child(widget)
 	await process_frame

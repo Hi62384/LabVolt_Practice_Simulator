@@ -177,9 +177,27 @@ public partial class CalculatorMath : RefCounted
             "group" => Read(tree["child"].AsGodotDictionary(), depth + 1),
             "prefix" => new Node("prefix", tree["sign"].AsString(), Read(tree["child"].AsGodotDictionary(), depth + 1)),
             "function" => new Node("function", tree["name"].AsString(), Read(tree["child"].AsGodotDictionary(), depth + 1)),
-            "+" or "-" or "*" or "/" or "^" or "=" => new Node(op, "", Read(tree["left"].AsGodotDictionary(), depth + 1), Read(tree["right"].AsGodotDictionary(), depth + 1)),
+            "+" or "-" or "*" or "/" or "^" or "ⁿ√" or "=" => new Node(op, "", Read(tree["left"].AsGodotDictionary(), depth + 1), Read(tree["right"].AsGodotDictionary(), depth + 1)),
             _ => throw new ArgumentException("Unsupported operation.")
         };
+    }
+
+    private static Complex NthRoot(Complex radicand, Complex degree)
+    {
+        if (degree.Imaginary != 0 || !double.IsFinite(degree.Real) || degree.Real == 0)
+            throw new ArgumentException("Enter a nonzero real root degree.");
+        if (radicand == Complex.Zero)
+        {
+            if (degree.Real < 0) throw new ArgumentException("Zero has no negative-degree root.");
+            return Complex.Zero;
+        }
+        double exponent = 1 / degree.Real;
+        if (radicand.Imaginary == 0)
+        {
+            if (radicand.Real >= 0) return Math.Pow(radicand.Real, exponent);
+            if (Math.Abs(degree.Real % 2) == 1) return -Math.Pow(-radicand.Real, exponent);
+        }
+        return Complex.Pow(radicand, exponent);
     }
 
     private static Complex[] Trim(Complex[] terms)
@@ -306,6 +324,7 @@ public partial class CalculatorMath : RefCounted
             {
                 "+" => left + right, "-" or "=" => left - right, "*" => left * right, "/" => left / right,
                 "^" => left == Complex.Zero && right == Complex.Zero ? Complex.One : Complex.Pow(left, right),
+                "ⁿ√" => NthRoot(left, right),
                 _ => throw new ArgumentException("Unsupported operation.")
             };
         }

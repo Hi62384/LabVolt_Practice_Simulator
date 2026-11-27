@@ -5,6 +5,7 @@ const Finance = preload("res://scripts/financial_calculator.gd")
 const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
 const MathEngine=preload("res://scripts/campus/computers/CalculatorMath.cs")
 const Equation=preload("res://scripts/campus/items/calculator_equation_view.gd")
+const EquationEditor=preload("res://scripts/ui/paper_workspace/equations/editor.gd")
 const Parser=preload("res://scripts/ui/paper_workspace/equations/parser.gd")
 const Graph=preload("res://scripts/campus/items/calculator_graph_view.gd")
 var math_engine: RefCounted
@@ -17,7 +18,6 @@ var algebra_enabled:=false
 var complex_enabled:=false
 var graph_level:=0
 var configured:=false
-var display_equation: Control
 var result_equation: Control
 var graph: Control
 var functions: VBoxContainer
@@ -30,7 +30,7 @@ var model := "calculator"
 var equipment_options: Dictionary={}
 var show_close := false
 var campus_style := false
-var display: LineEdit
+var display
 var result: Label
 var mode: Button
 var degrees := true
@@ -89,9 +89,36 @@ func _ready() -> void:
 		lcd_style.set_border_width_all(1)
 	var lines := VBoxContainer.new();lcd.add_child(lines)
 	memory_label=Label.new();memory_label.text="DEG";memory_label.visible=not basic and not financial;memory_label.add_theme_color_override("font_color",Color("91d9de") if campus_style else Color("385044"));memory_label.add_theme_font_size_override("font_size",12);lines.add_child(memory_label)
-	display=LineEdit.new();display.placeholder_text="0";display.max_length=180;display.add_theme_font_size_override("font_size",18);display.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));display.add_theme_color_override("font_placeholder_color",Color("8cbcc8") if campus_style else Color("617367"));display.add_theme_stylebox_override("normal",StyleBoxEmpty.new());display.add_theme_stylebox_override("focus",StyleBoxEmpty.new());display.text_submitted.connect(func(_text):_schedule(evaluate));lines.add_child(display)
-	result=Label.new();result.text="0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",21);result.add_theme_color_override("font_color",Color("e6fbff") if campus_style else Color("162c24"));result.clip_text=true;lines.add_child(result)
-	if campus_style:result.add_theme_font_size_override("font_size",34)
+	var lcd_ink:=Color("e6fbff") if lcd_style.bg_color.get_luminance()<.35 else Color("102218")
+	if equation_enabled:
+		var editor:=EquationEditor.new()
+		editor.follow_caret=true
+		editor.empty_source=""
+		editor.ink=lcd_ink
+		editor.caret_ink=lcd_ink
+		editor.caret_width=2.6
+		editor.font_size=21 if show_close else 24
+		editor.clip_contents=true
+		editor.accessibility_name="Equation"
+		editor.finish_requested.connect(func(save):
+			if save:_schedule(evaluate))
+		display=editor
+	else:
+		var entry:=LineEdit.new()
+		entry.placeholder_text="0"
+		entry.max_length=180
+		entry.add_theme_font_size_override("font_size",18)
+		entry.add_theme_color_override("font_color",lcd_ink)
+		entry.add_theme_color_override("caret_color",lcd_ink)
+		entry.add_theme_color_override("font_placeholder_color",lcd_ink.lerp(lcd_style.bg_color,.4))
+		entry.add_theme_stylebox_override("normal",StyleBoxEmpty.new())
+		entry.add_theme_stylebox_override("focus",StyleBoxEmpty.new())
+		entry.text_submitted.connect(func(_text):_schedule(evaluate))
+		display=entry
+	lines.add_child(display)
+	result=Label.new();result.text="" if equation_enabled else "0";result.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT;result.add_theme_font_size_override("font_size",20);result.add_theme_color_override("font_color",lcd_ink);result.clip_text=true;lines.add_child(result)
+	if equation_enabled:result.hide()
+	if campus_style and not equation_enabled:result.add_theme_font_size_override("font_size",34)
 	if _number_mode():
 		display.alignment=HORIZONTAL_ALIGNMENT_RIGHT
 		display.add_theme_font_size_override("font_size",26)
@@ -101,27 +128,10 @@ func _ready() -> void:
 		result.text=""
 		lines.move_child(result,1)
 	if equation_enabled:
-		display_equation=Equation.new()
 		result_equation=Equation.new()
-		for view in [display_equation,result_equation]:
-			view.ink=Color("ddf7ff") if campus_style else Color("162c24")
-			lines.add_child(view)
-			view.hide()
-		display.text_changed.connect(func(_text):_refresh_equation())
-		display.placeholder_text="Enter an expression"
-		var entry_row:=HBoxContainer.new()
-		lines.add_child(entry_row)
-		lines.move_child(entry_row,display.get_index())
-		display.reparent(entry_row)
-		display.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		for direction in [-1,1]:
-			var cursor_button:=Button.new()
-			cursor_button.text="←" if direction<0 else "→"
-			cursor_button.tooltip_text="Move cursor left" if direction<0 else "Move cursor right"
-			cursor_button.accessibility_name=cursor_button.tooltip_text
-			cursor_button.custom_minimum_size=Vector2(38,26)
-			cursor_button.pressed.connect(func():_schedule(_move_cursor.bind(direction)))
-			entry_row.add_child(cursor_button)
+		result_equation.ink=lcd_ink
+		lines.add_child(result_equation)
+		result_equation.hide()
 	if algebra_enabled or complex_enabled:
 		var tools:=HBoxContainer.new()
 		body.add_child(tools)
@@ -164,6 +174,9 @@ func _ready() -> void:
 			grid.add_child(blank)
 			continue
 		var button := Button.new();button.text=key;button.custom_minimum_size=Vector2(44,32 if show_close else 40);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",15);button.tooltip_text={"DEG":"Toggle degrees / radians","AC":"Clear expression","DEL":"Delete previous character","=":"Evaluate expression","MR":"Recall memory","MC":"Clear memory"}.get(key,key)
+		if key in ["ⁿ√","←","→"]:
+			button.accessibility_name=Equipment.Keypad.catalog(key).name
+			button.tooltip_text=Equipment.Keypad.catalog(key).description
 		if basic or financial or campus_style:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		if financial and Finance.ARGUMENTS.has(key):button.tooltip_text=Finance.ARGUMENTS[key]
 		var style := StyleBoxFlat.new();style.bg_color=(Color("2e5267") if campus_style else Color("647781")) if key.is_valid_int() or key=="." else (Color("103c55") if campus_style else Color("3e4b59"))
@@ -206,7 +219,7 @@ func press(key: String) -> void:
 	if (model=="calculator_financial" or configured) and Finance.ARGUMENTS.has(key):
 		pending_operator=""
 		display.text=key+"("
-		display.caret_column=display.text.length()
+		if not equation_enabled:display.caret_column=display.text.length()
 		if is_instance_valid(finance_help):
 			finance_help.text=key+" · "+Finance.ARGUMENTS[key]
 			finance_help.tooltip_text=finance_help.text
@@ -214,12 +227,24 @@ func press(key: String) -> void:
 	if _number_mode() and (not _finance_input() or key=="AC"):
 		_press_number(key)
 		return
+	if equation_enabled:display.grab_focus()
 	match key:
 		"=":evaluate()
-		"AC":display.text="";result.text="0";pending_operator=""
+		"AC":
+			display.text=""
+			result.text="0"
+			pending_operator=""
+			if equation_enabled:
+				result.hide()
+				result_equation.hide()
+		"←","→":
+			if equation_enabled:display.move_horizontal(-1 if key=="←" else 1)
 		"DEL":
-			var caret := display.caret_column
-			if caret>0:display.text=display.text.left(caret-1)+display.text.substr(caret);display.caret_column=caret-1
+			if equation_enabled:
+				display.delete_at_caret(true)
+			else:
+				var caret: int=display.caret_column
+				if caret>0:display.text=display.text.left(caret-1)+display.text.substr(caret);display.caret_column=caret-1
 		"DEG":_set_angle_mode("rad" if angle_mode=="deg" else "deg")
 		"MC":memory=0
 		"MR":_insert(str(memory))
@@ -228,26 +253,18 @@ func press(key: String) -> void:
 		"Ans":_insert(str(answer))
 		"±":
 			display.text="-("+display.text+")"
-			display.caret_column=display.text.length()
+			if not equation_enabled:display.caret_column=display.text.length()
 		"sin","cos","tan","asin","acos","atan","ln","log":_insert(key+"(")
-		"√":_insert("sqrt(")
-		"x²":_insert("^2")
+		"√":_insert("√" if equation_enabled else "sqrt(")
+		"x²":_insert_completed_field("^2")
 		"xʸ":_insert("^")
-		"1/x","⁻¹":display.text="1/("+display.text+")";display.caret_column=display.text.length()
-		"%":_insert("/100") if equation_enabled else _divide_percent()
+		"ⁿ√":_insert("ⁿ√")
+		"1/x","⁻¹":
+			display.text="1/("+display.text+")"
+			if not equation_enabled:display.caret_column=display.text.length()
+		"%":_insert_completed_field("/100") if equation_enabled else _divide_percent()
 		_:_insert({"×":"*","÷":"/","−":"-","π":"pi"}.get(key,key))
 	memory_label.text=angle_mode.to_upper()+("   M" if memory!=0 else "")
-	_refresh_equation()
-
-func _move_cursor(direction: int) -> void:
-	var column:=display.caret_column
-	if display.has_selection():
-		column=display.get_selection_from_column() if direction<0 else display.get_selection_to_column()
-	else:
-		column+=direction
-	display.grab_focus()
-	display.deselect()
-	display.caret_column=clampi(column,0,display.text.length())
 
 func _number_mode() -> bool:
 	return configured and not equation_enabled
@@ -278,9 +295,9 @@ func _press_number(key: String) -> void:
 			_set_number_text("")
 		replace_number=false
 		if key==".":
-			var remaining:=display.text
+			var remaining: String=display.text
 			if display.has_selection():
-				var from:=display.get_selection_from_column()
+				var from: int=display.get_selection_from_column()
 				remaining=remaining.left(from)+remaining.substr(display.get_selection_to_column())
 			if "." in remaining or "e" in remaining.to_lower():return
 			if remaining.is_empty():key="0."
@@ -307,7 +324,7 @@ func _press_number(key: String) -> void:
 				if display.has_selection():
 					display.delete_text(display.get_selection_from_column(),display.get_selection_to_column())
 				elif display.caret_column>0:
-					var column:=display.caret_column
+					var column: int=display.caret_column
 					display.delete_text(column-1,column)
 					display.caret_column=column-1
 				replace_number=false
@@ -324,7 +341,7 @@ func _press_number(key: String) -> void:
 		_show_pending_number()
 
 func _current_number() -> float:
-	var entered:=display.text.strip_edges()
+	var entered: String=display.text.strip_edges()
 	if entered.is_empty():return 0.0
 	return float(entered) if entered.is_valid_float() else NAN
 
@@ -362,14 +379,13 @@ func _evaluate_number() -> bool:
 
 func _insert(value: String) -> void:
 	display.insert_text_at_caret(value)
+func _insert_completed_field(value: String) -> void:
+	var previous_depth: int=display.path.size() if equation_enabled else 0
+	_insert(value)
+	if equation_enabled and display.path.size()>previous_depth:display.move_horizontal(1)
+
 func _divide_percent() -> void:
 	if display.text.is_valid_float():display.text=str(float(display.text)*.01)
-
-func _refresh_equation() -> void:
-	if not is_instance_valid(display_equation):return
-	var text:=close_parentheses(display.text)
-	display_equation.visible=not text.is_empty()
-	display_equation.set_expression(text)
 
 func _display_calculation(outcome: Dictionary) -> bool:
 	var message:=str(outcome.get("text",outcome.get("error","Math error")))
@@ -379,7 +395,7 @@ func _display_calculation(outcome: Dictionary) -> bool:
 	result.theme_type_variation="Label" if successful else "ErrorLabel"
 	if outcome.has("real"):answer=float(outcome.real)
 	if is_instance_valid(result_equation):
-		var show_formula:=successful and ("^" in message or "/" in message or "=" in message)
+		var show_formula:=successful and ("^" in message or "/" in message or "=" in message or "ⁿ√" in message)
 		result.visible=not show_formula
 		result_equation.visible=show_formula
 		if show_formula:result_equation.set_expression(message)
@@ -387,12 +403,13 @@ func _display_calculation(outcome: Dictionary) -> bool:
 
 func evaluate() -> bool:
 	if _number_mode() and not _finance_input():return _evaluate_number()
-	display.text=close_parentheses(display.text)
-	display.caret_column=display.text.length()
-	_refresh_equation()
-	if (configured or advanced_app) and Finance.ARGUMENTS.has(display.text.get_slice("(",0).to_upper()):
-		var operation_name:=display.text.get_slice("(",0).to_upper()
-		var financial_result:=Finance.evaluate(operation_name,display.text.substr(display.text.find("(")+1).trim_suffix(")"))
+	var input:=close_parentheses(display.text)
+	if not equation_enabled:
+		display.text=input
+		display.caret_column=input.length()
+	if (configured or advanced_app) and Finance.ARGUMENTS.has(input.get_slice("(",0).to_upper()):
+		var operation_name:=input.get_slice("(",0).to_upper()
+		var financial_result:=Finance.evaluate(operation_name,input.substr(input.find("(")+1).trim_suffix(")"))
 		if financial_result.get("ok",false):
 			if _number_mode():
 				_enter_number(float(financial_result.value))
@@ -402,15 +419,15 @@ func evaluate() -> bool:
 	if equation_enabled or algebra_enabled:
 		var selected:=str(operation.get_selected_metadata()) if is_instance_valid(operation) else "evaluate"
 		if selected=="rectangular":
-			var pair:=display.text.replace("∠",",").split(",",false)
+			var pair:=input.replace("∠",",").split(",",false)
 			if pair.size()!=2 or not pair[0].strip_edges().is_valid_float() or not pair[1].strip_edges().is_valid_float():
 				return _display_calculation({"error":"Enter radius, angle in the selected angle units."})
 			var angle:=float(pair[1])* (PI/180.0 if angle_mode=="deg" else PI/200.0 if angle_mode=="grad" else 1.0)
 			var radius:=float(pair[0])
 			return _display_calculation({"text":"%s %s %si"%[snappedf(radius*cos(angle),1e-8),"-" if sin(angle)<0 else "+",snappedf(absf(radius*sin(angle)),1e-8)]})
-		var expression: Dictionary=Parser.new().parse(display.text)
+		var expression: Dictionary=Parser.new().parse(input)
 		return _display_calculation(math_engine.Calculate(expression.tree,selected,complex_enabled,angle_mode) if expression.ok else {"error":expression.error})
-	var legacy := calculate(display.text,degrees,angle_mode) if model=="calculator" else _limited_calculate(display.text)
+	var legacy := calculate(input,degrees,angle_mode) if model=="calculator" else _limited_calculate(input)
 	if not legacy.ok:
 		result.text=legacy.error;result.tooltip_text=str(legacy.error);display.theme_type_variation="ErrorLineEdit";return false
 	display.theme_type_variation="LineEdit";result.tooltip_text="Calculated result"
@@ -544,6 +561,12 @@ static func close_parentheses(value: String) -> String:
 	return value+")".repeat(mini(balance,90))
 static func calculate(value: String,degrees_mode := true,angle_system := "") -> Dictionary:
 	if value.length()>180 or value.is_empty():return {"ok":false,"error":"Enter a calculation"}
+	if "ⁿ√" in value:
+		var parsed:=Parser.new().parse(close_parentheses(value))
+		if not parsed.ok:return {"ok":false,"error":parsed.error}
+		var angles:=angle_system if angle_system in ["deg","rad","grad"] else ("deg" if degrees_mode else "rad")
+		var root_result: Dictionary=MathEngine.new().Calculate(parsed.tree,"evaluate",false,angles)
+		return {"ok":false,"error":root_result.error} if root_result.has("error") else {"ok":true,"value":root_result.real}
 	var safe := close_parentheses(value).to_lower().replace(" ","").replace("π","pi").replace("τ","tau").replace("φ","phi")
 	var depth := 0
 	for character in safe:
