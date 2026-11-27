@@ -7,7 +7,7 @@ const Traits=preload("res://scripts/campus/academics/character_traits.gd")
 const Worldview=preload("res://scripts/campus/academics/character_worldview.gd")
 const DATA_PATH:="res://assets/campus/faculty/personalities.json"
 static var classroom_baselines: Dictionary={}
-const VOICES:=["coral","echo","nova","fable","ash","onyx","sage","shimmer","alloy","verse","ballad","cedar","marin"]
+const VoiceDelivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
 const FIRST:=["Sam","Riley","Jordan","Taylor","Casey","Morgan","Avery","Jamie","Charlie","Devon","Kai","Ellis"]
 const NEW_FIRST:=["Aria","Noah","Leila","Ethan","Zara","Owen","Maya","Leo","Nadia","Theo","Imani","Luca","Priya","Finn","Elena","Amir","Sofia","Mateo","Nora","Isaac","Aisha","Felix","Sana","Reese"]
 const NEW_LAST:=["Morales","Tanaka","Williams","Khan","Costa","Walker","Ali","Wilson","Mendoza","Ibrahim","Brown","Martin","Novak","Bennett","Torres","Singh","Dubois","Chen","Park","Okafor","Reyes","Nguyen","Cohen","Laurent"]
@@ -26,7 +26,7 @@ static func teacher(id: String) -> Dictionary:
 		"strictness":_baseline(style,"difficulty"),"talk":_baseline(style,"talkativeness"),
 		"focus":_baseline(style,"focus"),"teaching":_baseline(style,"teaching"),
 		"description":str(style.get("description","")),
-		"interest":INTERESTS[seed_value%INTERESTS.size()],"voice_slot":_voice_slot(id,seed_value)}
+		"interest":INTERESTS[seed_value%INTERESTS.size()]}
 	profile.merge(Personas.teacher(id),true)
 	profile.traits=Traits.expand(profile.traits,profile.talk,profile.traits.reasoning,profile.focus,
 		lerpf(float(profile.traits.demonstrations),float(profile.teaching),.45),profile.strictness)
@@ -68,7 +68,7 @@ static func student(index: int) -> Dictionary:
 	var interest: String=INTERESTS[seed_value%INTERESTS.size()]
 	var profile:={"id":"campus_student_%02d"%index,"name":FIRST[index%FIRST.size()]+" "+LAST[(index*7+3)%LAST.size()],
 		"role":"student","interest":interest,"curiosity":curiosity,"confidence":confidence,
-		"talk":talk,"focus":focus,"knowledge":knowledge,"voice_slot":seed_value,
+		"talk":talk,"focus":focus,"knowledge":knowledge,
 		"style":"Quiet in groups and talkative about "+interest if talk<.42 else ("Joins discussions easily and talks through ideas" if confidence>.6 else "Sociable at first, hesitates when challenged")}
 	profile.merge(Personas.student(profile,rng),true)
 	profile.traits.merge({"energy":energy,"warmth":warmth},true)
@@ -97,26 +97,5 @@ static func student(index: int) -> Dictionary:
 	profile.goals=[{"goal":profile.ambition,"priority":.85,"horizon":"term"},{"goal":"improve in "+str(profile.program),"priority":profile.traits.academic_motivation,"horizon":"class"},{"goal":"spend time with trusted friends","priority":profile.traits.sociability,"horizon":"today"},{"goal":"make time for "+str(profile.interest),"priority":.7,"horizon":"today"}]
 	return profile
 
-static func _voice_slot(id: String,seed_value: int) -> int:
-	var index:=Roster.PEOPLE.keys().find(id)
-	return index if index>=0 else seed_value
-
-static func speech(person: Dictionary,model: String,priority: int,emotion := "steady",affect: Dictionary={}) -> Dictionary:
-	var available:=Models.speech_voices(model)
-	var selectable:=VOICES.filter(func(candidate: String):return candidate in available)
-	if selectable.is_empty():return {}
-	var pace:=clampf(.78+float(person.traits.speaking_pace)*.40+(.12 if emotion in ["irritated","excited"] else -.10 if emotion in ["tired","sad"] else 0.),.65,1.25)
-	var style:=str(person.style)
-	var tone: String={"irritated":"Clipped and firm, without shouting.","amused":"Light, playful energy.",
-		"tired":"Speak slowly, with little energy.","embarrassed":"Hesitate slightly, then recover.",
-		"stressed":"Keep it brisk and controlled.","interested":"Lean into the subject with genuine curiosity."}.get(emotion,
-		"Sound "+emotion+" and keep the delivery natural." if emotion!="steady" else ("Speak clearly." if priority>=3 else "Use natural pauses."))
-	var mixed: Array=[]
-	for feeling in affect:
-		if affect[feeling] is float or affect[feeling] is int:
-			if float(affect[feeling])>.55:mixed.append(str(feeling)+" "+str(snappedf(float(affect[feeling]),.1)))
-	if not mixed.is_empty():tone+=" Mixed feelings: "+", ".join(mixed)+". Preserve the character's way of expressing them."
-	if float(person.traits.get("arrogance",0))>.75:tone+=" Confident, dismissive, unhurried about the other person's approval."
-	if float(person.traits.get("shyness",0))>.7:tone+=" Slight hesitation and quieter delivery; avoid a theatrical caricature."
-	return {"voice":selectable[int(person.voice_slot)%selectable.size()],"speed":pace,
-		"instructions":"Deliver the line as this character. Style: "+style+". "+tone}
+static func speech(person: Dictionary,model: String,priority: int,emotion := "steady",affect: Dictionary={},intent := "",context: Dictionary={}) -> Dictionary:
+	return VoiceDelivery.build(person,model,priority,emotion,affect,intent,context)

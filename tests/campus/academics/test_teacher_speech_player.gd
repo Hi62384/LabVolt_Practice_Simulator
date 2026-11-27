@@ -22,7 +22,7 @@ func run() -> void:
 	assert(speech.queued.room.size()==1)
 	assert(speech.accept("room","Jeff",3,"Safety first",4,anchor,audio))
 	assert(speech.active.room.serial==3)
-	assert(speech.queued.room.size()==1)
+	assert(speech.has_suspended("room") and speech.suspended.room.back().queued.size()==1)
 	assert(speech.accept("room","Jeff",4,"Delayed synthesis",0,anchor))
 	assert(speech.deliver_stream("room",4,audio))
 	assert(speech.active.room.serial==3 and speech.queued.room.back().stream==audio)
