@@ -14,6 +14,7 @@ var playing:=true
 var highlight:=""
 var history: Array[Dictionary]=[]
 var live_parameters: Dictionary={}
+var live_series: Dictionary={}
 
 func load_scene(value: Variant) -> bool:
 	var checked:=Document.compile(value)
@@ -40,6 +41,22 @@ func _install(value: Dictionary) -> void:
 	inputs=[0.,0.,PI,TAU]
 	for id in compiled.names.slice(4):inputs.append(float(scene.parameters[id][0]))
 	live_parameters.clear()
+	live_series.clear()
+
+func set_live_series(values: Dictionary) -> void:
+	var next: Dictionary={}
+	for id in compiled.get("series",{}):
+		var points: Variant=values.get(id)
+		if not points is PackedVector2Array or points.size()<2 or points.size()>128:continue
+		var last_x:=-INF
+		var valid:=true
+		for point: Vector2 in points:
+			if not point.is_finite() or point.x<=last_x:
+				valid=false
+				break
+			last_x=point.x
+		if valid:next[id]=points
+	live_series=next
 
 func set_live_parameters(values: Dictionary) -> bool:
 	var next: Dictionary={}
@@ -105,6 +122,7 @@ func command(action: Variant) -> bool:
 			ordered.clear()
 			objects.clear()
 			live_parameters.clear()
+			live_series.clear()
 			highlight=""
 		_:
 			return false

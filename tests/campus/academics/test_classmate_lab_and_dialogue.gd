@@ -104,7 +104,9 @@ func run() -> void:
 		if week==1:
 			var scope_scene:={"version":1,"title":"Demonstration scope","duration":10.,
 				"parameters":{"bench_hz":[10.,0.,1000.],"bench_scope_vpp":[1.,0.,20.]},
-				"objects":[{"type":"text","id":"readout","x":35,"y":150,"width":400,"text":"Scope: {bench_hz} Hz"}]}
+				"objects":[{"type":"text","id":"readout","x":35,"y":150,"width":400,"text":"Scope: {bench_hz} Hz"},
+					{"type":"graph","id":"probe","x":35,"y":180,"width":750,"height":280,"x_min":0.,"x_max":90.,
+						"y_min":-1.,"y_max":6.,"data_series":"bench_scope_trace"}]}
 			assert(Visuals.apply(digital,{"op":"create","scene":scope_scene},now))
 		for tick in 180:
 			practice.step(digital,now+tick)
@@ -116,12 +118,14 @@ func run() -> void:
 					for sample in 8:station.step()
 				if week==1:
 					assert(practice.live_readings("different-class").is_empty())
-					Visuals.update_bench(digital,practice.live_readings(digital.id))
+					Visuals.update_bench(digital,practice.live_readings(digital.id,Visuals.uses_scope_trace(digital)))
 					var live:=Visuals.view(digital,false,false)
 					if live.live_parameters.has("bench_hz"):
 						assert(not live.has("scene") and absf(float(live.live_parameters.bench_hz)-40.)<6.)
 						assert(float(live.live_parameters.bench_scope_vpp)>3.)
 						assert(float(digital.visual_playback.scene.parameters.bench_hz[0])==10.)
+						var trace: PackedVector2Array=live.live_series.bench_scope_trace
+						assert(trace.size()>20 and trace.size()<=128 and trace[0].x<trace[-1].x and trace[-1].x<=90.)
 						saw_live_scope=true
 			if digital.has("lab_practice_result") or digital.has("lab_practice_error"):break
 		assert(not digital.has("lab_practice_error"),str(digital.get("lab_practice_error","")))
@@ -132,7 +136,7 @@ func run() -> void:
 		if week==1:
 			assert(saw_live_scope)
 			Visuals.update_bench(digital,practice.live_readings(digital.id))
-			assert(Visuals.view(digital).live_parameters.is_empty())
+			assert(Visuals.view(digital).live_parameters.is_empty() and Visuals.view(digital).live_series.is_empty())
 		for bench in game.dc_lab.benches:
 			assert(not bench.master and not bench.generator.enabled and bench.wires.is_empty() and bench.board.is_empty())
 	assert(not game.session.roster.has(-100))
@@ -156,6 +160,21 @@ func run() -> void:
 	assert(shared.entries.size()==1 and shared.entries[0].name==partner.name and shared.can_explain)
 	assert(group.shared.view("outsider").entries.is_empty())
 	assert(group.round.submissions.is_empty() and group.round.participants.size()==1)
+	assert(events.perform(1,lecture_room,lecture.id,group.round.event_id,"explain","I checked the units and wrote down the known values.",now+10.)=="accepted")
+	assert(faculty.brain.relationship(partner.id,human).positive==1)
+	var intro_profile:=Profiles.student(1)
+	intro_profile.talk=.8
+	var origin: Vector3=lecture.room.teacher_position
+	var speaker:={"profile":intro_profile,"position":origin,"arrival":now-1.,"seated":true}
+	var listener:={"profile":partner,"position":origin+Vector3(0,0,2),"arrival":now-1.,"seated":true}
+	var preclass:={"phase":"arrival","deadline":now+20.,"classmates":{intro_profile.id:speaker,partner.id:listener}}
+	classmates._before_class(preclass,now)
+	assert(speaker.line.begins_with("Hi, I'm") and not listener.has("line"))
+	assert(faculty.brain.recall(partner.id,intro_profile.id).is_empty())
+	classmates._show_preclass_reply(preclass,now+3.)
+	assert(listener.line.begins_with("I'm") and faculty.brain.recall(partner.id,intro_profile.id).size()==1)
+	classmates._before_class(preclass,now+5.)
+	assert(not preclass.has("classmate_reply"))
 	print("CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS")
 	game.queue_free()
 	await process_frame

@@ -17,6 +17,9 @@ func step(activity: Dictionary,now: float) -> void:
 	var lab: RefCounted=game.dc_lab.benches[work.bench] if dc else game.session.labs[work.bench]
 	var member: Dictionary=work.member
 	if work.commands.is_empty():
+		if work.digital=="digital_scope" and not work.observations.is_empty():
+			if not work.has("demonstration_until"):work.demonstration_until=now+18.
+			if now<float(work.demonstration_until):return
 		var measured: Dictionary={"v":absf(lab.difference("VΩ","COM")),"meter":lab.meter} if dc and lab.result.get("ok",false) else ({} if dc else lab.records)
 		var ok:=not measured.is_empty() and float(measured.get("v",0.))>0.
 		if not str(work.digital).is_empty():
@@ -148,7 +151,7 @@ func _dc_commands(exercise: Dictionary) -> Array:
 func yield_bench(index: int,domain := "ac") -> void:
 	if work.get("domain","")==domain and int(work.bench)==index:finish()
 
-func live_readings(class_id: String) -> Dictionary:
+func live_readings(class_id: String,include_trace := false) -> Dictionary:
 	# Only the station reserved for this class's demonstration is public.
 	if work.get("class_id","")!=class_id:return {}
 	var station_number:=int(work.bench)+1
@@ -161,18 +164,33 @@ func live_readings(class_id: String) -> Dictionary:
 			"bench_power_w":station.readings.wattmeters[0]+station.readings.wattmeters[1]}}
 	var station: RefCounted=game.dc_lab.benches[work.bench]
 	var values: Dictionary={}
+	var series: Dictionary={}
 	if station.generator.enabled:
 		var measured:=Digital.Evidence.scope_sample(station)
 		if not measured.is_empty():
 			values.bench_hz=measured.frequency
 			values.bench_scope_vpp=measured.vpp
+			if include_trace:series.bench_scope_trace=_scope_trace(station.scope_capture.display,measured.frequency)
 	if station.master and station.solved_revision==station.revision and station.result.get("ok",false):
 		var volts: Dictionary=station.result.get("v",{})
 		var islands: Dictionary=station.result.get("islands",{})
 		if volts.has("VΩ") and volts.has("COM") and islands.has("VΩ") and islands.get("VΩ")==islands.get("COM"):
 			values.bench_voltage_v=absf(station.difference("VΩ","COM"))
 	if values.is_empty():return {}
-	return {"station":station_number,"values":values}
+	return {"station":station_number,"values":values,"series":series}
+
+static func _scope_trace(rows: Array,frequency: float) -> PackedVector2Array:
+	var trace:=PackedVector2Array()
+	if rows.size()<2:return trace
+	var end:=float(rows.back()[0])
+	var start:=maxf(float(rows[0][0]),end-3./frequency)
+	var first:=rows.bsearch_custom([start],func(a: Array,b: Array):return float(a[0])<float(b[0]))
+	var count:=mini(rows.size()-first,128)
+	if count<2:return trace
+	for index in count:
+		var row: Array=rows[first+roundi(float(index)*float(rows.size()-1-first)/float(count-1))]
+		trace.append(Vector2((float(row[0])-start)*1000.,float(row[1])))
+	return trace
 
 func finish() -> void:
 	if work.is_empty():return

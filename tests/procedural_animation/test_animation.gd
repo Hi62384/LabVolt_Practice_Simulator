@@ -76,6 +76,21 @@ func run() -> void:
 		var image:=board.viewport.get_texture().get_image()
 		assert(image.get_width()==1600)
 		image.save_png("res://.godot/procedural-animation-board.png")
+	var scope:={"version":1,"title":"Live oscilloscope","subtitle":"Time (ms) · Voltage (V)","duration":12.,
+		"objects":[{"id":"trace","type":"graph","x":50,"y":100,"width":850,"height":345,
+			"x_min":0.,"x_max":8.,"y_min":-1.,"y_max":6.,"data_series":"bench_scope_trace"}]}
+	assert(Visuals.apply(activity,{"op":"create","scene":scope},10.))
+	var captured:=PackedVector2Array([Vector2(0,0),Vector2(1,0),Vector2(1.1,5),Vector2(3.9,5),
+		Vector2(4,0),Vector2(6,0),Vector2(6.1,5),Vector2(8,5)])
+	Visuals.update_bench(activity,{"station":2,"series":{"bench_scope_trace":captured}})
+	board.show_animation("scope",Visuals.view(activity,true))
+	assert(board.animation_canvas.player.live_series.bench_scope_trace==captured)
+	if OS.get_environment("LABVOLT_CAPTURE_VISUALS")=="1" and DisplayServer.get_name()!="headless":
+		await RenderingServer.frame_post_draw
+		board.viewport.get_texture().get_image().save_png("res://.godot/procedural-live-scope-board.png")
+	Visuals.update_bench(activity,{})
+	board.show_animation("scope",Visuals.view(activity,true,false))
+	assert(board.animation_canvas.player.live_series.is_empty())
 	print("PROCEDURAL_ANIMATION_ENGINE_AND_BOARD PASS")
 	board.queue_free()
 	camera.queue_free()

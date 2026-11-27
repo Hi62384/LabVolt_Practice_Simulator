@@ -33,7 +33,7 @@ func visible_member(room: String,class_id: String,id: String) -> Dictionary:
 		if member.id==id:return member
 	return {}
 
-func dialogue(profile: Dictionary,course: String,stage: Dictionary,question: String,history: Array,phase: String) -> String:
+func dialogue(profile: Dictionary,course: String,stage: Dictionary,question: String,history: Array,phase: String,relationship: Dictionary={}) -> String:
 	var message:=question.to_lower()
 	if "sorry" in message:return "It's okay. We can start over."
 	if "thanks" in message:return "Anytime. Let me know how it goes."
@@ -43,6 +43,8 @@ func dialogue(profile: Dictionary,course: String,stage: Dictionary,question: Str
 		return "Last time you said, “%s.” How did that go?"%str(history[-1].student).left(150)
 	if phase=="assignment":return "I'm working on my own sheet right now. Let's compare notes after we hand it in."
 	if "study" in message:return "I'd be up for that. Let's compare what we wrote down after class."
+	if message in ["hi","hello","hey","hello again"] and int(relationship.get("familiarity",0))>=2:
+		return "Hey, good to see my study partner again. How's class going?" if int(relationship.get("positive",0))>=2 else "Hey, good to see you again. How's class going?"
 	if "help" in message or "formula" in message or "explain" in message:
 		if proficiency(profile.id,course,profile.knowledge)<.60:return "I'm still working that out too. Want to ask the instructor together?"
 		return "I start by writing the known values and their units. Which part are you stuck on?"
@@ -86,6 +88,7 @@ func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: fl
 	activity.classmates=classmates
 
 func step(activity: Dictionary,now: float,delta: float) -> void:
+	_show_preclass_reply(activity,now)
 	for member in activity.get("classmates",{}).values():
 		var profile: Dictionary=member.profile
 		if now<float(member.arrival):continue
@@ -109,6 +112,50 @@ func step(activity: Dictionary,now: float,delta: float) -> void:
 		var roll:=posmod(hash([profile.id,activity.id,member.turns]),choices.size())
 		member.action=choices[roll]
 		member.next=now+5.+posmod(hash([profile.id,member.turns]),10)
+	if activity.phase=="arrival":_before_class(activity,now)
+
+func _before_class(activity: Dictionary,now: float) -> void:
+	if activity.get("classmate_chat",false) or float(activity.deadline)-now<6.:return
+	var actors: Array=activity.get("classmates",{}).values().filter(func(member):
+		return member.get("seated",false) and member.arrival<=now and not member.has("line"))
+	for speaker in actors:
+		if float(speaker.profile.talk)<.55:continue
+		for listener in actors:
+			if listener.profile.id==speaker.profile.id or (speaker.position as Vector3).distance_to(listener.position)>3.5:continue
+			var brain: RefCounted=game.faculty.brain
+			var met: Dictionary=brain.relationship(speaker.profile.id,listener.profile.id)
+			var greeting: String
+			var response: String
+			if int(met.familiarity)>=2:
+				greeting="Hey, %s. Want to compare notes again after class?"%listener.profile.name.get_slice(" ",0)
+				response="Sure. I'll make a note of anything I want to go over."
+			else:
+				greeting="Hi, I'm %s. What made you take this class?"%speaker.profile.name.get_slice(" ",0)
+				response="I'm %s. I wanted more practice with the basics."%listener.profile.name.get_slice(" ",0)
+			speaker.line=greeting
+			speaker.action="chatting"
+			speaker.next=now+5.
+			listener.action="listening"
+			listener.next=now+5.
+			activity.classmate_chat=true
+			activity.classmate_reply={"speaker":speaker.profile.id,"listener":listener.profile.id,
+				"greeting":greeting,"line":response,"at":now+2.3}
+			return
+
+func _show_preclass_reply(activity: Dictionary,now: float) -> void:
+	var reply: Dictionary=activity.get("classmate_reply",{})
+	if reply.is_empty() or now<float(reply.at):return
+	activity.erase("classmate_reply")
+	if activity.phase!="arrival":return
+	var actor: Dictionary=activity.classmates.get(reply.listener,{})
+	if actor.is_empty() or not activity.classmates.has(reply.speaker):return
+	actor.line=reply.line
+	actor.action="chatting"
+	actor.next=now+4.
+	var brain: RefCounted=game.faculty.brain
+	var stamp:=int(Time.get_unix_time_from_system())
+	brain.remember_conversation(reply.speaker,reply.listener,reply.line,reply.greeting,stamp)
+	brain.remember_conversation(reply.listener,reply.speaker,reply.greeting,reply.line,stamp)
 
 func proficiency(id: String,course: String,base: float) -> float:
 	var affinity:=float(posmod(hash([id,course]),101))/1000.-.05
@@ -223,7 +270,7 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 		var label:=model.get_node_or_null("StudentName") as Label3D
 		if label!=null:
 			var line: String=member.get("line","")
-			if line.is_empty() and member.action in ["wiring circuit","checking instruments","reading meter","reading scope","placing breadboard","setting logic inputs","testing logic gate","recorded measurement"]:
+			if line.is_empty() and member.action in ["wiring circuit","checking instruments","reading meter","reading scope","placing breadboard","powering breadboard","setting logic inputs","checking circuit behavior","recorded measurement","discussing group work"]:
 				line=str(member.action).capitalize()
 			label.text=member.name+("\n"+line if not line.is_empty() else "")
 	for key in models.keys():

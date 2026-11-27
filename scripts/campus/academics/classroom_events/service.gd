@@ -226,6 +226,10 @@ func perform(peer: int,room: String,class_id: String,event_id: String,op: String
    var explained: String=state.shared.explain(identity,payload)
    if explained=="accepted":
     var team:=str(state.shared.groups.get(identity,""))
+    for entry in state.shared.entries:
+     if entry.group==team and activity.get("classmates",{}).has(entry.author):
+      game.faculty.brain.remember(entry.author,identity,"help",int(Time.get_unix_time_from_system()))
+      break
     if not team.is_empty() and now>=float(state.group_notice_at.get(team,0.0)):
      state.group_notice_at[team]=now+8.0
      state.group_prompts[team]="A teammate added an explanation. Check it against the question together before you submit."

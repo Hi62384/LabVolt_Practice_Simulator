@@ -9,7 +9,7 @@ const KINDS:=["rectangle","ellipse","circle","polygon","path","line","arrow","te
 const PROPERTIES:={"x":0.,"y":0.,"width":120.,"height":72.,"rotation":0.,"scale":1.,"alpha":1.,"stroke":3.,"progress":1.,"font":30.,"radius":18.,"x_min":-6.28,"x_max":6.28,"y_min":-1.5,"y_max":1.5}
 const COLORS:=["071a28","102a39","e2edf4","82c8dc","46dfc1","ffc671","ff8184","b4adff"]
 const ROOT_FIELDS:=["version","title","subtitle","duration","loop","parameters","objects"]
-const META_FIELDS:=["id","type","parent","text","color","fill","points","function","count","bindings","tracks","dash","easing","layer"]
+const META_FIELDS:=["id","type","parent","text","color","fill","points","function","data_series","count","bindings","tracks","dash","easing","layer"]
 static var id_pattern:=RegEx.create_from_string("^[a-z][a-z0-9_]{0,23}$")
 
 static func parse(source: String) -> Dictionary:
@@ -36,6 +36,7 @@ static func compile(raw: Variant) -> Dictionary:
 	var objects: Dictionary={}
 	var programs: Dictionary={}
 	var animated_plots: Dictionary={}
+	var series: Dictionary={}
 	var complexity:=0
 	for object in value:
 		if not object is Dictionary or not _known(object,META_FIELDS+PROPERTIES.keys()):return _fail("Unknown object fields.")
@@ -52,7 +53,12 @@ static func compile(raw: Variant) -> Dictionary:
 			if not point is Array or point.size()!=2 or not _number(point[0],-1920.,1920.) or not _number(point[1],-1920.,1920.):return _fail("Invalid point coordinates.")
 		if kind=="particles" and not _number(object.get("count",12),1.,48.):return _fail("Invalid particle count.")
 		if kind in ["polygon","path"] and points.size()<(3 if kind=="polygon" else 2):return _fail("Too few path points.")
-		if kind=="graph":
+		if object.has("data_series"):
+			if kind!="graph" or object.has("function") or not _id(object.data_series):return _fail("Invalid graph data source.")
+			series[object.data_series]=true
+			if series.size()>4:return _fail("Too many graph data sources.")
+			complexity+=4
+		elif kind=="graph":
 			var plot:=Formula.compile(object.get("function"),names)
 			if plot==null:return _fail("Invalid plot formula on "+id)
 			programs[id+":plot"]=plot
@@ -86,7 +92,7 @@ static func compile(raw: Variant) -> Dictionary:
 			visited.append(parent)
 			parent=objects[parent].get("parent","")
 	if JSON.stringify(raw).to_utf8_buffer().size()>MAX_BYTES:return _fail("Scene is too large.")
-	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots}
+	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series}
 
 static func _known(value: Dictionary, allowed: Array) -> bool:
 	for field in value:

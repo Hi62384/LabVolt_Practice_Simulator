@@ -322,7 +322,7 @@ func _process(delta: float) -> void:
 			publish_clock=0.0
 			for activity in classes.values():
 				if Visuals.uses_bench(activity):
-					var reading:=lab_practice.live_readings(str(activity.id)) if activity.phase=="lesson" else {}
+					var reading:=lab_practice.live_readings(str(activity.id),Visuals.uses_scope_trace(activity)) if activity.phase=="lesson" else {}
 					Visuals.update_bench(activity,reading)
 			_publish()
 	if is_instance_valid(classroom_events):classroom_events.step(_now())

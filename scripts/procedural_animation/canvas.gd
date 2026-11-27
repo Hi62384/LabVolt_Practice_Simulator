@@ -27,6 +27,7 @@ func show_checkpoint(key: String,state: Dictionary) -> bool:
 	elif absf(player.clock-float(state.time))>.4:player.seek(float(state.time))
 	player.playing=bool(state.playing)
 	if player.set_live_parameters(state.get("live_parameters",{})):plot_cache.clear()
+	player.set_live_series(state.get("live_series",{}))
 	data_status=str(state.get("data_status",""))
 	queue_redraw()
 	frame_changed.emit()
@@ -168,6 +169,21 @@ func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: fl
 	var axes:=Vector2(clampf(-x0/(x1-x0),0.,1.),clampf(y1/(y1-y0),0.,1.))*dims
 	draw_line(Vector2(0.,axes.y),Vector2(dims.x,axes.y),Color("87a5b1"),2.,true)
 	draw_line(Vector2(axes.x,0.),Vector2(axes.x,dims.y),Color("87a5b1"),2.,true)
+	if item.has("data_series"):
+		var series: PackedVector2Array=player.live_series.get(item.data_series,PackedVector2Array())
+		if series.is_empty():
+			draw_string(font,Vector2(12.,30.),"Waiting for live data",HORIZONTAL_ALIGNMENT_LEFT,dims.x-24.,20,INK)
+		else:
+			var plot_range:=Vector2(x1-x0,y1-y0)
+			var bounds:=Rect2(Vector2(x0,y0),plot_range).grow(.00001)
+			for i in series.size()-1:
+				var a:=series[i]
+				var b:=series[i+1]
+				if not bounds.has_point(a) or not bounds.has_point(b):continue
+				draw_line(Vector2((a.x-x0)/plot_range.x,(y1-a.y)/plot_range.y)*dims,
+					Vector2((b.x-x0)/plot_range.x,(y1-b.y)/plot_range.y)*dims,pen,stroke,true)
+		_draw_graph_limits(x0,x1,dims)
+		return
 	var dynamic: bool=player.compiled.animated_plots.get(item.id,false)
 	var key: Array=[player.revision,x0,x1,y0,y1,player.clock if dynamic else 0.]
 	var cached: Dictionary=plot_cache.get(item.id,{})
@@ -181,5 +197,8 @@ func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: fl
 		var a:=float(points[i]);var b:=float(points[i+1])
 		if not is_finite(a) or not is_finite(b) or a<y0 or a>y1 or b<y0 or b>y1:continue
 		draw_line(Vector2(float(i)/96.,(y1-a)/(y1-y0))*dims,Vector2(float(i+1)/96.,(y1-b)/(y1-y0))*dims,pen,stroke,true)
+	_draw_graph_limits(x0,x1,dims)
+
+func _draw_graph_limits(x0: float,x1: float,dims: Vector2) -> void:
 	draw_string(font,Vector2(4,dims.y-8),"%.2f"%x0,HORIZONTAL_ALIGNMENT_LEFT,90.,16,INK)
 	draw_string(font,Vector2(dims.x-72,dims.y-8),"%.2f"%x1,HORIZONTAL_ALIGNMENT_RIGHT,68.,16,INK)
