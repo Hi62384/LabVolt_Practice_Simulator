@@ -7,6 +7,7 @@ const TeachingBoard = preload("res://scripts/campus/academics/teaching_board.gd"
 const Practice = preload("res://scripts/campus/academics/open_lab/practice/practice_service.gd")
 const LessonBoardState = preload("res://scripts/campus/academics/lesson_board_state.gd")
 const LessonPlan = preload("res://scripts/campus/academics/class_lesson_plan.gd")
+const Visuals = preload("res://scripts/campus/academics/classroom_visuals.gd")
 const UI = preload("res://scripts/ui/design_system/widgets.gd")
 const Tokens = preload("res://scripts/ui/design_system/tokens.gd")
 const ArrivalSeconds := 120.0
@@ -27,6 +28,7 @@ var cards := {}
 var check_clock := 0.0
 var publish_clock := 0.0
 var received_at := 0
+var sent_animation_revisions: Dictionary={}
 var classroom_events: Node
 var classroom_students: Node3D
 var lab_practice := preload("res://scripts/campus/academics/classroom_lab_practice.gd").new()
@@ -306,6 +308,7 @@ func _process(delta: float) -> void:
 			for room in classes:
 				classroom_students.step(classes[room],_now(),check_clock)
 				_hand_turn(room,classes[room],_now())
+				Visuals.advance(classes[room],_now(),game.faculty.lesson_question_active(room))
 			var ac: Dictionary=classes.get("ac_lab",{})
 			var use_ac: bool=lab_practice.work.get("domain","ac" if ac.get("phase","")=="lesson" else "dc")=="ac"
 			lab_practice.step(ac if use_ac else classes.get("dc_lab",{}),_now())
@@ -553,6 +556,7 @@ func _reset() -> void:
 		classroom_events.enabled=CLASSROOM_EVENTS_ENABLED
 	classes.clear()
 	public_classes.clear()
+	sent_animation_revisions.clear()
 	if is_instance_valid(picker):
 		picker.queue_free()
 		picker=null
@@ -569,7 +573,9 @@ static func lesson_duration(activity: Dictionary) -> float:
 	return float(activity.get("teaching",{}).get("duration_seconds",LessonSeconds))
 
 func _publish() -> void:
+	var next_sent: Dictionary={}
 	for peer in game.session.roster:
+		if int(peer)!=multiplayer.get_unique_id() and (not game.session.online or not game.session.peer_connected_now(int(peer))):continue
 		var public := {}
 		var identity := str(school.identities.get(peer,""))
 		for room in classes:
@@ -579,6 +585,14 @@ func _publish() -> void:
 			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage,"ai_status":activity.get("ai_status",""),"ai_teaching":activity.get("ai_teaching",false)}
 			if _inside(int(peer),room):public[room].classmates=classroom_students.snapshot(activity,_now())
 			if _inside(int(peer),room) and activity.phase=="lesson":
+				if activity.has("visual_playback"):
+					var revision: int=activity.visual_playback.revision
+					var visual_key: String="%s:%d"%[activity.id,revision]
+					var show_full: bool=sent_animation_revisions.get(peer,{}).get(room,"")!=visual_key
+					var animation:=Visuals.view(activity,game.faculty.lesson_question_active(room),show_full)
+					if not animation.is_empty():
+						public[room].animation=animation
+						next_sent.get_or_add(peer,{})[room]=visual_key
 				var raised: Array[int]=[]
 				for raised_identity in activity.get("hands",[]):
 					var raised_peer:=int(activity.students.get(raised_identity,{}).get("peer",0))
@@ -586,9 +600,18 @@ func _publish() -> void:
 				public[room].raised_peers=raised
 		if int(peer)==multiplayer.get_unique_id():receive(public)
 		elif game.session.online and game.session.peer_connected_now(int(peer)):receive.rpc_id(int(peer),public)
+	sent_animation_revisions=next_sent
 
 @rpc("authority","call_remote","reliable")
 func receive(public: Dictionary) -> void:
+	for room in public:
+		var next: Dictionary=public[room].get("animation",{})
+		if next.is_empty() or next.has("scene"):continue
+		var previous: Dictionary=public_classes.get(room,{})
+		var animation: Dictionary=previous.get("animation",{})
+		if previous.get("id","")==public[room].id and animation.get("revision",-1)==next.revision and animation.has("scene"):
+			next.scene=animation.scene
+		else:public[room].erase("animation")
 	public_classes=public
 	received_at=Time.get_ticks_msec()
 
@@ -677,6 +700,12 @@ func _update_views() -> void:
 		if sign.lesson_key!=lesson_key:
 			sign.lesson_key=lesson_key
 			if teaching:sign.board.show_content(info.course,"lesson",info.title,info.stage,"Room "+str(info.number))
+			sign.erase("visual_received")
+		if teaching and sign.get("visual_received",-1)!=received_at:
+			sign.visual_received=received_at
+			var animation: Dictionary=info.get("animation",{})
+			var key:="%s:%d:%s"%[info.id,int(animation.get("revision",0)),str(animation.get("playing",false))]
+			sign.board.show_animation(key,animation)
 		if not game.front.in_game or info.is_empty() or (phase!="arrival" and not teaching and (not info.signed or info.done)):continue
 		if show_local_only and room != local_room: continue
 		visible_cards.append(room)

@@ -201,6 +201,11 @@ func respond(prompt: String,timeout := 180.0) -> Dictionary:
 		verification_error=""
 	return response
 
+func plan_visual(prompt: String) -> Dictionary:
+	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS:
+		return {"ok":false,"error":"Visual plan context is too large."}
+	return await _request_text(prompt,model,clampi(max_output_tokens,1600,2400),reasoning_effort,true,{},24.)
+
 func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
 	var content: Array=[{"type":"input_text","text":prompt},{"type":"input_image","image_url":"data:image/jpeg;base64,"+Marshalls.raw_to_base64(jpeg),"detail":"low"}]

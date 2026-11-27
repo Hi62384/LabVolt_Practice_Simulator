@@ -73,6 +73,30 @@ class Handler(BaseHTTPRequestHandler):
             if body.get("model") != "omni-moderation-latest":
                 return self._reply(400, {"error": {"message": "bad moderation model"}})
             return self._reply(200, {"results": [{"flagged": body.get("input") == "flag this"}]})
+        if self.path == "/v1/responses" and str(body.get("input", "")).startswith("You are teaching a simulator classroom"):
+            if body.get("store") is not False:
+                return self._reply(400, {"error": {"message": "visual requests must not be stored"}})
+            prompt = body["input"]
+            request = prompt.split(" Student request: ")[-1]
+            if "pause" in request.lower():
+                plan = {"speech": "I have paused the moving arrow.", "action": {"op": "pause"}}
+            elif "twice" in request.lower():
+                plan = {"speech": "The frequency is now twice as high.",
+                        "action": {"op": "parameter", "id": "frequency", "value": 2}}
+            else:
+                plan = {"speech": "Watch how the arrow's angle changes with time.", "action": {"op": "create", "scene": {
+                    "version": 1, "title": "Rotating phasor", "duration": 12, "loop": True,
+                    "parameters": {"frequency": [1, 0.2, 3]},
+                    "objects": [
+                        {"type": "circle", "id": "dial", "x": 300, "y": 285, "radius": 150, "color": "82c8dc"},
+                        {"type": "arrow", "id": "phasor", "x": 300, "y": 285, "width": 145,
+                         "height": 0, "color": "ffc671", "bindings": {"rotation": "t * 90 * frequency"}},
+                        {"type": "graph", "id": "wave", "x": 495, "y": 140, "width": 415, "height": 290,
+                         "color": "46dfc1", "function": "sin(u * frequency)"},
+                    ],
+                }}}
+            return self._reply(200, {"status": "completed", "output": [
+                {"type": "message", "content": [{"type": "output_text", "text": json.dumps(plan)}]}]})
         if self.path == "/v1/responses" and str(body.get("input", "")).startswith(
             ("You are a fictional classroom instructor", "Speak in character as this classroom instructor")
         ):

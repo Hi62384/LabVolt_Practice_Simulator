@@ -6,6 +6,7 @@ const Graph = preload("res://scripts/math_ui/graph_canvas.gd")
 const Diagram = preload("res://scripts/math_ui/diagram_view.gd")
 const Table = preload("res://scripts/math_ui/table_editor.gd")
 const Netlist = preload("res://scripts/campus/courses/course_diagram.gd")
+const MotionCanvas=preload("res://scripts/procedural_animation/canvas.gd")
 const W := 1600
 const H := 700
 var viewport: SubViewport
@@ -14,6 +15,8 @@ var column: VBoxContainer
 var signature := ""
 var active := false
 var event_mode := false
+var animation_canvas: Control
+var illustration: Control
 signal diagram_action_requested(action: String, data: Dictionary)
 
 func _ready() -> void:
@@ -49,6 +52,7 @@ func set_room_active(value: bool) -> void:
 	if not value:
 		viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 		signature = ""
+		if is_instance_valid(animation_canvas):animation_canvas.hide()
 
 func show_public_content(content: Dictionary) -> void:
 	# Adapter entry point for a classroom display such as M203. The caller must
@@ -65,6 +69,8 @@ func show_content(course: String, phase: String, heading: String, stage: Diction
 	for child in column.get_children():
 		column.remove_child(child)
 		child.queue_free()
+	animation_canvas=null
+	illustration=null
 	_label(_limited(course,36)+"  ·  "+_limited(heading,90),50 if event_mode else 52,column,Color("8dddeb"))
 	_label(_limited(status,180),36 if event_mode else 40,column,Color("b9cbd5"))
 	if phase == "lesson":_lesson(stage)
@@ -121,12 +127,32 @@ func _lesson(stage: Dictionary) -> void:
 			expression.set_expression(parsed.ast)
 		else:_label(_limited(notation,180 if not event_mode else 240),48 if not event_mode else 29,words)
 	var visual: Variant = stage.get("diagram",problem.get("diagram",{}))
-	if visual is Dictionary and not visual.is_empty():_visual(row,visual)
+	if visual is Dictionary and not visual.is_empty():
+		illustration=VBoxContainer.new()
+		row.add_child(illustration)
+		_visual(illustration,visual)
+	if not event_mode:
+		animation_canvas=MotionCanvas.new()
+		animation_canvas.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		animation_canvas.size_flags_stretch_ratio=1.6
+		animation_canvas.custom_minimum_size=Vector2(720,1)
+		animation_canvas.hide()
+		row.add_child(animation_canvas)
+		animation_canvas.frame_changed.connect(func():
+			if active and is_instance_valid(animation_canvas):viewport.render_target_update_mode=SubViewport.UPDATE_ONCE)
 	var steps: Variant = stage.get("steps",[])
 	if steps is Array:
 		for item in steps.slice(0,2 if not event_mode else 4):
 			if item is Dictionary:_label("• "+_limited(str(item.get("text","")),85 if not event_mode else 260),40 if not event_mode else 25,words)
 			elif item is String:_label("• "+_limited(item,85 if not event_mode else 260),40 if not event_mode else 25,words)
+
+func show_animation(key: String,state: Dictionary) -> void:
+	if not active or not is_instance_valid(animation_canvas):return
+	var show_canvas: bool=not state.is_empty() and animation_canvas.show_checkpoint(key,state)
+	if show_canvas==animation_canvas.visible:return
+	animation_canvas.visible=show_canvas
+	if is_instance_valid(illustration):illustration.visible=not show_canvas
+	viewport.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func _visual(parent: Node, data: Dictionary) -> void:
 	data = _bounded_diagram(data)

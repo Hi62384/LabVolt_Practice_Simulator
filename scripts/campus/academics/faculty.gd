@@ -5,6 +5,7 @@ const Dialogue=preload("res://scripts/campus/academics/teacher_dialogue.gd")
 const TeacherAI=preload("res://scripts/campus/academics/teacher_ai.gd")
 const Characters=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Classmates=preload("res://scripts/campus/academics/classroom_students.gd")
+const Visuals=preload("res://scripts/campus/academics/classroom_visuals.gd")
 const SpeechMath=preload("res://scripts/campus/academics/speech_math.gd")
 const VoicePolicy=preload("res://scripts/campus/academics/teacher_voice_policy.gd")
 const SpeechPlayer=preload("res://scripts/campus/academics/teacher_speech_player.gd")
@@ -582,6 +583,23 @@ func _finish_lesson_cue(room: String,activity: Dictionary,state: Dictionary,key:
  if room in classroom_homes:
   var teacher_board: Node3D=game.lecture_classes.signs[room].board
   _request_classroom_route(room,id,"ai:"+key,teacher_board.global_position+Vector3(1.1,0,1.7),0.0)
+ if not formal and activity.get("ai_teaching",false) and not state.get("visual_attempted",false) and int(board.get("index",0))>=1:
+  if not game.host_openai.busy and questions.is_empty():
+   state.visual_attempted=true
+   _suggest_visual(room,str(activity.id),id,board)
+
+func _suggest_visual(room: String,class_id: String,id: String,board: Dictionary) -> void:
+ var result: Dictionary=await game.host_openai.plan_visual(Visuals.prompt(board,"Show a brief animated illustration if it clarifies this part of the lesson.",{}))
+ if not result.get("ok",false):return
+ var plan:=Visuals.decode(str(result.get("text","")))
+ if plan.is_empty() or plan.action==null:return
+ var checked: Dictionary=await game.host_openai.moderate(plan.moderation)
+ var activity: Dictionary=game.lecture_classes.classes.get(room,{})
+ if not checked.get("ok",false) or checked.get("flagged",false) or activity.get("id","")!=class_id or activity.get("teacher","")!=id:return
+ if activity.has("visual_playback") or int(game.lecture_classes._stage(activity).get("index",-1))!=int(board.get("index",-1)):return
+ if Visuals.apply(activity,plan.action,game.lecture_classes._now()):
+  game.lecture_classes._publish()
+  present_class_reaction(room,id,plan.speech,2)
 
 func _request_classroom_route(room: String,id: String,key: String,goal: Vector3,stand_off: float,peer: int=0,until: int=0) -> void:
  if not multiplayer.is_server() or room not in LECTURE_ROOMS or classroom_route_seen.get(room,"")==key:return
@@ -1207,14 +1225,22 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
   if checked.get("ok",false) and not checked.get("flagged",false):
    var activity: Dictionary=_ai_activity(room)
    if str(activity.get("id",""))==class_id:
-    var prompt:=TeacherAI.question_prompt(activity,id,current_stage,question,history)
-    if not lab_evidence.is_empty():prompt+="\nVerified station readings and supply state: "+lab_evidence
-    var result: Dictionary=await client.respond(prompt,18.0)
+    var can_show: bool=game.lecture_classes.classes.get(room,{}).get("id","")==class_id and activity.get("phase")=="lesson"
+    var visual:=Visuals.description(activity) if can_show else {}
+    var wants_visual:=can_show and Visuals.requested(question,not visual.is_empty())
+    var prompt:=Visuals.prompt(current_stage,question,visual) if wants_visual else TeacherAI.question_prompt(activity,id,current_stage,question,history)
+    if not lab_evidence.is_empty() and not wants_visual:prompt+="\nVerified station readings and supply state: "+lab_evidence
+    var result: Dictionary=await client.plan_visual(prompt) if wants_visual else await client.respond(prompt,18.0)
     if result.get("ok",false):
-     var candidate:=TeacherAI.safe_reply(str(result.get("text","")))
-     var output_check: Dictionary=await client.moderate(candidate)
+     var plan:=Visuals.decode(str(result.get("text",""))) if wants_visual else {}
+     var candidate:=TeacherAI.safe_reply(str(plan.get("speech","")) if wants_visual else str(result.get("text","")))
+     var output_check: Dictionary=await client.moderate(str(plan.get("moderation",candidate)))
      if output_check.get("ok",false) and not output_check.get("flagged",false) and not candidate.is_empty():
       reply=candidate
+      if plan.get("action")!=null:
+       var live: Dictionary=game.lecture_classes.classes.get(room,{})
+       if live.get("id","")!=class_id or not game.lecture_classes._inside(peer,room) or not Visuals.apply(live,plan.action,game.lecture_classes._now()):
+        reply="I couldn't make that change. I'll keep the board as it is."
       if not identity.is_empty() and str(game.school.identities.get(peer,""))==identity:
        brain.remember_conversation(id,identity,question,candidate,int(Time.get_unix_time_from_system()))
      else:reply="I can't answer that classroom question right now."
@@ -1224,6 +1250,7 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
  ai_busy.erase(peer)
  var current_class: Dictionary=_ai_activity(room)
  if str(current_class.get("id",""))!=class_id or str(current_class.get("teacher",""))!=id:return
+ if current_class.has("visual_playback"):game.lecture_classes._publish()
  _question_status(peer,room,id,reply)
  if reply.length()<=350 and not reply.begins_with("OpenAI"):
   _publish_attention(room,id,pos)
