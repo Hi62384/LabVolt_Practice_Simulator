@@ -585,6 +585,13 @@ static func lesson_duration(activity: Dictionary) -> float:
 
 func _publish() -> void:
 	var next_sent: Dictionary={}
+	var stages: Dictionary={}
+	for room in classes:
+		var activity: Dictionary=classes[room]
+		if activity.phase!="lesson" or not activity.has("visual_slides"):continue
+		var stage:=_stage(activity)
+		stages[room]=stage
+		Visuals.select_slide(activity,int(stage.get("index",0)),_now())
 	for peer in game.session.roster:
 		if int(peer)!=multiplayer.get_unique_id() and (not game.session.online or not game.session.peer_connected_now(int(peer))):continue
 		var public := {}
@@ -592,10 +599,14 @@ func _publish() -> void:
 		for room in classes:
 			var activity: Dictionary=classes[room]
 			var student: Dictionary=activity.students.get(identity,{})
-			var stage := _stage(activity) if activity.phase=="lesson" and _inside(int(peer),room) else {}
+			var in_room:=_inside(int(peer),room)
+			var stage: Dictionary={}
+			if in_room and activity.phase=="lesson":
+				if not stages.has(room):stages[room]=_stage(activity)
+				stage=stages[room]
 			public[room]={"id":activity.id,"number":activity.room.number,"course":activity.course,"teacher":activity.get("teacher",""),"week":activity.week,"title":activity.title,"phase":activity.phase,"seconds":maxf(0.0,float(activity.deadline)-_now()),"signed":not student.is_empty(),"done":student.get("done",false),"stage":stage,"ai_status":activity.get("ai_status",""),"ai_teaching":activity.get("ai_teaching",false)}
-			if _inside(int(peer),room):public[room].classmates=classroom_students.snapshot(activity,_now())
-			if _inside(int(peer),room) and activity.phase=="lesson":
+			if in_room:public[room].classmates=classroom_students.snapshot(activity,_now())
+			if in_room and activity.phase=="lesson":
 				if activity.has("visual_playback"):
 					var revision: int=activity.visual_playback.revision
 					var visual_key: String="%s:%d"%[activity.id,revision]

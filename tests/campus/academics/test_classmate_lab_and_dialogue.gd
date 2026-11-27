@@ -201,6 +201,18 @@ func run() -> void:
 	assert("loaded" in Visuals.use_local_file(later_class,Visuals.file_request("load animation scope review"),now+10.))
 	assert(later_class.visual_playback.scene.layout=="left" and later_class.visual_playback.clock==4.)
 	assert(not later_class.visual_playback.playing)
+	lecture.teaching={"duration_seconds":300.,"stages":[{"title":"Predict the reading","duration":150.},
+		{"title":"Review the result","duration":150.}]}
+	lecture.deadline=classes._now()+290.
+	classes._publish()
+	faculty._answer_question(1,lecture_room,lecture.teacher,lecture.id,"Pin the animation to this slide",game.player.global_position)
+	assert(lecture.visual_slides.has(0) and classes.public_classes[lecture_room].has("animation"))
+	lecture.deadline=classes._now()+140.
+	classes._publish()
+	assert(classes.public_classes[lecture_room].stage.index==1 and not classes.public_classes[lecture_room].has("animation"))
+	lecture.deadline=classes._now()+290.
+	classes._publish()
+	assert(classes.public_classes[lecture_room].stage.index==0 and classes.public_classes[lecture_room].animation.time==4.)
 	var intro_profile:=Profiles.student(1)
 	intro_profile.talk=.8
 	var origin: Vector3=lecture.room.teacher_position

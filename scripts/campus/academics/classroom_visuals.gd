@@ -5,6 +5,7 @@ const Playback=preload("res://scripts/procedural_animation/playback.gd")
 const Document=preload("res://scripts/procedural_animation/document.gd")
 const Storage=preload("res://scripts/procedural_animation/storage.gd")
 const BENCH_PARAMETERS:=["bench_hz","bench_voltage_v","bench_current_a","bench_power_w","bench_scope_vpp"]
+const MAX_SLIDE_VISUALS:=8
 const SCHEMA:="Scene: {version:1,title:string,subtitle?:string,duration:1..180,loop?:bool,parameters?:{id:[initial,min,max]},objects:[object,...]}. Canvas 960x520. Reserve y=0..90 for scene title, leave margins, place labels at y>=100. Objects: {id,type,x?,y?,width?,height?,radius?,rotation?,scale?,alpha?,color?,fill?,stroke?,font?,layer?,progress?,bind...}. Types rectangle, ellipse, circle, polygon, path, line, arrow, text, equation, graph, particles, group. x/y are origin, width/height are signed displacement for line/arrow. Text baseline at origin, needs width and font. Colors are hex RGB/RGBA. For polygon/path set points:[[x,y],...]. For graph set function with u as horizontal variable and x_min,x_max,y_min,y_max. Optional parent is group id. Optional bindings is {property: formula} with numeric parameters and t (seconds), u, pi, tau, functions sin,cos,pow,sqrt,exp,lerpf,clampf. Optional tracks is {property:[[time,value],...]}; smooth or linear easing. A label can show a parameter as {name}. Use 3–12 well spaced objects with legible high-contrast colors. No resources, code, scripts, URLs, or external data."
 
 static func requested(question: String,active: bool) -> bool:
@@ -27,6 +28,8 @@ static func presentation_request(question: String) -> Dictionary:
 		"put the animation on the left","put the animation on the right":
 			var side:="left" if text.ends_with("left") else "right"
 			return {"op":"layout","value":side,"reply":"I'll move the animation beside the notes."}
+		"attach the animation to this slide","pin the animation to this slide":
+			return {"op":"pin_slide"}
 	return {}
 
 static func file_request(question: String) -> Dictionary:
@@ -60,6 +63,38 @@ static func use_local_file(activity: Dictionary,request: Dictionary,now: float) 
 	activity.visual_clock=now
 	update_bench(activity,{})
 	return "I loaded the saved animation %s."%id
+
+static func pin_slide(activity: Dictionary,index: int,now: float) -> String:
+	var model: RefCounted=activity.get("visual_playback")
+	if activity.get("phase","")!="lesson" or index<0 or model==null or model.scene.is_empty():
+		return "Show an animation on this slide before attaching it."
+	var slides: Dictionary=activity.get_or_add("visual_slides",{})
+	if not slides.has(index) and slides.size()>=MAX_SLIDE_VISUALS:return "This lesson already has its maximum number of attached animations."
+	advance(activity,now)
+	activity.visual_slide_index=index
+	slides[index]={"checkpoint":model.snapshot(),"surface":activity.get("visual_surface","board")}
+	return "I attached the animation to this slide."
+
+static func select_slide(activity: Dictionary,index: int,now: float) -> void:
+	if not activity.has("visual_slides"):return
+	var previous:=int(activity.get("visual_slide_index",-1))
+	if previous==index:return
+	var slides: Dictionary=activity.visual_slides
+	var current: RefCounted=activity.get("visual_playback")
+	if slides.has(previous) and current!=null and not current.scene.is_empty():
+		slides[previous]={"checkpoint":current.snapshot(),"surface":activity.get("visual_surface","board")}
+	activity.visual_slide_index=index
+	if slides.has(index):
+		var next:=Playback.new()
+		if not next.restore_checkpoint(slides[index].checkpoint):return
+		next.revision=(current.revision if current!=null else 0)+1
+		activity.visual_playback=next
+		activity.visual_surface=slides[index].surface
+		activity.visual_clock=now
+		update_bench(activity,{})
+	elif slides.has(previous) and current!=null:
+		current.command({"op":"clear"})
+		activity.erase("visual_surface")
 
 static func prompt(board: Dictionary,question: String,current: Dictionary) -> String:
 	var context:={"topic":str(board.get("title","")).left(120),"material":str(board.get("text",board.get("caption",""))).left(460),"formulas":str(board.get("formulas","")).left(300)}

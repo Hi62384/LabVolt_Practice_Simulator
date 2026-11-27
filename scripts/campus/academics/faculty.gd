@@ -1258,6 +1258,8 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
  var present_for_visual: bool=active_room.get("id","")==class_id and game.lecture_classes._inside(peer,room)
  if not visual_file.is_empty() and present_for_visual:
   reply=Visuals.use_local_file(active_room,visual_file,game.lecture_classes._now()) if peer==multiplayer.get_unique_id() else "The session host manages saved animations."
+ elif presentation.get("op","")=="pin_slide" and present_for_visual:
+  reply=Visuals.pin_slide(active_room,int(current_stage.get("index",-1)),game.lecture_classes._now()) if peer==multiplayer.get_unique_id() else "The session host manages slide attachments."
  elif not presentation.is_empty() and present_for_visual and Visuals.apply(active_room,presentation,game.lecture_classes._now()):
   reply=presentation.reply
  elif personal.is_empty() and is_instance_valid(client) and client.enabled and client.configured() and not client.busy:
