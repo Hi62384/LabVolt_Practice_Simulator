@@ -123,7 +123,10 @@ func run() -> void:
 			coordinates[1].value=-1.25
 			var moved: Transform3D=Artwork.image_frame(anchor,edit.design[1],image.get_size()).transform
 			assert(moved.origin.is_equal_approx(initial.origin+initial.basis.x*.025-initial.basis.y*.0125))
-			coordinates[0].value=100000.
+			var x_input: LineEdit=coordinates[0].get_line_edit()
+			x_input.text="100000"
+			x_input.text_submitted.emit(x_input.text)
+			await process_frame
 			assert(Document.clean(edit.design)[1].position_cm==[100000.,-1.25])
 			coordinates[0].value=0.
 			coordinates[1].value=0.
