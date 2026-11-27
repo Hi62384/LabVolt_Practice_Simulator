@@ -73,8 +73,30 @@ func set_live_parameters(values: Dictionary) -> bool:
 	return true
 
 func advance(seconds: float) -> void:
-	if playing and not scene.is_empty() and is_finite(seconds) and seconds>=0.:
-		seek(clock+seconds*speed)
+	if not playing or scene.is_empty() or not is_finite(seconds) or seconds<0.:return
+	var target:=clock+seconds*speed
+	var duration:=float(scene.duration)
+	var pause_at:=INF
+	var pause_clock:=0.
+	for cue in scene.get("cues",[]):
+		if not cue.get("pause",false):continue
+		var at:=float(cue.at)
+		var occurrence:=at if at>clock else at+duration if scene.get("loop",false) else INF
+		if occurrence<=target and occurrence<pause_at and _cue_should_pause(cue.id,at):
+			pause_at=occurrence
+			pause_clock=at
+	if is_finite(pause_at) and target>=pause_at:
+		seek(pause_clock)
+		playing=false
+	else:seek(target)
+
+func _cue_should_pause(id: String,at: float) -> bool:
+	var condition: Expression=compiled.cue_conditions.get(id)
+	if condition==null:return true
+	inputs[0]=at
+	var pause:=absf(Formula.value(condition,inputs,0.))>0.
+	inputs[0]=clock
+	return pause
 
 func seek(at: float) -> void:
 	if scene.is_empty() or not is_finite(at):return
@@ -107,6 +129,15 @@ func command(action: Variant) -> bool:
 			if not Document._number(amount,-180.,180.):return false
 			if op=="speed":speed=clampf(float(amount),.25,4.)
 			else:seek(float(amount) if op=="seek" else clock+float(amount))
+		"seek_cue":
+			var id: Variant=action.get("id")
+			var found:=false
+			for cue in scene.get("cues",[]):
+				if cue.id!=id:continue
+				seek(float(cue.at))
+				found=true
+				break
+			if not found:return false
 		"highlight":
 			if not action.get("id","") is String:return false
 			var target: String=action.get("id","")
@@ -199,6 +230,14 @@ func camera_transform() -> Transform2D:
 
 func visible_at_time(item: Dictionary) -> bool:
 	return clock>=float(item.get("start",0.)) and (not item.has("end") or clock<float(item.end))
+
+func cue_label() -> String:
+	var result:=""
+	for cue in scene.get("cues",[]):
+		var elapsed:=clock-float(cue.at)
+		if elapsed<0.:break
+		if elapsed<=3.:result=cue.label
+	return result
 
 func property(item: Dictionary,key: String,default_value := NAN) -> float:
 	var start:=float(item.get(key,Document.PROPERTIES[key] if is_nan(default_value) else default_value))

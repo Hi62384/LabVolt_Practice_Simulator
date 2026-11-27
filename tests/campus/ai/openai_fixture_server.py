@@ -78,7 +78,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._reply(400, {"error": {"message": "visual requests must not be stored"}})
             prompt = body["input"]
             request = prompt.split(" Student request: ")[-1]
-            if "pause" in request.lower():
+            if "pause" in request.lower() and "cue" not in request.lower():
                 plan = {"speech": "I have paused the moving arrow.", "action": {"op": "pause"}}
             elif "twice" in request.lower():
                 plan = {"speech": "The frequency is now twice as high.",
@@ -95,6 +95,10 @@ class Handler(BaseHTTPRequestHandler):
                          "color": "46dfc1", "function": "sin(u * frequency)"},
                     ],
                 }}}
+                if "pause cue" in request.lower():
+                    plan["action"]["scene"]["cues"] = [
+                        {"id": "inspect", "at": 1.25, "label": "Inspect the phasor", "pause": True}
+                    ]
             return self._reply(200, {"status": "completed", "output": [
                 {"type": "message", "content": [{"type": "output_text", "text": json.dumps(plan)}]}]})
         if self.path == "/v1/responses" and str(body.get("input", "")).startswith(

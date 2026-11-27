@@ -8,7 +8,11 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[3]
-GODOT = ROOT / "runtime" / "Godot_v4.5.1-stable_win64_console.exe"
+RUNTIME = ROOT / "runtime"
+GODOT_CANDIDATES = (
+    RUNTIME / "Godot_v4.5.1-stable_mono_win64" / "Godot_v4.5.1-stable_mono_win64_console.exe",
+    RUNTIME / "Godot_v4.5.1-stable_win64_console.exe",
+)
 SCRIPT = "res://tests/campus/academics/test_classroom_full_group_network.gd"
 MIN_AVAILABLE_MB = 4000
 
@@ -30,7 +34,8 @@ def available_mb():
 
 
 def main():
-    if os.name != "nt" or not GODOT.exists():
+    godot = next((candidate for candidate in GODOT_CANDIDATES if candidate.is_file()), None)
+    if os.name != "nt" or godot is None:
         print("Bundled Windows Godot runtime required", file=sys.stderr)
         return 2
     free = available_mb()
@@ -48,7 +53,7 @@ def main():
                 outputs.append((role, log))
                 env = os.environ.copy()
                 env["APPDATA"] = str(appdata)
-                proc = subprocess.Popen([str(GODOT), "--headless", "--path", str(ROOT), "--script", SCRIPT, "--", role],
+                proc = subprocess.Popen([str(godot), "--headless", "--path", str(ROOT), "--script", SCRIPT, "--", role],
                                         cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT)
                 processes.append((role, proc))
                 if role == "host":

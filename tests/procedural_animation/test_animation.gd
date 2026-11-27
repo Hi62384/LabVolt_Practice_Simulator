@@ -156,6 +156,47 @@ func run() -> void:
 	var uneven:=typeset.duplicate(true)
 	uneven.objects[3].notation[0].pop_back()
 	assert(not Document.compile(uneven).ok)
+	var timed:=camera_scene.duplicate(true)
+	timed.loop=true
+	timed.cues=[{"id":"prediction","at":2.5,"label":"Pause and predict what the zoom will reveal","pause":true},
+		{"id":"answer","at":4.0,"label":"Check the center of the circle"}]
+	assert(player.load_scene(timed))
+	player.advance(4.)
+	assert(not player.playing and player.clock==2.5 and player.cue_label().begins_with("Pause"))
+	assert(player.command({"op":"play"}))
+	player.advance(1.5)
+	assert(player.playing and player.clock==4. and player.cue_label().begins_with("Check"))
+	player.seek(7.5)
+	player.advance(4.)
+	assert(not player.playing and player.clock==2.5)
+	assert(player.command({"op":"seek_cue","id":"answer"}) and player.clock==4.)
+	assert(not player.command({"op":"seek_cue","id":"unknown"}))
+	assert(Store.save("cue_fixture",player)==OK)
+	var timed_reload:=Store.load_playback("cue_fixture")
+	assert(timed_reload!=null and timed_reload.clock==4. and timed_reload.cue_label().begins_with("Check"))
+	assert(Visuals.apply(activity,{"op":"create","scene":timed},14.))
+	Visuals.advance(activity,18.)
+	board.show_animation("timed",Visuals.view(activity))
+	if OS.get_environment("LABVOLT_CAPTURE_VISUALS")=="1" and DisplayServer.get_name()!="headless":
+		await RenderingServer.frame_post_draw
+		board.viewport.get_texture().get_image().save_png("res://.godot/procedural-cue-board.png")
+	assert(not board.animation_canvas.player.playing and board.animation_canvas.player.clock==2.5)
+	var conditional:=timed.duplicate(true)
+	conditional.parameters={"voltage":[0.,0.,10.]}
+	conditional.cues[0].pause_when="voltage > 3"
+	assert(player.load_scene(conditional))
+	player.advance(4.)
+	assert(player.playing and player.clock==4.)
+	player.seek(0.)
+	player.set_live_parameters({"voltage":5.})
+	player.advance(4.)
+	assert(not player.playing and player.clock==2.5)
+	assert(float(player.inputs[0])==2.5)
+	var request:="Please keep the final instruction. "+("x".repeat(500))
+	var prompt:=Visuals.prompt({"title":"Topic".repeat(110),"text":"\"\\".repeat(400),"formulas":"x = y".repeat(200)},
+		request,{"objects":[{"text":"Long scene".repeat(400)}]})
+	assert(prompt.length()<=Visuals.HostClient.MAX_INPUT_CHARS)
+	assert(prompt.ends_with(" Student request: "+request.left(420)) and "pause_when" in prompt)
 	print("PROCEDURAL_ANIMATION_ENGINE_AND_BOARD PASS")
 	board.queue_free()
 	camera.queue_free()

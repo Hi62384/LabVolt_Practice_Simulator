@@ -29,6 +29,7 @@ func _ready() -> void:
 	resized.connect(_redraw_frame)
 
 func show_checkpoint(key: String,state: Dictionary) -> bool:
+	var had_cues: bool=not player.scene.get("cues",[]).is_empty()
 	if key!=sync_key:
 		if not player.restore_checkpoint(state):return false
 		plot_cache.clear()
@@ -39,7 +40,8 @@ func show_checkpoint(key: String,state: Dictionary) -> bool:
 	if player.set_live_parameters(state.get("live_parameters",{})):plot_cache.clear()
 	player.set_live_series(state.get("live_series",{}))
 	var status:=str(state.get("data_status",""))
-	if status!=data_status:
+	var has_cues: bool=not player.scene.get("cues",[]).is_empty()
+	if status!=data_status or had_cues!=has_cues:
 		data_status=status
 		_redraw_frame()
 	else:_queue_frame()
@@ -59,6 +61,7 @@ func _redraw_frame() -> void:
 	var zoom:=minf(size.x/Document.SIZE.x,size.y/Document.SIZE.y)
 	var offset:=(size-Document.SIZE*zoom)*.5
 	var footer:=503. if data_status.is_empty() else 480.
+	if not player.scene.get("cues",[]).is_empty():footer-=23.
 	stage_clip.position=offset+Vector2(0.,76.)*zoom
 	stage_clip.size=Vector2(Document.SIZE.x,footer-76.)*zoom
 	artwork.position=Vector2(0.,-76.)*zoom
@@ -89,8 +92,15 @@ func _draw() -> void:
 	if not data_status.is_empty():
 		draw_rect(Rect2(17,480,926,24),Color("0b2030"))
 		draw_string(font,Vector2(22,498),data_status,HORIZONTAL_ALIGNMENT_LEFT,916.,16,ACCENT)
+	var cue_label:=player.cue_label()
+	if not cue_label.is_empty():
+		var y:=495. if data_status.is_empty() else 474.
+		draw_string(font,Vector2(22.,y),cue_label,HORIZONTAL_ALIGNMENT_LEFT,916.,17,Color("ffc671"))
 	draw_rect(Rect2(18,505,924,3),Color("254b5a"))
 	draw_rect(Rect2(18,505,924*progress,3),ACCENT)
+	for cue in player.scene.get("cues",[]):
+		var marker_x:=18.+924.*float(cue.at)/float(player.scene.duration)
+		draw_line(Vector2(marker_x,502.),Vector2(marker_x,512.),Color("ffc671"),2.,true)
 
 func _draw_artwork() -> void:
 	if player.scene.is_empty() or font==null:return

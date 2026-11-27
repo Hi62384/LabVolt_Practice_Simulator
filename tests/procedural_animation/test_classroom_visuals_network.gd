@@ -39,6 +39,10 @@ func run() -> void:
 		assert(float(state.visual_playback.scene.parameters.frequency[0])==2.)
 		assert(not classes.classes.has("dc_lab"))
 		if not await wait_for(func():return state.get("visual_surface","")=="projector","guest moves paused scene to projector"):return
+		if not await wait_for(func():
+			var model: RefCounted=state.visual_playback
+			return not model.scene.get("cues",[]).is_empty() and not model.playing and model.clock==1.25,
+			"authored cue pauses the host"):return
 		print("CLASS_VISUAL_HOST PASS")
 		await create_timer(3.).timeout
 	else:
@@ -77,6 +81,13 @@ func run() -> void:
 			"guest projector shows the animation"):return
 		assert(not board.active)
 		assert(absf(position_before-classes.lesson_projector.animation_canvas.player.clock)<.05)
+		faculty.conversation_input.text="Create a guided animation with a pause cue."
+		faculty._submit_question()
+		if not await wait_for(func():
+			var state:=_visual()
+			var paused: bool=not state.get("scene",{}).get("cues",[]).is_empty() and not state.playing and absf(float(state.time)-1.25)<.01
+			return paused and classes.lesson_projector.animation_canvas.player.cue_label()=="Inspect the phasor",
+			"guest receives the exact cue pause"):return
 		print("CLASS_VISUAL_GUEST PASS")
 		faculty.close_conversation()
 	game.session.leave()

@@ -10,7 +10,7 @@ const KINDS:=["rectangle","ellipse","circle","polygon","path","line","arrow","te
 const PROPERTIES:={"x":0.,"y":0.,"width":120.,"height":72.,"rotation":0.,"scale":1.,"alpha":1.,"stroke":3.,"progress":1.,"font":30.,"radius":18.,"x_min":-6.28,"x_max":6.28,"y_min":-1.5,"y_max":1.5,"u_min":0.,"u_max":TAU}
 const COLORS:=["071a28","102a39","e2edf4","82c8dc","46dfc1","ffc671","ff8184","b4adff"]
 const LAYOUTS:=["right","left","full"]
-const ROOT_FIELDS:=["version","title","subtitle","duration","loop","parameters","objects","layout"]
+const ROOT_FIELDS:=["version","title","subtitle","duration","loop","parameters","objects","layout","cues"]
 const META_FIELDS:=["id","type","parent","text","notation","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","count","bindings","tracks","dash","easing","layer","start","end"]
 static var id_pattern:=RegEx.create_from_string("^[a-z][a-z0-9_]{0,23}$")
 
@@ -26,6 +26,17 @@ static func compile(raw: Variant) -> Dictionary:
 	if raw.get("layout","right") not in LAYOUTS:return _fail("Unknown presentation layout.")
 	if not _text(raw.get("title"),80) or str(raw.title).is_empty() or not _text(raw.get("subtitle",""),120):return _fail("Invalid scene title.")
 	if not _number(raw.get("duration"),1.,180.) or not raw.get("loop",false) is bool:return _fail("Invalid playback settings.")
+	var cues: Variant=raw.get("cues",[])
+	if not cues is Array or cues.size()>12:return _fail("Too many or invalid timeline cues.")
+	var cue_ids: Dictionary={}
+	var previous_cue:=0.
+	for cue in cues:
+		if not cue is Dictionary or not _known(cue,["id","at","label","pause","pause_when"]):return _fail("Invalid timeline cue.")
+		if not _id(cue.get("id")) or cue_ids.has(cue.id) or not _text(cue.get("label"),54):return _fail("Invalid cue name or label.")
+		if not _number(cue.get("at"),.001,raw.duration) or float(cue.at)<=previous_cue or not cue.get("pause",false) is bool:
+			return _fail("Timeline cues must be sorted by time.")
+		cue_ids[cue.id]=true
+		previous_cue=float(cue.at)
 	var params: Variant=raw.get("parameters",{})
 	if not params is Dictionary or params.size()>12:return _fail("Too many or invalid parameters.")
 	var names:=PackedStringArray(["t","u","pi","tau"])
@@ -34,6 +45,12 @@ static func compile(raw: Variant) -> Dictionary:
 		if not _id(id) or id in names or id in Formula.FUNCTIONS or not p is Array or p.size()!=3:return _fail("Invalid parameter.")
 		if not _number(p[1],-10000.,10000.) or not _number(p[2],float(p[1]),10000.) or not _number(p[0],float(p[1]),float(p[2])):return _fail("Invalid parameter range.")
 		names.append(id)
+	var cue_conditions: Dictionary={}
+	for cue in cues:
+		if not cue.has("pause_when"):continue
+		var condition:=Formula.compile(cue.pause_when,names)
+		if condition==null or not cue.get("pause",false):return _fail("Invalid cue pause condition.")
+		cue_conditions[cue.id]=condition
 	var value: Variant=raw.get("objects")
 	if not value is Array or value.is_empty() or value.size()>OBJECTS:return _fail("Invalid object count.")
 	var objects: Dictionary={}
@@ -125,7 +142,7 @@ static func compile(raw: Variant) -> Dictionary:
 			visited.append(parent)
 			parent=objects[parent].get("parent","")
 	if JSON.stringify(raw).to_utf8_buffer().size()>MAX_BYTES:return _fail("Scene is too large.")
-	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series,"camera_id":camera_id,"notation":notation}
+	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series,"camera_id":camera_id,"notation":notation,"cue_conditions":cue_conditions}
 
 static func _notation(source: Variant) -> Dictionary:
 	var parser:=MathParser.new()
