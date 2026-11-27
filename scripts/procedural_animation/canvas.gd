@@ -159,6 +159,11 @@ func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: fl
 	var y0:=player.property(item,"y_min")
 	var y1:=player.property(item,"y_max")
 	if x1-x0<.0001 or y1-y0<.0001:return
+	var bounds:=Rect2(x0,y0,x1-x0,y1-y0)
+	if item.get("equal_axes",item.has("x_function")):
+		var units_per_pixel:=maxf(bounds.size.x/dims.x,bounds.size.y/dims.y)
+		var equal_size:=dims*units_per_pixel
+		bounds=Rect2(bounds.get_center()-equal_size*.5,equal_size)
 	draw_rect(Rect2(Vector2.ZERO,dims),Color("102f40"))
 	for i in range(1,8):
 		var gx:=dims.x*i/8.
@@ -166,39 +171,54 @@ func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: fl
 	for j in range(1,5):
 		var gy:=dims.y*j/5.
 		draw_line(Vector2(0.,gy),Vector2(dims.x,gy),Color("254c5b"))
-	var axes:=Vector2(clampf(-x0/(x1-x0),0.,1.),clampf(y1/(y1-y0),0.,1.))*dims
+	var axes:=Vector2(clampf(-bounds.position.x/bounds.size.x,0.,1.),clampf(bounds.end.y/bounds.size.y,0.,1.))*dims
 	draw_line(Vector2(0.,axes.y),Vector2(dims.x,axes.y),Color("87a5b1"),2.,true)
 	draw_line(Vector2(axes.x,0.),Vector2(axes.x,dims.y),Color("87a5b1"),2.,true)
+	var points:=PackedVector2Array()
 	if item.has("data_series"):
-		var series: PackedVector2Array=player.live_series.get(item.data_series,PackedVector2Array())
-		if series.is_empty():
+		points=player.live_series.get(item.data_series,PackedVector2Array())
+		if points.is_empty():
 			draw_string(font,Vector2(12.,30.),"Waiting for live data",HORIZONTAL_ALIGNMENT_LEFT,dims.x-24.,20,INK)
-		else:
-			var plot_range:=Vector2(x1-x0,y1-y0)
-			var bounds:=Rect2(Vector2(x0,y0),plot_range).grow(.00001)
-			for i in series.size()-1:
-				var a:=series[i]
-				var b:=series[i+1]
-				if not bounds.has_point(a) or not bounds.has_point(b):continue
-				draw_line(Vector2((a.x-x0)/plot_range.x,(y1-a.y)/plot_range.y)*dims,
-					Vector2((b.x-x0)/plot_range.x,(y1-b.y)/plot_range.y)*dims,pen,stroke,true)
-		_draw_graph_limits(x0,x1,dims)
-		return
-	var dynamic: bool=player.compiled.animated_plots.get(item.id,false)
-	var key: Array=[player.revision,x0,x1,y0,y1,player.clock if dynamic else 0.]
-	var cached: Dictionary=plot_cache.get(item.id,{})
-	if cached.get("key")!=key:
-		var values:=PackedFloat32Array()
-		for i in 97:values.append(player.sample(item.id,lerpf(x0,x1,float(i)/96.)))
-		cached={"key":key,"values":values}
-		plot_cache[item.id]=cached
-	var points: PackedFloat32Array=cached.values
-	for i in mini(96,ceili(progress*96.)):
-		var a:=float(points[i]);var b:=float(points[i+1])
-		if not is_finite(a) or not is_finite(b) or a<y0 or a>y1 or b<y0 or b>y1:continue
-		draw_line(Vector2(float(i)/96.,(y1-a)/(y1-y0))*dims,Vector2(float(i+1)/96.,(y1-b)/(y1-y0))*dims,pen,stroke,true)
-	_draw_graph_limits(x0,x1,dims)
+	else:
+		points=_graph_points(item,x0,x1)
+	_draw_plot(points,bounds,dims,pen,stroke,progress,item.get("plot_style","line")=="scatter")
+	_draw_graph_limits(item,bounds,dims)
 
-func _draw_graph_limits(x0: float,x1: float,dims: Vector2) -> void:
-	draw_string(font,Vector2(4,dims.y-8),"%.2f"%x0,HORIZONTAL_ALIGNMENT_LEFT,90.,16,INK)
-	draw_string(font,Vector2(dims.x-72,dims.y-8),"%.2f"%x1,HORIZONTAL_ALIGNMENT_RIGHT,68.,16,INK)
+func _graph_points(item: Dictionary,x0: float,x1: float) -> PackedVector2Array:
+	var minimum:=player.property(item,"u_min") if item.has("x_function") else x0
+	var maximum:=player.property(item,"u_max") if item.has("x_function") else x1
+	var dynamic: bool=player.compiled.animated_plots.get(item.id,false)
+	var key: Array=[player.revision,minimum,maximum,player.clock if dynamic else 0.]
+	var cached: Dictionary=plot_cache.get(item.id,{})
+	if cached.get("key")==key:return cached.values
+	var points:=PackedVector2Array()
+	var fixed: Array=item.get("points",[])
+	if not fixed.is_empty():
+		for point in fixed:points.append(Vector2(point[0],point[1]))
+	elif maximum>minimum:
+		for i in 97:points.append(player.sample_point(item.id,lerpf(minimum,maximum,float(i)/96.)))
+	plot_cache[item.id]={"key":key,"values":points}
+	return points
+
+func _draw_plot(points: PackedVector2Array,bounds: Rect2,dims: Vector2,pen: Color,stroke: float,progress: float,scatter: bool) -> void:
+	var limit:=bounds.grow(.00001)
+	var previous:=Vector2.INF
+	var origin:=Vector2(bounds.position.x,bounds.end.y)
+	var gain:=Vector2(dims.x/bounds.size.x,-dims.y/bounds.size.y)
+	for i in mini(points.size(),ceili(progress*maxi(0,points.size()-1))+1):
+		var point:=points[i]
+		if not point.is_finite() or not limit.has_point(point):
+			previous=Vector2.INF
+			continue
+		var pixel:=(point-origin)*gain
+		if scatter:draw_circle(pixel,maxf(2.5,stroke),pen,true,-1.,true)
+		elif previous.is_finite():draw_line(previous,pixel,pen,stroke,true)
+		previous=pixel
+
+func _draw_graph_limits(item: Dictionary,bounds: Rect2,dims: Vector2) -> void:
+	draw_string(font,Vector2(4,dims.y-8),"%.2f"%bounds.position.x,HORIZONTAL_ALIGNMENT_LEFT,90.,16,INK)
+	draw_string(font,Vector2(dims.x-72,dims.y-8),"%.2f"%bounds.end.x,HORIZONTAL_ALIGNMENT_RIGHT,68.,16,INK)
+	if item.has("x_label") and dims.x>=240.:
+		draw_string(font,Vector2(78.,dims.y-8),item.x_label,HORIZONTAL_ALIGNMENT_CENTER,dims.x-156.,16,INK)
+	if item.has("y_label"):
+		draw_string(font,Vector2(9.,21.),item.y_label,HORIZONTAL_ALIGNMENT_LEFT,dims.x-18.,16,INK)

@@ -6,11 +6,11 @@ const SIZE:=Vector2(960.,520.)
 const MAX_BYTES:=12000
 const OBJECTS:=36
 const KINDS:=["rectangle","ellipse","circle","polygon","path","line","arrow","text","equation","graph","particles","group"]
-const PROPERTIES:={"x":0.,"y":0.,"width":120.,"height":72.,"rotation":0.,"scale":1.,"alpha":1.,"stroke":3.,"progress":1.,"font":30.,"radius":18.,"x_min":-6.28,"x_max":6.28,"y_min":-1.5,"y_max":1.5}
+const PROPERTIES:={"x":0.,"y":0.,"width":120.,"height":72.,"rotation":0.,"scale":1.,"alpha":1.,"stroke":3.,"progress":1.,"font":30.,"radius":18.,"x_min":-6.28,"x_max":6.28,"y_min":-1.5,"y_max":1.5,"u_min":0.,"u_max":TAU}
 const COLORS:=["071a28","102a39","e2edf4","82c8dc","46dfc1","ffc671","ff8184","b4adff"]
 const LAYOUTS:=["right","left","full"]
 const ROOT_FIELDS:=["version","title","subtitle","duration","loop","parameters","objects","layout"]
-const META_FIELDS:=["id","type","parent","text","color","fill","points","function","data_series","count","bindings","tracks","dash","easing","layer"]
+const META_FIELDS:=["id","type","parent","text","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","count","bindings","tracks","dash","easing","layer"]
 static var id_pattern:=RegEx.create_from_string("^[a-z][a-z0-9_]{0,23}$")
 
 static func parse(source: String) -> Dictionary:
@@ -46,6 +46,11 @@ static func compile(raw: Variant) -> Dictionary:
 		var kind: Variant=object.get("type")
 		if not _id(id) or objects.has(id) or not kind in KINDS:return _fail("Invalid object identity or type.")
 		if not _text(object.get("text",""),160) or not _text(object.get("parent",""),24):return _fail("Invalid object text or parent.")
+		for field in ["x_label","y_label"]:
+			if object.has(field) and (kind!="graph" or not _text(object[field],36)):return _fail("Invalid graph axis label.")
+		if object.has("plot_style") and (kind!="graph" or object.plot_style not in ["line","scatter"]):return _fail("Invalid plot style.")
+		if object.has("equal_axes") and (kind!="graph" or not object.equal_axes is bool):return _fail("Invalid graph scale.")
+		if object.has("x_function") and (kind!="graph" or not object.has("function")):return _fail("A parametric graph needs both coordinate functions.")
 		for field in ["color","fill"]:
 			if object.has(field) and not _color(object[field]):return _fail("Invalid color.")
 		if not _number(object.get("layer",0.),-32.,32.) or not object.get("dash",false) is bool or object.get("easing","smooth") not in ["linear","smooth"]:return _fail("Invalid object styles.")
@@ -56,15 +61,24 @@ static func compile(raw: Variant) -> Dictionary:
 		if kind=="particles" and not _number(object.get("count",12),1.,48.):return _fail("Invalid particle count.")
 		if kind in ["polygon","path"] and points.size()<(3 if kind=="polygon" else 2):return _fail("Too few path points.")
 		if object.has("data_series"):
-			if kind!="graph" or object.has("function") or not _id(object.data_series):return _fail("Invalid graph data source.")
+			if kind!="graph" or object.has("function") or not points.is_empty() or not _id(object.data_series):return _fail("Invalid graph data source.")
 			series[object.data_series]=true
 			if series.size()>4:return _fail("Too many graph data sources.")
 			complexity+=4
 		elif kind=="graph":
-			var plot:=Formula.compile(object.get("function"),names)
-			if plot==null:return _fail("Invalid plot formula on "+id)
-			programs[id+":plot"]=plot
-			animated_plots[id]=Formula.token.search_all(object.function).any(func(word: RegExMatch):return word.get_string()=="t")
+			if points.is_empty():
+				var plot:=Formula.compile(object.get("function"),names)
+				if plot==null:return _fail("Invalid plot formula on "+id)
+				programs[id+":plot"]=plot
+				var expressions: String=object.function
+				if object.has("x_function"):
+					var x_plot:=Formula.compile(object.x_function,names)
+					if x_plot==null:return _fail("Invalid horizontal plot formula on "+id)
+					programs[id+":plot_x"]=x_plot
+					expressions+=" "+object.x_function
+					complexity+=3
+				animated_plots[id]=Formula.token.search_all(expressions).any(func(word: RegExMatch):return word.get_string()=="t")
+			elif object.has("function"):return _fail("A graph must choose points or formulas.")
 			complexity+=4
 		var bindings: Variant=object.get("bindings",{})
 		var tracks: Variant=object.get("tracks",{})

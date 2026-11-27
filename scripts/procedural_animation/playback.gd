@@ -211,3 +211,12 @@ func sample(id: String,axis_value: float) -> float:
 	var result:=Formula.value(program,inputs,NAN)
 	inputs[1]=0.
 	return result
+
+func sample_point(id: String,argument: float) -> Vector2:
+	var y:=sample(id,argument)
+	var x_program: Expression=compiled.programs.get(id+":plot_x")
+	if x_program==null:return Vector2(argument,y)
+	inputs[1]=argument
+	var x:=Formula.value(x_program,inputs,NAN)
+	inputs[1]=0.
+	return Vector2(x,y)

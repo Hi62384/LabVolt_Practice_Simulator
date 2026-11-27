@@ -91,6 +91,27 @@ func run() -> void:
 	Visuals.update_bench(activity,{})
 	board.show_animation("scope",Visuals.view(activity,true,false))
 	assert(board.animation_canvas.player.live_series.is_empty())
+	var orbit:={"version":1,"title":"Parametric paths and observations","duration":8.,"objects":[
+		{"type":"graph","id":"orbit","x":35,"y":100,"width":425,"height":365,
+			"x_min":-1.2,"x_max":1.2,"y_min":-1.2,"y_max":1.2,
+			"x_label":"Horizontal offset","y_label":"Vertical offset","x_function":"cos(u)","function":"sin(u)"},
+		{"type":"graph","id":"observed","x":500,"y":100,"width":425,"height":365,
+			"x_min":-1.2,"x_max":1.2,"y_min":-1.2,"y_max":1.2,
+			"x_label":"Horizontal offset","y_label":"Vertical offset","plot_style":"scatter","equal_axes":true,"color":"ffc671",
+			"points":[[-1.,0.],[-.6,.8],[0.,1.],[.6,.8],[1.,0.]]}]}
+	assert(player.load_scene(orbit))
+	assert(player.sample_point("orbit",PI/2.).distance_to(Vector2(0.,1.))<.001)
+	assert(player.sample_point("orbit",PI).distance_to(Vector2(-1.,0.))<.001)
+	var diagram_plan:=Visuals.decode(JSON.stringify({"speech":"Compare the curve and points.","action":{"op":"create","scene":orbit}}))
+	assert("Vertical offset" in diagram_plan.moderation)
+	assert(Visuals.apply(activity,{"op":"create","scene":orbit},11.))
+	board.show_animation("orbit",Visuals.view(activity,true))
+	if OS.get_environment("LABVOLT_CAPTURE_VISUALS")=="1" and DisplayServer.get_name()!="headless":
+		await RenderingServer.frame_post_draw
+		board.viewport.get_texture().get_image().save_png("res://.godot/procedural-plot-board.png")
+	var ambiguous:=orbit.duplicate(true)
+	ambiguous.objects[1].function="u"
+	assert(not Document.compile(ambiguous).ok)
 	print("PROCEDURAL_ANIMATION_ENGINE_AND_BOARD PASS")
 	board.queue_free()
 	camera.queue_free()
