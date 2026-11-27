@@ -126,7 +126,7 @@ static func grade(assignment: Dictionary,answers: Dictionary) -> Dictionary:
 		if not q.get("options",[]).is_empty():check.correct=raw.is_valid_int() and int(raw)==int(q.answer)
 		else:check=Quantity.check(q,raw)
 		if check.correct:earned+=1
-		feedback.append({"correct":check.correct,"reason":check.reason,"expected":q.options[int(q.answer)] if not q.get("options",[]).is_empty() else "%.9f %s"%[q.answer,q.unit],"explanation":q.explanation})
+		feedback.append({"correct":check.correct,"reason":check.reason,"expected":q.options[int(q.answer)] if not q.get("options",[]).is_empty() else ("%s %s"%[str(q.answer).trim_suffix(".0"),q.unit]).strip_edges(),"explanation":q.explanation})
 	return {"score":100.0*earned/maxi(1,feedback.size()),"feedback":feedback,"scope":"written_only"}
 static func public_copy(assignment: Dictionary,marked: bool=false) -> Dictionary:
 	var copy := assignment.duplicate(true)

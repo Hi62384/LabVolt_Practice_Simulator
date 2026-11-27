@@ -556,6 +556,7 @@ func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 		var position: Vector3=game.player.position if peer==1 else game.session.poses.get(peer,{}).get("position",Vector3.ZERO)
 		var endpoint=game.session.labs[index-AC_OFFSET].positions.get(port)
 		if not endpoint is Vector3 or (position+Vector3.UP*1.65).distance_to(endpoint)>3.25:return
+		game.lecture_classes.lab_practice.yield_bench(index-AC_OFFSET)
 		var error := edit_external(peer,index,op,port)
 		if error!="":
 			if peer==1:feedback(error)
@@ -615,6 +616,8 @@ func _accept_checked(peer: int,index: int,action: Dictionary) -> void:
 	var throw_target: Variant=action.get("position")
 	var thrown: bool=op=="place_board" and throw_target is Vector3 and game.school.is_throw_landing(peer,throw_target)
 	if position.distance_to(origin)>4 and not releasing and not io_release and not thrown:return
+	if index<FIXED_BENCHES and is_instance_valid(game.lecture_classes):
+		game.lecture_classes.lab_practice.yield_bench(index,"dc")
 	if op=="kit_lead":
 		var error := _place_kit_lead(peer,index,str(action.get("port","")),str(action.get("hole","")))
 		if not error.is_empty():

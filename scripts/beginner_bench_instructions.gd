@@ -13,16 +13,22 @@ static func socket(id:String)->String:
  return id
 static func switch_labels(bank:Dictionary)->Array[String]:
  var kind:String=bank.kind;var stock:Array=Catalog.LOADS[kind].values
+ var labels:Array[String]=[]
+ for index in switch_indices(bank):
+  labels.append(("%.1f µF"%(float(stock[index])*1e6)) if kind=="C" else ("%.0f Ω"%float(stock[index])) if kind=="R" else ("%.1f H"%float(stock[index])))
+ return labels
+static func switch_indices(bank:Dictionary)->Array[int]:
+ var kind:String=bank.kind;var stock:Array=Catalog.LOADS[kind].values
  for mask in range(1,8):
   var sum=0.
   for i in 3:
    if mask&(1<<i):sum+=float(stock[i]) if kind=="C" else 1./float(stock[i])
   var equivalent=sum if kind=="C" else 1./sum
   if absf(equivalent-float(bank.value))>maxf(1e-12,absf(float(bank.value))*1e-6):continue
-  var labels:Array[String]=[]
+  var indices:Array[int]=[]
   for i in 3:
-   if mask&(1<<i):labels.append(("%.1f µF"%(float(stock[i])*1e6)) if kind=="C" else ("%.0f Ω"%float(stock[i])) if kind=="R" else ("%.1f H"%float(stock[i])))
-  return labels
+   if mask&(1<<i):indices.append(i)
+  return indices
  return []
 static func apply(assignment:Dictionary)->Dictionary:
  if assignment.get("course_id","")!="ELM253" or assignment.get("kind","")!="lab":return assignment

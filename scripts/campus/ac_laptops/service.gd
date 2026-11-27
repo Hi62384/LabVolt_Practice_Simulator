@@ -25,7 +25,7 @@ var subtitle: Label
 var view_id := -1
 var refresh_clock := 0.0
 var cable_views := {}
-var keyboard_instances: MultiMesh
+var keyboard_mesh: ArrayMesh
 var keyboard_material: StandardMaterial3D
 var held_cable_visual: Node3D
 
@@ -123,14 +123,13 @@ func _coiled_cable(parent: Node3D) -> void:
 func _build_laptop(root: Node3D,id: int) -> void:
  var body:=_target(root,"ac_laptop",id,Vector3(0,.035,0),Vector3(.46,.10,.33))
  var chassis:=_box(body,Vector3.ZERO,Vector3(.46,.045,.32),Color("667b84"))
- _box(body,Vector3(0,.026,-.035),Vector3(.40,.007,.185),Color("273a46"))
- if keyboard_instances==null:
-  keyboard_instances=MultiMesh.new();keyboard_instances.transform_format=MultiMesh.TRANSFORM_3D
-  var key_mesh:=BoxMesh.new();key_mesh.size=Vector3(.029,.006,.027);keyboard_instances.mesh=key_mesh;keyboard_instances.instance_count=40
-  for row in 4:
-   for col in 10:keyboard_instances.set_instance_transform(row*10+col,Transform3D(Basis.IDENTITY,Vector3(-.174+col*.038,.031,-.108+row*.041)))
+ chassis.set_meta("material_segment","case")
+ _box(body,Vector3(0,.026,-.035),Vector3(.40,.007,.185),Color("273a46")).set_meta("material_segment","keys")
+ if keyboard_mesh==null:
+  var key_mesh:=BoxMesh.new();key_mesh.size=Vector3(.029,.006,.027)
+  keyboard_mesh=preload("res://scripts/campus/items/EquipmentSurfaceGeometry.cs").new().KeyboardMesh(key_mesh,10,4)
   keyboard_material=_material(Color("a4b5b4"))
- var keys:=MultiMeshInstance3D.new();keys.multimesh=keyboard_instances;keys.material_override=keyboard_material;keys.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;body.add_child(keys)
+ var keys:=MeshInstance3D.new();keys.mesh=keyboard_mesh;keys.material_override=keyboard_material;keys.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF;body.add_child(keys)
  keys.set_meta("material_segment","keys")
  keys.set_meta("unlit_material",keyboard_material)
  root.set_meta("equipment_keyboard",keys)
@@ -139,15 +138,18 @@ func _build_laptop(root: Node3D,id: int) -> void:
  _target(lid,"ac_laptop",id,Vector3(0,.13,.008),Vector3(.46,.26,.034))
  var lid_case:=_box(lid,Vector3(0,.13,0),Vector3(.46,.26,.025),Color("718892"))
  _box(lid,Vector3(0,.13,.014),Vector3(.42,.225,.006),Color("182b36")).set_meta("material_segment","bezel")
- root.set_meta("equipment_screen",_box(lid,Vector3(0,.13,.018),Vector3(.385,.188,.003),Color("315e70")))
+ var screen:=_box(lid,Vector3(0,.13,.018),Vector3(.385,.188,.003),Color("315e70"))
+ screen.set_meta("paint_protected",true)
+ root.set_meta("equipment_screen",screen)
  var badge:=_box(lid,Vector3(0,.13,-.014),Vector3(.08,.012,.003),Color("c1d4d2"))
+ badge.set_meta("material_segment","lid")
  lid_case.set_meta("material_segment","lid")
  trackpad.set_meta("material_segment","trackpad")
  root.set_meta("equipment_shell",[chassis,lid_case])
  root.set_meta("equipment_trim",[trackpad,badge])
  root.set_meta("decoration_anchor",{"part":lid,"position":Vector3(0,.190,-.0135),"rotation":Vector3(0,PI,0),"area":Vector2(.35,.101)})
  var port:=_target(root,"ac_laptop_usb",id,Vector3(.23,.045,0),Vector3(.055,.08,.12))
- _box(port,Vector3(.002,0,0),Vector3(.002,.014,.055),Color("10151b"))
+ _box(port,Vector3(.002,0,0),Vector3(.002,.014,.055),Color("10151b")).set_meta("material_segment","case")
 
 func _roster_changed() -> void:
  if multiplayer.is_server():_publish()

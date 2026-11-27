@@ -3,6 +3,7 @@ extends Node
 signal completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String)
 const Profiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
+const Classmates=preload("res://scripts/campus/academics/classroom_students.gd")
 const MAX_JOBS:=6
 const MAX_LISTENERS:=32
 const TIMEOUT_MS:=12000
@@ -22,6 +23,12 @@ func request(room: String,serial: int,id: String,text: String,key: String,priori
 	var profiles: Dictionary=profile_adapter.call() if profile_adapter.is_valid() else Profiles.profiles()
 	var profile: Dictionary=profiles.get(id,{})
 	if profile.is_empty() and Roster.GENERATED.has(id):profile=profiles.get("dr_volts",{})
+	if profile.is_empty() and id.begins_with("campus_student_") and not profiles.is_empty():
+		var person:=Classmates.profile_for(id)
+		if not person.is_empty():
+			var index:=int(id.get_slice("_",2))
+			profile=profiles.values()[index%profiles.size()].duplicate()
+			profile.rate=clampf(.84+float(person.talk)*.32,.8,1.18)
 	var model:=str(profile.get("model",""))
 	var model_disk:=Profiles.resolve_model(model)
 	var model_valid:=not model_disk.is_empty()

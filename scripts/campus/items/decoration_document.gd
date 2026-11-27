@@ -1,12 +1,15 @@
 extends RefCounted
 
 const LAYERS := 6
-const PIXELS := 256
+const PIXELS := 512
 const MAX_IMAGE := 36*1024
 const MAX_DOCUMENT := 84*1024
 const MAX_IMPORT := 6*1024*1024
 const MAX_EMISSION := 16.0
-const MAX_INDENT := 4.0
+const MAX_INDENT := 8.0
+const MIN_IMAGE_SCALE := .01
+const MAX_IMAGE_SCALE := 10.0
+const MAX_IMAGE_OFFSET := 64.0
 const OPTIONAL := ["width","height","lock_aspect","mesh_paint","projection","target_segment","reference_span","indent"]
 const TYPES := ["paint","image","text","shape"]
 const SHAPES := ["Panel","Button","Stud","Trim"]
@@ -43,7 +46,10 @@ static func clean(value: Variant) -> Variant:
 		for key in ["x","y","size","angle","opacity","metallic","roughness","glow","blend","crop_left","crop_right","crop_top","crop_bottom"]:
 			var number: Variant=raw.get(key)
 			if not (number is int or number is float) or not is_finite(number):return null
-		if raw.x<0 or raw.x>1 or raw.y<0 or raw.y>1 or raw.size<.10 or raw.size>1.0 or absf(raw.angle)>180.0:return null
+		if raw.has("projection"):
+			if absf(raw.x-.5)>MAX_IMAGE_OFFSET or absf(raw.y-.5)>MAX_IMAGE_OFFSET:return null
+		elif raw.x<0 or raw.x>1 or raw.y<0 or raw.y>1:return null
+		if raw.size<(MIN_IMAGE_SCALE if raw.kind=="image" else .10) or raw.size>(MAX_IMAGE_SCALE if raw.kind=="image" else 1.0) or absf(raw.angle)>180.0:return null
 		if raw.opacity<0 or raw.opacity>1.0 or raw.metallic<0 or raw.metallic>1.0 or raw.roughness<0 or raw.roughness>1.0 or raw.glow<0 or raw.glow>MAX_EMISSION:return null
 		if raw.blend!=floor(raw.blend) or int(raw.blend) not in range(BLENDS.size()):return null
 		for key in ["crop_left","crop_right","crop_top","crop_bottom"]:
@@ -121,8 +127,9 @@ static func encode(image: Image) -> String:
 	var scale:=float(PIXELS)/float(maxi(dimensions.x,dimensions.y))
 	if scale<1.0:image.resize(maxi(1,roundi(dimensions.x*scale)),maxi(1,roundi(dimensions.y*scale)),Image.INTERPOLATE_LANCZOS)
 	var bytes:=image.save_png_to_buffer()
-	if bytes.size()>MAX_IMAGE:
-		image.resize(maxi(1,roundi(image.get_width()*.63)),maxi(1,roundi(image.get_height()*.63)),Image.INTERPOLATE_LANCZOS)
+	while bytes.size()>MAX_IMAGE and maxi(image.get_width(),image.get_height())>64:
+		var reduction:=clampf(sqrt(float(MAX_IMAGE)/float(bytes.size())),.62,.9)
+		image.resize(maxi(1,roundi(image.get_width()*reduction)),maxi(1,roundi(image.get_height()*reduction)),Image.INTERPOLATE_LANCZOS)
 		bytes=image.save_png_to_buffer()
 	return Marshalls.raw_to_base64(bytes) if bytes.size()<=MAX_IMAGE else ""
 

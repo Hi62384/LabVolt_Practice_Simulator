@@ -52,8 +52,7 @@ var _rendering := false
 var _portable_pending := false
 const DevicePerformance=preload("res://scripts/campus/items/device_performance.gd")
 var performance: Node
-var freeze_overlay: CenterContainer
-var performance_status: Label
+var display_effect_time := 0.0
 var pending_app := ""
 var laptop_display_filter: ColorRect
 var browser_surface: VBoxContainer
@@ -108,6 +107,7 @@ var displayed_apps: Dictionary = {}
 var installed_shortcuts: GridContainer
 var displayed_shortcuts: Dictionary = {}
 var execution: Node
+var run_prompt: Control
 const APP_ICONS := {"Files":"folder","Text editor":"save","Code editor":"code","Calculator":"meter","Browser":"network","Terminal":"code","Settings":"settings","Recycle Bin":"trash"}
 
 func build(source: Node, owner_game: Node = null) -> void:
@@ -147,20 +147,7 @@ func build(source: Node, owner_game: Node = null) -> void:
 	_build_shell()
 	performance=DevicePerformance.new()
 	add_child(performance)
-	freeze_overlay=DevicePerformance.freeze_overlay("Laptop is frozen")
-	add_child(freeze_overlay)
-	freeze_overlay.hide()
-	freeze_overlay.z_index=10
-	performance_status=Label.new()
-	performance_status.horizontal_alignment=HORIZONTAL_ALIGNMENT_RIGHT
-	performance_status.mouse_filter=Control.MOUSE_FILTER_IGNORE
-	performance_status.add_theme_stylebox_override("normal",preload("res://scripts/ui/design_system/tokens.gd").surface(Color("142d3fee"),Color("588296"),10))
-	add_child(performance_status)
-	performance_status.position=Vector2(24,18)
-	performance_status.z_index=9
-	performance_status.hide()
 	performance.freeze_changed.connect(func(frozen: bool):
-		freeze_overlay.visible=frozen
 		if is_instance_valid(browser_surface):browser_surface.set_device_suspended(frozen))
 	performance.crashed.connect(func():
 		if is_instance_valid(game):game.ui.log_message("The laptop crashed. Turn it on again to restart Campus OS.")
@@ -471,7 +458,7 @@ void fragment() {
 	laptop_display_filter = ColorRect.new()
 	laptop_display_filter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	laptop_display_filter.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	laptop_display_filter.material=preload("res://scripts/campus/items/device_display.gd").effect()
+	laptop_display_filter.material=preload("res://scripts/campus/items/device_display.gd").effect(true)
 	laptop_display_filter.visible = false
 	add_child(laptop_display_filter)
 	status_label=desktop_status
@@ -771,14 +758,10 @@ func _launch_app(name: String) -> void:
 		return
 	if not pending_app.is_empty():return
 	pending_app=name
-	performance_status.text="Opening %s…"%name
-	performance_status.show()
 	if not performance.submit(func():
 		pending_app=""
-		performance_status.hide()
 		_switch_app(name),true):
 		pending_app=""
-		performance_status.hide()
 
 func _switch_app(name: String) -> void:
 	if name not in app_names: return
@@ -2063,14 +2046,36 @@ func _run_source(path: String, source: String, finished: Callable) -> void:
 		finished.call("A program is already running.")
 		return
 	var lease: Variant=snapshot.get("lease")
-	var dialog:=ConfirmationDialog.new()
-	dialog.title="Run with Judge0"
-	dialog.ok_button_text="Send and run"
+	if is_instance_valid(run_prompt):return
+	var curtain:=ColorRect.new()
+	curtain.name="RunPrompt"
+	curtain.color=Color(0.025,.06,.09,.68)
+	curtain.z_index=20
+	add_child(curtain)
+	curtain.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	run_prompt=curtain
+	var center:=CenterContainer.new()
+	center.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	curtain.add_child(center)
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var card:=PanelContainer.new()
+	card.name="RunCard"
+	var tokens=preload("res://scripts/ui/design_system/tokens.gd")
+	card.add_theme_stylebox_override("panel",tokens.surface(Color("102b3b"),Color("4b7887"),16))
+	center.add_child(card)
 	var form:=VBoxContainer.new()
-	form.custom_minimum_size.x=400
-	dialog.add_child(form)
+	var workplace_size:=size
+	if workplace_size.x<200.:workplace_size=get_viewport().get_visible_rect().size
+	form.custom_minimum_size.x=minf(380.0,maxf(200.0,workplace_size.x-64.0))
+	form.add_theme_constant_override("separation",10)
+	card.add_child(form)
+	var heading:=Label.new()
+	heading.text="Run " + path.get_file()
+	heading.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+	heading.add_theme_font_size_override("font_size",18)
+	form.add_child(heading)
 	var notice:=Label.new()
-	notice.text="%s and the standard input below will be sent to the host's Judge0 service."%path.get_file()
+	notice.text="The host’s code runner receives this file and its input. Leave input blank unless your program reads it."
 	notice.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	form.add_child(notice)
 	var runtime:=OptionButton.new()
@@ -2080,20 +2085,29 @@ func _run_source(path: String, source: String, finished: Callable) -> void:
 	standard_input.custom_minimum_size.y=86
 	standard_input.placeholder_text="Standard input (optional)"
 	form.add_child(standard_input)
-	add_child(dialog)
-	dialog.canceled.connect(dialog.queue_free)
-	dialog.confirmed.connect(func():
+	var actions:=HBoxContainer.new()
+	actions.alignment=BoxContainer.ALIGNMENT_END
+	form.add_child(actions)
+	actions.add_child(Icon.action("Cancel","",_close_run_prompt))
+	var run:=Icon.action("Run","play",func():
 		var stdin:=standard_input.text
 		var runtime_id:=runtime.get_selected_id()
-		dialog.queue_free()
+		_close_run_prompt()
 		if lease!=snapshot.get("lease"):return
 		finished.call("Running…")
 		var result: String=await execution.execute(path,source,stdin,runtime_id)
-		if lease==snapshot.get("lease"):finished.call(result))
-	dialog.popup_centered()
+		if lease==snapshot.get("lease"):finished.call(result),true)
+	actions.add_child(run)
+	run.grab_focus()
 	var catalog: Dictionary=await execution.supported_runtimes()
-	if not is_instance_valid(dialog) or not dialog.visible:return
+	if not is_instance_valid(curtain) or run_prompt!=curtain:return
 	for entry in catalog.get("runtimes",[]):runtime.add_item(str(entry.name),int(entry.id))
+
+func _close_run_prompt() -> void:
+	if not is_instance_valid(run_prompt):return
+	run_prompt.hide()
+	run_prompt.queue_free()
+	run_prompt=null
 
 func _move_destination(data: Variant,directory: String) -> String:
 	if not _supports_rename() or not data is Dictionary:return ""
@@ -2839,10 +2853,8 @@ func _send(payload: Dictionary) -> void:
 	var delay: int = int(tiers.get(tier, {}).get("delay_ms", 0)) if not snapshot.has("performance") else 0
 	if delay > 0 and payload.get("op", "") in ["save", "mkdir", "delete", "rename", "answer", "submit", "refresh"]:
 		if _portable_pending:
-			status_label.text = "The laptop is still processing the previous action."
 			return
 		_portable_pending = true
-		status_label.text = "Processing…"
 		await get_tree().create_timer(float(delay) / 1000.0).timeout
 		_portable_pending = false
 		if not is_inside_tree() or snapshot.is_empty() or snapshot.get("lease") != payload.lease or snapshot.get("revision") != payload.revision:
@@ -3004,9 +3016,9 @@ func _on_desktop_changed(value: Dictionary) -> void:
 		if is_instance_valid(browser_surface):browser_surface.status.text="Saved to "+str(value.download_path)
 		pending_browser_download=false
 	if value.is_empty():
+		_close_run_prompt()
 		performance.configure("",DevicePerformance.MAX)
 		pending_app=""
-		performance_status.hide()
 		preferences_timer.stop()
 		if is_instance_valid(execution):execution.stop()
 		file_clipboard.clear()
@@ -3170,7 +3182,17 @@ func _resize_input(event: InputEvent) -> bool:
 		return true
 	return false
 
+func _process(delta: float) -> void:
+	if not visible or not is_instance_valid(laptop_display_filter) or not laptop_display_filter.visible or performance.frozen:return
+	display_effect_time=fposmod(display_effect_time+delta,3600.0)
+	laptop_display_filter.material.set_shader_parameter("effect_seconds",display_effect_time)
+
 func _input(event: InputEvent) -> void:
+	if is_instance_valid(run_prompt) and run_prompt.is_visible_in_tree():
+		if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:
+			_close_run_prompt()
+			get_viewport().set_input_as_handled()
+		return
 	if is_instance_valid(performance) and performance.frozen and visible:
 		if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:_request_exit()
 		get_viewport().set_input_as_handled()

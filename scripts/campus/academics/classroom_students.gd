@@ -11,6 +11,44 @@ var models: Dictionary={}
 var learning: Dictionary={}
 var records:=ConfigFile.new()
 
+static func profile_for(id: String) -> Dictionary:
+	var index:=id.trim_prefix("campus_student_")
+	if not index.is_valid_int() or int(index) not in range(POOL_SIZE):return {}
+	var profile:=Profiles.student(int(index))
+	return profile if profile.id==id else {}
+
+func nearby_member(peer: int,room: String,class_id: String,id: String) -> Dictionary:
+	var activity: Dictionary=game.lecture_classes.classes.get(room,{})
+	if activity.get("id","")!=class_id or not game.lecture_classes._inside(peer,room):return {}
+	var member: Dictionary=activity.get("classmates",{}).get(id,{})
+	if member.is_empty() or float(member.arrival)>game.lecture_classes._now():return {}
+	var point: Vector3=game.lecture_classes._position(peer)
+	if point.distance_to(member.position)>3.8:return {}
+	return member
+
+func visible_member(room: String,class_id: String,id: String) -> Dictionary:
+	var activity: Dictionary=game.lecture_classes.public_classes.get(room,{})
+	if activity.get("id","")!=class_id:return {}
+	for member in activity.get("classmates",[]):
+		if member.id==id:return member
+	return {}
+
+func dialogue(profile: Dictionary,course: String,stage: Dictionary,question: String,history: Array,phase: String) -> String:
+	var message:=question.to_lower()
+	if "sorry" in message:return "It's okay. We can start over."
+	if "thanks" in message:return "Anytime. Let me know how it goes."
+	if "hobby" in message or "free time" in message or "interest" in message:
+		return "I'm into %s. What about you?"%profile.interest
+	if "remember" in message and not history.is_empty():
+		return "Last time you said, “%s.” How did that go?"%str(history[-1].student).left(150)
+	if phase=="assignment":return "I'm working on my own sheet right now. Let's compare notes after we hand it in."
+	if "study" in message:return "I'd be up for that. Let's compare what we wrote down after class."
+	if "help" in message or "formula" in message or "explain" in message:
+		if proficiency(profile.id,course,profile.knowledge)<.60:return "I'm still working that out too. Want to ask the instructor together?"
+		return "I start by writing the known values and their units. Which part are you stuck on?"
+	if not stage.get("title","").is_empty():return "I'm trying to follow the part about %s. How's it going for you?"%str(stage.title).left(120)
+	return "Hey! I'm %s. What are you working on today?"%str(profile.name).get_slice(" ",0)
+
 func configure(owner: Node) -> void:
 	game=owner
 	if records.load(RECORDS)==OK:
@@ -29,7 +67,13 @@ func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: fl
 		return not players.any(func(player: Vector3):return seat.distance_to(player)<1.1))
 	var rng:=RandomNumberGenerator.new()
 	rng.seed=hash(activity.id)
-	var count:=rng.randi_range(0,mini(MAX_PER_CLASS,maxi(0,mini(options.size(),seats.size()-players.size()-1))))
+	var practical: bool=activity.get("kind","")=="lab"
+	if practical:
+		for bench: Vector3 in room.get("benches",[]):
+			var working_point:=bench+Vector3(0,0,1.45)
+			if not players.any(func(point: Vector3):return working_point.distance_to(point)<1.4):options.append(working_point)
+	var capacity:=mini(MAX_PER_CLASS,options.size() if practical else maxi(0,mini(options.size(),seats.size()-players.size()-1)))
+	var count:=rng.randi_range(1 if practical and capacity>0 else 0,capacity)
 	var classmates: Dictionary={}
 	var rotate:=rng.randi_range(0,POOL_SIZE-1)
 	for index in count:
@@ -38,45 +82,95 @@ func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: fl
 		var seat: Vector3=options.pop_at(slot)
 		var arrival:=now+rng.randf_range(0.,16.)
 		classmates[profile.id]={"profile":profile,"seat":seat,"position":seat+Vector3(0,0,1.6),"arrival":arrival,
-			"seated":false,"walking":false,"action":"arriving","next":arrival+7.,"turns":0}
+			"seated":false,"standing":practical,"arrived":false,"walking":false,"action":"arriving","next":arrival+7.,"turns":0}
 	activity.classmates=classmates
 
 func step(activity: Dictionary,now: float,delta: float) -> void:
 	for member in activity.get("classmates",{}).values():
 		var profile: Dictionary=member.profile
 		if now<float(member.arrival):continue
-		if not member.seated:
+		if not member.get("arrived",member.seated):
 			var position: Vector3=member.position
 			member.position=position.move_toward(member.seat,delta*1.5)
-			member.seated=member.position.is_equal_approx(member.seat)
-			member.walking=not member.seated
-			member.action="listening" if member.seated else "walking"
+			member.arrived=member.position.is_equal_approx(member.seat)
+			member.seated=member.arrived and not member.get("standing",false)
+			member.walking=not member.arrived
+			member.action="listening" if member.arrived else "walking"
 			continue
-		if now<float(member.next):continue
+		if now<float(member.next) or member.get("using_bench",false):continue
+		member.erase("line")
+		if activity.phase=="assignment":
+			_assessment_step(activity,member,now)
+			continue
 		var choices:=["listening","listening","taking notes","thinking"]
 		if float(profile.confidence)*float(profile.curiosity)>.26:choices.append("raising hand")
 		if float(profile.focus)<.45:choices.append("distracted")
 		member.turns+=1
 		var roll:=posmod(hash([profile.id,activity.id,member.turns]),choices.size())
-		member.action="working" if activity.phase=="assignment" else choices[roll]
+		member.action=choices[roll]
 		member.next=now+5.+posmod(hash([profile.id,member.turns]),10)
 
 func proficiency(id: String,course: String,base: float) -> float:
-	return clampf(base+float(learning.get(id,{}).get(course,0.)),.1,.93)
+	var affinity:=float(posmod(hash([id,course]),101))/1000.-.05
+	return clampf(base+affinity+float(learning.get(id,{}).get(course,0.)),.1,.93)
 
-func record_practice(id: String,course: String,correct: bool) -> void:
+func record_practice(id: String,course: String,correct: bool,week := 0) -> void:
 	if not multiplayer.is_server() or not id.begins_with("campus_student_"):return
 	var scores: Dictionary=learning.get_or_add(id,{})
 	scores[course]=minf(.35,float(scores.get(course,0.))+(.015 if correct else .008))
 	records.set_value(id,course,scores[course])
+	if week>0:
+		var key: String="%s.week.%d"%[course,week]
+		var value:=clampf(float(records.get_value(id,key,0.)),0.,.25)
+		records.set_value(id,key,minf(.25,value+(.025 if correct else .01)))
+	_save_records()
+
+func _save_records() -> void:
 	if records.save(RECORDS+".tmp")==OK:DirAccess.rename_absolute(RECORDS+".tmp",RECORDS)
+
+func begin_assessment(activity: Dictionary,now: float) -> void:
+	for member in activity.get("classmates",{}).values():
+		member.action="working"
+		member.next=now+9.+float(posmod(hash([activity.id,member.profile.id]),14))
+
+func _assessment_step(activity: Dictionary,member: Dictionary,now: float) -> void:
+	if member.get("submitted",false):return
+	member.submitted=true
+	var project: Dictionary=activity.get("classmate_assessment",{})
+	if project.is_empty():return
+	var id: String=member.profile.id
+	var course: String=activity.course
+	var week: int=activity.week
+	var concept_gain:=clampf(float(records.get_value(id,"%s.week.%d"%[course,week],0.)),0.,.25)
+	var skill:=clampf(proficiency(id,course,member.profile.knowledge)+concept_gain,.1,.96)
+	var rng:=RandomNumberGenerator.new()
+	rng.seed=hash([activity.id,id])
+	var answers: Dictionary={}
+	for index in project.get("questions",[]).size():
+		var question: Dictionary=project.questions[index]
+		var expected: Variant=question.get("answer","")
+		var confident:=rng.randf()<skill
+		var key:=str(question.get("id",index)) if course.begins_with("MTH") else str(index)
+		var options: Array=question.get("options",[])
+		if confident and not str(expected).is_empty():
+			answers[key]=expected if course.begins_with("MTH") else str(expected)
+		elif options.size()>1:
+			answers[key]=str((int(expected)+rng.randi_range(1,options.size()-1))%options.size())
+		elif expected is float or expected is int:
+			answers[key]=str(float(expected)*[.10,.90,1.25,10.][rng.randi_range(0,3)])
+	var result: Dictionary=game.school.course_bridge.grade(project,answers)
+	if not result.has("score"):return
+	records.set_value(id,"%s.last_score"%course,float(result.score))
+	record_practice(id,course,float(result.score)>=60.,week)
+	member.action="handed in work"
+	member.next=now+60.
 
 func snapshot(activity: Dictionary,now: float) -> Array:
 	var result:=[]
 	for member in activity.get("classmates",{}).values():
 		if now<float(member.arrival):continue
 		result.append({"id":member.profile.id,"name":member.profile.name,"position":member.position,
-			"walking":member.walking,"seated":member.seated,"action":member.action,"class_id":activity.id})
+			"walking":member.walking,"seated":member.seated,"action":member.action,"line":member.get("line",""),"class_id":activity.id})
 	return result
 
 func render(room: String,public: Dictionary,delta: float) -> void:
@@ -97,16 +191,41 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 			add_child(model)
 			model.global_position=member.position
 			models[key]=model
+			var target:=StaticBody3D.new()
+			target.collision_layer=4
+			target.collision_mask=0
+			target.set_meta("role","classroom_student")
+			target.set_meta("room",room)
+			target.set_meta("class_id",member.class_id)
+			target.set_meta("student_id",member.id)
+			target.set_meta("label",member.name)
+			var collider:=CollisionShape3D.new()
+			var shape:=CapsuleShape3D.new()
+			shape.radius=.26
+			shape.height=.9
+			collider.shape=shape
+			collider.position.y=.95
+			target.add_child(collider)
+			model.add_child(target)
 			var label:=Label3D.new()
+			label.name="StudentName"
 			label.text=member.name
 			label.position.y=1.97
 			label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
 			label.pixel_size=.0025
 			label.visibility_range_end=10.
+			label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+			label.width=420.
 			model.add_child(label)
 		model.global_position=model.global_position.move_toward(member.position,delta*2.2)
 		Avatar.animate(model,member.walking,member.seated)
 		Avatar.raise_hand(model,member.action=="raising hand",delta)
+		var label:=model.get_node_or_null("StudentName") as Label3D
+		if label!=null:
+			var line: String=member.get("line","")
+			if line.is_empty() and member.action in ["wiring circuit","checking instruments","reading meter","recorded measurement","testing circuit","recorded result"]:
+				line=str(member.action).capitalize()
+			label.text=member.name+("\n"+line if not line.is_empty() else "")
 	for key in models.keys():
 		if seen.has(key):continue
 		models[key].queue_free()

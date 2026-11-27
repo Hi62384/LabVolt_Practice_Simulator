@@ -8,6 +8,13 @@ const DESIGN_VERSION := 3
 const BACKLIGHT_NAMES := ["Ice white","Cyan","Blue","Violet","Pink","Red","Amber","Green"]
 const BACKLIGHT_COLORS := ["d3f3ff","36ddf5","507bff","a774ff","ff73be","ff584e","ffc458","5ae99f"]
 const BACKLIGHT_PRICE := 12
+
+static func backlight_color(value: Variant) -> String:
+	if value is String:
+		var code: String=value.trim_prefix("#").to_lower()
+		return code if code.length()==6 and Color.html_is_valid(code) else ""
+	var index:=_index(value,BACKLIGHT_COLORS.size())
+	return BACKLIGHT_COLORS[index] if index>=0 else ""
 const CAMERA_SIZES := [Vector2i(480,360),Vector2i(800,600),Vector2i(1280,720),Vector2i(1920,1080)]
 const CAMERA_JPEG := [.40,.61,.78,.92]
 const CAMERA_QUALITY := {"label":"Camera quality","labels":["480 × 360 · Basic","800 × 600 · Standard","1280 × 720 · HD","1920 × 1080 · Full HD"],"values":[0,1,2,3],"prices":[0,32,80,150]}
@@ -272,11 +279,15 @@ static func quote(kind: String,base_price: int,selection: Variant,owned := false
 	if kind==LAPTOP and selection.has("backlight"):
 		var raw: Variant=selection.backlight
 		if not raw is Array or raw.size()>BACKLIGHT_COLORS.size():return {}
-		var colors: Array[int]=[]
+		var colors: Array=[]
 		for value in raw:
-			var color:=_index(value,BACKLIGHT_COLORS.size())
-			if color<0 or color in colors:return {}
-			colors.append(color)
+			var color:=backlight_color(value)
+			if color.is_empty():return {}
+			if value is String:colors.append(color)
+			else:
+				var index:=int(value)
+				if index in colors:return {}
+				colors.append(index)
 		if not colors.is_empty():
 			normalized.backlight=colors
 			appearance_cost+=BACKLIGHT_PRICE*colors.size()

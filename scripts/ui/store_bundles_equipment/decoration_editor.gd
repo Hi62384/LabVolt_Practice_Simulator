@@ -282,6 +282,7 @@ func _show_details() -> void:
 	details.add_child(heading)
 	if active>=0:
 		var name_field:=LineEdit.new()
+		_compact_entry(name_field)
 		name_field.text=layer.name
 		name_field.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		name_field.max_length=28
@@ -312,7 +313,7 @@ func _show_details() -> void:
 			source.add_child(button)
 		source.add_child(UI.text("Show image on","MutedLabel"))
 		_segment_choice(source,layer.get("target_segment",""),layer.locked,func(value: String):_set_layer("target_segment",value,true))
-		source.add_child(UI.text("Shift-click to place the image. Shift-drag its handles to resize or rotate it.","MutedLabel"))
+		source.add_child(UI.text("Shift-drag the image to move it. Drag the corner and rotation handles while holding Shift.","MutedLabel"))
 		var transform:=_panel(context,"Transform")
 		_transform(transform,layer)
 	elif layer.kind=="paint":
@@ -354,6 +355,7 @@ func _add_canvas(tools: VBoxContainer,settings: VBoxContainer,layer: Dictionary)
 			empty.erase("mesh_paint")
 			replace_active(empty)))
 	clear.disabled=layer.locked
+	_compact(clear)
 	tools.add_child(clear)
 	# Keep the original canvas available for drawings made with the old editor.
 	if not layer.data.is_empty():
@@ -368,19 +370,22 @@ func _add_canvas(tools: VBoxContainer,settings: VBoxContainer,layer: Dictionary)
 			_refresh_list())
 	var grid:=GridContainer.new()
 	grid.columns=2
+	grid.add_theme_constant_override("v_separation",4)
 	settings.add_child(grid)
 	grid.add_child(UI.text("Size"))
 	brush_size=_number(1,14,1,brush_data.size)
+	_compact_entry(brush_size.get_line_edit())
 	brush_size.editable=not layer.locked
 	grid.add_child(brush_size)
 	brush_size.value_changed.connect(func(value: float):brush_data.size=value;selection_changed.emit())
 	for field in [["Hardness","hardness",0.],["Spacing","spacing",.1],["Opacity","opacity",0.]]:
 		var key: String=field[1]
-		_scalar(grid,field[0],field[2],1.,.05,brush_data[key],layer.locked,func(value: float):brush_data[key]=value)
-	_color(grid,"Color",brush_data.ink.to_html(false),layer.locked,func(value: String):brush_data.ink=Color(value),false)
+		_scalar(grid,field[0],field[2],1.,.05,brush_data[key],layer.locked,func(value: float):brush_data[key]=value,true)
+	_color(grid,"Color",brush_data.ink.to_html(false),layer.locked,func(value: String):brush_data.ink=Color(value),false,true)
 
 func _segment_choice(parent: Control,selected: String,locked: bool,change: Callable) -> void:
 	var target:=OptionButton.new()
+	_compact(target)
 	target.add_item("All segments")
 	target.set_item_metadata(0,"")
 	for key in Materials.labels(product_kind):
@@ -410,8 +415,13 @@ func _transform(parent: VBoxContainer,layer: Dictionary) -> void:
 	var grid:=GridContainer.new()
 	grid.columns=2
 	parent.add_child(grid)
-	var fields:=[["Scale","size",10,100,"%"],["Rotation","angle",-180,180,"°"]]
-	if layer.kind!="image":
+	var image_layer: bool=layer.kind=="image"
+	var fields:=[["Scale","size",Document.MIN_IMAGE_SCALE*100. if image_layer else 10,Document.MAX_IMAGE_SCALE*100. if image_layer else 100,"%"],["Rotation","angle",-180,180,"°"]]
+	if image_layer and layer.has("projection"):
+		var offset:=Document.MAX_IMAGE_OFFSET*100.
+		fields.push_front(["Vertical offset","y",-offset,offset,"%",.5])
+		fields.push_front(["Horizontal offset","x",-offset,offset,"%",.5])
+	else:
 		fields.push_front(["Vertical","y",0,100,"%"])
 		fields.push_front(["Horizontal","x",0,100,"%"])
 	if layer.kind=="image":
@@ -442,33 +452,33 @@ func _transform_value(grid: GridContainer,layer: Dictionary,field: Array) -> voi
 	grid.add_child(UI.text(field[0]))
 	var key: String=field[1]
 	var multiplier:=100.0 if field[4]=="%" else 1.0
-	var control:=_number(field[2],field[3],1.,float(layer.get(key,1.0))*multiplier)
+	var offset:=float(field[5]) if field.size()>5 else 0.
+	var control:=_number(field[2],field[3],1.,(float(layer.get(key,1.0))-offset)*multiplier)
+	_compact_entry(control.get_line_edit())
 	control.suffix=field[4]
 	control.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	control.editable=not layer.locked
-	control.value_changed.connect(func(value: float):_set_value(value/multiplier,key))
+	control.value_changed.connect(func(value: float):_set_value(value/multiplier+offset,key))
 	grid.add_child(control)
 
 func _add_properties(parent: VBoxContainer,layer: Dictionary,base := false) -> void:
 	var values: Dictionary=materials.get(segment,segment_reader.call(segment) if segment_reader.is_valid() else Materials.defaults()) if base else layer
 	var lock: bool=layer.get("locked",false)
 	var grid:=GridContainer.new()
-	grid.columns=3 if base else 2
-	if base:
-		grid.add_theme_constant_override("h_separation",8)
-		grid.add_theme_constant_override("v_separation",4)
+	grid.columns=3
+	grid.add_theme_constant_override("h_separation",8)
+	grid.add_theme_constant_override("v_separation",4)
 	parent.add_child(grid)
-	_color(_property_cell(grid,base),"Base color",values.color,lock,_change_property.bind("color",base),true,base)
-	_scalar(_property_cell(grid,base),"Roughness",0,1,.01,values.roughness,lock,_change_property.bind("roughness",base),base)
-	_scalar(_property_cell(grid,base),"Metallic",0,1,.01,values.metallic,lock,_change_property.bind("metallic",base),base)
-	_color(_property_cell(grid,base),"Emission color",values.emission if base else values.glow_color,lock,_change_property.bind("emission" if base else "glow_color",base),true,base)
-	_scalar(_property_cell(grid,base),"Emission strength",0,Materials.MAX_EMISSION if base else Document.MAX_EMISSION,.05,values.strength if base else values.glow,lock,_change_property.bind("strength" if base else "glow",base),base)
+	_color(_property_cell(grid),"Base color",values.color,lock,_change_property.bind("color",base),true,true)
+	_scalar(_property_cell(grid),"Roughness",0,1,.01,values.roughness,lock,_change_property.bind("roughness",base),true)
+	_scalar(_property_cell(grid),"Metallic",0,1,.01,values.metallic,lock,_change_property.bind("metallic",base),true)
+	_color(_property_cell(grid),"Emission color",values.emission if base else values.glow_color,lock,_change_property.bind("emission" if base else "glow_color",base),true,true)
+	_scalar(_property_cell(grid),"Emission strength",0,Materials.MAX_EMISSION if base else Document.MAX_EMISSION,.05,values.strength if base else values.glow,lock,_change_property.bind("strength" if base else "glow",base),true)
 	if not base and layer.kind in ["paint","image"]:
-		_scalar(grid,"Indent", -Document.MAX_INDENT,Document.MAX_INDENT,.05,layer.get("indent",0.0),lock,_set_value.bind("indent"))
-	if not base: _scalar(grid,"Layer opacity",0,1,.05,layer.opacity,lock,_set_value.bind("opacity"))
+		_scalar(_property_cell(grid),"Indent",-Document.MAX_INDENT,Document.MAX_INDENT,.05,layer.get("indent",0.0),lock,_set_value.bind("indent"),true)
+	if not base:_scalar(_property_cell(grid),"Layer opacity",0,1,.05,layer.opacity,lock,_set_value.bind("opacity"),true)
 
-func _property_cell(grid: GridContainer,compact: bool) -> GridContainer:
-	if not compact:return grid
+func _property_cell(grid: GridContainer) -> GridContainer:
 	var cell:=GridContainer.new()
 	cell.columns=1
 	cell.size_flags_horizontal=Control.SIZE_EXPAND_FILL
@@ -578,6 +588,31 @@ func _number(low: float,high: float,step: float,value: float) -> SpinBox:
 	spin.step=step
 	spin.value=value
 	spin.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	var entry:=spin.get_line_edit()
+	entry.tooltip_text="Drag left or right to adjust. Click to type a value."
+	var gesture:={"distance":0.0,"start":value,"dragging":false}
+	entry.gui_input.connect(func(event: InputEvent):
+		if not spin.editable:return
+		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				gesture.distance=0.
+				gesture.start=spin.value
+				gesture.dragging=false
+			elif gesture.dragging:
+				gesture.dragging=false
+				_end_edit()
+				entry.deselect()
+				entry.accept_event()
+		elif event is InputEventMouseMotion and event.button_mask&MOUSE_BUTTON_MASK_LEFT:
+			gesture.distance+=event.relative.x
+			if not gesture.dragging and absf(gesture.distance)>=5.:
+				gesture.dragging=true
+				_begin_edit()
+			if gesture.dragging:
+				var ticks:=float(gesture.distance)/3.
+				spin.value=float(gesture.start)+ticks*step
+				entry.deselect()
+				entry.accept_event())
 	return spin
 
 func _set_value(value: float,key: String) -> void:

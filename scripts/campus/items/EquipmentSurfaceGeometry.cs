@@ -4,16 +4,11 @@ using Godot;
 
 public partial class EquipmentSurfaceGeometry : RefCounted
 {
-    public const int TextureSize = 256;
-    private const int CellsPerAxis = 8;
+    public const int TextureSize = 512;
     private readonly Dictionary<int, Surface> surfaces = new();
 
     private record Triangle(Vector3 A, Vector3 B, Vector3 C, Vector2 U, Vector2 V, Vector2 W);
-    private readonly record struct Texel(int Index, Vector3 Position, Vector3 Normal);
-    private record Surface(MeshInstance3D Node, Triangle[] Triangles, Aabb Bounds)
-    {
-        public List<Texel>[] Texels;
-    }
+    private record Surface(MeshInstance3D Node, Triangle[] Triangles, Aabb Bounds);
 
     public void Register(int id, MeshInstance3D node)
     {
@@ -41,6 +36,31 @@ public partial class EquipmentSurfaceGeometry : RefCounted
     }
 
     public void Clear() => surfaces.Clear();
+
+    public ArrayMesh KeyboardMesh(BoxMesh key, int columns, int rows)
+    {
+        var arrays = key.SurfaceGetArrays(0);
+        var vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
+        var normals = arrays[(int)Mesh.ArrayType.Normal].AsVector3Array();
+        var coordinates = arrays[(int)Mesh.ArrayType.TexUV].AsVector2Array();
+        var indices = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
+        var surface = new SurfaceTool();
+        surface.Begin(Mesh.PrimitiveType.Triangles);
+        for (int row = 0; row < rows; row++)
+        for (int column = 0; column < columns; column++)
+        {
+            var offset = new Vector3(-.174f + column * .038f, .031f, -.108f + row * .041f);
+            foreach (var index in indices)
+            {
+                var uv = coordinates[index] * .92f + new Vector2(.04f + column, .04f + row);
+                surface.SetUV(new Vector2(uv.X / columns, uv.Y / rows));
+                surface.SetNormal(normals[index]);
+                surface.AddVertex(vertices[index] + offset);
+            }
+        }
+        surface.Index();
+        return surface.Commit();
+    }
 
     public Godot.Collections.Dictionary Pick(Vector3 origin, Vector3 direction)
     {
@@ -176,35 +196,66 @@ public partial class EquipmentSurfaceGeometry : RefCounted
         Vector3 position, Vector3 normal, float radius, Color color, float hardness, bool erase)
     {
         var local = inverse * position;
-        var localRadius = radius * Mathf.Max(inverse.Basis.X.Length(), Mathf.Max(inverse.Basis.Y.Length(), inverse.Basis.Z.Length()));
+        var localRadius = radius * Mathf.Sqrt(inverse.Basis.X.LengthSquared() + inverse.Basis.Y.LengthSquared() + inverse.Basis.Z.LengthSquared());
         if (!mesh.Bounds.Grow(localRadius).HasPoint(local)) return false;
-        mesh.Texels ??= BuildTexels(mesh);
-        var minimum = CellFor(mesh.Bounds, local - Vector3.One * localRadius);
-        var maximum = CellFor(mesh.Bounds, local + Vector3.One * localRadius);
-        var normalTransform = inverse.Basis.Transposed();
+        float radiusSquared = radius * radius;
         bool changed = false;
-        for (int z = minimum.Z; z <= maximum.Z; z++)
-        for (int y = minimum.Y; y <= maximum.Y; y++)
-        for (int x = minimum.X; x <= maximum.X; x++)
+        foreach (var triangle in mesh.Triangles)
         {
-            var bucket = mesh.Texels[CellIndex(x, y, z)];
-            if (bucket == null) continue;
-            foreach (var texel in bucket)
+            var origin = transform * triangle.A;
+            var edgeU = transform.Basis * (triangle.B - triangle.A);
+            var edgeV = transform.Basis * (triangle.C - triangle.A);
+            var normalCross = edgeU.Cross(edgeV);
+            float normalSquared = normalCross.LengthSquared();
+            if (normalSquared < 1e-20f) continue;
+            var faceNormal = -normalCross / Mathf.Sqrt(normalSquared);
+            float alignment = faceNormal.Dot(normal);
+            if (alignment < -0.05f) continue;
+            var toBrush = position - origin;
+            float planeDistance = toBrush.Dot(faceNormal);
+            float inPlaneSquared = radiusSquared - planeDistance * planeDistance;
+            if (inPlaneSquared <= 0) continue;
+
+            // Map the brush's plane intersection into the triangle's UV atlas.
+            // This bounds each dab before rasterizing any high-resolution pixels.
+            var gradU = edgeV.Cross(normalCross) / normalSquared;
+            var gradV = normalCross.Cross(edgeU) / normalSquared;
+            var uvOrigin = triangle.U * TextureSize;
+            var uvU = (triangle.V - triangle.U) * TextureSize;
+            var uvV = (triangle.W - triangle.U) * TextureSize;
+            float area = uvU.Cross(uvV);
+            if (Mathf.Abs(area) < .00001f) continue;
+            var center = uvOrigin + uvU * gradU.Dot(toBrush) + uvV * gradV.Dot(toBrush);
+            float inPlane = Mathf.Sqrt(inPlaneSquared);
+            var extent = inPlane * new Vector2((gradU * uvU.X + gradV * uvV.X).Length(),
+                (gradU * uvU.Y + gradV * uvV.Y).Length());
+            var lower = (center - extent).Max(uvOrigin.Min(uvOrigin + uvU).Min(uvOrigin + uvV));
+            var upper = (center + extent).Min(uvOrigin.Max(uvOrigin + uvU).Max(uvOrigin + uvV));
+            if (upper.X < lower.X || upper.Y < lower.Y) continue;
+            int firstX = Mathf.Max(0, Mathf.FloorToInt(lower.X));
+            int firstY = Mathf.Max(0, Mathf.FloorToInt(lower.Y));
+            int lastX = Mathf.Min(TextureSize, Mathf.CeilToInt(upper.X));
+            int lastY = Mathf.Min(TextureSize, Mathf.CeilToInt(upper.Y));
+            for (int y = firstY; y < lastY; y++)
+            for (int x = firstX; x < lastX; x++)
             {
-                var delta = transform * texel.Position - position;
-                float distance = delta.LengthSquared() / (radius * radius);
+                var relative = new Vector2(x + .5f, y + .5f) - uvOrigin;
+                float u = relative.Cross(uvV) / area;
+                float v = uvU.Cross(relative) / area;
+                if (u < 0 || v < 0 || u + v > 1) continue;
+                var delta = edgeU * u + edgeV * v - toBrush;
+                float distance = delta.LengthSquared() / radiusSquared;
                 if (distance >= 1) continue;
-                var worldNormal = (normalTransform * texel.Normal).Normalized();
-                if (worldNormal.Dot(normal) < -0.05f) continue;
-                // Avoid bleeding to parallel surfaces hidden behind the point of contact.
-                if (worldNormal.Dot(normal) > 0.95f && Mathf.Abs(delta.Dot(normal)) > radius * 0.2f) continue;
-                float strength = hardness >= 0.999f ? color.A : color.A * (1 - Mathf.SmoothStep(hardness, 1, Mathf.Sqrt(distance)));
+                // Avoid bleeding to parallel surfaces hidden behind the contact.
+                if (alignment > .95f && Mathf.Abs(delta.Dot(normal)) > radius * .2f) continue;
+                float strength = hardness >= .999f ? color.A : color.A * (1 - Mathf.SmoothStep(hardness, 1, Mathf.Sqrt(distance)));
                 if (strength < 1f / 255) continue;
-                int index = texel.Index;
+                int index = (y * TextureSize + x) * 4;
                 float alpha = rgba.Length == 0 ? 0 : rgba[index + 3] / 255f;
                 if (erase && alpha == 0) continue;
                 if (rgba.Length == 0) rgba = new byte[TextureSize * TextureSize * 4];
-                if (!erase)
+                if (erase) rgba[index + 3] = Byte(alpha * (1 - strength));
+                else
                 {
                     float mixed = alpha * (1 - strength);
                     float total = strength + mixed;
@@ -213,7 +264,6 @@ public partial class EquipmentSurfaceGeometry : RefCounted
                     rgba[index + 2] = Byte((color.B * strength + rgba[index + 2] / 255f * mixed) / total);
                     rgba[index + 3] = Byte(total);
                 }
-                else rgba[index + 3] = Byte(alpha * (1 - strength));
                 changed = true;
             }
         }
@@ -221,46 +271,4 @@ public partial class EquipmentSurfaceGeometry : RefCounted
     }
 
     private static byte Byte(float value) => (byte)Mathf.Clamp(Mathf.RoundToInt(value * 255f), 0, 255);
-
-    private static int CellIndex(int x, int y, int z) => (z * CellsPerAxis + y) * CellsPerAxis + x;
-
-    private static Vector3I CellFor(Aabb bounds, Vector3 point)
-    {
-        var offset = (point - bounds.Position) * CellsPerAxis;
-        var size = bounds.Size;
-        return new Vector3I(Cell(offset.X, size.X), Cell(offset.Y, size.Y), Cell(offset.Z, size.Z));
-    }
-
-    private static int Cell(float offset, float extent) => extent > 0
-        ? Mathf.Clamp(Mathf.FloorToInt(offset / extent), 0, CellsPerAxis - 1) : 0;
-
-    private static List<Texel>[] BuildTexels(Surface mesh)
-    {
-        var cells = new List<Texel>[CellsPerAxis * CellsPerAxis * CellsPerAxis];
-        foreach (var tri in mesh.Triangles)
-        {
-            var a = tri.U * TextureSize;
-            var b = tri.V * TextureSize - a;
-            var c = tri.W * TextureSize - a;
-            float area = b.Cross(c);
-            if (Mathf.Abs(area) < 0.00001f) continue;
-            var lower = a.Min(a + b).Min(a + c);
-            var upper = a.Max(a + b).Max(a + c);
-            var normal = (tri.C - tri.A).Cross(tri.B - tri.A).Normalized();
-            for (int y = Mathf.Max(0, Mathf.FloorToInt(lower.Y)); y < Mathf.Min(TextureSize, Mathf.CeilToInt(upper.Y)); y++)
-            for (int x = Mathf.Max(0, Mathf.FloorToInt(lower.X)); x < Mathf.Min(TextureSize, Mathf.CeilToInt(upper.X)); x++)
-            {
-                var relative = new Vector2(x + 0.5f, y + 0.5f) - a;
-                float u = relative.Cross(c) / area;
-                float v = b.Cross(relative) / area;
-                if (u < 0 || v < 0 || u + v > 1) continue;
-                var point = tri.A + (tri.B - tri.A) * u + (tri.C - tri.A) * v;
-                var cell = CellFor(mesh.Bounds, point);
-                var index = CellIndex(cell.X, cell.Y, cell.Z);
-                cells[index] ??= new List<Texel>();
-                cells[index].Add(new Texel((y * TextureSize + x) * 4, point, normal));
-            }
-        }
-        return cells;
-    }
 }

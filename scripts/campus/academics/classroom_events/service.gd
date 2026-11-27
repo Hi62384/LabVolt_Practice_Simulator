@@ -612,7 +612,7 @@ func _classmate_quiz(room: String,state: Dictionary,activity: Dictionary,now: fl
   if outcome=="accepted":
    state.series.labels[identity]=profile.name
    state.series.teams[identity]="A" if posmod(hash(identity),2)==0 else "B"
-   game.lecture_classes.classroom_students.record_practice(identity,activity.course,round.submissions[identity].get("correct",false))
+   game.lecture_classes.classroom_students.record_practice(identity,activity.course,round.submissions[identity].get("correct",false),activity.week)
 
 func sync_roster(room: String,now: float) -> void:
  if not multiplayer.is_server() or not rooms.has(room):return

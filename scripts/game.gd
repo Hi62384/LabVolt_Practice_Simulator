@@ -980,7 +980,7 @@ func _physics_process(delta: float) -> void:
 				hint = "Right click: unplug cable" if occupied else "Open the cable drawer first"
 		elif role=="kit":
 			hint="Click: return breadboard and close kit" if kit_world.can_return_held_board(current_target) else "Left click: pick up kit · Right click: open kit"
-		elif role=="faculty_teacher":
+		elif role in ["faculty_teacher","classroom_student"]:
 			hint="%s - Talk to %s" % [key_name,str(current_target.get_meta("label","teacher"))]
 		elif role=="lecture_desk":
 			var room := str(current_target.get_meta("room",""))

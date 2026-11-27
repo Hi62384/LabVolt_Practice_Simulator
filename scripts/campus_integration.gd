@@ -27,7 +27,16 @@ var room_finish_results := {}
 func build(owner_game: Node) -> void:
 	game=owner_game
 	game.school.configure_campus(game.campus.registry,provider,preload("res://scripts/campus_equipment_adapter.gd").new(game))
-	game.session.academic_equipment_guard=func(peer,index,action):return (action.get("op")=="dyn_measure" and action.get("pressed",true)==false) or game.school.equipment_access(peer,index,"ELM253")
+	game.session.academic_equipment_guard=func(peer,index,action):
+		if action.get("op")=="dyn_measure" and action.get("pressed",true)==false:return true
+		if not game.school.equipment_access(peer,index,"ELM253"):return false
+		if is_instance_valid(game.lecture_classes) and game.lecture_classes.lab_practice.work.get("domain","")=="ac" and game.lecture_classes.lab_practice.work.get("bench",-1)==index:
+			if not game.lecture_classes._inside(peer,"ac_lab"):return false
+			var point: Vector3=game.lecture_classes._position(peer)
+			var supply: Vector3=game.session.labs[index].positions.get("power",Vector3.INF)
+			if point.distance_to(supply)>3.25:return false
+			game.lecture_classes.lab_practice.yield_bench(index)
+		return true
 	game.session.academic_equipment_observer=func(peer,index,action,before):
 		game.school.equipment_adapter.observe_ac_action(peer,index,action,before)
 		if is_instance_valid(game.faculty):game.faculty.report_equipment_fault(peer,index,action,before)

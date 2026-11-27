@@ -43,8 +43,14 @@ func _ready() -> void:
 	var paper_theme := Theme.new();paper_theme.default_font_size=18
 	for type in ["Label","LineEdit","OptionButton","Button"]:paper_theme.set_color("font_color",type,INK)
 	for type in ["LineEdit","OptionButton"]:
-		for state in ["normal","focus","hover","pressed","disabled"]:
-			var box := StyleBoxFlat.new();box.bg_color=Color("eef3f4");box.border_color=Color("899ba5");box.set_border_width_all(1);box.set_content_margin_all(8);paper_theme.set_stylebox(state,type,box)
+		for state in ["normal","focus","hover","pressed","disabled","read_only"]:
+			var box := StyleBoxFlat.new()
+			box.bg_color=Color("e3e9e7") if state in ["disabled","read_only"] else Color("eef3f4")
+			box.border_color=Color("29746e") if state=="focus" else Color("899ba5")
+			box.set_border_width_all(2 if state=="focus" else 1)
+			box.set_corner_radius_all(4)
+			box.set_content_margin_all(8)
+			paper_theme.set_stylebox(state,type,box)
 		paper_theme.set_color("font_disabled_color",type,Color("52636a"));paper_theme.set_color("font_uneditable_color",type,INK)
 	for control_type in ["LineEdit","OptionButton","Button"]:
 		for state in ["font_color","font_hover_color","font_pressed_color","font_focus_color","font_hover_pressed_color","font_selected_color","font_uneditable_color"]:paper_theme.set_color(state,control_type,INK)

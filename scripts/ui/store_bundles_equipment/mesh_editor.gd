@@ -178,7 +178,7 @@ func move_image(point: Vector2) -> void:
 		if drag=="rotate":
 			pending.angle=wrapf(float(original.angle)-rad_to_deg(base.angle_to(delta)),-180.,180.)
 		elif drag=="resize" and base.length()>2.:
-			pending.size=clampf(float(original.size)*delta.length()/base.length(),.1,1.)
+			pending.size=clampf(float(original.size)*delta.length()/base.length(),Document.MIN_IMAGE_SCALE,Document.MAX_IMAGE_SCALE)
 		elif drag in ["height","width"] and absf(base.dot(resize_axis))>2.:
 			pending[drag]=clampf(float(original[drag])*delta.dot(resize_axis)/base.dot(resize_axis),.25,4.)
 	var next: Array=editor.design.duplicate(true)

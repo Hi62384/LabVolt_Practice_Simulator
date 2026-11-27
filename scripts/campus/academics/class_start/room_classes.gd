@@ -29,6 +29,7 @@ var publish_clock := 0.0
 var received_at := 0
 var classroom_events: Node
 var classroom_students: Node3D
+var lab_practice := preload("res://scripts/campus/academics/classroom_lab_practice.gd").new()
 
 func build(owner: Node) -> void:
 	game=owner
@@ -36,6 +37,7 @@ func build(owner: Node) -> void:
 	classroom_students=preload("res://scripts/campus/academics/classroom_students.gd").new()
 	add_child(classroom_students)
 	classroom_students.configure(game)
+	lab_practice.game=game
 	overlay=CanvasLayer.new()
 	overlay.layer=12
 	add_child(overlay)
@@ -201,10 +203,15 @@ func _start(room: String,config: Dictionary) -> String:
 	var teaching:=LessonPlan.build(school.course_bridge.lesson_for_assignment(lesson,LessonSeconds),
 		Dialogue.personalities().get(teacher,{}),class_id.hash())
 	classes[room]={"id":class_id,"room":room_info,"course":course,"kind":kind,"teacher":teacher,"week":week,"difficulty":level,"extra":extra,"title":str(extra.get("title",lesson.get("title",course))),"phase":"arrival","deadline":_now()+ArrivalSeconds,"teaching":teaching,"students":{}}
+	if room=="ac_lab":
+		classes[room].lab_practice={"plan":lesson.get("physical_ac_plan",{}),"leads":lesson.get("physical_wire_steps",[])}
+	elif course=="ETY155":
+		classes[room].lab_practice={"resistance":lesson.get("scenario",{}).get("nominal_resistance",1000.)}
 	var present: Array[Vector3]=[]
 	for peer in game.session.roster:
 		if _inside(int(peer),room):present.append(_position(int(peer)))
 	classroom_students.start(classes[room],room_info,present,_now())
+	if not classes[room].classmates.is_empty():classes[room].classmate_assessment=lesson
 	return ""
 
 func student_has_class(peer: int, except_room := "") -> bool:
@@ -247,6 +254,7 @@ func _sign(peer: int,room: String) -> String:
 			var used := int(participant.get("bench",-1))
 			if used>=0 and used<counts.size():counts[used]+=1
 		bench=counts.find(counts.min())
+		lab_practice.yield_bench(bench,"ac" if activity.course=="ELM253" else "dc")
 	activity.students[identity]={"peer":peer,"project":assignment,"replay":school._is_replay(identity,assignment),"done":false,"paper":0,"failure":"","bench":bench}
 	school.record_room_attendance(peer,activity.id,assignment,phase=="lesson")
 	game.faculty.acknowledge_attendance(room,str(activity.teacher),peer)
@@ -288,7 +296,7 @@ func _check_students() -> void:
 
 func _process(delta: float) -> void:
 	if not is_instance_valid(game):return
-	if multiplayer.is_server() and not classes.is_empty():
+	if multiplayer.is_server() and (not classes.is_empty() or not lab_practice.work.is_empty()):
 		# Assessment generation starts when the lesson deadline is reached.
 		# Extending this deadline while ai_waiting was true prevented the
 		# generator from ever being called and softlocked every AI-taught class.
@@ -298,6 +306,9 @@ func _process(delta: float) -> void:
 			for room in classes:
 				classroom_students.step(classes[room],_now(),check_clock)
 				_hand_turn(room,classes[room],_now())
+			var ac: Dictionary=classes.get("ac_lab",{})
+			var use_ac: bool=lab_practice.work.get("domain","ac" if ac.get("phase","")=="lesson" else "dc")=="ac"
+			lab_practice.step(ac if use_ac else classes.get("dc_lab",{}),_now())
 			check_clock=0.0
 			_check_students()
 			_advance()
@@ -332,7 +343,6 @@ func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
 	var hands: Array=activity.get("hands",[])
 	if now<float(activity.get("next_hand",0.)):return
 	activity.erase("hand_identity")
-	if hands.is_empty():return
 	if game.faculty.lesson_question_active(room) or classroom_events.service.rooms.has(room):return
 	while not hands.is_empty():
 		var identity: String=hands.pop_front()
@@ -341,6 +351,22 @@ func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
 		activity.hand_identity=identity
 		activity.next_hand=now+20.
 		game.faculty.invite_question(room,str(activity.teacher),peer,str(activity.id))
+		return
+	if activity.kind!="lecture" or lesson_duration(activity)-maxf(0.,float(activity.deadline)-now)<40.:return
+	var stage:=_stage(activity)
+	var topic:=str(stage.get("title",""))
+	if topic.is_empty() or activity.get("npc_question_topic","")==topic:return
+	for member in activity.get("classmates",{}).values():
+		if not member.seated or member.action!="raising hand":continue
+		var question: String="Could you walk us through the first step?" if member.profile.confidence<.6 else "Which part of this should we check first?"
+		member.action="asking a question"
+		member.line=question
+		member.next=now+8.
+		activity.npc_question_topic=topic
+		activity.next_hand=now+45.
+		var answer: String=preload("res://scripts/campus/academics/lecture_director.gd").answer(question,stage)
+		game.faculty.brain.remember_conversation(activity.teacher,member.profile.id,question,answer,int(Time.get_unix_time_from_system()))
+		game.faculty.present_class_reaction(room,activity.teacher,"%s, %s"%[str(member.profile.name).get_slice(" ",0),answer],2)
 		break
 
 func _advance() -> void:
@@ -409,6 +435,7 @@ func _begin_assignment(room: String, activity: Dictionary) -> bool:
 	activity.ai_waiting=false
 	activity.phase="assignment"
 	activity.deadline=_now()+AssignmentSeconds
+	classroom_students.begin_assessment(activity,_now())
 	for identity in activity.students:
 		var student: Dictionary=activity.students[identity]
 		if not student.get("replay",false):
@@ -510,6 +537,7 @@ func paper_submitted(paper: Dictionary) -> void:
 func _session_leaving() -> void:
 	if is_instance_valid(classroom_events):classroom_events.disable()
 	if not multiplayer.is_server():return
+	lab_practice.finish()
 	for activity in classes.values():
 		if activity.phase!="assignment":continue
 		for identity in activity.students:
@@ -519,6 +547,7 @@ func _session_leaving() -> void:
 			else:_withdraw_unissued(activity,identity,false)
 
 func _reset() -> void:
+	if multiplayer.is_server():lab_practice.finish()
 	if is_instance_valid(classroom_events):
 		classroom_events.disable()
 		classroom_events.enabled=CLASSROOM_EVENTS_ENABLED

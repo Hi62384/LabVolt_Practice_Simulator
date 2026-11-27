@@ -45,15 +45,24 @@ void fragment() {
 	}
 	vec4 pixel = texture(pattern, sample_uv) * tint;
 	if (abs(indent) > .001) {
-		float height = pixel.a * mix(.55, 1., dot(pixel.rgb, vec3(.2126, .7152, .0722)));
+		vec2 texel = 1.0 / vec2(textureSize(pattern, 0));
+		vec2 bevel = texel * 3.0;
+		vec2 slope = vec2(
+			texture(pattern, sample_uv + vec2(bevel.x, 0.)).a - texture(pattern, sample_uv - vec2(bevel.x, 0.)).a,
+			texture(pattern, sample_uv + vec2(0., bevel.y)).a - texture(pattern, sample_uv - vec2(0., bevel.y)).a
+		) / (bevel * 2.0);
 		vec3 dx = dFdx(VERTEX);
 		vec3 dy = dFdy(VERTEX);
 		vec3 r1 = cross(dy, NORMAL);
 		vec3 r2 = cross(NORMAL, dx);
 		float determinant = dot(dx, r1);
 		if (abs(determinant) > 1e-14) {
-			vec3 gradient = (dFdx(height) * r1 + dFdy(height) * r2) / determinant;
-			NORMAL = normalize(NORMAL - indent * .001 * gradient);
+			vec3 gradient = (dot(slope, dFdx(sample_uv)) * r1 + dot(slope, dFdy(sample_uv)) * r2) / determinant;
+			vec3 relief = normalize(NORMAL - indent * .0018 * gradient);
+			// The broad bevel retains directional contrast in soft ambient light.
+			float shading = dot(relief - NORMAL, normalize(vec3(-.45, .65, .6)));
+			pixel.rgb *= clamp(1.0 + shading * .44, .58, 1.38);
+			NORMAL = relief;
 		}
 	}
 	if (!visible || pixel.a < .008) discard;

@@ -72,11 +72,14 @@ func run() -> void:
 	var fake:=laptop_config.duplicate(true)
 	fake.backlight=[1,1]
 	assert(Config.quote(Config.LAPTOP,600,fake).is_empty())
+	var custom:=laptop_config.duplicate(true)
+	custom.backlight=["#ff55aa","244a9c",3]
+	assert(Config.quote(Config.LAPTOP,600,custom).configuration.backlight==["ff55aa","244a9c",3])
 	var model:=Node3D.new()
 	game.add_child(model)
 	game.ac_laptops._build_laptop(model,-1)
 	Finish.apply_finish(model,Config.LAPTOP,laptop_config)
-	var keys: MultiMeshInstance3D=model.get_meta("equipment_keyboard")
+	var keys: MeshInstance3D=model.get_meta("equipment_keyboard")
 	var shader:=keys.material_override as ShaderMaterial
 	assert(shader!=null and shader.get_shader_parameter("color_count")==3)
 	Finish.set_backlight_power(model,false)

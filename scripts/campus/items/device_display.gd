@@ -36,8 +36,10 @@ shader_type canvas_item;
 uniform sampler2D screen_texture : hint_screen_texture, filter_nearest;
 uniform float grain = 0.0;
 uniform float fps = 60.0;
+uniform bool manual_clock = false;
+uniform float effect_seconds = 0.0;
 void fragment() {
-	float t = floor(TIME * fps) / fps;
+	float t = floor((manual_clock ? effect_seconds : TIME) * fps) / fps;
 	vec2 uv = SCREEN_UV;
 	uv.x += grain * .013 * sin(uv.y * 115.0 + t * 3.0);
 	vec3 color = texture(screen_texture, uv).rgb;
@@ -56,9 +58,10 @@ static func demo(screen: MeshInstance3D, portrait: bool) -> ShaderMaterial:
 	screen.material_override=material
 	return material
 
-static func effect() -> ShaderMaterial:
+static func effect(manual_clock := false) -> ShaderMaterial:
 	var material:=ShaderMaterial.new()
 	var shader:=Shader.new()
 	shader.code=FILTER
 	material.shader=shader
+	material.set_shader_parameter("manual_clock",manual_clock)
 	return material

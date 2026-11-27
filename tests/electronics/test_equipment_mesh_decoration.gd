@@ -43,6 +43,11 @@ func run() -> void:
 		edit._add("paint","")
 		assert(edit.base_panel.is_visible_in_tree())
 		assert(edit.layer_scroll.custom_minimum_size.y>=160 and edit.paint_buttons.size()==3)
+		if kind==Config.LAPTOP:
+			var receivers:=Artwork.surfaces(dialog.rendered_product)
+			assert(receivers.values().has(dialog.rendered_product.get_meta("equipment_keyboard")))
+			assert(receivers.has("trackpad:0"))
+			assert(not receivers.values().has(dialog.rendered_product.get_meta("equipment_screen")))
 		var at:=Vector2.INF
 		for view in [0,2,1,3,4,5,6]:
 			dialog._camera_view(view)
@@ -74,7 +79,7 @@ func run() -> void:
 		assert(not edit.design[0].get("mesh_paint",{}).is_empty(),"Paint missing on "+kind)
 		var painted: Dictionary=edit.design[0].mesh_paint.duplicate()
 		var paint_key: String=painted.keys()[0]
-		assert(paint_key.get_slice(":",0)==segment and Document.decode(painted[paint_key]).get_width()==256)
+		assert(paint_key.get_slice(":",0)==segment and Document.decode(painted[paint_key]).get_width()==Document.PIXELS)
 		var copy: Array=JSON.parse_string(JSON.stringify(edit.design))
 		assert(Document.clean(copy)!=null)
 		copy[0].mesh_paint["../../other:0"]=painted[paint_key]

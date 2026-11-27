@@ -32,12 +32,10 @@ var calculator_state := ""
 var calc_saved := {}
 var drawer_saved := {}
 var annotation_layer: Control
-var annotation_inspector: VBoxContainer
 var paper_tool := "answer"
 var view_states := {}
 var reader_view_key := ""
 var view_scroll: ScrollContainer
-var tools_scroll: ScrollContainer
 var view_document := -1
 var view_page := -1
 var view_zoom := 1.0
@@ -318,7 +316,7 @@ func _build_reader() -> void:
 	var pencil_case_carried: bool = game.hotbar.has_item("pencil_case")
 	var carried_calculator: String = game.hotbar.calculator_type()
 	var calculator_carried := not carried_calculator.is_empty()
-	if not pencil_case_carried:
+	if not pencil_case_carried or not _can_mark(paper):
 		pencil_mode=false
 		paper_tool="answer"
 	page_index=clampi(page_index,0,_page_count(paper)-1)
@@ -392,7 +390,7 @@ func _build_reader() -> void:
 	annotation_layer.removed.connect(func(id):_reader_request(generation,source_id,source_page,{"op":"remove_annotation","object":id}))
 	annotation_layer.selected.connect(edit_annotation)
 	annotation_layer.edit_requested.connect(func(_item):_case_text_action("edit"))
-	if pencil_case_carried and _can_mark(paper) and ResourceLoader.exists("res://scripts/ui/paper_workspace/tools/case.gd"):
+	if pencil_case_carried and _can_mark(paper):
 		var tool_anchor := Control.new()
 		tool_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		surface.add_child(tool_anchor)
@@ -408,6 +406,10 @@ func _build_reader() -> void:
 		annotation_layer.symbols_open = func(): return is_instance_valid(tool_case.symbol_picker) and tool_case.symbol_picker.is_visible_in_tree()
 		annotation_layer.close_symbols = tool_case.dismiss_symbols
 		tool_case.set_supported_text_actions(["delete"])
+		if _editable(paper):
+			_button(toolbar,"Answer mode",func():
+				annotation_layer.finish_inline_edit()
+				tool_case.set_tool("answer"))
 		_case_properties_changed(tool_case.properties)
 		if tool_case.tool!="answer":page_view.mouse_default_cursor_shape=Control.CURSOR_CROSS
 	ink.eraser_radius=eraser_radius
@@ -415,30 +417,6 @@ func _build_reader() -> void:
 	ink.area_erased.connect(func(point,radius,from):_reader_request(generation,source_id,source_page,{"op":"erase_area","point":point,"radius":radius,"from":from}))
 	# Keep the ink eraser working through the overlay without deleting text.
 	annotation_layer.erase_ink.connect(func(point,from):ink.erase_at(point,from))
-	var side_scroll := ScrollContainer.new();side_scroll.custom_minimum_size.x=300;side_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;row.add_child(side_scroll)
-	tools_scroll=side_scroll
-	if is_instance_valid(tool_case) or not pencil_case_carried:side_scroll.hide();side_scroll.custom_minimum_size.x=0
-	var side := VBoxContainer.new();side.custom_minimum_size.x=280;side.add_theme_constant_override("separation",6);side_scroll.add_child(side)
-	_label(side,"PENCIL CASE",15)
-	var draw := CheckButton.new();draw.text="✎  Pencil enabled";draw.button_pressed=pencil_mode;draw.disabled=not _editable(paper);side.add_child(draw)
-	draw.toggled.connect(func(value):flush();pencil_mode=value;paper_tool="pencil" if value else "answer";_build_reader())
-	draw.tooltip_text="Enable to draw on the paper. Disable to type in answer fields."
-	var tool_row := HBoxContainer.new();side.add_child(tool_row)
-	for entry in [["text","Text"],["eraser","Eraser"]]:
-		var tool_button := _button(tool_row,entry[1],func():flush();paper_tool=entry[0] if paper_tool!=entry[0] else "answer";pencil_mode=false;_build_reader());tool_button.disabled=not _editable(paper);tool_button.toggle_mode=true;tool_button.button_pressed=paper_tool==entry[0]
-	annotation_inspector=VBoxContainer.new();side.add_child(annotation_inspector)
-	if paper_tool in ["text","equation"]:_label(annotation_inspector,"Click the paper to add text. Drag existing text to move it.",13)
-	if paper_tool=="eraser":_label(annotation_inspector,"Erase pencil marks. Editable text stays intact.",13)
-	var colors := HBoxContainer.new();side.add_child(colors);colors.visible=pencil_mode
-	for color in ["263743","235d9b","b24c45","3a7e59","8257a4"]:
-		var swatch := Button.new();swatch.custom_minimum_size=Vector2(38,26);var style := StyleBoxFlat.new();style.bg_color=Color(color);style.set_corner_radius_all(7);swatch.add_theme_stylebox_override("normal",style);swatch.pressed.connect(func():pencil_color=Color(color);ink.pencil_color=pencil_color);colors.add_child(swatch)
-	var custom := ColorPickerButton.new();custom.color=pencil_color;custom.edit_alpha=false;custom.custom_minimum_size=Vector2(38,26);custom.tooltip_text="Choose any pencil color";colors.add_child(custom)
-	custom.color_changed.connect(func(value):pencil_color=value;ink.pencil_color=value)
-	var width := HSlider.new();width.min_value=1;width.max_value=32;width.step=1;width.value=pencil_width;width.tooltip_text="Pencil thickness";width.value_changed.connect(func(value):pencil_width=value;ink.pencil_width=value);side.add_child(width);width.visible=pencil_mode
-	var actions := HBoxContainer.new();side.add_child(actions)
-	var undo := _button(actions,"Undo stroke",func():school.request({"op":"undo_stroke","id":document_id,"page":page_index}))
-	undo.custom_minimum_size.y=28;undo.disabled=not _editable(paper)
-	var erase := _button(actions,"Clear page",func():school.request({"op":"erase","id":document_id,"page":page_index});ink.strokes=[];ink.queue_redraw());erase.custom_minimum_size.y=28;erase.disabled=not _editable(paper)
 	if paper.lesson and not paper.get("guide",false) and paper.owner==multiplayer.get_unique_id():
 		_button(toolbar,"Check practice" if paper.mark.is_empty() else "Try again",func():
 			flush()
@@ -446,32 +424,34 @@ func _build_reader() -> void:
 			school.request({"op":"lesson_check" if checking else "lesson_retry","id":document_id})
 			page_index=school.page_count(paper)-1 if checking else int(paper.project.get("lesson_stages",[]).size()) if str(paper.project.get("course_id","")).begins_with("MTH") else school.page_count(paper)-2
 			_build_reader())
+	var calculator_allowed := calculator_carried and (not str(paper.project.get("course_id","")).begins_with("MTH") or bool(paper.get("math_policy",{}).get("calculator_allowed",false)))
 	calculator_widget=preload("res://scripts/scientific_calculator.gd").new()
 	const Supplies = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 	calculator_widget.model=Supplies.Keypad.model_for(carried_calculator) if calculator_carried else "calculator"
 	if calculator_carried:
 		calculator_widget.equipment_options=Supplies.supply_configuration(game.electronics.profile.data.get("dorm",{}),carried_calculator)
-	var calculator_allowed := calculator_carried and (not str(paper.project.get("course_id","")).begins_with("MTH") or bool(paper.get("math_policy",{}).get("calculator_allowed",false)))
-	if calculator_allowed and ResourceLoader.exists("res://scripts/ui/paper_workspace/calculator/drawer.gd"):
+	if calculator_allowed:
 		calculator_drawer=load("res://scripts/ui/paper_workspace/calculator/drawer.gd").new();surface.add_child(calculator_drawer);calculator_drawer.configure(calculator_widget)
 		if not drawer_saved.is_empty():calculator_drawer.restore_state(drawer_saved)
-	else:side.add_child(calculator_widget)
-	calculator=calculator_widget.display;calculator.text=calculator_state
-	calculator_widget.visible=calculator_allowed
-	if not calculator_widget.visible:_label(side,"Calculator disabled for this assessment." if calculator_carried else "No calculator in your hotbar.",14)
-	if not calc_saved.is_empty():
-		calculator_widget.degrees=calc_saved.degrees;calculator_widget.answer=calc_saved.answer;calculator_widget.memory=calc_saved.memory;calculator_widget.result.text=calc_saved.result
-		if is_instance_valid(calculator_widget.mode):
-			calculator_widget.mode.text="DEG" if calc_saved.degrees else "RAD"
-			calculator_widget.memory_label.text=calculator_widget.mode.text+("   M" if calc_saved.memory!=0 else "")
-		calculator_widget.display.caret_column=clampi(int(calc_saved.get("caret",calculator_state.length())),0,calculator_state.length())
-		if int(calc_saved.get("selection_begin",-1))>=0:calculator_widget.display.select(int(calc_saved.selection_begin),int(calc_saved.selection_end))
+	else:
+		calculator_widget.free()
+		calculator_widget=null
+		calculator=null
+	if calculator_allowed:
+		calculator=calculator_widget.display;calculator.text=calculator_state
+		if not calc_saved.is_empty():
+			calculator_widget.degrees=calc_saved.degrees;calculator_widget.answer=calc_saved.answer;calculator_widget.memory=calc_saved.memory;calculator_widget.result.text=calc_saved.result
+			if is_instance_valid(calculator_widget.mode):
+				calculator_widget.mode.text="DEG" if calc_saved.degrees else "RAD"
+				calculator_widget.memory_label.text=calculator_widget.mode.text+("   M" if calc_saved.memory!=0 else "")
+			calculator_widget.display.caret_column=clampi(int(calc_saved.get("caret",calculator_state.length())),0,calculator_state.length())
+			if int(calc_saved.get("selection_begin",-1))>=0:calculator_widget.display.select(int(calc_saved.selection_begin),int(calc_saved.selection_end))
 	if not paper.lesson and paper.owner==multiplayer.get_unique_id() and _editable(paper):
 		_button(toolbar,"Submit test",func():flush();school.request({"op":"submit","id":document_id});close())
 		if paper.project.get("kind","")=="lab":
 			var validation := str(paper.project.get("lab_validation",""))
 			var record_label := "Record waveform" if validation=="digital_scope" else ("Record display" if validation=="digital_display" else ("Record binary inputs" if validation=="digital_binary" else ("Record gate levels" if validation.begins_with("digital_") else "Record current instrument reading")))
-			_button(side,record_label,func():flush();school.request({"op":"measure","id":document_id}))
+			_button(toolbar,record_label,func():flush();school.request({"op":"measure","id":document_id}))
 	view_document=document_id;view_page=page_index;reader_view_key=_reader_key(paper)
 	restore_view.call_deferred(view_document,view_page,reader_generation)
 func remember_view() -> void:
@@ -479,7 +459,6 @@ func remember_view() -> void:
 	var state: Dictionary=view_states.get(reader_view_key,{"pages":{}})
 	state.page=view_page;state.zoom=view_zoom
 	state.pages[view_page]=workspace_view.offset
-	state.tools=tools_scroll.scroll_vertical if is_instance_valid(tools_scroll) else 0
 	view_states[reader_view_key]=state
 	if view_states.size()>128:view_states.erase(view_states.keys()[0])
 	var cfg := ConfigFile.new();cfg.set_value("reader","documents",view_states);cfg.save("user://paper_reader_views.cfg")
@@ -499,7 +478,6 @@ func restore_view(id: int,page: int,generation: int) -> void:
 		var position: Vector2=state.get("pages",{}).get(page,workspace_view.offset)
 		if state.has("zoom"):workspace_view.restore(float(state.zoom),position)
 		else:workspace_view.fit()
-		tools_scroll.scroll_vertical=int(state.get("tools",0))
 	if generation==reader_generation:restoring_view=false
 func turn_page(direction: int) -> void:
 	if not reading or not school.papers.has(document_id):return
@@ -535,7 +513,8 @@ func _input(event: InputEvent) -> void:
 		if hovered==annotation_layer.inline_editor:return
 		if event is InputEventMouseButton and event.button_index==MOUSE_BUTTON_LEFT and event.pressed:
 			annotation_layer.finish_inline_edit()
-			get_viewport().set_input_as_handled()
+			if not hovered is BaseButton and not hovered is LineEdit and not hovered is TextEdit:
+				get_viewport().set_input_as_handled()
 			return
 	if is_instance_valid(hovered) and (is_instance_valid(calculator_drawer) and calculator_drawer.is_ancestor_of(hovered) or is_instance_valid(tool_case) and tool_case.is_ancestor_of(hovered)):return
 	var pointer := workspace_view.get_local_mouse_position()
@@ -736,30 +715,7 @@ static func calculate_expression(value: String) -> String:
 	return "= "+str(snappedf(float(result),.000000001))
 
 func edit_annotation(item: Dictionary) -> void:
-	if is_instance_valid(tool_case):tool_case.set_selection(item);return
-	for child in annotation_inspector.get_children():annotation_inspector.remove_child(child);child.queue_free()
-	var input: LineEdit
-	if item.kind == "equation":
-		_button(annotation_inspector, "Edit equation", func(): annotation_layer.edit_inline(item))
-	else:
-		input = LineEdit.new()
-		input.text = item.text
-		input.max_length = 256
-		annotation_inspector.add_child(input)
-		input.text_changed.connect(func(value): annotation_layer.update_selected("text",value))
-	var options := HBoxContainer.new();annotation_inspector.add_child(options)
-	var font := OptionButton.new()
-	for name in ["Sans","Serif","Mono"]:font.add_item(name)
-	font.select(["Sans","Serif","Mono"].find(item.font));options.add_child(font);font.item_selected.connect(func(i):annotation_layer.update_selected("font",font.get_item_text(i)))
-	var color := ColorPickerButton.new();color.color=Color(item.color);color.edit_alpha=false;options.add_child(color);color.color_changed.connect(func(value):annotation_layer.update_selected("color",value.to_html(false)))
-	for spec in [["Size","font_size",10,72,item.font_size],["Rotation","angle",-180,180,rad_to_deg(float(item.angle))]]:
-		_label(annotation_inspector,spec[0],13);var spin := SpinBox.new();spin.min_value=spec[2];spin.max_value=spec[3];spin.value=spec[4];annotation_inspector.add_child(spin);spin.value_changed.connect(func(value):annotation_layer.update_selected(spec[1],deg_to_rad(value) if spec[1]=="angle" else value))
-	var actions := HBoxContainer.new();annotation_inspector.add_child(actions)
-	_button(actions,"Bake into drawing",func():annotation_layer.update_selected("baked",true);annotation_layer.selection="";annotation_layer.queue_redraw();for child in annotation_inspector.get_children():child.queue_free())
-	_button(actions,"Delete",func():annotation_layer.items=annotation_layer.items.filter(func(a):return a.id!=item.id);school.request({"op":"remove_annotation","id":document_id,"page":page_index,"object":item.id});annotation_layer.queue_redraw())
-	if is_instance_valid(input):
-		input.grab_focus()
-		input.select_all()
+	if is_instance_valid(tool_case):tool_case.set_selection(item)
 
 func confirm_abandon() -> void:
 	var dialog := ConfirmationDialog.new()

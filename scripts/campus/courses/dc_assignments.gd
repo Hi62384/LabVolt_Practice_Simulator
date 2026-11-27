@@ -2,6 +2,7 @@ extends RefCounted
 ## Author-created explicit topologies. The existing physical electronics MNA solver
 ## supplies every reference operating point; this is not a second course solver.
 const Solver = preload("res://scripts/electronics_solver.gd")
+const BAND_COLOURS := ["black","brown","red","orange","yellow","green","blue","violet","grey","white"]
 static func part(id: String,kind: String,a: String,b: String,value: float) -> Dictionary:
 	return {"id":id,"kind":kind,"a":a,"b":b,"value":value,"resistance":0.0}
 static func solve(parts: Array) -> Dictionary:
@@ -35,10 +36,10 @@ static func build(week: int,difficulty: int,seed_value: int) -> Dictionary:
 				q.append(choice("Where must the ammeter be connected?",["Across the source","In series with R1","Across a wire"],1,"The branch current must pass through the ammeter."))
 				q.append(numeric("Convert R1 to kilo-ohms",r/1000.0,"kΩ","Divide ohms by 1000."))
 			else:
-				q.append(numeric("Four-band separate resistor: %s. Nominal resistance?"%", ".join(four.bands),float(four.nominal),"Ω","Two significant digits, multiplier and tolerance; no early rounding."))
+				q.append(numeric("Four-band separate resistor: %s. Nominal resistance?"%", ".join(four.bands),float(four.nominal),"Ω",band_explanation(four.bands)))
 				q.append(numeric("Minimum resistance for R1 at ±%.0f%%"%(tolerance*100),r*(1-tolerance),"Ω","Rmin = nominal × (1-tolerance)."))
 				q.append(numeric("Maximum resistance for R1 at ±%.0f%%"%(tolerance*100),r*(1+tolerance),"Ω","Rmax = nominal × (1+tolerance)."))
-				if d>=2:q.append(numeric("Five-band %s nominal resistance"%"-".join(five.bands),float(five.nominal),"Ω","Three significant digits × multiplier; final band specifies tolerance."))
+				if d>=2:q.append(numeric("Five-band %s nominal resistance"%"-".join(five.bands),float(five.nominal),"Ω",band_explanation(five.bands)))
 			if d>=1:q.append(numeric("Maximum voltage for R1 with %.2f W rating and 30 V equipment ceiling"%rating,minf(30,sqrt(rating*r)),"V","Use the smaller of 30 V and sqrt(Pmax R)."))
 			if d>=2:
 				parts.append(part("R2","R","p","g",2200))
@@ -158,8 +159,19 @@ static func build(week: int,difficulty: int,seed_value: int) -> Dictionary:
 	var lines: Array[String]=["Original explicit netlist. a,b are oriented terminals, not source PDF drawing coordinates. Values use V, A and Ω. Calculation predictions use the stated nominal model; physical readings use actual owned parts and instrument loading. Numeric answers may include compatible units; do not round intermediate values."]
 	for p in parts:lines.append("%s (%s): a=%s, b=%s, value=%.9f"%[p.id,p.kind,p.a,p.b,p.value])
 	return {"questions":q,"data":"\n".join(lines),"scenario":{"generator":"dc.v3","seed":seed_value,"week":week,"difficulty":d,"voltage":v,"nominal_resistance":r,"tolerance":tolerance,"rating_watts":rating,"four_band":four,"five_band":five,"elapsed_seconds":elapsed},"reference_parts":parts,"reference_result":result,"practical":{"target":target,"capabilities":gates,"required_observations":["voltage","current"],"rubric":{"connectivity":40,"measurements":30,"procedure":30},"variants":variants},"layouts":[{"type":"VIPR" if week>=7 else "VIR","rows":table},{"type":"power_sweep","loads_ohms":variants.map(func(row):return row.load_ohms)}] if week==11 else [{"type":"VIPR" if week>=7 else "VIR","rows":table}],"diagram":{"kind":"netlist","parts":parts.duplicate(true),"width":900,"min_font_size":18},"difficulty":d}
+static func band_explanation(colors: Array) -> String:
+	var digit_count := colors.size() - 2
+	var significant := 0
+	for i in digit_count:
+		significant = significant * 10 + BAND_COLOURS.find(colors[i])
+	var multiplier_color: String = colors[digit_count]
+	var exponent := -2 if multiplier_color == "silver" else -1 if multiplier_color == "gold" else BAND_COLOURS.find(multiplier_color)
+	var multiplier := pow(10.0, exponent)
+	return "%s gives %d. %s means multiply by %s, giving %s Ω. %s sets the tolerance." % [
+		"–".join(colors.slice(0, digit_count)).capitalize(), significant, multiplier_color.capitalize(),
+		str(multiplier), str(significant * multiplier), str(colors[-1]).capitalize()]
+
 static func bands(nominal: float,digits: int,tolerance: float) -> Array:
-	var colours: Array=["black","brown","red","orange","yellow","green","blue","violet","grey","white"]
 	# Decimal scaling avoids log10 rounding at exact powers of ten (1000 must
 	# encode brown-black-red, never black-black-brown).
 	var exponent := 0
@@ -168,8 +180,8 @@ static func bands(nominal: float,digits: int,tolerance: float) -> Array:
 	while scaled<pow(10,digits-1):scaled*=10.0;exponent-=1
 	var significant := int(round(scaled))
 	var output: Array=[]
-	for i in range(digits):output.append(colours[int(significant/pow(10,digits-i-1))%10])
-	output.append("gold" if exponent==-1 else "silver" if exponent==-2 else colours[exponent])
+	for i in range(digits):output.append(BAND_COLOURS[int(significant/pow(10,digits-i-1))%10])
+	output.append("gold" if exponent==-1 else "silver" if exponent==-2 else BAND_COLOURS[exponent])
 	output.append("brown" if tolerance==0.01 else "gold")
 	return output
 static func colour_case(rng: RandomNumberGenerator) -> Dictionary:

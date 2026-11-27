@@ -42,7 +42,8 @@ var original_configuration: Dictionary={}
 var requested_bounds:=Vector2i.ZERO
 var fit_scheduled:=false
 var backlight_controls: VBoxContainer
-var backlight_summary: Label
+var backlight_list: VBoxContainer
+var add_backlight: Button
 var continue_button: Button
 var footer: HBoxContainer
 
@@ -356,36 +357,93 @@ func _build_pricing(layout: VBoxContainer) -> void:
 
 func _build_backlighting(options: VBoxContainer) -> void:
 	backlight_controls=VBoxContainer.new()
+	backlight_controls.add_theme_constant_override("separation",6)
 	options.add_child(backlight_controls)
-	backlight_controls.add_child(Widgets.text("Keyboard backlighting","SubtitleLabel"))
-	backlight_controls.add_child(Widgets.text("Select colors in the order they should cycle.","MutedLabel"))
-	var swatches:=HFlowContainer.new()
-	backlight_controls.add_child(swatches)
-	for index in Config.BACKLIGHT_NAMES.size():
-		var button:=CheckButton.new()
-		button.text="%s  +$%d"%[Config.BACKLIGHT_NAMES[index],Config.BACKLIGHT_PRICE]
-		button.add_theme_color_override("font_color",Color(Config.BACKLIGHT_COLORS[index]))
-		button.button_pressed=index in configuration.get("backlight",[])
-		button.toggled.connect(_change_backlight.bind(index))
-		swatches.add_child(button)
-	backlight_summary=Widgets.text("")
-	backlight_summary.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	backlight_controls.add_child(backlight_summary)
-	_update_backlight_summary()
+	var header:=HBoxContainer.new()
+	backlight_controls.add_child(header)
+	var title:=Widgets.text("Keyboard backlighting","SubtitleLabel")
+	title.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	add_backlight=Widgets.action("+ Add color · $%d"%Config.BACKLIGHT_PRICE,"",func():
+		var colors: Array=configuration.get_or_add("backlight",[])
+		if colors.size()>=Config.BACKLIGHT_COLORS.size():return
+		colors.append(Config.BACKLIGHT_COLORS[colors.size()])
+		_backlight_changed())
+	header.add_child(add_backlight)
+	backlight_list=VBoxContainer.new()
+	backlight_list.add_theme_constant_override("separation",4)
+	backlight_controls.add_child(backlight_list)
+	_refresh_backlights()
 
-func _change_backlight(selected_color: bool, index: int) -> void:
-	var colors: Array=configuration.get_or_add("backlight",[])
-	if selected_color:colors.append(index)
-	else:colors.erase(index)
-	_update_backlight_summary()
+func _refresh_backlights() -> void:
+	for child in backlight_list.get_children():
+		backlight_list.remove_child(child)
+		child.queue_free()
+	var colors: Array=configuration.get("backlight",[])
+	add_backlight.disabled=colors.size()>=Config.BACKLIGHT_COLORS.size()
+	if colors.is_empty():
+		backlight_list.add_child(Widgets.text("Backlighting off","MutedLabel"))
+		return
+	for index in colors.size():
+		var row:=HBoxContainer.new()
+		row.add_theme_constant_override("separation",5)
+		backlight_list.add_child(row)
+		var order:=Widgets.text(str(index+1),"MutedLabel")
+		order.custom_minimum_size.x=18
+		order.vertical_alignment=VERTICAL_ALIGNMENT_CENTER
+		row.add_child(order)
+		var picker:=ColorPickerButton.new()
+		picker.color=Color(Config.backlight_color(colors[index]))
+		picker.edit_alpha=false
+		picker.custom_minimum_size=Vector2(44,26)
+		picker.tooltip_text="Edit color %d"%(index+1)
+		row.add_child(picker)
+		var hex:=LineEdit.new()
+		hex.text="#"+picker.color.to_html(false)
+		hex.max_length=7
+		hex.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		hex.tooltip_text="Hex color"
+		row.add_child(hex)
+		picker.color_changed.connect(func(color: Color):
+			colors[index]=color.to_html(false)
+			hex.text="#"+colors[index]
+			_update_quote())
+		var commit:=func():
+			var code:=Config.backlight_color(hex.text.strip_edges())
+			if not code.is_empty() and code!=Config.backlight_color(colors[index]):
+				colors[index]=code
+				picker.color=Color(code)
+				_update_quote()
+			hex.text="#"+Config.backlight_color(colors[index])
+		hex.text_submitted.connect(func(_value: String):commit.call())
+		hex.focus_exited.connect(func():
+			if row.is_inside_tree():commit.call())
+		for delta in [-1,1]:
+			var move:=Button.new()
+			move.text="↑" if delta<0 else "↓"
+			move.tooltip_text="Move earlier" if delta<0 else "Move later"
+			move.disabled=index+delta not in range(colors.size())
+			move.pressed.connect(func():
+				var value: Variant=colors.pop_at(index)
+				colors.insert(index+delta,value)
+				_backlight_changed())
+			row.add_child(move)
+		var remove:=Button.new()
+		remove.text="×"
+		remove.tooltip_text="Remove color %d"%(index+1)
+		remove.pressed.connect(func():colors.remove_at(index);_backlight_changed())
+		row.add_child(remove)
+
+func _backlight_changed() -> void:
+	_refresh_backlights()
 	_update_quote()
-
-func _update_backlight_summary() -> void:
-	backlight_summary.text=_backlight_description()
 
 func _backlight_description() -> String:
 	var names:=PackedStringArray()
-	for index in configuration.get("backlight",[]):names.append(Config.BACKLIGHT_NAMES[index])
+	for color in configuration.get("backlight",[]):
+		var code:=Config.backlight_color(color)
+		var preset:=Config.BACKLIGHT_COLORS.find(code)
+		names.append(Config.BACKLIGHT_NAMES[preset] if preset>=0 else "#"+code)
 	return "Off" if names.is_empty() else " → ".join(names)
 
 func _quote() -> Dictionary:
