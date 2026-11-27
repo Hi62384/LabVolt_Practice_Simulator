@@ -112,6 +112,31 @@ func run() -> void:
 	var ambiguous:=orbit.duplicate(true)
 	ambiguous.objects[1].function="u"
 	assert(not Document.compile(ambiguous).ok)
+	var camera_scene:={"version":1,"title":"Camera and timed reveal","subtitle":"The title stays fixed during the zoom",
+		"duration":8.,"objects":[
+			{"id":"cam","type":"camera","easing":"linear","tracks":{"x":[[0.,480.],[4.,640.]],"scale":[[0.,1.],[4.,2.]]}},
+			{"id":"overflow","type":"rectangle","x":-40.,"y":-40.,"width":1120.,"height":700.,"fill":"17445b","color":"17445b"},
+			{"id":"target","type":"circle","layer":1,"x":640.,"y":278.,"radius":60.,"fill":"46dfc1"},
+			{"id":"callout","type":"text","layer":2,"x":544.,"y":365.,"width":300.,"text":"Check this region","start":3.,"end":5.}]}
+	assert(player.load_scene(camera_scene))
+	assert(player.camera_transform().is_equal_approx(Transform2D.IDENTITY))
+	assert(not player.visible_at_time(player.objects.callout))
+	player.seek(4.)
+	assert(player.camera_transform() * Vector2(640.,278.)==Vector2(480.,278.))
+	assert(is_equal_approx(player.camera_transform().get_scale().x,2.))
+	assert(player.visible_at_time(player.objects.callout))
+	assert(Visuals.apply(activity,{"op":"create","scene":camera_scene},12.))
+	assert(Visuals.apply(activity,{"op":"pause"},12.))
+	assert(Visuals.apply(activity,{"op":"seek","value":4.},12.))
+	board.show_animation("camera",Visuals.view(activity,true))
+	if OS.get_environment("LABVOLT_CAPTURE_VISUALS")=="1" and DisplayServer.get_name()!="headless":
+		await RenderingServer.frame_post_draw
+		board.viewport.get_texture().get_image().save_png("res://.godot/procedural-camera-board.png")
+	player.seek(5.)
+	assert(not player.visible_at_time(player.objects.callout))
+	var duplicate_camera:=camera_scene.duplicate(true)
+	duplicate_camera.objects.append({"id":"second_camera","type":"camera"})
+	assert(not Document.compile(duplicate_camera).ok)
 	print("PROCEDURAL_ANIMATION_ENGINE_AND_BOARD PASS")
 	board.queue_free()
 	camera.queue_free()

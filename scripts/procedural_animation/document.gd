@@ -5,12 +5,12 @@ const Formula=preload("res://scripts/procedural_animation/formula.gd")
 const SIZE:=Vector2(960.,520.)
 const MAX_BYTES:=12000
 const OBJECTS:=36
-const KINDS:=["rectangle","ellipse","circle","polygon","path","line","arrow","text","equation","graph","particles","group"]
+const KINDS:=["rectangle","ellipse","circle","polygon","path","line","arrow","text","equation","graph","particles","group","camera"]
 const PROPERTIES:={"x":0.,"y":0.,"width":120.,"height":72.,"rotation":0.,"scale":1.,"alpha":1.,"stroke":3.,"progress":1.,"font":30.,"radius":18.,"x_min":-6.28,"x_max":6.28,"y_min":-1.5,"y_max":1.5,"u_min":0.,"u_max":TAU}
 const COLORS:=["071a28","102a39","e2edf4","82c8dc","46dfc1","ffc671","ff8184","b4adff"]
 const LAYOUTS:=["right","left","full"]
 const ROOT_FIELDS:=["version","title","subtitle","duration","loop","parameters","objects","layout"]
-const META_FIELDS:=["id","type","parent","text","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","count","bindings","tracks","dash","easing","layer"]
+const META_FIELDS:=["id","type","parent","text","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","count","bindings","tracks","dash","easing","layer","start","end"]
 static var id_pattern:=RegEx.create_from_string("^[a-z][a-z0-9_]{0,23}$")
 
 static func parse(source: String) -> Dictionary:
@@ -39,13 +39,20 @@ static func compile(raw: Variant) -> Dictionary:
 	var programs: Dictionary={}
 	var animated_plots: Dictionary={}
 	var series: Dictionary={}
+	var camera_id:=""
 	var complexity:=0
 	for object in value:
 		if not object is Dictionary or not _known(object,META_FIELDS+PROPERTIES.keys()):return _fail("Unknown object fields.")
 		var id: Variant=object.get("id")
 		var kind: Variant=object.get("type")
 		if not _id(id) or objects.has(id) or not kind in KINDS:return _fail("Invalid object identity or type.")
+		if kind=="camera":
+			if not camera_id.is_empty() or not _known(object,["id","type","x","y","scale","easing","tracks","bindings"]):
+				return _fail("Only one independent camera is supported.")
+			camera_id=id
 		if not _text(object.get("text",""),160) or not _text(object.get("parent",""),24):return _fail("Invalid object text or parent.")
+		if not _number(object.get("start",0.),0.,raw.duration) or not _number(object.get("end",raw.duration),float(object.get("start",0.)),raw.duration):
+			return _fail("Invalid object visibility interval.")
 		for field in ["x_label","y_label"]:
 			if object.has(field) and (kind!="graph" or not _text(object[field],36)):return _fail("Invalid graph axis label.")
 		if object.has("plot_style") and (kind!="graph" or object.plot_style not in ["line","scatter"]):return _fail("Invalid plot style.")
@@ -83,6 +90,8 @@ static func compile(raw: Variant) -> Dictionary:
 		var bindings: Variant=object.get("bindings",{})
 		var tracks: Variant=object.get("tracks",{})
 		if not bindings is Dictionary or not tracks is Dictionary or bindings.size()+tracks.size()>12:return _fail("Invalid animation channels.")
+		if kind=="camera" and not _known(bindings,["x","y","scale"]):return _fail("Invalid camera binding.")
+		if kind=="camera" and not _known(tracks,["x","y","scale"]):return _fail("Invalid camera track.")
 		for field in PROPERTIES:
 			if object.has(field) and not _number(object[field],-5000.,5000.):return _fail("Invalid property value.")
 		for field in bindings:
@@ -108,7 +117,7 @@ static func compile(raw: Variant) -> Dictionary:
 			visited.append(parent)
 			parent=objects[parent].get("parent","")
 	if JSON.stringify(raw).to_utf8_buffer().size()>MAX_BYTES:return _fail("Scene is too large.")
-	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series}
+	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series,"camera_id":camera_id}
 
 static func _known(value: Dictionary, allowed: Array) -> bool:
 	for field in value:

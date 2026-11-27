@@ -12,12 +12,19 @@ var plot_cache: Dictionary={}
 var sync_key:=""
 var font: Font
 var data_status:=""
+var stage_clip:=Control.new()
+var artwork:=Node2D.new()
 
 func _ready() -> void:
 	mouse_filter=MOUSE_FILTER_IGNORE
 	clip_contents=true
 	font=ThemeDB.fallback_font
-	resized.connect(queue_redraw)
+	stage_clip.mouse_filter=MOUSE_FILTER_IGNORE
+	stage_clip.clip_contents=true
+	add_child(stage_clip)
+	stage_clip.add_child(artwork)
+	artwork.draw.connect(_draw_artwork)
+	resized.connect(_redraw_frame)
 
 func show_checkpoint(key: String,state: Dictionary) -> bool:
 	if key!=sync_key:
@@ -28,8 +35,11 @@ func show_checkpoint(key: String,state: Dictionary) -> bool:
 	player.playing=bool(state.playing)
 	if player.set_live_parameters(state.get("live_parameters",{})):plot_cache.clear()
 	player.set_live_series(state.get("live_series",{}))
-	data_status=str(state.get("data_status",""))
-	queue_redraw()
+	var status:=str(state.get("data_status",""))
+	if status!=data_status:
+		data_status=status
+		_redraw_frame()
+	else:_queue_frame()
 	frame_changed.emit()
 	return true
 
@@ -39,8 +49,22 @@ func _process(delta: float) -> void:
 	if accumulator<TICK:return
 	player.advance(accumulator)
 	accumulator=0.
-	queue_redraw()
+	_queue_frame()
 	frame_changed.emit()
+
+func _redraw_frame() -> void:
+	var zoom:=minf(size.x/Document.SIZE.x,size.y/Document.SIZE.y)
+	var offset:=(size-Document.SIZE*zoom)*.5
+	var footer:=503. if data_status.is_empty() else 480.
+	stage_clip.position=offset+Vector2(0.,76.)*zoom
+	stage_clip.size=Vector2(Document.SIZE.x,footer-76.)*zoom
+	artwork.position=Vector2(0.,-76.)*zoom
+	artwork.scale=Vector2.ONE*zoom
+	_queue_frame()
+
+func _queue_frame() -> void:
+	queue_redraw()
+	artwork.queue_redraw()
 
 func _draw() -> void:
 	if player.scene.is_empty() or font==null:return
@@ -58,20 +82,22 @@ func _draw() -> void:
 		draw_string(font,Vector2(40,63),player.scene.subtitle,HORIZONTAL_ALIGNMENT_LEFT,888.,19,Color("a8c7d7"))
 	for x in range(32,960,48):
 		for y in range(100,490,48):draw_circle(Vector2(x,y),1.,Color("214354"))
-	for item in player.ordered:
-		if item.type=="group":continue
-		var pose:=_pose(item)
-		if float(pose.alpha)<=0.:continue
-		var transform: Transform2D=frame*pose.transform
-		draw_set_transform_matrix(transform)
-		_draw_object(item,float(pose.alpha))
-	draw_set_transform_matrix(frame)
 	var progress:=player.clock/float(player.scene.duration)
 	if not data_status.is_empty():
 		draw_rect(Rect2(17,480,926,24),Color("0b2030"))
 		draw_string(font,Vector2(22,498),data_status,HORIZONTAL_ALIGNMENT_LEFT,916.,16,ACCENT)
 	draw_rect(Rect2(18,505,924,3),Color("254b5a"))
 	draw_rect(Rect2(18,505,924*progress,3),ACCENT)
+
+func _draw_artwork() -> void:
+	if player.scene.is_empty() or font==null:return
+	var camera:=player.camera_transform()
+	for item in player.ordered:
+		if item.type in ["group","camera"] or not player.visible_at_time(item):continue
+		var pose:=_pose(item)
+		if float(pose.alpha)<=0.:continue
+		artwork.draw_set_transform_matrix(camera*pose.transform)
+		_draw_object(item,float(pose.alpha))
 
 func _pose(item: Dictionary) -> Dictionary:
 	var position:=Vector2(player.property(item,"x"),player.property(item,"y"))
@@ -81,6 +107,7 @@ func _pose(item: Dictionary) -> Dictionary:
 	var parent: String=item.get("parent","")
 	while not parent.is_empty():
 		var group: Dictionary=player.objects[parent]
+		if not player.visible_at_time(group):return {"transform":transform,"alpha":0.}
 		var amount:=clampf(player.property(group,"scale"),.02,8.)
 		transform=Transform2D(deg_to_rad(player.property(group,"rotation")),Vector2.ONE*amount,0.,Vector2(player.property(group,"x"),player.property(group,"y")))*transform
 		alpha*=clampf(player.property(group,"alpha"),0.,1.)
@@ -97,22 +124,22 @@ func _draw_object(item: Dictionary,alpha: float) -> void:
 	var radius:=clampf(player.property(item,"radius"),.5,500.)
 	var progress:=clampf(player.property(item,"progress"),0.,1.)
 	if item.id==player.highlight:
-		draw_rect(Rect2(Vector2(-8,-14),Vector2(maxf(dims.x,radius*2.),maxf(dims.y,radius*2.))).grow(10.),Color("ffc67177"),false,3.)
+		artwork.draw_rect(Rect2(Vector2(-8,-14),Vector2(maxf(dims.x,radius*2.),maxf(dims.y,radius*2.))).grow(10.),Color("ffc67177"),false,3.)
 	match str(item.type):
 		"rectangle":
 			var box:=Rect2(Vector2.ZERO,dims)
-			if fill.a>0.:draw_rect(box,fill)
-			draw_rect(box,pen,false,stroke)
+			if fill.a>0.:artwork.draw_rect(box,fill)
+			artwork.draw_rect(box,pen,false,stroke)
 		"circle":
-			if fill.a>0.:draw_circle(Vector2.ZERO,radius,fill,true,-1.,true)
-			draw_arc(Vector2.ZERO,radius,0.,TAU*progress,48,pen,stroke,true)
+			if fill.a>0.:artwork.draw_circle(Vector2.ZERO,radius,fill,true,-1.,true)
+			artwork.draw_arc(Vector2.ZERO,radius,0.,TAU*progress,48,pen,stroke,true)
 		"ellipse":
 			var outline:=PackedVector2Array()
 			for i in 49:
 				var angle:=TAU*float(i)/48.*progress
 				outline.append(Vector2(cos(angle),sin(angle))*dims*.5)
-			if fill.a>0. and progress>=1.:draw_colored_polygon(outline.slice(0,-1),fill)
-			draw_polyline(outline,pen,stroke,true)
+			if fill.a>0. and progress>=1.:artwork.draw_colored_polygon(outline.slice(0,-1),fill)
+			artwork.draw_polyline(outline,pen,stroke,true)
 		"line","arrow":
 			var endpoint:=Vector2(player.property(item,"width"),player.property(item,"height"))
 			_line(Vector2.ZERO,endpoint*progress,pen,stroke,item.get("dash",false),item.type=="arrow")
@@ -120,19 +147,19 @@ func _draw_object(item: Dictionary,alpha: float) -> void:
 			var points:=PackedVector2Array()
 			for p in item.points:points.append(Vector2(p[0],p[1]))
 			if item.type=="polygon":
-				if fill.a>0.:draw_colored_polygon(points,fill)
+				if fill.a>0.:artwork.draw_colored_polygon(points,fill)
 				points.append(points[0])
 			_trace(points,pen,stroke,progress,item.get("dash",false))
 		"text","equation":
 			var label:=_caption(str(item.get("text","")))
-			draw_string(font,Vector2.ZERO,label.substr(0,ceili(label.length()*progress)),HORIZONTAL_ALIGNMENT_LEFT,dims.x,clampi(roundi(player.property(item,"font")),13,90),pen)
+			artwork.draw_string(font,Vector2.ZERO,label.substr(0,ceili(label.length()*progress)),HORIZONTAL_ALIGNMENT_LEFT,dims.x,clampi(roundi(player.property(item,"font")),13,90),pen)
 		"graph":_graph(item,dims,pen,stroke,progress)
 		"particles":
 			var count:=int(item.get("count",12))
 			var phase:=player.clock*.4
 			for i in count:
 				var p:=Vector2(fposmod(float(i)/count+phase,1.)*dims.x,fposmod(i*.618,1.)*dims.y)
-				draw_circle(p,minf(20.,radius),pen,true,-1.,true)
+				artwork.draw_circle(p,minf(20.,radius),pen,true,-1.,true)
 
 func _caption(text: String) -> String:
 	for id in player.compiled.names:
@@ -142,11 +169,11 @@ func _caption(text: String) -> String:
 
 func _line(from: Vector2,to: Vector2,ink: Color,width: float,dash: bool,arrow: bool) -> void:
 	if from.is_equal_approx(to):return
-	if dash:draw_dashed_line(from,to,ink,width,12.)
-	else:draw_line(from,to,ink,width,true)
+	if dash:artwork.draw_dashed_line(from,to,ink,width,12.)
+	else:artwork.draw_line(from,to,ink,width,true)
 	if arrow:
 		var heading:=(to-from).normalized()
-		draw_colored_polygon(PackedVector2Array([to,to-heading.rotated(.44)*18,to-heading.rotated(-.44)*18]),ink)
+		artwork.draw_colored_polygon(PackedVector2Array([to,to-heading.rotated(.44)*18,to-heading.rotated(-.44)*18]),ink)
 
 func _trace(points: PackedVector2Array,ink: Color,width: float,progress: float,dash: bool) -> void:
 	var work:=float(points.size()-1)*progress
@@ -164,21 +191,21 @@ func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: fl
 		var units_per_pixel:=maxf(bounds.size.x/dims.x,bounds.size.y/dims.y)
 		var equal_size:=dims*units_per_pixel
 		bounds=Rect2(bounds.get_center()-equal_size*.5,equal_size)
-	draw_rect(Rect2(Vector2.ZERO,dims),Color("102f40"))
+	artwork.draw_rect(Rect2(Vector2.ZERO,dims),Color("102f40"))
 	for i in range(1,8):
 		var gx:=dims.x*i/8.
-		draw_line(Vector2(gx,0.),Vector2(gx,dims.y),Color("254c5b"))
+		artwork.draw_line(Vector2(gx,0.),Vector2(gx,dims.y),Color("254c5b"))
 	for j in range(1,5):
 		var gy:=dims.y*j/5.
-		draw_line(Vector2(0.,gy),Vector2(dims.x,gy),Color("254c5b"))
+		artwork.draw_line(Vector2(0.,gy),Vector2(dims.x,gy),Color("254c5b"))
 	var axes:=Vector2(clampf(-bounds.position.x/bounds.size.x,0.,1.),clampf(bounds.end.y/bounds.size.y,0.,1.))*dims
-	draw_line(Vector2(0.,axes.y),Vector2(dims.x,axes.y),Color("87a5b1"),2.,true)
-	draw_line(Vector2(axes.x,0.),Vector2(axes.x,dims.y),Color("87a5b1"),2.,true)
+	artwork.draw_line(Vector2(0.,axes.y),Vector2(dims.x,axes.y),Color("87a5b1"),2.,true)
+	artwork.draw_line(Vector2(axes.x,0.),Vector2(axes.x,dims.y),Color("87a5b1"),2.,true)
 	var points:=PackedVector2Array()
 	if item.has("data_series"):
 		points=player.live_series.get(item.data_series,PackedVector2Array())
 		if points.is_empty():
-			draw_string(font,Vector2(12.,30.),"Waiting for live data",HORIZONTAL_ALIGNMENT_LEFT,dims.x-24.,20,INK)
+			artwork.draw_string(font,Vector2(12.,30.),"Waiting for live data",HORIZONTAL_ALIGNMENT_LEFT,dims.x-24.,20,INK)
 	else:
 		points=_graph_points(item,x0,x1)
 	_draw_plot(points,bounds,dims,pen,stroke,progress,item.get("plot_style","line")=="scatter")
@@ -211,14 +238,14 @@ func _draw_plot(points: PackedVector2Array,bounds: Rect2,dims: Vector2,pen: Colo
 			previous=Vector2.INF
 			continue
 		var pixel:=(point-origin)*gain
-		if scatter:draw_circle(pixel,maxf(2.5,stroke),pen,true,-1.,true)
-		elif previous.is_finite():draw_line(previous,pixel,pen,stroke,true)
+		if scatter:artwork.draw_circle(pixel,maxf(2.5,stroke),pen,true,-1.,true)
+		elif previous.is_finite():artwork.draw_line(previous,pixel,pen,stroke,true)
 		previous=pixel
 
 func _draw_graph_limits(item: Dictionary,bounds: Rect2,dims: Vector2) -> void:
-	draw_string(font,Vector2(4,dims.y-8),"%.2f"%bounds.position.x,HORIZONTAL_ALIGNMENT_LEFT,90.,16,INK)
-	draw_string(font,Vector2(dims.x-72,dims.y-8),"%.2f"%bounds.end.x,HORIZONTAL_ALIGNMENT_RIGHT,68.,16,INK)
+	artwork.draw_string(font,Vector2(4,dims.y-8),"%.2f"%bounds.position.x,HORIZONTAL_ALIGNMENT_LEFT,90.,16,INK)
+	artwork.draw_string(font,Vector2(dims.x-72,dims.y-8),"%.2f"%bounds.end.x,HORIZONTAL_ALIGNMENT_RIGHT,68.,16,INK)
 	if item.has("x_label") and dims.x>=240.:
-		draw_string(font,Vector2(78.,dims.y-8),item.x_label,HORIZONTAL_ALIGNMENT_CENTER,dims.x-156.,16,INK)
+		artwork.draw_string(font,Vector2(78.,dims.y-8),item.x_label,HORIZONTAL_ALIGNMENT_CENTER,dims.x-156.,16,INK)
 	if item.has("y_label"):
-		draw_string(font,Vector2(9.,21.),item.y_label,HORIZONTAL_ALIGNMENT_LEFT,dims.x-18.,16,INK)
+		artwork.draw_string(font,Vector2(9.,21.),item.y_label,HORIZONTAL_ALIGNMENT_LEFT,dims.x-18.,16,INK)

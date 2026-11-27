@@ -188,8 +188,20 @@ func restore_checkpoint(value: Dictionary) -> bool:
 	revision+=1
 	return true
 
-func property(item: Dictionary,key: String) -> float:
-	var start:=float(item.get(key,Document.PROPERTIES[key]))
+func camera_transform() -> Transform2D:
+	var id: String=compiled.get("camera_id","")
+	if id.is_empty():return Transform2D.IDENTITY
+	var camera: Dictionary=objects[id]
+	var center:=Vector2(Document.SIZE.x*.5,278.)
+	var target:=Vector2(property(camera,"x",center.x),property(camera,"y",center.y))
+	var zoom:=clampf(property(camera,"scale",1.),.25,4.)
+	return Transform2D(Vector2(zoom,0.),Vector2(0.,zoom),center-target*zoom)
+
+func visible_at_time(item: Dictionary) -> bool:
+	return clock>=float(item.get("start",0.)) and (not item.has("end") or clock<float(item.end))
+
+func property(item: Dictionary,key: String,default_value := NAN) -> float:
+	var start:=float(item.get(key,Document.PROPERTIES[key] if is_nan(default_value) else default_value))
 	var program: Expression=compiled.programs.get(item.id+":"+key)
 	if program!=null:return Formula.value(program,inputs,start)
 	var frames: Array=item.get("tracks",{}).get(key,[])

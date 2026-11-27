@@ -261,6 +261,24 @@ func run() -> void:
 	assert("Place your own board" in faculty._inspect_student_circuit(1,"dc_lab",dc_visit.teacher,dc_visit))
 	dc_bench.board_owner=1
 	assert("host solver has a result" in faculty._inspect_student_circuit(1,"dc_lab",dc_visit.teacher,dc_visit))
+	faculty._rotate("ac_lab")
+	var exchange: Dictionary=faculty.lab_handoffs.get("ac_lab",{})
+	assert(not exchange.is_empty() and faculty.current.ac_lab==visit.teacher)
+	assert(faculty.brain.recall(exchange.outgoing,exchange.incoming).is_empty())
+	faculty._finish_lab_handoffs(exchange.due-1)
+	assert(faculty.current.ac_lab==exchange.outgoing)
+	faculty._finish_lab_handoffs(exchange.due)
+	assert(faculty.current.ac_lab==exchange.incoming)
+	assert(faculty.brain.recall(exchange.outgoing,exchange.incoming).size()==1)
+	assert(faculty.brain.recall(exchange.incoming,exchange.outgoing).size()==1)
+	faculty._rotate("ac_lab")
+	var cancelled: Dictionary=faculty.lab_handoffs["ac_lab"]
+	classes.classes[lecture_room]={"teacher":cancelled.incoming}
+	var prior: Array=faculty.brain.recall(cancelled.outgoing,cancelled.incoming)
+	faculty._finish_lab_handoffs(cancelled.due)
+	assert(faculty.current.ac_lab==cancelled.outgoing and not faculty.lab_handoffs.has("ac_lab"))
+	assert(faculty.brain.recall(cancelled.outgoing,cancelled.incoming)==prior)
+	classes.classes.erase(lecture_room)
 	print("CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS")
 	game.queue_free()
 	await process_frame

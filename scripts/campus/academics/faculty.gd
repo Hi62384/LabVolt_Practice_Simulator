@@ -22,6 +22,7 @@ var remaining:={"ac_lab":0.0,"dc_lab":0.0}
 var lecture_models:={}
 var lab_routes:={}
 var lab_entries:={}
+var lab_handoffs:={}
 var classroom_routes:={}
 var lecture_cues := {}
 var lecture_clock := 0.0
@@ -116,7 +117,7 @@ func _clear_speech() -> void:
  ai_stage.clear()
  lesson_feedback.clear()
  for room in ["ac_lab","dc_lab"]:_hide_lab(room)
- lab_routes.clear();lab_entries.clear()
+ lab_routes.clear();lab_entries.clear();lab_handoffs.clear()
  Roster.GENERATED.clear()
  ai_busy.clear();questions.clear();ai_stage.clear()
  if is_instance_valid(speech_player):speech_player.clear_session()
@@ -163,14 +164,56 @@ func generate_teacher(course: String,style: String) -> Dictionary:
  return {"ok":true,"name":str(Roster.entry(id).name),"id":id}
 func _rotate(room: String) -> void:
  var excluded: Array=current.values()
+ for exchange in lab_handoffs.values():excluded.append(exchange.incoming)
  for activity in game.lecture_classes.classes.values():
   var id:=str(activity.get("teacher",""))
   if not id.is_empty() and id not in excluded:excluded.append(id)
  var id:=_pick(["ELM253"] if room=="ac_lab" else ["ETY155","DGS266"],excluded)
  if id.is_empty():return
+ var visit:=_lab_visit(room)
+ if visit.get("phase","")=="office_hours":
+  if lesson_question_active(room):
+   remaining[room]=10.
+   return
+  var outgoing: String=visit.teacher
+  var name_to_address:=str(Roster.entry(id).name)
+  var handoff:="Good to see you again, %s. Are you ready to take the next office-hours shift?"%name_to_address if int(brain.relationship(outgoing,id).familiarity)>0 else "%s, can you take over office hours? I'm heading out."%name_to_address
+  lab_handoffs[room]={"outgoing":outgoing,"incoming":id,"due":Time.get_ticks_msec()+4400,"handoff":handoff}
+  remaining[room]=ROTATE_SECONDS
+  _staff_line(room,outgoing,handoff)
+  return
+ _switch_lab_instructor(room,id)
+
+func _switch_lab_instructor(room: String,id: String) -> void:
  current[room]=id;remaining[room]=ROTATE_SECONDS
  _hide_lab(room)
  _publish()
+
+func _finish_lab_handoffs(now: int) -> void:
+ for room in lab_handoffs.keys():
+  var exchange: Dictionary=lab_handoffs[room]
+  var visit:=_lab_visit(room)
+  var incoming: String=exchange.incoming
+  if visit.get("teacher","")!=exchange.outgoing or _scheduled_teacher(incoming) or incoming in current.values():
+   lab_handoffs.erase(room)
+   remaining[room]=minf(float(remaining[room]),60.)
+   continue
+  if now<int(exchange.due) or lesson_question_active(room):continue
+  lab_handoffs.erase(room)
+  _switch_lab_instructor(room,incoming)
+  _sync_lab_teachers()
+  var outgoing: String=exchange.outgoing
+  var response:="I've got it, %s. I'll help anyone who comes in with a bench question."%str(Roster.entry(outgoing).name)
+  _staff_line(room,incoming,response)
+  var timestamp:=int(Time.get_unix_time_from_system())
+  brain.remember_conversation(outgoing,incoming,response,exchange.handoff,timestamp)
+  brain.remember_conversation(incoming,outgoing,exchange.handoff,response,timestamp)
+
+func _staff_line(room: String,id: String,line: String) -> void:
+ var point:=_teacher_position(room)
+ var serial:=_next_speech(room)
+ _show_reaction(room,id,line,point,serial,1)
+ _broadcast_reaction(room,id,line,point,serial,1)
 func _show_lab(room: String,id: String,animated: bool=false) -> void:
  if not Roster.has(id):return
  _clear_reaction_pose(room)
@@ -234,13 +277,16 @@ func _lab_visit(room: String) -> Dictionary:
  var activity:=_lab_activity(room)
  if not activity.is_empty() or not _freeplay_lab_available(room):return activity
  var id:=str(current.get(room,""))
- if not Roster.has(id):return {}
- var active: Dictionary=game.lecture_classes.classes if multiplayer.is_server() else game.lecture_classes.public_classes
- for scheduled in active.values():
-  if scheduled.get("teacher","")==id:return {}
+ if not Roster.has(id) or _scheduled_teacher(id):return {}
  var course: String="ELM253" if room=="ac_lab" else "ETY155"
  if room=="dc_lab" and course not in Roster.entry(id).get("courses",[]):course="DGS266"
  return {"id":"office:%s:%s"%[room,id],"teacher":id,"phase":"office_hours","course":course,"ai_teaching":false}
+
+func _scheduled_teacher(id: String) -> bool:
+ var active: Dictionary=game.lecture_classes.classes if multiplayer.is_server() else game.lecture_classes.public_classes
+ for scheduled in active.values():
+  if scheduled.get("teacher","")==id:return true
+ return false
 
 func _formal_activity(room: String) -> Dictionary:
  var school: Node=game.school
@@ -353,6 +399,7 @@ func _process(delta: float) -> void:
  _step_lab_routes(delta)
  if multiplayer.is_server():
   _next_question()
+  if not lab_handoffs.is_empty():_finish_lab_handoffs(Time.get_ticks_msec())
   memory_clock+=delta
   if memory_clock>=10.0:memory_clock=0;_save_memory()
   for room in ["ac_lab","dc_lab"]:
