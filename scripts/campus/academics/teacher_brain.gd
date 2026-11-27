@@ -63,7 +63,7 @@ func remember_conversation(id: String,student: String,question: String,reply: St
  memory_dirty=true
 
 func remember(id: String,student: String,kind: String,now_unix: int) -> void:
- if id.is_empty() or student.is_empty() or kind not in ["conversation","help","disruption","hazard"]:return
+ if id.is_empty() or student.is_empty() or kind not in ["conversation","help","disruption","hazard","competition"]:return
  var key:=id+":"+student
  if key.length()>128:return
  if not relationships.has(key) and relationships.size()>=MAX_RELATIONSHIPS:return
@@ -76,6 +76,7 @@ func remember(id: String,student: String,kind: String,now_unix: int) -> void:
  memory.decay_at=decay_at+days*86400
  memory.familiarity=mini(100,int(memory.familiarity)+1)
  if kind=="help":memory.positive=mini(100,int(memory.positive)+1)
+ elif kind=="competition":memory.competitions=mini(20,int(memory.get("competitions",0))+1)
  elif kind=="disruption":
   if int(memory.disruptions)==0:memory.decay_at=now_unix
   memory.disruptions=mini(20,int(memory.disruptions)+1)
@@ -112,16 +113,19 @@ func _validate_relationships(source: Variant) -> Dictionary:
  var validated:={}
  for key in source:
   var entry: Variant=source[key]
-  if not key is String or key.length()>128 or key.find(":")<=0 or key.ends_with(":") or not entry is Dictionary or entry.size() not in [4,5]:return {"ok":false}
+  if not key is String or key.length()>128 or key.find(":")<=0 or key.ends_with(":") or not entry is Dictionary or entry.size() not in [4,5,6]:return {"ok":false}
   for character in key:
    if character.unicode_at(0)<32:return {"ok":false}
   for field in ["familiarity","positive","disruptions","last_seen"]:
    if not entry.has(field):return {"ok":false}
   for field in entry:
-   if field not in ["familiarity","positive","disruptions","last_seen","decay_at"]:return {"ok":false}
+   if field not in ["familiarity","positive","disruptions","last_seen","decay_at","competitions"]:return {"ok":false}
   if not _whole(entry.familiarity,100) or not _whole(entry.positive,100) or not _whole(entry.disruptions,20) or not _whole(entry.last_seen,100000000000):return {"ok":false}
   if entry.has("decay_at") and not _whole(entry.decay_at,100000000000):return {"ok":false}
   validated[key]={"familiarity":int(entry.familiarity),"positive":int(entry.positive),"disruptions":int(entry.disruptions),"last_seen":int(entry.last_seen),"decay_at":int(entry.get("decay_at",entry.last_seen))}
+  if entry.has("competitions"):
+   if not _whole(entry.competitions,20):return {"ok":false}
+   validated[key].competitions=int(entry.competitions)
  return {"ok":true,"relationships":validated}
 
 func _read_memory(path: String) -> Dictionary:

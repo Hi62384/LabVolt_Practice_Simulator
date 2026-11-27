@@ -43,8 +43,11 @@ func dialogue(profile: Dictionary,course: String,stage: Dictionary,question: Str
 	if "remember" in message and not history.is_empty():
 		return "Last time you said, “%s.” How did that go?"%str(history[-1].student).left(150)
 	if phase=="assignment":return "I'm working on my own sheet right now. Let's compare notes after we hand it in."
+	if "rematch" in message and int(relationship.get("competitions",0))>0:
+		return "You're on. We were close last time. Let's see how the next quiz goes."
 	if "study" in message:return "I'd be up for that. Let's compare what we wrote down after class."
 	if message in ["hi","hello","hey","hello again"] and int(relationship.get("familiarity",0))>=2:
+		if int(relationship.get("competitions",0))>=2:return "Hey! Our quiz scores keep ending up close. Ready for another round?"
 		return "Hey, good to see my study partner again. How's class going?" if int(relationship.get("positive",0))>=2 else "Hey, good to see you again. How's class going?"
 	if "help" in message or "formula" in message or "explain" in message:
 		if proficiency(profile.id,course,profile.knowledge)<.60:return "I'm still working that out too. Want to ask the instructor together?"
@@ -128,7 +131,10 @@ func _before_class(activity: Dictionary,now: float) -> void:
 			var met: Dictionary=brain.relationship(speaker.profile.id,listener.profile.id)
 			var greeting: String
 			var response: String
-			if int(met.familiarity)>=2:
+			if int(met.get("competitions",0))>=2:
+				greeting="Another quiz today, %s? We've been close the last few times."%listener.profile.name.get_slice(" ",0)
+				response="Could be. Let's see what the teacher has planned."
+			elif int(met.familiarity)>=2:
 				greeting="Hey, %s. Want to compare notes again after class?"%listener.profile.name.get_slice(" ",0)
 				response="Sure. I'll make a note of anything I want to go over."
 			else:
@@ -164,6 +170,32 @@ func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 func proficiency(id: String,course: String,base: float) -> float:
 	var affinity:=float(posmod(hash([id,course]),101))/1000.-.05
 	return clampf(base+affinity+float(learning.get(id,{}).get(course,0.)),.1,.93)
+
+func record_quiz_rivals(activity: Dictionary,scores: Dictionary) -> void:
+	var classmates: Dictionary=activity.get("classmates",{})
+	var contenders: Array=scores.keys()
+	contenders.sort()
+	var observed: Dictionary={}
+	var timestamp:=int(Time.get_unix_time_from_system())
+	for actor in classmates:
+		var points:=int(scores.get(actor,0))
+		if points<=0:continue
+		var opponent:=""
+		var closest:=maxi(20,roundi(points*.18))
+		for candidate in contenders:
+			if candidate==actor or int(scores[candidate])<=0:continue
+			var gap:=absi(points-int(scores[candidate]))
+			if gap>closest or (gap==closest and not opponent.is_empty()):continue
+			opponent=candidate
+			closest=gap
+		if opponent.is_empty():continue
+		var pair: Array=[actor,opponent]
+		pair.sort()
+		var key: String=pair[0]+":"+pair[1]
+		if observed.has(key):continue
+		observed[key]=true
+		game.faculty.brain.remember(actor,opponent,"competition",timestamp)
+		if classmates.has(opponent):game.faculty.brain.remember(opponent,actor,"competition",timestamp)
 
 func record_practice(id: String,course: String,correct: bool,week := 0) -> void:
 	if not multiplayer.is_server() or not id.begins_with("campus_student_"):return

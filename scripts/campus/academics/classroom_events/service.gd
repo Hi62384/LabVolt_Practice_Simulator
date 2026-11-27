@@ -481,7 +481,7 @@ func tick(now: float) -> void:
     lifecycle.advance(state.round.event_id,"complete")
    state.round.finish(true)
    if state.round.mode in ["board","group"]:state.shared.finish()
-   if state.round.mode=="quiz":_award_quiz(state)
+   if state.round.mode=="quiz":_award_quiz(state,activity)
    var correct_count:=0
    var attempts: int=state.round.submissions.size()
    if state.round.mode=="pass":
@@ -595,7 +595,7 @@ func _call_student(room: String,state: Dictionary,activity: Dictionary,now: floa
  if peer>0:student_called.emit(room,str(activity.get("teacher","")),peer)
  return true
 
-func _award_quiz(state: Dictionary) -> void:
+func _award_quiz(state: Dictionary,activity: Dictionary) -> void:
  var series: Dictionary=state.series
  if int(series.completed)>=int(series.get("target",1)):return
  var members: Array=state.round.participants.keys()
@@ -610,6 +610,8 @@ func _award_quiz(state: Dictionary) -> void:
   series.streaks[member]=streak
   series.scores[member]=int(series.scores.get(member,0))+state.round.quiz_points(member)+(10*maxi(0,streak-1) if correct else 0)
  series.completed=int(series.completed)+1
+ if int(series.completed)>=int(series.get("target",1)):
+  game.lecture_classes.classroom_students.record_quiz_rivals(activity,series.scores)
 
 func _classmate_quiz(room: String,state: Dictionary,activity: Dictionary,now: float) -> void:
  var classmates: Dictionary=activity.get("classmates",{})
