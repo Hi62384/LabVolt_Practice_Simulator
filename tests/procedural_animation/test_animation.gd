@@ -197,11 +197,59 @@ func run() -> void:
 		request,{"objects":[{"text":"Long scene".repeat(400)}]})
 	assert(prompt.length()<=Visuals.HostClient.MAX_INPUT_CHARS)
 	assert(prompt.ends_with(" Student request: "+request.left(420)) and "pause_when" in prompt)
+	var geometry:={"version":1,"title":"Morphing shapes and shaded regions","duration":8.,"objects":[
+		{"id":"shape","type":"polygon","x":70.,"y":220.,"fill":"285f70","color":"79e4dd","easing":"linear",
+			"points":[[0,-105],[105,-105],[105,105],[0,105]],
+			"tracks":{"points":[[4.,[[52,-140],[165,0],[52,140],[-61,0]]]]}},
+		{"id":"between","type":"graph","x":315.,"y":105.,"width":600.,"height":350.,"function":"u",
+			"x_min":-2.,"x_max":2.,"y_min":-2.,"y_max":2.,"color":"ffc671",
+			"shade":{"from":-1.5,"to":1.5,"between":"-u","color":"46dfc188"}}]}
+	assert(player.load_scene(geometry))
+	assert(player.morph_points("shape","linear")[0]==Vector2(0,-105))
+	player.seek(2.)
+	assert(player.morph_points("shape","linear")[0]==Vector2(26,-122.5))
+	player.seek(4.)
+	assert(player.morph_points("shape","linear")[0]==Vector2(52,-140))
+	assert(player.sample("between",1.,"shade")==-1.)
+	assert(Visuals.apply(activity,{"op":"create","scene":geometry},20.))
+	assert(Visuals.apply(activity,{"op":"seek","value":2.},20.))
+	board.show_animation("geometry",Visuals.view(activity,true))
+	if OS.get_environment("LABVOLT_CAPTURE_VISUALS")=="1" and DisplayServer.get_name()!="headless":
+		await RenderingServer.frame_post_draw
+		board.viewport.get_texture().get_image().save_png("res://.godot/procedural-morph-and-shade-board.png")
+		var mesh: ArrayMesh=board.animation_canvas.shade_cache.between.mesh
+		assert(absf(_filled_area(mesh)-59062.5)<1.)
+		var clipped: Dictionary=board.animation_canvas._shade_geometry("between",Rect2(-2.,-.5,4.,1.),Vector2(600.,350.),-1.5,1.5)
+		assert(absf(_filled_area(clipped.mesh)-131250.)<1.)
+	var invalid_morph:=geometry.duplicate(true)
+	invalid_morph.objects[0].tracks.points[0][1]=[[0,0],[1,1]]
+	assert(not Document.compile(invalid_morph).ok)
+	var variable_outline:=geometry.duplicate(true)
+	variable_outline.objects[0].points=[[52,-105],[105,105],[0,105]]
+	assert(player.load_scene(variable_outline))
+	assert(player.morph_points("shape","linear").size()==3)
+	player.seek(2.)
+	assert(player.morph_points("shape","linear").size()>4)
+	player.seek(4.)
+	assert(player.morph_points("shape","linear").size()==4)
+	var under_curve:=geometry.duplicate(true)
+	under_curve.objects[1].shade.erase("between")
+	assert(player.load_scene(under_curve) and player.sample("between",1.,"shade")==0.)
 	print("PROCEDURAL_ANIMATION_ENGINE_AND_BOARD PASS")
 	board.queue_free()
 	camera.queue_free()
 	await process_frame
 	quit()
+
+func _filled_area(mesh: ArrayMesh) -> float:
+	var vertices: Variant=mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var area:=0.
+	for i in range(0,vertices.size(),3):
+		var a:=Vector2(vertices[i].x,vertices[i].y)
+		var b:=Vector2(vertices[i+1].x,vertices[i+1].y)
+		var c:=Vector2(vertices[i+2].x,vertices[i+2].y)
+		area+=absf((b-a).cross(c-a))*.5
+	return area
 
 func _distinct_scenes(player: RefCounted) -> void:
 	var fixtures:={

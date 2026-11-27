@@ -255,8 +255,29 @@ func property(item: Dictionary,key: String,default_value := NAN) -> float:
 			return lerpf(float(before[1]),float(after[1]),weight)
 	return float(frames.back()[1])
 
-func sample(id: String,axis_value: float) -> float:
-	var program: Expression=compiled.programs.get(id+":plot")
+func morph_points(id: String,easing: String) -> PackedVector2Array:
+	var track: Dictionary=compiled.morph_tracks[id]
+	var frames: Array=track.frames
+	if clock<=float(frames[0][0]):return frames[0][1]
+	for i in range(1,frames.size()):
+		if clock>float(frames[i][0]):continue
+		var a: Array=frames[i-1]
+		var b: Array=frames[i]
+		if clock==float(b[0]):return b[1]
+		var weight:=inverse_lerp(float(a[0]),float(b[0]),clock)
+		if easing=="smooth":weight=smoothstep(0.,1.,weight)
+		var pair: Array=track.segments[i-1]
+		var start: PackedVector2Array=pair[0]
+		var finish: PackedVector2Array=pair[1]
+		var points:=PackedVector2Array()
+		points.resize(start.size())
+		for vertex in points.size():
+			points[vertex]=start[vertex].lerp(finish[vertex],weight)
+		return points
+	return frames.back()[1]
+
+func sample(id: String,axis_value: float,channel := "plot") -> float:
+	var program: Expression=compiled.programs.get(id+":"+channel)
 	if program==null:return NAN
 	inputs[1]=axis_value
 	var result:=Formula.value(program,inputs,NAN)
@@ -265,9 +286,5 @@ func sample(id: String,axis_value: float) -> float:
 
 func sample_point(id: String,argument: float) -> Vector2:
 	var y:=sample(id,argument)
-	var x_program: Expression=compiled.programs.get(id+":plot_x")
-	if x_program==null:return Vector2(argument,y)
-	inputs[1]=argument
-	var x:=Formula.value(x_program,inputs,NAN)
-	inputs[1]=0.
-	return Vector2(x,y)
+	if not compiled.programs.has(id+":plot_x"):return Vector2(argument,y)
+	return Vector2(sample(id,argument,"plot_x"),y)

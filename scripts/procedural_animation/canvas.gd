@@ -10,6 +10,7 @@ signal frame_changed
 var player:=Playback.new()
 var accumulator:=0.
 var plot_cache: Dictionary={}
+var shade_cache: Dictionary={}
 var notation_cache: Dictionary={}
 var sync_key:=""
 var font: Font
@@ -33,11 +34,14 @@ func show_checkpoint(key: String,state: Dictionary) -> bool:
 	if key!=sync_key:
 		if not player.restore_checkpoint(state):return false
 		plot_cache.clear()
+		shade_cache.clear()
 		notation_cache.clear()
 		sync_key=key
 	elif absf(player.clock-float(state.time))>.4:player.seek(float(state.time))
 	player.playing=bool(state.playing)
-	if player.set_live_parameters(state.get("live_parameters",{})):plot_cache.clear()
+	if player.set_live_parameters(state.get("live_parameters",{})):
+		plot_cache.clear()
+		shade_cache.clear()
 	player.set_live_series(state.get("live_series",{}))
 	var status:=str(state.get("data_status",""))
 	var has_cues: bool=not player.scene.get("cues",[]).is_empty()
@@ -158,9 +162,14 @@ func _draw_object(item: Dictionary,alpha: float) -> void:
 			_line(Vector2.ZERO,endpoint*progress,pen,stroke,item.get("dash",false),item.type=="arrow")
 		"path","polygon":
 			var points:=PackedVector2Array()
-			for p in item.points:points.append(Vector2(p[0],p[1]))
+			var morphing: bool=player.compiled.morph_tracks.has(item.id)
+			if morphing:points=player.morph_points(item.id,item.get("easing","smooth"))
+			else:
+				for p in item.points:points.append(Vector2(p[0],p[1]))
 			if item.type=="polygon":
-				if fill.a>0.:artwork.draw_colored_polygon(points,fill)
+				if fill.a>0. and (not morphing or not Geometry2D.triangulate_polygon(points).is_empty()):
+					artwork.draw_colored_polygon(points,fill)
+				if morphing:points=points.duplicate()
 				points.append(points[0])
 			_trace(points,pen,stroke,progress,item.get("dash",false))
 		"text","equation":
@@ -170,7 +179,7 @@ func _draw_object(item: Dictionary,alpha: float) -> void:
 				var label:=_caption(str(item.get("text","")))
 				artwork.draw_string(font,Vector2.ZERO,label.substr(0,ceili(label.length()*progress)),HORIZONTAL_ALIGNMENT_LEFT,dims.x,font_size,pen)
 			else:_draw_notation(item.id,ast,font_size,dims.x,progress,pen)
-		"graph":_graph(item,dims,pen,stroke,progress)
+		"graph":_graph(item,dims,pen,stroke,progress,alpha)
 		"particles":
 			var count:=int(item.get("count",12))
 			var phase:=player.clock*.4
@@ -214,7 +223,7 @@ func _trace(points: PackedVector2Array,ink: Color,width: float,progress: float,d
 	for i in mini(ceili(work),points.size()-1):
 		_line(points[i],points[i].lerp(points[i+1],minf(1.,work-i)),ink,width,dash,false)
 
-func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: float) -> void:
+func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: float,alpha: float) -> void:
 	var x0:=player.property(item,"x_min")
 	var x1:=player.property(item,"x_max")
 	var y0:=player.property(item,"y_min")
@@ -232,6 +241,8 @@ func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: fl
 	for j in range(1,5):
 		var gy:=dims.y*j/5.
 		artwork.draw_line(Vector2(0.,gy),Vector2(dims.x,gy),Color("254c5b"))
+	if item.has("shade"):
+		_draw_shaded_graph(item,bounds,dims,Vector2(x0,lerpf(x0,x1,progress)),alpha)
 	var axes:=Vector2(clampf(-bounds.position.x/bounds.size.x,0.,1.),clampf(bounds.end.y/bounds.size.y,0.,1.))*dims
 	artwork.draw_line(Vector2(0.,axes.y),Vector2(dims.x,axes.y),Color("87a5b1"),2.,true)
 	artwork.draw_line(Vector2(axes.x,0.),Vector2(axes.x,dims.y),Color("87a5b1"),2.,true)
@@ -244,6 +255,81 @@ func _graph(item: Dictionary,dims: Vector2,pen: Color,stroke: float,progress: fl
 		points=_graph_points(item,x0,x1)
 	_draw_plot(points,bounds,dims,pen,stroke,progress,item.get("plot_style","line")=="scatter")
 	_draw_graph_limits(item,bounds,dims)
+
+func _draw_shaded_graph(item: Dictionary,bounds: Rect2,dims: Vector2,domain: Vector2,alpha: float) -> void:
+	var shade: Dictionary=item.shade
+	var start:=maxf(domain.x,float(shade.get("from",domain.x)))
+	var finish:=minf(domain.y,float(shade.get("to",domain.y)))
+	if finish-start<.0001:return
+	var dynamic: bool=player.compiled.animated_shades.get(item.id,false)
+	var key: Array=[player.revision,bounds,dims,start,finish,player.clock if dynamic else 0.]
+	var cached: Dictionary=shade_cache.get(item.id,{})
+	if cached.get("key")!=key:
+		cached=_shade_geometry(item.id,bounds,dims,start,finish)
+		cached.key=key
+		shade_cache[item.id]=cached
+	var ink:=Color(shade.get("color","46dfc15c"))
+	ink.a*=alpha
+	if cached.mesh!=null:artwork.draw_mesh(cached.mesh,null,Transform2D.IDENTITY,ink)
+	if shade.has("between"):
+		ink.a=.8*alpha
+		_draw_plot(cached.boundary,bounds,dims,ink,2.,1.,false)
+
+func _shade_geometry(id: String,bounds: Rect2,dims: Vector2,start: float,finish: float) -> Dictionary:
+	var vertices:=PackedVector2Array()
+	var boundary:=PackedVector2Array()
+	var previous:=Vector3.INF
+	var gain:=Vector2(dims.x/bounds.size.x,-dims.y/bounds.size.y)
+	var origin:=Vector2(bounds.position.x,bounds.end.y)
+	for i in 97:
+		var x:=lerpf(start,finish,float(i)/96.)
+		var point:=Vector3(x,player.sample(id,x),player.sample(id,x,"shade"))
+		boundary.append(Vector2(x,point.z))
+		if previous.is_finite() and point.is_finite():
+			var a:=previous.y-previous.z
+			var b:=point.y-point.z
+			if a*b<0.:
+				var crossing:=previous.lerp(point,a/(a-b))
+				crossing.z=crossing.y
+				_shade_strip(vertices,previous,crossing,origin,gain,dims.y)
+				_shade_strip(vertices,crossing,point,origin,gain,dims.y)
+			else:_shade_strip(vertices,previous,point,origin,gain,dims.y)
+		previous=point
+	var mesh: ArrayMesh
+	if not vertices.is_empty():
+		var arrays: Array=[]
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX]=vertices
+		mesh=ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays)
+	return {"mesh":mesh,"boundary":boundary}
+
+func _shade_strip(vertices: PackedVector2Array,a: Vector3,b: Vector3,origin: Vector2,gain: Vector2,plot_height: float) -> void:
+	var top_left:=(Vector2(a.x,maxf(a.y,a.z))-origin)*gain
+	var top_right:=(Vector2(b.x,maxf(b.y,b.z))-origin)*gain
+	var bottom_left:=(Vector2(a.x,minf(a.y,a.z))-origin)*gain
+	var bottom_right:=(Vector2(b.x,minf(b.y,b.z))-origin)*gain
+	var polygon:=PackedVector2Array([top_left,top_right,bottom_right,bottom_left])
+	if top_left.y<0. or top_right.y<0.:polygon=_clip_shading_edge(polygon,0.,true)
+	if bottom_left.y>plot_height or bottom_right.y>plot_height:polygon=_clip_shading_edge(polygon,plot_height,false)
+	for i in range(1,polygon.size()-1):
+		if (polygon[i]-polygon[0]).cross(polygon[i+1]-polygon[0])<=0.:continue
+		vertices.append(polygon[0])
+		vertices.append(polygon[i])
+		vertices.append(polygon[i+1])
+
+func _clip_shading_edge(polygon: PackedVector2Array,edge: float,keep_below: bool) -> PackedVector2Array:
+	var clipped:=PackedVector2Array()
+	if polygon.is_empty():return clipped
+	var previous:=polygon[-1]
+	var previous_inside:=previous.y>=edge if keep_below else previous.y<=edge
+	for point in polygon:
+		var inside:=point.y>=edge if keep_below else point.y<=edge
+		if inside!=previous_inside:clipped.append(Vector2(lerpf(previous.x,point.x,inverse_lerp(previous.y,point.y,edge)),edge))
+		if inside:clipped.append(point)
+		previous=point
+		previous_inside=inside
+	return clipped
 
 func _graph_points(item: Dictionary,x0: float,x1: float) -> PackedVector2Array:
 	var minimum:=player.property(item,"u_min") if item.has("x_function") else x0

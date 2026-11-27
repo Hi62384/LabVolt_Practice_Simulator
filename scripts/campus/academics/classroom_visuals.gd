@@ -104,6 +104,7 @@ static func prompt(board: Dictionary,question: String,current: Dictionary) -> St
 	rules+=SCHEMA.replace("bind...","bindings?,tracks?")
 	rules+=" Graphs: x_label/y_label, points with plot_style scatter, x_function and function for X(u) and Y(u) over u_min..u_max, equal_axes for true proportions. The live scope uses data_series bench_scope_trace (ms, V). Live parameters: bench_hz, bench_voltage_v, bench_current_a, bench_power_w, bench_scope_vpp. Include units and treat fallback values as illustrative. "
 	rules+=" Equation notation accepts v=sqrt(a^2+b^2), i=v/r, or expression rows for a matrix. Camera is one optional object with tracked or bound x/y/scale. Objects can use start/end in seconds. Scene layout is left/right/full. Timeline cues use {id,at,label,pause?,pause_when?}, where pause_when is a safe comparison evaluated at the cue. "
+	rules+=" Morph polygons or paths with tracks.points = [[seconds,[[x,y],...]],...]. Keep outline direction and corresponding starting vertices consistent. Cartesian graphs shade {from,to,between?,color?}; omit between for y=0, or use a second formula in u."
 	var question_text:=" Student request: "+question.left(420)
 	var display_text:=" Current display: "+JSON.stringify(current).left(1150)+" Lesson: "+JSON.stringify(context)
 	var available:=maxi(0,HostClient.MAX_INPUT_CHARS-rules.length()-question_text.length())

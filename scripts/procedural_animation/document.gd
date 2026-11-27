@@ -11,7 +11,7 @@ const PROPERTIES:={"x":0.,"y":0.,"width":120.,"height":72.,"rotation":0.,"scale"
 const COLORS:=["071a28","102a39","e2edf4","82c8dc","46dfc1","ffc671","ff8184","b4adff"]
 const LAYOUTS:=["right","left","full"]
 const ROOT_FIELDS:=["version","title","subtitle","duration","loop","parameters","objects","layout","cues"]
-const META_FIELDS:=["id","type","parent","text","notation","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","count","bindings","tracks","dash","easing","layer","start","end"]
+const META_FIELDS:=["id","type","parent","text","notation","color","fill","points","function","x_function","x_label","y_label","plot_style","equal_axes","data_series","shade","count","bindings","tracks","dash","easing","layer","start","end"]
 static var id_pattern:=RegEx.create_from_string("^[a-z][a-z0-9_]{0,23}$")
 
 static func parse(source: String) -> Dictionary:
@@ -56,8 +56,10 @@ static func compile(raw: Variant) -> Dictionary:
 	var objects: Dictionary={}
 	var programs: Dictionary={}
 	var animated_plots: Dictionary={}
+	var animated_shades: Dictionary={}
 	var series: Dictionary={}
 	var notation: Dictionary={}
+	var morph_tracks: Dictionary={}
 	var camera_id:=""
 	var complexity:=0
 	for object in value:
@@ -87,9 +89,7 @@ static func compile(raw: Variant) -> Dictionary:
 			if object.has(field) and not _color(object[field]):return _fail("Invalid color.")
 		if not _number(object.get("layer",0.),-32.,32.) or not object.get("dash",false) is bool or object.get("easing","smooth") not in ["linear","smooth"]:return _fail("Invalid object styles.")
 		var points: Variant=object.get("points",[])
-		if not points is Array or points.size()>64:return _fail("Invalid points.")
-		for point in points:
-			if not point is Array or point.size()!=2 or not _number(point[0],-1920.,1920.) or not _number(point[1],-1920.,1920.):return _fail("Invalid point coordinates.")
+		if not _valid_points(points):return _fail("Invalid points.")
 		if kind=="particles" and not _number(object.get("count",12),1.,48.):return _fail("Invalid particle count.")
 		if kind in ["polygon","path"] and points.size()<(3 if kind=="polygon" else 2):return _fail("Too few path points.")
 		if object.has("data_series"):
@@ -109,9 +109,23 @@ static func compile(raw: Variant) -> Dictionary:
 					programs[id+":plot_x"]=x_plot
 					expressions+=" "+object.x_function
 					complexity+=3
-				animated_plots[id]=Formula.token.search_all(expressions).any(func(word: RegExMatch):return word.get_string()=="t")
+				animated_plots[id]=_uses_time(expressions)
 			elif object.has("function"):return _fail("A graph must choose points or formulas.")
 			complexity+=4
+		if object.has("shade"):
+			var shade: Variant=object.shade
+			if kind!="graph" or not object.has("function") or object.has("x_function") or object.get("plot_style","line")!="line":
+				return _fail("Shading requires a Cartesian function graph.")
+			if not shade is Dictionary or not _known(shade,["between","from","to","color"]):return _fail("Invalid shaded region.")
+			if not _number(shade.get("from",-5000.),-5000.,5000.) or not _number(shade.get("to",5000.),float(shade.get("from",-5000.)),5000.):
+				return _fail("Invalid shaded interval.")
+			if shade.has("color") and not _color(shade.color):return _fail("Invalid shading color.")
+			var baseline: Variant=shade.get("between","0")
+			var boundary:=Formula.compile(baseline,names)
+			if boundary==null:return _fail("Invalid second curve.")
+			programs[id+":shade"]=boundary
+			animated_shades[id]=animated_plots[id] or _uses_time(baseline)
+			complexity+=7
 		var bindings: Variant=object.get("bindings",{})
 		var tracks: Variant=object.get("tracks",{})
 		if not bindings is Dictionary or not tracks is Dictionary or bindings.size()+tracks.size()>12:return _fail("Invalid animation channels.")
@@ -126,6 +140,13 @@ static func compile(raw: Variant) -> Dictionary:
 			programs[id+":"+field]=program
 		for field in tracks:
 			var frames: Variant=tracks[field]
+			if field=="points":
+				if kind not in ["polygon","path"]:return _fail("Only paths and polygons can morph.")
+				var morph:=_morph_frames(points,frames,float(raw.duration),kind=="polygon")
+				if morph.is_empty():return _fail("Morph frames require increasing times and a valid outline.")
+				morph_tracks[id]=morph
+				complexity+=ceili(float(morph.vertices)/8.)
+				continue
 			if not PROPERTIES.has(field) or not frames is Array or frames.is_empty() or frames.size()>24:return _fail("Invalid keyframes.")
 			var last:=-1.
 			for frame in frames:
@@ -142,7 +163,75 @@ static func compile(raw: Variant) -> Dictionary:
 			visited.append(parent)
 			parent=objects[parent].get("parent","")
 	if JSON.stringify(raw).to_utf8_buffer().size()>MAX_BYTES:return _fail("Scene is too large.")
-	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"series":series,"camera_id":camera_id,"notation":notation,"cue_conditions":cue_conditions}
+	return {"ok":true,"scene":raw.duplicate(true),"programs":programs,"names":names,"animated_plots":animated_plots,"animated_shades":animated_shades,"series":series,"camera_id":camera_id,"notation":notation,"cue_conditions":cue_conditions,"morph_tracks":morph_tracks}
+
+static func _uses_time(source: String) -> bool:
+	return Formula.token.search_all(source).any(func(word: RegExMatch):return word.get_string()=="t")
+
+static func _valid_points(points: Variant) -> bool:
+	if not points is Array or points.size()>64:return false
+	for point in points:
+		if not point is Array or point.size()!=2 or not _number(point[0],-1920.,1920.) or not _number(point[1],-1920.,1920.):
+			return false
+	return true
+
+static func _morph_frames(points: Array,frames: Variant,duration: float,closed: bool) -> Dictionary:
+	if not frames is Array or frames.is_empty() or frames.size()>12:return {}
+	var result: Array=[]
+	var last:=-1.
+	for frame in frames:
+		if not frame is Array or frame.size()!=2 or not _number(frame[0],0.,duration) or float(frame[0])<=last:
+			return {}
+		if not _valid_points(frame[1]) or frame[1].size()<(3 if closed else 2):return {}
+		last=float(frame[0])
+		var vertices:=PackedVector2Array()
+		for point in frame[1]:vertices.append(Vector2(point[0],point[1]))
+		result.append([last,vertices])
+	if float(result[0][0])>0.:
+		var base:=PackedVector2Array()
+		for point in points:base.append(Vector2(point[0],point[1]))
+		result.push_front([0.,base])
+	var segments: Array=[]
+	var largest: int=result[0][1].size()
+	for i in range(1,result.size()):
+		var a: PackedVector2Array=result[i-1][1]
+		var b: PackedVector2Array=result[i][1]
+		var pair: Array=[a,b] if a.size()==b.size() else _match_outlines(a,b,closed)
+		segments.append(pair)
+		largest=maxi(largest,pair[0].size())
+	return {"frames":result,"segments":segments,"vertices":largest}
+
+static func _match_outlines(a: PackedVector2Array,b: PackedVector2Array,closed: bool) -> Array:
+	var a_distances:=_outline_distances(a,closed)
+	var b_distances:=_outline_distances(b,closed)
+	# Keep the original corners of both outlines as interpolation anchors.
+	var samples:=a_distances.duplicate()
+	samples.append_array(b_distances)
+	samples.sort()
+	var positions:=PackedFloat32Array()
+	for distance in samples:
+		if closed and distance>=1.:break
+		if positions.is_empty() or distance>positions[-1]:positions.append(distance)
+	return [_sample_outline(a,a_distances,positions),_sample_outline(b,b_distances,positions)]
+
+static func _outline_distances(points: PackedVector2Array,closed: bool) -> PackedFloat32Array:
+	var segments:=points.size() if closed else points.size()-1
+	var distances:=PackedFloat32Array([0.])
+	for i in segments:distances.append(distances[-1]+points[i].distance_to(points[(i+1)%points.size()]))
+	var total:=distances[-1]
+	for i in distances.size():
+		distances[i]=distances[i]/total if total>0. else float(i)/float(segments)
+	return distances
+
+static func _sample_outline(points: PackedVector2Array,distances: PackedFloat32Array,positions: PackedFloat32Array) -> PackedVector2Array:
+	var vertices:=PackedVector2Array()
+	var segment:=0
+	for position in positions:
+		while segment<distances.size()-2 and position>=distances[segment+1]:segment+=1
+		var span:=distances[segment+1]-distances[segment]
+		var weight: float=(position-distances[segment])/span if span>0. else 0.
+		vertices.append(points[segment].lerp(points[(segment+1)%points.size()],weight))
+	return vertices
 
 static func _notation(source: Variant) -> Dictionary:
 	var parser:=MathParser.new()
