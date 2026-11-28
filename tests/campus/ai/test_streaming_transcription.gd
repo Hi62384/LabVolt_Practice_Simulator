@@ -1,0 +1,27 @@
+extends SceneTree
+const Session=preload("res://scripts/campus/ai/openai_transcription_session.gd")
+const Models=preload("res://scripts/campus/ai/openai_models.gd")
+func _initialize() -> void:
+	for model in Models.STREAMING_STT:
+		assert(Models.available_for(model,"stt"))
+		assert(Models.metadata(model,"stt").endpoint=="/realtime?intent=transcription")
+		assert(Session.configuration(model).audio.input.turn_detection==null)
+		assert(Session.configuration(model).audio.input.transcription.model==model)
+	var pcm:=PackedByteArray()
+	pcm.resize(4);pcm.encode_s16(0,-16000);pcm.encode_s16(2,16000)
+	var resampled:=Session.resample_16k_to_24k(pcm)
+	assert(resampled.size()==6 and resampled.decode_s16(0)==-16000 and resampled.decode_s16(2)==5333 and resampled.decode_s16(4)==16000)
+	var session:=Session.new()
+	session.state="committed";session._commit_sent=true;session.model="gpt-live-transcribe"
+	session.receive_event({"type":"conversation.item.input_audio_transcription.delta","event_id":"delta","item_id":"right","delta":"Hello"})
+	session.receive_event({"type":"conversation.item.input_audio_transcription.completed","item_id":"wrong","transcript":"Incorrect"})
+	assert(session.result.is_empty())
+	session.receive_event({"type":"input_audio_buffer.committed","item_id":"right"})
+	assert(session.partial=="Hello")
+	session.receive_event({"type":"conversation.item.input_audio_transcription.completed","item_id":"right","transcript":"Hello there."})
+	assert(session.result.get("ok",false) and session.result.text=="Hello there.")
+	assert(Models.voice_capabilities("gpt-audio-1.5").endpoint=="/chat/completions")
+	assert(Models.voice_compatible("gpt-audio-1.5","alloy"))
+	assert(not Models.voice_compatible("gpt-audio-1.5",{"id":"voice_fixture"},"prompt"))
+	print("STREAMING_TRANSCRIPTION_REGRESSION PASS")
+	quit()

@@ -24,6 +24,7 @@ var description: Label
 var model_label: Label
 var voice_row: HBoxContainer
 var voice: OptionButton
+var emotion: OptionButton
 var prompt: TextEdit
 var browse: Button
 var file_label: Label
@@ -76,6 +77,10 @@ func open(client: Node, settings: Dictionary, verified: Callable) -> void:
 	voice=OptionButton.new()
 	voice.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	voice_row.add_child(voice)
+	emotion=OptionButton.new()
+	for mood in ["steady","happy","excited","amused","irritated","angry","sad","tired","disappointed","dismissive"]:
+		emotion.add_item(mood.capitalize());emotion.set_item_metadata(emotion.item_count-1,mood)
+	voice_row.add_child(emotion)
 	for choice: String in Models.speech_voices(str(draft.modalities.get("tts",""))):
 		voice.add_item(choice.capitalize())
 		voice.set_item_metadata(voice.item_count-1,choice)
@@ -156,7 +161,7 @@ func _select_tab(index: int) -> void:
 
 func _update_actions() -> void:
 	var category: String=CATEGORIES[tabs.current_tab]
-	var available:=not str(draft.modalities.get(category,"")).is_empty()
+	var available:=Models.available_for(str(draft.modalities.get(category,"")),category)
 	if category in ["tts","stt"]:available=available and bool(draft.get(category+"_enabled",false))
 	run.disabled=running or not available or (browse.visible and attachment.is_empty())
 	verify.disabled=running or not available
@@ -228,8 +233,14 @@ func _run_test(connection: bool) -> void:
 			result=await service.preview_setup_prompt(input_text,draft)
 		"image":result=await service.respond_with_image(prompt.text,attachment,draft)
 		"image_generation":result=await service.generate_image(prompt.text,draft)
-		"tts":result=await service.speak(prompt.text,draft,str(voice.get_selected_metadata()))
-		"stt":result=await service.transcribe_wav(attachment,draft)
+		"tts":
+			var delivery:={"instructions":"Keep the same voice. Perform the exact words with "+str(emotion.get_selected_metadata())+" emotional delivery."}
+			result=await service.speak(prompt.text,draft,str(voice.get_selected_metadata()),delivery)
+		"stt":
+			var settings:=draft.duplicate(true)
+			settings._transcription_progress=func(partial: String):
+				if is_inside_tree():_set_result(partial,true)
+			result=await service.transcribe_wav(attachment,settings)
 	if not is_inside_tree():return
 	running=false
 	for index in TABS.size():tabs.set_tab_disabled(index,false)

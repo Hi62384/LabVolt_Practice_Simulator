@@ -178,10 +178,10 @@ static func supports(id: String,purpose: String) -> bool:
 		"image":
 			return supports(id,"text") and base not in TEXT_ONLY and base not in LEGACY_CHAT and not base.is_empty()
 		"image_generation":return base in IMAGE_GENERATORS
-		"tts":return base in TTS or base in REALTIME or base in LIVE
+		"tts":return base in TTS or base in REALTIME or base in LIVE or base=="gpt-audio-1.5"
 		"live":return base in LIVE
 		"realtime":return base in REALTIME
-		"stt":return base in STT
+		"stt":return base in STT or base in STREAMING_STT
 	return false
 
 # Documented catalog membership is distinct from a working game adapter.
@@ -242,7 +242,7 @@ static func metadata(id: String,purpose: String) -> Dictionary:
 	var base:=verified_family(id)
 	var limits: Array=LIMITS.get(base,[0,0])
 	var modes:=["standard","pro"] if has_pro_mode(id) else ["pro"] if base.ends_with("-pro") else ["standard"]
-	var route: String={"image_generation":"/images/generations","tts":str(voice_capabilities(id).endpoint),"stt":"/audio/transcriptions","live":"/live/sessions","realtime":"/realtime"}.get(purpose,endpoint(id))
+	var route: String={"image_generation":"/images/generations","tts":str(voice_capabilities(id).endpoint),"stt":str(voice_capabilities(id).endpoint),"live":"/live/sessions","realtime":"/realtime"}.get(purpose,endpoint(id))
 	return {"id":id,"display_name":display_name(id),"recommended":recommended(id,purpose),"implemented":supports(id,purpose),"documented":documented_for(id,purpose),"family":base,"snapshot":id if id in DOCUMENTED_SNAPSHOTS else "",
 		"endpoint":route if supports(id,purpose) else "","efforts":efforts(id),"default_effort":DEFAULT_EFFORT.get(base,""),
 		"modes":modes,"context":limits[0],"output":limits[1],"vision":supports(id,"image"),
@@ -282,6 +282,7 @@ static func speech_voices(id: String) -> Array:
 	if not supports(id,"tts"):return []
 	if verified_family(id) in LIVE:return LIVE_VOICES.duplicate()
 	if verified_family(id) in REALTIME:return REALTIME_VOICES.duplicate()
+	if verified_family(id)=="gpt-audio-1.5":return REALTIME_VOICES+["fable","nova","onyx"]
 	var voices:=["alloy","ash","coral","echo","fable","nova","onyx","sage","shimmer"]
 	if verified_family(id)=="gpt-4o-mini-tts":voices.append_array(["ballad","cedar","marin","verse"])
 	voices.sort()
@@ -293,13 +294,16 @@ static func voice_capabilities(id: String) -> Dictionary:
 	var realtime:=base in REALTIME
 	var legacy:=base in TTS
 	var stt:=base in STT
-	var provider:="openai_live" if live else "openai_realtime" if realtime else "openai_speech" if legacy else "openai_transcription" if stt else ""
-	var route:="/live/sessions" if live else "/realtime" if realtime else "/audio/speech" if legacy else "/audio/transcriptions" if stt else ""
+	var streaming_stt:=base in STREAMING_STT
+	var audio_chat:=base=="gpt-audio-1.5"
+	var provider:="openai_live" if live else "openai_realtime" if realtime else "openai_speech" if legacy else "openai_audio_chat" if audio_chat else "openai_streaming_transcription" if streaming_stt else "openai_transcription" if stt else ""
+	var route:="/live/sessions" if live else "/realtime" if realtime else "/audio/speech" if legacy else "/chat/completions" if audio_chat else "/realtime?intent=transcription" if streaming_stt else "/audio/transcriptions" if stt else ""
 	return {"family":base,"endpoint":route,"provider":provider,"presets":speech_voices(id),"supported_voices":speech_voices(id),
-		"prompt_voices":live,"recording_voices":live or realtime or base=="gpt-4o-mini-tts",
-		"expressive":live or realtime or base=="gpt-4o-mini-tts","streaming":live or realtime or legacy or base=="gpt-transcribe",
-		"conversation":live or realtime,"full_duplex":live,"transcription":stt or live or realtime,
-		"formats":["pcm16_16000","pcm16_24000"] if live else ["pcm16_24000"] if realtime else ["wav","pcm","mp3","opus","aac","flac"] if legacy else ["wav","flac","mp3","mp4","mpeg","mpga","m4a","ogg","webm"] if stt else [],
+		"prompt_voices":live,"recording_voices":live or realtime or audio_chat or base=="gpt-4o-mini-tts",
+		"expressive":live or realtime or audio_chat or base=="gpt-4o-mini-tts","streaming":live or realtime or streaming_stt or legacy or base=="gpt-transcribe",
+		"conversation":live or realtime,"full_duplex":live,"transcription":stt or streaming_stt or live or realtime,
+		"committed_turn_adapter":streaming_stt,"verbatim_requires_validation":live or realtime or audio_chat,
+		"formats":["pcm16_16000","pcm16_24000"] if live else ["pcm16_24000"] if realtime or streaming_stt else ["wav"] if audio_chat else ["wav","pcm","mp3","opus","aac","flac"] if legacy else ["wav","flac","mp3","mp4","mpeg","mpga","m4a","ogg","webm"] if stt else [],
 		"verified_at":AUDIO_VERIFIED_AT,"source_url":DIRECTORY+"/"+base if not base.is_empty() else DIRECTORY}
 
 static func voice_compatible(id: String,voice: Variant,voice_type: String="preset") -> bool:

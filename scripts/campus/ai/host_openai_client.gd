@@ -14,6 +14,7 @@ const TRANSCRIPTION_MODEL := "gpt-transcribe"
 const SPEECH_MODEL := "gpt-realtime-2.1-mini"
 const Models = preload("res://scripts/campus/ai/openai_models.gd")
 const VoiceSession=preload("res://scripts/campus/ai/openai_voice_session.gd")
+const TranscriptionSession=preload("res://scripts/campus/ai/openai_transcription_session.gd")
 const VoiceDelivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
 const LANE_LIMITS:={"text":2,"background":1,"speech":3,"transcription":2,"management":1,"image":1}
 const MAX_WAITERS:=32
@@ -319,10 +320,19 @@ func speak(text: String,draft: Dictionary={},voice: Variant="alloy",delivery: Di
 	if draft.is_empty():context.request_type="feature"
 	if Models.verified_family(choice) in Models.LIVE+Models.REALTIME:
 		return await _render_voice(text,choice,voice,voice_type,delivery,context,draft.is_empty())
+	if Models.verified_family(choice)=="gpt-audio-1.5":
+		context.expected_spoken_text=text
+		var payload:={"model":choice,"modalities":["text","audio"],"audio":{"voice":voice,"format":"wav"},"messages":[{"role":"system","content":"Perform the supplied words exactly, with no paraphrase, added words, or read-out instructions. "+str(delivery.get("instructions",""))},{"role":"user","content":text}],"store":false}
+		var result:=await _call(HTTPClient.METHOD_POST,"/chat/completions",payload,draft.is_empty(),context,120.0,"tts")
+		result.provider="openai_audio_chat";result.request_id=context.request_id
+		return result
 	var payload:={"model":choice,"input":text,"voice":voice,"response_format":"wav"}
 	if not delivery.is_empty():
 		payload.speed=clampf(float(delivery.get("speed",1.)),.5,1.5)
-		if Models.voice_capabilities(choice).expressive:payload.instructions=str(delivery.get("instructions",""))
+		if Models.voice_capabilities(choice).expressive:
+			var directions:=str(delivery.get("instructions",""))
+			if directions.length()>4096:return {"ok":false,"error":"Legacy speech instructions exceed the documented 4096-character limit. Choose a modern compatible voice model.","retryable":false}
+			payload.instructions=directions
 	var result:=await _call(HTTPClient.METHOD_POST,"/audio/speech",payload,draft.is_empty(),context,60.0,"tts")
 	result.provider="openai_speech"
 	result.request_id=context.request_id
@@ -494,10 +504,18 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	var id:=str(draft.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
 	if not await _acquire_lane("transcription",id):return _queue_error(id)
 	var now:=Time.get_ticks_msec()
+	if Models.verified_family(choice) in Models.STREAMING_STT:
+		var result:=await _stream_transcription(wav,choice,str(access.key),id,draft)
+		_release_lane("transcription")
+		var metadata: Dictionary=result.get("_api_metadata",{})
+		result.measurement=_record_request(choice,"stt",metadata,bool(result.get("ok",false)),Time.get_ticks_msec()-now,draft,{},float(wav.size()-44)/32000.)
+		result.erase("_api_metadata");_cancelled_requests.erase(id)
+		return result
 	var boundary:="LabVoltVoice"+Crypto.new().generate_random_bytes(16).hex_encode()
 	var fields:={"model":choice}
 	var hint:=str(draft.get("transcription_prompt",""))
-	if not hint.is_empty():fields.prompt=hint.left(2000)
+	if not hint.is_empty() and Models.verified_family(choice)!="gpt-4o-transcribe-diarize":fields.prompt=hint.left(2000)
+	if Models.verified_family(choice)=="gpt-4o-transcribe-diarize":fields.chunking_strategy="auto";fields.response_format="json"
 	var body:=PackedByteArray()
 	for name: String in fields:
 		body.append_array(("--%s\r\nContent-Disposition: form-data; name=\"%s\"\r\n\r\n%s\r\n"%[boundary,name,fields[name]]).to_utf8_buffer())
@@ -525,6 +543,24 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	result.erase("_api_metadata")
 	_cancelled_requests.erase(id)
 	return result
+
+func _stream_transcription(wav: PackedByteArray,choice: String,key: String,id: String,draft: Dictionary) -> Dictionary:
+	var session:=TranscriptionSession.new()
+	var epoch:=_connection_epoch
+	var begun:=session.begin(choice,key,wav.slice(44),_test_voice_base,id)
+	if not begun.get("ok",false):return begun
+	var last_partial:=""
+	var progress: Variant=draft.get("_transcription_progress")
+	while session.state!="closed" and is_inside_tree():
+		if epoch!=_connection_epoch or _cancelled_requests.has(id):
+			session.cancel();break
+		session.poll()
+		if session.partial!=last_partial:
+			last_partial=session.partial
+			if progress is Callable and progress.is_valid():progress.call(last_partial)
+		if session.state!="closed":await get_tree().process_frame
+	if session.state!="closed":session.cancel()
+	return session.result
 
 static func valid_transcription_wav(wav: PackedByteArray) -> bool:
 	return wav.size()>=4844 and wav.size()<=5760044 and wav.size()%2==0 and wav.slice(0,4).get_string_from_ascii()=="RIFF" and wav.slice(8,12).get_string_from_ascii()=="WAVE" and wav.slice(12,16).get_string_from_ascii()=="fmt " and wav.decode_u32(16)==16 and wav.decode_u16(20)==1 and wav.decode_u16(22)==1 and wav.decode_u32(24)==16000 and wav.decode_u32(28)==32000 and wav.decode_u16(32)==2 and wav.decode_u16(34)==16 and wav.slice(36,40).get_string_from_ascii()=="data" and wav.decode_u32(40)==wav.size()-44 and wav.decode_u32(4)==wav.size()-8
@@ -606,7 +642,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	if not access.ok:return access
 	var request_model:=str(payload.get("model",model))
 	if not Models.valid_id(request_model):return {"ok":false,"error":"Choose a valid model ID in OpenAI Settings.","retryable":false}
-	var speech:=path=="/audio/speech"
+	var speech:=path=="/audio/speech" or purpose=="tts"
 	var background:=bool(draft.get("_character_background",false))
 	var connection_signature:=_connection_signature()
 	var background_epoch:=_background_epoch
@@ -620,6 +656,10 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var raw:=await _http_exchange(base+path,headers,method,JSON.stringify(payload).to_utf8_buffer() if method==HTTPClient.METHOD_POST else PackedByteArray(),timeout,limit,id)
 	_release_lane(lane)
 	var response: Dictionary=raw if not raw.ok else _read_response(HTTPRequest.RESULT_SUCCESS,int(raw.code),raw.body,path,request_model)
+	if speech and path=="/chat/completions" and response.get("ok",false):
+		if not VoiceSession.transcript_matches(str(draft.get("expected_spoken_text","")),str(response.get("transcript",""))):
+			response.erase("stream");response.ok=false;response.error="Generated speech did not match the validated dialogue. No mismatched audio was played.";response.code="speech_transcript_mismatch"
+		else:response.transcript_verified=true;response.text=str(draft.expected_spoken_text)
 	if raw.ok:
 		response.status=int(raw.code)
 		response.retryable=int(raw.code)==429 or int(raw.code)>=500
@@ -726,7 +766,17 @@ func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 		var choices: Array=parsed.get("choices",[])
 		if choices.is_empty():return {"ok":false,"error":"OpenAI returned no text."}
 		if choices[0].get("finish_reason","")=="length":return {"ok":false,"error":"The response reached the output token limit."}
-		return _text_result(str(choices[0].get("message",{}).get("content","")))
+		var message: Dictionary=choices[0].get("message",{})
+		if message.get("audio") is Dictionary:
+			var audio: Dictionary=message.audio
+			var encoded:=str(audio.get("data",""))
+			if encoded.is_empty() or encoded.length()>8*1024*1024:return {"ok":false,"error":"The audio completion exceeded its bounded response size."}
+			var wav:=Marshalls.base64_to_raw(encoded)
+			if wav.size()<44 or wav.slice(0,4).get_string_from_ascii()!="RIFF" or wav.slice(8,12).get_string_from_ascii()!="WAVE":return {"ok":false,"error":"The audio completion did not return WAV audio."}
+			var clip:=AudioStreamWAV.load_from_buffer(_finish_streamed_wav(wav))
+			if clip==null or clip.data.is_empty() or clip.get_length()>120.:return {"ok":false,"error":"The audio completion returned invalid or oversized audio."}
+			return {"ok":true,"stream":clip,"transcript":str(audio.get("transcript",""))}
+		return _text_result(str(message.get("content","")))
 	if parsed.get("status","")!="completed":
 		var incomplete: Variant=parsed.get("incomplete_details")
 		if incomplete is Dictionary and incomplete.get("reason","")=="max_output_tokens":
