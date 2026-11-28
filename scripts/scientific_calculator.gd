@@ -21,7 +21,8 @@ var configured:=false
 var result_equation: Control
 var graph: Control
 var functions: VBoxContainer
-var operation: OptionButton
+var isolate_picker: OptionButton
+var answer_source := "0"
 var pending_number:=0.0
 var pending_operator:=""
 var replace_number:=true
@@ -32,10 +33,6 @@ var show_close := false
 var campus_style := false
 var display
 var result: Label
-var mode: Button
-var degrees := true
-var angle_mode := "deg"
-var angle_buttons := {}
 var answer := 0.0
 var memory := 0.0
 var memory_label: Label
@@ -63,18 +60,6 @@ func _ready() -> void:
 	var header := HBoxContainer.new();body.add_child(header)
 	var brand := Label.new();brand.text=Supplies.TOOLS.get(model,"Scientific calculator");brand.add_theme_font_size_override("font_size",16);header.add_child(brand)
 	brand.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	if campus_style and not basic and not financial:
-		var angle_modes:=HBoxContainer.new()
-		header.add_child(angle_modes)
-		for choice in ["deg","rad","grad"]:
-			var angle_button:=Button.new()
-			angle_button.text=choice.to_upper()
-			angle_button.toggle_mode=true
-			angle_button.custom_minimum_size=Vector2(43,23)
-			angle_button.pressed.connect(func():_schedule(_set_angle_mode.bind(choice)))
-			angle_modes.add_child(angle_button)
-			angle_buttons[choice]=angle_button
-		_set_angle_mode(angle_mode)
 	if show_close:
 		var close := preload("res://scripts/ui/design_system/widgets.gd").action("Close","close",func():close_requested.emit())
 		header.add_child(close)
@@ -88,7 +73,7 @@ func _ready() -> void:
 		lcd_style.border_color=Color("358598")
 		lcd_style.set_border_width_all(1)
 	var lines := VBoxContainer.new();lcd.add_child(lines)
-	memory_label=Label.new();memory_label.text="DEG";memory_label.visible=not basic and not financial;memory_label.add_theme_color_override("font_color",Color("91d9de") if campus_style else Color("385044"));memory_label.add_theme_font_size_override("font_size",12);lines.add_child(memory_label)
+	memory_label=Label.new();memory_label.text="M";memory_label.hide();memory_label.add_theme_color_override("font_color",Color("91d9de") if campus_style else Color("385044"));memory_label.add_theme_font_size_override("font_size",12);lines.add_child(memory_label)
 	var lcd_ink:=Color("e6fbff") if lcd_style.bg_color.get_luminance()<.35 else Color("102218")
 	if equation_enabled:
 		var editor:=EquationEditor.new()
@@ -97,6 +82,7 @@ func _ready() -> void:
 		editor.ink=lcd_ink
 		editor.caret_ink=lcd_ink
 		editor.caret_width=2.6
+		editor.highlight_empty_caret=false
 		editor.font_size=21 if show_close else 24
 		editor.clip_contents=true
 		editor.accessibility_name="Equation"
@@ -132,28 +118,29 @@ func _ready() -> void:
 		result_equation.ink=lcd_ink
 		lines.add_child(result_equation)
 		result_equation.hide()
-	if algebra_enabled or complex_enabled:
+	if algebra_enabled or graph_level>0:
 		var tools:=HBoxContainer.new()
 		body.add_child(tools)
-		operation=OptionButton.new()
-		operation.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		tools.add_child(operation)
-		var operations: Dictionary={"evaluate":"Evaluate"}
-		if algebra_enabled:operations.merge({"solve":"Solve for x","expand":"Expand","simplify":"Simplify","isolate":"Isolate x","differentiate":"Differentiate","integrate":"Integrate symbolically"})
-		if complex_enabled:operations.merge({"polar":"Convert to polar","rectangular":"Polar to rectangular"})
-		for id in operations:
-			operation.add_item(operations[id])
-			operation.set_item_metadata(operation.item_count-1,id)
-		tools.add_child(_action("Run",evaluate))
+		if algebra_enabled:
+			isolate_picker=OptionButton.new()
+			isolate_picker.accessibility_name="Variable to isolate"
+			isolate_picker.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+			tools.add_child(isolate_picker)
+			isolate_picker.hide()
+			display.text_changed.connect(_refresh_isolation)
 		if graph_level>0:tools.add_child(_action("Graph",func():functions.visible=not functions.visible))
 	if graph_level>0:_build_graph(body)
-	var grid := GridContainer.new();grid.columns=4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
+	var grid := GridContainer.new();grid.columns=6 if advanced_app else 4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
 	grid.columns=Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","columns",grid.columns)
 	if basic or financial or campus_style:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	var keys: Array=equipment_options.get("keypad",keypad_keys(model))
+	var keys:=Equipment.Keypad.updated_keys(equipment_options.get("keypad",keypad_keys(model)))
+	if advanced_app and not configured:
+		keys.append_array(["Equality","x","y","z","i","∠","Convert","∫","d/dx","Factor"])
 	if configured and int(equipment_options.get("version",1))<Equipment.DESIGN_VERSION:keys=Equipment.Keypad.with_required(keys)
 	elif configured:keys=keys.slice(0,Equipment.Keypad.occupied_rows(keys,grid.columns)*grid.columns)
 	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","key_style",false)
+	var key_colors: Dictionary=equipment_options.get("key_colors",{})
+	var material_tint:=Color(equipment_options.get("materials",{}).get("keys",{}).get("color","ffffff"))
 	if financial or (configured and keys.any(func(key):return Finance.ARGUMENTS.has(key))):
 		finance_help=Label.new()
 		finance_help.text="Choose a finance key for its inputs"
@@ -173,18 +160,24 @@ func _ready() -> void:
 			blank.add_theme_stylebox_override("panel",recess)
 			grid.add_child(blank)
 			continue
-		var button := Button.new();button.text=key;button.custom_minimum_size=Vector2(44,32 if show_close else 40);button.size_flags_horizontal=Control.SIZE_EXPAND_FILL;button.add_theme_font_size_override("font_size",15);button.tooltip_text={"DEG":"Toggle degrees / radians","AC":"Clear expression","DEL":"Delete previous character","=":"Evaluate expression","MR":"Recall memory","MC":"Clear memory"}.get(key,key)
-		if key in ["ⁿ√","←","→"]:
-			button.accessibility_name=Equipment.Keypad.catalog(key).name
-			button.tooltip_text=Equipment.Keypad.catalog(key).description
+		var button := Button.new()
+		button.text=Equipment.Keypad.caption(key)
+		button.custom_minimum_size=Vector2(38 if advanced_app else 44,32 if show_close else 40)
+		button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size",15)
+		var key_info:=Equipment.Keypad.catalog(key)
+		button.accessibility_name=key_info.get("name",key)
+		button.tooltip_text=key_info.get("description",key)
 		if basic or financial or campus_style:button.size_flags_vertical=Control.SIZE_EXPAND_FILL
 		if financial and Finance.ARGUMENTS.has(key):button.tooltip_text=Finance.ARGUMENTS[key]
 		var style := StyleBoxFlat.new();style.bg_color=(Color("2e5267") if campus_style else Color("647781")) if key.is_valid_int() or key=="." else (Color("103c55") if campus_style else Color("3e4b59"))
 		if not equipment_options.is_empty():
 			style.bg_color=Color(Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","keys","60747e"))
 			if not key.is_valid_int() and key!=".":style.bg_color=style.bg_color.darkened(.18)
-		if key=="=":style.bg_color=Color("068f84") if campus_style else Color("408873")
+		if key=="RUN":style.bg_color=Color("068f84") if campus_style else Color("408873")
 		if key in ["DEL","AC"]:style.bg_color=Color("a94749") if campus_style else Color("925d52")
+		if key_colors.has(key):style.bg_color=Color(key_colors[key])
+		style.bg_color*=material_tint
 		if campus_style:
 			style.border_color=style.bg_color.lightened(.14)
 			style.set_border_width_all(1)
@@ -192,7 +185,6 @@ func _ready() -> void:
 		if style.bg_color.get_luminance()>.45:
 			for state in ["font_color","font_hover_color","font_pressed_color"]:button.add_theme_color_override(state,Color("192934"))
 		button.pressed.connect(func():_schedule(press.bind(key)));grid.add_child(button)
-		if key=="DEG":mode=button
 func _schedule(action: Callable) -> void:
 	if not is_instance_valid(performance) or performance.quality==performance.MAX:
 		action.call()
@@ -229,7 +221,10 @@ func press(key: String) -> void:
 		return
 	if equation_enabled:display.grab_focus()
 	match key:
-		"=":evaluate()
+		"RUN":evaluate()
+		"Equality","=":
+			if equation_enabled:_insert("=")
+			else:evaluate()
 		"AC":
 			display.text=""
 			result.text="0"
@@ -237,20 +232,28 @@ func press(key: String) -> void:
 			if equation_enabled:
 				result.hide()
 				result_equation.hide()
+				_refresh_isolation()
 		"←","→":
 			if equation_enabled:display.move_horizontal(-1 if key=="←" else 1)
+		"↑","↓":
+			if equation_enabled:display.move_vertical(-1 if key=="↑" else 1)
 		"DEL":
 			if equation_enabled:
-				display.delete_at_caret(true)
+				display.delete_at_caret(true,true)
 			else:
 				var caret: int=display.caret_column
 				if caret>0:display.text=display.text.left(caret-1)+display.text.substr(caret);display.caret_column=caret-1
-		"DEG":_set_angle_mode("rad" if angle_mode=="deg" else "deg")
+		"Convert":evaluate("convert")
+		"∫":evaluate("integrate")
+		"d/dx":evaluate("differentiate")
+		"Factor":evaluate("factor")
 		"MC":memory=0
 		"MR":_insert(str(memory))
 		"M+","M−":
 			if evaluate():memory+=answer*(1 if key=="M+" else -1)
-		"Ans":_insert(str(answer))
+		"Ans":
+			if equation_enabled:display.insert_expression_at_caret(answer_source)
+			else:_insert(str(answer))
 		"±":
 			display.text="-("+display.text+")"
 			if not equation_enabled:display.caret_column=display.text.length()
@@ -263,8 +266,8 @@ func press(key: String) -> void:
 			display.text="1/("+display.text+")"
 			if not equation_enabled:display.caret_column=display.text.length()
 		"%":_insert_completed_field("/100") if equation_enabled else _divide_percent()
-		_:_insert({"×":"*","÷":"/","−":"-","π":"pi"}.get(key,key))
-	memory_label.text=angle_mode.to_upper()+("   M" if memory!=0 else "")
+		_:_insert({"×":"*","÷":"/","−":"-"}.get(key,key))
+	memory_label.visible=memory!=0
 
 func _number_mode() -> bool:
 	return configured and not equation_enabled
@@ -310,7 +313,7 @@ func _press_number(key: String) -> void:
 		_show_pending_number()
 	else:
 		match key:
-			"=":
+			"RUN","=":
 				if pending_operator.is_empty() or not replace_number:_evaluate_number()
 				return
 			"AC":
@@ -337,7 +340,7 @@ func _press_number(key: String) -> void:
 			"M+","M−":
 				var current:=_current_number()
 				if is_finite(current):memory+=current*(1 if key=="M+" else -1)
-		memory_label.text=angle_mode.to_upper()+("   M" if memory!=0 else "")
+		memory_label.visible=memory!=0
 		_show_pending_number()
 
 func _current_number() -> float:
@@ -395,15 +398,44 @@ func _display_calculation(outcome: Dictionary) -> bool:
 	result.theme_type_variation="Label" if successful else "ErrorLabel"
 	if outcome.has("real"):answer=float(outcome.real)
 	if is_instance_valid(result_equation):
-		var show_formula:=successful and ("^" in message or "/" in message or "=" in message or "ⁿ√" in message)
+		var source:=str(outcome.get("answer",message))
+		if successful and not source.is_empty() and source not in ["True","False"] and not source.begins_with("No ") and not source.begins_with("All ") and not "," in source and Parser.new().parse(source).ok:
+			answer_source=source
+		var show_formula:=successful and not "," in message and ("^" in message or "/" in message or "=" in message or "ⁿ√" in message or "∠" in message)
 		result.visible=not show_formula
 		result_equation.visible=show_formula
 		if show_formula:result_equation.set_expression(message)
 	return successful
 
-func evaluate() -> bool:
+func _refresh_isolation() -> void:
+	if not is_instance_valid(isolate_picker):return
+	var variables: Array[String]=[]
+	if "=" in display.text:
+		var parsed: Dictionary=Parser.new().parse(close_parentheses(display.text))
+		if parsed.ok and parsed.tree.op=="=":
+			_collect_variables(parsed.tree,variables)
+	variables.sort()
+	var previous:=str(isolate_picker.get_selected_metadata()) if isolate_picker.selected>=0 else ""
+	isolate_picker.clear()
+	isolate_picker.visible=variables.size()>1
+	if not isolate_picker.visible:return
+	for variable in variables:
+		isolate_picker.add_item("Isolate "+variable)
+		isolate_picker.set_item_metadata(isolate_picker.item_count-1,variable)
+	isolate_picker.select(maxi(0,variables.find(previous)))
+
+func _collect_variables(node: Dictionary, variables: Array[String]) -> void:
+	if node.get("op")=="atom" and node.text in ["x","y","z"] and node.text not in variables:
+		variables.append(node.text)
+	for branch in ["left","right","child"]:
+		if node.get(branch) is Dictionary:
+			_collect_variables(node[branch],variables)
+
+func evaluate(action := "auto") -> bool:
 	if _number_mode() and not _finance_input():return _evaluate_number()
 	var input:=close_parentheses(display.text)
+	if equation_enabled and "□" in input:
+		return _display_calculation({"error":"Fill in the empty part of the equation."})
 	if not equation_enabled:
 		display.text=input
 		display.caret_column=input.length()
@@ -417,17 +449,13 @@ func evaluate() -> bool:
 			return _display_calculation({"real":financial_result.value,"text":str(financial_result.value)})
 		return _display_calculation({"error":financial_result.get("error","Math error")})
 	if equation_enabled or algebra_enabled:
-		var selected:=str(operation.get_selected_metadata()) if is_instance_valid(operation) else "evaluate"
-		if selected=="rectangular":
-			var pair:=input.replace("∠",",").split(",",false)
-			if pair.size()!=2 or not pair[0].strip_edges().is_valid_float() or not pair[1].strip_edges().is_valid_float():
-				return _display_calculation({"error":"Enter radius, angle in the selected angle units."})
-			var angle:=float(pair[1])* (PI/180.0 if angle_mode=="deg" else PI/200.0 if angle_mode=="grad" else 1.0)
-			var radius:=float(pair[0])
-			return _display_calculation({"text":"%s %s %si"%[snappedf(radius*cos(angle),1e-8),"-" if sin(angle)<0 else "+",snappedf(absf(radius*sin(angle)),1e-8)]})
 		var expression: Dictionary=Parser.new().parse(input)
-		return _display_calculation(math_engine.Calculate(expression.tree,selected,complex_enabled,angle_mode) if expression.ok else {"error":expression.error})
-	var legacy := calculate(input,degrees,angle_mode) if model=="calculator" else _limited_calculate(input)
+		if action=="auto":
+			_refresh_isolation()
+			if not algebra_enabled:action="evaluate"
+			elif isolate_picker.visible:action="isolate:"+str(isolate_picker.get_selected_metadata())
+		return _display_calculation(math_engine.Calculate(expression.tree,action,complex_enabled,"rad") if expression.ok else {"error":expression.error})
+	var legacy := calculate(input,false,"rad") if model=="calculator" else _limited_calculate(input)
 	if not legacy.ok:
 		result.text=legacy.error;result.tooltip_text=str(legacy.error);display.theme_type_variation="ErrorLineEdit";return false
 	display.theme_type_variation="LineEdit";result.tooltip_text="Calculated result"
@@ -493,7 +521,7 @@ func _build_graph(body: VBoxContainer) -> void:
 			if not parsed.ok:
 				feedback.text=parsed.error
 				continue
-			var points: PackedVector3Array=math_engine.Curve(parsed.tree,graph.kind,angle_mode,graph.extent)
+			var points: PackedVector3Array=math_engine.Curve(parsed.tree,graph.kind,"rad",graph.extent)
 			if points.is_empty() or not Array(points).any(func(point: Vector3):return point.is_finite()):
 				feedback.text="No real values to plot for "+line
 				continue
@@ -518,16 +546,9 @@ func _build_graph(body: VBoxContainer) -> void:
 			if graph.kind!=0:
 				feedback.text="Slope and area use a curve on the 2D grid."
 				return
-			var value: Dictionary=math_engine.Measure(trees[selected_curve.selected],a.value,b.value,angle_mode,slope)
+			var value: Dictionary=math_engine.Measure(trees[selected_curve.selected],a.value,b.value,"rad",slope)
 			feedback.text=str(value.get("text",value.get("error","Calculation failed.")))))
 	functions.add_child(feedback)
-
-func _set_angle_mode(value: String) -> void:
-	angle_mode=value
-	degrees=value=="deg"
-	for key in angle_buttons:angle_buttons[key].set_pressed_no_signal(key==value)
-	if is_instance_valid(mode):mode.text=value.to_upper()
-	if is_instance_valid(memory_label):memory_label.text=value.to_upper()+("   M" if memory!=0 else "")
 
 static func _functions(text: String,angle_system: String) -> String:
 	var output := "";var i := 0
@@ -561,7 +582,7 @@ static func close_parentheses(value: String) -> String:
 	return value+")".repeat(mini(balance,90))
 static func calculate(value: String,degrees_mode := true,angle_system := "") -> Dictionary:
 	if value.length()>180 or value.is_empty():return {"ok":false,"error":"Enter a calculation"}
-	if "ⁿ√" in value:
+	if "ⁿ√" in value or "°" in value:
 		var parsed:=Parser.new().parse(close_parentheses(value))
 		if not parsed.ok:return {"ok":false,"error":parsed.error}
 		var angles:=angle_system if angle_system in ["deg","rad","grad"] else ("deg" if degrees_mode else "rad")

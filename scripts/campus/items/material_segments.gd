@@ -59,7 +59,8 @@ static func apply(model: Node3D, configuration: Dictionary) -> void:
 			material=material.duplicate()
 			part.material_override=material
 		var patch: Dictionary=choices[segment]
-		material.albedo_color=Color(patch.color)
+		var tint:=Color(patch.color)
+		material.albedo_color=part.get_meta("material_color_multiplier",Color.WHITE)*tint if part.has_meta("material_color_multiplier") else tint
 		material.roughness=patch.roughness
 		material.metallic=patch.metallic
 		material.emission_enabled=float(patch.strength)>0.0
@@ -73,6 +74,6 @@ static func from_model(model: Node3D, segment: String) -> Dictionary:
 		var material: Material=part.get_meta("material_baseline") if part.has_meta("material_baseline") else part.material_override
 		if material==null and part is MeshInstance3D:material=part.get_active_material(0)
 		if material is StandardMaterial3D:
-			return {"color":material.albedo_color.to_html(false),"roughness":material.roughness,"metallic":material.metallic,
+			return {"color":"ffffff" if part.has_meta("material_color_multiplier") else material.albedo_color.to_html(false),"roughness":material.roughness,"metallic":material.metallic,
 				"emission":material.emission.to_html(false),"strength":material.emission_energy_multiplier if material.emission_enabled else 0.0}
 	return defaults()

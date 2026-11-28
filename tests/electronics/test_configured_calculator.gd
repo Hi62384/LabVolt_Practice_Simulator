@@ -41,6 +41,24 @@ func run() -> void:
 	assert(dialog.stage==1 and dialog.keypad_designer.visible)
 	var designer: VBoxContainer=dialog.keypad_designer
 	assert(designer.grid.columns==7 and designer.grid.get_child_count()==49)
+	assert(Equipment.Keypad.unlocked("y",{"algebra":1,"graph":0}))
+	_press(designer,"Key colors")
+	await process_frame
+	designer.grid.get_child(0).pressed.emit()
+	await process_frame
+	designer.grid.get_child(1).pressed.emit()
+	await process_frame
+	designer.color_picker.color=Color("b980e8")
+	designer.apply_color.pressed.emit()
+	await process_frame
+	assert(dialog._quote().configuration.key_colors=={"7":"b980e8","8":"b980e8"})
+	designer.move_key(0,4)
+	assert(designer.slots[4]=="7" and designer.key_colors["7"]=="b980e8")
+	designer.undo()
+	designer.undo()
+	assert(designer.key_colors.is_empty())
+	_press(designer,"Key colors")
+	await process_frame
 	var full_layout:=Equipment.defaults(Equipment.CALCULATOR)
 	full_layout.hardware={"equation":1,"algebra":1,"complex":1,"graph":2}
 	var symbols: Array=Equipment.Keypad.REQUIRED.duplicate()
@@ -68,6 +86,7 @@ func run() -> void:
 	assert(not designer.add_key("√"))
 	assert(not designer.add_key("ⁿ√"))
 	assert(not designer.add_key("←"))
+	assert(not designer.add_key("↑"))
 	var base_total: int=dialog._quote().price
 	assert(designer.add_key("."))
 	assert(dialog._quote().price==base_total+1)
@@ -97,13 +116,24 @@ func run() -> void:
 	assert("←" not in designer.slots and "→" not in designer.slots)
 	assert(designer.add_key("←",40))
 	assert(designer.add_key("→",41))
+	assert(designer.add_key("↑",38) and designer.add_key("↓",39))
 	assert(designer.add_key("sin",42))
 	designer.move_key(42,48)
 	assert(designer.slots[42]=="" and designer.slots[48]=="sin")
 	designer.remove_key(designer.slots.find("AC"))
 	assert(designer.feedback.text.contains("AC"))
-	var options: Dictionary=dialog._quote().configuration
+	_press(designer,"Key colors")
+	_press(designer,"Clear selection")
+	designer._select_slot(designer.slots.find("7"))
+	designer._color_keys("ff8040")
+	_press(designer,"Clear selection")
+	designer._select_slot(designer.slots.find("8"))
+	designer._color_keys("40c0ff")
 	dialog.confirmed.emit()
+	var key_material:=Equipment.Materials.defaults()
+	key_material.color="a0b0c0"
+	dialog._set_decoration([],{"keys":key_material})
+	var options: Dictionary=dialog._quote().configuration
 	dialog.confirmed.emit()
 	assert(dialog.stage==3 and dialog.review.text.contains("Missing common keys"))
 	dialog.confirmed.emit()
@@ -128,10 +158,14 @@ func run() -> void:
 	root.add_child(calculator)
 	var keypad: GridContainer=calculator.find_children("*","GridContainer",true,false)[0]
 	assert(keypad.columns==7 and keypad.get_child(48).text=="sin" and not keypad.get_child(42) is Button)
+	for symbol in options.key_colors:
+		var cap: Button=keypad.get_child(options.keypad.find(symbol))
+		assert(cap.get_theme_stylebox("normal").bg_color.is_equal_approx(Color(options.key_colors[symbol])*Color(key_material.color)))
 	calculator.press("sin")
 	calculator.press("3")
 	calculator.press("0")
-	calculator.press("=")
+	calculator.press("°")
+	calculator.press("RUN")
 	assert(is_equal_approx(calculator.answer,.5))
 	calculator.display.text="9+8(9)"
 	var end: int=calculator.display.cursor
@@ -139,7 +173,7 @@ func run() -> void:
 	assert(calculator.display.cursor==end-1)
 	_press(calculator,"→")
 	assert(calculator.display.cursor==end)
-	calculator.press("=")
+	calculator.press("RUN")
 	assert(is_equal_approx(calculator.answer,81.0))
 	game.open_carried_calculator("calculator_basic",options)
 	await process_frame

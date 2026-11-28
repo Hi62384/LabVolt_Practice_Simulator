@@ -143,7 +143,7 @@ func build(owner: RefCounted, purchase_completed: Callable, product: Dictionary,
 		keypad_designer=preload("res://scripts/ui/store_bundles_equipment/keypad_designer.gd").new()
 		options.add_child(keypad_designer)
 		keypad_designer.size_flags_vertical=Control.SIZE_EXPAND_FILL
-		keypad_designer.build(configuration.keypad,configuration.hardware)
+		keypad_designer.build(configuration.keypad,configuration.hardware,configuration.get("key_colors",{}))
 		keypad_designer.design_changed.connect(_keypad_changed)
 		_build_pricing(layout)
 	review.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -331,9 +331,11 @@ func _select(index: int, group: String, key: String) -> void:
 		keypad_designer.change_hardware(configuration.hardware)
 	_update_quote()
 
-func _keypad_changed(slots: Array, hardware: Dictionary) -> void:
+func _keypad_changed(slots: Array, hardware: Dictionary, colors: Dictionary) -> void:
 	configuration.keypad=slots
 	configuration.hardware=hardware
+	if colors.is_empty():configuration.erase("key_colors")
+	else:configuration.key_colors=colors
 	for key in hardware:feature_selectors[key].select(int(hardware[key]))
 	_update_quote()
 

@@ -23,12 +23,27 @@ func parse(source: String) -> Dictionary:
 				i += 1
 			var value := source.substr(start, i - start)
 			if dots > 1 or value == ".": return _result(source, {}, "Invalid number at character %d." % (start + 1))
+			if i + 1 < source.length() and source[i] in "eE":
+				var exponent := i + 1
+				if source[exponent] in "+-": exponent += 1
+				var digits := exponent
+				while exponent < source.length() and source[exponent] in "0123456789": exponent += 1
+				if exponent > digits:
+					i = exponent
+					value = source.substr(start, i - start)
 			_tokens.append({"kind":"atom", "text":value, "pos":start})
+		elif c in "πτφ":
+			_tokens.append({"kind":"atom", "text":c, "pos":i}); i += 1
 		elif c.to_lower() in "abcdefghijklmnopqrstuvwxyz" or c in "πτθφΩαβγΔΣμ∞":
 			var start := i
-			while i < source.length() and (source[i].to_lower() in "abcdefghijklmnopqrstuvwxyz" or source[i] in "πτθφΩαβγΔΣμ∞"): i += 1
-			_tokens.append({"kind":"atom", "text":source.substr(start, i - start), "pos":start})
-		elif c in "+-*/^_()=,;[]×÷−":
+			while i < source.length() and (source[i].to_lower() in "abcdefghijklmnopqrstuvwxyz" or source[i] in "θΩαβγΔΣμ∞"): i += 1
+			var word := source.substr(start, i - start)
+			if word.length() > 1 and word.replace("x", "").replace("y", "").replace("z", "").replace("i", "").is_empty():
+				for offset in word.length():
+					_tokens.append({"kind":"atom", "text":word[offset], "pos":start + offset})
+			else:
+				_tokens.append({"kind":"atom", "text":word, "pos":start})
+		elif c in "+-*/^_()=,;[]×÷−∠°":
 			_tokens.append({"kind":{"×":"*","÷":"/","−":"-"}.get(c,c), "text":c, "pos":i}); i += 1
 		elif source.substr(i, 2) == "ⁿ√":
 			_tokens.append({"kind":"ⁿ√", "text":"ⁿ√", "pos":i}); i += 2
@@ -108,8 +123,12 @@ func _expr(min_bp: int, depth: int) -> Dictionary:
 		return {}
 	while _error.is_empty():
 		kind = _kind()
+		if kind=="°" and min_bp<=45:
+			_at+=1
+			left={"op":"degree","child":left}
+			continue
 		var implicit := kind in ["atom", "(", "["]
-		var bp := 10 if kind in ["=", ","] else (20 if kind in ["+", "-"] else (30 if kind in ["*", "/"] or implicit else (40 if kind in ["^", "_", "ⁿ√"] else -1)))
+		var bp := 10 if kind in ["=", ","] else (20 if kind in ["+", "-"] else (25 if kind=="∠" else (30 if kind in ["*", "/"] or implicit else (40 if kind in ["^", "_", "ⁿ√"] else -1))))
 		if bp < min_bp: break
 		var operator := "*" if implicit else kind
 		if not implicit: _at += 1

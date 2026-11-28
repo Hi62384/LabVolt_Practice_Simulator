@@ -45,10 +45,11 @@ static func run() -> Array[String]:
 	_check(Layout.build("a/b",font,-100).ok, "negative font request is clamped", failures)
 	_check(Layout.build("(x+y)/(z^2)",font,24).source == "(x+y)/(z^2)", "exact source roundtrip", failures)
 	var radical: Dictionary = Layout.build("sqrt(x^2+y^2)",font,24)
-	var radical_rules := 0
+	var radical_path := PackedVector2Array()
 	for command in radical.commands:
-		if command.kind == "line": radical_rules += 1
-	_check(radical.ok and radical_rules == 1 and radical.size.y > 0, "radical has measured overbar", failures)
+		if command.kind == "polyline": radical_path = command.points
+	_check(radical.ok and radical_path.size() == 5 and radical_path[3].y == radical_path[4].y and radical_path[2].y > radical_path[3].y,
+		"radical hook joins its measured overbar", failures)
 	var greek: Dictionary = Layout.build("alpha+omega=i",font,24)
 	var greek_text := ""
 	for command in greek.commands:

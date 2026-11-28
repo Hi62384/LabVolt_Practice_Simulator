@@ -493,7 +493,8 @@ func _add_properties(parent: VBoxContainer,layer: Dictionary,base := false) -> v
 	grid.add_theme_constant_override("h_separation",8)
 	grid.add_theme_constant_override("v_separation",4)
 	parent.add_child(grid)
-	_color(_property_cell(grid),"Base color",values.color,lock,_change_property.bind("color",base),true,true)
+	var color_label:="Color multiplier" if base and product_kind=="calculator" and segment=="keys" else "Base color"
+	_color(_property_cell(grid),color_label,values.color,lock,_change_property.bind("color",base),true,true)
 	_scalar(_property_cell(grid),"Roughness",0,1,.01,values.roughness,lock,_change_property.bind("roughness",base),true)
 	_scalar(_property_cell(grid),"Metallic",0,1,.01,values.metallic,lock,_change_property.bind("metallic",base),true)
 	_color(_property_cell(grid),"Emission color",values.emission if base else values.glow_color,lock,_change_property.bind("emission" if base else "glow_color",base),true,true)
