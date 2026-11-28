@@ -10,6 +10,7 @@ const Route=preload("res://scripts/campus/academics/classroom_teacher_route.gd")
 const Population=preload("res://scripts/campus/academics/student_population.gd")
 const Discipline=preload("res://scripts/campus/academics/classroom_discipline.gd")
 const Memory=preload("res://scripts/campus/academics/character_memory.gd")
+const DossierStore=preload("res://scripts/campus/academics/character_dossier_store.gd")
 const MAX_PER_CLASS:=6
 const RECORDS:="user://classmate_learning.cfg"
 static var known_profiles: Dictionary={}
@@ -25,11 +26,12 @@ var learning_save_error:=OK
 var host_profile:=""
 
 static func profile_for(id: String) -> Dictionary:
-	if known_profiles.has(id):return known_profiles[id].duplicate(true)
-	var index:=id.trim_prefix("campus_student_")
-	if not index.is_valid_int() or int(index) not in range(Population.LEGACY_COUNT):return {}
-	var profile:=Profiles.student(int(index))
-	return profile if profile.id==id else {}
+	if known_profiles.has(id):
+		var profile: Dictionary=known_profiles[id]
+		return DossierStore.project(profile) if not DossierStore.host_identity.is_empty() and profile.has("traits") else profile.duplicate(true)
+	# Only a host-selected resident or an authenticated public snapshot exists
+	# here. Evidence-based migration belongs to Population, never a UI lookup.
+	return {}
 
 func nearby_member(peer: int,room: String,class_id: String,id: String) -> Dictionary:
 	var activity: Dictionary=game.lecture_classes.classes.get(room,{})
@@ -166,6 +168,11 @@ func step(activity: Dictionary,now: float,delta: float,room := "") -> void:
 		if now<float(member.next) or member.get("using_bench",false):continue
 		member.erase("line")
 		member.erase("look_at")
+		# Refresh only at the existing local decision cadence. Background expansion
+		# does not rebuild a person or perform work every frame.
+		var authoritative: Dictionary=population.profile_for(str(profile.id))
+		if not authoritative.is_empty():
+			profile=authoritative;member.profile=profile;known_profiles[profile.id]=profile
 		var mood: String=game.faculty.character_mind.emotion(profile,Time.get_ticks_msec())
 		if activity.phase=="lesson" and member.action=="listening" and float(profile.traits.attention_span)<.49:
 			mood=game.faculty.character_mind.feel(profile,"idle",.35,Time.get_ticks_msec())
@@ -233,7 +240,7 @@ func _start_player_greeting(activity: Dictionary,member: Dictionary,peer: int,id
 	var phase:=str(activity.phase)
 	var response: Dictionary=await game.faculty.generate_character_exchange(member.profile,identity,activity,"",{
 		"initiate":true,"intention":"Recognize this nearby person and decide whether to greet, reconnect, tease, or raise an unresolved issue from real memory.",
-		"observations":{"interlocutor_visible":true,"phase":phase},"offline_fallback":str(member.profile.lines.greeting)})
+		"observations":{"interlocutor_visible":true,"phase":phase}})
 	activity.social_pending=false
 	if not _activity_current(activity,phase) or str(game.school.identities.get(peer,""))!=identity:return
 	if not game.lecture_classes._inside(peer,room) or game.lecture_classes._position(peer).distance_to(member.position)>3.8:return
@@ -400,8 +407,7 @@ func _student_discipline_line(room: String,activity: Dictionary,member: Dictiona
 	var phase:=str(activity.phase)
 	var response: Dictionary=await game.faculty.generate_character_exchange(teacher,str(member.profile.id),activity,"",{
 		"initiate":true,"existing_event_id":event_id,"existing_turn":turn,"interlocutor":_social_identity(member.profile),"intention":"Address the behavior you actually observed using your own standards and temperament. Describe only a consequence that was executed. For movement in progress, give directions without claiming the student already arrived. If the action failed, give a verbal warning instead.",
-		"discipline":{"kind":decision.kind,"action":decision.action,"reason":decision.reason,"executed":applied and decision.action not in ["move","remove"],"pending":applied and decision.action in ["move","remove"],"event_already_recorded":true},
-		"offline_fallback":("Put the phone away and return to your own work." if phase=="assignment" else "Put the phone away and follow the lesson.") if decision.action=="put_away" else "You are interrupting the class. Give the others a chance to work."})
+		"discipline":{"kind":decision.kind,"action":decision.action,"reason":decision.reason,"executed":applied and decision.action not in ["move","remove"],"pending":applied and decision.action in ["move","remove"],"event_already_recorded":true}})
 	activity.discipline_pending=false
 	if not _activity_current(activity,phase):return
 	var line:=str(response.get("line",""))
@@ -500,12 +506,9 @@ func _start_social_exchange(activity: Dictionary,speaker: Dictionary,listener: D
 	var phase:=str(activity.phase)
 	var topic:=str(activity.get("title",""))
 	var purpose:=Social.intention(speaker.profile,listener.profile,history,reverse,phase,str(speaker.action))
-	# Familiar classmates' lesson recovery can offer to compare notes. During
-	# assessed work only a social greeting and the shared restricted reply apply.
-	var recovery: Dictionary={"line":str(speaker.profile.lines.greeting),"reply":""} if phase=="assignment" else Social.exchange(speaker.profile,listener.profile,history,reverse,topic)
 	var opening: Dictionary=await game.faculty.generate_character_exchange(speaker.profile,str(listener.profile.id),activity,"",{
 		"initiate":true,"defer_record":true,"intention":purpose.purpose,"interlocutor":_social_identity(listener.profile),"topic":topic,
-		"observations":{"interlocutor_visible":true,"phase":phase},"offline_fallback":recovery.line})
+		"observations":{"interlocutor_visible":true,"phase":phase}})
 	if not _social_delivery_current(opening,activity,phase) or speaker.get("removed_from_class",false) or listener.get("removed_from_class",false):
 		activity.social_pending=false
 		return
@@ -530,14 +533,9 @@ func _start_social_exchange(activity: Dictionary,speaker: Dictionary,listener: D
 	if not room.is_empty():_observe_student_behavior(room,activity,speaker,now)
 	# The opening was heard now. Record that perception before generating a
 	# delayed reply; a cancelled reply cannot erase the real incoming event.
-	var heard: Dictionary=await game.faculty.generate_character_exchange(listener.profile,str(speaker.profile.id),activity,line,{
-		"listen_only":true,"interlocutor":_social_identity(speaker.profile),"topic":topic,"observations":{"interlocutor_visible":true,"phase":phase}})
-	if not _social_delivery_current(heard,activity,phase) or speaker.get("removed_from_class",false) or listener.get("removed_from_class",false):
-		activity.social_pending=false
-		return
 	var response: Dictionary=await game.faculty.generate_character_exchange(listener.profile,str(speaker.profile.id),activity,line,{
-		"existing_turn":heard.turn,"existing_event_id":heard.event_id,"defer_record":true,
-		"interlocutor":_social_identity(speaker.profile),"topic":topic,"observations":{"interlocutor_visible":true,"phase":phase},"offline_fallback":recovery.reply})
+		"record_incoming":true,"defer_record":true,
+		"interlocutor":_social_identity(speaker.profile),"topic":topic,"observations":{"interlocutor_visible":true,"phase":phase}})
 	activity.social_pending=false
 	if not _social_delivery_current(response,activity,phase) or speaker.get("removed_from_class",false) or listener.get("removed_from_class",false):return
 	activity.classmate_reply={"speaker":speaker.profile.id,"listener":listener.profile.id,"line":str(response.get("line","")),
@@ -740,8 +738,11 @@ static func _public_profile(person: Dictionary) -> Dictionary:
 	var traits: Dictionary={}
 	for key in ["speaking_pace","expressiveness","energy","shyness","confidence","arrogance"]:
 		traits[key]=clampf(float(person.traits.get(key,.5)),0.,1.)
+	var voice: Dictionary={}
+	for key in ["identifier","profile","characteristics","delivery"]:
+		if person.get("voice",{}).has(key):voice[key]=person.voice[key]
 	return {"id":str(person.id),"name":str(person.name),"role":"student","style":str(person.get("style","")),
-		"talk":float(person.get("talk",.5)),"voice_slot":int(person.get("voice_slot",0)),"traits":traits}
+		"talk":float(person.get("talk",.5)),"voice_slot":int(person.get("voice_slot",0)),"voice":voice,"traits":traits}
 
 func focus_on_player(class_id: String,actor: String) -> void:
 	var key:=class_id+":"+actor

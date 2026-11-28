@@ -28,8 +28,13 @@ static func domain_of(text: String) -> String:
 static func assess(person: Dictionary,activity: Dictionary,question: String,interpretation: Dictionary={},prior_learning: Dictionary={}) -> Dictionary:
 	var text:=question.to_lower()
 	var traits: Dictionary=person.get("traits",{})
+	var kind := str(interpretation.get("question_kind",""))
+	if kind in ["personal_experience","biography","opinion","casual"]:
+		return {"allowed":true,"domain":"conversation","question_kind":kind,"mode":"personal_conversation",
+			"reason":"Own experiences and opinions use the character's life and beliefs, not a specialist factual-knowledge gate.",
+			"limit_rules":"Personal opinions are not factual expertise. Reuse established life facts; fictional improvisation cannot establish gameplay events or academic results."}
 	if arithmetic.search(text.replace(",","").replace("_",""))!=null or ("multiply" in text and text.count("0")>=10):
-		return {"allowed":false,"line":person.lines.calculation,"domain":"arithmetic","mode":"use_tool","reason":"Calculation exceeds reliable mental arithmetic; use an observed calculator."}
+		return {"allowed":false,"line":"","domain":"arithmetic","mode":"use_tool","reason":"Calculation exceeds reliable mental arithmetic; use an observed calculator."}
 	var semantic_domain:=str(interpretation.get("domain","")).to_lower().strip_edges()
 	var aliases:={"mathematics":"math","electrical":"electronics","computer_science":"programming","medical":"medicine","legal":"law","music":"culture","art":"culture","engineering":"mechanics","general_knowledge":"everyday","physics":"science","chemistry":"science","personal":"conversation","social":"conversation"}
 	var domain: String=aliases.get(semantic_domain,semantic_domain) if not semantic_domain.is_empty() else domain_of(text)
@@ -65,9 +70,7 @@ static func assess(person: Dictionary,activity: Dictionary,question: String,inte
 	var reason:="Within this character's education and experience." if allowed else "This exceeds this character's established knowledge, is specialist information, or needs a current in-game source."
 	if allowed and float(learning.gain)>0.:reason="Established knowledge reinforced by this character's verified supervised practice; limited to ordinary coursework."
 	if proficiency>=required-.12 and not restricted and not allowed:mode="tentative_estimate"
-	var response: String=str(person.get("lines",{}).get("unknown","I don't know enough about that."))
-	if domain=="gaming" and proficiency<.35:response=str(person.lines.gaming)
-	return {"allowed":allowed,"line":response if not allowed else "","domain":domain,"mode":mode,"proficiency":proficiency,"authored_proficiency":authored_proficiency,"prior_learning":learning,
+	return {"allowed":allowed,"line":"","domain":domain,"mode":mode,"proficiency":proficiency,"authored_proficiency":authored_proficiency,"prior_learning":learning,
 		"required":required,"difficulty":difficulty,"current_information":current,"reason":reason,
 		"limit_rules":"Do not invent expertise, current facts or tool use. You may say what ordinary part you recognize, admit uncertainty, or ask someone who knows. Verified practice supports only bounded familiarity with its course domain, never specialist expertise or permission to help with an active assessment. Official course explanations and safety instructions must remain accurate."}
 

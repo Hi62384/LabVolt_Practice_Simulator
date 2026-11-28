@@ -194,7 +194,7 @@ func perform(peer: int,room: String,class_id: String,event_id: String,op: String
     if state.round.mode=="practice" and int(state.decline_reactions)<2 and now-float(state.last_decline_reaction)>=8.0:
      state.decline_reactions=int(state.decline_reactions)+1;state.last_decline_reaction=now
      var teacher:=str(activity.get("teacher",""))
-     participation_declined.emit(room,teacher,Dialogue.respond(teacher,"decline",{"phase":"lesson"},event_id.hash() ^ peer))
+     participation_declined.emit(room,teacher,"A student declined this optional practice round. They may keep following the lesson without participating.")
    return result
   "hand":
    if not payload is bool:return "invalid"
@@ -404,39 +404,25 @@ static func _fastest_group(state: Dictionary) -> Dictionary:
  if absf(float(fastest[ordered[0]])-float(fastest[ordered[1]]))<.001:return {}
  return {"team":str(ordered[0]),"seconds":maxf(0.0,float(fastest[ordered[0]])-float(state.open_at))}
 
-static func outcome_comment(mode: String,correct_count: int,attempts: int,personality: Dictionary) -> String:
- var strict:=clampf(float(personality.get("difficulty",.5)),0.0,1.0)
- var teaching:=clampf(float(personality.get("teaching",.5)),0.0,1.0)
- if attempts==0:return "We'll work through the solution together." if teaching>=.5 else "Let's return to the lesson."
- if mode=="pass":
-  if correct_count==attempts:return "Each step checked out. Good handoff."
-  return "A step needs another look. Let's trace the calculation together." if teaching>=.5 else "Check the steps before moving on."
- if correct_count==attempts:return "Well solved. Show how you reached the answer." if strict>=.6 else "Nice work. Let's compare methods."
- if correct_count==0:return "Start from the given values and try again." if teaching>=.5 else "Review the worked example."
- return "Some answers differ. Let's review the method." if teaching>=.5 else "Check the details before the next round."
+## Authoritative result text for the practice UI and the model's observations.
+## These are facts, not dialogue attributed to the teacher.
+static func outcome_comment(mode: String,correct_count: int,attempts: int,_personality: Dictionary) -> String:
+ if attempts==0:return "Practice ended without a submission."
+ return "%d of %d %s were correct."%[correct_count,attempts,"submitted steps" if mode=="pass" else "submitted answers"]
 
 static func comment_for_round(round: RefCounted,correct_count: int,attempts: int,personality: Dictionary) -> String:
  if str(round.get("mode"))=="physical":return physical_comment(round,personality)
  if str(round.get("mode"))=="mistake":
   var revealed: Dictionary=round.reveal()
-  if revealed.is_empty():return ""
   var answer:=str(revealed.get("answer",""))
   if answer.is_empty():return ""
-  return "I wrote the current incorrectly. The circuit solver gives %s after the resistor change. Thanks for checking my work."%answer if correct_count>0 else "I wrote the current incorrectly. The circuit solver gives %s after the resistor change. Let's check Ohm's law together."%answer
- if attempts>0 and correct_count==0 and float(personality.get("teaching",.5))>=.7:
-  return "That answer did not match. Asking for a hint or trying a second method was still useful; let's work through the first step together." if not round.hints_used.is_empty() or round.attempts.values().any(func(count):return int(count)>1) else "That one was difficult. Let's identify the known values and work through the first step together."
- if attempts>0 and correct_count==attempts and float(personality.get("talkativeness",.5))>=.75 and float(personality.get("difficulty",.5))<.65:
-  return "Everyone who answered got this one. Let's compare the different ways you reached it."
+  return "The deliberately incorrect board current was written incorrectly. The released circuit-solver result after the resistor change is %s. %s"%[answer,outcome_comment("mistake",correct_count,attempts,{})]
  return outcome_comment(str(round.get("mode")),correct_count,attempts,personality)
 
-static func physical_comment(round: RefCounted,personality: Dictionary={}) -> String:
+static func physical_comment(round: RefCounted,_personality: Dictionary={}) -> String:
  if not round.fault.is_empty():return "The station tripped. Switch off power and inspect the circuit before trying again."
- if not round.measurement_valid:return "We need a valid live station change before comparing predictions."
- var observation: String="The AC station changed from %.2f V to %.2f V RMS."%[round.first_voltage,round.final_voltage]
- var traits:=str(personality.get("description","")).to_lower()
- if "curious" in traits or "science" in traits:return observation+" What caused the change? Compare the measurement with your prediction."
- if float(personality.get("difficulty",.5))>=.75:return observation+" Explain the measurement before accepting your prediction."
- return observation+" Let's compare your predictions."
+ if not round.measurement_valid:return "No valid live station change was recorded; predictions cannot be compared."
+ return "The AC station changed from %.2f V to %.2f V RMS."%[round.first_voltage,round.final_voltage]
 
 ## A perceived disruption only delays the next optional activity. It never
 ## changes an active answer window, attendance, or official assessment marks.

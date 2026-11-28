@@ -163,7 +163,7 @@ func step(now: float) -> void:
    if not wrap_shown.has(class_id) and float(activity.get("deadline",0.0))-now<=WRAP_SECONDS and not service.rooms.has(room):
     wrap_shown[class_id]=true
     var faculty: Node=game.get("faculty") as Node
-    if is_instance_valid(faculty):faculty.present_class_reaction(room,str(activity.get("teacher","")),Dialogue.lesson_wrap(personality,str(activity.get("course",""))))
+    if is_instance_valid(faculty):faculty.present_class_intention(room,str(activity.get("teacher","")),Dialogue.lesson_wrap_intention(personality,str(activity.get("course",""))))
    if pending_board_challenges.has(class_id):
     var warning: Dictionary=pending_board_challenges[class_id]
     var warning_valid: bool=now<=float(warning.until) and str(warning.teacher)==str(activity.get("teacher","")) and str(game.school.identities.get(int(warning.peer),""))==str(warning.identity) and int(activity.students.get(str(warning.identity),{}).get("peer",0))==int(warning.peer) and game.lecture_classes._inside(int(warning.peer),room)
@@ -207,9 +207,9 @@ func step(now: float) -> void:
        if schedule.recent.size()>2:schedule.recent.pop_front()
       schedule.next=now+activity_gap(personality,service.rooms[room].round.participants.size())
     elif surprise_roll<35:
-     var aside:=Dialogue.surprise_comment(personality,str(activity.get("course","")),seed)
+     var aside:=Dialogue.surprise_intention(personality,str(activity.get("course","")))
      var faculty: Node=game.get("faculty") as Node
-     if not aside.is_empty() and is_instance_valid(faculty):faculty.present_class_reaction(room,str(activity.get("teacher","")),aside);offtopic_until[class_id]=now+5.0
+     if not aside.is_empty() and is_instance_valid(faculty):faculty.present_class_intention(room,str(activity.get("teacher","")),aside);offtopic_until[class_id]=now+5.0
    if int(schedule.count)>=MAX_ACTIVITIES or float(schedule.event_seconds)+EVENT_RESERVATION_SECONDS>MAX_EVENT_SECONDS or now<float(schedule.next) or service.rooms.has(room):continue
    if int(schedule.tries)>=4:
     schedule.tries=0;schedule.next=now+45.0;continue
@@ -357,7 +357,7 @@ func _status(class_id: String,event_id: String,op: String,status: String) -> voi
 func _round_completed(room: String,teacher: String,comment: String) -> void:
  if not enabled or not is_instance_valid(game):return
  var faculty: Node=game.get("faculty") as Node
- if not is_instance_valid(faculty) or not faculty.has_method("present_class_reaction"):return
+ if not is_instance_valid(faculty) or not faculty.has_method("present_class_intention"):return
  var priority:=1
  var state: Dictionary=service.rooms.get(room,{}) if is_instance_valid(service) else {}
  var round: Variant=state.get("round")
@@ -368,7 +368,7 @@ func _round_completed(room: String,teacher: String,comment: String) -> void:
   if not any_correct:
    var traits: Dictionary=Dialogue.personalities().get(teacher,{})
    priority=3 if float(traits.get("difficulty",.5))>=.8 and float(traits.get("talkativeness",.5))>=.65 else 2
- faculty.present_class_reaction(room,teacher,comment,priority)
+ faculty.present_class_intention(room,teacher,"React to the supplied verified practice event in your own manner. Preserve its released result; decide what you care to emphasize.",{"kind":"practice_event","description":comment},priority)
 
 func _student_called(room: String,teacher: String,peer: int) -> void:
  if not enabled or not is_instance_valid(game):return

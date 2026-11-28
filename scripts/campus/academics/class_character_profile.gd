@@ -5,8 +5,10 @@ const Models=preload("res://scripts/campus/ai/openai_models.gd")
 const Personas=preload("res://scripts/campus/academics/character_personas.gd")
 const Traits=preload("res://scripts/campus/academics/character_traits.gd")
 const Worldview=preload("res://scripts/campus/academics/character_worldview.gd")
+const Dossiers=preload("res://scripts/campus/academics/character_dossier_store.gd")
 const DATA_PATH:="res://assets/campus/faculty/personalities.json"
 static var classroom_baselines: Dictionary={}
+static var teacher_seeds: Dictionary={}
 const VOICES:=["coral","echo","nova","fable","ash","onyx","sage","shimmer","alloy","verse","ballad","cedar","marin"]
 const FIRST:=["Sam","Riley","Jordan","Taylor","Casey","Morgan","Avery","Jamie","Charlie","Devon","Kai","Ellis"]
 const NEW_FIRST:=["Aria","Noah","Leila","Ethan","Zara","Owen","Maya","Leo","Nadia","Theo","Imani","Luca","Priya","Finn","Elena","Amir","Sofia","Mateo","Nora","Isaac","Aisha","Felix","Sana","Reese"]
@@ -15,6 +17,7 @@ const LAST:=["Chen","Patel","Reyes","Singh","Park","Rivera","Kim","Bernard","Oka
 const INTERESTS:=["music","running","games","photography","electronics","drawing","cooking","football","cycling","reading","robots","design"]
 
 static func teacher(id: String) -> Dictionary:
+	if teacher_seeds.has(id): return Dossiers.project(teacher_seeds[id])
 	var person:=Roster.entry(id)
 	if classroom_baselines.is_empty():
 		var source: Variant=JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
@@ -41,8 +44,15 @@ static func teacher(id: String) -> Dictionary:
 		"science":.94 if id in ["bill_nye","dr_volts"] else .56,"business":.78 if id=="chad" else .36,
 		"culture":.75 if id in ["mr_apple","mr_gusto","ms_bird_heart"] else .42,"everyday":.85 if id=="ms_lunch" else .66}
 	profile.merge(Worldview.teacher(profile),true)
+	profile.appearance=Roster.config(id)
+	profile.trait_constraints={}
+	for key in Traits.author_overrides(id):
+		profile.trait_constraints[key]=[maxf(0.,float(profile.traits[key])-.12),minf(1.,float(profile.traits[key])+.12)]
+	for key in ["focus","talkativeness","strictness","teaching_effort"]:
+		profile.trait_constraints[key]=[maxf(0.,float(profile.traits[key])-.15),minf(1.,float(profile.traits[key])+.15)]
 	profile.goals=[{"goal":profile.ambition,"priority":.9,"horizon":"long_term"},{"goal":"complete required teaching accurately","priority":profile.traits.teaching_effort,"horizon":"class"},{"goal":"protect personal time and interests","priority":profile.traits.selfishness,"horizon":"today"}]
-	return profile
+	teacher_seeds[id]=profile.duplicate(true)
+	return Dossiers.project(profile)
 
 static func _baseline(values: Dictionary,key: String) -> float:
 	return float(values[key]) if values.get(key)!=null else .5
@@ -50,9 +60,18 @@ static func _baseline(values: Dictionary,key: String) -> float:
 static func classroom(id: String) -> Dictionary:
 	var profile:=teacher(id)
 	return {"teaching":profile.traits.teaching_effort,"focus":profile.traits.focus,"difficulty":profile.traits.strictness,
-		"talkativeness":profile.traits.talkativeness,"description":profile.style,"worldview":profile.worldview}
+		"talkativeness":profile.traits.talkativeness,"description":profile.style,"worldview":profile.worldview,"traits":profile.traits.duplicate(true),"teaching_motivation":profile.traits.teaching_effort}
 
 static func student(index: int) -> Dictionary:
+	var id := "campus_student_%02d" % maxi(0,index)
+	if Dossiers.dossiers.has(id):
+		return Dossiers.project({"id":id,"role":"student","voice_slot":posmod(id.hash(),32749),"subjects":[],"lines":{}})
+	# These are historic deterministic identities for migration/tests only. The
+	# population never calls this factory to fill a new campus or empty seats.
+	if index not in range(12): return {}
+	return legacy_student(index)
+
+static func legacy_student(index: int) -> Dictionary:
 	index=maxi(0,index)
 	var seed_value:=posmod(("campus-student-%d"%index).hash(),2147483647) if index>=12 else posmod(("campus-student-%d"%index).hash(),32749)
 	var curiosity:=float(seed_value%97)/96.
@@ -106,7 +125,7 @@ static func speech(person: Dictionary,model: String,priority: int,emotion := "st
 	var selectable:=VOICES.filter(func(candidate: String):return candidate in available)
 	if selectable.is_empty():return {}
 	var pace:=clampf(.78+float(person.traits.speaking_pace)*.40+(.12 if emotion in ["irritated","excited"] else -.10 if emotion in ["tired","sad"] else 0.),.65,1.25)
-	var style:=str(person.style)
+	var style:=preload("res://scripts/campus/academics/character_dossier.gd").relevant_sentences(str(person.style),emotion+" speaking rhythm vocabulary",[],1400)
 	var tone: String={"irritated":"Clipped and firm, without shouting.","amused":"Light, playful energy.",
 		"tired":"Speak slowly, with little energy.","embarrassed":"Hesitate slightly, then recover.",
 		"stressed":"Keep it brisk and controlled.","interested":"Lean into the subject with genuine curiosity."}.get(emotion,
@@ -118,5 +137,9 @@ static func speech(person: Dictionary,model: String,priority: int,emotion := "st
 	if not mixed.is_empty():tone+=" Mixed feelings: "+", ".join(mixed)+". Preserve the character's way of expressing them."
 	if float(person.traits.get("arrogance",0))>.75:tone+=" Confident, dismissive, unhurried about the other person's approval."
 	if float(person.traits.get("shyness",0))>.7:tone+=" Slight hesitation and quieter delivery; avoid a theatrical caricature."
-	return {"voice":selectable[int(person.voice_slot)%selectable.size()],"speed":pace,
-		"instructions":"Deliver the line as this character. Style: "+style+". "+tone}
+	var vocal: Dictionary=person.get("dossier",{}).get("voice",person.get("voice",{}))
+	var permanent:=str(vocal.get("identifier",""))
+	var selected:=permanent if permanent in selectable else str(selectable[posmod(int(person.get("voice_slot",0)),selectable.size())])
+	var identity:=preload("res://scripts/campus/academics/character_dossier.gd").relevant_sentences(str(vocal.get("profile",""))+" "+str(vocal.get("characteristics","")),"voice timbre accent",[],600)
+	return {"voice":selected,"speed":pace,"voice_identity":permanent,
+		"instructions":"Current delivery: "+tone+" Keep the same recognizable person. Permanent vocal identity: "+identity+". Speaking manner: "+style}

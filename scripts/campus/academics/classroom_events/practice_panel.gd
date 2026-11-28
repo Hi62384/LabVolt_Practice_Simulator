@@ -184,11 +184,11 @@ func update_state(state: Dictionary) -> void:
    if measurement.has("after_v"):status_label.text+="  Station %d, voltmeter %d: %.2f V → %.2f V RMS."%[int(state.get("station",0)),int(measurement.channel),float(measurement.before_v),float(measurement.after_v)]
    elif measurement.has("fault"):status_label.text+="  Station fault: "+str(measurement.fault).left(160)
    elif measurement.has("status"):status_label.text+="  "+str(measurement.status).left(160)
-  if state.has("teacher_comment"):status_label.text+="  Teacher: "+str(state.teacher_comment).left(160)
+  if state.has("teacher_comment"):status_label.text+="  Result: "+str(state.teacher_comment).left(160)
  elif state.get("submitted",false):status_label.text="Answer submitted. Feedback appears when practice ends."
  elif state.has("progress"):
   var progress: Dictionary=state.progress
-  status_label.text="Teacher: "+str(progress.get("message","Review your answer.")).left(180)+" %d attempt remaining."%int(progress.get("attempts_left",0))
+  status_label.text="Result: "+str(progress.get("message","Review your answer.")).left(180)+" %d attempt remaining."%int(progress.get("attempts_left",0))
  elif state.get("mode","")=="pass":status_label.text="Your step." if state.get("pass_turn",false) else "Waiting for the next student."
  elif state.get("mode","")=="physical":status_label.text="Station changed; the host will show the measured result at the end." if state.get("measurement_changed",false) else ("Station tripped; reset it safely before time runs out." if state.get("equipment_fault",false) else "Use the station controls to make a measurement change.")
  elif not shared.is_empty():status_label.text="Group %s · %d notes"%[str(shared.get("group","A")),int(shared.get("count",0))]

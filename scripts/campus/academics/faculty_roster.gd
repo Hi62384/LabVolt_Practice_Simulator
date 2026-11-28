@@ -36,19 +36,17 @@ static func all_people() -> Dictionary:
 static func has(id: String) -> bool:return PEOPLE.has(id) or GENERATED.has(id)
 static func entry(id: String) -> Dictionary:return PEOPLE.get(id,GENERATED.get(id,{}))
 static func add_generated(id: String,profile: Dictionary) -> bool:
- if not id.begins_with("generated_") or id.length()>48 or PEOPLE.has(id) or GENERATED.size()>=12:return false
+ if not id.begins_with("generated_") or id.length()>48 or PEOPLE.has(id) or (GENERATED.size()>=12 and not GENERATED.has(id)):return false
  var name:=str(profile.get("name","")).strip_edges()
  var course:=str(profile.get("course",""))
  var style:=str(profile.get("style",""))
- if name.length()<3 or name.length()>32 or style.length()<3 or style.length()>120 or course not in ["MTH147","MTH255","ETY155","ELM253","DGS266"]:return false
+ if name.length()<3 or name.length()>80 or style.length()<3 or style.length()>2400 or course not in ["MTH147","MTH255","ETY155","ELM253","DGS266"]:return false
  for character in name:
-  if not (character.is_valid_identifier() or character==" " or character=="-"):return false
+  if not (character.is_valid_identifier() or character in [" ","-","'","."]):return false
  var appearance_value: Variant=profile.get("appearance",{})
  if not appearance_value is Dictionary:return false
  var appearance: Dictionary=appearance_value
- var safe_appearance:={"expression":"Calm","outfit":"Workwear","top":"637787"}
- for key in ["hair","hair_color","skin","glasses","expression","top"]:
-  if appearance.has(key) and str(appearance[key]).length()<=16:safe_appearance[key]=str(appearance[key])
+ var safe_appearance: Dictionary=preload("res://scripts/toon_character.gd").sanitize(appearance)
  GENERATED[id]={"name":name,"courses":[course],"appearance":safe_appearance,"style":style}
  return true
 static func config(id: String) -> Dictionary:
