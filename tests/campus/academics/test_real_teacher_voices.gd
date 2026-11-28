@@ -16,6 +16,9 @@ func _run() -> void:
   if voices.has(identity):failures.append("Shared speaker identity: "+str(id))
   voices[identity]=id
  var synth:=Synth.new();root.add_child(synth)
+ # This release test deliberately exercises the bundled legacy renderer, not
+ # the normal OpenAI scheduler. Never enable legacy fallback in gameplay.
+ synth.configure_provider(null,"legacy_offline")
  var wave_hashes: Dictionary={}
  var serial:=0
  for id in profiles:

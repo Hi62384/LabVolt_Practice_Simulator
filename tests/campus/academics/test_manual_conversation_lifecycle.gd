@@ -32,6 +32,9 @@ class HeldClient extends "res://scripts/campus/ai/host_openai_client.gd":
 		return {"ok":true,"text":"An authored microphone question."}
 	func respond_character(_instructions: String,_context: Dictionary,_question: String,_visual:=false) -> Dictionary:
 		model_calls+=1
+		var progress: Variant=_context.get("_request_metadata",{}).get("_text_progress")
+		if progress is Callable and progress.is_valid():
+			progress.call("{\"speech\":\"An authored current conversation reply.\",")
 		if hold_model:
 			model_held=true
 			await released
@@ -80,6 +83,7 @@ func run() -> void:
 	var remembered: int=faculty.brain.recall(visit.teacher,identity).size()
 	submit(faculty,"Tell me something about your interests.")
 	check(fixture.model_held and fixture.model_calls==1,"Typed UI dispatch reaches one held actual character-generation call")
+	check("Reply (verifying" in str(faculty.conversation_text.text) and "An authored current conversation reply." in str(faculty.conversation_text.text),"The actual inspector displays a moderated speech candidate before the held metadata finishes")
 	var first_request:=str(faculty.manual_latest_request)
 	check(not faculty._manual_question_request(1,first_nonce,1,first_request,"Duplicate typed message."),"A repeated typed request ID is rejected before generation")
 	faculty.close_conversation();faculty.open_conversation("ac_lab")

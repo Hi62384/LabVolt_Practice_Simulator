@@ -11,6 +11,13 @@ func run() -> void:
   if child.get_script()!=null and child.get_script().resource_path=="res://scripts/campus/voice/microphone_meter.gd":meter=child;break
  if not is_instance_valid(meter) or meter.running or meter.player!=null:
   push_error("Audio settings started or omitted the microphone test");quit(1);return
+ # Exercise the settings node with the same tree-pause state used in a
+ # singleplayer game. Device signal accuracy is checked by the capture test.
+ paused=true
+ if not meter._start() or not meter.microphone.can_process() or not meter.player.can_process():
+  push_error("Paused Audio settings could not start and process the local microphone test");quit(1);return
+ meter._stop()
+ paused=false
  settings._select("Gameplay")
  await process_frame
  if is_instance_valid(meter) and meter.is_inside_tree():push_error("Microphone test remained mounted after leaving Audio settings");quit(1);return
