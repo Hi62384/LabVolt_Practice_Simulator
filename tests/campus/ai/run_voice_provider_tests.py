@@ -30,10 +30,10 @@ with tempfile.TemporaryDirectory(prefix="labvolt_voice_protocol_") as user_dir:
                 if fixture.poll() is not None:raise RuntimeError("Voice fixture failed to start")
                 time.sleep(.05)
         else:raise RuntimeError("Voice fixture did not become ready")
-        env=dict(os.environ,XDG_DATA_HOME=user_dir,LABVOLT_VOICE_FIXTURE_PORT=str(port),LABVOLT_LIVE_NETWORK_PORT=str(network_port))
+        env=dict(os.environ,XDG_DATA_HOME=user_dir,APPDATA=user_dir,LABVOLT_VOICE_FIXTURE_PORT=str(port),LABVOLT_LIVE_NETWORK_PORT=str(network_port))
         env.pop("OPENAI_API_KEY",None)
         code=0
-        for script in ["test_voice_provider_protocol.gd","test_npc_live_bridge.gd"]:
+        for script in ["test_model_catalog.gd","test_streaming_transcription.gd","test_catalog_voice_http.gd","test_voice_provider_protocol.gd","test_npc_live_bridge.gd"]:
             result=subprocess.run([args.godot,"--headless","--path",str(repo),"--script","res://tests/campus/ai/"+script],env=env,timeout=45)
             code=max(code,result.returncode)
         stats=urllib.request.urlopen(f"http://127.0.0.1:{port}/stats",timeout=1).read().decode()

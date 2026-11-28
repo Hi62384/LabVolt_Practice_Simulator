@@ -13,8 +13,42 @@ ENCODED = base64.b64encode(PCM).decode()
 USAGE = {"input_tokens":100,"output_tokens":40,"input_token_details":{"text_tokens":100,"audio_tokens":0,"cached_tokens":0},"output_token_details":{"text_tokens":10,"audio_tokens":30}}
 COUNTS = {"create":0,"active":0,"peak":0,"transcriptions":0}
 
+async def transcription_ws(request):
+    ws=web.WebSocketResponse()
+    await ws.prepare(request)
+    configured=False
+    audio=bytearray()
+    async for message in ws:
+        if message.type!=web.WSMsgType.TEXT:continue
+        event=json.loads(message.data)
+        kind=event["type"]
+        if kind=="session.update":
+            session=event["session"]
+            assert session["type"]=="transcription"
+            config=session["audio"]["input"]
+            assert config["format"]=={"type":"audio/pcm","rate":24000}
+            assert config["transcription"]["model"] in ["gpt-live-transcribe","gpt-realtime-whisper"]
+            assert config["turn_detection"] is None
+            configured=True
+            await ws.send_json({"type":"session.updated","session":session})
+        elif kind=="input_audio_buffer.append":
+            assert configured
+            audio.extend(base64.b64decode(event["audio"]))
+        elif kind=="input_audio_buffer.commit":
+            assert len(audio)==14400
+            COUNTS["transcriptions"]+=1
+            await ws.send_json({"type":"conversation.item.input_audio_transcription.delta","event_id":"early","item_id":"fixture","delta":"What is"})
+            await ws.send_json({"type":"input_audio_buffer.committed","item_id":"fixture"})
+            await ws.send_json({"type":"conversation.item.input_audio_transcription.completed","item_id":"wrong","transcript":"Wrong"})
+            await ws.send_json({"type":"conversation.item.input_audio_transcription.completed","item_id":"fixture","transcript":"What is voltage?"})
+        else:
+            raise AssertionError(f"Unexpected transcription event: {kind}")
+    return ws
+
 async def voice_ws(request):
     assert request.headers.get("Authorization", "").startswith("Bearer sk-fixture-")
+    if request.query.get("intent")=="transcription":
+        return await transcription_ws(request)
     live = request.path.endswith("/live/sessions")
     assert not live or not request.query
     ws=web.WebSocketResponse()
@@ -138,6 +172,15 @@ async def resource(request):
         assert raw[:4]==b"RIFF" and len(raw)<=5760044
         COUNTS["transcriptions"]+=1
         return web.json_response({"text":"This is a long recognized question. "*30,"languages":[{"code":"en"}]})
+    if request.path=="/v1/chat/completions":
+        data=await request.json()
+        assert data["model"]=="gpt-audio-1.5"
+        assert data["modalities"]==["text","audio"]
+        assert data["audio"]=={"voice":"ash","format":"wav"}
+        spoken=data["messages"][-1]["content"]
+        if "Mismatch" in spoken:spoken="Incorrect answer."
+        wav=struct.pack("<4sI4s4sIHHIIHH4sI",b"RIFF",36+len(PCM),b"WAVE",b"fmt ",16,1,1,24000,48000,2,16,b"data",len(PCM))+PCM
+        return web.json_response({"choices":[{"finish_reason":"stop","message":{"audio":{"data":base64.b64encode(wav).decode(),"transcript":spoken}}}],"usage":USAGE})
     if request.path=="/v1/responses":
         await asyncio.sleep(.2)
         return web.json_response({"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"fixture answer"}]}]})
