@@ -9,6 +9,7 @@ const SeatedPose=preload("res://scripts/campus/academics/student_seated_pose.gd"
 const Behavior=preload("res://scripts/campus/academics/character_behavior.gd")
 const Route=preload("res://scripts/campus/academics/classroom_teacher_route.gd")
 const Population=preload("res://scripts/campus/academics/student_population.gd")
+const Programs=preload("res://scripts/campus/academics/academic_programs.gd")
 const Discipline=preload("res://scripts/campus/academics/classroom_discipline.gd")
 const Memory=preload("res://scripts/campus/academics/character_memory.gd")
 const DossierStore=preload("res://scripts/campus/academics/character_dossier_store.gd")
@@ -30,7 +31,7 @@ var seating: Node
 static func profile_for(id: String) -> Dictionary:
 	if known_profiles.has(id):
 		var profile: Dictionary=known_profiles[id]
-		return DossierStore.project(profile) if not DossierStore.host_identity.is_empty() and profile.has("traits") else profile.duplicate(true)
+		return DossierStore.project(profile) if not DossierStore.host_identity.is_empty() and profile.get("identity_scope","")!="public" else profile.duplicate(true)
 	# Only a host-selected resident or an authenticated public snapshot exists
 	# here. Evidence-based migration belongs to Population, never a UI lookup.
 	return {}
@@ -90,19 +91,38 @@ func configure(owner: Node) -> void:
 	if not FileAccess.file_exists(records_path) and FileAccess.file_exists(RECORDS):
 		var legacy:=ConfigFile.new()
 		if legacy.load(RECORDS)==OK and Population.claim_legacy(profile_id):DirAccess.copy_absolute(RECORDS,records_path)
-	for id in population.people:known_profiles[id]=population.profile_for(id)
+	# A complete dossier is hydrated only when that character is requested.
+	# Public client snapshots retain their explicit no-private-hydration marker.
+	for id in population.people:known_profiles[id]=population.people[id].duplicate(true)
 	var loaded:=records.load(records_path)
 	if loaded!=OK and records.load(records_path+".bak")==OK:
 		loaded=OK
 		_save_records()
 	if loaded==OK:
+		var migrated:=false
 		for id in records.get_sections():
 			if not id.begins_with("campus_student_"):continue
 			var scores: Dictionary={}
-			for course in ["MTH147","MTH255","ETY155","ELM253","DGS266"]:
+			for course in Programs.COURSES:
 				var learned: Variant=records.get_value(id,course,0.)
-				if learned is float and is_finite(learned):scores[course]=clampf(learned,0.,.35)
+				if not (learned is float or learned is int) or not is_finite(float(learned)):continue
+				var gain:=clampf(float(learned),0.,.35)
+				scores[course]=maxf(gain,population.learned(id,course))
+				if gain>population.learned(id,course) and population.people.has(id):
+					migrated=population.record_learning(id,course,gain,0,0.,false)==OK or migrated
+			# Only bounded NPC capability travels. Local assessment marks remain
+			# in this host's records and are never included in a contribution.
+			for key in records.get_section_keys(id):
+				var parts:=str(key).split(".")
+				if parts.size()!=3 or parts[0] not in Programs.COURSES or parts[1]!="week" or not parts[2].is_valid_int():continue
+				var week:=int(parts[2])
+				var learned: Variant=records.get_value(id,key,0.)
+				if week<1 or week>52 or not (learned is float or learned is int) or not is_finite(float(learned)):continue
+				var gain:=clampf(float(learned),0.,.25)
+				if gain>population.learned(id,parts[0],week) and population.people.has(id):
+					migrated=population.record_learning(id,parts[0],float(scores.get(parts[0],0.)),week,gain,false)==OK or migrated
 			learning[id]=scores
+		if migrated:population.save_population()
 
 func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: float) -> void:
 	if not multiplayer.is_server():return
@@ -297,6 +317,7 @@ func act(room: String,activity: Dictionary,member: Dictionary,action: String,poi
 		if point.is_finite():member.look_at=point
 		member.next=maxf(member.next,now+2.3)
 		return true
+	if member.has("seat_relocation"):return false
 	if action=="stand":
 		member.seated=false
 		member.standing=true
@@ -312,9 +333,12 @@ func act(room: String,activity: Dictionary,member: Dictionary,action: String,poi
 		return true
 	if action!="approach" or not point.is_finite() or not game.campus.registry.room_contains(room,point) or member.has("walk"):return false
 	var floor_target:=Vector3(point.x,float(member.position.y),point.z)
-	var path:=Route.plan(game,room,member.position,floor_target,1.6)
+	# Navigation starts inside this student's chair. Exclude only that verified
+	# claim, and retain the same exclusion for each outward and return step.
+	var clear: Callable=seating.npc_space_clear.bind(str(member.profile.id)) if is_instance_valid(seating) else Callable()
+	var path:=Route.plan(game,room,member.position,floor_target,1.6,clear,_own_chair_bodies(member))
 	if path.is_empty() or path.back().distance_to(floor_target)>2.35:return false
-	member.walk={"room":room,"path":path,"visited":[member.position],"index":0,"returning":false}
+	member.walk={"room":room,"path":path,"visited":[member.position],"index":0,"returning":false,"ignore_own_seat":true}
 	member.seated=false
 	member.walking=true
 	member.action="walking"
@@ -351,16 +375,25 @@ func apply_discipline(room: String,activity: Dictionary,id: String,decision: Dic
 	var target:=Vector3.INF
 	if action=="move":
 		var best:=0.5
-		for seat: Vector3 in activity.get("room",{}).get("seats",[]):
+		var options: Array=activity.get("room",{}).get("seats",[])
+		var no_players: Array[Vector3]=[]
+		if is_instance_valid(seating):options=seating.available_points(activity.get("room",{}),no_players)
+		var destinations: Array[Vector3]=[]
+		for seat: Vector3 in options:
 			var chair: Node3D=seating.chair_at(seat) if is_instance_valid(seating) else null
 			if is_instance_valid(seating) and (chair==null or not chair.available_for_npc()):continue
 			if activity.classmates.values().any(func(other):return other!=member and not other.get("removed_from_class",false) and ((other.seat as Vector3).distance_to(seat)<.7 or (other.get("walk",{}).get("target_seat",Vector3.INF) as Vector3).distance_to(seat)<.7)):continue
 			if game.session.roster.keys().any(func(peer):return game.lecture_classes._position(int(peer)).distance_to(seat)<.8):continue
 			var distance: float=member.position.distance_to(seat)
+			if distance>.5:destinations.append(seat)
 			if distance>best:
 				best=distance
 				target=seat
-		if target.is_finite() and is_instance_valid(seating):return seating.move_student(member,activity,room,target)
+		if is_instance_valid(seating):
+			destinations.sort_custom(func(a: Vector3,b: Vector3):return member.position.distance_squared_to(a)>member.position.distance_squared_to(b))
+			for destination in destinations:
+				if seating.move_student(member,activity,room,destination):return true
+			return false
 	else:
 		var raw: Variant=room_data.get("door")
 		if raw is Array and raw.size()==3:
@@ -372,8 +405,9 @@ func apply_discipline(room: String,activity: Dictionary,id: String,decision: Dic
 	target.y=float(member.position.y)
 	var seat_points: Array[Vector3]=[member.seat]
 	if action=="move":seat_points.append(target)
-	var ignored:=_vacant_chair_bodies(seat_points)
-	var path:=Route.plan(game,room,member.position,target,.15,Callable(),ignored)
+	var ignored:=_vacant_chair_bodies(seat_points,str(member.profile.id))
+	var clear: Callable=seating.npc_space_clear.bind(str(member.profile.id)) if is_instance_valid(seating) else Callable()
+	var path:=Route.plan(game,room,member.position,target,.15,clear,ignored)
 	if path.is_empty() or path.back().distance_to(target)>.9:return false
 	if action=="move":
 		if not Route.clear_step(game,path.back(),target,Callable(),ignored):return false
@@ -386,18 +420,25 @@ func apply_discipline(room: String,activity: Dictionary,id: String,decision: Dic
 	member.action="changing seats" if action=="move" else "leaving class"
 	return true
 
-func _vacant_chair_bodies(points: Array[Vector3]) -> Array[RID]:
+func _vacant_chair_bodies(points: Array[Vector3],actor: String="") -> Array[RID]:
 	var ignored: Array[RID]=[]
 	# A seated person's navigation capsule overlaps their own chair. Permit only
 	# the authored start/destination chair while standing or sitting; never ignore
 	# a wall, desk, another occupied chair or the room's general collision layer.
 	for chair: Node3D in game.chairs:
 		if not is_instance_valid(chair) or int(chair.occupant)!=0:continue
+		if not str(chair.npc_occupant).is_empty() and str(chair.npc_occupant)!=actor:continue
 		if not points.any(func(point):return point.distance_to(chair.global_position)<.55):continue
 		if chair is CollisionObject3D:ignored.append(chair.get_rid())
 		for child in chair.get_children():
 			if child is CollisionObject3D and str(child.get_meta("role",""))=="chair":ignored.append(child.get_rid())
 	return ignored
+
+func _own_chair_bodies(member: Dictionary) -> Array[RID]:
+	if not is_instance_valid(seating):return []
+	var chair: Node3D=seating.chair_for(str(member.get("seat_id","")))
+	if chair==null or int(chair.occupant)!=0 or str(chair.npc_occupant)!=str(member.profile.id):return []
+	return seating._ignored([chair])
 
 func _observe_student_behavior(room: String,activity: Dictionary,member: Dictionary,now: float) -> void:
 	if activity.phase not in ["lesson","assignment"] or member.get("removed_from_class",false):return
@@ -485,8 +526,10 @@ func _step_walk(activity: Dictionary,member: Dictionary,now: float,delta: float)
 	var target: Vector3=path[int(walk.index)]
 	var next:=position.move_toward(target,delta*lerpf(.92,1.68,float(member.profile.traits.energy)))
 	var ignored: Array[RID]=[]
-	if walk.has("seat_points"):ignored=_vacant_chair_bodies(walk.seat_points)
-	if not game.campus.registry.room_contains(walk.room,next) or not Route.clear_step(game,position,next,Callable(),ignored):
+	if walk.has("seat_points"):ignored=_vacant_chair_bodies(walk.seat_points,str(member.profile.id))
+	elif walk.get("ignore_own_seat",false):ignored=_own_chair_bodies(member)
+	var clear: Callable=seating.npc_space_clear.bind(str(member.profile.id)) if is_instance_valid(seating) else Callable()
+	if not game.campus.registry.room_contains(walk.room,next) or not Route.clear_step(game,position,next,clear,ignored):
 		member.erase("walk")
 		member.walking=false
 		member.leaving_class=false
@@ -580,6 +623,11 @@ func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 	if reply.is_empty():return
 	if activity.phase!=reply.get("phase","arrival"):
 		activity.erase("classmate_reply");return
+	var response: Dictionary=reply.get("result",{})
+	# Ownership/canon guards invalidate queued speech immediately, even while
+	# another utterance is still pending. Waiting cannot keep old-host work alive.
+	if not response.is_empty() and not _social_delivery_current(response,activity,str(reply.phase)):
+		activity.erase("classmate_reply");return
 	# The host speech player's real generation/playback state controls the next
 	# turn. A text-length estimate must not make students talk over each other.
 	if _voice_pending(str(reply.speaker)):
@@ -587,8 +635,6 @@ func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 		return
 	if now<float(reply.at):return
 	activity.erase("classmate_reply")
-	var response: Dictionary=reply.get("result",{})
-	if not response.is_empty() and not _social_delivery_current(response,activity,str(reply.phase)):return
 	var actor: Dictionary=activity.classmates.get(reply.listener,{})
 	if actor.is_empty() or not activity.classmates.has(reply.speaker):return
 	var initiator: Dictionary=activity.classmates[reply.speaker]
@@ -642,7 +688,8 @@ static func _speech_seconds(line: String) -> float:
 
 func proficiency(id: String,course: String,base: float) -> float:
 	var affinity:=float(posmod(hash([id,course]),101))/1000.-.05
-	return clampf(base+affinity+float(learning.get(id,{}).get(course,0.)),.1,.93)
+	var gain:=maxf(float(learning.get(id,{}).get(course,0.)),population.learned(id,course))
+	return clampf(base+affinity+gain,.1,.93)
 
 func debug_snapshot() -> Dictionary:
 	var classes: Dictionary={}
@@ -691,6 +738,7 @@ func record_quiz_rivals(activity: Dictionary,scores: Dictionary) -> void:
 func record_practice(id: String,course: String,correct: bool,week := 0,activity: Dictionary={},event_id: String="",kind: String="quiz",safe_lab: bool=false) -> void:
 	if not multiplayer.is_server() or not id.begins_with("campus_student_"):return
 	if host_profile.is_empty() or population.profile_blocked:return
+	if not population.people.has(id) or course not in Programs.COURSES or week<0 or week>52:return
 	if is_instance_valid(game) and host_profile!=str(game.school.local_identity):return
 	var member: Dictionary=activity.get("classmates",{}).get(id,{})
 	var token:=""
@@ -702,12 +750,15 @@ func record_practice(id: String,course: String,correct: bool,week := 0,activity:
 		# neither learning gain nor directional memory should be awarded twice.
 		if token in game.faculty.brain.processed_events.get(id+":"+id,[]):return
 	var scores: Dictionary=learning.get_or_add(id,{})
-	scores[course]=minf(.35,float(scores.get(course,0.))+(.015 if correct else .008))
+	scores[course]=minf(.35,maxf(float(scores.get(course,0.)),population.learned(id,course))+(.015 if correct else .008))
 	records.set_value(id,course,scores[course])
+	var concept_gain:=0.
 	if week>0:
 		var key: String="%s.week.%d"%[course,week]
-		var value:=clampf(float(records.get_value(id,key,0.)),0.,.25)
-		records.set_value(id,key,minf(.25,value+(.025 if correct else .01)))
+		var value:=maxf(clampf(float(records.get_value(id,key,0.)),0.,.25),population.learned(id,course,week))
+		concept_gain=minf(.25,value+(.025 if correct else .01))
+		records.set_value(id,key,concept_gain)
+	population.record_learning(id,course,float(scores[course]),week,concept_gain)
 	_save_records()
 	if not token.is_empty():
 		var timestamp:=int(Time.get_unix_time_from_system())
@@ -744,7 +795,7 @@ func _assessment_step(activity: Dictionary,member: Dictionary,now: float) -> voi
 	var id: String=member.profile.id
 	var course: String=activity.course
 	var week: int=activity.week
-	var concept_gain:=clampf(float(records.get_value(id,"%s.week.%d"%[course,week],0.)),0.,.25)
+	var concept_gain:=maxf(clampf(float(records.get_value(id,"%s.week.%d"%[course,week],0.)),0.,.25),population.learned(id,course,week))
 	var skill:=clampf(proficiency(id,course,member.profile.knowledge)+concept_gain,.1,.96)
 	var rng:=RandomNumberGenerator.new()
 	rng.seed=hash([activity.id,id])

@@ -177,6 +177,11 @@ func _run() -> void:
 		await _flush_remote(client, 1)
 		_check(server.faculty.questions.is_empty() and server.faculty.ai_busy.is_empty() and server.faculty.last_dialogue.is_empty() and server.faculty.lesson_feedback.is_empty(), "Host rejects typed, microphone, action and lesson feedback requests after teacher rotation in transit")
 		server.game.lecture_classes.classes[ROOM].teacher = "mr_bro"
+		# The production scheduler has independent actor lanes. Hold this guest's
+		# actual lane so RPC validation can be inspected without starting AI work;
+		# an unrelated provider.busy flag intentionally does not block every NPC.
+		server.faculty.ai_busy[guest]=ROOM
+		server.faculty.question_channels[guest]="mr_bro"
 		client.faculty.conversation_input.text = "Authenticated current target"
 		client.faculty._submit_question()
 		client.faculty._send_voice_question(ROOM, wav, "", "inspection_class", "mr_bro")
@@ -192,6 +197,8 @@ func _run() -> void:
 		await _flush_remote(client, 3)
 		_check(server.faculty.questions.size() == 2, "Host rejects changed-class and empty-target requests before adding work")
 		server.game.host_openai.busy = false
+		server.faculty.ai_busy.erase(guest)
+		server.faculty.question_channels.erase(guest)
 		server.faculty._next_question()
 		server.faculty._next_question()
 		_check(server.faculty.questions.is_empty() and server.faculty.ai_busy.is_empty(), "Queued typed and microphone requests are rejected again if the captured class changes before processing")

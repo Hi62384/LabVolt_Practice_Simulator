@@ -54,9 +54,19 @@ func _initialize() -> void:
 	check(not Programs.eligible({"program":"hospitality"},"ETY155"),"unrelated program cannot enter electrical lab")
 	check(Programs.eligible({"program":"electrical engineering"},"MTH255"),"shared math curriculum accepts electrical students")
 	check(not Programs.eligible({"program":"electronics technology","enrollment":{"ETY155":"suspended"}},"ETY155"),"enrollment restriction is enforced")
+	check(Programs.eligible({"program":"hospitality","enrollment":{"ETY155":"enrolled"}},"ETY155"),"explicit authoritative elective enrollment permits a cross-program course")
+	check(not Programs.eligible({"program":"hospitality","enrollment":{"ETY155":"withdrawn"}},"ETY155"),"withdrawn elective remains ineligible")
 	alice.record_attendance(old_id,"MTH147","class-one",["player-alice"])
 	alice.record_attendance(old_id,"MTH147","class-one",["player-alice"])
 	check(int(alice.profile_for(old_id).appearances)==1,"duplicate attendance event cannot count twice")
+	check(alice.record_learning(old_id,"MTH147",.18,2,.11)==OK,"bounded NPC learning saved beside identity")
+	check(alice.record_learning(old_id,"MTH147",.05,2,.02)==OK and is_equal_approx(alice.learned(old_id,"MTH147"),.18),"older learning cannot erase practiced skills")
+	check(alice.record_learning(old_id,"ETY155",.12,1,.04,false)==OK and alice.dirty,"legacy learning migration can batch without an intermediate save")
+	check(alice.save_population()==OK,"batched learning migration persists together")
+	alice.persistence_blocked=true
+	check(alice.record_learning(old_id,"ETY155",.3)==ERR_FILE_CORRUPT and is_equal_approx(alice.learned(old_id,"ETY155"),.12),"blocked storage rejects learning mutation")
+	alice.persistence_blocked=false
+	check(not JSON.stringify(alice.manifest()).contains("familiar_players"),"local selection familiarity never enters public index pages")
 	var payload: Dictionary=wire(alice.export_person(portable_id))
 	check(not JSON.stringify(payload).contains("familiar_players"),"manifest/profile omit other players' familiarity identifiers")
 	var local_memory:=Memory.new()
@@ -83,6 +93,11 @@ func _initialize() -> void:
 	var copy:=bob.profile_for(portable_id)
 	check(copy.get("name")==original.name and Population._digest(copy.get("appearance"))==Population._digest(original.appearance),"contributed name and appearance stay fixed")
 	check(copy.get("origin_population")==original.origin_population,"origin survives host migration")
+	check(is_equal_approx(bob.learned(portable_id,"MTH147"),.18) and is_equal_approx(bob.learned(portable_id,"MTH147",2),.11),"course and weekly NPC learning survive host migration")
+	var progress:=payload.duplicate(true);progress.erase("dossier");progress.learning.MTH147=.24
+	check(bob.import_progress(progress).get("ok",false) and is_equal_approx(bob.learned(portable_id,"MTH147"),.24),"small progress packet updates known identity without biography retransmission")
+	progress.learning.MTH147=1.
+	check(not bob.import_progress(progress).get("ok",true),"imported NPC learning cannot exceed gameplay skill bounds")
 	check(bob.import_person(payload,2).get("ok",false) and bob.people.size()==13,"duplicate contribution deduplicates by global identity")
 	if payload.is_empty():
 		for failure in failures:printerr("FAIL: "+failure)
@@ -102,6 +117,15 @@ func _initialize() -> void:
 	check(new_memory.save_memory()==OK,"portable social snapshot passes authoritative persistence validation")
 	var load_memory:=Memory.new();load_memory.set_host_profile("portable-memory-bob-"+suffix)
 	check(load_memory.load_memory() and load_memory.relationship(portable_id,"player-alice").get("episodes",[]).size()==2,"significant relationship memories survive restart")
+	mind.feel(original,"insult",.8,10000)
+	mind.moods[old_id].history[0].description="PRIVATE OTHER PLAYER CONVERSATION"
+	var mood:=local_memory.export_mood_record(old_id)
+	check(not JSON.stringify(mood).contains("PRIVATE OTHER"),"portable global affect strips private conversational explanations")
+	check(new_memory.import_mood_record(portable_id,wire(mood),true),"bounded global emotional state imports")
+	check(new_memory.export_mood_record(portable_id).values==mood.values,"same individual's mood values survive changing hosts")
+	var divergent_mood:=mood.duplicate(true);divergent_mood.values.anger=0.
+	new_memory.import_mood_record(portable_id,divergent_mood,false)
+	check(is_equal_approx(float(new_memory.export_mood_record(portable_id).values.anger),float(mood.values.anger)),"uncertain concurrent mood preserves existing host affect")
 	var public_canon:=local_memory.export_identity_canon(original)
 	check(new_memory.import_identity_canon(copy,wire(public_canon)).get("ok",false),"fictional canon passes bounded cross-host schema")
 	var second_archive:=Archive.new();second_archive.configure("portable-archive-bob-"+suffix)

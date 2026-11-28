@@ -35,7 +35,17 @@ func run() -> void:
 	check(students.population.save_population()==OK,"Known alpha profile is saved")
 	students.record_practice("campus_student_14","ELM253",true,1)
 	check(students.learning_save_error==OK,"Known alpha learning is saved")
+	check(is_equal_approx(students.population.learned("campus_student_14","ELM253"),.015) and is_equal_approx(students.population.learned("campus_student_14","ELM253",1),.025),"Actual practice updates both portable course and concept capability")
+	# Exercise an existing host save from before portable learning was added.
+	students.population.people.campus_student_14.erase("learning")
+	students.population.people.campus_student_14.erase("learning_weeks")
+	students.population.dirty=true;students.population.save_population()
+	students.records.set_value("campus_student_14","ELM253.last_score",92.)
+	students._save_records()
 	students.configure(game)
+	check(is_equal_approx(students.population.learned("campus_student_14","ELM253"),.015) and is_equal_approx(students.population.learned("campus_student_14","ELM253",1),.025),"Existing per-host learning migrates into the same persistent student's capability")
+	var portable:=students.population.export_person(str(students.population.people.campus_student_14.persistent_id))
+	check(not JSON.stringify(portable).contains("last_score"),"An individual student's bounded capability travels without local assessment marks")
 	check(Students.profile_for("campus_student_14").biography.get("host_private_fact","")=="Only the alpha campus knows this story.","Controller publishes its selected host's full private profile locally")
 	var alpha_population:=students.population.path
 	var alpha_learning:=students.records_path
@@ -56,6 +66,13 @@ func run() -> void:
 	students.configure(game)
 	check(not students.population.profile_blocked and students.host_profile==game.school.local_identity,"A valid new host can recover after the failed selection")
 	check(not Students.profile_for("campus_student_14").get("biography",{}).has("host_private_fact") and students.learning.is_empty(),"The new host inherits no alpha profile or learning")
+	var imported:=students.population.import_person(JSON.parse_string(JSON.stringify(portable)),2)
+	check(imported.get("ok",false),"Another host explicitly admits the known student's portable record")
+	var imported_id:=str(imported.get("id",""))
+	var baseline:=.5+float(posmod(hash([imported_id,"ELM253"]),101))/1000.-.05
+	check(is_equal_approx(students.proficiency(imported_id,"ELM253",.5),baseline+.015),"Gameplay proficiency uses an admitted student's existing practice before any local practice")
+	students.record_practice(imported_id,"ELM253",true,1)
+	check(is_equal_approx(students.population.learned(imported_id,"ELM253"),.03) and is_equal_approx(students.population.learned(imported_id,"ELM253",1),.05),"Practice on the new host continues the existing course and concept gains")
 	game.school.local_identity="population-binding-alpha"
 	students.configure(game)
 	check(Students.profile_for("campus_student_14").biography.get("host_private_fact","")=="Only the alpha campus knows this story.","Returning to alpha restores its correct identity")

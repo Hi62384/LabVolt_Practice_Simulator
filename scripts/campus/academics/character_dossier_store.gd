@@ -3,6 +3,7 @@ extends RefCounted
 ## a relationship, generate a character, or count as a social event.
 const Dossier = preload("res://scripts/campus/academics/character_dossier.gd")
 const VERSION := 1
+const STORAGE_VERSION := 2
 const MAX_BYTES := 134217728
 const MAX_IDENTITIES := 4128
 static var dossiers: Dictionary = {}
@@ -17,6 +18,8 @@ static var last_load_error := OK
 static var recovered_backup := false
 static var _session_cache: Dictionary = {}
 static var _projection_cache: Dictionary = {}
+static var hydrated_count := 0
+static var unavailable: Dictionary = {}
 
 static func set_host_profile(identity: String) -> Error:
 	if identity.is_empty() or identity.length() > 128: return ERR_INVALID_PARAMETER
@@ -38,6 +41,8 @@ static func set_host_profile(identity: String) -> Error:
 	path = next_path
 	revision += 1
 	_projection_cache.clear()
+	unavailable.clear()
+	hydrated_count=0
 	dossiers = {}
 	jobs = {}
 	dirty = false
@@ -72,6 +77,14 @@ static func set_host_profile(identity: String) -> Error:
 			job.last_error = "Previous session ended before this generation completed."
 			dirty = true
 	dirty = dirty or recovered_backup
+	if int(loaded.version)==VERSION:
+		# Commit immutable blobs first, then replace the legacy collection with a
+		# lightweight manifest. A process interruption leaves the old file valid.
+		dirty=true
+		var migration_error:=save()
+		if migration_error!=OK:return migration_error
+		var migrated:=_read(path)
+		if not migrated.is_empty():dossiers=migrated.dossiers
 	return OK
 
 static func ensure(profile: Dictionary) -> Dictionary:
@@ -79,24 +92,29 @@ static func ensure(profile: Dictionary) -> Dictionary:
 	var id := str(profile.get("id", ""))
 	if id.is_empty(): return {}
 	if not dossiers.has(id):
+		if profile.get("dossier_ref",false):
+			unavailable[id]="Saved dossier reference is unavailable; identity was retained."
+			return {}
 		if dossiers.size() >= MAX_IDENTITIES: return Dossier.migrate(profile)
 		dossiers[id] = Dossier.migrate(profile)
 		dirty = true
-	return dossiers[id].duplicate(true)
+	return get_dossier(id)
 
 static func project(profile: Dictionary) -> Dictionary:
 	if profile.get("identity_scope", "") == "public": return profile.duplicate(true)
 	var id := str(profile.get("id",""))
 	if not dossiers.has(id): ensure(profile)
-	if not dossiers.has(id): return _voice_scoped(profile.duplicate(true))
-	var d: Dictionary = dossiers[id]
+	if not dossiers.has(id): return {} if profile.get("dossier_ref",false) else _voice_scoped(profile.duplicate(true))
+	var d:=get_dossier(id)
+	if d.is_empty():return {}
 	var content_revision := int(d.get("revision",1))
 	if not _projection_cache.has(id) or int(_projection_cache[id].revision)!=content_revision:
 		_projection_cache[id]={"revision":content_revision,"profile":Dossier.project(profile,d)}
 	var result: Dictionary=_projection_cache[id].profile.duplicate(true)
 	# Attendance and origin are runtime index metadata, not biography revisions.
-	for field in ["origin_population","persistent_id","attendance","newly_generated","enrollment"]:
+	for field in ["origin_population","persistent_id","attendance","newly_generated","enrollment","learning","learning_weeks"]:
 		if profile.has(field):result[field]=profile[field].duplicate(true) if profile[field] is Dictionary or profile[field] is Array else profile[field]
+	if not result.has("origin_population") and d.get("identity",{}).has("origin_population"):result.origin_population=d.identity.origin_population
 	return _voice_scoped(result)
 
 static func _voice_scoped(profile: Dictionary) -> Dictionary:
@@ -108,11 +126,27 @@ static func _voice_scoped(profile: Dictionary) -> Dictionary:
 	return profile
 
 static func get_dossier(id: String) -> Dictionary:
-	return dossiers.get(id, {}).duplicate(true)
+	var entry: Dictionary=dossiers.get(id,{})
+	if not entry.has("_blob"):return entry.duplicate(true)
+	var data:=_load_blob(id,entry)
+	if data.is_empty():
+		unavailable[id]="Saved dossier is missing or corrupt; its identity is retained."
+		last_load_error=ERR_FILE_CORRUPT
+		return {}
+	dossiers[id]=data
+	unavailable.erase(id)
+	hydrated_count+=1
+	return data.duplicate(true)
+
+static func summary(id: String) -> Dictionary:
+	var entry: Dictionary=dossiers.get(id,{})
+	if entry.is_empty():return {}
+	return entry.duplicate(true) if entry.has("_blob") else _entry(entry,str(entry.get("_blob","")),0)
 
 static func preserve_biography(id: String, biography: Dictionary) -> void:
 	# One-time migration only. Developing facts remain in CharacterLifeMemory.
 	if not dossiers.has(id): return
+	if get_dossier(id).is_empty():return
 	var d: Dictionary = dossiers[id]
 	var established: Dictionary = d.get_or_add("established_biography", {})
 	for key in biography:
@@ -124,9 +158,11 @@ static func preserve_biography(id: String, biography: Dictionary) -> void:
 
 static func queue(profile: Dictionary, priority := 0) -> bool:
 	if blocked or profile.get("identity_scope", "") == "public": return false
+	var known: Dictionary=dossiers.get(str(profile.get("id","")),{})
+	if known.get("generation",{}).get("status")=="complete" or unavailable.has(str(profile.get("id",""))):return false
 	var d := ensure(profile)
 	var id := str(profile.get("id", ""))
-	if id.is_empty() or d.get("generation", {}).get("status") == "complete": return false
+	if id.is_empty() or d.is_empty() or d.get("generation", {}).get("status") == "complete": return false
 	if jobs.has(id):
 		jobs[id].priority = maxi(int(jobs[id].get("priority", 0)), priority)
 		return false
@@ -157,14 +193,17 @@ static func update_job(id: String, job: Dictionary) -> void:
 static func publish(candidate: Dictionary, seed: Dictionary = {}, telemetry: Dictionary = {}) -> Dictionary:
 	if blocked: return {"ok": false, "error": "Dossier persistence is blocked."}
 	var id := str(candidate.get("identity",{}).get("id",""))
-	if dossiers.has(id): seed=dossiers[id].duplicate(true)
+	if dossiers.has(id):
+		seed=get_dossier(id)
+		if seed.is_empty():return {"ok":false,"error":"Established dossier is unavailable; identity was retained."}
 	var validation := Dossier.validate(candidate, seed)
 	if not validation.ok: return validation
-	var previous: Dictionary = dossiers.get(id, {}).duplicate(true)
+	var previous:=get_dossier(id)
 	var d := {}
 	for field in ["identity", "life_history", "personality", "communication", "traits", "knowledge", "voice", "compact_core", "trait_evidence"]:
 		d[field] = candidate[field].duplicate(true) if candidate[field] is Dictionary or candidate[field] is Array else candidate[field]
 	if not seed.get("identity",{}).get("appearance",{}).is_empty(): d.identity.appearance=seed.identity.appearance.duplicate(true)
+	if _digest(seed.get("identity",{}).get("origin_population")):d.identity.origin_population=seed.identity.origin_population
 	d.version = VERSION
 	d.revision = int(previous.get("revision",0))+1
 	d.subjects = seed.get("subjects",[]).duplicate()
@@ -213,7 +252,20 @@ static func save() -> Error:
 			if not FileAccess.file_exists(destination):
 				last_save_error = DirAccess.copy_absolute(source, destination)
 				if last_save_error != OK: return last_save_error
-	var serialized := JSON.stringify({"version": VERSION, "dossiers": dossiers, "jobs": jobs})
+	var entries:={}
+	var total_bytes:=0
+	for id in dossiers:
+		var d: Dictionary=dossiers[id]
+		if d.has("_blob"):
+			if not _valid_entry(str(id),d):last_save_error=ERR_INVALID_DATA;return last_save_error
+			entries[id]=d.duplicate(true)
+		else:
+			var stored:=_store_blob(str(id),d)
+			if stored.is_empty():return last_save_error
+			entries[id]=stored
+		total_bytes+=int(entries[id].get("_bytes",0))
+	if total_bytes>MAX_BYTES:last_save_error=ERR_OUT_OF_MEMORY;return last_save_error
+	var serialized := JSON.stringify({"version": STORAGE_VERSION, "dossiers": entries, "jobs": jobs})
 	if serialized.to_utf8_buffer().size() > MAX_BYTES:
 		last_save_error = ERR_OUT_OF_MEMORY
 		return last_save_error
@@ -230,6 +282,9 @@ static func save() -> Error:
 		last_save_error = ERR_INVALID_DATA
 		return last_save_error
 	if not old.is_empty():
+		if int(old.get("version",0))==VERSION and not FileAccess.file_exists(path+".legacy-v1.json"):
+			last_save_error=DirAccess.copy_absolute(path,path+".legacy-v1.json")
+			if last_save_error!=OK:return last_save_error
 		last_save_error = DirAccess.copy_absolute(path, path + ".bak")
 		if last_save_error != OK: return last_save_error
 	last_save_error = DirAccess.rename_absolute(path + ".tmp", path)
@@ -245,10 +300,13 @@ static func _read(source: String) -> Dictionary:
 	file.close()
 	if error != OK: return {}
 	var parsed: Variant = parser.data
-	if not parsed is Dictionary or parsed.get("version") != VERSION or not parsed.get("dossiers") is Dictionary or not parsed.get("jobs") is Dictionary: return {}
+	if not parsed is Dictionary or not _whole(parsed.get("version"),VERSION,STORAGE_VERSION) or not parsed.get("dossiers") is Dictionary or not parsed.get("jobs") is Dictionary: return {}
 	if parsed.dossiers.size() > MAX_IDENTITIES or parsed.jobs.size() > MAX_IDENTITIES: return {}
 	for id in parsed.dossiers:
 		var d: Variant = parsed.dossiers[id]
+		if int(parsed.version)==STORAGE_VERSION:
+			if not d is Dictionary or not _valid_entry(str(id),d):return {}
+			continue
 		if not d is Dictionary or not d.get("identity") is Dictionary or d.identity.get("id") != id: return {}
 		for field in ["personality", "communication", "traits", "knowledge", "voice", "generation"]:
 			if not d.get(field) is Dictionary: return {}
@@ -303,7 +361,7 @@ static func diagnostics(id := "") -> Dictionary:
 		if job.get("status") in ["queued", "running", "retry"]: pending += 1
 	var job: Dictionary = jobs.get(id, {})
 	var state: Dictionary = dossiers.get(id, {}).get("generation", {})
-	return {"host_scoped": not host_identity.is_empty(), "identity_count": dossiers.size(), "complete_count": complete, "pending_count": pending, "selected_status": str(job.get("status", state.get("status", "not_created"))), "last_error": str(job.get("last_error", "")), "attempts": int(job.get("attempts", 0)), "requests": int(job.get("requests", 0)), "measurement": job.get("measurement", state.get("measurement", {})).duplicate(true), "persistence_state": "blocked" if blocked else "unsaved" if dirty else "saved", "last_save_error": last_save_error, "last_load_error": last_load_error, "recovered_backup": recovered_backup, "storage_bytes": _storage_bytes()}
+	return {"host_scoped": not host_identity.is_empty(), "identity_count": dossiers.size(), "complete_count": complete, "pending_count": pending, "selected_status": "unavailable" if unavailable.has(id) else str(job.get("status", state.get("status", "not_created"))), "last_error": str(unavailable.get(id,job.get("last_error", ""))), "attempts": int(job.get("attempts", 0)), "requests": int(job.get("requests", 0)), "measurement": job.get("measurement", state.get("measurement", {})).duplicate(true), "persistence_state": "blocked" if blocked else "unsaved" if dirty else "saved", "last_save_error": last_save_error, "last_load_error": last_load_error, "recovered_backup": recovered_backup, "storage_bytes": _storage_bytes(),"hydrated_count":hydrated_count,"unavailable_identities":unavailable.size()}
 
 static func _storage_bytes() -> int:
 	if path.is_empty(): return 0
@@ -311,7 +369,93 @@ static func _storage_bytes() -> int:
 	if file==null:return 0
 	var bytes := file.get_length()
 	file.close()
+	for entry in dossiers.values():bytes+=int(entry.get("_bytes",0)) if entry.has("_blob") else JSON.stringify(entry).to_utf8_buffer().size()
 	return bytes
+
+static func _entry(dossier: Dictionary,blob: String,bytes: int) -> Dictionary:
+	var identity: Dictionary=dossier.get("identity",{})
+	var compact_identity:={}
+	for field in ["id","name","age","role","program"]:compact_identity[field]=identity.get(field,"" if field!="age" else 18)
+	if identity.has("origin_population"):compact_identity.origin_population=identity.origin_population
+	var result:={"identity":compact_identity,"revision":int(dossier.get("revision",1)),"generation":{"status":str(dossier.get("generation",{}).get("status","needs_expansion"))},"subjects":dossier.get("subjects",[]).duplicate(),"traits":{"academic_motivation":float(dossier.get("traits",{}).get("academic_motivation",.5))}}
+	if not blob.is_empty():result._blob=blob;result._bytes=bytes
+	return result
+
+static func _valid_entry(id: String,entry: Dictionary) -> bool:
+	if id.is_empty() or id.length()>64 or not id.is_valid_identifier() or not _digest(entry.get("_blob")):return false
+	if not _whole(entry.get("_bytes"),1,Dossier.MAX_BYTES) or not _whole(entry.get("revision"),1,1000000000):return false
+	if not entry.get("identity") is Dictionary or not entry.get("generation") is Dictionary or not entry.get("traits") is Dictionary:return false
+	if entry.identity.get("id")!=id or entry.identity.get("role") not in ["student","teacher","staff"] or not _whole(entry.identity.get("age"),18,110):return false
+	if entry.identity.has("origin_population") and not _digest(entry.identity.origin_population):return false
+	for field in ["name","program"]:
+		if not entry.identity.get(field) is String or (entry.identity[field].is_empty() and field=="name") or entry.identity[field].length()>(80 if field=="name" else 160):return false
+		for character in entry.identity[field]:
+			if character.unicode_at(0)<32:return false
+	if entry.generation.get("status") not in ["complete","needs_expansion"]:return false
+	var motivation: Variant=entry.traits.get("academic_motivation")
+	if not (motivation is int or motivation is float) or not is_finite(float(motivation)) or float(motivation)<0. or float(motivation)>1.:return false
+	if not entry.get("subjects") is Array or entry.subjects.size()>128:return false
+	for subject in entry.subjects:
+		if not subject is String or subject.length()>256:return false
+	return JSON.stringify(entry).to_utf8_buffer().size()<=4096
+
+static func _read_blob(source: String,id: String,digest: String) -> Dictionary:
+	var file:=FileAccess.open(source,FileAccess.READ)
+	if file==null:return {}
+	if file.get_length()>Dossier.MAX_BYTES:file.close();return {}
+	var serialized:=file.get_as_text();file.close()
+	if serialized.sha256_text()!=digest:return {}
+	var raw: Variant=JSON.parse_string(serialized)
+	if not raw is Dictionary or not raw.get("identity") is Dictionary or raw.identity.get("id")!=id:return {}
+	return raw if Dossier.validate(raw,{},false).get("ok",false) else {}
+
+static func _blob_path(digest: String) -> String:
+	return path+".records/"+digest+".json"
+
+static func _preserve_blob(source: String) -> Error:
+	if not FileAccess.file_exists(source):return OK
+	var copy:=source+".corrupt-"+FileAccess.get_sha256(source)
+	return OK if FileAccess.file_exists(copy) else DirAccess.copy_absolute(source,copy)
+
+static func _load_blob(id: String,entry: Dictionary) -> Dictionary:
+	if not _valid_entry(id,entry):return {}
+	var source:=_blob_path(str(entry._blob))
+	var loaded:=_read_blob(source,id,str(entry._blob))
+	if not loaded.is_empty():return loaded
+	loaded=_read_blob(source+".bak",id,str(entry._blob))
+	if loaded.is_empty():return {}
+	# A backup is validated before repairing a corrupt primary. Its damaged
+	# bytes remain available for recovery/debugging and are never silently lost.
+	var error:=_preserve_blob(source)
+	if error==OK:error=DirAccess.copy_absolute(source+".bak",source+".tmp")
+	if error==OK:error=DirAccess.rename_absolute(source+".tmp",source)
+	if error!=OK:last_save_error=error
+	recovered_backup=true
+	return loaded
+
+static func _store_blob(id: String,dossier: Dictionary) -> Dictionary:
+	if not dossier.get("identity") is Dictionary or dossier.identity.get("id")!=id or not Dossier.validate(dossier,{},false).get("ok",false):last_save_error=ERR_INVALID_DATA;return {}
+	var serialized:=JSON.stringify(dossier,"",true)
+	var digest:=serialized.sha256_text()
+	var source:=_blob_path(digest)
+	var entry:=_entry(dossier,digest,serialized.to_utf8_buffer().size())
+	if not _valid_entry(id,entry):last_save_error=ERR_INVALID_DATA;return {}
+	if not _read_blob(source,id,digest).is_empty() and not _read_blob(source+".bak",id,digest).is_empty():return entry
+	last_save_error=DirAccess.make_dir_recursive_absolute(source.get_base_dir())
+	if last_save_error!=OK:return {}
+	for existing in [source,source+".bak"]:
+		if FileAccess.file_exists(existing) and _read_blob(existing,id,digest).is_empty():
+			last_save_error=_preserve_blob(existing)
+			if last_save_error!=OK:return {}
+	var file:=FileAccess.open(source+".tmp",FileAccess.WRITE)
+	if file==null:last_save_error=FileAccess.get_open_error();return {}
+	file.store_string(serialized);file.flush();last_save_error=file.get_error();file.close()
+	if last_save_error!=OK:return {}
+	if _read_blob(source+".tmp",id,digest).is_empty():last_save_error=ERR_INVALID_DATA;return {}
+	last_save_error=DirAccess.rename_absolute(source+".tmp",source)
+	if last_save_error!=OK:return {}
+	last_save_error=DirAccess.copy_absolute(source,source+".bak")
+	return entry if last_save_error==OK else {}
 
 static func import_identity(incoming: Dictionary) -> Dictionary:
 	if blocked or path.is_empty():return {"ok":false,"error":"Character storage is unavailable."}
@@ -319,7 +463,8 @@ static func import_identity(incoming: Dictionary) -> Dictionary:
 	if not validation.get("ok",false):return {"ok":false,"error":"Contributed dossier failed schema validation."}
 	var id:=str(incoming.identity.id)
 	if incoming.identity.get("role")!="student" or not id.begins_with("campus_student_"):return {"ok":false,"error":"Only student identities can be contributed."}
-	var previous: Dictionary=dossiers.get(id,{}).duplicate(true)
+	var previous:=get_dossier(id)
+	if dossiers.has(id) and previous.is_empty():return {"ok":false,"error":"Established dossier is unavailable; identity was retained."}
 	var merged:=incoming.duplicate(true)
 	# A revision number from a second device is not an authority claim. Preserve
 	# established facts and merge only identical or new nonconflicting sections.
@@ -341,6 +486,7 @@ static func import_identity(incoming: Dictionary) -> Dictionary:
 	for key in ["version","revision","identity","life_history","personality","communication","traits","knowledge","voice","compact_core","trait_evidence","subjects","design_specification","trait_constraints","established_biography","generation","provenance"]:
 		if merged.has(key):safe[key]=merged[key]
 	safe.version=VERSION
+	if not safe.identity.has("origin_population") and _digest(incoming.identity.get("origin_population")):safe.identity.origin_population=incoming.identity.origin_population
 	dossiers[id]=safe
 	_projection_cache.erase(id)
 	dirty=true

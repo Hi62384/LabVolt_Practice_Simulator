@@ -434,6 +434,7 @@ static func accept_portable_profile(person: Dictionary,record: Dictionary) -> Er
 	incoming.voice_scope=scope_for(person)
 	incoming.audition_status="not_auditioned_on_this_device"
 	if not _valid_identity(incoming,id) or incoming.get("approval_status") not in ["provisional_preset","approved"]:return ERR_INVALID_DATA
+	if incoming.voice_type!="preset" and incoming.approval_status!="approved":return ERR_INVALID_DATA
 	var preferred:=str(incoming.get("preferred_model",""))
 	var voice: Variant=str(incoming.permanent_voice_id) if incoming.voice_type=="preset" else {"id":str(incoming.permanent_voice_id)}
 	if incoming.voice_type=="preset" and voice not in Models.LIVE_VOICES+Models.speech_voices("gpt-4o-mini-tts"):return ERR_INVALID_DATA

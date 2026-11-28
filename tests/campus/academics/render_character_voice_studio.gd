@@ -11,7 +11,13 @@ var capture_path:=""
 class PopulationFixture:
 	extends RefCounted
 	var people: Dictionary={}
-	func profile_for(id: String) -> Dictionary:return people.get(id,{}).duplicate(true)
+	var index: Dictionary={}
+	var saved_profiles: Dictionary={}
+	var hydrated: Array[String]=[]
+	var unavailable: Dictionary={}
+	func profile_for(id: String) -> Dictionary:
+		hydrated.append(id)
+		return {} if unavailable.has(id) else saved_profiles.get(id,{}).duplicate(true)
 
 class GameFixture:
 	extends Node
@@ -42,7 +48,9 @@ func _run() -> void:
 		var person:=People.legacy_student(index)
 		person.id="campus_student_"+("studio-person-%d"%index).sha256_text().left(32)
 		person.voice_scope="studio-origin".sha256_text()
-		population.people[person.id]=person
+		person.origin_population=person.voice_scope
+		population.saved_profiles[person.id]=person
+		population.people[person.id]={"id":person.id,"name":person.name,"role":"student","program":person.program,"origin_population":person.origin_population,"dossier_ref":true}
 	game.lecture_classes={"classroom_students":{"population":population}}
 	var settings:=Settings.new();root.add_child(settings);settings.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	settings.build(game,func(_message: String):pass,func():pass)
@@ -53,6 +61,7 @@ func _run() -> void:
 		if node.get_script()==load("res://scripts/campus/ui/character_voice_studio.gd"):panel=node;break
 	for frame in 5:await process_frame
 	check(panel.character_list.item_count==23,"Offline actual settings path lists all faculty and saved students")
+	check(population.hydrated.is_empty(),"Opening the roster never hydrates student dossiers")
 	check(not panel.name_label.text.is_empty() and is_instance_valid(panel.portrait_model) and not panel.design.text.is_empty(),"Offline selection has real name, appearance and design")
 	check(panel.voice_model.item_count>=7,"Speech model choices populated without a connection")
 	check(panel.preview_button.disabled and panel.generate_button.disabled,"Only provider actions require credentials")
@@ -66,13 +75,27 @@ func _run() -> void:
 	await capture(window,"voice-studio-auditions-1280")
 	panel.roster_filter.select(2);panel._fill_list()
 	check(panel.character_list.item_count==2,"Student filter shows saved population")
-	panel._select(str(panel.character_list.get_item_metadata(0)))
+	check(population.hydrated.is_empty(),"Filtering the student roster never hydrates dossiers")
+	var selected:=str(panel.character_list.get_item_metadata(0))
+	var other:=str(panel.character_list.get_item_metadata(1))
+	panel._select(selected)
+	check(population.hydrated==[selected] and panel.people[selected].has("traits"),"Selecting one student hydrates only that student's full profile")
+	check(panel._scope()==str(population.saved_profiles[selected].origin_population),"Selected student's permanent voice retains its original population scope")
 	panel.detail_scroll.scroll_vertical=0
 	window.size=Vector2i(720,520)
 	for frame in 5:await process_frame
 	check(panel.detail_scroll.get_global_rect().end.x<=window.size.x,"Minimum-size details stay inside the window")
 	check(panel.character_list.get_global_rect().size.y>100.,"Minimum-size roster remains usable")
 	await capture(window,"voice-studio-student-720")
+	panel.search.text=str(population.saved_profiles[selected].program);panel._fill_list()
+	check(panel.character_list.item_count>0 and population.hydrated==[selected],"Program search uses index fields without loading more dossiers")
+	panel.search.clear();panel._fill_list()
+	population.unavailable[other]=true
+	var prior_identity_count: int=Voices._state.identities.size()
+	panel._select(other)
+	check(panel.profile_unavailable and panel._voice().is_empty() and panel.generate_button.disabled and panel.preview_button.disabled,"Unavailable selected dossier blocks voice mutations and paid actions")
+	check(Voices._state.identities.size()==prior_identity_count,"Unavailable dossier cannot persist a made-up fallback voice")
+	check(not panel.people[selected].has("traits"),"Leaving a selection releases the Studio's full student profile")
 	var file:=FileAccess.open(capture_path.path_join("result.json"),FileAccess.WRITE)
 	if file!=null:file.store_string(JSON.stringify({"display":DisplayServer.get_name(),"adapter":RenderingServer.get_video_adapter_name(),"live_api":false,"audio_hardware":false,"failures":failures},"  "));file.close()
 	settings.queue_free();game.queue_free();await process_frame

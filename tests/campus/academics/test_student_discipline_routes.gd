@@ -24,21 +24,30 @@ func run() -> void:
 	game.player.global_position=classes.signs[room].desk
 	check(classes._start(room,{"kind":"lecture","course_id":"ETY155","week":1,"difficulty":1})=="","start lecture with actual furniture collision")
 	var activity: Dictionary=classes.classes[room]
+	classes.set_process(false);game.faculty.set_process(false)
 	activity.phase="lesson"
 	var now: float=classes._now()
-	var seat: Vector3=activity.room.seats[0]
+	# Replace the random class through the same actual-chair authority used by
+	# gameplay, instead of inventing a seated member without a seat claim.
+	activity.classmates={};students.seating._process(1.)
+	var chair: Node3D=students.seating.chair_at(activity.room.seats[0])
+	check(chair!=null,"authored seat has an actual chair")
+	if chair==null:quit(1);return
+	var seat: Vector3=chair.global_position
 	var person: Dictionary=students.population.profile_for("campus_student_14")
 	var member:={"profile":person,"position":seat,"seat":seat,"arrived":true,"seated":true,"walking":false,"standing":false,
 		"has_seat":true,"arrival":now,"next":now,"turns":0,"action":"listening"}
 	activity.classmates={person.id:member}
+	check(students.seating.assign(member,str(activity.id)),"student owns the starting chair")
 	var moved: bool=students.apply_discipline(room,activity,person.id,{"action":"move"},now)
 	check(moved,"student can stand out of authored chair for a move")
 	if moved:
-		check(member.walk.seat_points.size()==2,"only start and reserved destination chairs receive seating clearance")
-		for point: Vector3 in member.walk.path:check(game.campus.registry.room_contains(room,point),"move path stays in the classroom")
+		check(member.has("seat_relocation") and member.seat_relocation.origin!=member.seat_relocation.destination,"move reserves a distinct destination through the shared seat authority")
+		for point: Vector3 in member.seat_relocation.path:check(game.campus.registry.room_contains(room,point),"move path stays in the classroom")
+		member.seat_relocation.starts=0
 		for step in 300:
-			if not member.has("walk"):break
-			students._step_walk(activity,member,now+step*.25,.25)
+			if not member.has("seat_relocation"):break
+			students.seating.step(member,.25)
 		check(member.seated and member.position.distance_to(member.seat)<.01,"move reaches the exact chair instead of sitting off to one side")
 		check(member.seat.distance_to(seat)>1.,"the selected seat is different")
 	var removed: bool=students.apply_discipline(room,activity,person.id,{"action":"remove"},now+80.)

@@ -892,14 +892,21 @@ func export_social_record(id: String,identity: String) -> Dictionary:
 	else:decision=character_states.get("disengagements",{}).get(key,{}).duplicate(true)
 	return {"relationship":memory,"decision":decision}
 
-func import_social_record(id: String,identity: String,snapshot: Dictionary,replace_causal:=false) -> bool:
+func valid_social_record(id: String,identity: String,snapshot: Dictionary) -> bool:
 	var key:=_key(id,identity)
 	if key.is_empty() or JSON.stringify(snapshot).to_utf8_buffer().size()>262144:return false
 	if not snapshot.get("relationship") is Dictionary or not snapshot.get("decision",{}) is Dictionary:return false
+	for field in snapshot:
+		if field not in ["relationship","decision"]:return false
+	if not _validate_relationships({key:snapshot.relationship}).get("ok",false):return false
+	var decision: Dictionary=snapshot.get("decision",{})
+	return _valid_character_states({"version":1,"moods":{},"disengagements":{key:decision} if not decision.is_empty() else {}})
+
+func import_social_record(id: String,identity: String,snapshot: Dictionary,replace_causal:=false) -> bool:
+	if not valid_social_record(id,identity,snapshot):return false
+	var key:=_key(id,identity)
 	var checked:=_validate_relationships({key:snapshot.relationship})
-	if not checked.get("ok",false):return false
 	var decision: Dictionary=snapshot.get("decision",{}).duplicate(true)
-	if not _valid_character_states({"version":1,"moods":{},"disengagements":{key:decision} if not decision.is_empty() else {}}):return false
 	var incoming: Dictionary=checked.relationships[key]
 	incoming.reputation=_neutral_reputation()
 	incoming.dimensions.academic_confidence=.45
@@ -969,3 +976,43 @@ func import_identity_canon(person: Dictionary,incoming: Dictionary) -> Dictionar
 		stored[topic]=incoming[topic].duplicate(true);existing[topic]=stored[topic];accepted+=1
 	if accepted>0:memory_dirty=true
 	return {"ok":true,"accepted":accepted,"conflicts":conflicts}
+
+func export_mood_record(id: String) -> Dictionary:
+	var state: Dictionary=_bound_mind.moods.get(id,{}) if is_instance_valid(_bound_mind) else character_states.get("moods",{}).get(id,{})
+	if state.is_empty():return {}
+	var safe:={"values":{},"at":int(state.get("at",Time.get_unix_time_from_system())),"history":[]}
+	for emotion in state.get("values",{}):safe.values[emotion]=snappedf(float(state.values[emotion]),.01)
+	for event in state.get("history",[]).slice(-16):
+		if not event is Dictionary:continue
+		# Mood chronology may travel; private conversation explanations and
+		# interlocutor/event identifiers do not travel with a public NPC identity.
+		safe.history.append({"event":str(event.get("event","")),"strength":float(event.get("strength",0.)),"at":int(event.get("at",0)),"description":"","emotion":str(event.get("emotion",""))})
+	return safe if _valid_character_states({"version":1,"moods":{id:safe},"disengagements":{}}) else {}
+
+func valid_mood_record(id: String,incoming: Dictionary) -> bool:
+	if id.is_empty() or id.length()>64 or JSON.stringify(incoming).to_utf8_buffer().size()>16000:return false
+	return _valid_character_states({"version":1,"moods":{id:incoming},"disengagements":{}})
+
+func import_mood_record(id: String,incoming: Dictionary,replace_causal:=false) -> bool:
+	if not valid_mood_record(id,incoming):return false
+	var existing: Dictionary=_bound_mind.moods.get(id,{}) if is_instance_valid(_bound_mind) else character_states.get("moods",{}).get(id,{})
+	var snapshot:=incoming.duplicate(true) if existing.is_empty() or replace_causal else existing.duplicate(true)
+	# Unknown concurrent moods never overwrite this host's current affect.
+	# Preserve its private local history while merging only redacted events.
+	var history: Array=snapshot.get("history",[])
+	var seen:={}
+	for event in history:
+		seen[JSON.stringify([event.get("event"),event.get("at"),event.get("strength"),event.get("emotion")])]=true
+	for event in (existing if replace_causal else incoming).get("history",[]):
+		var key:=JSON.stringify([event.get("event"),event.get("at"),event.get("strength"),event.get("emotion")])
+		if not seen.has(key):history.append(event.duplicate(true));seen[key]=true
+	snapshot.history=history.slice(-64)
+	character_states.get_or_add("version",1)
+	character_states.get_or_add("disengagements",{})
+	character_states.get_or_add("moods",{})[id]={"values":snapshot.values.duplicate(true),"at":int(snapshot.at),"history":snapshot.history.duplicate(true)}
+	if is_instance_valid(_bound_mind):
+		snapshot.last=Time.get_ticks_msec()
+		snapshot.offline_elapsed=clampf(float(Time.get_unix_time_from_system())-float(snapshot.at),0.,86400.*14.)
+		_bound_mind.moods[id]=snapshot
+	memory_dirty=true
+	return true

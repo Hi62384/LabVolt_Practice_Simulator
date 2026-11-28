@@ -38,7 +38,7 @@ func configure(next_client: Node, next_population: RefCounted, next_brain: RefCo
 			if str(id).begins_with("generated_"): Profiles.teacher_seeds.erase(id)
 	# Restore custom teachers from the same persisted dossier authority.
 	for id in Store.dossiers:
-		if str(id).begins_with("generated_") and Store.dossiers[id].get("generation",{}).get("status")=="complete": _register_teacher(Store.dossiers[id])
+		if str(id).begins_with("generated_") and Store.dossiers[id].get("generation",{}).get("status")=="complete": _register_teacher(Store.get_dossier(str(id)))
 	for id in Roster.all_people(): Store.queue(Profiles.teacher(str(id)), 0)
 	if population != null:
 		for person in population.people.values(): Store.queue(person, 0)
@@ -101,7 +101,8 @@ func _sync_population() -> void:
 		var d: Dictionary = Store.dossiers[id]
 		if d.get("identity", {}).get("role") != "student" or d.get("generation", {}).get("status") != "complete": continue
 		if not population.people.has(id) or int(population.people[id].get("dossier_revision",0)) != int(d.get("revision",1)):
-			population.import_generated(student_profile(d))
+			var full:=Store.get_dossier(str(id))
+			if not full.is_empty():population.import_generated(student_profile(full))
 	var pending_new := 0
 	for job in Store.jobs.values():
 		if job.get("kind") == "student" and job.get("status") != "complete": pending_new += 1
@@ -417,9 +418,11 @@ static func request_context(seed: Dictionary, job: Dictionary, canonical_records
 			context.communication_repair = {"example_ids":job.canon_example_ids,"repair_description":job.get("canon_communication_description",false),"rule":"Return only the named existing examples with unchanged IDs and, if requested, the description. Every other example and the remaining communication fields will be preserved exactly."}
 	else:
 		var neighbors: Array = []
-		for d in Store.dossiers.values():
+		for id in Store.dossiers:
+			var d: Dictionary=Store.dossiers[id]
 			if d.get("identity", {}).get("role") == "student" and d.get("generation", {}).get("status") == "complete":
-				neighbors.append({"name": d.identity.name, "personality": str(d.compact_core)})
+				var full:=Store.get_dossier(str(id))
+				if not full.is_empty():neighbors.append({"name": full.identity.name, "personality": str(full.compact_core)})
 			if neighbors.size() >= 4: break
 		if not neighbors.is_empty(): context.existing_people_to_differ_from = neighbors
 	return context

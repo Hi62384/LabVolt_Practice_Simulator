@@ -37,6 +37,9 @@ class Game extends Node:
 	@rpc("any_peer","call_remote","reliable")
 	func identify(id: String) -> void:
 		if multiplayer.is_server() and id.length()==48:school.identities[multiplayer.get_remote_sender_id()]=id
+	@rpc("any_peer","call_remote","reliable")
+	func ready_for_update() -> void:
+		if multiplayer.is_server():set_meta("ready_for_update",true)
 	@rpc("authority","call_remote","reliable")
 	func result(value: String) -> void:
 		set_meta("received_result",value)
@@ -71,11 +74,17 @@ func _step() -> void:
 	if role=="client":
 		var person_id:="campus_student_00"
 		var memory: Dictionary=service.brain.relationship(person_id,fixture.school.local_identity)
-		if memory.get("episodes",[]).any(func(episode):return episode.get("event_id")=="network-friendship"):
+		if stage==0 and memory.get("episodes",[]).any(func(episode):return episode.get("event_id")=="network-friendship"):
 			if float(service.brain.social_context(memory).friendship)<=0.:failures.append("Friendship did not travel to owner")
-			fixture.identify.rpc_id(1,fixture.school.local_identity)
-			print("POPULATION_NETWORK_CLIENT PASS own relationship persisted")
-			quit(0)
+			if not is_equal_approx(service.population.learned(person_id,"MTH147"),.2):failures.append("NPC learning did not travel")
+			if not is_equal_approx(float(service.brain.export_mood_record(person_id).get("values",{}).get("anger",0.)),.7):failures.append("Global mood did not travel")
+			stage=1;fixture.ready_for_update.rpc_id(1)
+		if stage==1 and memory.get("episodes",[]).any(func(episode):return episode.get("event_id")=="network-delta"):
+			if not is_equal_approx(service.population.learned(person_id,"MTH147"),.24):failures.append("Incremental learning update was lost")
+			if not is_equal_approx(float(service.brain.export_mood_record(person_id).get("values",{}).get("anger",0.)),.8):failures.append("Incremental mood update was lost")
+			for failure in failures:printerr("FAIL: "+failure)
+			print("POPULATION_NETWORK_CLIENT "+("PASS" if failures.is_empty() else "FAIL")+" own relationship, learning, mood and incremental update persisted")
+			quit(0 if failures.is_empty() else 1)
 		return
 	if stage==0 and fixture.school.identities.size()>1:
 		for peer in fixture.school.identities:
@@ -86,10 +95,17 @@ func _step() -> void:
 			if str(profile.origin_population)==target_origin and profile.name=="Sam Singh":remote_id=str(id);break
 		if remote_id.is_empty():return
 		var person: Dictionary=service.population.profile_for(remote_id)
+		service.population.record_learning(remote_id,"MTH147",.2,2,.1)
+		service.brain.import_mood_record(remote_id,{"values":{"anger":.7},"at":int(Time.get_unix_time_from_system()),"history":[{"event":"insult","strength":.8,"at":1700000000,"description":"","emotion":"angry"}]},true)
 		service.brain.remember_event(person,remote_identity,{"event":"study","interpretation":{"summary":"We worked together on the practice project."}},"Let's study together.","Sure.",1700000001,"network-friendship")
 		fixture.lecture_classes.classes={"test":{"id":"network-class","course":"MTH147","students":{remote_identity:{"peer":root.multiplayer.get_peers()[0]}},"classmates":{remote_id:{"profile":person}}}}
 		stage=1
-	if stage==1 and root.multiplayer.get_peers().is_empty():
+	if stage==1 and fixture.get_meta("ready_for_update",false):
+		service.population.record_learning(remote_id,"MTH147",.24,2,.12)
+		service.brain.import_mood_record(remote_id,{"values":{"anger":.8},"at":int(Time.get_unix_time_from_system()),"history":[{"event":"insult","strength":.9,"at":1700000002,"description":"","emotion":"angry"}]},true)
+		service.brain.remember_event(service.population.profile_for(remote_id),remote_identity,{"event":"joke"},"Another shared joke.","Yes.",1700000003,"network-delta")
+		stage=2
+	if stage==2 and root.multiplayer.get_peers().is_empty():
 		if not service.population.people.has(remote_id):failures.append("Admitted student disappeared on disconnect")
 		if service.population.save_population()!=OK:failures.append("Retained population did not save")
 		_finish()

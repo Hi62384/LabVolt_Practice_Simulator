@@ -20,6 +20,7 @@ var appearance_queue: Array = []
 var appearance_sent := false
 signal chat_received(peer: int,sender: String,message: String)
 signal leaving
+signal graceful_leave_finished(completed: bool)
 signal restarted
 signal changed(snapshot: Dictionary)
 signal ac_readings_changed(station: int, revision: int, readings: Dictionary)
@@ -48,6 +49,12 @@ var internet_port := 0
 var internet_worker: Thread
 var internet_mapping := {}
 var internet_retry_at := 0
+var _departure_barrier: Callable
+var _graceful_leaving := false
+var _leave_generation := 0
+var _prepared_leave_generation := -1
+var _quitting := false
+var last_departure_saved := true
 
 # Trusted host code supplies explicit section projections, never entire saves.
 signal campus_public_profiles_changed
@@ -81,6 +88,7 @@ func room_code() -> String:
 	return transport.room_code if transport is RelayPeer and was_host else ""
 
 func _ready() -> void:
+	get_tree().auto_accept_quit=false
 	# Every game message is host mediated; the explicit roster handles peer presence.
 	if multiplayer is SceneMultiplayer:multiplayer.server_relay=false
 	multiplayer.peer_disconnected.connect(_left)
@@ -164,7 +172,40 @@ func join_relay(code: String, player_name: String, endpoint := "") -> Error:
 	roster_changed.emit()
 	return OK
 
-func leave(authority_lost := false) -> void:
+func set_departure_barrier(callback: Callable) -> void:
+	_departure_barrier=callback
+
+func leave_gracefully() -> bool:
+	# Connection failures and replacement APIs retain synchronous leave().
+	# Deliberate exits keep this exact transport alive until the bounded
+	# population checkpoint has been persisted by its relevant recipients.
+	if _graceful_leaving:return await graceful_leave_finished
+	var transport: MultiplayerPeer=multiplayer.multiplayer_peer
+	if not online or transport==null or transport.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED or not _departure_barrier.is_valid():
+		leave()
+		return true
+	_graceful_leaving=true
+	var generation:=_leave_generation
+	_announce_leave(false)
+	last_departure_saved=bool(await _departure_barrier.call())
+	var completed:=generation==_leave_generation and multiplayer.multiplayer_peer==transport
+	if completed:leave()
+	_graceful_leaving=false
+	graceful_leave_finished.emit(completed)
+	return completed
+
+func quit_gracefully() -> void:
+	if _quitting:return
+	_quitting=true
+	await leave_gracefully()
+	get_tree().quit()
+
+func _notification(what: int) -> void:
+	if what==NOTIFICATION_WM_CLOSE_REQUEST:quit_gracefully()
+
+func _announce_leave(authority_lost: bool) -> void:
+	if _prepared_leave_generation==_leave_generation:return
+	_prepared_leave_generation=_leave_generation
 	last_local_pose.clear()
 	relay_pose_dirty = false
 	relay_pose_clock = 0.0
@@ -178,6 +219,11 @@ func leave(authority_lost := false) -> void:
 		multiplayer.multiplayer_peer=OfflineMultiplayerPeer.new()
 	_campus_profiles_reset()
 	leaving.emit() # Synchronous host-owned persistence before network/world teardown.
+
+func leave(authority_lost := false) -> void:
+	_announce_leave(authority_lost)
+	_leave_generation+=1
+	_prepared_leave_generation=-1
 	appearance_sent=false
 	appearance_queue.clear()
 	appearance_incoming.clear()

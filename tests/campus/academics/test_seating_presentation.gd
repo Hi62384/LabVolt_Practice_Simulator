@@ -38,6 +38,15 @@ func run() -> void:
 	check(not students.seating.assign(member,str(activity.id)),"Second claim cannot occupy same chair")
 	var other: Dictionary=member.duplicate(true);other.profile=students.population.profile_for("campus_student_01")
 	check(not students.seating.assign(other,str(activity.id)),"Different NPC cannot overlap same chair")
+	var displaced: Node3D=chairs.back()
+	var authored_position: Vector3=displaced.global_position
+	displaced.global_position+=Vector3(1000,0,0)
+	var no_players: Array[Vector3]=[]
+	check(not students.seating.available_points(room,no_players).has(displaced.global_position),"A chair rolled outside the classroom is not an available class seat")
+	var misplaced: Dictionary=other.duplicate(true);misplaced.seat=displaced.global_position
+	check(not students.seating.assign(misplaced,str(activity.id)),"Displaced chair cannot spawn a new NPC claim outside the room")
+	check(not students.seating.move_student(member,activity,room_id,displaced.global_position),"Discipline cannot send a student to a displaced hallway chair")
+	displaced.global_position=authored_position
 	var public:={room_id:{"classmates":students.snapshot(activity,1.)}}
 	students.render(room_id,public,.1)
 	var model: Node3D=students.models[str(activity.id)+":"+str(person.id)]
@@ -74,11 +83,58 @@ func run() -> void:
 	for frame in 3:await process_frame
 	player._layout_subtitles()
 	check(caption.get_viewport_rect().encloses(caption.get_global_rect()),"Caption remains inside smaller scaled viewport")
+	# Use the real walk/return path from a claimed chair, not a route-only mock.
+	var previous_player: Vector3=game.player.global_position
+	game.player.global_position=first.global_position+Vector3(0,0,2.7)
+	check(students.act(room_id,activity,member,"approach",game.player.global_position,1.),"A seated student can leave their own chair to approach")
+	for step in 200:
+		if not member.has("walk"):break
+		students._step_walk(activity,member,1.+float(step)*.2,.1)
+	check(not member.has("walk") and member.seated and (member.position as Vector3).distance_to(first.global_position)<.15,"Approach returns to the original claimed chair")
+	var foreign: Dictionary=member.duplicate(true);foreign.seat_id=chairs[1].seat_id
+	check(students._own_chair_bodies(foreign).is_empty(),"Approach cannot exclude another chair's collisions")
+	game.player.global_position=previous_player
 	game.session.roster[2]={"name":"Second human"};game.session.poses[2]={"position":game.player.global_position}
 	game._claim_chair(1,game.chairs.find(first))
 	check(first.reserved_peer==1 and first.occupant==0 and member.has("seat_relocation"),"Human request reserves chair and stands NPC before sitting")
 	game._claim_chair(2,game.chairs.find(first))
 	check(first.reserved_peer==1 and first.occupant==0,"Simultaneous request cannot steal reservation")
+	# An empty destination may roll before the NPC reaches it. Abort in place
+	# and make the request retryable instead of snapping to the moved chair.
+	if member.has("seat_relocation"):
+		var moving: Node3D=students.seating.chair_for(str(member.seat_relocation.destination))
+		if moving!=null:
+			var prior_chair: Vector3=moving.global_position
+			var prior_student: Vector3=member.position
+			moving.global_position+=Vector3(0,0,1.)
+			member.seat_relocation.starts=0;students.seating.step(member,.08);students.seating._process(1.)
+			check(not member.has("seat_relocation") and not member.seated and member.position==prior_student,"Moved destination cannot teleport a seated NPC")
+			check(moving.npc_occupant.is_empty() and first.reserved_peer==0,"Moved destination releases pending claims")
+			moving.global_position=prior_chair
+			check(students.act(room_id,activity,member,"sit",member.position,2.),"Student can reseat after an aborted request")
+			game._claim_chair(1,game.chairs.find(first))
+	if member.has("seat_relocation"):
+		var blocked_destination: Node3D=students.seating.chair_for(str(member.seat_relocation.destination))
+		var stopped_at: Vector3=member.position
+		game.session.roster[3]={"name":"Aisle blocker"};game.session.poses[3]={"position":stopped_at+Vector3(.4,0,0)}
+		member.seat_relocation.starts=0;students.seating.step(member,.08)
+		check(not member.has("seat_relocation") and member.position==stopped_at,"New actor obstruction stops movement in place")
+		check(first.reserved_peer==0 and first.npc_occupant==str(person.id) and (blocked_destination==null or blocked_destination.npc_occupant.is_empty()),"Blocked route retains only the real origin occupant")
+		game.session.roster.erase(3);game.session.poses.erase(3)
+		check(students.act(room_id,activity,member,"sit",member.position,3.),"Blocked request leaves a recoverable seat")
+		game._claim_chair(1,game.chairs.find(first))
+	if member.has("seat_relocation"):
+		var stopped_at: Vector3=member.position
+		# NPC interaction colliders use layer 4, outside the floor-route mask.
+		# Their authoritative body positions still have to block relocation.
+		activity.classmates[other.profile.id]={"profile":other.profile,"position":stopped_at+Vector3(.4,0,0),"arrival":0.,"arrived":true,"seated":false}
+		member.seat_relocation.starts=0;students.seating.step(member,.08)
+		check(not member.has("seat_relocation") and member.position==stopped_at,"A standing NPC blocks relocation without body overlap")
+		activity.classmates.erase(other.profile.id)
+		if not member.has("seat_relocation"):
+			check(students.act(room_id,activity,member,"sit",member.position,3.5),"NPC obstruction also leaves a recoverable seat")
+			game._claim_chair(1,game.chairs.find(first))
+	check(member.has("seat_relocation"),"Clearing the route permits a fresh handoff")
 	if member.has("seat_relocation"):
 		member.seat_relocation.starts=0
 		for step in 240:
@@ -90,8 +146,12 @@ func run() -> void:
 		check(first.npc_occupant.is_empty() and first.occupant==1,"Human sits only after original chair clears")
 		var destination: Node3D=students.seating.chair_for(str(member.get("seat_id","")))
 		check(destination!=null and destination!=first and destination.npc_occupant==str(person.id),"NPC occupies a distinct real destination chair")
+		for candidate in chairs:
+			if candidate.available_for_npc() and students.seating.move_student(member,activity,room_id,candidate.global_position):break
+		check(member.has("seat_relocation"),"Class-end cleanup is tested during a second move")
 		game.lecture_classes.classes.clear();students.seating._process(1.)
 		check(destination==null or destination.npc_occupant.is_empty(),"Class ending releases NPC occupancy")
+		check(chairs.all(func(chair):return chair.npc_occupant!=str(person.id)),"Class ending releases both in-flight origin and destination")
 	var reservation: Node3D=chairs[1]
 	reservation.reserved_peer=2;reservation.reservation_until=Time.get_ticks_msec()+5000
 	game.session.roster.erase(2)

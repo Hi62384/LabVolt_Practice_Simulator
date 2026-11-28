@@ -105,9 +105,16 @@ func build(owner_game: Node) -> void:
 	port.value = 24842
 	Layout.field(network, "UDP port", port)
 	var row := Layout.flow(session_card)
-	button("Single Player",row,func(): game.session.leave(); game.capture())
-	button("Host Laboratory",row,func(): var error=game.session.host_game(name_input.text,int(port.value)); connection_label.text="Hosting UDP %d"%port.value if error==OK else "Cannot host: "+error_string(error))
-	button("Join Laboratory",row,func(): var error=game.session.join_game(address.text,name_input.text,int(port.value)); connection_label.text="Connecting…" if error==OK else error_string(error))
+	button("Single Player",row,func():
+		if await game.session.leave_gracefully():game.capture())
+	button("Host Laboratory",row,func():
+		if not await game.session.leave_gracefully():return
+		var error=game.session.host_game(name_input.text,int(port.value))
+		connection_label.text="Hosting UDP %d"%port.value if error==OK else "Cannot host: "+error_string(error))
+	button("Join Laboratory",row,func():
+		if not await game.session.leave_gracefully():return
+		var error=game.session.join_game(address.text,name_input.text,int(port.value))
+		connection_label.text="Connecting…" if error==OK else error_string(error))
 	connection_label = label("Direct IP • 2–8 players • UDP 24842",lobby,14)
 	var team_card := Layout.section(lobby, "Team roster", "Ready up when your team is prepared.", "network")
 	roster_label = label("",team_card,15)
@@ -116,7 +123,8 @@ func build(owner_game: Node) -> void:
 	team_card.add_child(roster_body)
 	row = Layout.flow(team_card)
 	button("Ready / Unready",row,func(): game.session.ready_toggle())
-	button("Leave Session",row,func(): game.session.leave(); connection_label.text="Local laboratory")
+	button("Leave Session",row,func():
+		if await game.session.leave_gracefully():connection_label.text="Local laboratory")
 	var experiment_card := Layout.section(lobby, "Experiment setup", "Host controls • applies through the existing session request", "circuit")
 	modes = OptionButton.new()
 	for text in ["Free Laboratory","Guided Learning","Practical Exam","Cooperative Challenge"]:
@@ -157,7 +165,7 @@ func build(owner_game: Node) -> void:
 	record_card.add_child(records_body)
 	row = Layout.flow(box)
 	button("Enter / Resume",row,func(): game.capture())
-	button("Exit",row,func(): game.get_tree().quit())
+	button("Exit",row,func():game.session.quit_gracefully())
 	sheet = panel(Vector2(160,36),Vector2.ZERO)
 	sheet.hide()
 	box = VBoxContainer.new()

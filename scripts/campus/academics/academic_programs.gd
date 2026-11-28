@@ -24,12 +24,13 @@ static func courses_for(program: String) -> Array:
 
 static func eligible(profile: Dictionary, course: String) -> bool:
     if course.is_empty(): return true
-    if course not in COURSES or course not in courses_for(str(profile.get("program", ""))): return false
+    if course not in COURSES: return false
     var enrollment: Variant = profile.get("enrollment", {})
     if not enrollment is Dictionary: return false
     # No prerequisite progression is currently defined by academic gameplay.
     # Explicit suspended/withdrawn enrollment still excludes a resident.
-    return enrollment.get(course, "enrolled") not in ["withdrawn", "suspended", "completed_only"]
+    if enrollment.get(course, "") in ["withdrawn", "suspended", "completed_only"]:return false
+    return course in courses_for(str(profile.get("program", ""))) or enrollment.get(course, "")=="enrolled"
 
 static func for_course(course: String, seed_value: int) -> String:
     var candidates := []
@@ -37,6 +38,9 @@ static func for_course(course: String, seed_value: int) -> String:
         if course.is_empty() or course in PROGRAMS[program]:
             if not PROGRAMS[program].is_empty(): candidates.append(program)
     return str(candidates[posmod(seed_value, candidates.size())]) if not candidates.is_empty() else ""
+
+static func eligible_courses(profile: Dictionary) -> Array:
+    return COURSES.filter(func(course):return eligible(profile,str(course)))
 
 static func catalog() -> Array:
     var result := []

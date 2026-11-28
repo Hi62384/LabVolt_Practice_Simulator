@@ -3,6 +3,8 @@ extends RefCounted
 ## callers merge unique memories separately, then record the reconciled result.
 const MAX_BYTES:=16*1024*1024
 const MAX_RECORDS:=2048
+const Memory=preload("res://scripts/campus/academics/character_memory.gd")
+static var _validator:=Memory.new()
 var path:=""
 var owner:=""
 var records: Dictionary={}
@@ -14,7 +16,7 @@ func configure(identity: String) -> Error:
 	if owner==identity and not path.is_empty():return last_error
 	owner=identity
 	path="user://character_memory/"+identity.sha256_text()+".student-social.json"
-	records.clear();conflicts.clear();blocked=false
+	records.clear();conflicts.clear();blocked=false;last_error=OK
 	var raw:=_read(path)
 	if raw.is_empty():raw=_read(path+".bak")
 	if raw.is_empty():
@@ -35,6 +37,7 @@ func observe(character: String,player: String,snapshot: Dictionary) -> Dictionar
 	if not previous.is_empty():parents.append(str(previous.digest))
 	while parents.size()>64:parents.pop_front()
 	var entry:={"version":1,"character":character,"player":player,"revision":int(previous.get("revision",0))+1,"digest":fingerprint,"parents":parents,"snapshot":snapshot.duplicate(true)}
+	if not valid(entry):last_error=ERR_INVALID_DATA;return {}
 	records[key]=entry
 	save()
 	return entry.duplicate(true)
@@ -79,6 +82,9 @@ static func valid(entry: Dictionary) -> bool:
 	for digest in entry.parents:
 		if not digest is String or digest.length()!=64:return false
 	if not (entry.get("revision") is float or entry.get("revision") is int) or not is_finite(float(entry.revision)) or float(entry.revision)<1 or float(entry.revision)>1000000000:return false
+	if entry.player=="_npc_mood":
+		if entry.snapshot.size()!=1 or not entry.snapshot.get("mood") is Dictionary or not _validator.valid_mood_record(entry.character,entry.snapshot.mood):return false
+	elif not _validator.valid_social_record(entry.character,entry.player,entry.snapshot):return false
 	return str(entry.get("digest",""))==digest(entry.snapshot)
 
 func save() -> Error:
@@ -92,19 +98,19 @@ func save() -> Error:
 			var destination: String=source+".corrupt-"+FileAccess.get_sha256(source)
 			if not FileAccess.file_exists(destination):
 				var preserved:=DirAccess.copy_absolute(source,destination)
-				if preserved!=OK:return preserved
+				if preserved!=OK:last_error=preserved;return last_error
 	var error:=DirAccess.make_dir_recursive_absolute("user://character_memory")
-	if error!=OK:return error
+	if error!=OK:last_error=error;return last_error
 	var serialized:=JSON.stringify({"version":1,"records":records,"conflicts":conflicts})
-	if serialized.to_utf8_buffer().size()>MAX_BYTES:return ERR_OUT_OF_MEMORY
+	if serialized.to_utf8_buffer().size()>MAX_BYTES:last_error=ERR_OUT_OF_MEMORY;return last_error
 	var file:=FileAccess.open(path+".tmp",FileAccess.WRITE)
-	if file==null:return FileAccess.get_open_error()
+	if file==null:last_error=FileAccess.get_open_error();return last_error
 	file.store_string(serialized);file.flush();error=file.get_error();file.close()
-	if error!=OK:return error
-	if _read(path+".tmp").is_empty():return ERR_INVALID_DATA
+	if error!=OK:last_error=error;return last_error
+	if _read(path+".tmp").is_empty():last_error=ERR_INVALID_DATA;return last_error
 	if not _read(path).is_empty():
 		error=DirAccess.copy_absolute(path,path+".bak")
-		if error!=OK:return error
+		if error!=OK:last_error=error;return last_error
 	last_error=DirAccess.rename_absolute(path+".tmp",path)
 	return last_error
 

@@ -10,6 +10,8 @@ const Voices=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const MAX_MANIFEST:=4096
 const READY_PER_COURSE:=6
 const MAX_PACKET_BYTES:=786432
+const DEPARTURE_TIMEOUT_MS:=2000
+const REQUEST_TIMEOUT_MS:=15000
 var game: Node
 var population: RefCounted
 var brain: RefCounted
@@ -21,31 +23,45 @@ var requested: Dictionary={}
 var _pending_bonds: Dictionary={}
 var pending: Dictionary={}
 var sent: Dictionary={}
+var sent_profiles: Dictionary={}
 var peer_identities: Dictionary={}
 var _bound_ready:=false
 var _bound_server:=false
 var _bound_brain: RefCounted
+var _bound_transport: MultiplayerPeer
 var _elapsed:=0.
 var _refresh:=0.
 var last_error:=""
+var _departure_nonce:=""
+var _departure_waiting: Dictionary={}
+var _departure_failed:=false
+var _departure_requests: Dictionary={}
+var _received_update_error:=false
+var last_departure: Dictionary={}
 
 func configure(owner: Node) -> void:
 	game=owner
 	if game.session.has_signal("leaving") and not game.session.leaving.is_connected(_flush):game.session.leaving.connect(_flush)
+	if game.session.has_method("set_departure_barrier"):game.session.set_departure_barrier(prepare_departure)
+	if not multiplayer.peer_disconnected.is_connected(_forget_peer):multiplayer.peer_disconnected.connect(_forget_peer)
 	set_process(true)
 
 func _bind() -> bool:
 	if not _game_ready():return false
 	var selected:=str(game.school.local_identity)
 	if selected.is_empty():return false
+	var transport: MultiplayerPeer=multiplayer.multiplayer_peer
+	if transport==null or transport.get_connection_status()==MultiplayerPeer.CONNECTION_DISCONNECTED:return false
 	var server:=multiplayer.is_server()
-	if _bound_ready and selected==identity and population!=null and brain!=null and _bound_server==server:
+	if _bound_ready and selected==identity and population!=null and brain!=null and _bound_server==server and _bound_transport==transport:
 		if not server or (brain==game.faculty.brain and population==game.lecture_classes.classroom_students.population and brain.host_profile()==identity and population._host_profile==identity):return true
 	if _bound_brain!=null and _bound_brain.social_record_changed.is_connected(_on_social_changed):_bound_brain.social_record_changed.disconnect(_on_social_changed)
 	_bound_ready=false
 	identity=selected
 	_bound_server=server
-	manifests.clear();manifest_offsets.clear();requested.clear();pending.clear();sent.clear();peer_identities.clear()
+	_bound_transport=transport
+	manifests.clear();manifest_offsets.clear();requested.clear();pending.clear();sent.clear();sent_profiles.clear();peer_identities.clear();_pending_bonds.clear()
+	_departure_nonce="";_departure_waiting.clear();_departure_requests.clear();_received_update_error=false
 	if multiplayer.is_server():
 		population=game.lecture_classes.classroom_students.population
 		brain=game.faculty.brain
@@ -63,6 +79,10 @@ func _bind() -> bool:
 	# Recover the narrowly scoped social receipt if a previous process stopped
 	# after its archive rename but before the main memory snapshot was flushed.
 	for receipt in archive.records.values():
+		if str(receipt.get("player",""))=="_npc_mood":
+			var mood_id:=str(population.local_id(str(receipt.get("character",""))))
+			if not mood_id.is_empty() and brain.export_mood_record(mood_id).is_empty():brain.import_mood_record(mood_id,receipt.snapshot.get("mood",{}),true)
+			continue
 		if str(receipt.get("player",""))!=identity:continue
 		var local:=str(population.local_id(str(receipt.get("character",""))))
 		if local.is_empty() or brain.relationships.has(local+":"+identity):continue
@@ -86,7 +106,7 @@ func _process(delta: float) -> void:
 		if peer not in peers or str(game.school.identities.get(peer,""))!=str(peer_identities[peer]):
 			# Admitted people remain in the authoritative local collection; only
 			# the unavailable device's future fetch work is discarded.
-			peer_identities.erase(peer);manifests.erase(peer);manifest_offsets.erase(peer);requested.erase(peer);pending.erase(peer)
+			_forget_peer(int(peer))
 	for peer in peers:
 		if int(peer)==1 or not online:continue
 		var player:=str(game.school.identities[peer])
@@ -103,6 +123,9 @@ func _process(delta: float) -> void:
 			var id:=str(queue.pop_front())
 			requested.get_or_add(peer,{})[id]=Time.get_ticks_msec()
 			_person_request.rpc_id(int(peer),id)
+	for peer in requested.keys():
+		if _expire_requests(int(peer)):
+			for course in Programs.COURSES:_queue_candidates(int(peer),course)
 	_sync_active_records()
 
 func prepare_course(course: String) -> void:
@@ -110,18 +133,22 @@ func prepare_course(course: String) -> void:
 	for peer in manifests:_queue_candidates(int(peer),course)
 
 func _queue_candidates(peer: int,course: String) -> void:
+	_expire_requests(peer)
 	var ready:=0
 	var candidates: Array=manifests.get(peer,{}).values()
 	candidates.sort_custom(func(a,b):return int(a.get("appearances",0))>int(b.get("appearances",0)))
 	for item in candidates:
-		if course not in Programs.courses_for(str(item.get("program",""))):continue
+		if course not in item.get("courses",Programs.courses_for(str(item.get("program","")))):continue
 		if ready>=READY_PER_COURSE:break
 		ready+=1
 		var id:=str(item.id)
 		var local:=str(population.local_id(id))
 		var own_digest:=str(item.get("social_digest",""))
 		var known_digest:=str(archive.records.get(id+":"+str(peer_identities.get(peer,"")),{}).get("digest",""))
-		if not local.is_empty() and int(item.get("revision",1))<=int(population.people[local].get("dossier_revision",1)) and (own_digest.is_empty() or own_digest==known_digest):continue
+		var known_progress: String=Population._digest({"learning":population.people.get(local,{}).get("learning",{}),"weeks":population.people.get(local,{}).get("learning_weeks",{})})
+		var mood_digest:=str(item.get("mood_digest",""))
+		var known_mood:=str(archive.records.get(id+":_npc_mood",{}).get("digest",""))
+		if not local.is_empty() and int(item.get("revision",1))<=int(population.people[local].get("dossier_revision",1)) and (own_digest.is_empty() or own_digest==known_digest) and str(item.get("progress_digest",known_progress))==known_progress and (mood_digest.is_empty() or mood_digest==known_mood):continue
 		var queue: Array=pending.get_or_add(peer,[])
 		if not requested.get(peer,{}).has(id) and id not in queue and queue.size()<32:queue.append(id)
 
@@ -135,6 +162,8 @@ func _manifest_request(offset: int) -> void:
 		if not snapshot.is_empty():
 			_remap_snapshot(snapshot,local,str(entry.id),identity,identity)
 			entry.social_digest=Archive.digest(snapshot)
+		var mood:=_mood_receipt(local,str(entry.id))
+		if not mood.is_empty():entry.mood_digest=str(mood.digest)
 	_manifest_reply.rpc_id(1,offset,entries,population.people.size())
 
 @rpc("any_peer","call_remote","reliable")
@@ -148,12 +177,17 @@ func _manifest_reply(offset: int,entries: Array,total: int) -> void:
 	for entry in entries:
 		if not entry is Dictionary or not Population.valid_identity(str(entry.get("id",""))) or not entry.get("name") is String or str(entry.name).length()>80:return
 		if not entry.get("program") is String or str(entry.program).length()>160:return
+		var courses: Variant=entry.get("courses",Programs.courses_for(str(entry.program)))
+		if not courses is Array or courses.size()>Programs.COURSES.size():return
+		for course in courses:
+			if not course is String or course not in Programs.COURSES:return
 		for key in ["appearances","revision"]:
 			var value: Variant=entry.get(key,0)
 			if not (value is int or value is float) or not is_finite(float(value)) or float(value)<0 or float(value)>1000000:return
-		if not entry.get("social_digest","") is String or str(entry.get("social_digest","")).length()>64:return
+		for key in ["social_digest","progress_digest","mood_digest"]:
+			if not entry.get(key,"") is String or str(entry.get(key,"")).length()>64:return
 		if target.size()>=MAX_MANIFEST and not target.has(str(entry.id)):return
-		target[str(entry.id)]={"id":str(entry.id),"name":str(entry.name),"program":str(entry.program),"appearances":clampi(int(entry.get("appearances",0)),0,1000000),"revision":clampi(int(entry.get("revision",1)),1,1000000),"social_digest":str(entry.get("social_digest",""))}
+		target[str(entry.id)]={"id":str(entry.id),"name":str(entry.name),"program":str(entry.program),"courses":courses.duplicate(),"appearances":clampi(int(entry.get("appearances",0)),0,1000000),"revision":clampi(int(entry.get("revision",1)),1,1000000),"social_digest":str(entry.get("social_digest","")),"progress_digest":str(entry.get("progress_digest","")),"mood_digest":str(entry.get("mood_digest",""))}
 	if offset+entries.size()<total and entries.size()==32:
 		manifest_offsets[peer]=offset+32
 		_manifest_request.rpc_id(peer,offset+32)
@@ -164,15 +198,31 @@ func _person_request(id: String) -> void:
 	if multiplayer.is_server() or not _bind() or not Population.valid_identity(id):return
 	var payload:=_export(id,identity)
 	if not payload.is_empty():_person_reply.rpc_id(1,payload)
+	else:_person_unavailable.rpc_id(1,id)
+
+@rpc("any_peer","call_remote","reliable")
+func _person_unavailable(id: String) -> void:
+	var peer:=multiplayer.get_remote_sender_id()
+	if not _authenticated(peer) or not requested.get(peer,{}).has(id):return
+	requested[peer].erase(id)
+	manifests.get(peer,{}).erase(id)
 
 @rpc("any_peer","call_remote","reliable")
 func _person_reply(payload: Dictionary) -> void:
 	var peer:=multiplayer.get_remote_sender_id()
+	if not _authenticated(peer) or not payload.get("person") is Dictionary:return
 	var id:=str(payload.get("person",{}).get("id",""))
-	if not _authenticated(peer) or not requested.get(peer,{}).has(id):return
+	if not requested.get(peer,{}).has(id):return
 	requested[peer].erase(id)
 	if JSON.stringify(payload).to_utf8_buffer().size()>MAX_PACKET_BYTES:return
 	_receive(payload,str(game.school.identities[peer]),peer)
+
+func _expire_requests(peer: int,now:=Time.get_ticks_msec()) -> bool:
+	var expired:=false
+	var active: Dictionary=requested.get(peer,{})
+	for id in active.keys():
+		if now-int(active[id])>=REQUEST_TIMEOUT_MS:active.erase(id);expired=true
+	return expired
 
 func _authenticated(peer: int) -> bool:
 	return multiplayer.is_server() and peer>1 and is_instance_valid(game) and game.school.identities.has(peer) and str(peer_identities.get(peer,""))==str(game.school.identities[peer])
@@ -183,7 +233,7 @@ func _export(id: String,player: String) -> Dictionary:
 	var person: Dictionary=population.export_person(id)
 	if person.is_empty():return {}
 	var profile: Dictionary=population.profile_for(local)
-	var data:={"person":person,"social":{},"npc_bonds":[],"canon":brain.export_identity_canon(profile)}
+	var data:={"person":person,"social":{},"npc_bonds":[],"canon":brain.export_identity_canon(profile),"mood":_mood_receipt(local,id)}
 	var voice:=Voices.portable_profile(profile)
 	if not voice.is_empty():
 		voice.character_id=id
@@ -205,7 +255,7 @@ func _export(id: String,player: String) -> Dictionary:
 
 func _receive(payload: Dictionary,player: String,peer: int) -> bool:
 	if not payload.get("person") is Dictionary:return false
-	var accepted: Dictionary=population.import_person(payload.person,peer)
+	var accepted: Dictionary=population.import_person(payload.person,peer) if payload.person.has("dossier") else population.import_progress(payload.person)
 	if not accepted.get("ok",false):last_error=str(accepted.get("error","Profile rejected."));return false
 	var local:=str(accepted.id)
 	var profile: Dictionary=population.profile_for(local)
@@ -216,6 +266,7 @@ func _receive(payload: Dictionary,player: String,peer: int) -> bool:
 		var voice_error:=Voices.accept_portable_profile(profile,voice_record)
 		if voice_error==ERR_ALREADY_EXISTS:last_error="Contributed voice conflicts with the saved permanent voice; the saved identity was retained."
 		elif voice_error!=OK:last_error="Saved custom voice is unavailable in this session; its identity was retained."
+	if payload.get("mood") is Dictionary and not payload.mood.is_empty():_receive_mood(payload.mood,local,str(accepted.persistent_id))
 	if payload.get("canon") is Dictionary:
 		var canon: Dictionary=brain.import_identity_canon(profile,payload.canon)
 		if not canon.get("conflicts",[]).is_empty():last_error="Contradictory personal facts retained for review: "+", ".join(canon.conflicts)
@@ -249,7 +300,10 @@ func _receive_social(entry: Dictionary,local: String,player: String) -> void:
 	archive.receive(entry,merged)
 
 static func _remap_snapshot(snapshot: Dictionary,old_character: String,new_character: String,old_player: String,new_player: String) -> void:
-	for episode in snapshot.get("relationship",{}).get("episodes",[]):
+	var relationship: Variant=snapshot.get("relationship",{})
+	if not relationship is Dictionary or not relationship.get("episodes",[]) is Array:return
+	for episode in relationship.get("episodes",[]):
+		if not episode is Dictionary:continue
 		if episode.get("character")==old_character:episode.character=new_character
 		if episode.get("speaker")==old_player:episode.speaker=new_player
 
@@ -260,6 +314,7 @@ func _sync_active_records() -> void:
 			var profile: Dictionary=population.profile_for(str(id))
 			if profile.is_empty():continue
 			var global_id:=str(profile.persistent_id)
+			var mood:=_mood_receipt(str(id),global_id)
 			for peer in game.school.identities:
 				var player:=str(game.school.identities[peer])
 				if not activity.get("students",{}).has(player):continue
@@ -268,17 +323,14 @@ func _sync_active_records() -> void:
 				var record:=archive.observe(global_id,player,snapshot) if not snapshot.is_empty() else {}
 				if int(peer)==1 or not bool(game.session.online):continue
 				var key:=str(peer)+":"+global_id
-				var fingerprint:=str(record.get("digest",""))+":"+str(profile.get("dossier_revision",0))+":"+str(profile.get("appearances",0))
+				var fingerprint:=str(record.get("digest",""))+":"+str(profile.get("dossier_revision",0))+":"+str(profile.get("attendance",{}).get("count",profile.get("appearances",0)))+":"+Archive.digest({"learning":profile.get("learning",{}),"weeks":profile.get("learning_weeks",{})})+":"+str(mood.get("digest",""))
 				if sent.get(key,"")==fingerprint:continue
-				var payload:=_export(global_id,player)
-				if not payload.is_empty():
-					_receive_update.rpc_id(int(peer),payload)
-					sent[key]=fingerprint
+				if _send_update(int(peer),global_id,player):sent[key]=fingerprint
 
 @rpc("authority","call_remote","reliable")
 func _receive_update(payload: Dictionary) -> void:
 	if multiplayer.is_server() or not _bind() or JSON.stringify(payload).to_utf8_buffer().size()>MAX_PACKET_BYTES:return
-	_receive(payload,identity,1)
+	if not _receive(payload,identity,1):_received_update_error=true
 
 func diagnostics() -> Dictionary:
 	return {"local_population":population.people.size() if population!=null else 0,"contributors":manifests.size(),"social_records":archive.records.size(),"social_conflicts":archive.conflicts.size(),"last_error":last_error,"storage_error":archive.last_error,"social_storage_blocked":archive.blocked}
@@ -300,8 +352,7 @@ func _on_social_changed(character: String,participant: String) -> void:
 	for peer in game.school.identities:
 		var player:=str(game.school.identities[peer])
 		if int(peer)==1 or not audience.has(player):continue
-		var payload:=_export(global_id,player)
-		if not payload.is_empty():_receive_update.rpc_id(int(peer),payload)
+		_send_update(int(peer),global_id,player)
 
 func _flush() -> void:
 	if population==null or brain==null:return
@@ -323,3 +374,124 @@ func _game_ready() -> bool:
 		if node is Node and node.is_queued_for_deletion():return false
 	var students: Variant=game.lecture_classes.get("classroom_students")
 	return is_instance_valid(students) and (not students is Node or not students.is_queued_for_deletion())
+
+func _mood_receipt(local: String,global_id: String) -> Dictionary:
+	var mood: Dictionary=brain.export_mood_record(local)
+	if mood.is_empty():return {}
+	var previous: Dictionary=archive.records.get(global_id+":_npc_mood",{})
+	if not previous.is_empty():
+		var last: Dictionary=previous.get("snapshot",{}).get("mood",{})
+		# Do not turn a refreshed clock value into a new emotional event.
+		if Archive.digest({"values":last.get("values",{}),"history":last.get("history",[])})==Archive.digest({"values":mood.values,"history":mood.history}):return previous.duplicate(true)
+	return archive.observe(global_id,"_npc_mood",{"mood":mood})
+
+func _receive_mood(receipt: Dictionary,local: String,global_id: String) -> void:
+	if str(receipt.get("character",""))!=global_id or receipt.get("player")!="_npc_mood" or not Archive.valid(receipt):return
+	var current: Dictionary=brain.export_mood_record(local)
+	if not current.get("history",[]).is_empty():_mood_receipt(local,global_id)
+	var kind:=archive.classify(receipt)
+	if kind in ["invalid","older"]:return
+	if kind=="same" and not current.is_empty():return
+	var mood: Variant=receipt.snapshot.get("mood",{})
+	if not mood is Dictionary or not brain.import_mood_record(local,mood,kind=="descendant" or current.get("history",[]).is_empty()):return
+	archive.receive(receipt,{"mood":brain.export_mood_record(local)})
+
+func _send_update(peer: int,global_id: String,player: String) -> bool:
+	if not _bind() or not multiplayer.is_server() or peer not in multiplayer.get_peers() or str(game.school.identities.get(peer,""))!=player:return false
+	if peer_identities.has(peer) and str(peer_identities[peer])!=player:_forget_peer(peer)
+	var payload:=_export(global_id,player)
+	if payload.is_empty():return false
+	var key:=str(peer)+":"+global_id
+	var digest:=str(payload.person.get("digest",""))
+	# Biography/appearance are sent once per changed profile. Later emotional,
+	# relationship, attendance and learning updates are small state packets.
+	if sent_profiles.get(key,"")==digest:
+		payload.person.erase("dossier")
+	if rpc_id(peer,"_receive_update",payload)!=OK:return false
+	sent_profiles[key]=digest
+	return true
+
+func _forget_peer(peer: int) -> void:
+	# Invalidate immediately on disconnect. A new connection can reuse a peer
+	# number before the periodic manifest timer has another chance to run.
+	peer_identities.erase(peer);manifests.erase(peer);manifest_offsets.erase(peer);requested.erase(peer);pending.erase(peer)
+	_departure_requests.erase(peer)
+	for key in sent.keys():
+		if str(key).begins_with(str(peer)+":"):sent.erase(key)
+	for key in sent_profiles.keys():
+		if str(key).begins_with(str(peer)+":"):sent_profiles.erase(key)
+	if _departure_waiting.has(peer):_departure_waiting.erase(peer);_departure_failed=true
+
+func prepare_departure() -> bool:
+	# Checkpoints share the reliable ordered channel used by _receive_update.
+	# A receipt can therefore only follow processing of the preceding updates.
+	# This is a bounded handoff, never a promise to survive a lost connection.
+	if not _bind():return false
+	_flush()
+	var local_saved:=_persist_checkpoint()
+	var transport: MultiplayerPeer=multiplayer.multiplayer_peer
+	if not bool(game.session.online) or transport==null or transport.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED:return local_saved
+	var owner:=identity
+	_departure_nonce=Crypto.new().generate_random_bytes(16).hex_encode()
+	var nonce:=_departure_nonce
+	_departure_waiting.clear();_departure_failed=not local_saved
+	last_departure={"acknowledged":false,"timed_out":false,"missing":[],"local_saved":local_saved}
+	if multiplayer.is_server():
+		for peer in multiplayer.get_peers():
+			var player:=str(game.school.identities.get(peer,""))
+			if player.is_empty():continue
+			_departure_waiting[int(peer)]=player
+			if rpc_id(int(peer),"_departure_checkpoint",nonce,player)!=OK:_departure_waiting.erase(int(peer));_departure_failed=true
+	else:
+		_departure_waiting[1]=identity
+		if rpc_id(1,"_departure_request",nonce,identity)!=OK:_departure_waiting.clear();_departure_failed=true
+	var deadline:=Time.get_ticks_msec()+DEPARTURE_TIMEOUT_MS
+	while not _departure_waiting.is_empty() and Time.get_ticks_msec()<deadline:
+		if multiplayer.multiplayer_peer!=transport or transport.get_connection_status()!=MultiplayerPeer.CONNECTION_CONNECTED or not _game_ready() or str(game.school.local_identity)!=owner or _departure_nonce!=nonce:
+			_departure_failed=true
+			break
+		var peers:=multiplayer.get_peers()
+		for peer in _departure_waiting.keys():
+			if int(peer) not in peers:_departure_waiting.erase(peer);_departure_failed=true
+		if _departure_waiting.is_empty():break
+		await get_tree().process_frame
+	last_departure.missing=_departure_waiting.keys()
+	last_departure.timed_out=not _departure_waiting.is_empty() and Time.get_ticks_msec()>=deadline
+	last_departure.acknowledged=_departure_waiting.is_empty() and not _departure_failed
+	_departure_waiting.clear();_departure_nonce=""
+	if not local_saved:last_error="Recent changes could not all be saved locally before disconnect."
+	elif not last_departure.acknowledged:last_error="Recent changes remain saved on this device; another device did not confirm its final copy before disconnect."
+	return bool(last_departure.acknowledged)
+
+func _persist_checkpoint() -> bool:
+	var saved: bool=brain.save_memory()==OK
+	if population.dirty:saved=population.save_population()==OK and saved
+	return archive.save()==OK and saved
+
+@rpc("any_peer","call_remote","reliable")
+func _departure_request(nonce: String,player: String) -> void:
+	var peer:=multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or not _bind() or peer<=1 or nonce.length()!=32 or not nonce.is_valid_hex_number():return
+	if str(game.school.identities.get(peer,""))!=player or player.is_empty() or peer not in multiplayer.get_peers():return
+	var now:=Time.get_ticks_msec()
+	if now-int(_departure_requests.get(peer,-1000))<1000:return
+	_departure_requests[peer]=now
+	_flush()
+	_departure_checkpoint.rpc_id(peer,nonce,player)
+
+@rpc("authority","call_remote","reliable")
+func _departure_checkpoint(nonce: String,player: String) -> void:
+	if multiplayer.is_server() or not _bind() or nonce.length()!=32 or not nonce.is_valid_hex_number() or player!=identity:return
+	var saved:=_persist_checkpoint() and not _received_update_error
+	_departure_ack.rpc_id(1,nonce,identity,saved)
+	if nonce==_departure_nonce and _departure_waiting.has(1):
+		_departure_failed=not saved
+		_departure_waiting.erase(1)
+
+@rpc("any_peer","call_remote","reliable")
+func _departure_ack(nonce: String,player: String,saved: bool) -> void:
+	var peer:=multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or nonce!=_departure_nonce or not _departure_waiting.has(peer):return
+	if not _game_ready() or str(_departure_waiting[peer])!=player or str(game.school.identities.get(peer,""))!=player:return
+	_departure_failed=_departure_failed or not saved
+	_departure_waiting.erase(peer)

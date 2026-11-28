@@ -39,6 +39,8 @@ func _initialize() -> void:
 	check(Voices.accept_portable_profile(other,impostor)==ERR_ALREADY_EXISTS,"One custom voice cannot be assigned to a different character")
 	var invalid:=Voices.Design.draft(other);invalid.permanent_voice_id="unknown_preset"
 	check(Voices.accept_portable_profile(other,invalid)==ERR_INVALID_DATA,"Unknown preset cannot become a permanent identity")
+	var unheard:=original.duplicate(true);unheard.character_id=other.id;unheard.permanent_voice_id="voice_unapproved_import";unheard.approval_status="provisional_preset"
+	check(Voices.accept_portable_profile(other,unheard)==ERR_INVALID_DATA,"Unapproved custom candidate cannot masquerade as an active provisional preset")
 	check(Voices.accept_portable_profile({"id":"mr_bro"},original)==ERR_INVALID_DATA,"Population imports cannot modify canonical faculty")
 	for path: String in [first,second]:
 		for suffix: String in ["",".bak",".tmp"]:

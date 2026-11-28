@@ -138,7 +138,7 @@ static func _capture_selected(faculty: Node, room: String, student: String, clas
 		# even constructed for remote readers.
 		return result.duplicate(true)
 	if not student.is_empty():
-		result.population_diagnostics={"persistent_id":str(person.get("persistent_id",person.get("id",""))),"origin_population":str(person.get("origin_population","")),"eligible_courses":Programs.courses_for(str(person.get("program",""))),"previous_appearances":int(person.get("appearances",person.get("attendance",{}).get("count",0))),"identity_status":str(person.get("persistence_status","saved")),"newly_generated":bool(person.get("newly_generated",false))}
+		result.population_diagnostics={"persistent_id":str(person.get("persistent_id",person.get("id",""))),"origin_population":str(person.get("origin_population","")),"eligible_courses":Programs.eligible_courses(person),"previous_appearances":int(person.get("appearances",person.get("attendance",{}).get("count",0))),"identity_status":str(person.get("persistence_status","saved")),"newly_generated":bool(person.get("newly_generated",false))}
 	result.diagnostics = selected_diagnostics(diagnostics, id, identity, str(activity.get("phase", "")))
 	result.dossier_diagnostics = DossierStore.diagnostics(id)
 	var persistence: Dictionary = brain.diagnostics()

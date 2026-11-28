@@ -14,6 +14,10 @@ const EMOTIONS:=["normal","happy","excited","amused","irritated","angry","extrem
 var service: Node
 var draft: Dictionary={}
 var people: Dictionary={}
+var population_source: RefCounted
+var student_index: Dictionary={}
+var selected_student:=""
+var profile_unavailable:=false
 var selected_id:="mr_bro"
 var character_list: ItemList
 var search: LineEdit
@@ -75,21 +79,11 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	add_theme_constant_override("separation",12)
 	_label(self,"Character Voices",24,T.INK)
 	_label(self,"A permanent voice for every character. Browse locally, design a candidate, listen in different moods, then approve. Auditions use paid speech requests; opening this menu makes none.",14,T.MUTED)
-	for id: String in Roster.all_people():people[id]=People.teacher(id)
-	# The active host roster may provide persisted students. No private player
-	# profile or microphone data is shown in this developer-facing interface.
-	var game:=service.get_parent() if is_instance_valid(service) else null
-	if is_instance_valid(game) and game.get("lecture_classes")!=null:
-		var students: Variant=game.lecture_classes.get("classroom_students")
-		if students!=null and students.get("population")!=null:
-			var population: Variant=students.population.get("people")
-			if population is Dictionary:
-				for id: String in population:
-					if population[id] is Dictionary:people[id]=students.population.profile_for(id)
+	_load_people()
 	var split:=HBoxContainer.new();split.size_flags_vertical=Control.SIZE_EXPAND_FILL;split.add_theme_constant_override("separation",16);add_child(split)
 	var left_panel:=PanelContainer.new();left_panel.custom_minimum_size=Vector2(230,260);left_panel.add_theme_stylebox_override("panel",T.surface(T.SURFACE,T.BORDER,12));split.add_child(left_panel)
 	var left:=VBoxContainer.new();left.add_theme_constant_override("separation",10);left_panel.add_child(left)
-	search=LineEdit.new();search.placeholder_text="Find a character";search.custom_minimum_size.y=40;left.add_child(search)
+	search=LineEdit.new();search.placeholder_text="Find name or program";search.custom_minimum_size.y=40;left.add_child(search)
 	roster_filter=OptionButton.new();roster_filter.add_item("Everyone");roster_filter.add_item("Faculty");roster_filter.add_item("Students");left.add_child(roster_filter)
 	roster_filter.item_selected.connect(func(_index: int):_fill_list())
 	search.text_changed.connect(func(_value: String):_fill_list())
@@ -174,6 +168,45 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 		if control is OptionButton:control.fit_to_longest_item=false
 	_fill_list();_select(selected_id)
 
+func _load_people() -> void:
+	people.clear();student_index.clear();selected_student="";profile_unavailable=false
+	for id: String in Roster.all_people():people[id]=People.teacher(id)
+	var game:=service.get_parent() if is_instance_valid(service) else null
+	if not is_instance_valid(game) or game.get("lecture_classes")==null:return
+	var students: Variant=game.lecture_classes.get("classroom_students")
+	if students==null or not students.get("population") is RefCounted:return
+	population_source=students.population
+	var seeds: Variant=population_source.get("people")
+	var index: Variant=population_source.get("index")
+	if not seeds is Dictionary:return
+	for id: String in seeds:
+		if not seeds[id] is Dictionary:continue
+		var seed: Dictionary=seeds[id]
+		var entry: Dictionary=index.get(id,{}) if index is Dictionary else {}
+		var origin:=str(seed.get("origin_population",entry.get("origin_population",seed.get("voice_scope",""))))
+		var person:={"id":id,"role":"student","name":str(entry.get("name",seed.get("name",id))),"program":str(entry.get("program",seed.get("program",""))),
+			"persistent_id":str(seed.get("persistent_id",entry.get("id",id))),"origin_population":origin,
+			"voice_scope":origin if not origin.is_empty() else studio_owner.sha256_text() if not studio_owner.is_empty() else ""}
+		# Voice status needs only ID and origin scope. Never project every dossier
+		# merely to sort/filter the roster or count pending voice candidates.
+		student_index[id]=person;people[id]=person
+
+func _hydrate_selection(id: String) -> Dictionary:
+	if id==selected_student and not profile_unavailable:return people[id]
+	if student_index.has(selected_student):people[selected_student]=student_index[selected_student]
+	selected_student="";profile_unavailable=false
+	if not student_index.has(id):return people[id]
+	selected_student=id
+	if not is_instance_valid(population_source) or Dossiers.host_identity!=studio_owner:
+		profile_unavailable=true;return {}
+	var person: Dictionary=population_source.profile_for(id)
+	if person.is_empty() or str(person.get("id",""))!=id:
+		profile_unavailable=true;return {}
+	for field: String in ["persistent_id","origin_population","voice_scope"]:
+		if not person.has(field):person[field]=student_index[id][field]
+	people[id]=person
+	return person
+
 func _context_current() -> bool:
 	if not is_inside_tree() or not is_instance_valid(service) or not service.host_allowed() or Dossiers.host_identity!=studio_owner:return false
 	return not service.has_method("_account_cache_id") or str(service._account_cache_id(str(draft.get("key",""))))==studio_account
@@ -193,13 +226,14 @@ func _fill_list() -> void:
 		if roster_filter.selected==1 and not Roster.has(id):continue
 		if roster_filter.selected==2 and Roster.has(id):continue
 		var name:=str(person.get("name",id))
-		if not query.is_empty() and not name.to_lower().contains(query) and not id.contains(query):continue
+		var program:=str(person.get("program",""))
+		if not query.is_empty() and not name.to_lower().contains(query) and not id.contains(query) and not program.to_lower().contains(query):continue
 		totals[state]=int(totals.get(state,0))+1
 		var suffix: String={"approved":"Custom approved","candidate":"Ready to audition","creating":"Creating","reconcile":"Recover ID","legacy":"Resolve old voice","missing":"Preset","storage_error":"Storage blocked"}.get(state,state)
 		character_list.add_item(name+" · "+suffix)
 		var index:=character_list.item_count-1
 		character_list.set_item_metadata(index,id)
-		character_list.set_item_tooltip(index,name+" — "+suffix)
+		character_list.set_item_tooltip(index,name+" — "+suffix+("\n"+program if not program.is_empty() else ""))
 		if id==selected_id:character_list.select(index)
 	character_list.ensure_current_is_visible.call_deferred()
 	overview.text="%d characters · %d custom approved\n%d candidates · %d unresolved\n%d using a preset"%[character_list.item_count,totals.get("approved",0),totals.get("candidate",0),int(totals.get("reconcile",0))+int(totals.get("legacy",0))+int(totals.get("creating",0)),totals.get("missing",0)]
@@ -213,7 +247,7 @@ func _next_candidate() -> void:
 	for offset in range(1,ids.size()+1):
 		var id:=str(ids[posmod(start+offset,ids.size())])
 		if people.has(id) and Voices.custom_status(people[id])=="candidate":
-			search.clear();_select(id);_fill_list();return
+			search.clear();roster_filter.select(0);_select(id);_fill_list();return
 
 func _select(id: String) -> void:
 	if not people.has(id) or not is_inside_tree():return
@@ -226,7 +260,12 @@ func _select(id: String) -> void:
 	recover_fit.set_pressed_no_signal(false)
 	recover_id.clear()
 	recover_type.select(0)
-	var person: Dictionary=people[id]
+	var person:=_hydrate_selection(id)
+	if person.is_empty():
+		name_label.text=str(people[id].get("name",id));design.text="";use_candidate.set_pressed_no_signal(false)
+		_rebuild_models({},_default_model())
+		if is_instance_valid(portrait_model):portrait_model.queue_free()
+		_refresh();return
 	var identity:=Voices.identity(person)
 	var pending:=Voices.candidate(id,_scope())
 	name_label.text=str(person.get("name",id))
@@ -247,6 +286,7 @@ func _select(id: String) -> void:
 	_refresh()
 
 func _voice() -> Dictionary:
+	if profile_unavailable:return {}
 	var pending:=Voices.candidate(selected_id,_scope())
 	return pending if use_candidate.button_pressed and not pending.is_empty() else Voices.identity(people.get(selected_id,{}))
 
@@ -353,7 +393,9 @@ func _refresh() -> void:
 	recover_button.disabled=not recover_id.editable
 	clear_pending_button.visible=not journal.is_empty()
 	clear_pending_button.disabled=locked or not current or bool(journal.get("in_flight",false))
-	if not current:
+	if profile_unavailable:
+		status.text="Saved character details could not be loaded. The existing voice is retained. Select the character again to retry, or reopen after restoring the saved profile."
+	elif not current:
 		status.text="Browse saved character information here. Only the current host can edit voices. Reopen this menu if the host profile or account changed."
 	elif not online:
 		status.text="Saved characters and voices are available offline. Connect the host's OpenAI account to generate or audition a voice."
@@ -449,7 +491,7 @@ func _stop() -> void:
 	if is_instance_valid(status):_refresh()
 
 func _generate() -> void:
-	if busy or batch_active or not _can_request():return
+	if busy or batch_active or profile_unavailable or not _can_request():return
 	_stop()
 	var id:=selected_id
 	var person: Dictionary=people[id]
@@ -525,7 +567,7 @@ func _discard() -> void:
 	_fill_list();_refresh()
 
 func _recover() -> void:
-	if busy or batch_active or not _context_current():return
+	if busy or batch_active or profile_unavailable or not _context_current():return
 	var error:=Voices.recover_candidate(people[selected_id],recover_id.text,str(recover_type.get_selected_metadata()),design.text,recover_fit.button_pressed)
 	if error!=OK:status.text="Could not import the candidate: "+error_string(error);return
 	var pending:=Voices.candidate(selected_id,_scope())
@@ -549,7 +591,7 @@ func _confirm_legacy(adopt: bool) -> void:
 	var id:=selected_id
 	var scope:=_scope()
 	_confirm("Resolve previous unscoped voice","Adopt the saved voice only if it belongs to this same fictional character and campus. Otherwise keep the older identity separate and create a new provisional preset for this campus.",func():
-		if not _context_current() or selected_id!=id or _scope()!=scope:return
+		if profile_unavailable or not _context_current() or selected_id!=id or _scope()!=scope:return
 		var error:=Voices.resolve_legacy(people[id],adopt,true)
 		if error==OK:_select(id);_fill_list()
 		else:status.text="Could not resolve the old voice: "+error_string(error)

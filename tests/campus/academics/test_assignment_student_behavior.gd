@@ -57,6 +57,13 @@ func settle(faculty: Node) -> void:
 	while faculty.character_jobs>0 and Time.get_ticks_msec()<deadline:await process_frame
 	check(faculty.character_jobs==0,"Delayed character work completed")
 
+func settle_presentation(faculty: Node,actor: String) -> void:
+	# This fixture disables local sound/captions, but the real presentation
+	# lifecycle still finishes on a process frame rather than synchronously.
+	var deadline:=Time.get_ticks_msec()+2000
+	while faculty.student_speech_pending(actor) and Time.get_ticks_msec()<deadline:await process_frame
+	check(not faculty.student_speech_pending(actor),"The opening presentation completes before the reply is delivered")
+
 func prepared_actor(students: Node,index: int,point: Vector3,now: float,style: String) -> Dictionary:
 	var person: Dictionary=students.population.profile_for("campus_student_%02d"%index)
 	var t: Dictionary=person.traits
@@ -178,6 +185,9 @@ func run() -> void:
 	for request in client.requests.slice(setup_requests):
 		check(not request.context.has("teaching_step") and not request.context.has("classroom") and not request.context.has("current_display") and not request.context.has("station_readings"),"Assessment aside contains no work/board/equipment context")
 		check(not JSON.stringify(request).contains("UNRELEASED_AUTONOMY_ASSESSMENT"),"Private assessed content never reaches the social generator")
+	students._show_preclass_reply(activity,float(pending.at)+.1)
+	check(activity.has("classmate_reply") and not faculty.brain.character_biography(listener.profile).has(client.biography_topic),"Pending opening prevents an early reply and biography commit")
+	await settle_presentation(faculty,str(speaker.profile.id))
 	students._show_preclass_reply(activity,float(pending.at)+.1);await settle(faculty)
 	check(faculty.brain.recall(listener.profile.id,speaker.profile.id).size()==1 and int(faculty.brain.relationship(listener.profile.id,speaker.profile.id).familiarity)==familiarity,"Actual reply completes the perceived event without double relationship effects")
 	check(faculty.brain.character_biography(listener.profile).get(client.biography_topic,"")==client.biography_detail,"An actually delivered biographical detail becomes canon")

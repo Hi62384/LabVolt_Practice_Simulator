@@ -211,7 +211,7 @@ func home() -> void:
 	button("View Courses",view_courses_page)
 	button("Character Customizer",characters_page)
 	button("Settings",settings_page)
-	button("Quit",func():game.get_tree().quit())
+	button("Quit",func():game.session.quit_gracefully())
 func network_page(join: bool) -> void:
 	clear("join" if join else "host","JOIN GAME" if join else "HOST GAME")
 	if join:
@@ -669,7 +669,9 @@ func leave_game() -> void:
 	notice_time = 0.0
 	_campus_navigate("")
 	game._stand_from_chair()
-	game.session.leave()
+	if not await game.session.leave_gracefully():
+		leaving_game=false
+		return
 	in_game=false
 	game.school._identity_changed()
 	game.school.start("Freeplay",0)
