@@ -12,6 +12,8 @@ import time
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--godot', default='godot')
+    parser.add_argument('--storage-failure', action='store_true',
+                        help='Make the first client social-save fail, then verify bounded delivery retry and durable acknowledgement')
     args = parser.parse_args()
     repository = Path(__file__).resolve().parents[3]
     output = Path(tempfile.mkdtemp(prefix='labvolt-population-network-'))
@@ -31,6 +33,7 @@ def main() -> int:
             env.update(XDG_DATA_HOME=str(data), APPDATA=str(data),
                        GODOT_SILENCE_ROOT_WARNING='1', LABVOLT_POP_ROLE=role,
                        LABVOLT_POP_PORT=str(port), LABVOLT_POP_ID=identity)
+            env['LABVOLT_POP_STORAGE_FAILURE'] = '1' if args.storage_failure else '0'
             log = (output / (role + '.log')).open('w', encoding='utf-8')
             logs.append(log)
             processes.append(subprocess.Popen([args.godot, '--headless', '--path', str(repository),

@@ -13,6 +13,9 @@ var remote_identity:=""
 var remote_id:=""
 var stage:=0
 var deadline:=0
+var storage_failure:=false
+var failure_installed:=false
+var failure_observed:=false
 
 class School extends Node:
 	var local_identity:=""
@@ -49,6 +52,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	role=OS.get_environment("LABVOLT_POP_ROLE")
+	storage_failure=OS.get_environment("LABVOLT_POP_STORAGE_FAILURE")=="1"
 	var port:=int(OS.get_environment("LABVOLT_POP_PORT"))
 	var id:=OS.get_environment("LABVOLT_POP_ID")
 	fixture=Game.new();fixture.name="PopulationFixture";root.add_child(fixture)
@@ -72,9 +76,22 @@ func _step() -> void:
 	if Time.get_ticks_msec()>deadline:failures.append("Timed out at stage %d: %s"%[stage,JSON.stringify(service.diagnostics())]);_finish();return
 	if not service._bind():return
 	if role=="client":
+		if storage_failure and not failure_installed:
+			failure_installed=true
+			if DirAccess.make_dir_recursive_absolute(service.archive.path+".tmp")!=OK:failures.append("Could not inject client social-save failure")
 		var person_id:="campus_student_00"
 		var memory: Dictionary=service.brain.relationship(person_id,fixture.school.local_identity)
 		if stage==0 and memory.get("episodes",[]).any(func(episode):return episode.get("event_id")=="network-friendship"):
+			if storage_failure and not failure_observed:
+				failure_observed=true
+				if not service._received_update_error or not service.archive.dirty:failures.append("Failed save was falsely acknowledged as durable")
+				if DirAccess.remove_absolute(service.archive.path+".tmp")!=OK:failures.append("Could not release injected save failure")
+				return
+			if storage_failure and service._received_update_error:return
+			if storage_failure:
+				var restored:=preload("res://scripts/campus/academics/student_social_archive.gd").new();restored.configure(fixture.school.local_identity)
+				if restored.records.is_empty() or service.archive.dirty:failures.append("Retried receipt did not reach actual client disk")
+				print("POPULATION_STORAGE_RETRY PASS (failed save observed; identical update retried and persisted)")
 			if float(service.brain.social_context(memory).friendship)<=0.:failures.append("Friendship did not travel to owner")
 			if not is_equal_approx(service.population.learned(person_id,"MTH147"),.2):failures.append("NPC learning did not travel")
 			if not is_equal_approx(float(service.brain.export_mood_record(person_id).get("values",{}).get("anger",0.)),.7):failures.append("Global mood did not travel")
@@ -101,6 +118,8 @@ func _step() -> void:
 		fixture.lecture_classes.classes={"test":{"id":"network-class","course":"MTH147","students":{remote_identity:{"peer":root.multiplayer.get_peers()[0]}},"classmates":{remote_id:{"profile":person}}}}
 		stage=1
 	if stage==1 and fixture.get_meta("ready_for_update",false):
+		var key:=str(root.multiplayer.get_peers()[0])+":"+remote_id
+		if not service.sent_profiles.has(key) or service.pending_receipts.has(key):failures.append("Host did not wait for matching durable update receipt")
 		service.population.record_learning(remote_id,"MTH147",.24,2,.12)
 		service.brain.import_mood_record(remote_id,{"values":{"anger":.8},"at":int(Time.get_unix_time_from_system()),"history":[{"event":"insult","strength":.9,"at":1700000002,"description":"","emotion":"angry"}]},true)
 		service.brain.remember_event(service.population.profile_for(remote_id),remote_identity,{"event":"joke"},"Another shared joke.","Yes.",1700000003,"network-delta")

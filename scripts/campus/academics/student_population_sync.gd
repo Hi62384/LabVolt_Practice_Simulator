@@ -12,6 +12,8 @@ const READY_PER_COURSE:=6
 const MAX_PACKET_BYTES:=786432
 const DEPARTURE_TIMEOUT_MS:=2000
 const REQUEST_TIMEOUT_MS:=15000
+const UPDATE_RECEIPT_TIMEOUT_MS:=5000
+const UPDATE_ATTEMPTS:=3
 var game: Node
 var population: RefCounted
 var brain: RefCounted
@@ -24,6 +26,7 @@ var _pending_bonds: Dictionary={}
 var pending: Dictionary={}
 var sent: Dictionary={}
 var sent_profiles: Dictionary={}
+var pending_receipts: Dictionary={}
 var peer_identities: Dictionary={}
 var _bound_ready:=false
 var _bound_server:=false
@@ -37,6 +40,7 @@ var _departure_waiting: Dictionary={}
 var _departure_failed:=false
 var _departure_requests: Dictionary={}
 var _received_update_error:=false
+var _received_update_failures: Dictionary={}
 var last_departure: Dictionary={}
 
 func configure(owner: Node) -> void:
@@ -60,8 +64,8 @@ func _bind() -> bool:
 	identity=selected
 	_bound_server=server
 	_bound_transport=transport
-	manifests.clear();manifest_offsets.clear();requested.clear();pending.clear();sent.clear();sent_profiles.clear();peer_identities.clear();_pending_bonds.clear()
-	_departure_nonce="";_departure_waiting.clear();_departure_requests.clear();_received_update_error=false
+	manifests.clear();manifest_offsets.clear();requested.clear();pending.clear();sent.clear();sent_profiles.clear();pending_receipts.clear();peer_identities.clear();_pending_bonds.clear()
+	_departure_nonce="";_departure_waiting.clear();_departure_requests.clear();_received_update_error=false;_received_update_failures.clear()
 	if multiplayer.is_server():
 		population=game.lecture_classes.classroom_students.population
 		brain=game.faculty.brain
@@ -73,7 +77,11 @@ func _bind() -> bool:
 		population.load_population()
 		brain=Memory.new()
 		if brain.set_host_profile(identity)!=OK or not brain.load_memory():return false
-	archive.configure(identity)
+	var archive_error:=archive.configure(identity)
+	if archive.owner!=identity:
+		last_error="The previous profile has unsaved student memories; its local storage must recover before syncing another profile."
+		return false
+	if archive_error!=OK:last_error="Student social memory storage is unavailable on this device."
 	_bound_brain=brain
 	if server and not brain.social_record_changed.is_connected(_on_social_changed):brain.social_record_changed.connect(_on_social_changed)
 	# Recover the narrowly scoped social receipt if a previous process stopped
@@ -127,6 +135,12 @@ func _process(delta: float) -> void:
 		if _expire_requests(int(peer)):
 			for course in Programs.COURSES:_queue_candidates(int(peer),course)
 	_sync_active_records()
+	# A finished class can still have an unacknowledged final memory update.
+	# Retry delivery from current local state, without regenerating any AI work.
+	for key in pending_receipts.keys():
+		var waiting: Dictionary=pending_receipts[key]
+		if int(waiting.attempts)>=UPDATE_ATTEMPTS or Time.get_ticks_msec()-int(waiting.sent_at)<UPDATE_RECEIPT_TIMEOUT_MS:continue
+		_send_update(int(str(key).get_slice(":",0)),str(key).get_slice(":",1),str(waiting.player),str(waiting.fingerprint))
 
 func prepare_course(course: String) -> void:
 	if course not in Programs.COURSES or not multiplayer.is_server():return
@@ -242,6 +256,7 @@ func _export(id: String,player: String) -> Dictionary:
 	if not snapshot.is_empty():
 		_remap_snapshot(snapshot,local,id,player,player)
 		data.social=archive.observe(id,player,snapshot)
+		if data.social.is_empty():return {}
 	# Public NPC-to-NPC social bonds contain neither human dialogue nor grades.
 	for other in population.people:
 		if other==local or data.npc_bonds.size()>=8:continue
@@ -249,7 +264,9 @@ func _export(id: String,player: String) -> Dictionary:
 		if bond.is_empty():continue
 		var other_global:=str(population.profile_for(str(other)).persistent_id)
 		_remap_snapshot(bond,local,id,str(other),other_global)
-		data.npc_bonds.append(archive.observe(id,other_global,bond))
+		var receipt:=archive.observe(id,other_global,bond)
+		if receipt.is_empty():return {}
+		data.npc_bonds.append(receipt)
 		if JSON.stringify(data).to_utf8_buffer().size()>MAX_PACKET_BYTES:data.npc_bonds.pop_back();break
 	return data if JSON.stringify(data).to_utf8_buffer().size()<=MAX_PACKET_BYTES else {}
 
@@ -259,6 +276,7 @@ func _receive(payload: Dictionary,player: String,peer: int) -> bool:
 	if not accepted.get("ok",false):last_error=str(accepted.get("error","Profile rejected."));return false
 	var local:=str(accepted.id)
 	var profile: Dictionary=population.profile_for(local)
+	var saved:=true
 	if payload.get("voice") is Dictionary:
 		var voice_record: Dictionary=payload.voice.duplicate(true)
 		if str(voice_record.get("character_id",""))!=str(accepted.persistent_id):return false
@@ -266,38 +284,43 @@ func _receive(payload: Dictionary,player: String,peer: int) -> bool:
 		var voice_error:=Voices.accept_portable_profile(profile,voice_record)
 		if voice_error==ERR_ALREADY_EXISTS:last_error="Contributed voice conflicts with the saved permanent voice; the saved identity was retained."
 		elif voice_error!=OK:last_error="Saved custom voice is unavailable in this session; its identity was retained."
-	if payload.get("mood") is Dictionary and not payload.mood.is_empty():_receive_mood(payload.mood,local,str(accepted.persistent_id))
+	if payload.get("mood") is Dictionary and not payload.mood.is_empty():saved=_receive_mood(payload.mood,local,str(accepted.persistent_id)) and saved
 	if payload.get("canon") is Dictionary:
 		var canon: Dictionary=brain.import_identity_canon(profile,payload.canon)
 		if not canon.get("conflicts",[]).is_empty():last_error="Contradictory personal facts retained for review: "+", ".join(canon.conflicts)
 	var social: Variant=payload.get("social",{})
 	if social is Dictionary and not social.is_empty():
-		if str(social.get("player",""))==player and str(social.get("character",""))==str(accepted.persistent_id):_receive_social(social,local,player)
+		if str(social.get("player",""))==player and str(social.get("character",""))==str(accepted.persistent_id):saved=_receive_social(social,local,player) and saved
+		else:saved=false
 	var bonds: Variant=payload.get("npc_bonds",[])
 	if bonds is Array and bonds.size()<=8:
 		for bond in bonds:
 			if not bond is Dictionary or str(bond.get("character",""))!=str(accepted.persistent_id):continue
 			var other:=str(population.local_id(str(bond.get("player",""))))
-			if not other.is_empty():_receive_social(bond,local,other)
+			if not other.is_empty():saved=_receive_social(bond,local,other) and saved
 			elif Archive.valid(bond) and _pending_bonds.size()<128:_pending_bonds[str(bond.character)+":"+str(bond.player)]=bond.duplicate(true)
 	for key in _pending_bonds.keys():
 		var bond: Dictionary=_pending_bonds[key]
 		var actor:=str(population.local_id(str(bond.character)))
 		var other:=str(population.local_id(str(bond.player)))
-		if not actor.is_empty() and not other.is_empty():_receive_social(bond,actor,other);_pending_bonds.erase(key)
-	brain.save_memory()
-	return true
+		if not actor.is_empty() and not other.is_empty():
+			if _receive_social(bond,actor,other):_pending_bonds.erase(key)
+			else:saved=false
+	saved=brain.save_memory()==OK and saved
+	if not saved:last_error="Student state arrived, but recent memories could not all be saved locally."
+	return saved
 
-func _receive_social(entry: Dictionary,local: String,player: String) -> void:
+func _receive_social(entry: Dictionary,local: String,player: String) -> bool:
 	var kind:=archive.classify(entry)
-	if kind in ["invalid","older"]:return
-	if kind=="same" and brain.relationships.has(local+":"+player):return
+	if kind=="invalid":return false
+	if kind=="older":return true
+	if kind=="same" and brain.relationships.has(local+":"+player):return not archive.dirty or archive.save()==OK
 	var snapshot: Dictionary=entry.snapshot.duplicate(true)
 	_remap_snapshot(snapshot,str(entry.character),local,str(entry.player),player)
-	if not brain.import_social_record(local,player,snapshot,kind in ["new","descendant"]):return
+	if not brain.import_social_record(local,player,snapshot,kind in ["new","descendant"]):return false
 	var merged: Dictionary=brain.export_social_record(local,player)
 	_remap_snapshot(merged,local,str(entry.character),player,str(entry.player))
-	archive.receive(entry,merged)
+	return archive.receive(entry,merged)
 
 static func _remap_snapshot(snapshot: Dictionary,old_character: String,new_character: String,old_player: String,new_player: String) -> void:
 	var relationship: Variant=snapshot.get("relationship",{})
@@ -323,17 +346,26 @@ func _sync_active_records() -> void:
 				var record:=archive.observe(global_id,player,snapshot) if not snapshot.is_empty() else {}
 				if int(peer)==1 or not bool(game.session.online):continue
 				var key:=str(peer)+":"+global_id
-				var fingerprint:=str(record.get("digest",""))+":"+str(profile.get("dossier_revision",0))+":"+str(profile.get("attendance",{}).get("count",profile.get("appearances",0)))+":"+Archive.digest({"learning":profile.get("learning",{}),"weeks":profile.get("learning_weeks",{})})+":"+str(mood.get("digest",""))
+				var fingerprint:=_state_fingerprint(profile,record,mood)
 				if sent.get(key,"")==fingerprint:continue
-				if _send_update(int(peer),global_id,player):sent[key]=fingerprint
+				_send_update(int(peer),global_id,player,fingerprint)
+
+static func _state_fingerprint(profile: Dictionary,record: Dictionary,mood: Dictionary) -> String:
+	return str(record.get("digest",""))+":"+str(profile.get("dossier_revision",0))+":"+str(profile.get("attendance",{}).get("count",profile.get("appearances",0)))+":"+Archive.digest({"learning":profile.get("learning",{}),"weeks":profile.get("learning_weeks",{})})+":"+str(mood.get("digest",""))
 
 @rpc("authority","call_remote","reliable")
 func _receive_update(payload: Dictionary) -> void:
 	if multiplayer.is_server() or not _bind() or JSON.stringify(payload).to_utf8_buffer().size()>MAX_PACKET_BYTES:return
-	if not _receive(payload,identity,1):_received_update_error=true
+	var id:=str(payload.get("person",{}).get("id","")) if payload.get("person") is Dictionary else ""
+	var saved:=_receive(payload,identity,1)
+	if saved:_received_update_failures.erase(id)
+	elif _received_update_failures.size()<MAX_MANIFEST:_received_update_failures[id]=true
+	_received_update_error=not _received_update_failures.is_empty()
+	var token:=str(payload.get("sync_token",""))
+	if Population.valid_identity(id) and token.length()==32 and token.is_valid_hex_number():_update_receipt.rpc_id(1,id,token,saved)
 
 func diagnostics() -> Dictionary:
-	return {"local_population":population.people.size() if population!=null else 0,"contributors":manifests.size(),"social_records":archive.records.size(),"social_conflicts":archive.conflicts.size(),"last_error":last_error,"storage_error":archive.last_error,"social_storage_blocked":archive.blocked}
+	return {"local_population":population.people.size() if population!=null else 0,"contributors":manifests.size(),"social_records":archive.records.size(),"social_conflicts":archive.conflicts.size(),"last_error":last_error,"storage_error":archive.last_error,"social_storage_blocked":archive.blocked,"social_unsaved":archive.dirty,"pending_receipts":pending_receipts.size(),"unsaved_received_students":_received_update_failures.size()}
 
 func _on_social_changed(character: String,participant: String) -> void:
 	if not _game_ready() or not multiplayer.is_server() or population==null or brain==null or not population.people.has(character):return
@@ -382,34 +414,59 @@ func _mood_receipt(local: String,global_id: String) -> Dictionary:
 	if not previous.is_empty():
 		var last: Dictionary=previous.get("snapshot",{}).get("mood",{})
 		# Do not turn a refreshed clock value into a new emotional event.
-		if Archive.digest({"values":last.get("values",{}),"history":last.get("history",[])})==Archive.digest({"values":mood.values,"history":mood.history}):return previous.duplicate(true)
+		if Archive.digest({"values":last.get("values",{}),"history":last.get("history",[])})==Archive.digest({"values":mood.values,"history":mood.history}):return previous.duplicate(true) if not archive.dirty or archive.save()==OK else {}
 	return archive.observe(global_id,"_npc_mood",{"mood":mood})
 
-func _receive_mood(receipt: Dictionary,local: String,global_id: String) -> void:
-	if str(receipt.get("character",""))!=global_id or receipt.get("player")!="_npc_mood" or not Archive.valid(receipt):return
+func _receive_mood(receipt: Dictionary,local: String,global_id: String) -> bool:
+	if str(receipt.get("character",""))!=global_id or receipt.get("player")!="_npc_mood" or not Archive.valid(receipt):return false
 	var current: Dictionary=brain.export_mood_record(local)
 	if not current.get("history",[]).is_empty():_mood_receipt(local,global_id)
 	var kind:=archive.classify(receipt)
-	if kind in ["invalid","older"]:return
-	if kind=="same" and not current.is_empty():return
+	if kind=="invalid":return false
+	if kind=="older":return true
+	if kind=="same" and not current.is_empty():return not archive.dirty or archive.save()==OK
 	var mood: Variant=receipt.snapshot.get("mood",{})
-	if not mood is Dictionary or not brain.import_mood_record(local,mood,kind=="descendant" or current.get("history",[]).is_empty()):return
-	archive.receive(receipt,{"mood":brain.export_mood_record(local)})
+	if not mood is Dictionary or not brain.import_mood_record(local,mood,kind=="descendant" or current.get("history",[]).is_empty()):return false
+	return archive.receive(receipt,{"mood":brain.export_mood_record(local)})
 
-func _send_update(peer: int,global_id: String,player: String) -> bool:
+func _send_update(peer: int,global_id: String,player: String,fingerprint: String="") -> bool:
 	if not _bind() or not multiplayer.is_server() or peer not in multiplayer.get_peers() or str(game.school.identities.get(peer,""))!=player:return false
 	if peer_identities.has(peer) and str(peer_identities[peer])!=player:_forget_peer(peer)
 	var payload:=_export(global_id,player)
 	if payload.is_empty():return false
 	var key:=str(peer)+":"+global_id
 	var digest:=str(payload.person.get("digest",""))
+	if fingerprint.is_empty():fingerprint=_state_fingerprint(population.profile_for(population.local_id(global_id)),payload.get("social",{}),payload.get("mood",{}))
+	var previous: Dictionary=pending_receipts.get(key,{})
+	var attempts:=0
+	if str(previous.get("fingerprint",""))==fingerprint:
+		attempts=int(previous.get("attempts",0))
+		if attempts>=UPDATE_ATTEMPTS or Time.get_ticks_msec()-int(previous.get("sent_at",0))<UPDATE_RECEIPT_TIMEOUT_MS:return false
+	elif not pending_receipts.has(key) and pending_receipts.size()>=128:return false
 	# Biography/appearance are sent once per changed profile. Later emotional,
 	# relationship, attendance and learning updates are small state packets.
 	if sent_profiles.get(key,"")==digest:
 		payload.person.erase("dossier")
+	var token:=Crypto.new().generate_random_bytes(16).hex_encode()
+	payload.sync_token=token
 	if rpc_id(peer,"_receive_update",payload)!=OK:return false
-	sent_profiles[key]=digest
+	# Reliable delivery acknowledges a packet, not a successful disk write.
+	# Only a matching durable receipt permits future biography omission.
+	pending_receipts[key]={"token":token,"profile_digest":digest,"fingerprint":fingerprint,"player":player,"sent_at":Time.get_ticks_msec(),"attempts":attempts+1}
 	return true
+
+@rpc("any_peer","call_remote","reliable")
+func _update_receipt(global_id: String,token: String,saved: bool) -> void:
+	var peer:=multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or not _game_ready() or peer<=1 or not Population.valid_identity(global_id):return
+	var key:=str(peer)+":"+global_id
+	var waiting: Dictionary=pending_receipts.get(key,{})
+	if waiting.is_empty() or str(waiting.token)!=token or str(game.school.identities.get(peer,""))!=str(waiting.player):return
+	if not saved:
+		last_error="Another device could not save a student update; delivery will retry within its bounded retry budget."
+		return
+	sent[key]=str(waiting.fingerprint);sent_profiles[key]=str(waiting.profile_digest)
+	pending_receipts.erase(key)
 
 func _forget_peer(peer: int) -> void:
 	# Invalidate immediately on disconnect. A new connection can reuse a peer
@@ -420,6 +477,8 @@ func _forget_peer(peer: int) -> void:
 		if str(key).begins_with(str(peer)+":"):sent.erase(key)
 	for key in sent_profiles.keys():
 		if str(key).begins_with(str(peer)+":"):sent_profiles.erase(key)
+	for key in pending_receipts.keys():
+		if str(key).begins_with(str(peer)+":"):pending_receipts.erase(key)
 	if _departure_waiting.has(peer):_departure_waiting.erase(peer);_departure_failed=true
 
 func prepare_departure() -> bool:
