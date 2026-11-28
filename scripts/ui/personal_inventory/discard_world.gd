@@ -3,6 +3,9 @@ extends Node3D
 const Transfer = preload("res://scripts/ui/personal_inventory/discard_transfer.gd")
 const Lifetime := 120000
 const WARNING_MS := 15000
+const PERSONAL_LIMIT := 12
+const CABLE_KINDS := ["wire", "dc_wire", "ac_usb", "charging_cable"]
+const PERSONAL_ITEM_KINDS := ["supply", "component", "kit", "bag", "laptop"]
 const Store = preload("res://scripts/inventory_authority/store.gd")
 const PcbPreview = preload("res://scripts/campus/lost_found/pcb_preview.gd")
 const ClaimAuthority = preload("res://scripts/campus/lost_found/claim_authority.gd")
@@ -54,6 +57,9 @@ func request_drop(source: Dictionary,point: Vector3) -> void:
 
 func _discard(peer: int,source: Dictionary,point: Vector3,allow_held_kit := false) -> void:
 	if not game.session.roster.has(peer) or var_to_bytes(source).size()>1024 or not source.get("item") is Dictionary:return
+	var item: Dictionary = source.item
+	var cable: bool = item.get("kind") in ["wire","dc_wire"]
+	if not cable and not can_track_personal(peer):return
 	if drops.size()>=96:_notice(peer,"Too many discarded items are on the ground.");return
 	var floor_point: Variant = _drop_position(peer,point)
 	if floor_point==null:_notice(peer,"Face a clear spot on the floor to discard the item.");return
@@ -62,7 +68,6 @@ func _discard(peer: int,source: Dictionary,point: Vector3,allow_held_kit := fals
 	var profile: Dictionary = dorm._profile(identity)
 	if not profile.has("dorm") or not profile.get("pending_trade",{}).is_empty():
 		_notice(peer,"Inventory is unavailable.");return
-	var item: Dictionary = source.item
 	if item.get("kind")=="usb":
 		_discard_usb(peer,identity,profile,source,floor_point)
 		return
@@ -122,7 +127,7 @@ func _discard(peer: int,source: Dictionary,point: Vector3,allow_held_kit := fals
 				var paper: Dictionary = game.school.papers[id]
 				if paper.owner==peer and Transfer.Dorm.paper_supply(paper)==supply and not paper.get("supply_released",false):game.school.papers.erase(id)
 			game.school.broadcast()
-	var token := track_ground(peer,parcel,label)
+	var token := "" if cable else track_ground(peer,parcel,label)
 	drops[next_id]={"position":floor_point,"expires":Time.get_ticks_msec()+Lifetime,"label":label,"parcel":parcel,"owner":peer,"token":token}
 	next_id+=1
 	_publish()
@@ -185,7 +190,7 @@ func _pickup(peer: int,id: int,slots: int) -> void:
 		usb_handoffs.start(peer,id,slots)
 		return
 	var holder: String=""
-	if game.session.online:
+	if game.session.online and not parcel.has("wire"):
 		if token.is_empty() or claim_pending.has(token) or claimed_tokens.has(token):return
 		claim_pending[token]=true
 		holder=Crypto.new().generate_random_bytes(16).hex_encode()
@@ -207,7 +212,7 @@ func _pickup(peer: int,id: int,slots: int) -> void:
 			ClaimAuthority.release(self,token,holder)
 			claim_pending.erase(token)
 			return
-		# Paper and cable awards live only in this session. Leave the receipt
+		# Paper awards live only in this session. Leave the receipt
 		# unawarded on disk so a fresh host can release an unconfirmed pickup.
 		if not _begin_claim_receipt(token,holder):
 			ClaimAuthority.release(self,token,holder)
@@ -618,7 +623,7 @@ func _process(_delta: float) -> void:
 			request_clock=0.0
 			for peer in import_waiting:
 				if game.session.roster.has(peer):request_lost.rpc_id(int(peer))
-	if game.session.online and (not pending_import.is_empty() or not host_pending_import.is_empty()):
+	if not host_pending_import.is_empty() or (game.session.online and not pending_import.is_empty()):
 		import_clock+=_delta
 		if import_clock>=2.0:
 			import_clock=0.0
@@ -635,7 +640,7 @@ func _process(_delta: float) -> void:
 			if int(drop.expires)<=0 or now<int(drop.expires) or _pickup_pending(id,drop):continue
 			var owner := int(drop.owner)
 			var token := str(drop.token)
-			if game.session.roster.has(owner):
+			if not token.is_empty() and not _is_cable_parcel(drop.parcel) and game.session.roster.has(owner):
 				queued_entries["%d:%s" % [owner,token]]={"owner":owner,"token":token,"entry":{"label":drop.label,"parcel":drop.parcel}}
 			drops.erase(id)
 			changed=true
@@ -812,10 +817,30 @@ func _local_entries() -> Dictionary:
 	return entries.duplicate(true) if entries is Dictionary else {}
 
 func track_ground(peer: int,parcel: Dictionary,label: String) -> String:
+	if _is_cable_parcel(parcel):return ""
 	var token := Crypto.new().generate_random_bytes(16).hex_encode()
 	if peer==multiplayer.get_unique_id():cache_ground(token,parcel,label)
 	else:cache_ground.rpc_id(peer,token,parcel,label)
 	return token
+
+func can_track_personal(peer: int) -> bool:
+	if _personal_count(peer)<PERSONAL_LIMIT:return true
+	_notice(peer,"Lost & Found is full (%d items). Pick up one of your items before discarding another." % PERSONAL_LIMIT)
+	return false
+
+func _personal_count(peer: int) -> int:
+	var count:=checking_imports.values().count(peer)
+	for drop in drops.values():
+		if int(drop.get("owner",0))==peer and not str(drop.get("token","")).is_empty():count+=1
+	for record in queued_entries.values():
+		if int(record.owner)==peer:count+=1
+	for paper in game.school.papers.values():
+		if int(paper.get("owner",0))==peer and not str(paper.get("lost_token","")).is_empty():count+=1
+	return count
+
+static func _is_cable_parcel(parcel: Dictionary) -> bool:
+	var item: Variant=parcel.get("item")
+	return parcel.has("wire") or (item is Dictionary and item.get("kind") in CABLE_KINDS)
 
 @rpc("authority","call_remote","reliable",6)
 func cache_ground(token: String,parcel: Dictionary,label: String) -> void:
@@ -897,13 +922,19 @@ func _import_local(peer: int) -> bool:
 	var entries := _local_entries()
 	var previous: Dictionary=entries.duplicate(true)
 	entries=_reconcile_local_usb_entries(entries)
-	# Entries left marked ground indicate an interrupted previous session.
-	for entry in entries.values():
-		if entry is Dictionary:entry.ground=false
+	# Old ground entries came from an interrupted session. Keep personal items
+	# recoverable, including any that have to wait for a slot.
+	for token in entries.keys():
+		var entry: Variant=entries[token]
+		if not entry is Dictionary:continue
+		if entry.get("parcel") is Dictionary and _is_cable_parcel(entry.parcel):
+			entries.erase(token)
+		else:
+			entry.ground=false
 	if entries!=previous and not _save_entries(entries):return false
 	session_loaded=true
 	if multiplayer.is_server():
-		if game.session.online:host_pending_import=entries.duplicate(true)
+		host_pending_import=entries.duplicate(true)
 		_import_entries(peer,entries)
 	else:
 		pending_import=entries.duplicate(true)
@@ -960,15 +991,13 @@ func _valid_entry(token: String,entry: Variant) -> bool:
 	if token.length()!=32 or not token.is_valid_hex_number() or not entry is Dictionary:return false
 	if not entry.get("label") is String or str(entry.label).length()>80 or not entry.get("parcel") is Dictionary:return false
 	var parcel: Dictionary=entry.parcel
-	if var_to_bytes(parcel).size()>1048576:return false
+	if _is_cable_parcel(parcel) or var_to_bytes(parcel).size()>1048576:return false
 	if parcel.has("usb"):
 		var usb: Variant=parcel.usb
 		return usb is Dictionary and usb.get("id") is String and str(usb.id)==token and str(usb.id).length()==32 and str(usb.id).is_valid_hex_number() and Transfer.Dorm.identity_ok(usb.get("owner")) and usb.get("name") is String and preload("res://scripts/campus/computers/usb_archive.gd").valid_name(usb.name) and int(usb.get("capacity_mb",0)) in [8,32,64,150]
-	if parcel.has("wire"):
-		return parcel.get("dc") is bool and parcel.get("station") is int and int(parcel.station)>=0 and int(parcel.station)<game.session.labs.size() and parcel.get("color") is int and int(parcel.color) in range(4)
 	if parcel.has("food"):return parcel.food is Dictionary and parcel.food.get("item") is String
 	if parcel.has("paper"):return parcel.paper is Dictionary and not game.school._class_assessment(parcel.paper)
-	if not parcel.get("item") is Dictionary:return false
+	if not parcel.get("item") is Dictionary or parcel.item.get("kind") not in PERSONAL_ITEM_KINDS:return false
 	if parcel.item.get("kind")=="laptop":
 		var id: String=str(parcel.item.get("id",""))
 		if id.length()!=32 or not id.is_valid_hex_number() or not parcel.get("laptop") is Dictionary or not Transfer.Laptops.TIERS.has(parcel.laptop.get("tier","")):return false
@@ -990,17 +1019,13 @@ func _import_entry(peer: int,token: String,entry: Dictionary) -> void:
 	if checking_imports.has(key):return
 	if queued_entries.has(key) or drops.values().any(func(drop):return int(drop.get("owner",0))==peer and str(drop.get("token",""))==token):
 		_ack_import(peer,token,"accepted");return
-	var owned:=0
-	for drop in drops.values():
-		if int(drop.get("owner",0))==peer:owned+=1
-	for record in queued_entries.values():
-		if int(record.owner)==peer:owned+=1
-	if owned>=96 or queued_entries.size()>=96:_ack_import(peer,token,"retry");return
-	checking_imports[key]=true
+	if _personal_count(peer)>=PERSONAL_LIMIT or queued_entries.size()>=96:_ack_import(peer,token,"retry");return
+	checking_imports[key]=peer
 	var epoch:=import_retry_epoch
 	if game.session.online:
 		var status: Dictionary=await ClaimAuthority.status(self,token)
-		if epoch!=import_retry_epoch or not game.session.roster.has(peer):checking_imports.erase(key);return
+		if epoch!=import_retry_epoch:return
+		if not game.session.roster.has(peer):checking_imports.erase(key);return
 		if not status.get("ok",false):checking_imports.erase(key);_ack_import(peer,token,"retry");return
 		if status.get("claimed",false):
 			checking_imports.erase(key)

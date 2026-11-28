@@ -65,6 +65,8 @@ public partial class CalculatorMath
 
         if (expression.Operator != "=")
         {
+            if (operation == "auto" && expression.HasOperator("/") && ExactFraction(expression) is string fraction)
+                return Success(fraction);
             if (!TryTerms(expression, angle, out var terms))
                 return Success(Simplified(expression,angle).Display());
             return Success(operation == "factor" ? Factor(terms,variables) : PrintTerms(terms));
@@ -224,7 +226,8 @@ public partial class CalculatorMath
                 int degree=term.Key.Get(variable);
                 if (degree==0) continue;
                 Node symbol=new("atom",variable);
-                value=new("*","",value,degree==1 ? symbol : new Node("^","",symbol,NumberNode(degree)));
+                Node factor=degree==1 ? symbol : new Node("^","",symbol,NumberNode(degree));
+                value=value is { Operator: "atom", Text: "1" } ? factor : new("*","",value,factor);
             }
             sum=sum==null ? value : new Node("+","",sum,value);
         }

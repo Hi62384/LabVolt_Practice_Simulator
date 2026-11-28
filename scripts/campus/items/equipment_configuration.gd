@@ -206,7 +206,9 @@ static func body_size(configuration: Dictionary) -> Vector3:
 	var length:=.182
 	if int(configuration.get("version",1))==DESIGN_VERSION:
 		var layout: Array=configuration.get("keypad",[])
-		length=.062+.020*Keypad.occupied_rows(layout,Keypad.design_columns(layout))
+		var columns:=Keypad.design_columns(layout)
+		layout=Keypad.display_slots(layout,columns,true)
+		length=.062+.020*Keypad.occupied_rows(layout,columns)
 	return Vector3(body.width,body.height,length)
 
 static func kit_capacity(configuration: Dictionary, fallback: int) -> int:

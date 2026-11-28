@@ -374,7 +374,6 @@ func _move_floor_lead(peer: int, action: Dictionary) -> void:
 			lab.next_id+=1
 			lab.revision+=1
 			game.session.broadcast()
-		game.discarded_items.forget_ground(peer,str(lead.get("lost_token","")))
 		floor_leads.erase(id)
 	else:
 		var point: Variant=ground_drop_position(action.get("position"),peer)
@@ -406,9 +405,7 @@ func _move_floor_lead(peer: int, action: Dictionary) -> void:
 				game.session.broadcast()
 				break
 		if lead.is_empty():return
-		var parcel := {"wire":true,"dc":lead.dc,"station":lead.station,"color":lead.color}
-		var label: String = ["Red cable","Blue cable","Yellow cable","Black cable"][int(lead.color)]
-		lead.merge({"owner":peer,"position":point,"lost_token":game.discarded_items.track_ground(peer,parcel,label)})
+		lead.merge({"owner":peer,"position":point})
 		floor_leads[next_floor_lead]=lead
 		next_floor_lead+=1
 	broadcast()
@@ -811,6 +808,7 @@ func apply(peer: int,a: Dictionary) -> void:
 					if not other.held and other.id!=id and other.position.distance_to(pos)<.30:
 						_notice(peer,"Choose a clear spot to put the item down.")
 						return
+				if not lost_parcel.is_empty() and not game.discarded_items.can_track_personal(peer):return
 				if not supply.is_empty():
 					var placed: Dictionary=game.dorm_interactions.move_world_backpack(peer,supply.trim_prefix("bag:"),false,pos) if supply.begins_with("bag:") else game.dorm_interactions.move_world_supply(peer,supply,false)
 					if not placed.ok:_notice(peer,str(placed.error));return

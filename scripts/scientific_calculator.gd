@@ -3,6 +3,7 @@ signal close_requested
 const Supplies = preload("res://scripts/campus/dorms/authority/persistent_dorm.gd")
 const Finance = preload("res://scripts/financial_calculator.gd")
 const Equipment = preload("res://scripts/campus/items/equipment_configuration.gd")
+const KeyGrid = preload("res://scripts/campus/items/calculator_key_grid.gd")
 const MathEngine=preload("res://scripts/campus/computers/CalculatorMath.cs")
 const Equation=preload("res://scripts/campus/items/calculator_equation_view.gd")
 const EquationEditor=preload("res://scripts/ui/paper_workspace/equations/editor.gd")
@@ -130,14 +131,20 @@ func _ready() -> void:
 			display.text_changed.connect(_refresh_isolation)
 		if graph_level>0:tools.add_child(_action("Graph",func():functions.visible=not functions.visible))
 	if graph_level>0:_build_graph(body)
-	var grid := GridContainer.new();grid.columns=6 if advanced_app else 4 if basic else 5;grid.add_theme_constant_override("h_separation",6);grid.add_theme_constant_override("v_separation",4);body.add_child(grid)
-	grid.columns=Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","columns",grid.columns)
+	var grid := KeyGrid.new()
+	grid.name="Keypad"
+	grid.columns=Equipment.value(Equipment.CALCULATOR,equipment_options,"hardware","columns",6 if advanced_app else 4 if basic else 5)
+	grid.cell_size=Vector2(38 if advanced_app else 44,32 if show_close else 40)
+	grid.gap=Vector2(6,4)
+	body.add_child(grid)
 	if basic or financial or campus_style:grid.size_flags_vertical=Control.SIZE_EXPAND_FILL
-	var keys:=Equipment.Keypad.updated_keys(equipment_options.get("keypad",keypad_keys(model)))
+	var keys: Array=equipment_options.get("keypad",keypad_keys(model)).duplicate()
 	if advanced_app and not configured:
 		keys.append_array(["Equality","x","y","z","i","∠","Convert","∫","d/dx","Factor"])
-	if configured and int(equipment_options.get("version",1))<Equipment.DESIGN_VERSION:keys=Equipment.Keypad.with_required(keys)
-	elif configured:keys=keys.slice(0,Equipment.Keypad.occupied_rows(keys,grid.columns)*grid.columns)
+	var spatial:=configured and int(equipment_options.get("version",1))>=Equipment.DESIGN_VERSION
+	if configured and not spatial:keys=Equipment.Keypad.with_required(keys)
+	keys=Equipment.Keypad.display_slots(keys,grid.columns,spatial)
+	keys=keys.slice(0,Equipment.Keypad.occupied_rows(keys,grid.columns)*grid.columns)
 	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,equipment_options,"appearance","key_style",false)
 	var key_colors: Dictionary=equipment_options.get("key_colors",{})
 	var material_tint:=Color(equipment_options.get("materials",{}).get("keys",{}).get("color","ffffff"))
@@ -148,12 +155,11 @@ func _ready() -> void:
 		finance_help.add_theme_font_size_override("font_size",12)
 		body.add_child(finance_help)
 		body.move_child(finance_help,2)
-	for key in keys:
+	for index in keys.size():
+		var key: String=keys[index]
 		if key.is_empty():
 			var blank:=Panel.new()
-			blank.custom_minimum_size=Vector2(44,32 if show_close else 40)
-			blank.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-			blank.size_flags_vertical=Control.SIZE_EXPAND_FILL
+			blank.visible=not Equipment.Keypad.continuation(keys,index,grid.columns)
 			var recess:=StyleBoxFlat.new()
 			recess.bg_color=Color("172d38")
 			recess.set_corner_radius_all(5)
@@ -162,7 +168,8 @@ func _ready() -> void:
 			continue
 		var button := Button.new()
 		button.text=Equipment.Keypad.caption(key)
-		button.custom_minimum_size=Vector2(38 if advanced_app else 44,32 if show_close else 40)
+		button.clip_text=true
+		button.set_meta("keypad_span",Equipment.Keypad.span(key))
 		button.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		button.add_theme_font_size_override("font_size",15)
 		var key_info:=Equipment.Keypad.catalog(key)
@@ -401,7 +408,7 @@ func _display_calculation(outcome: Dictionary) -> bool:
 		var source:=str(outcome.get("answer",message))
 		if successful and not source.is_empty() and source not in ["True","False"] and not source.begins_with("No ") and not source.begins_with("All ") and not "," in source and Parser.new().parse(source).ok:
 			answer_source=source
-		var show_formula:=successful and not "," in message and ("^" in message or "/" in message or "=" in message or "ⁿ√" in message or "∠" in message)
+		var show_formula:=successful and not message.is_empty() and message not in ["True","False"] and not message.begins_with("No ") and not message.begins_with("All ")
 		result.visible=not show_formula
 		result_equation.visible=show_formula
 		if show_formula:result_equation.set_expression(message)

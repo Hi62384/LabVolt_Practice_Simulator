@@ -62,7 +62,7 @@ static func updated_keys(layout: Array) -> Array:
 	return updated
 
 static func caption(symbol: String) -> String:
-	return "=" if symbol=="Equality" else symbol
+	return {"Equality":"=","x":"𝑥"}.get(symbol,symbol)
 
 static func clean_colors(raw: Variant, layout: Array) -> Variant:
 	if not raw is Dictionary or raw.size()>SLOTS:return null
@@ -73,10 +73,12 @@ static func clean_colors(raw: Variant, layout: Array) -> Variant:
 		colors[key]=hex.to_lower()
 	return colors
 
-const SLOTS := 49
+const SLOTS := 70
 const COLUMNS := 7
+const PREVIOUS_SLOTS := 49
 const LEGACY_SLOTS := 36
 const LEGACY_COLUMNS := 6
+const WIDE_KEYS := ["asin","acos","atan","d/dx","Factor","Convert","%CHG"]
 const CATEGORIES := ["Numbers and decimal","Basic arithmetic","Calculation controls","Memory","Powers and roots","Trigonometry","Logarithms","Constants","Algebra and variables","Complex numbers","Financial functions","Other supported functions"]
 # Name, description, example, category index, price, required hardware.
 const BUTTONS := {
@@ -144,7 +146,7 @@ const BUTTONS := {
 	"MAR":["Margin","Find profit as a share of selling price.","MAR(80, 100) = 20",10,8,""],
 	"SL":["Straight-line depreciation","Find the depreciation per period.","SL(1000, 100, 3) = 300",10,12,""],
 	"BEP":["Break-even point","Find the units needed to cover fixed costs.","BEP(100, 10, 5) = 20",10,12,""],
-	",":["Argument separator","Separate inputs in finance and complex conversions.","PV(5, 2, 1100)",11,1,""],
+	",":["Argument separator","Separate arguments in financial functions.","PV(5, 2, 1100)",10,1,""],
 }
 const CAPABILITIES := {"equation":"Equation entry","algebra":"Symbolic algebra","complex":"Complex numbers","graph":"Graphing"}
 
@@ -168,6 +170,39 @@ static func occupied_rows(layout: Array,columns: int) -> int:
 static func design_columns(layout: Array) -> int:
 	return LEGACY_COLUMNS if layout.size()==LEGACY_SLOTS else COLUMNS
 
+static func span(symbol: String) -> int:
+	return 2 if symbol in WIDE_KEYS else 1
+
+static func spans_fit(layout: Array, columns: int) -> bool:
+	for index in layout.size():
+		if layout[index] is String and span(layout[index])==2:
+			if index%columns==columns-1 or index+1>=layout.size() or layout[index+1]!="":return false
+	return true
+
+static func continuation(layout: Array, index: int, columns: int) -> bool:
+	return index%columns!=0 and span(layout[index-1])==2
+
+static func pack(keys: Array, columns: int) -> Array:
+	var layout: Array=[]
+	for key in keys:
+		if key=="":continue
+		if span(key)==2 and layout.size()%columns==columns-1:layout.append("")
+		layout.append(key)
+		if span(key)==2:layout.append("")
+	return layout
+
+static func display_slots(raw: Array, columns: int, spatial: bool) -> Array:
+	var layout:=updated_keys(raw)
+	return layout if spatial and spans_fit(layout,columns) else pack(layout,columns)
+
+static func designer_slots(raw: Array) -> Array:
+	var layout:=updated_keys(raw)
+	if raw.size()==LEGACY_SLOTS:
+		for row in range(int(LEGACY_SLOTS/LEGACY_COLUMNS)-1,-1,-1):
+			layout.insert((row+1)*LEGACY_COLUMNS,"")
+	if not spans_fit(layout,COLUMNS):layout=pack(layout,COLUMNS)
+	return new_slots(layout)
+
 static func new_slots(keys: Array) -> Array:
 	var layout:=keys.duplicate()
 	while layout.size()<SLOTS:layout.append("")
@@ -180,7 +215,8 @@ static func default_slots() -> Array:
 	return layout
 
 static func design_price(layout: Variant, hardware: Dictionary) -> int:
-	if not layout is Array or layout.size() not in [LEGACY_SLOTS,SLOTS]:return -1
+	if not layout is Array or layout.size() not in [LEGACY_SLOTS,PREVIOUS_SLOTS,SLOTS]:return -1
+	if layout.size()==SLOTS and not spans_fit(layout,COLUMNS):return -1
 	var price:=0
 	var seen:={}
 	for symbol in updated_keys(layout):
@@ -217,4 +253,4 @@ static func preset(name: String) -> Dictionary:
 			hardware.algebra=1
 			hardware.graph=2
 			keys.append_array(["(",")","x","y","z","x²","xʸ","ⁿ√","√","±","sin","cos","tan","π","°","Equality","∫","d/dx","Factor"])
-	return {"keypad":new_slots(keys),"hardware":hardware}
+	return {"keypad":new_slots(pack(keys,COLUMNS)),"hardware":hardware}

@@ -4,20 +4,30 @@ func run():
  var game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
  for i in 4:await physics_frame
  var world=game.discarded_items
- var parcel={"wire":true,"dc":false,"station":0,"color":2}
- var token: String=world.track_ground(1,parcel,"Yellow cable")
+ var cable={"wire":true,"dc":false,"station":0,"color":2}
+ assert(world.track_ground(1,cable,"Yellow cable").is_empty())
+ var legacy_cable: String=Crypto.new().generate_random_bytes(16).hex_encode()
+ assert(world._save_entries({legacy_cable:{"parcel":cable,"label":"Yellow cable","ground":true}}))
+ var lesson: Dictionary=load("res://scripts/course_generator.gd").generate(0,0,123)
+ var paper_id: int=game.school._give(1,lesson,true,false,true)
+ var paper: Dictionary=game.school.papers[paper_id]
+ game.school.papers.erase(paper_id)
+ var token: String=world.track_ground(1,{"paper":paper},"Worksheet")
  assert(world._local_entries().has(token))
  world._leaving()
  assert(not world._local_entries()[token].ground)
  world._import_local(1)
- assert(world.drops.size()==1)
+ assert(world.drops.size()==1 and not world._local_entries().has(legacy_cable))
  var id: int=world.drops.keys()[0]
  assert(world.drops[id].owner==1 and world.drops[id].token==token)
  game.player.global_position=world.drops[id].position
  world._pickup(1,id,6)
  assert(not world.drops.has(id))
  assert(not world._local_entries().has(token))
- assert(2 in game.session.labs[0].stored_cables.get(1,[]))
+ assert(game.school.held(1)!=0)
+ world.drops[2000]={"position":Vector3.ZERO,"expires":1,"label":"Yellow cable","owner":1,"parcel":cable,"token":""}
+ world._process(0)
+ assert(world.drops.is_empty() and world.queued_entries.is_empty())
  assert(world._visual_kind({"parcel":{"paper":{"calculator":true}}})=="calculator")
  assert(world._visual_kind({"parcel":{"paper":{"notebook":true}}})=="notebook")
  for supply in ["flashlight","pencil_case"]:

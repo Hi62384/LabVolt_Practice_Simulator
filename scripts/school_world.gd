@@ -254,18 +254,22 @@ func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, op
 	game._box(prop,Vector3(0,length*.30,face+.003),Vector3(width*.88,length*.24*display_scale,.006),Color("141f24"))
 	game._box(prop,Vector3(0,length*.30,face+.006),Vector3(width*.81,length*.185*display_scale,.002),display_color).set_meta("material_segment","display")
 	_calculator_mark(prop,"0",Vector3(width*.33,length*.29,face+.0075),.00053,Color("233b30"))
-	var keys:=Equipment.Keypad.updated_keys(options.get("keypad",Equipment.Keypad.keys(model)))
+	var keys: Array=options.get("keypad",Equipment.Keypad.keys(model))
 	var key_colors: Dictionary=options.get("key_colors",{})
 	var key_tint:=Color(options.get("materials",{}).get("keys",{}).get("color","ffffff"))
-	if options.has("body") and int(options.get("version",1))<Equipment.DESIGN_VERSION:keys=Equipment.Keypad.with_required(keys)
+	var spatial:=options.has("body") and int(options.get("version",1))>=Equipment.DESIGN_VERSION
+	if options.has("body") and not spatial:keys=Equipment.Keypad.with_required(keys)
 	var columns: int=Equipment.value(Equipment.CALCULATOR,options,"hardware","columns",4 if basic else 5)
+	keys=Equipment.Keypad.display_slots(keys,columns,spatial)
 	var round_keys: bool=Equipment.value(Equipment.CALCULATOR,options,"appearance","key_style",false)
 	var rows := maxi(1,Equipment.Keypad.occupied_rows(keys,columns))
 	var step := Vector2(width*.88/columns,length*.60/rows)
 	for index in keys.size():
 		var key: String=keys[index]
 		if key.is_empty():continue
-		var at := Vector3((index%columns-(columns-1)*.5)*step.x,length*.13-(floorf(float(index)/columns)+.5)*step.y,face+.005)
+		var span:=Equipment.Keypad.span(key)
+		var cap_width:=step.x*(span-.14)
+		var at := Vector3((index%columns+(span-1)*.5-(columns-1)*.5)*step.x,length*.13-(floorf(float(index)/columns)+.5)*step.y,face+.005)
 		var tint := Color("8297a2") if key.is_valid_int() or key=="." else Color("485968")
 		if not options.is_empty():
 			tint=Color(Equipment.value(Equipment.CALCULATOR,options,"appearance","keys","60747e"))
@@ -274,17 +278,22 @@ func _build_calculator_prop(prop: Node3D, dimensions: Vector3, model: String, op
 		if key in ["AC","DEL"]:tint=Color("a76658")
 		if key_colors.has(key):tint=Color(key_colors[key])
 		var cap: MeshInstance3D
-		if round_keys:cap=Toon.ellipsoid(prop,at,Vector3(step.x*.43,step.y*.395,.0035),Toon.material(tint.to_html(false)),key+" key")
-		else:cap=game._box(prop,at,Vector3(step.x*.86,step.y*.79,.007 if basic else .004),tint)
+		if round_keys:cap=Toon.ellipsoid(prop,at,Vector3(cap_width*.5,step.y*.395,.0035),Toon.material(tint.to_html(false)),key+" key")
+		else:cap=game._box(prop,at,Vector3(cap_width,step.y*.79,.007 if basic else .004),tint)
 		cap.set_meta("material_segment","keys")
 		cap.set_meta("material_color_multiplier",tint)
-		_calculator_mark(prop,Equipment.Keypad.caption(key),at+Vector3(0,0,.004),.00032 if basic else .00022,Color("1a2631") if (tint*key_tint).get_luminance()>.45 else Color("f2f5ef"))
+		var caption:=Equipment.Keypad.caption(key)
+		var font:=ThemeDB.fallback_font
+		var text_width:=font.get_string_size(caption,HORIZONTAL_ALIGNMENT_LEFT,-1,26).x
+		var pixel:=minf(.00032 if basic else .00022,minf(cap_width*.82/maxf(1.0,text_width),step.y*.58/font.get_height(26)))
+		_calculator_mark(prop,caption,at+Vector3(0,0,.004),pixel,Color("1a2631") if (tint*key_tint).get_luminance()>.45 else Color("f2f5ef"))
 	Equipment.Materials.apply(prop,options)
 	preload("res://scripts/campus/items/decoration_surface.gd").attach(prop,options.get("decoration",[]),Vector3(0,0,-face-.0005),Vector3(0,PI,0),Vector2(width*.83,length*.86))
 
 func _calculator_mark(parent: Node3D, value: String, at: Vector3, pixel: float, tint: Color) -> void:
 	var mark := Label3D.new()
 	mark.text=value
+	mark.font=ThemeDB.fallback_font
 	mark.font_size=26
 	mark.pixel_size=pixel
 	mark.modulate=tint

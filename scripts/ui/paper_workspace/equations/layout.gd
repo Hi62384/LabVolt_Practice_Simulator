@@ -103,6 +103,7 @@ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dict
 			"commands":[{"kind":"caret","pos":Vector2.ZERO,"trail":node.trail,"index":node.index,"empty":node.empty,"height":height}]}
 	if op == "atom":
 		var names := {"alpha":"α", "beta":"β", "gamma":"γ", "delta":"δ", "theta":"θ", "lambda":"λ", "mu":"μ", "pi":"π", "rho":"ρ", "sigma":"σ", "phi":"φ", "omega":"ω", "infty":"∞"}
+		if node.text=="x":return _text("𝑥",font,size)
 		return _text(str(names.get(node.text, node.text)), font, size)
 	if op == "function":
 		var argument := _layout(node.child, font, size, depth+1)

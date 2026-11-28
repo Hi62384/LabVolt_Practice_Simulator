@@ -40,7 +40,8 @@ func run() -> void:
 	dialog.confirmed.emit()
 	assert(dialog.stage==1 and dialog.keypad_designer.visible)
 	var designer: VBoxContainer=dialog.keypad_designer
-	assert(designer.grid.columns==7 and designer.grid.get_child_count()==49)
+	assert(designer.grid.columns==7 and designer.grid.get_child_count()==70)
+	assert(Equipment.Keypad.catalog(",").category==10)
 	assert(Equipment.Keypad.unlocked("y",{"algebra":1,"graph":0}))
 	_press(designer,"Key colors")
 	await process_frame
@@ -71,6 +72,11 @@ func run() -> void:
 	assert(Equipment.value(Equipment.CALCULATOR,legacy_layout,"hardware","columns",4)==6)
 	full_layout.keypad.append("")
 	assert(Equipment.quote(Equipment.CALCULATOR,10,full_layout).is_empty())
+	full_layout.keypad=Equipment.Keypad.new_slots(Equipment.Keypad.pack(Equipment.Keypad.available().slice(0,58),7))
+	assert(full_layout.keypad.size()==70 and not Equipment.quote(Equipment.CALCULATOR,10,full_layout).is_empty())
+	var overlap:=full_layout.duplicate(true)
+	overlap.keypad=Equipment.Keypad.new_slots(["Convert","1"])
+	assert(Equipment.quote(Equipment.CALCULATOR,10,overlap).is_empty())
 	if DisplayServer.get_name()!="headless":
 		for frame in 4:await process_frame
 		var source: Rect2=designer.grid.get_child(0).get_global_rect()
@@ -114,12 +120,28 @@ func run() -> void:
 	designer.apply_preset("Algebra")
 	assert("ⁿ√" in designer.slots)
 	assert("←" not in designer.slots and "→" not in designer.slots)
-	assert(designer.add_key("←",40))
-	assert(designer.add_key("→",41))
-	assert(designer.add_key("↑",38) and designer.add_key("↓",39))
-	assert(designer.add_key("sin",42))
-	designer.move_key(42,48)
-	assert(designer.slots[42]=="" and designer.slots[48]=="sin")
+	assert(designer.add_key("←",56))
+	assert(designer.add_key("→",57))
+	assert(designer.add_key("↑",58) and designer.add_key("↓",59))
+	assert(designer.add_key("sin",60))
+	designer.move_key(60,69)
+	assert(designer.slots[60]=="" and designer.slots[69]=="sin")
+	var wide_index: int=designer.slots.find("Convert")
+	assert(not designer.add_key("cos",wide_index+1))
+	designer.move_key(wide_index,62)
+	assert(designer.slots[wide_index]=="Convert")
+	designer.move_key(wide_index,63)
+	assert(designer.slots[63]=="Convert" and designer.slots[64]=="")
+	await process_frame
+	var wide: Control=designer.grid.get_child(63)
+	var regular: Control=designer.grid.get_child(69)
+	assert(absf(wide.size.x-2.0*regular.size.x-designer.grid.gap.x)<=2.0)
+	for mark in dialog.rendered_product.find_children("*","Label3D",true,false):
+		if mark.text!="Convert":continue
+		var cap: MeshInstance3D=mark.get_parent().get_child(mark.get_index()-1)
+		var caption_width: float=mark.font.get_string_size(mark.text,HORIZONTAL_ALIGNMENT_LEFT,-1,mark.font_size).x*mark.pixel_size
+		assert(caption_width<cap.mesh.size.x)
+		assert(is_equal_approx(mark.position.x,cap.position.x))
 	designer.remove_key(designer.slots.find("AC"))
 	assert(designer.feedback.text.contains("AC"))
 	_press(designer,"Key colors")
@@ -156,8 +178,11 @@ func run() -> void:
 	calculator.model="calculator"
 	calculator.equipment_options=options
 	root.add_child(calculator)
-	var keypad: GridContainer=calculator.find_children("*","GridContainer",true,false)[0]
-	assert(keypad.columns==7 and keypad.get_child(48).text=="sin" and not keypad.get_child(42) is Button)
+	var keypad: Container=calculator.find_child("Keypad",true,false)
+	assert(keypad.get_child(69).text=="sin" and not keypad.get_child(60) is Button)
+	assert(keypad.get_child(63).text=="Convert" and not keypad.get_child(64).visible)
+	await process_frame
+	assert(absf(keypad.get_child(63).size.x-2.0*keypad.get_child(69).size.x-keypad.gap.x)<=2.0)
 	for symbol in options.key_colors:
 		var cap: Button=keypad.get_child(options.keypad.find(symbol))
 		assert(cap.get_theme_stylebox("normal").bg_color.is_equal_approx(Color(options.key_colors[symbol])*Color(key_material.color)))
@@ -182,7 +207,7 @@ func run() -> void:
 	assert(handheld!=null and not handheld is ScrollContainer)
 	calculator_window.size.y=280
 	for frame in 3:await process_frame
-	var last: Control=handheld.find_children("*","GridContainer",true,false)[0].get_child(48)
+	var last: Control=handheld.find_child("Keypad",true,false).get_child(69)
 	var bottom_right:=last.get_global_transform()*last.size
 	assert(bottom_right.x<=calculator_window.size.x and bottom_right.y<=calculator_window.size.y)
 	calculator_window.close_requested.emit()
@@ -193,7 +218,7 @@ func run() -> void:
 	fresh.open("configured-calculator-player")
 	assert(server.bind(2,fresh.data.dorm.owner,"a".repeat(64),fresh.data).ok)
 	var invalid:=options.duplicate(true)
-	invalid.keypad[42]="sin"
+	invalid.keypad[60]="sin"
 	assert(not server.transact(2,"duplicate-key","study_tool",["calculator",6,invalid]).ok)
 	invalid=options.duplicate(true)
 	invalid.hardware.equation=0

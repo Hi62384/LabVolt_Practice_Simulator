@@ -3,6 +3,7 @@ extends VBoxContainer
 signal design_changed(slots: Array, hardware: Dictionary, colors: Dictionary)
 
 const Catalog=preload("res://scripts/campus/items/calculator_layout.gd")
+const KeyGrid=preload("res://scripts/campus/items/calculator_key_grid.gd")
 const Tokens=preload("res://scripts/ui/design_system/tokens.gd")
 const Widgets=preload("res://scripts/ui/design_system/widgets.gd")
 const TINTS := ["39596c","1a6472","79434e","515278","254b65","254b65","254b65","335b59","315568","55466c","61564b","3c5362"]
@@ -21,7 +22,7 @@ var undo_steps: Array[Dictionary]=[]
 var redo_steps: Array[Dictionary]=[]
 var selected_slot := -1
 var dragged_slot := -1
-var grid: GridContainer
+var grid: Container
 var palette: VBoxContainer
 var search: LineEdit
 var hide_installed: CheckButton
@@ -35,7 +36,7 @@ var details_text: Label
 var open_sections: Dictionary={}
 
 func build(layout: Array, features: Dictionary, colors := {}) -> void:
-	slots=Catalog.updated_keys(layout)
+	slots=Catalog.designer_slots(layout)
 	hardware=features.duplicate()
 	key_colors=colors.duplicate()
 	add_theme_constant_override("separation",12)
@@ -82,9 +83,7 @@ func build(layout: Array, features: Dictionary, colors := {}) -> void:
 	_compact(color_mode)
 	tools.add_child(color_mode)
 	_build_color_tools(installed)
-	grid=GridContainer.new()
-	grid.add_theme_constant_override("h_separation",5)
-	grid.add_theme_constant_override("v_separation",5)
+	grid=KeyGrid.new()
 	installed.add_child(grid)
 	feedback=Widgets.text("Drag keys to rearrange or remove them.","MutedLabel")
 	feedback.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
@@ -217,8 +216,10 @@ func _color_keys(hex: String) -> void:
 
 func _render_keys() -> void:
 	_clear_children(grid)
-	grid.columns=Catalog.design_columns(slots)
-	counter.text="%d / %d installed"%[slots.size()-slots.count(""),slots.size()]
+	var used:=0
+	for symbol in slots:
+		if not symbol.is_empty():used+=Catalog.span(symbol)
+	counter.text="%d / %d cells used"%[used,slots.size()]
 	undo_button.disabled=undo_steps.is_empty()
 	redo_button.disabled=redo_steps.is_empty()
 	remove_button.disabled=color_tools.visible or selected_slot<0 or slots[selected_slot].is_empty()
@@ -226,11 +227,18 @@ func _render_keys() -> void:
 	apply_color.disabled=color_selection.is_empty()
 	reset_color.disabled=color_selection.is_empty()
 	for index in slots.size():
+		if Catalog.continuation(slots,index,Catalog.COLUMNS):
+			var covered:=Control.new()
+			covered.hide()
+			grid.add_child(covered)
+			continue
 		var symbol: String=slots[index]
 		var painting:=color_tools.visible
 		var selected:=color_selection.has(symbol) if painting else index==selected_slot
 		var key:=_tile(symbol,"",selected,false,key_colors.get(symbol,""))
-		key.custom_minimum_size=Vector2(28,26)
+		key.custom_minimum_size=Vector2.ZERO
+		key.set_meta("keypad_span",Catalog.span(symbol))
+		key.add_theme_font_size_override("font_size",14)
 		key.accessibility_name="Empty position %d"%(index+1) if symbol.is_empty() else "%s, position %d"%[Catalog.catalog(symbol).name,index+1]
 		key.pressed.connect(_select_slot.bind(index))
 		if painting:
@@ -245,8 +253,9 @@ func _render_keys() -> void:
 func _tile(symbol: String, foot: String, selected := false, locked := false, custom_hex := "") -> Button:
 	var tile:=Button.new()
 	tile.text=Catalog.caption(symbol)
+	tile.clip_text=true
 	tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
-	tile.custom_minimum_size=Vector2(46,32)
+	tile.custom_minimum_size=Vector2(82 if Catalog.span(symbol)==2 else 46,32)
 	tile.add_theme_font_size_override("font_size",16)
 	var data:=Catalog.catalog(symbol)
 	var tint:=Color("1b3848") if symbol.is_empty() else Color(TINTS[data.category])
@@ -326,7 +335,8 @@ func _render_palette() -> void:
 
 func _wire_details(button: Button,symbol: String) -> void:
 	var data:=Catalog.catalog(symbol)
-	button.tooltip_text="%s · %s\n%s\nExample: %s%s"%[data.name,symbol,data.description,data.example,_requirement(symbol)]
+	var footprint:=" · 2 cells" if Catalog.span(symbol)==2 else ""
+	button.tooltip_text="%s%s\n%s\nExample: %s%s"%[data.name,footprint,data.description,data.example,_requirement(symbol)]
 	button.mouse_entered.connect(_inspect.bind(symbol))
 	button.focus_entered.connect(_inspect.bind(symbol))
 
@@ -363,17 +373,24 @@ func _source(_at: Vector2, source: Control, symbol: String, index: int) -> Varia
 	if symbol.is_empty() or (index<0 and (symbol in slots or not Catalog.unlocked(symbol,hardware))):return null
 	dragged_slot=index
 	var ghost:=Label.new()
-	ghost.text=symbol
+	ghost.text=Catalog.caption(symbol)
 	ghost.add_theme_font_size_override("font_size",20)
 	source.set_drag_preview(ghost)
 	return {"owner":get_instance_id(),"slot":index,"symbol":symbol}
 
-func _allow_drop(_at: Vector2, data: Variant, destination: int) -> bool:
-	return data is Dictionary and data.get("owner")==get_instance_id() and (int(data.slot)>=0 or slots[destination].is_empty())
+func _allow_drop(at: Vector2, data: Variant, destination: int) -> bool:
+	if not data is Dictionary or data.get("owner")!=get_instance_id():return false
+	var source:=int(data.slot)
+	if source==destination and Catalog.span(slots[source])==2 and at.x>grid.get_child(source).size.x*.5:
+		destination+=1
+	return _can_move(source,destination) if source>=0 else _can_place(str(data.symbol),destination)
 
 func _drop(at: Vector2, data: Variant, destination: int) -> void:
 	if not _allow_drop(at,data,destination):return
-	if int(data.slot)>=0:move_key(int(data.slot),destination)
+	var source:=int(data.slot)
+	if source>=0:
+		if source==destination:destination+=1
+		move_key(source,destination)
 	else:add_key(str(data.symbol),destination)
 
 func _notification(what: int) -> void:
@@ -388,9 +405,13 @@ func add_key(symbol: String,index := -1) -> bool:
 	if not Catalog.unlocked(symbol,hardware):
 		feedback.text="Unlock %s in Specifications to add this key."%Catalog.CAPABILITIES[Catalog.catalog(symbol).requires]
 		return false
-	if index<0:index=slots.find("")
-	if index<0 or index>=slots.size() or not slots[index].is_empty():
-		feedback.text="The keypad is full. Remove a key first."
+	if index<0:
+		for candidate in slots.size():
+			if _can_place(symbol,candidate):
+				index=candidate
+				break
+	if not _can_place(symbol,index):
+		feedback.text="This key needs two free cells side by side." if Catalog.span(symbol)==2 else "Choose a free cell."
 		return false
 	_remember()
 	slots[index]=symbol
@@ -398,8 +419,20 @@ func add_key(symbol: String,index := -1) -> bool:
 	_publish("%s added."%symbol)
 	return true
 
+func _can_place(symbol: String,index: int) -> bool:
+	if index not in range(slots.size()) or not slots[index].is_empty() or Catalog.continuation(slots,index,Catalog.COLUMNS):return false
+	return Catalog.span(symbol)==1 or (index%Catalog.COLUMNS!=Catalog.COLUMNS-1 and slots[index+1].is_empty())
+
+func _can_move(source: int,destination: int) -> bool:
+	if source==destination or source not in range(slots.size()) or destination not in range(slots.size()):return false
+	if slots[source].is_empty() or (source!=destination-1 and Catalog.continuation(slots,destination,Catalog.COLUMNS)):return false
+	var swapped:=slots.duplicate()
+	swapped[source]=slots[destination]
+	swapped[destination]=slots[source]
+	return Catalog.spans_fit(swapped,Catalog.COLUMNS)
+
 func move_key(source: int,destination: int) -> void:
-	if source==destination or source not in range(slots.size()) or destination not in range(slots.size()):return
+	if not _can_move(source,destination):return
 	_remember()
 	var symbol: String=slots[source]
 	slots[source]=slots[destination]

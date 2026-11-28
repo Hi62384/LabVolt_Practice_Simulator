@@ -68,11 +68,27 @@ func run():
  calc.display.text="x^2+x^2"
  calc.press("RUN")
  assert(calc.result.text=="2x^2")
+ calc.display.text="3/x+x/7"
+ calc.press("RUN")
+ assert(calc.result.text=="(x^2 + 21)/(7x)")
+ assert(calc.result_equation.plan.commands.any(func(command):return command.get("text","")=="𝑥"))
+ calc.display.text="x*7"
+ assert(calc.display.plan.commands.any(func(command):return command.get("text","")=="×"))
+ calc.display.text="x/(x-x)"
+ calc.press("RUN")
+ assert(calc.result.text=="Cannot divide by zero.")
+ var narrow:=preload("res://scripts/campus/items/calculator_equation_view.gd").new()
+ root.add_child(narrow)
+ narrow.set_expression("(123456789x^2 + 987654321x + 111111111)/(123456789x^2 + 42)")
+ narrow.size.x=100
+ assert(narrow.plan.size.x>narrow.size.x and narrow._draw_scale()<1.0)
+ assert(narrow.plan.size.x*narrow._draw_scale()<=narrow.size.x)
+ narrow.queue_free()
  calc.press("AC")
  calc.press("Ans")
  assert("x" in calc.display.text and "^" in calc.display.text)
  calc.press("RUN")
- assert(calc.result.text=="2x^2")
+ assert(calc.result.text=="(x^2 + 21)/(7x)")
  calc.display.text="x^2"
  calc.press("∫")
  assert(calc.result.text=="x^3/3")
