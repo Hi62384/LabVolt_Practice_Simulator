@@ -170,7 +170,7 @@ func _run() -> void:
 	check(not overflow.get("ok",true) and "bounded budget" in str(overflow.get("error","")) and int(overflow.get("context_chars",0))>Client.MAX_CHARACTER_INPUT_CHARS,"irreducible oversized context fails explicitly rather than clipping identity")
 	var excessive_instructions: Dictionary=await client.respond_character("You are "+"x".repeat(Client.MAX_CHARACTER_INSTRUCTION_CHARS),_base_context(),"HTTP_FIXTURE_OVER_INSTRUCTIONS")
 	check(not excessive_instructions.get("ok",true) and "bounded budget" in str(excessive_instructions.get("error","")),"oversized trusted instructions fail explicitly")
-	var excessive_dialogue: Dictionary=await client.respond_character(DIRECT_INSTRUCTIONS,_base_context(),"x".repeat(1001))
+	var excessive_dialogue: Dictionary=await client.respond_character(DIRECT_INSTRUCTIONS,_base_context(),"x".repeat(8001))
 	check(not excessive_dialogue.get("ok",true) and "too long" in str(excessive_dialogue.get("error","")),"oversized player dialogue fails explicitly")
 	check(_sequence(await _request_log())==request_count,"all over-budget failures occur before sending an HTTP request")
 

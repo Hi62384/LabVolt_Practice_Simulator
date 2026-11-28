@@ -1,9 +1,10 @@
 extends Node
-## One local synthesis process at a time. Text never enters a shell command.
+## Bounded host speech scheduler. Provider failures never change vocal identity.
+## The legacy process path is isolated behind explicit selection/test adapters.
 signal completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String)
 const Profiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
-const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
-const Classmates=preload("res://scripts/campus/academics/classroom_students.gd")
+const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
+const Delivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
 const SpeechPlayer=preload("res://scripts/campus/academics/teacher_speech_player.gd")
 const MAX_JOBS:=6
 const MAX_LISTENERS:=32
@@ -18,18 +19,130 @@ var load_adapter: Callable
 var profile_adapter: Callable
 var model_adapter: Callable
 var last_synthesis_ms := 0
+const MAX_CLOUD_JOBS:=48
+const MAX_CONCURRENT:=3
+const MAX_ATTEMPTS:=3
+const CLOUD_TIMEOUT_MS:=120000
+var provider: Node
+var legacy_enabled:=false
+var cloud_pending: Array[Dictionary]=[]
+var cloud_active: Dictionary={}
+var cloud_keys: Dictionary={}
+var session_epoch:=0
+var request_serial:=0
+var last_error:=""
 
-func request(room: String,serial: int,id: String,text: String,key: String,priority := 0) -> String:
+func configure_provider(client: Node,mode: String="openai") -> void:
+	if provider!=client or legacy_enabled!=(mode=="legacy_offline"):clear_session()
+	provider=client;legacy_enabled=mode=="legacy_offline"
+
+func diagnostics() -> Dictionary:
+	var jobs: Array=[]
+	for job in cloud_active.values():jobs.append({"character_id":job.id,"request_id":job.request_id,"age_ms":Time.get_ticks_msec()-int(job.created),"attempt":job.attempts,"state":"generating"})
+	for job in cloud_pending:jobs.append({"character_id":job.id,"request_id":job.request_id,"age_ms":Time.get_ticks_msec()-int(job.created),"attempt":job.attempts,"state":"queued"})
+	return {"provider":"legacy_offline" if legacy_enabled else "openai","active":cloud_active.size(),"queued":cloud_pending.size(),"jobs":jobs,"last_error":last_error,"last_synthesis_ms":last_synthesis_ms}
+
+
+func request(room: String,serial: int,id: String,text: String,key: String,priority:=0,delivery: Dictionary={}) -> String:
+	if room.is_empty() or room.length()>160 or serial<1 or serial>2147483647 or id.is_empty() or text.is_empty() or text.length()>SpeechPlayer.MAX_TEXT or key.is_empty() or key.length()>128:return "invalid"
+	if legacy_enabled or profile_adapter.is_valid() or launch_adapter.is_valid():return _request_legacy(room,serial,id,text,key,priority)
+	if not is_instance_valid(provider):return "unavailable"
+	if provider.has_method("configured") and not provider.configured():return "unavailable"
+	if delivery.has("ok") and not bool(delivery.ok):return "incompatible_voice"
+	if cloud_keys.has(key):
+		var listeners: Array=cloud_keys[key]
+		for listener in listeners:
+			if str(listener.room)==room and int(listener.serial)==serial:return "duplicate"
+		if listeners.size()>=MAX_LISTENERS:return "busy"
+		listeners.append({"room":room,"serial":serial})
+		for queued_job in cloud_pending:
+			if str(queued_job.key)==key:queued_job.priority=maxi(int(queued_job.priority),priority)
+		return "duplicate"
+	if cloud_pending.size()+cloud_active.size()>=MAX_CLOUD_JOBS:return "busy"
+	request_serial+=1
+	var now:=Time.get_ticks_msec()
+	var details:=Delivery.for_text(delivery,text)
+	var request_id:="voice-%d-%d"%[session_epoch,request_serial]
+	details.request_id=request_id
+	var job:={"room":room,"serial":serial,"id":id,"text":text,"key":key,"priority":clampi(priority,0,14),"delivery":details,"request_id":request_id,
+		"created":now,"ready_at":now,"attempts":0,"epoch":session_epoch}
+	cloud_keys[key]=[{"room":room,"serial":serial}]
+	cloud_pending.append(job)
+	_pump_cloud.call_deferred()
+	return "queued"
+
+func _pump_cloud() -> void:
+	if not is_inside_tree() or not is_instance_valid(provider):return
+	var now:=Time.get_ticks_msec()
+	for index in range(cloud_pending.size()-1,-1,-1):
+		if now-int(cloud_pending[index].created)>=CLOUD_TIMEOUT_MS:
+			var expired: Dictionary=cloud_pending.pop_at(index);_complete_cloud(expired,null,"expired")
+	while cloud_active.size()<MAX_CONCURRENT and not cloud_pending.is_empty():
+		var next:=-1
+		var best:=-INF
+		for index in cloud_pending.size():
+			var job: Dictionary=cloud_pending[index]
+			if int(job.ready_at)>now:continue
+			var same_character:=false
+			for running in cloud_active.values():
+				if str(running.id)==str(job.id):same_character=true;break
+			if same_character:continue
+			var score:=float(job.priority)+float(now-int(job.created))/5000.
+			if score>best:best=score;next=index
+		if next<0:break
+		var job: Dictionary=cloud_pending.pop_at(next)
+		cloud_active[job.request_id]=job
+		_run_cloud(job)
+
+func _run_cloud(job: Dictionary) -> void:
+	job.attempts=int(job.attempts)+1
+	var voice: Variant=job.delivery.get("voice","alloy")
+	var result: Dictionary=await provider.speak(str(job.text),{},voice,job.delivery)
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id):return
+	cloud_active.erase(job.request_id)
+	if bool(result.get("ok",false)) and result.get("stream") is AudioStreamWAV and SpeechPlayer.valid_stream(result.stream):
+		var stream: AudioStreamWAV=Mixer.normalise(result.stream,job.delivery)
+		last_synthesis_ms=Time.get_ticks_msec()-int(job.created)
+		_complete_cloud(job,stream,"ok")
+	else:
+		var code:=int(result.get("status",result.get("code",0)))
+		var reason:=str(result.get("error","speech unavailable"))
+		var retryable:=bool(result.get("retryable",false)) or code==429 or code>=500 or reason.to_lower() in ["busy","timeout","network error"]
+		if retryable and int(job.attempts)<MAX_ATTEMPTS and Time.get_ticks_msec()-int(job.created)<CLOUD_TIMEOUT_MS and cloud_keys.has(job.key):
+			var retry_after:=clampi(int(result.get("retry_after_ms",0)),0,15000)
+			job.ready_at=Time.get_ticks_msec()+maxi(retry_after,500*(1<<int(job.attempts)))
+			cloud_pending.append(job)
+		else:
+			last_error=reason.left(240)
+			_complete_cloud(job,null,"unavailable")
+	_pump_cloud.call_deferred()
+
+func _complete_cloud(job: Dictionary,stream: AudioStreamWAV,status: String) -> void:
+	var listeners: Array=cloud_keys.get(job.key,[])
+	cloud_keys.erase(job.key)
+	for listener in listeners:completed.emit(str(listener.room),int(listener.serial),str(job.key),stream,status)
+
+func _cancel_cloud(room: String) -> void:
+	for key in cloud_keys.keys():
+		var listeners: Array=cloud_keys[key]
+		for index in range(listeners.size()-1,-1,-1):
+			if str(listeners[index].room)==room:
+				var listener: Dictionary=listeners.pop_at(index)
+				completed.emit(room,int(listener.serial),str(key),null,"cancelled")
+		if listeners.is_empty():cloud_keys.erase(key)
+	for index in range(cloud_pending.size()-1,-1,-1):
+		if not cloud_keys.has(cloud_pending[index].key):cloud_pending.remove_at(index)
+	for request_id in cloud_active.keys():
+		var job: Dictionary=cloud_active[request_id]
+		if cloud_keys.has(job.key):continue
+		cloud_active.erase(request_id)
+		if is_instance_valid(provider) and provider.has_method("cancel_speech_request"):provider.cancel_speech_request(request_id)
+	_pump_cloud.call_deferred()
+
+func _request_legacy(room: String,serial: int,id: String,text: String,key: String,priority := 0) -> String:
 	if room.is_empty() or serial<1 or text.is_empty() or text.length()>SpeechPlayer.MAX_TEXT or key.is_empty():return "invalid"
 	var profiles: Dictionary=profile_adapter.call() if profile_adapter.is_valid() else Profiles.profiles()
 	var profile: Dictionary=profiles.get(id,{})
-	if profile.is_empty() and Roster.GENERATED.has(id):profile=profiles.get("dr_volts",{})
-	if profile.is_empty() and id.begins_with("campus_student_") and not profiles.is_empty():
-		var person:=Classmates.profile_for(id)
-		if not person.is_empty():
-			var index:=int(id.get_slice("_",2))
-			profile=profiles.values()[index%profiles.size()].duplicate()
-			profile.rate=clampf(.84+float(person.talk)*.32,.8,1.18)
 	var model:=str(profile.get("model",""))
 	var model_disk:=Profiles.resolve_model(model)
 	var model_valid:=not model_disk.is_empty()
@@ -50,6 +163,7 @@ func request(room: String,serial: int,id: String,text: String,key: String,priori
 	return "queued"
 
 func cancel(room: String) -> void:
+	_cancel_cloud(room)
 	for key in keys.keys():
 		var listeners: Array=keys[key]
 		for index in range(listeners.size()-1,-1,-1):
@@ -62,6 +176,10 @@ func cancel(room: String) -> void:
 	if not active.is_empty() and keys[active.key].is_empty():_finish("cancelled",true)
 
 func clear_session() -> void:
+	session_epoch+=1
+	for request_id in cloud_active.keys():
+		if is_instance_valid(provider) and provider.has_method("cancel_speech_request"):provider.cancel_speech_request(request_id)
+	cloud_pending.clear();cloud_active.clear();cloud_keys.clear()
 	pending.clear();keys.clear()
 	if not active.is_empty():_finish("cancelled",true)
 
@@ -126,6 +244,7 @@ static func _executable_file(path: String) -> bool:
 	return OS.get_name()=="Windows" or (FileAccess.get_unix_permissions(path)&73)!=0
 
 func _process(_delta: float) -> void:
+	_pump_cloud()
 	if active.is_empty():return
 	if Time.get_ticks_msec()-int(active.started)>TIMEOUT_MS:_finish("timeout",true);return
 	var running: bool=running_adapter.call(int(active.pid)) if running_adapter.is_valid() else OS.is_process_running(int(active.pid))

@@ -44,9 +44,9 @@ class GameState extends Node:
 class TimingFaculty extends "res://scripts/campus/academics/faculty.gd":
 	var captured: Array[Dictionary] = []
 	func _question_status(_peer: int,_room: String,_teacher: String,_message: String) -> void:pass
-	func _answer_question(peer: int,_room: String,_id: String,_class_id: String,question: String,_pos: Vector3,timing: Dictionary={}) -> void:
+	func _answer_question(peer: int,_room: String,_id: String,_class_id: String,question: String,_pos: Vector3,_voice_context: Dictionary={},timing: Dictionary={}) -> void:
 		captured.append({"question":question,"timing":timing.duplicate(true)})
-		ai_busy.erase(peer)
+		_release_question(peer,character_epoch)
 
 func _initialize() -> void:run.call_deferred()
 
@@ -59,14 +59,17 @@ func run() -> void:
 	var game := GameState.new();root.add_child(game)
 	var faculty := TimingFaculty.new();faculty.game=game;root.add_child(faculty);faculty.set_process(false)
 	faculty.brain._host_profile="timing_host";Store.host_identity="timing_host"
+	faculty.ai_busy[1]=ROOM
+	faculty.question_channels[1]="mr_bro"
 	var submitted := Time.get_ticks_msec()
 	faculty._question_request(1,ROOM,"A typed timing request.","mr_bro","timing_class")
-	check(faculty.questions.size()==1,"Production teacher queue retains work while the foreground is busy")
+	check(faculty.questions.size()==1,"Production teacher queue retains work while this player and character have an active reservation")
 	var queued: Dictionary=faculty.questions[0]
 	check(int(queued._timing.host_received_ms)>=submitted and queued._timing.input_kind=="typed","Typed host receipt is captured from the running clock")
 	var queued_until := Time.get_ticks_msec()+80
 	while Time.get_ticks_msec()<queued_until:await process_frame
 	game.host_openai.busy=false
+	faculty._release_question(1,faculty.character_epoch)
 	faculty._next_question()
 	check(faculty.captured.size()==1,"Production queue forwards typed work to the selected answer path")
 	var typed: Dictionary=faculty.captured[0].timing
@@ -96,7 +99,8 @@ func run() -> void:
 	var receipt := int(audio.host_received_ms)
 	faculty.character_interaction.diagnostics.append({"event_id":"timed_audio","character":"mr_bro","speaker":"timing_host","timing":{}})
 	faculty._track_character_audio("timing",1,"timed_audio",{"host_received_ms":receipt})
-	check(player.accept("timing","Timing teacher",1,"An authored playback timing sample.",2,anchor),"Native speech player accepts a stream-pending presentation")
+	check(player.accept("timing","Timing teacher",1,"An authored playback timing sample.",2,anchor,null,1.0,{"expect_audio":true}),"Native speech player accepts a stream-pending presentation")
+	faculty.speech_routes[faculty._voice_key("timing",1)]=faculty._new_speech_route("timing",1,ROOM,"mr_bro",[],anchor)
 	faculty._speech_completed("timing",1,"timing_stream",stream,"ok")
 	var speech_timing: Dictionary=faculty.character_interaction.diagnostics[-1].timing
 	check(player.active.has("timing") and is_instance_valid(player.active.timing.player),"An actual AudioStreamPlayer3D starts the supplied stream")

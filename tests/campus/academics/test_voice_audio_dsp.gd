@@ -1,0 +1,45 @@
+extends SceneTree
+const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
+func _initialize() -> void:call_deferred("run")
+func run() -> void:
+	var dsp:=Mixer.processor()
+	assert(dsp!=null,"Native .NET voice DSP must be compiled for this test.")
+	var data:=PackedByteArray();data.resize(24000*2)
+	for frame in 24000:data.encode_s16(frame*2,int(sin(float(frame)*TAU*160./24000.)*650.))
+	var started:=Time.get_ticks_usec()
+	var normal: Dictionary=dsp.NormalizePcm16(data,24000,false,"normal")
+	var full_call_us:=Time.get_ticks_usec()-started
+	var whisper: Dictionary=dsp.NormalizePcm16(data,24000,false,"whisper")
+	var shout: Dictionary=dsp.NormalizePcm16(data,24000,false,"shout")
+	assert(normal.ok and whisper.ok and shout.ok)
+	assert(normal.data.size()==data.size() and normal.gain_db>0.)
+	for at in range(0,data.size(),142):
+		assert(normal.data.decode_s16(at)==data.decode_s16(at)*4,"The bounded native gain must match integer PCM reference values.")
+	assert(float(whisper.gain_db)<float(normal.gain_db),"Whispering must retain deliberately lower output energy.")
+	var loud:=PackedByteArray();loud.resize(4800)
+	for frame in 2400:loud.encode_s16(frame*2,32767 if frame%2==0 else -32768)
+	var limited: Dictionary=dsp.NormalizePcm16(loud,24000,false,"shout")
+	var max_peak:=0
+	for at in range(0,limited.data.size(),2):max_peak=maxi(max_peak,absi(limited.data.decode_s16(at)))
+	assert(limited.ok and max_peak<=30802,"Clips must maintain headroom and never overflow PCM16.")
+	var silence:=PackedByteArray();silence.resize(640)
+	var quiet: Dictionary=dsp.NormalizePcm16(silence,16000,false,"normal")
+	assert(quiet.ok and quiet.data==silence and is_zero_approx(quiet.gain_db))
+	assert(not dsp.NormalizePcm16(PackedByteArray([0,0,1]),16000,false,"normal").ok)
+	assert(not dsp.NormalizePcm16(data,7000,false,"normal").ok)
+	var frames: PackedVector2Array=dsp.Pcm16ToFrames(PackedByteArray([0,128,255,127]),true)
+	assert(frames.size()==1 and frames[0].x==-1. and frames[0].y>.99)
+	assert(dsp.Pcm16ToFrames(PackedByteArray([1]),false).is_empty())
+	var wav:=AudioStreamWAV.new();wav.format=AudioStreamWAV.FORMAT_16_BITS;wav.mix_rate=24000;wav.data=data
+	started=Time.get_ticks_usec()
+	var adjusted:=Mixer.normalise(wav,{"projection":"normal","intensity":.7})
+	var warm_caller_us:=Time.get_ticks_usec()-started
+	assert(adjusted.data!=data and adjusted.has_meta("voice_normalized"))
+	assert(wav.data==data,"Normalization must not mutate shared cached source buffers.")
+	assert(Mixer.normalise(adjusted)==adjusted,"Normalized clips must not accumulate normalization on cache reuse.")
+	Mixer.ensure_buses();Mixer.ensure_buses()
+	for bus_name in [Mixer.NPC_BUS,Mixer.HUMAN_BUS,Mixer.PHONE_BUS]:
+		var index:=AudioServer.get_bus_index(bus_name)
+		assert(index>=0 and AudioServer.get_bus_effect_count(index)==2)
+	print("VOICE_AUDIO_DSP PASS (native PCM conversion, speech RMS, dynamics, peak headroom, routing); 1s full GDScript/C# caller us=",full_call_us," warm mixer caller us=",warm_caller_us," native processing us=",normal.elapsed_us)
+	quit()

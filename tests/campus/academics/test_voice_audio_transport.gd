@@ -1,0 +1,32 @@
+extends SceneTree
+const Transfer=preload("res://scripts/campus/voice/speech_audio_transfer.gd")
+func _initialize() -> void:call_deferred("run")
+func run() -> void:
+	var transfer:=Transfer.new()
+	var data:=PackedByteArray();data.resize(Transfer.CHUNK_BYTES*2+320)
+	for at in data.size():data[at]=at%251
+	var meta:={"sha256":Transfer.digest(data),"projection":"lecture","normalized":true}
+	var result:=transfer.push("room:teacher",2,data.size(),12000,24000,false,data.slice(12000,24000),meta)
+	assert(result.ok and not result.complete)
+	assert(transfer.push("room:teacher",2,data.size(),12000,24000,false,data.slice(12000,24000),meta).duplicate)
+	assert(not transfer.push("room:teacher",2,data.size(),12000,24000,false,PackedByteArray([0]),meta).ok)
+	assert(transfer.push("room:teacher",1,data.size(),0,24000,false,data.slice(0,12000),meta).ok)
+	assert(transfer.transfers.size()==2,"Concurrent earlier utterances must retain independent buffers.")
+	assert(transfer.push("room:teacher",2,data.size(),24000,24000,false,data.slice(24000),meta).ok)
+	result=transfer.push("room:teacher",2,data.size(),0,24000,false,data.slice(0,12000),meta)
+	assert(result.ok and result.complete and result.stream.data==data)
+	assert(result.stream.get_meta("voice_projection")=="lecture")
+	assert(transfer.transfers.size()==1 and transfer.reserved_bytes==data.size())
+	assert(not transfer.push("room:teacher",1,data.size(),0,16000,false,data.slice(0,12000),meta).ok)
+	assert(not transfer.push("room:teacher",3,Transfer.MAX_BYTES+2,0,24000,false,data.slice(0,12000)).ok)
+	assert(not transfer.push("room:teacher",3,3,0,24000,false,PackedByteArray([1,2,3])).ok)
+	transfer.cancel("room:teacher",1)
+	assert(transfer.transfers.is_empty() and transfer.reserved_bytes==0)
+	var small:=PackedByteArray([1,2,3,4])
+	assert(not transfer.push("room",3,4,0,24000,false,small,{"sha256":"0".repeat(64)}).ok,"Corrupt full clips must fail integrity checks.")
+	assert(transfer.reserved_bytes==0)
+	assert(transfer.push("timeout",4,data.size(),0,24000,false,data.slice(0,12000),meta).ok)
+	transfer.transfers.values()[0].updated=Time.get_ticks_msec()-Transfer.TIMEOUT_MS-1
+	transfer.prune();assert(transfer.transfers.is_empty() and transfer.reserved_bytes==0)
+	print("VOICE_AUDIO_TRANSPORT PASS (out-of-order, duplication, coexistence, integrity, bounds, expiry)")
+	quit()

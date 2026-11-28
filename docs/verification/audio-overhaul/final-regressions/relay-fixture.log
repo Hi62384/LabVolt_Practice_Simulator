@@ -1,0 +1,57 @@
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+
+ ⛅️ wrangler 4.169.0
+────────────────────
+Your Worker has access to the following bindings:
+Binding               Resource            Mode
+env.ROOMS (Room)      Durable Object      local
+
+⎔ Starting local server...
+[wrangler:warn] Unable to fetch the `Request.cf` object! Falling back to a default placeholder...
+TimeoutError: The operation was aborted due to timeout
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    at Timeout._onTimeout (node:internal/abort_controller:210:9)
+    at listOnTimeout (node:internal/timers:685:17)
+    at process.processTimers (node:internal/timers:618:7)
+    at /workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/undici/index.js:157:7
+    at async setupCf (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:114026:17)
+    at async #assembleConfig (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:121950:21)
+    at async #assembleAndUpdateConfigInternal (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:122411:21)
+    at async #assembleAndUpdateConfig (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:122393:7)
+    at async /workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:121203:7
+    at async Mutex.runWith (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:24389:20)
+[wrangler:warn] Unable to fetch the `Request.cf` object! Falling back to a default placeholder...
+TimeoutError: The operation was aborted due to timeout
+    at new DOMException (node:internal/per_context/domexception:76:18)
+    at Timeout._onTimeout (node:internal/abort_controller:210:9)
+    at listOnTimeout (node:internal/timers:685:17)
+    at process.processTimers (node:internal/timers:618:7)
+    at /workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/undici/index.js:157:7
+    at async setupCf (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:114026:17)
+    at async #assembleConfig (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:121950:21)
+    at async #assembleAndUpdateConfigInternal (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:122411:21)
+    at async #assembleAndUpdateConfig (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:122393:7)
+    at async /workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:121203:7
+    at async Mutex.runWith (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:24389:20)
+    at async #waitForReady (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:122621:5)
+    at async #onBundleComplete (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/wrangler/wrangler-dist/cli.js:217728:27)
+    at async Mutex.runWith (/workspace/scratch/1b971e1762bc/test-runtime/relay/node_modules/miniflare/dist/src/index.js:24389:20)
+Wrangler detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://127.0.0.1:8787/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  POST http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/scheduled?worker=<name> - invoke a Worker's scheduled handler; cron is required (see the OpenAPI schema for the full request)
+  GET http://127.0.0.1:8787/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://127.0.0.1:8787/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://127.0.0.1:8787/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://127.0.0.1:8787/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://127.0.0.1:8787/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+  POST http://127.0.0.1:8787/cdn-cgi/local/explorer/api/local/observability/clear - clear all captured traces and logs
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://127.0.0.1:8787/cdn-cgi/local/explorer/api - OpenAPI schema
+[wrangler:info] Ready on http://127.0.0.1:8787
+[wrangler:info] GET /v1/host 101 Switching Protocols (15ms)

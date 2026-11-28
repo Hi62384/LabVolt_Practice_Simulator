@@ -27,7 +27,7 @@ func _initialize() -> void:call_deferred("run")
 
 func fail(message: String) -> void:
 	if is_instance_valid(game):
-		print("CLASSMATE DEBUG server=",game.multiplayer.is_server()," queued=",game.faculty.questions.size()," busy=",game.faculty.ai_busy," jobs=",game.faculty.character_jobs," serial=",game.faculty.speech_player.last_serial.get("classmate",0))
+		print("CLASSMATE DEBUG server=",game.multiplayer.is_server()," queued=",game.faculty.questions.size()," busy=",game.faculty.ai_busy," jobs=",game.faculty.character_jobs," serial=",game.faculty.speech_player.last_serial.get("classmate:"+ACTOR,0))
 		if game.multiplayer.is_server():
 			for peer in game.session.roster:
 				if peer==1:continue
@@ -123,11 +123,11 @@ func run() -> void:
 		game.faculty.open_conversation(ROOM,ACTOR,str(activity.id))
 		game.faculty._send_classmate_question(ROOM,"stale-class",ACTOR,"stale question")
 		game.faculty._send_classmate_question(ROOM,str(activity.id),ACTOR,"Good morning. What do you enjoy about this class?")
-		if not await until(func():return int(game.faculty.speech_player.last_serial.get("classmate",0))>=1,"actual classmate response"):return
-		if game.faculty.reaction_pose.get("classmate",{}).get("affect",{}).size()!=16:
+		if not await until(func():return int(game.faculty.speech_player.last_serial.get("classmate:"+ACTOR,0))>=1,"actual classmate response"):return
+		if game.faculty.reaction_pose.get("classmate:"+ACTOR,{}).get("affect",{}).size()!=16:
 			fail("Generated reply lost the full emotion state");return
-		if not await until(func():return int(game.faculty.speech_player.last_serial.get("classmate",0))>=2,"explicit reply gesture payload"):return
-		var pose: Dictionary=game.faculty.reaction_pose.get("classmate",{})
+		if not await until(func():return int(game.faculty.speech_player.last_serial.get("classmate:"+ACTOR,0))>=2,"explicit reply gesture payload"):return
+		var pose: Dictionary=game.faculty.reaction_pose.get("classmate:"+ACTOR,{})
 		if pose.get("gesture","")!="nod" or pose.get("person_id","")!=ACTOR or not is_equal_approx(float(pose.get("affect",{}).get("anger",0.)),.82):
 			print("CLASSMATE PAYLOAD DEBUG gesture=",pose.get("gesture","")," person=",pose.get("person_id","")," affect=",pose.get("affect",{}))
 			fail("Student gesture or mixed emotion changed in transit");return
@@ -139,7 +139,7 @@ func run() -> void:
 		game.faculty.set_process(true)
 		for frame in 12:await process_frame
 		game.faculty.set_process(false)
-		var recovered: Dictionary=game.faculty.reaction_pose.get("classmate",{}).get("affect",{})
+		var recovered: Dictionary=game.faculty.reaction_pose.get("classmate:"+ACTOR,{}).get("affect",{})
 		if recovered.size()!=16 or not Affect.RECOVERY.keys().all(func(key):return recovered.has(key) and is_finite(float(recovered[key])) and float(recovered[key])>=0. and float(recovered[key])<=1.):
 			fail("Client Faculty processing corrupted or lost mixed affect");return
 		if float(recovered.anger)>=float(before.anger):

@@ -9,7 +9,7 @@ const Dossiers=preload("res://scripts/campus/academics/character_dossier_store.g
 const DATA_PATH:="res://assets/campus/faculty/personalities.json"
 static var classroom_baselines: Dictionary={}
 static var teacher_seeds: Dictionary={}
-const VOICES:=["coral","echo","nova","fable","ash","onyx","sage","shimmer","alloy","verse","ballad","cedar","marin"]
+const VoiceDelivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
 const FIRST:=["Sam","Riley","Jordan","Taylor","Casey","Morgan","Avery","Jamie","Charlie","Devon","Kai","Ellis"]
 const NEW_FIRST:=["Aria","Noah","Leila","Ethan","Zara","Owen","Maya","Leo","Nadia","Theo","Imani","Luca","Priya","Finn","Elena","Amir","Sofia","Mateo","Nora","Isaac","Aisha","Felix","Sana","Reese"]
 const NEW_LAST:=["Morales","Tanaka","Williams","Khan","Costa","Walker","Ali","Wilson","Mendoza","Ibrahim","Brown","Martin","Novak","Bennett","Torres","Singh","Dubois","Chen","Park","Okafor","Reyes","Nguyen","Cohen","Laurent"]
@@ -120,26 +120,5 @@ static func _voice_slot(id: String,seed_value: int) -> int:
 	var index:=Roster.PEOPLE.keys().find(id)
 	return index if index>=0 else seed_value
 
-static func speech(person: Dictionary,model: String,priority: int,emotion := "steady",affect: Dictionary={}) -> Dictionary:
-	var available:=Models.speech_voices(model)
-	var selectable:=VOICES.filter(func(candidate: String):return candidate in available)
-	if selectable.is_empty():return {}
-	var pace:=clampf(.78+float(person.traits.speaking_pace)*.40+(.12 if emotion in ["irritated","excited"] else -.10 if emotion in ["tired","sad"] else 0.),.65,1.25)
-	var style:=preload("res://scripts/campus/academics/character_dossier.gd").relevant_sentences(str(person.style),emotion+" speaking rhythm vocabulary",[],1400)
-	var tone: String={"irritated":"Clipped and firm, without shouting.","amused":"Light, playful energy.",
-		"tired":"Speak slowly, with little energy.","embarrassed":"Hesitate slightly, then recover.",
-		"stressed":"Keep it brisk and controlled.","interested":"Lean into the subject with genuine curiosity."}.get(emotion,
-		"Sound "+emotion+" and keep the delivery natural." if emotion!="steady" else ("Speak clearly." if priority>=3 else "Use natural pauses."))
-	var mixed: Array=[]
-	for feeling in affect:
-		if affect[feeling] is float or affect[feeling] is int:
-			if float(affect[feeling])>.55:mixed.append(str(feeling)+" "+str(snappedf(float(affect[feeling]),.1)))
-	if not mixed.is_empty():tone+=" Mixed feelings: "+", ".join(mixed)+". Preserve the character's way of expressing them."
-	if float(person.traits.get("arrogance",0))>.75:tone+=" Confident, dismissive, unhurried about the other person's approval."
-	if float(person.traits.get("shyness",0))>.7:tone+=" Slight hesitation and quieter delivery; avoid a theatrical caricature."
-	var vocal: Dictionary=person.get("dossier",{}).get("voice",person.get("voice",{}))
-	var permanent:=str(vocal.get("identifier",""))
-	var selected:=permanent if permanent in selectable else str(selectable[posmod(int(person.get("voice_slot",0)),selectable.size())])
-	var identity:=preload("res://scripts/campus/academics/character_dossier.gd").relevant_sentences(str(vocal.get("profile",""))+" "+str(vocal.get("characteristics","")),"voice timbre accent",[],600)
-	return {"voice":selected,"speed":pace,"voice_identity":permanent,
-		"instructions":"Current delivery: "+tone+" Keep the same recognizable person. Permanent vocal identity: "+identity+". Speaking manner: "+style}
+static func speech(person: Dictionary,model: String,priority: int,emotion := "steady",affect: Dictionary={},intent := "",context: Dictionary={}) -> Dictionary:
+	return VoiceDelivery.build(person,model,priority,emotion,affect,intent,context)

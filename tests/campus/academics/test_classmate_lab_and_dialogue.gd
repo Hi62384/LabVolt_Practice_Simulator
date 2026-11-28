@@ -101,7 +101,7 @@ func run() -> void:
 	await faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Raise your hand"})
 	var hand_trace: Dictionary=faculty.character_interaction.diagnostics.back()
 	var hand_willing: bool=bool(hand_trace.retrieved_context.action_willingness.accepted)
-	assert(bool(faculty.reaction_pose.get("classmate",{}).get("requested",false))==hand_willing,"The actual gesture must agree with the student's willingness after a visible, supported request")
+	assert(bool(faculty.reaction_pose.get("classmate:"+str(member.profile.id),{}).get("requested",false))==hand_willing,"The actual gesture must agree with the student's willingness after a visible, supported request")
 	var gesture_before: String=str(member.get("gesture",""))
 	await faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Could you wave?"})
 	var wave_trace: Dictionary=faculty.character_interaction.diagnostics.back()

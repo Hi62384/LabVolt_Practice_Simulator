@@ -1,0 +1,17 @@
+{
+  "transport": "real ENet localhost, two processes",
+  "speech_provider": "synthetic fixture",
+  "live_api": false,
+  "cases": [
+    {
+      "role": "host",
+      "passed": true,
+      "exit_code": 0
+    },
+    {
+      "role": "client",
+      "passed": true,
+      "exit_code": 0
+    }
+  ]
+}

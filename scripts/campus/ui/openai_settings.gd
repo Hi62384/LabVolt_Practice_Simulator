@@ -7,7 +7,7 @@ const Models = preload("res://scripts/campus/ai/openai_models.gd")
 const Comparison=preload("res://scripts/campus/ai/model_comparison.gd")
 const Pricing=preload("res://scripts/campus/ai/model_pricing.gd")
 const Evaluation=preload("res://scripts/campus/ai/openai_evaluation.gd")
-const PURPOSES:={"text":"Text","image":"Image analysis","image_generation":"Image generation","tts":"Speech output","stt":"Transcription"}
+const PURPOSES:={"text":"Text","image":"Image analysis","image_generation":"Image generation","tts":"Speech output","stt":"Transcription","live":"GPT-Live conversations"}
 const EFFORTS:=["","none","minimal","low","medium","high","xhigh","max"]
 const SCENARIOS:={"Teacher reply":[800,200],"Teaching explanation":[1800,500],"Lesson plan":[4000,1000],"Image analysis":[1400,260],"Custom":[1000,300]}
 const SORTS:=["Benchmark","Estimated cost","Input rate","Output rate","Latency","Newest snapshot","Model name","Local requests"]
@@ -61,6 +61,10 @@ var show_versions: CheckBox
 var picker_purpose: String=""
 var tts_enabled: CheckButton
 var stt_enabled: CheckButton
+var live_enabled: CheckButton
+var voice_notices: Dictionary={}
+var voice_studio: Window
+var account_models_known:=false
 var output: OptionButton
 var effort: OptionButton
 var effort_row: HBoxContainer
@@ -110,8 +114,15 @@ func build(owner: Node, notice: Callable, done: Callable) -> void:
 	_model_button("Image generation","image_generation")
 	tts_enabled=_voice_switch("Text-to-speech",service.tts_enabled)
 	_model_button("Voice model","tts")
+	voice_notices.tts=_label("",13,T.ACCENT,options,true)
 	stt_enabled=_voice_switch("Speech-to-text",service.stt_enabled)
 	_model_button("Transcription model","stt")
+	voice_notices.stt=_label("",13,T.ACCENT,options,true)
+	live_enabled=_voice_switch("Live conversations",service.live_enabled)
+	_model_button("Conversation model","live")
+	voice_notices.live=_label("",13,T.ACCENT,options,true)
+	_label("NPC voices are AI-generated. GPT-Live supports voices designed from descriptions. Live and Realtime use different APIs; changing a model never replaces an approved character voice.",13,T.MUTED,options,true)
+	_button(options,"Character Voices…","play",_open_voice_studio)
 	usage_name=LineEdit.new()
 	usage_name.max_length=36
 	usage_name.placeholder_text="Optional · one name per project or organization"
@@ -124,6 +135,7 @@ func build(owner: Node, notice: Callable, done: Callable) -> void:
 	ai_test.tooltip_text="Try each AI feature with the settings selected here."
 	tts_enabled.toggled.connect(func(_value: bool):_model_changed())
 	stt_enabled.toggled.connect(func(_value: bool):_model_changed())
+	live_enabled.toggled.connect(func(_value: bool):_model_changed())
 	var actions:=HBoxContainer.new()
 	add_child(actions)
 	accept=_button(actions,"Accept","check",func():
@@ -136,7 +148,7 @@ func build(owner: Node, notice: Callable, done: Callable) -> void:
 	saved_image_modes[service.image_model]=service.image_reasoning_mode
 	model_efforts[service.model]=service.reasoning_effort
 	image_model_efforts[service.image_model]=service.image_reasoning_effort
-	chosen={"text":service.model,"image":service.image_model,"image_generation":service.image_generation_model,"tts":service.tts_model,"stt":service.stt_model}
+	chosen={"text":service.model,"image":service.image_model,"image_generation":service.image_generation_model,"tts":service.tts_model,"stt":service.stt_model,"live":service.live_model}
 	_set_models(chosen.values() if service.configured() else [],service.model)
 	if service.configured():_load_models.call_deferred("",false)
 
@@ -165,6 +177,24 @@ func _open_test() -> void:
 	add_child(test_panel)
 	test_panel.open(service,_read_draft(),func(signature: String):verified_signature=signature)
 
+func _open_voice_studio() -> void:
+	if is_instance_valid(voice_studio):voice_studio.grab_focus();return
+	voice_studio=Window.new()
+	voice_studio.title="Character Voices"
+	voice_studio.min_size=Vector2i(720,460)
+	voice_studio.size=Vector2i(1060,700).min(Vector2i(get_viewport_rect().size)-Vector2i(40,60))
+	add_child(voice_studio)
+	voice_studio.close_requested.connect(func():voice_studio.queue_free())
+	var scroll:=ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
+	voice_studio.add_child(scroll)
+	var studio: Control=load("res://scripts/campus/ui/character_voice_studio.gd").new()
+	studio.size_flags_horizontal=SIZE_EXPAND_FILL
+	scroll.add_child(studio)
+	studio.configure(service,_read_draft())
+	voice_studio.popup_centered(voice_studio.size)
+
 func _load_models(candidate: String, refresh: bool) -> void:
 	if fetching_models:return
 	if candidate.is_empty():candidate=draft_key
@@ -179,6 +209,7 @@ func _load_models(candidate: String, refresh: bool) -> void:
 	connect_button.disabled=false
 	remove_key.disabled=false
 	if result.get("ok",false):
+		account_models_known=true
 		if draft_key!=candidate:verified_signature=""
 		draft_key=candidate
 		key_field.clear()
@@ -217,8 +248,18 @@ func _model_changed() -> void:
 			entry.text=selection+" · Unavailable"
 			entry.tooltip_text="Your saved choice is unavailable. Open the picker to choose a replacement."
 		else:entry.tooltip_text=""
-		entry.disabled=fetching_models or (purpose=="tts" and not tts_enabled.button_pressed) or (purpose=="stt" and not stt_enabled.button_pressed)
+		if voice_notices.has(purpose):
+			var message:=Models.lifecycle_description(selection) if not selection.is_empty() else "Choose a model."
+			if account_models_known and selection not in model_ids:message+=" Not listed for this API account."
+			if purpose=="tts" and Models.supports(selection,"live"):message+=" Prompt-generated voices supported. Dialogue is verified before playback."
+			elif purpose=="tts" and Models.supports(selection,"realtime"):message+=" Preset or recording-based voices. Prompt-generated voices require GPT-Live."
+			elif purpose=="live":message+=" Active Live sessions are billed by duration; the game remains authoritative."
+			voice_notices[purpose].text=message
+		entry.disabled=fetching_models or (purpose=="tts" and not tts_enabled.button_pressed) or (purpose=="stt" and not stt_enabled.button_pressed) or (purpose=="live" and not live_enabled.button_pressed)
 	var unavailable:=id not in model_ids or not Models.available_for(id,"text") or fetching_models
+	for purpose in ["tts","stt","live"]:
+		var active: bool={"tts":tts_enabled.button_pressed,"stt":stt_enabled.button_pressed,"live":live_enabled.button_pressed}[purpose]
+		if active and (not Models.available_for(str(chosen.get(purpose,"")),purpose) or (account_models_known and chosen.get(purpose) not in model_ids)):unavailable=true
 	accept.disabled=unavailable
 	ai_test.disabled=fetching_models
 
@@ -243,7 +284,7 @@ func _selected_model() -> String:
 func _read_draft() -> Dictionary:
 	return {"key":draft_key,"model":_selected_model(),"output":output.get_selected_metadata(),"effort":effort.get_selected_metadata(),
 		"image_effort":image_effort.get_selected_metadata(),"mode":actual_mode.get_selected_metadata(),"image_mode":actual_image_mode.get_selected_metadata(),
-		"usage_profile":usage_name.text,"modalities":chosen.duplicate(),"tts_enabled":tts_enabled.button_pressed,"stt_enabled":stt_enabled.button_pressed}
+		"usage_profile":usage_name.text,"modalities":chosen.duplicate(),"tts_enabled":tts_enabled.button_pressed,"stt_enabled":stt_enabled.button_pressed,"live_enabled":live_enabled.button_pressed}
 
 func _model_button(title: String,purpose: String) -> Button:
 	var button:=_button(_row(title,options),"Choose model","",func():_open_picker(title,purpose))
@@ -384,7 +425,7 @@ func _link(parent: Control,title: String,url: String) -> void:
 	parent.add_child(link)
 
 func _choose_model(id: String) -> void:
-	if not Models.available_for(id,picker_purpose):return
+	if not Models.available_for(id,picker_purpose) or (account_models_known and id not in model_ids):return
 	chosen[picker_purpose]=id
 	picker.hide()
 	_model_changed()
@@ -438,7 +479,11 @@ func _refresh_picker() -> void:
 	assumptions.text="%d input · %d output tokens · no cache. Thinking-token usage varies by effort."%workload if text_category else "Published rates in USD. Image and speech costs depend on the measured token or audio usage."
 	assumptions.text+=" Benchmark bars use a 0–100% scale. Other bars compare the visible models."
 	var query:=model_search.text.strip_edges().to_lower()
-	var candidates:=model_ids.filter(func(id: String):
+	var known_ids:=model_ids.duplicate()
+	if picker_purpose in ["tts","stt","live"]:
+		for id in Models.TTS+Models.REALTIME+Models.LIVE+Models.STT:
+			if id not in known_ids:known_ids.append(id)
+	var candidates:=known_ids.filter(func(id: String):
 		return Models.supports(id,picker_purpose))
 	var rows: Array[Dictionary]=[]
 	var scope: String=service.usage_scope(_read_draft())
@@ -538,10 +583,11 @@ func _build_model_row(row: Dictionary,maxima: Dictionary) -> void:
 	name.tooltip_text=row.id
 	name.size_flags_horizontal=SIZE_EXPAND_FILL
 	var life: Dictionary=row.life
-	var tag: String={"retired":"Unavailable","deprecated":"Deprecated · "+str(life.get("shutdown","")),"active":"Available","unknown":"Compatibility unknown"}[life.status]
+	var tag: String={"retired":"Retired","deprecated":"Deprecated · "+str(life.get("shutdown","")),"active":"Active","unknown":"Compatibility unknown"}[life.status]
+	if account_models_known and row.id not in model_ids:tag+=" · Not listed for account"
 	_label(tag,12,T.MUTED,header)
 	var apply:=_button(header,"Select","",_choose_model.bind(row.id))
-	apply.disabled=not Models.available_for(row.id,picker_purpose)
+	apply.disabled=not Models.available_for(row.id,picker_purpose) or (account_models_known and row.id not in model_ids)
 	var stats:=HBoxContainer.new()
 	stats.add_theme_constant_override("separation",9)
 	split.add_child(stats)
@@ -587,6 +633,18 @@ func _build_detail(row: Dictionary) -> void:
 	_label("Endpoint %s   ·   Efforts %s   ·   Default %s"%[endpoint if not endpoint.is_empty() else "Unknown",options_text,Comparison.display_effort(metadata.default_effort) if not metadata.default_effort.is_empty() else "Unspecified"],13,T.MUTED,body,true)
 	if int(metadata.context)>0:_label("%d context tokens · %d max output tokens"%[metadata.context,metadata.output],13,T.MUTED,body,true)
 	if row.life.has("replacement"):_label("Published replacement · "+str(row.life.replacement),13,T.ACCENT,body,true)
+	if picker_purpose in ["tts","stt","live"]:
+		var capabilities:=Models.voice_capabilities(row.id)
+		var labels: Array[String]=[]
+		if capabilities.expressive:labels.append("Expressive delivery")
+		if capabilities.prompt_voices:labels.append("Prompt-generated voices")
+		if capabilities.recording_voices:labels.append("Consented recording voices")
+		if capabilities.streaming:labels.append("Streaming transport")
+		if capabilities.full_duplex:labels.append("Full duplex")
+		if capabilities.transcription:labels.append("Transcription")
+		_label(" · ".join(labels)+" · verified "+str(capabilities.verified_at),13,T.ACCENT,body,true)
+		_label(Models.lifecycle_description(row.id),13,T.MUTED,body,true)
+		if capabilities.endpoint=="/realtime":_label("Uses the Realtime API. This model is not sent to the legacy speech endpoint. Prompt-generated custom voices require GPT-Live.",13,T.MUTED,body,true)
 	var rate: Dictionary=row.price
 	if not rate.is_empty():
 		var cost_lines:=PackedStringArray()

@@ -1,11 +1,16 @@
 extends RefCounted
 
 const PATH := "user://college_preferences.cfg"
-const BUS_NAMES := {"master": "Master", "effects": "Effects", "ambience": "Ambience", "interface": "Interface"}
+const BUS_NAMES := {"master": "Master", "effects": "Effects", "ambience": "Ambience", "interface": "Interface", "npc_speech": "NPCSpeech", "human_voice": "HumanVoice", "phone_calls": "PhoneCalls"}
 const WINDOW_MODES := [Window.MODE_WINDOWED, Window.MODE_FULLSCREEN, Window.MODE_EXCLUSIVE_FULLSCREEN, Window.MODE_MAXIMIZED]
 const DEFAULTS := {
 	"display_mode": 0, "width": 0, "height": 0, "window_screen": -1, "normal_bounds": Rect2i(), "vsync": true, "fps": 60, "fov": 72.0,
 	"master": 1.0, "effects": 1.0, "ambience": 1.0, "interface": 1.0,
+	"npc_speech": 1.0, "human_voice": 1.0, "phone_calls": 1.0,
+	"microphone_mode": "push_to_talk", "microphone_muted": false,
+	"microphone_device": "Default", "output_device": "Default",
+	"microphone_noise_gate": true, "microphone_echo_mode": "speaker_protection",
+	"npc_interruptions": true, "voice_diagnostics": false,
 	"teacher_mic_sensitivity": 1.0,
 	"teacher_mic_detection": true,
 	"teacher_automatic_conversation": false,
@@ -42,8 +47,10 @@ func load_settings(owner: Node) -> void:
 	values.ui_scale = clampf(values.ui_scale, 0.85, 1.25)
 	if not is_finite(values.teacher_mic_sensitivity):values.teacher_mic_sensitivity=1.0
 	values.teacher_mic_sensitivity=clampf(values.teacher_mic_sensitivity,.5,2.0)
+	if values.microphone_mode not in ["push_to_talk","voice_activation","muted"]:values.microphone_mode="push_to_talk"
+	if values.microphone_echo_mode not in ["speaker_protection","headphones"]:values.microphone_echo_mode="speaker_protection"
 	for key in BUS_NAMES:
-		values[key] = clampf(values[key], 0.0, 1.0)
+		values[key] = clampf(values[key], 0.0, 1.0) if is_finite(values[key]) else DEFAULTS[key]
 
 func save() -> Error:
 	var config := ConfigFile.new()
@@ -52,17 +59,30 @@ func save() -> Error:
 	return config.save(PATH)
 
 func set_option(key: String, value: Variant) -> void:
+	if not DEFAULTS.has(key) or typeof(value)!=typeof(DEFAULTS[key]):return
+	if value is float and not is_finite(value):value=DEFAULTS[key]
 	values[key] = value
 	apply(key)
 
 func apply(key: String) -> void:
 	if BUS_NAMES.has(key):
+		preload("res://scripts/campus/voice/audio_voice_mixer.gd").ensure_buses()
 		var index := AudioServer.get_bus_index(BUS_NAMES[key])
 		if index >= 0:
 			AudioServer.set_bus_mute(index, float(values[key]) <= 0.0)
 			AudioServer.set_bus_volume_db(index, linear_to_db(maxf(0.0001, values[key])))
 		return
 	match key:
+		"microphone_mode", "microphone_muted", "microphone_device", "microphone_noise_gate", "microphone_echo_mode", "teacher_mic_sensitivity", "teacher_automatic_conversation":
+			var service:=game.get_tree().root.get_node_or_null("MicrophoneCapture")
+			if is_instance_valid(service):service.configure(values)
+			if key in ["microphone_device","microphone_mode","microphone_muted","teacher_automatic_conversation"]:
+				if is_instance_valid(game.get("faculty")):
+					game.faculty._cancel_recording()
+					game.faculty._stop_voice_conversation()
+				if (values.microphone_muted or values.microphone_mode=="muted") and is_instance_valid(game.get("voice_chat")):game.voice_chat._stop()
+		"output_device":
+			if values.output_device in AudioServer.get_output_device_list():AudioServer.output_device=values.output_device
 		"teacher_speech", "teacher_subtitles":
 			if is_instance_valid(game.faculty) and is_instance_valid(game.faculty.speech_player):
 				game.faculty.speech_player.configure(values.teacher_speech,values.teacher_subtitles)

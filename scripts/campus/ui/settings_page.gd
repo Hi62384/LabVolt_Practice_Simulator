@@ -139,23 +139,7 @@ func _select(category: String) -> void:
 	_label(body, category, 22)
 	match category:
 		"Graphics & Display": _display_controls()
-		"Audio":
-			for spec in [["Master volume","master"],["Sound effects","effects"],["Environmental ambience","ambience"],["UI sounds","interface"]]:
-				_slider(spec[0], 0, 1, .01, prefs.values[spec[1]], _preference.bind(spec[1]), "%.0f%%", 100)
-			_label(body, "Teacher hearing", 18)
-			_toggle("Allow teachers to react to my microphone", prefs.values.teacher_mic_detection, _preference.bind("teacher_mic_detection"))
-			_slider("Microphone sensitivity", .5, 2.0, .05, prefs.values.teacher_mic_sensitivity, _preference.bind("teacher_mic_sensitivity"), "%.0f%%", 100)
-			var hint:=_label(body,"Used only while push-to-talk is active. Higher values make teachers more sensitive to your microphone.",14)
-			hint.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-			var privacy_note:=_label(body,"Turning off teacher reactions does not mute push-to-talk voice chat.",14)
-			privacy_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-			_label(body, "Teacher replies", 18)
-			_toggle("Play teacher speech when a voice is available", prefs.values.teacher_speech, _preference.bind("teacher_speech"))
-			_toggle("Listen automatically during teacher conversations",prefs.values.teacher_automatic_conversation,_preference.bind("teacher_automatic_conversation"))
-			_label(body,"When enabled, speaking to a teacher sends recognized voice turns to the host’s configured speech-to-text service.",14)
-			_toggle("Show teacher subtitles", prefs.values.teacher_subtitles, _preference.bind("teacher_subtitles"))
-			var mic_test:=preload("res://scripts/campus/voice/microphone_meter.gd").new()
-			body.add_child(mic_test);mic_test.build(func():return prefs.values.teacher_mic_sensitivity)
+		"Audio": _audio_controls()
 		"Controls": _input_controls()
 		"Host Server": _host_server_controls()
 		"Gameplay":
@@ -337,10 +321,7 @@ func _reset() -> void:
 			graphics.preset("Medium")
 		"Audio":
 			keys = Prefs.BUS_NAMES.keys()
-			keys.append("teacher_mic_sensitivity")
-			keys.append("teacher_mic_detection")
-			keys.append("teacher_speech")
-			keys.append("teacher_subtitles")
+			keys.append_array(["teacher_mic_sensitivity","teacher_mic_detection","teacher_speech","teacher_subtitles","teacher_automatic_conversation","microphone_mode","microphone_muted","microphone_device","output_device","microphone_noise_gate","microphone_echo_mode","npc_interruptions","voice_diagnostics"])
 		"Controls":
 			game.player.sensitivity = .00225
 			game.player.invert_vertical = false
@@ -514,3 +495,33 @@ func _clear(parent: Node) -> void:
 	for child in parent.get_children():
 		parent.remove_child(child)
 		child.queue_free()
+
+func _audio_controls() -> void:
+	_label(body,"Output",18)
+	for spec in [["Master","master"],["NPC speech","npc_speech"],["Human voice chat","human_voice"],["Phone calls","phone_calls"],["Sound effects","effects"],["Environmental ambience","ambience"],["UI sounds","interface"]]:
+		_slider(spec[0],0,1,.01,prefs.values[spec[1]],_preference.bind(spec[1]),"%.0f%%",100)
+	var outputs:=Array(AudioServer.get_output_device_list())
+	_choice("Output device",outputs,maxi(0,outputs.find(prefs.values.output_device)),func(index):_preference(str(outputs[index]),"output_device"))
+	_label(body,"Microphone",18)
+	var devices:=Array(AudioServer.get_input_device_list())
+	if str(prefs.values.microphone_device) not in devices:devices.append(str(prefs.values.microphone_device))
+	_choice("Input device",devices,maxi(0,devices.find(prefs.values.microphone_device)),func(index):_preference(str(devices[index]),"microphone_device"))
+	var modes:=["push_to_talk","voice_activation","muted"]
+	_choice("Microphone mode",["Push-to-talk (hold your voice key)","Voice activation (open microphone)","Muted"],modes.find(prefs.values.microphone_mode),func(index):_preference(modes[index],"microphone_mode"))
+	_toggle("Mute microphone",prefs.values.microphone_muted,_preference.bind("microphone_muted"))
+	_slider("Sensitivity",.5,2.,.05,prefs.values.teacher_mic_sensitivity,_preference.bind("teacher_mic_sensitivity"),"%.0f%%",100)
+	_toggle("Reduce steady background noise",prefs.values.microphone_noise_gate,_preference.bind("microphone_noise_gate"))
+	var echo_modes:=["speaker_protection","headphones"]
+	_choice("Listening setup",["Speakers · protect against playback echo","Headphones · allow interruption while speaking"],echo_modes.find(prefs.values.microphone_echo_mode),func(index):_preference(echo_modes[index],"microphone_echo_mode"))
+	var echo_note:=_label(body,"Acoustic echo cancellation is unavailable in this audio driver. With speakers, open-microphone NPC recognition pauses during speech; hold your voice key to interrupt. Headphones allow continuous listening.",14);echo_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	_label(body,"Character conversations",18)
+	_toggle("Allow NPCs to understand my microphone",prefs.values.teacher_automatic_conversation,_preference.bind("teacher_automatic_conversation"))
+	var privacy:=_label(body,"When enabled, approach and face an NPC, then speak. Relevant speech goes to the host's configured AI service. Private phone calls are excluded. NPC voices are AI-generated.",14);privacy.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	_toggle("Let teachers react to audible disruption",prefs.values.teacher_mic_detection,_preference.bind("teacher_mic_detection"))
+	_toggle("Play NPC voice responses",prefs.values.teacher_speech,_preference.bind("teacher_speech"))
+	_toggle("Allow natural interruptions",prefs.values.npc_interruptions,_preference.bind("npc_interruptions"))
+	_toggle("Show playback-synchronized subtitles",prefs.values.teacher_subtitles,_preference.bind("teacher_subtitles"))
+	_label(body,"Test your audio",18)
+	var mic_test:=preload("res://scripts/campus/voice/microphone_meter.gd").new();body.add_child(mic_test);mic_test.build(func():return prefs.values.teacher_mic_sensitivity,game)
+	_button(body,"Open voice diagnostics","settings",func():
+		var window:=preload("res://scripts/campus/voice/voice_diagnostics.gd").new();add_child(window);window.configure(game))

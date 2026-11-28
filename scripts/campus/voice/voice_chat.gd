@@ -1,5 +1,5 @@
 extends Node3D
-## Push-to-talk capture is active only while the bound key is held.
+## One shared microphone source routes opt-in proximity speech and private phone calls.
 ## PCM is relayed by the host, bounded and routed to nearby players only.
 const SAMPLE_RATE:=16000
 const PACKET_SECONDS:=0.02
@@ -7,6 +7,10 @@ const MAX_RANGE:=24.0
 var game: Node
 var capture: AudioEffectCapture
 var mic: AudioStreamPlayer
+var microphone: Node
+var packet_activity: Dictionary = {}
+var voice_hangover_until := 0
+var dropped_packets := 0
 var talking:=false
 var last_packet:={}
 var remotes:={}
@@ -21,17 +25,9 @@ var sensitivity_refresh:=0.0
 
 func build(owner_game: Node) -> void:
  game=owner_game
- var bus:=AudioServer.get_bus_index("VoiceCapture")
- if bus<0:
-  AudioServer.add_bus();bus=AudioServer.bus_count-1;AudioServer.set_bus_name(bus,"VoiceCapture")
-  AudioServer.set_bus_send(bus,"Master");AudioServer.set_bus_volume_db(bus,-80.0)
-  capture=AudioEffectCapture.new();capture.buffer_length=.3;AudioServer.add_bus_effect(bus,capture)
- else:
-  for i in AudioServer.get_bus_effect_count(bus):
-   if AudioServer.get_bus_effect(bus,i) is AudioEffectCapture:capture=AudioServer.get_bus_effect(bus,i)
- if capture==null:
-  capture=AudioEffectCapture.new();AudioServer.add_bus_effect(bus,capture)
- mic=AudioStreamPlayer.new();mic.bus="VoiceCapture";mic.stream=AudioStreamMicrophone.new();add_child(mic)
+ microphone=preload("res://scripts/campus/voice/microphone_capture.gd").shared(self)
+ microphone.configure(game.client_preferences.values if game.get("client_preferences")!=null else {})
+ microphone.packet_ready.connect(_on_microphone_packet)
  var layer:=CanvasLayer.new();layer.layer=33;add_child(layer)
  var badge_row:=HBoxContainer.new();badge_row.position=Vector2(16,244);layer.add_child(badge_row)
  var mic_icon:=TextureRect.new();mic_icon.texture=MIC_ICON;mic_icon.custom_minimum_size=Vector2(22,22);mic_icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;mic_icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;badge_row.add_child(mic_icon)
@@ -39,17 +35,22 @@ func build(owner_game: Node) -> void:
  game.session.roster_changed.connect(_prune)
  game.session.leaving.connect(_stop)
  game.session.leaving.connect(_clear_call_players)
- game.smartphones.comm.changed.connect(_sync_call_state)
+ if is_instance_valid(game.get("smartphones")):game.smartphones.comm.changed.connect(_sync_call_state)
 
 func _process(delta: float) -> void:
  if not is_instance_valid(game) or not is_instance_valid(game.front):return
  var on_call: bool=is_instance_valid(game.get("smartphones")) and game.smartphones.comm.local_call.get("state","")=="active"
  var focus:=get_viewport().gui_get_focus_owner()
- var active: bool=game.front.in_game and get_window().has_focus() and (game.player.enabled or on_call) and not game.player.chat_typing and not (focus is LineEdit or focus is TextEdit) and not game.front.screen.visible and (Input.mouse_mode==Input.MOUSE_MODE_CAPTURED or on_call) and game.player.down("voice")
+ var prefs: Dictionary=game.client_preferences.values if game.get("client_preferences")!=null else {}
+ var mode:=str(prefs.get("microphone_mode","push_to_talk"))
+ var permitted: bool=game.front.in_game and get_window().has_focus() and (game.player.enabled or on_call) and not game.player.chat_typing and not (focus is LineEdit or focus is TextEdit) and not game.front.screen.visible and (Input.mouse_mode==Input.MOUSE_MODE_CAPTURED or on_call)
+ var active: bool=permitted and not bool(prefs.get("microphone_muted",false)) and mode!="muted" and (mode=="voice_activation" or game.player.down("voice"))
  if active!=talking:
+  if talking and not active and permitted and not bool(prefs.get("microphone_muted",false)):
+   microphone.finish_turn()
   talking=active
-  if talking:capture.clear_buffer();mic.play()
-  else:_stop()
+  microphone.subscribe("human_voice",active)
+  capture=microphone.capture;mic=microphone.player
  badge.get_parent().visible=talking
  _sync_call_state()
  if talking:
@@ -59,7 +60,7 @@ func _process(delta: float) -> void:
    var sensitivity: float=clampf(float(game.client_preferences.values.get("teacher_mic_sensitivity",1.0)),.5,2.0)
    if multiplayer.is_server():teacher_sensitivity[multiplayer.get_unique_id()]=sensitivity
    elif game.session.online:_set_teacher_sensitivity.rpc_id(1,sensitivity)
-  _capture_audio()
+  pass
  refresh+=delta
  if refresh<.1:return
  refresh=0.0
@@ -75,17 +76,20 @@ func _process(delta: float) -> void:
   icon.visible=Time.get_ticks_msec()-maxi(proximity_last,int(call_last.get(peer,0)))<350
 
 func _capture_audio() -> void:
- var input_rate:=AudioServer.get_mix_rate()
- var count:=int(input_rate*PACKET_SECONDS)
- if capture.get_frames_available()<count:return
- var frames:=capture.get_buffer(count)
- var output_count:=int(SAMPLE_RATE*PACKET_SECONDS)
- var packet:=PackedByteArray();packet.resize(output_count*2)
- for i in output_count:
-  var index:=mini(frames.size()-1,int(float(i)*float(frames.size())/float(output_count)))
-  var sample: float=clampf((frames[index].x+frames[index].y)*.5,-1.0,1.0)
-  packet.encode_s16(i*2,roundi(sample*32767.0))
- var detect: bool=bool(game.client_preferences.values.get("teacher_mic_detection",true))
+ # Capture is drained exclusively by MicrophoneCapture, including settings and NPC users.
+ pass
+
+func _on_microphone_packet(packet: PackedByteArray, activity: Dictionary) -> void:
+ packet_activity=activity
+ if not talking:return
+ var prefs: Dictionary=game.client_preferences.values if game.get("client_preferences")!=null else {}
+ if bool(prefs.get("microphone_muted",false)):return
+ if activity.get("speech",false):voice_hangover_until=Time.get_ticks_msec()+300
+ if str(prefs.get("microphone_mode","push_to_talk"))=="voice_activation" and Time.get_ticks_msec()>voice_hangover_until:return
+ var detect: bool=bool(prefs.get("teacher_mic_detection",true))
+ var on_call: bool=is_instance_valid(game.get("smartphones")) and game.smartphones.comm.local_call.get("state","")=="active"
+ # Private calls never route their microphone to NPC AI/hearing.
+ if on_call:detect=false
  if not game.session.online:
   if detect and multiplayer.is_server():_observe_teacher_sound(multiplayer.get_unique_id(),packet)
   return
@@ -103,14 +107,16 @@ func _relay(peer: int,packet: PackedByteArray,detect: bool=true) -> void:
  if now-int(last_packet.get(peer,-1000))<10:return
  last_packet[peer]=now
  var source: Vector3=_position(peer)
+ var private_call: bool=is_instance_valid(game.get("smartphones")) and game.smartphones.comm.calls.get(peer,{}).get("state","")=="active"
  if not source.is_finite():return
- if detect:_observe_teacher_sound(peer,packet)
+ if detect and not private_call:_observe_teacher_sound(peer,packet)
  for target in game.session.roster:
   if int(target)==peer:continue
   if is_instance_valid(game.get("smartphones")) and game.smartphones.comm.connected(peer,int(target)):
    if int(target)==multiplayer.get_unique_id():_play_call_packet(peer,packet)
    elif game.session.peer_connected_now(int(target)):_receive_call.rpc_id(int(target),peer,packet)
    continue
+  if private_call:continue
   var destination: Vector3=_position(int(target))
   if not destination.is_finite() or source.distance_squared_to(destination)>MAX_RANGE*MAX_RANGE:continue
   if int(target)==multiplayer.get_unique_id():_play_packet(peer,packet)
@@ -131,7 +137,7 @@ func _play_call_packet(peer: int,packet: PackedByteArray) -> void:
  call_last[peer]=Time.get_ticks_msec()
  if not call_players.has(peer):
   var stream:=AudioStreamGenerator.new();stream.mix_rate=SAMPLE_RATE;stream.buffer_length=.3
-  var player:=AudioStreamPlayer.new();player.stream=stream;add_child(player);player.play();call_players[peer]=player
+  var player:=AudioStreamPlayer.new();player.stream=stream;player.bus="PhoneCalls" if AudioServer.get_bus_index("PhoneCalls")>=0 else "Master";add_child(player);player.play();call_players[peer]=player
  var playback: AudioStreamGeneratorPlayback=call_players[peer].get_stream_playback()
  if playback==null:return
  var count:=int(packet.size()/2)
@@ -162,6 +168,7 @@ func _create_remote(peer: int) -> void:
  var stream:=AudioStreamGenerator.new();stream.mix_rate=SAMPLE_RATE;stream.buffer_length=.3
  var player:=AudioStreamPlayer3D.new()
  player.stream=stream
+ player.bus="HumanVoice" if AudioServer.get_bus_index("HumanVoice")>=0 else "Master"
  player.attenuation_model=AudioStreamPlayer3D.ATTENUATION_DISABLED
  player.volume_db=-63.0
  player.max_distance=MAX_RANGE
@@ -186,8 +193,7 @@ func _stop() -> void:
  var peer:=multiplayer.multiplayer_peer
  if peer!=null and peer.get_connection_status()==MultiplayerPeer.CONNECTION_CONNECTED and multiplayer.is_server():
   teacher_sound.forget(multiplayer.get_unique_id())
- if is_instance_valid(mic):mic.stop()
- if capture!=null:capture.clear_buffer()
+ if is_instance_valid(microphone):microphone.subscribe("human_voice",false)
  if is_instance_valid(badge):badge.get_parent().hide()
 func _clear_call_players() -> void:
  for player in call_players.values():
@@ -231,6 +237,13 @@ func _prune() -> void:
    last_packet.erase(peer)
 
 func _observe_teacher_sound(peer: int,packet: PackedByteArray) -> void:
+ # Recognition handles the meaning of an addressed question. Loudness alone
+ # must not also punish an ordinary academic turn as unrelated classroom noise.
+ if is_instance_valid(game.get("faculty")):
+  var natural: Variant=game.faculty.get("natural_voice")
+  if is_instance_valid(natural) and natural.has_method("addressed_speech_active") and natural.addressed_speech_active(peer):
+   teacher_sound.forget(peer)
+   return
  if peer!=multiplayer.get_unique_id():
   var last_poses: Variant=game.session.get("last_pose")
   if last_poses is Dictionary and (not last_poses.has(peer) or int(last_poses[peer])<=0 or Time.get_ticks_msec()-int(last_poses[peer])>3000):
@@ -250,5 +263,4 @@ func _set_teacher_sensitivity(value: float) -> void:
  teacher_sensitivity[peer]=clampf(value,.5,2.0)
 func _exit_tree() -> void:
  _stop()
- var capture_bus:=AudioServer.get_bus_index("VoiceCapture")
- if capture_bus>0:AudioServer.remove_bus(capture_bus)
+ if is_instance_valid(microphone) and microphone.packet_ready.is_connected(_on_microphone_packet):microphone.packet_ready.disconnect(_on_microphone_packet)

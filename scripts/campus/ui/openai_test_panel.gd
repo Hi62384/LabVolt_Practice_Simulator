@@ -11,7 +11,7 @@ const DESCRIPTIONS := [
 	"Choose an image and ask a question about it.",
 	"Describe an image to generate a preview.",
 	"Enter a short script to hear the selected voice model.",
-	"Choose a 1–6 second mono, 16 kHz PCM WAV recording to transcribe."
+	"Choose a 0.15–180 second mono, 16 kHz PCM16 WAV recording. This explicit test sends that recording to the configured speech service."
 ]
 const ACTIONS := ["Send Prompt","Analyze Image","Generate Image","Generate Speech","Transcribe Audio"]
 const DEFAULT_PROMPTS := ["Give me three tips for studying for a lab exam.","What is visible in this image?","An evening view of a college library","Welcome to Campus OS.",""]
@@ -184,7 +184,7 @@ func _attach(path: String,is_image: bool) -> void:
 	preview.hide()
 	file_label.text="No file selected"
 	var file:=FileAccess.open(path,FileAccess.READ)
-	var limit:=Images.MAX_IMPORT if is_image else 192044
+	var limit:=Images.MAX_IMPORT if is_image else 5760044
 	if file==null or file.get_length()>limit:
 		_set_result("Could not read that file, or it exceeds the size limit.",false)
 	else:

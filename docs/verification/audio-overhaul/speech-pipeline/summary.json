@@ -1,0 +1,79 @@
+{
+  "kind": "deterministic native audio pipeline regression",
+  "live_api": false,
+  "microphone_hardware": false,
+  "voice_listening": false,
+  "cases": [
+    {
+      "case": "test_teacher_speech_player",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.459,
+      "warnings": []
+    },
+    {
+      "case": "test_teacher_speech_synth",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.448,
+      "warnings": []
+    },
+    {
+      "case": "test_teacher_speech_long_delivery",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 2.055,
+      "warnings": []
+    },
+    {
+      "case": "test_voice_audio_transport",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.338,
+      "warnings": []
+    },
+    {
+      "case": "test_voice_playback_lifecycle",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.347,
+      "warnings": []
+    },
+    {
+      "case": "test_voice_speech_scheduler",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.824,
+      "warnings": []
+    },
+    {
+      "case": "test_voice_audio_dsp",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.342,
+      "warnings": []
+    },
+    {
+      "case": "test_student_voice_turns",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 0.633,
+      "warnings": []
+    },
+    {
+      "case": "test_voice_lecture_deadline",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 1.553,
+      "warnings": []
+    },
+    {
+      "case": "test_voice_route_lifecycle",
+      "passed": true,
+      "exit_code": 0,
+      "elapsed_seconds": 1.568,
+      "warnings": []
+    }
+  ],
+  "description": "Complete ten-case run, with the three changed cases rerun after phrase integration and teardown fixes."
+}

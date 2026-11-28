@@ -89,7 +89,7 @@ func prepare(client: Node, person: Dictionary, identity: String, activity: Dicti
 	prepared.guard_dossier=not DossierStore.host_identity.is_empty() and DossierStore.host_identity==brain.host_profile()
 	prepared.dossier_revision=int(DossierStore.dossiers.get(str(person.id),{}).get("revision",0))
 	var interpretation := fallback_interpretation(question, activity, person)
-	var online: bool = is_instance_valid(client) and client.ready_for_class() and not client.busy
+	var online: bool = is_instance_valid(client) and client.ready_for_class()
 	var boundary: Dictionary = mind.disengagement(str(person.id),identity)
 	var reconsideration: Array=mind.reconsideration_evidence(person,identity,brain.relationship(str(person.id),identity))
 	if not reconsideration.is_empty():initial_context.reconsideration_evidence=reconsideration
@@ -159,7 +159,7 @@ func prepare(client: Node, person: Dictionary, identity: String, activity: Dicti
 				prepared.initial_action=JSON.stringify(extra.get("executed_action",{}))
 				if draft.get("behavior") is Dictionary:interpretation.behavior=draft.behavior
 	else:
-		prepared.fallback_reason = "service_busy" if is_instance_valid(client) and client.busy else "service_unavailable"
+		prepared.fallback_reason = "service_unavailable"
 	# Check after every await and before any emotional or relationship mutation.
 	# A profile/session/class change invalidates the original perception context.
 	if not _current(prepared): return _cancel(prepared)

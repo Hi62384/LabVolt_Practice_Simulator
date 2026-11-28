@@ -53,7 +53,10 @@ func _run() -> void:
 	var client:=FixtureClient.new();root.add_child(client)
 	var person:=Profiles.teacher("chad")
 	var activity:={"phase":"lesson","course":"ELM253","title":"AC circuits"}
+	client.busy=true
 	var prepared:=await pipeline.prepare(client,person,"pipeline-student",activity,"I've met rocks that teach better than you.")
+	check(prepared.online and prepared.interpretation_source=="ai","Another pending text request queues instead of forcing a local fallback")
+	client.busy=false
 	var before: Dictionary=client.generated_contexts[0].emotional_state.emotions
 	var after: Dictionary=prepared.context.emotional_state.emotions
 	check(float(after.irritation)>float(before.irritation),"Semantic insult changes emotion before generation")

@@ -1,0 +1,97 @@
+{
+  "revision": "379e1489",
+  "kind": "real paired ENet, fresh profiles, synthetic PCM, no microphone hardware or provider",
+  "passed": true,
+  "results": [
+    {
+      "case": "microphone",
+      "script": "tests/campus/academics/test_teacher_microphone_network.gd",
+      "seconds": 3.91,
+      "passed": true,
+      "peers": [
+        {
+          "role": "host",
+          "exit_code": 0,
+          "passed": true,
+          "pass_markers": [
+            "MIC_NETWORK_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [],
+          "log": "microphone-host.log"
+        },
+        {
+          "role": "client",
+          "exit_code": 0,
+          "passed": true,
+          "pass_markers": [
+            "MIC_NETWORK_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [],
+          "log": "microphone-client.log"
+        }
+      ]
+    },
+    {
+      "case": "sensitivity",
+      "script": "tests/campus/academics/test_teacher_sensitivity_network.gd",
+      "seconds": 2.44,
+      "passed": true,
+      "peers": [
+        {
+          "role": "host",
+          "exit_code": 0,
+          "passed": true,
+          "pass_markers": [
+            "SENSITIVITY_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [],
+          "log": "sensitivity-host.log"
+        },
+        {
+          "role": "client",
+          "exit_code": 0,
+          "passed": true,
+          "pass_markers": [
+            "SENSITIVITY_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [],
+          "log": "sensitivity-client.log"
+        }
+      ]
+    },
+    {
+      "case": "phone",
+      "script": "tests/campus/computers/test_phone_network.gd",
+      "seconds": 33.87,
+      "passed": true,
+      "peers": [
+        {
+          "role": "host",
+          "exit_code": 0,
+          "passed": true,
+          "pass_markers": [
+            "PHONE_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [],
+          "log": "phone-host.log"
+        },
+        {
+          "role": "client",
+          "exit_code": 0,
+          "passed": true,
+          "pass_markers": [
+            "PHONE_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [],
+          "log": "phone-client.log"
+        }
+      ]
+    }
+  ]
+}
