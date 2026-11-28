@@ -1,0 +1,27 @@
+extends SceneTree
+const Models=preload("res://scripts/campus/ai/openai_models.gd")
+const Pricing=preload("res://scripts/campus/ai/model_pricing.gd")
+func _initialize() -> void:
+	for purpose in ["text","image","image_generation","tts","live","stt","embeddings"]:
+		for id in Models.RECOMMENDED[purpose]:
+			assert(Models.documented_for(id,purpose),"Recommended model missing from catalog: "+id)
+			assert(id in Models.catalog_ids(purpose))
+	assert(not Models.supports("gpt-future-unverified","text"))
+	assert(not Models.available_for("gpt-4o-2024-05-13","image"))
+	assert(Models.lifecycle("gpt-audio-2025-08-28","2027-01-20").status=="retired")
+	assert(Models.lifecycle("gpt-5-pro-2025-10-06","2026-12-10").status=="deprecated")
+	assert(Models.lifecycle("gpt-5-pro-2025-10-06","2026-12-11").status=="retired")
+	assert(Models.recommended_choice(["gpt-5.4-mini","gpt-6-luna"],"text")=="gpt-6-luna")
+	assert(Models.recommended_choice(["gpt-image-2.6-sunburst","gpt-image-2.6-flare"],"image_generation")=="gpt-image-2.6-flare")
+	assert("none" not in Models.efforts("gpt-6.2-astra"))
+	assert("none" in Models.efforts("gpt-6-luna"))
+	assert(Pricing.pricing("gpt-6-sol","text").cached==.2)
+	assert(Pricing.pricing("gpt-5.6-terra","text").output==12.)
+	assert(Pricing.pricing("gpt-5.6-luna","text").input==.2)
+	assert(Pricing.pricing("gpt-live-transcribe","stt").rate==.017)
+	assert(Pricing.pricing("gpt-live-1.1","live").standby_rate==.02)
+	assert(Pricing.pricing("text-embedding-3-large","embeddings").input==.13)
+	assert(Pricing.pricing("gpt-6-luna","character_generation").input==.1)
+	assert(not Models.voice_compatible("gpt-realtime-2.1","voice_fixture","prompt"))
+	print("MODEL_CATALOG_REGRESSION PASS")
+	quit()

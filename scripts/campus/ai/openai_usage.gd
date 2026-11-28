@@ -51,6 +51,8 @@ func record(context: Dictionary, measurement: Dictionary, successful: bool, late
 	var cost:=-1
 	match str(rate.get("basis","")):
 		"tokens":cost=Pricing.token_cost(rate,measurement)
+		"embedding_tokens":
+			if measurement.has("input"):cost=int(measurement.input)*roundi(float(rate.input)*1000.)
 		"image_tokens":cost=Pricing.image_cost(rate,measurement)
 		"audio_tokens":cost=Pricing.audio_cost(rate,measurement)
 		"characters":

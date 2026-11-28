@@ -3,7 +3,7 @@ extends RefCounted
 const Models=preload("res://scripts/campus/ai/openai_models.gd")
 const PRICING_URL:="https://developers.openai.com/api/docs/pricing"
 const IMAGE_CALCULATOR:="https://developers.openai.com/api/docs/guides/image-generation#calculating-costs"
-const VERIFIED:="2026-11-26"
+const VERIFIED:="2026-11-27"
 
 # USD per million tokens: input, output, cached read, 30m write, 12h write.
 # Missing entries are deliberately omitted. -1 means the category has no verified rate.
@@ -11,6 +11,7 @@ const TEXT := {
 	"gpt-6.2-astra":[8.,40.,.4,10.,20.], "gpt-6.2-sol":[2.,10.,.1,2.5,5.],
 	"gpt-6-astra":[10.,50.,1.,12.5,25.], "gpt-6.1-sol":[2.,10.,.1,2.5,5.],
 	"gpt-6.1-terra":[1.,5.,.05,1.25,2.5], "gpt-6-luna":[.1,.5,.01,.125,.25],
+	"gpt-6-sol":[2.,10.,.2,2.5,-1.], "gpt-5.6-terra":[2.,12.,.2,2.5,-1.], "gpt-5.6-luna":[.2,1.2,.02,.25,-1.],
 	"gpt-5.6-sol":[4.,20.,.4,5.,-1.], "chat-latest":[5.,30.,.5,-1.,-1.],
 	"gpt-5.5":[5.,30.,.5,-1.,-1.], "gpt-5.5-pro":[30.,180.,-1.,-1.,-1.],
 	"gpt-5.4":[2.5,15.,.25,-1.,-1.], "gpt-5.4-pro":[30.,180.,-1.,-1.,-1.],
@@ -30,18 +31,19 @@ const IMAGES := {
 	"gpt-image-1.5":[5.,1.25,8.,2.,32.], "gpt-image-1-mini":[2.,.2,2.5,.25,8.],
 }
 const SPEECH := {"tts-1":[15.,"characters"],"tts-1-hd":[30.,"characters"],"gpt-4o-mini-tts":[.015,"minute_estimate"]}
-const TRANSCRIBE := {"gpt-transcribe":[.0045,"minute"],"whisper-1":[.006,"minute"],"gpt-4o-mini-transcribe":[.003,"minute_estimate"],"gpt-4o-transcribe":[.006,"minute_estimate"],"gpt-4o-transcribe-diarize":[.006,"minute_estimate"]}
-const REALTIME_AUDIO:={"gpt-realtime-2.1-mini":[.6,.06,2.4,10.,.3,20.],"gpt-realtime-2.1":[4.,.4,24.,32.,.4,64.]}
-const LONG_CONTEXT := ["gpt-6.2-astra","gpt-6.2-sol","gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna","gpt-5.6-sol","gpt-5.4","gpt-5.4-pro","gpt-5.5","gpt-5.5-pro"]
-const FAST := ["gpt-6.2-astra","gpt-6.2-sol","gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna"]
-const FLEX := ["gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna"]
+const TRANSCRIBE := {"gpt-transcribe":[.0045,"minute"],"gpt-live-transcribe":[.017,"minute"],"gpt-realtime-whisper":[.017,"minute"],"whisper-1":[.006,"minute"],"gpt-4o-mini-transcribe":[.003,"minute_estimate"],"gpt-4o-transcribe":[.006,"minute_estimate"],"gpt-4o-transcribe-diarize":[.006,"minute_estimate"]}
+const REALTIME_AUDIO:={"gpt-realtime-2.1-mini":[.6,.06,2.4,10.,.3,20.],"gpt-realtime-2.1":[4.,.4,24.,32.,.4,64.],"gpt-realtime-2":[4.,.4,24.,32.,.4,64.],"gpt-realtime-1.5":[4.,.4,16.,32.,.4,64.],"gpt-audio-1.5":[2.5,-1.,10.,32.,-1.,64.]}
+const EMBEDDING_RATES:={"text-embedding-3-small":.02,"text-embedding-3-large":.13}
+const LONG_CONTEXT := ["gpt-6-sol","gpt-5.6-terra","gpt-5.6-luna","gpt-6.2-astra","gpt-6.2-sol","gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna","gpt-5.6-sol","gpt-5.4","gpt-5.4-pro","gpt-5.5","gpt-5.5-pro"]
+const FAST := ["gpt-6-sol","gpt-6.2-astra","gpt-6.2-sol","gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna"]
+const FLEX := ["gpt-6-sol","gpt-6-astra","gpt-6.1-sol","gpt-6.1-terra","gpt-6-luna"]
 const BACKGROUND:=["gpt-6.2-astra","gpt-6.2-sol","gpt-6.1-terra","gpt-6-luna"]
 
 static func tiers(id: String,purpose: String) -> Array:
 	var base:=Models.verified_family(id)
 	if purpose=="image_generation":
 		return ["standard","batch"] if base in ["gpt-image-2","gpt-image-2.5-sunburst","gpt-image-2.5-flare","gpt-image-2.6-sunburst","gpt-image-2.6-flare"] else ["standard"]
-	if purpose not in ["text","image"]:return ["standard"]
+	if purpose not in ["text","image","character_generation"]:return ["standard"]
 	var result:=["standard"]
 	if base in FAST:result.append_array(["batch","fast"])
 	if base in FLEX:result.append("flex")
@@ -55,7 +57,7 @@ static func pricing(id: String,purpose: String,tier := "standard",input_tokens :
 	if date.is_empty():date=Time.get_date_string_from_system(true)
 	if base=="gpt-5.6-sol" and date>"2026-11-30":return {}
 	var result:={"source_url":"https://developers.openai.com/api/docs/models/"+base,"verified_at":VERIFIED,"tier":tier,"long_context":false}
-	if purpose in ["text","image"] and TEXT.has(base):
+	if purpose in ["text","image","character_generation"] and TEXT.has(base):
 		var rates: Array=TEXT[base]
 		var factor:=1.0
 		match tier:
@@ -77,10 +79,12 @@ static func pricing(id: String,purpose: String,tier := "standard",input_tokens :
 		result.label="$%s text in · $%s image out"%[money_rate(result.text_input),money_rate(result.image_output)]
 		if base=="gpt-image-2":result.source_url=PRICING_URL
 	elif purpose in ["tts","live"] and base in Models.LIVE:
-		result.merge({"rate":.05,"basis":"minute","unit":"USD / active session minute","label":"$0.05 / active min · backend separate","verified_at":"2026-11-27"})
-	elif purpose=="tts" and REALTIME_AUDIO.has(base):
+		result.merge({"rate":.05,"standby_rate":.02,"basis":"minute","unit":"USD / active session minute","label":"$0.05 active / $0.02 eligible standby per min · backend separate","verified_at":"2026-11-27"})
+	elif purpose in ["tts","live","realtime"] and REALTIME_AUDIO.has(base):
 		var values: Array=REALTIME_AUDIO[base]
 		result.merge({"text_input":values[0],"text_cached":values[1],"text_output":values[2],"audio_input":values[3],"audio_cached":values[4],"audio_output":values[5],"basis":"audio_tokens","unit":"USD / 1M tokens","label":"$%s text in · $%s audio out"%[money_rate(values[0]),money_rate(values[5])],"verified_at":"2026-11-27"})
+	elif purpose=="embeddings" and EMBEDDING_RATES.has(base):
+		result.merge({"input":EMBEDDING_RATES[base],"basis":"embedding_tokens","unit":"USD / 1M input tokens","label":"$%s / 1M input tokens"%money_rate(EMBEDDING_RATES[base])})
 	else:
 		var types: Dictionary=SPEECH if purpose=="tts" else TRANSCRIBE if purpose=="stt" else {}
 		if not types.has(base):return {}
@@ -124,5 +128,8 @@ static func audio_cost(rate: Dictionary,usage: Dictionary) -> int:
 	var cached_text:=int(usage.get("text_cached",0))
 	var cached_audio:=int(usage.get("audio_cached",0))
 	if int(usage.get("image_input",0))>0 or int(usage.get("cached",0))!=cached_text+cached_audio:return -1
-	if cached_text>int(usage.text_input) or cached_audio>int(usage.audio_input):return -1
-	return (int(usage.text_input)-cached_text)*roundi(float(rate.text_input)*1000.)+cached_text*roundi(float(rate.text_cached)*1000.)+int(usage.text_output)*roundi(float(rate.text_output)*1000.)+(int(usage.audio_input)-cached_audio)*roundi(float(rate.audio_input)*1000.)+cached_audio*roundi(float(rate.audio_cached)*1000.)+int(usage.audio_output)*roundi(float(rate.audio_output)*1000.)
+	if cached_text<0 or cached_audio<0 or cached_text>int(usage.text_input) or cached_audio>int(usage.audio_input):return -1
+	if (cached_text>0 and float(rate.get("text_cached",-1))<0.) or (cached_audio>0 and float(rate.get("audio_cached",-1))<0.):return -1
+	for key in ["text_input","audio_input","text_output","audio_output"]:
+		if int(usage[key])<0:return -1
+	return (int(usage.text_input)-cached_text)*roundi(float(rate.text_input)*1000.)+cached_text*roundi(maxf(0.,float(rate.text_cached))*1000.)+int(usage.text_output)*roundi(float(rate.text_output)*1000.)+(int(usage.audio_input)-cached_audio)*roundi(float(rate.audio_input)*1000.)+cached_audio*roundi(maxf(0.,float(rate.audio_cached))*1000.)+int(usage.audio_output)*roundi(float(rate.audio_output)*1000.)

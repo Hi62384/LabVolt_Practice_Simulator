@@ -7,7 +7,7 @@ const Models = preload("res://scripts/campus/ai/openai_models.gd")
 const Comparison=preload("res://scripts/campus/ai/model_comparison.gd")
 const Pricing=preload("res://scripts/campus/ai/model_pricing.gd")
 const Evaluation=preload("res://scripts/campus/ai/openai_evaluation.gd")
-const PURPOSES:={"text":"Text","image":"Image analysis","image_generation":"Image generation","tts":"Speech output","stt":"Transcription","live":"GPT-Live conversations"}
+const PURPOSES:={"text":"Text","image":"Image analysis","image_generation":"Image generation","tts":"Speech output","stt":"Transcription","live":"Live / Realtime conversation"}
 const EFFORTS:=["","none","minimal","low","medium","high","xhigh","max"]
 const SCENARIOS:={"Teacher reply":[800,200],"Teaching explanation":[1800,500],"Lesson plan":[4000,1000],"Image analysis":[1400,260],"Custom":[1000,300]}
 const SORTS:=["Benchmark","Estimated cost","Input rate","Output rate","Latency","Newest snapshot","Model name","Local requests"]
@@ -43,6 +43,8 @@ var custom_input: SpinBox
 var custom_output: SpinBox
 var assumptions: Label
 var show_deprecated: CheckBox
+var show_advanced: CheckBox
+var account_only: CheckBox
 var detail_id:=""
 var pinned: Array[String]=[]
 var evaluation:=Evaluation.new()
@@ -94,6 +96,7 @@ func build(owner: Node, notice: Callable, done: Callable) -> void:
 	var key_actions:=HBoxContainer.new();add_child(key_actions)
 	connect_button=_button(key_actions,"Connect API Key","network",func():_load_models(key_field.text.strip_edges(),true))
 	remove_key=_button(key_actions,"Remove connected API key","close",_disconnect_key)
+	_button(key_actions,"Refresh models","",func():_load_models(draft_key,true))
 	key_field.text_submitted.connect(func(value: String):_load_models(value.strip_edges(),true))
 	options=VBoxContainer.new()
 	options.add_theme_constant_override("separation",8)
@@ -227,10 +230,7 @@ func _set_models(ids: Array, preferred: String) -> void:
 	model_ids=ids
 	chosen.text=preferred
 	for purpose: String in model_buttons:
-		var candidates:=ids.filter(func(id: String):return Models.supports(id,purpose))
-		if str(chosen.get(purpose,"")).is_empty():
-			var primary:=candidates.filter(func(id: String):return id==Models.family(id))
-			chosen[purpose]=str(primary[0]) if not primary.is_empty() else str(candidates[0]) if not candidates.is_empty() else ""
+		if str(chosen.get(purpose,"")).is_empty():chosen[purpose]=Models.recommended_choice(ids,purpose)
 	_model_changed()
 	_refresh_picker()
 
@@ -366,7 +366,9 @@ func _build_picker() -> void:
 	model_search.text_changed.connect(func(_value: String):_refresh_picker())
 	filters.add_child(model_search)
 	show_versions=_check_filter(filters,"Dated snapshots",false)
-	show_deprecated=_check_filter(filters,"Deprecated",true)
+	show_advanced=_check_filter(filters,"Advanced alternatives",false)
+	show_deprecated=_check_filter(filters,"Deprecated / retired",false)
+	account_only=_check_filter(filters,"Account listed only",false)
 	compare_measurements=_check_filter(filters,"Local evaluation",false)
 	custom_input=_token_control(filters,"Input",1000)
 	custom_output=_token_control(filters,"Output",300)
@@ -480,24 +482,28 @@ func _refresh_picker() -> void:
 	assumptions.text+=" Benchmark bars use a 0–100% scale. Other bars compare the visible models."
 	var query:=model_search.text.strip_edges().to_lower()
 	var known_ids:=model_ids.duplicate()
-	if picker_purpose in ["tts","stt","live"]:
-		for id in Models.TTS+Models.REALTIME+Models.LIVE+Models.STT:
-			if id not in known_ids:known_ids.append(id)
-	var candidates:=known_ids.filter(func(id: String):
-		return Models.supports(id,picker_purpose))
+	for id: String in Models.catalog_ids(picker_purpose):
+		if id not in known_ids:known_ids.append(id)
+	var saved:=str(chosen.get(picker_purpose,""))
+	if not saved.is_empty() and saved not in known_ids:known_ids.append(saved)
+	var candidates:=known_ids.filter(func(id: String):return id==saved or Models.documented_for(id,picker_purpose))
 	var rows: Array[Dictionary]=[]
 	var scope: String=service.usage_scope(_read_draft())
 	for id: String in candidates:
-		if not query.is_empty() and query not in id.to_lower():continue
-		if query.is_empty() and not show_versions.button_pressed and id!=chosen.get(picker_purpose) and id in Models.DOCUMENTED_SNAPSHOTS and Models.family(id) in candidates:continue
 		var life:=Models.lifecycle(id)
-		if life.status=="deprecated" and not show_deprecated.button_pressed and id!=chosen.get(picker_purpose):continue
+		if id!=saved:
+			if not query.is_empty() and query not in id.to_lower():continue
+			if account_only.button_pressed and account_models_known and id not in model_ids:continue
+			if life.status in ["deprecated","retired"] and not show_deprecated.button_pressed:continue
+			if id in Models.DOCUMENTED_SNAPSHOTS and not show_versions.button_pressed:continue
+			if query.is_empty() and not show_advanced.button_pressed and not Models.recommended(id,picker_purpose) and not (show_deprecated.button_pressed and life.status in ["deprecated","retired"]) and not (show_versions.button_pressed and id in Models.DOCUMENTED_SNAPSHOTS):continue
 		var measured:=_preview_measurement(id)
 		var rate:=Comparison.pricing(id,picker_purpose,tier,int(workload[0]))
 		var cost:=Pricing.token_cost(rate,{"input":workload[0],"output":workload[1]})
 		var usage: Dictionary=service.usage_tracker.summary(id,scope)
 		var sample:=evaluation.record(id,read_preview,mode) if picker_purpose=="text" else {}
 		var avg: float=sample.get("avg_ms",INF)
+		if not is_finite(avg) and not text_category and int(usage.get("requests",0))>0:avg=float(usage.get("latency_ms",0))/float(usage.requests)
 		if avg<0.:avg=INF
 		var row:={"id":id,"life":life,"measurement":measured,"benchmark":float(measured.get("score_percent",-1.)),
 			"price":rate,"cost":cost,"usage":usage,"latency":avg,"sample":sample}
@@ -527,7 +533,7 @@ func _record_maximum(maxima: Dictionary,key: String,value: float) -> void:
 
 func _rate_metrics(price: Dictionary) -> Array[Dictionary]:
 	var result: Array[Dictionary]=[]
-	for item in [["input","Input"],["output","Output"],["text_input","Text in"],["image_output","Image out"]]:
+	for item in [["input","Input"],["output","Output"],["text_input","Text in"],["image_output","Image out"],["audio_input","Audio in"],["audio_output","Audio out"]]:
 		if not price.has(item[0]):continue
 		var amount:=float(price[item[0]])
 		result.append({"key":item[0],"amount":amount,"label":"%s $%s"%[item[1],Pricing.money_rate(amount)]})
@@ -577,15 +583,18 @@ func _build_model_row(row: Dictionary,maxima: Dictionary) -> void:
 	surface.add_child(split)
 	var header:=HBoxContainer.new()
 	split.add_child(header)
-	var name:=_button(header,row.id,"check" if row.id==chosen.get(picker_purpose) else "",func():detail_id=row.id;_refresh_picker();picker_scroll.set_deferred("scroll_vertical",0))
+	var name:=_button(header,Models.display_name(row.id),"check" if row.id==chosen.get(picker_purpose) else "",func():detail_id=row.id;_refresh_picker();picker_scroll.set_deferred("scroll_vertical",0))
 	name.alignment=HORIZONTAL_ALIGNMENT_LEFT
 	name.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
 	name.tooltip_text=row.id
 	name.size_flags_horizontal=SIZE_EXPAND_FILL
 	var life: Dictionary=row.life
 	var tag: String={"retired":"Retired","deprecated":"Deprecated · "+str(life.get("shutdown","")),"active":"Active","unknown":"Compatibility unknown"}[life.status]
-	if account_models_known and row.id not in model_ids:tag+=" · Not listed for account"
+	if not Models.supports(row.id,picker_purpose):tag+=" · Adapter not implemented"
+	elif account_models_known and row.id not in model_ids:tag+=" · Not listed for account"
 	_label(tag,12,T.MUTED,header)
+	_label(row.id,12,T.MUTED,split,true)
+	if life.status=="deprecated":_label("Replacement: "+str(life.get("replacement","")),12,T.ACCENT,split,true)
 	var apply:=_button(header,"Select","",_choose_model.bind(row.id))
 	apply.disabled=not Models.available_for(row.id,picker_purpose) or (account_models_known and row.id not in model_ids)
 	var stats:=HBoxContainer.new()
@@ -603,7 +612,7 @@ func _build_model_row(row: Dictionary,maxima: Dictionary) -> void:
 	_meter(latency,"%.2f s"%(row.latency/1000.) if is_finite(row.latency) else "Unavailable",
 		row.latency,maxima.get("latency",0.),METRIC_TIME,"Time relative to the slowest visible measurement")
 	var rate_title:="Published rate"
-	if row.price.get("basis") in ["tokens","image_tokens"]:rate_title+=" / 1M tokens"
+	if row.price.get("basis") in ["tokens","image_tokens","audio_tokens","embedding_tokens"]:rate_title+=" / 1M tokens"
 	var published:=_metric_cell(stats,rate_title,1.35)
 	var rates:=_rate_metrics(row.price)
 	if rates.is_empty():_meter(published,"Rate unavailable",-1.,0.,METRIC_PRICE,"No rate in this rate card")
@@ -626,6 +635,7 @@ func _build_detail(row: Dictionary) -> void:
 	var name:=_label(row.id,21,T.INK,header,true);name.size_flags_horizontal=SIZE_EXPAND_FILL
 	_button(header,"Hide details","close",func():detail_id="";_refresh_picker())
 	var metadata:=Models.metadata(row.id,picker_purpose)
+	if not bool(metadata.implemented):_label("Documented by OpenAI, but this workflow has no implemented game adapter. Selection is disabled.",14,T.ACCENT,body,true)
 	var settings:=PackedStringArray()
 	for level in metadata.efforts:settings.append(Comparison.display_effort(level))
 	var endpoint: String=metadata.get("endpoint","")
@@ -648,8 +658,8 @@ func _build_detail(row: Dictionary) -> void:
 	var rate: Dictionary=row.price
 	if not rate.is_empty():
 		var cost_lines:=PackedStringArray()
-		for key in ["cached","write_30m","write_12h","text_input","text_cached","image_input","image_cached","image_output"]:
-			if rate.has(key):cost_lines.append("%s $%s"%[key.replace("_"," ").capitalize(),Pricing.money_rate(rate[key])])
+		for key in ["cached","write_30m","write_12h","text_input","text_cached","text_output","image_input","image_cached","image_output","audio_input","audio_cached","audio_output","standby_rate"]:
+			if rate.has(key) and float(rate[key])>=0.:cost_lines.append("%s $%s"%[key.replace("_"," ").capitalize(),Pricing.money_rate(rate[key])])
 		if not cost_lines.is_empty():_label(" · ".join(cost_lines)+" · "+str(rate.unit),13,T.MUTED,body,true)
 		if rate.has("promotional_until"):_label("Promotional rate through "+str(rate.promotional_until),13,T.MUTED,body)
 		var links:=HFlowContainer.new();body.add_child(links)
@@ -670,7 +680,7 @@ func _build_detail(row: Dictionary) -> void:
 	var usage: Dictionary=row.usage
 	if not usage.is_empty():
 		var recorded: Array=[]
-		for key in ["input","cached","output","reasoning","seconds","characters"]:
+		for key in ["input","cached","output","reasoning","text_input","text_output","audio_input","audio_output","audio_cached","image_input","image_output","seconds","characters"]:
 			if usage.has(key):recorded.append("%s %s"%[str(usage[key]),key])
 		_label("%d succeeded · %d failed · %s · %s estimated from %d priced requests"%[usage.get("success",0),int(usage.get("requests",0))-int(usage.get("success",0))," · ".join(recorded),Pricing.usd(int(usage.get("estimate_nano",-1))),usage.get("priced",0)],13,T.MUTED,body,true)
 	elif service.model_usage.has(row.id):

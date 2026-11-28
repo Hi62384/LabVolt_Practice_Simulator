@@ -109,7 +109,7 @@ func disconnect_key() -> void:
 	verification_error=""
 
 func configure(next_model: String, output_limit: int, next_effort: String, next_enabled: bool) -> Error:
-	if not host_allowed() or not Models.valid_id(next_model) or Models.endpoint(next_model).is_empty():return ERR_INVALID_PARAMETER
+	if not host_allowed() or not Models.available_for(next_model,"text"):return ERR_INVALID_PARAMETER
 	if next_effort!=Models.normalize_effort(next_model,next_effort):return ERR_INVALID_PARAMETER
 	if next_model!=model or next_effort!=reasoning_effort or not next_enabled:cancel_background_generation()
 	var previous: Array=[model,max_output_tokens,reasoning_effort,enabled]
@@ -157,7 +157,9 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	var choices: Dictionary=draft.get("modalities",{})
 	for purpose in ["image","image_generation","stt","tts","live"]:
 		var id:=str(choices.get(purpose,""))
-		if not id.is_empty() and not Models.supports(id,purpose):return ERR_INVALID_PARAMETER
+		if not id.is_empty() and not Models.available_for(id,purpose):
+			var previous_selection: String={"image":image_model,"image_generation":image_generation_model,"stt":stt_model,"tts":tts_model,"live":live_model}.get(purpose,"")
+			if id!=previous_selection or purpose in ["image","image_generation"] or bool(draft.get(purpose+"_enabled",false)):return ERR_INVALID_PARAMETER
 	var next_image:=str(choices.get("image",image_model))
 	var next_image_effort:=str(draft.get("image_effort",image_reasoning_effort))
 	if next_image_effort!=Models.normalize_effort(next_image,next_image_effort):return ERR_INVALID_PARAMETER
@@ -297,7 +299,7 @@ func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={
 	var content: Array=[{"type":"input_text","text":prompt},{"type":"input_image","image_url":"data:image/jpeg;base64,"+Marshalls.raw_to_base64(jpeg),"detail":"low"}]
 	var choice:=str(draft.get("modalities",{}).get("image",image_model))
 	if choice.is_empty() and draft.is_empty():choice=model
-	if not Models.supports(choice,"image"):return {"ok":false,"error":"Choose an image analysis model in OpenAI Settings."}
+	if not Models.available_for(choice,"image"):return {"ok":false,"error":"Choose an image analysis model in OpenAI Settings."}
 	var effort:=str(draft.get("image_effort",image_reasoning_effort))
 	return await _request_text(content,choice,int(draft.get("output",max_output_tokens)),Models.normalize_effort(choice,effort),draft.is_empty(),draft)
 
@@ -314,6 +316,7 @@ func speak(text: String,draft: Dictionary={},voice: Variant="alloy",delivery: Di
 	if str(delivery.get("instructions","")).length()>12000:return {"ok":false,"error":"The character's performance instructions exceed the bounded voice context; no instructions were truncated.","retryable":false}
 	var context:=draft.duplicate(true)
 	context.request_id=str(delivery.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
+	if draft.is_empty():context.request_type="feature"
 	if Models.verified_family(choice) in Models.LIVE+Models.REALTIME:
 		return await _render_voice(text,choice,voice,voice_type,delivery,context,draft.is_empty())
 	var payload:={"model":choice,"input":text,"voice":voice,"response_format":"wav"}
@@ -416,6 +419,7 @@ func _voice_access(draft: Dictionary,needs_enabled: bool) -> Dictionary:
 	var key:=str(draft.get("key",""))
 	if key.is_empty():key=_credential()
 	if key.is_empty():return {"ok":false,"error":"Connect the host's OpenAI API key in AI Settings.","retryable":false}
+	if not _valid_key(key):return {"ok":false,"error":"Invalid OpenAI API key format.","retryable":false}
 	return {"ok":true,"key":key}
 
 func model_status(id: String,purpose: String) -> Dictionary:
@@ -797,7 +801,7 @@ func _load() -> void:
 	var config := ConfigFile.new()
 	if config.load(SETTINGS_PATH)!=OK:return
 	var saved_model := str(config.get_value("openai","model",DEFAULT_MODEL))
-	model=saved_model if Models.valid_id(saved_model) and not Models.endpoint(saved_model).is_empty() else DEFAULT_MODEL
+	model=saved_model if Models.valid_id(saved_model) else DEFAULT_MODEL
 	max_output_tokens=clampi(int(config.get_value("openai","max_output_tokens",384)),16,32768)
 	reasoning_effort=Models.normalize_effort(model,str(config.get_value("openai","reasoning_effort","")))
 	enabled=bool(config.get_value("openai","enabled",false))
