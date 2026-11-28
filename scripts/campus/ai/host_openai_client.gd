@@ -335,6 +335,8 @@ func speak(text: String,draft: Dictionary={},voice: Variant="alloy",delivery: Di
 	if str(delivery.get("instructions","")).length()>12000:return {"ok":false,"error":"The character's performance instructions exceed the bounded voice context; no instructions were truncated.","retryable":false}
 	var context:=draft.duplicate(true)
 	context.request_id=str(delivery.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
+	context.retry_count=maxi(0,int(delivery.get("retry_count",context.get("retry_count",0))))
+	context.correlation_id=str(delivery.get("correlation_id",context.get("correlation_id","")))
 	if draft.is_empty():context.request_type="feature"
 	if not context.has("subsystem"):context.subsystem="npc_speech" if draft.is_empty() else "voice_preview"
 	if not context.has("request_purpose"):context.request_purpose="speech_segment" if "-part-" in context.request_id else "character_speech" if draft.is_empty() else "voice_audition"

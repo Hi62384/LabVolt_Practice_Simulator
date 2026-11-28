@@ -1,5 +1,6 @@
 {
   "source": "Original test phrases synthesized with CMU Flite slt via FFmpeg. No recordings of users.",
+  "provenance": "README.md",
   "format": "mono PCM16 WAV, 16000 Hz",
   "fixtures": [
     {

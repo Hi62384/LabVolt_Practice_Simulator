@@ -69,6 +69,7 @@ func request(room: String,serial: int,id: String,text: String,key: String,priori
 	var details:=Delivery.for_text(delivery,text)
 	var request_id:="voice-%s-%d-%d"%[instance_id,session_epoch,request_serial]
 	details.request_id=request_id
+	details.correlation_id=request_id;details.retry_count=0
 	var job:={"room":room,"serial":serial,"id":id,"text":text,"key":key,"priority":clampi(priority,0,14),"delivery":details,"request_id":request_id,
 		"created":now,"ready_at":now,"attempts":0,"epoch":session_epoch}
 	if bool(delivery.get("segmented",false)):
@@ -113,6 +114,8 @@ func _run_cloud(job: Dictionary) -> void:
 		await _run_segmented(job)
 		return
 	job.attempts=int(job.attempts)+1
+	job.delivery.retry_count=int(job.attempts)-1
+	job.delivery.request_id=str(job.request_id)+( "-retry-"+str(job.delivery.retry_count) if int(job.attempts)>1 else "")
 	var voice: Variant=job.delivery.get("voice","alloy")
 	job.delivery._audio_ready=_cloud_audio_ready.bind(job)
 	var result: Dictionary=await provider.speak(str(job.text),{},voice,job.delivery)
@@ -241,7 +244,7 @@ func _combine_parts(job: Dictionary) -> AudioStreamWAV:
 
 func _cancel_provider_job(job: Dictionary) -> void:
 	if not is_instance_valid(provider) or not provider.has_method("cancel_speech_request"):return
-	provider.cancel_speech_request(str(job.request_id))
+	provider.cancel_speech_request(str(job.delivery.get("request_id",job.request_id)))
 	for index in job.get("started_parts",{}):provider.cancel_speech_request(str(job.request_id)+"-part-"+str(index))
 
 func _complete_cloud(job: Dictionary,stream: AudioStreamWAV,status: String) -> void:

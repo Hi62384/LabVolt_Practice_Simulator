@@ -17,7 +17,7 @@ class Provider extends Node:
 		await get_tree().process_frame
 		while held:await get_tree().process_frame
 		running-=1
-		if text=="retry" and int(attempts[text])<2:return {"ok":false,"status":429,"retryable":true,"error":"rate limited"}
+		if text in ["retry","retry cancel"] and int(attempts[text])<2:return {"ok":false,"status":429,"retryable":true,"error":"rate limited"}
 		if text=="invalid voice":return {"ok":false,"status":400,"error":"invalid custom voice","retryable":false}
 		var wav:=AudioStreamWAV.new();wav.format=AudioStreamWAV.FORMAT_16_BITS;wav.mix_rate=16000;wav.data=PackedByteArray([0,0,100,0])
 		return {"ok":true,"stream":wav}
@@ -61,6 +61,22 @@ func run() -> void:
 	synth.cloud_pending[0].ready_at=0
 	for frame in 8:await process_frame
 	assert(events.size()==1 and events[0].status=="ok" and int(provider.attempts.retry)==2)
+	var retried: Array=provider.starts.filter(func(start: Dictionary):return start.text=="retry")
+	assert(retried[0].request_id==retried[0].delivery.correlation_id and retried[0].delivery.retry_count==0,"First provider attempt keeps the stable job ID and zero retry count.")
+	assert(retried[1].request_id!=retried[0].request_id and retried[1].delivery.correlation_id==retried[0].request_id and retried[1].delivery.retry_count==1,"A safe retry has a distinct provider ID linked to the original job.")
+	events.clear()
+	assert(synth.request("retry-cancel",4,"bro","retry cancel","retry-cancel",1,{"voice":"onyx"})=="queued")
+	for frame in 5:await process_frame
+	assert(synth.cloud_pending.size()==1)
+	provider.held=true;synth.cloud_pending[0].ready_at=0
+	for frame in 4:await process_frame
+	var active_retry: String=provider.starts[-1].request_id
+	assert(provider.starts[-1].delivery.retry_count==1)
+	synth.cancel("retry-cancel")
+	assert(provider.cancellations[-1]==active_retry and active_retry!=provider.starts[-1].delivery.correlation_id,"Cancellation targets the current provider retry ID.")
+	provider.held=false
+	for frame in 8:await process_frame
+	assert(events.size()==1 and events[0].status=="cancelled","A canceled retry cannot publish late audio.")
 	assert(synth.request("bad",4,"bro","invalid voice","bad",1,{"voice":{"id":"voice_fixed"},"voice_type":"prompt"})=="queued")
 	for frame in 8:await process_frame
 	assert(events[-1].status=="unavailable" and int(provider.attempts["invalid voice"])==1)

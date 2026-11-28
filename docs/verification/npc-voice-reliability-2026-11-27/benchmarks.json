@@ -1,0 +1,384 @@
+{
+  "audio_preprocessing": {
+    "godot": {
+      "build": "official",
+      "hash": "f62fdbde15035c5576dad93e586201f4d41ef0cb",
+      "hex": 263425,
+      "major": 4,
+      "minor": 5,
+      "patch": 1,
+      "status": "stable",
+      "string": "4.5.1-stable (official)",
+      "timestamp": 0
+    },
+    "kind": "paired local native audio benchmark",
+    "physical_microphone_measured": false,
+    "provider_latency_measured": false,
+    "results": [
+      {
+        "frames_yielded": 1,
+        "recording_seconds": 1,
+        "resample_after": {
+          "all_us": [
+            252,
+            260,
+            283,
+            298,
+            374
+          ],
+          "maximum_ms": 0.374,
+          "median_ms": 0.283,
+          "samples": 5
+        },
+        "resample_before": {
+          "all_us": [
+            4589,
+            4710,
+            4902,
+            4940,
+            4948
+          ],
+          "maximum_ms": 4.948,
+          "median_ms": 4.902,
+          "samples": 5
+        },
+        "source_bytes": 32000,
+        "wav_after": {
+          "all_us": [
+            20,
+            20,
+            21,
+            21,
+            26
+          ],
+          "maximum_ms": 0.026,
+          "median_ms": 0.021,
+          "samples": 5
+        },
+        "wav_before": {
+          "all_us": [
+            895,
+            946,
+            1039,
+            1076,
+            1085
+          ],
+          "maximum_ms": 1.085,
+          "median_ms": 1.039,
+          "samples": 5
+        },
+        "worker_dispatch_ms": 2.024,
+        "worker_total_ms": 3.886
+      },
+      {
+        "frames_yielded": 3,
+        "recording_seconds": 10,
+        "resample_after": {
+          "all_us": [
+            2759,
+            2833,
+            2910,
+            3127,
+            3702
+          ],
+          "maximum_ms": 3.702,
+          "median_ms": 2.91,
+          "samples": 5
+        },
+        "resample_before": {
+          "all_us": [
+            46406,
+            46977,
+            47131,
+            47947,
+            48767
+          ],
+          "maximum_ms": 48.767,
+          "median_ms": 47.131,
+          "samples": 5
+        },
+        "source_bytes": 320000,
+        "wav_after": {
+          "all_us": [
+            177,
+            179,
+            207,
+            238,
+            272
+          ],
+          "maximum_ms": 0.272,
+          "median_ms": 0.207,
+          "samples": 5
+        },
+        "wav_before": {
+          "all_us": [
+            9314,
+            9334,
+            9390,
+            9434,
+            9820
+          ],
+          "maximum_ms": 9.82,
+          "median_ms": 9.39,
+          "samples": 5
+        },
+        "worker_dispatch_ms": 0.352,
+        "worker_total_ms": 8.424
+      },
+      {
+        "frames_yielded": 4,
+        "recording_seconds": 30,
+        "resample_after": {
+          "all_us": [
+            7992,
+            7999,
+            8108,
+            9662,
+            11711
+          ],
+          "maximum_ms": 11.711,
+          "median_ms": 8.108,
+          "samples": 5
+        },
+        "resample_before": {
+          "all_us": [
+            145737,
+            146115,
+            152444,
+            154560,
+            157351
+          ],
+          "maximum_ms": 157.351,
+          "median_ms": 152.444,
+          "samples": 5
+        },
+        "source_bytes": 960000,
+        "wav_after": {
+          "all_us": [
+            1036,
+            1042,
+            1048,
+            1062,
+            1063
+          ],
+          "maximum_ms": 1.063,
+          "median_ms": 1.048,
+          "samples": 5
+        },
+        "wav_before": {
+          "all_us": [
+            27716,
+            28720,
+            29504,
+            36705,
+            41865
+          ],
+          "maximum_ms": 41.865,
+          "median_ms": 29.504,
+          "samples": 5
+        },
+        "worker_dispatch_ms": 0.177,
+        "worker_total_ms": 14.178
+      },
+      {
+        "frames_yielded": 9,
+        "recording_seconds": 180,
+        "resample_after": {
+          "all_us": [
+            47487,
+            50102,
+            53205,
+            56428,
+            56682
+          ],
+          "maximum_ms": 56.682,
+          "median_ms": 53.205,
+          "samples": 5
+        },
+        "resample_before": {
+          "all_us": [
+            836978,
+            860892,
+            863989,
+            899666,
+            937545
+          ],
+          "maximum_ms": 937.545,
+          "median_ms": 863.989,
+          "samples": 5
+        },
+        "source_bytes": 5760000,
+        "wav_after": {
+          "all_us": [
+            3186,
+            3214,
+            3248,
+            3285,
+            3332
+          ],
+          "maximum_ms": 3.332,
+          "median_ms": 3.248,
+          "samples": 5
+        },
+        "wav_before": {
+          "all_us": [
+            163653,
+            164597,
+            164940,
+            166680,
+            174908
+          ],
+          "maximum_ms": 174.908,
+          "median_ms": 164.94,
+          "samples": 5
+        },
+        "worker_dispatch_ms": 1.704,
+        "worker_total_ms": 50.181
+      }
+    ]
+  },
+  "speech_scheduling": {
+    "fixture_final_accounting_delay_ms": 150,
+    "fixture_generation_delay": "30 ms + 0.1 ms per input character",
+    "kind": "controlled_synthetic_provider",
+    "live_provider_verified": false,
+    "physical_audio_verified": false,
+    "samples": [
+      {
+        "complete_ms": 201.043,
+        "first_in_mode": true,
+        "first_playback_ms": 201.041,
+        "input_chars": 570,
+        "iteration": 0,
+        "mode": "baseline_full_render_and_close",
+        "requests": 1
+      },
+      {
+        "complete_ms": 236.446,
+        "first_in_mode": false,
+        "first_playback_ms": 236.445,
+        "input_chars": 570,
+        "iteration": 1,
+        "mode": "baseline_full_render_and_close",
+        "requests": 1
+      },
+      {
+        "complete_ms": 244.831,
+        "first_in_mode": false,
+        "first_playback_ms": 244.828,
+        "input_chars": 570,
+        "iteration": 2,
+        "mode": "baseline_full_render_and_close",
+        "requests": 1
+      },
+      {
+        "complete_ms": 236.81,
+        "first_in_mode": false,
+        "first_playback_ms": 236.807,
+        "input_chars": 570,
+        "iteration": 3,
+        "mode": "baseline_full_render_and_close",
+        "requests": 1
+      },
+      {
+        "complete_ms": 251.498,
+        "first_in_mode": false,
+        "first_playback_ms": 251.495,
+        "input_chars": 570,
+        "iteration": 4,
+        "mode": "baseline_full_render_and_close",
+        "requests": 1
+      },
+      {
+        "complete_ms": 275.786,
+        "first_in_mode": true,
+        "first_playback_ms": 42.523,
+        "input_chars": 570,
+        "iteration": 0,
+        "mode": "verified_first_part_prefetch",
+        "requests": 2
+      },
+      {
+        "complete_ms": 276.074,
+        "first_in_mode": false,
+        "first_playback_ms": 43.31,
+        "input_chars": 570,
+        "iteration": 1,
+        "mode": "verified_first_part_prefetch",
+        "requests": 2
+      },
+      {
+        "complete_ms": 276.037,
+        "first_in_mode": false,
+        "first_playback_ms": 42.717,
+        "input_chars": 570,
+        "iteration": 2,
+        "mode": "verified_first_part_prefetch",
+        "requests": 2
+      },
+      {
+        "complete_ms": 275.986,
+        "first_in_mode": false,
+        "first_playback_ms": 42.842,
+        "input_chars": 570,
+        "iteration": 3,
+        "mode": "verified_first_part_prefetch",
+        "requests": 2
+      },
+      {
+        "complete_ms": 276.072,
+        "first_in_mode": false,
+        "first_playback_ms": 42.686,
+        "input_chars": 570,
+        "iteration": 4,
+        "mode": "verified_first_part_prefetch",
+        "requests": 2
+      }
+    ],
+    "summary": {
+      "baseline_full_render_and_close": {
+        "first_sample_playback_ms": 201.041,
+        "median_first_playback_ms": 236.807,
+        "p95_first_playback_ms": 251.495,
+        "requests_per_turn": 1,
+        "samples": 5
+      },
+      "verified_first_part_prefetch": {
+        "first_sample_playback_ms": 42.523,
+        "median_first_playback_ms": 42.717,
+        "p95_first_playback_ms": 43.31,
+        "requests_per_turn": 2,
+        "samples": 5
+      }
+    }
+  },
+  "text_streaming": {
+    "source": "actual loopback HTTP; authored150ms gap before final completion",
+    "first_text_ms": 2,
+    "total_ms": 154,
+    "live_provider": false
+  },
+  "ordinary_text_turn": {
+    "baseline_model_generations": 1,
+    "current_model_generations": 1,
+    "moderation_calls": 2,
+    "note": "Already optimized in base; no new one-call reduction claimed."
+  },
+  "listening_only": {
+    "before": {
+      "character_generations": 1,
+      "input_moderation": 1
+    },
+    "after": {
+      "provider_requests": 0
+    },
+    "source": "Production pipeline instrumentation, failure reproduced before fix"
+  },
+  "idle_optional_npc": {
+    "unobserved_ticks": 1200,
+    "after_optional_generations": 0,
+    "rolling_observed_turn_limit": 4,
+    "window_seconds": 60,
+    "note": "Deterministic workload, not a live-token or dollar benchmark."
+  }
+}

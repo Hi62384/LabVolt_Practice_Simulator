@@ -1,0 +1,1041 @@
+{
+  "date": "2026-11-27",
+  "timezone": "America/Los_Angeles",
+  "runtime": "Godot 4.5.1 Mono, .NET 8, Linux",
+  "baseline_commit": "c8e50fb5e046b941fa8ad74d9e01108a77149ef7",
+  "implementation_checkpoint": "fcd2ff9e4dbf721731fedb3f86bff77c45a9fc95",
+  "measurement_policy": "Authored provider fixtures are not live-provider or hardware measurements. Unreported usage is unknown. Prices are local estimates.",
+  "native_results": [
+    {
+      "test": "test_assignment_npc_discipline",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.39,
+      "markers": [
+        "ASSIGNMENT_NPC_DISCIPLINE PASS checks=25 failures=0"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_assignment_student_behavior",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.76,
+      "markers": [
+        "ASSIGNMENT_STUDENT_BEHAVIOR PASS checks=556 failures=0 actions={ \"campus_student_14\": { \"working\": true, \"studying\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_15\": { \"working\": true, \"sleeping\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_16\": { \"working\": true, \"using phone\": true, \"handed in work\": true, \"waiting quietly\": true, \"distracted\": true } }"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_academic_memory",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.77,
+      "markers": [
+        "CHARACTER_ACADEMIC_MEMORY PASS checks=43 source=actual_main_grader_and_station"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_beliefs",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.81,
+      "markers": [
+        "CHARACTER_BELIEFS PASS checks=56 source=deterministic_host_validation"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_dossier_pipeline",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.39,
+      "markers": [
+        "CHARACTER_DOSSIER_PIPELINE PASS checks=39 source=synthetic provider contract; no live language-quality or token-performance claim"
+      ],
+      "evidence_run": "labvolt-listen-only-after"
+    },
+    {
+      "test": "test_character_evolution_pipeline",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.28,
+      "markers": [
+        "CHARACTER_EVOLUTION_PIPELINE PASS checks=36 (deterministic provider; not live AI)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_facial_compositor",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.81,
+      "markers": [
+        "CHARACTER_FACIAL_COMPOSITOR PASS checks=4878 failures=0"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_gameplay_overhaul",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 14.47,
+      "markers": [
+        "CHARACTER_GAMEPLAY_OVERHAUL PASS checks=583 failures=0 teachers=21 students=6 (offline, not live AI)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_group_intent",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.89,
+      "markers": [
+        "CHARACTER_GROUP_INTENT PASS checks=18 source=explicit scheduling fixture, not live AI"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_human_academic_memory",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.1,
+      "markers": [
+        "CHARACTER_HUMAN_ACADEMIC_MEMORY PASS checks=55 source=actual_singleplayer_submit_and_host_grader"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_inspector",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.01,
+      "markers": [
+        "CHARACTER_INSPECTOR PASS \u2014 authority, privacy, read-only state, real UI navigation and accurate telemetry"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_inspector_network",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 7.62,
+      "markers": [
+        "CHARACTER_INSPECTOR_NETWORK PASS \u2014 real ENet, production RPCs, authenticated guest history, selected-target transit guards, text/mic queue validation, range refresh, no model call"
+      ],
+      "evidence_run": "labvolt-manual-final"
+    },
+    {
+      "test": "test_character_inspector_transport",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.26,
+      "markers": [
+        "CHARACTER_INSPECTOR_TRANSPORT PASS \u2014 bounded read packets, rate limits, static caching, replay/selection guards, privacy"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_interaction_pipeline",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.39,
+      "markers": [
+        "CHARACTER_PIPELINE PASS checks=47 failures=0 (deterministic fixture, not live AI)"
+      ],
+      "evidence_run": "labvolt-listen-only-after"
+    },
+    {
+      "test": "test_character_life_ledger",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.62,
+      "markers": [
+        "CHARACTER_LIFE_LEDGER PASS checks=9 records=2001 indexed_lookup_average_ms=0.36474 serialized_bytes=426810 provider_requests=0"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_memory_migration",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.72,
+      "markers": [
+        "CHARACTER_MEMORY_MIGRATION PASS versions=1,2,3,4,5 profile_isolation=true affect_only_switch=true"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_memory_resilience",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.63,
+      "markers": [
+        "CHARACTER_MEMORY_RESILIENCE PASS checks=54"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_memory_summaries",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.99,
+      "markers": [
+        "CHARACTER_MEMORY_SUMMARIES PASS checks=35"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_memory_v5",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.81,
+      "markers": [
+        "CHARACTER_MEMORY_V5 PASS checks=107"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_prior_learning",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.91,
+      "markers": [
+        "CHARACTER_PRIOR_LEARNING PASS checks=69 source=persisted_host_outcomes_to_real_prepare student=campus_student_00"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_public_affect",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.71,
+      "markers": [
+        "CHARACTER_PUBLIC_AFFECT PASS: actual public profile, 600 recovery frames, private traits absent, full-profile behavior preserved"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_reactions",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.0,
+      "markers": [
+        "CHARACTER_REACTIONS PASS"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_relationship_decisions",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.61,
+      "markers": [
+        "CHARACTER_RELATIONSHIP_DECISIONS PASS checks=11 source=host state and decision fixtures, not live AI"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_request_accounting",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.23,
+      "markers": [
+        "CHARACTER_REQUEST_ACCOUNTING PASS"
+      ],
+      "evidence_run": "labvolt-listen-only-after"
+    },
+    {
+      "test": "test_character_request_timing",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 2.28,
+      "markers": [
+        "CHARACTER_REQUEST_TIMING PASS checks=19 measured={\"microphone\":{\"host_to_text_ms\":131.0,\"input_kind\":\"microphone\",\"queue_wait_ms\":0.0,\"transcription_ms\":124.0},\"speech\":{\"host_to_audio_ready_ms\":132.0,\"host_to_playback_started_ms\":132.0},\"typed_queue_ms\":84} source=authored transcript; real scheduling and playback signal, no live API or audio-device claim"
+      ],
+      "evidence_run": "labvolt-manual-final"
+    },
+    {
+      "test": "test_character_silent_dispatch",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.6,
+      "markers": [
+        "CHARACTER_SILENT_DISPATCH PASS checks=20 failures=0 (authored provider; real Main/action dispatch)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_character_worldviews",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.0,
+      "markers": [
+        "CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 migrated stable students; slow affect; semantic knowledge; actual rig transforms (not visual quality or live AI evidence)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_classmate_lab_and_dialogue",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 18.75,
+      "markers": [
+        "CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS (actual solvers/gameplay; synthetic character provider, no live AI or voice)"
+      ],
+      "evidence_run": "labvolt-listen-only-after"
+    },
+    {
+      "test": "test_dossier_background_budget",
+      "passed": true,
+      "exit_code": 0,
+      "markers": [
+        "DOSSIER_BACKGROUND_BUDGET PASS checks=16 provider_requests=3 source=authored provider fixture"
+      ],
+      "evidence_run": "labvolt-dossier-final"
+    },
+    {
+      "test": "test_dossier_canon_race",
+      "passed": true,
+      "exit_code": 0,
+      "markers": [
+        "DOSSIER_CANON_RACE PASS checks=40 synthetic_provider_actual_brain"
+      ],
+      "evidence_run": "labvolt-dossier-final"
+    },
+    {
+      "test": "test_dossier_generation",
+      "passed": true,
+      "exit_code": 0,
+      "markers": [
+        "DOSSIER_GENERATION PASS (synthetic transport contract, not live AI quality)"
+      ],
+      "evidence_run": "labvolt-dossier-final"
+    },
+    {
+      "test": "test_dossier_lazy_store",
+      "passed": true,
+      "exit_code": 0,
+      "markers": [
+        "DOSSIER_LAZY_STORE PASS (38 checks)"
+      ],
+      "evidence_run": "labvolt-dossier-final"
+    },
+    {
+      "test": "test_dossier_schema",
+      "passed": true,
+      "exit_code": 0,
+      "markers": [
+        "DOSSIER_SCHEMA PASS"
+      ],
+      "evidence_run": "labvolt-dossier-final"
+    },
+    {
+      "test": "test_dossier_scope_failures",
+      "passed": true,
+      "exit_code": 0,
+      "markers": [
+        "DOSSIER_SCOPE_FAILURES PASS (56 checks)"
+      ],
+      "evidence_run": "labvolt-dossier-final"
+    },
+    {
+      "test": "test_faculty",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.11,
+      "markers": [
+        "PASS faculty roster, eligibility and lab rotation lock"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_faculty_specialized_paths",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 12.74,
+      "markers": [
+        "FACULTY_SPECIALIZED_PATHS PASS checks=48 failures=0 (local provider fixture, not live AI)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_life_memory_consistency",
+      "passed": true,
+      "exit_code": 0,
+      "markers": [
+        "LIFE_MEMORY_CONSISTENCY PASS checks=24"
+      ],
+      "evidence_run": "labvolt-dossier-final"
+    },
+    {
+      "test": "test_manual_conversation_lifecycle",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.38,
+      "markers": [
+        "MANUAL_CONVERSATION_LIFECYCLE PASS checks=36 failures=0 source=actual UI and character pipeline, held authored completions, no live API or hardware"
+      ],
+      "evidence_run": "labvolt-final-retry-routing"
+    },
+    {
+      "test": "test_microphone_capture_lifecycle",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.36,
+      "markers": [
+        "MICROPHONE_CAPTURE_LIFECYCLE PASS (synthetic audio through real bus, independent consumers, two-second silence and short-onset recovery)"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_microphone_local_sample",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.62,
+      "markers": [
+        "MICROPHONE_LOCAL_SAMPLE PASS (local record/replay, quiet input, one selected-sample upload and cancellation; synthetic PCM and fixture STT)"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_microphone_meter",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.53,
+      "markers": [
+        "MICROPHONE_METER PASS"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_microphone_meter_settings",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 11.67,
+      "markers": [
+        "MICROPHONE_METER_SETTINGS PASS"
+      ],
+      "evidence_run": "labvolt-mic-final-main"
+    },
+    {
+      "test": "test_microphone_resampler_boundaries",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.33,
+      "markers": [
+        "MICROPHONE_RESAMPLER_BOUNDARIES PASS"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_microphone_turn_reliability",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.62,
+      "markers": [
+        "MICROPHONE_TURN_RELIABILITY PASS (quiet PTT, long pause, silence, worker PCM, cancellation and per-peer duplicate protection)"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_npc_voice_context",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.6,
+      "markers": [
+        "NPC_VOICE_CONTEXT PASS (addressed speech, stale turns, session reservations, student lecture gate, class phase cancellation)"
+      ],
+      "evidence_run": "labvolt-mic-final-main"
+    },
+    {
+      "test": "test_shared_microphone",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.46,
+      "markers": [
+        "SHARED_MICROPHONE PASS: native resampling, 62-second continuous turn, targeting and acknowledgements"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_student_background_budget",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.05,
+      "markers": [
+        "STUDENT_BACKGROUND_BUDGET PASS (13 checks; scheduler/request-boundary fixture)"
+      ],
+      "evidence_run": "labvolt-listen-only-after"
+    },
+    {
+      "test": "test_student_discipline_routes",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.95,
+      "markers": [
+        "STUDENT_DISCIPLINE_ROUTES PASS"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_student_population_and_discipline",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.28,
+      "markers": [
+        "STUDENT_POPULATION_AND_DISCIPLINE PASS (30 profiles, 1 assessment reactions)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_student_population_binding",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.2,
+      "markers": [
+        "STUDENT_POPULATION_BINDING PASS checks=23 failures=0"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_student_population_corruption",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 4.07,
+      "markers": [
+        "STUDENT_POPULATION_CORRUPTION PASS (208 checks): damaged bytes preserved, backup recovery, session identity, host isolation, bounded cache"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_student_voice_turns",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.02,
+      "markers": [
+        "STUDENT_VOICE_TURNS PASS (real playback turn gate, gap, identity, emotional routing, stale phase)"
+      ],
+      "evidence_run": "labvolt-listen-only-after"
+    },
+    {
+      "test": "test_student_world_integration",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 12.27,
+      "markers": [
+        "STUDENT_WORLD_INTEGRATION PASS"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_class_call_prompt",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.74,
+      "markers": [
+        "TEACHER_CLASS_CALL_PROMPT PASS (local provider fixture; no live AI or voice)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_dialogue",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 12.93,
+      "markers": [
+        "PASS authoritative teacher profiles, intention routing, safety instructions and passive character inspection"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_events",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 12.74,
+      "markers": [
+        "PASS perceived hazard reactions, class messages, cooldown and per-student memory"
+      ],
+      "evidence_run": "labvolt-listen-only-after"
+    },
+    {
+      "test": "test_teacher_microphone_opt_out",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.49,
+      "markers": [
+        "TEACHER_MICROPHONE_OPT_OUT PASS"
+      ],
+      "evidence_run": "labvolt-mic-final-main"
+    },
+    {
+      "test": "test_teacher_numeric_disposition",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.43,
+      "markers": [
+        "TEACHER_NUMERIC_DISPOSITION PASS \u2014 independent traits, description invariance, attention, escalation, hearing authority"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_relationships",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.64,
+      "markers": [
+        "TEACHER_RELATIONSHIPS PASS"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_speech_integration",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.2,
+      "markers": [
+        "TEACHER_SPEECH_INTEGRATION PASS (fixture audio; no teacher voice asset)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_speech_long_delivery",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.76,
+      "markers": [
+        "TEACHER_SPEECH_LONG_DELIVERY PASS (native WAV, captions and player; adapter launch, no live voice)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_speech_player",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.35,
+      "markers": [
+        "TEACHER_SPEECH_PLAYER PASS"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_speech_synth",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.44,
+      "markers": [
+        "TEACHER_SPEECH_SYNTH PASS (adapter only; no real voice)"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_teacher_voice_stale",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.43,
+      "markers": [
+        "TEACHER_VOICE_STALE PASS"
+      ],
+      "evidence_run": "labvolt-overhaul-integrated"
+    },
+    {
+      "test": "test_voice_chat",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.43,
+      "markers": [
+        "PASS voice ENet relay, proximity cutoff and PCM playback"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_voice_packet_batching",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.34,
+      "markers": [
+        "VOICE_PACKET_BATCHING PASS (100/100 ordinary batched packets, 12-packet burst bound, independent speakers)"
+      ],
+      "evidence_run": "labvolt-mic-final-light"
+    },
+    {
+      "test": "test_voice_playback_lifecycle",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.55,
+      "markers": [
+        "VOICE_PLAYBACK_LIFECYCLE PASS (ordered pending, captions, exact pause/resume, cancellation, mute)"
+      ],
+      "evidence_run": "labvolt-speech-tombstone"
+    },
+    {
+      "test": "test_voice_segment_benchmark",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 3.23,
+      "markers": [
+        "VOICE_SEGMENT_BENCHMARK PASS (controlled waits only; no real-provider speed claim)"
+      ],
+      "evidence_run": "labvolt-speech-captions-final"
+    },
+    {
+      "test": "test_voice_segment_pipeline",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.99,
+      "markers": [
+        "VOICE_SEGMENT_PIPELINE PASS (prefetch, early audio, ordered captions, partial failure, cancellation, bounded retries, transport, layout)"
+      ],
+      "evidence_run": "labvolt-final-retry-routing"
+    },
+    {
+      "test": "test_voice_segment_route",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 2.12,
+      "markers": [
+        "VOICE_SEGMENT_ROUTE PASS (production faculty, cache without replay, out-of-order packets, cancellation)"
+      ],
+      "evidence_run": "labvolt-final-retry-routing"
+    },
+    {
+      "test": "test_voice_settings_layout",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 13.24,
+      "markers": [
+        "VOICE_SETTINGS_LAYOUT PASS audio={ \"page\": (1280.0, 720.0), \"body\": (1006.0, 1443.0), \"viewport\": (1012.0, 552.0) } studio={ \"window\": (1060, 660), \"content\": (1060.0, 496.0), \"list\": (206.0, 160.0), \"identity\": (626.0, 112.0) } minimum={ \"window\": (720, 460), \"content\": (712.0, 496.0), \"list\": (206.0, 160.0), \"identity\": (278.0, 135.0) } (native geometry; screenshots unavailable)"
+      ],
+      "evidence_run": "labvolt-studio-layout-fixed"
+    },
+    {
+      "test": "test_voice_speech_scheduler",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 1.21,
+      "markers": [
+        "VOICE_SPEECH_SCHEDULER PASS (concurrency, deduplication, retry, identity, cancellation, bounds)"
+      ],
+      "evidence_run": "labvolt-final-retry-routing"
+    }
+  ],
+  "native_latest_passed": 72,
+  "native_latest_total": 72,
+  "http_fixture": [
+    {
+      "test": "test_host_openai_client",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false
+    },
+    {
+      "test": "test_teacher_ai",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false
+    },
+    {
+      "test": "test_openai_evaluation",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false
+    },
+    {
+      "test": "test_character_http_transport",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false
+    },
+    {
+      "test": "test_character_background_http",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false
+    },
+    {
+      "test": "test_text_stream_http",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false
+    }
+  ],
+  "websocket_http_voice_fixture": {
+    "passed": 5,
+    "total": 5,
+    "renders": 17,
+    "transcriptions": 3,
+    "voice_creations": 1,
+    "peak_active": 3,
+    "active_at_end": 0,
+    "script_errors": 0,
+    "evidence_run": "labvolt-overhaul-voice-final"
+  },
+  "stt_diagnostics_followup": {
+    "passed": true,
+    "websocket_models": 2,
+    "file_models": 1,
+    "file_status": 200,
+    "active_at_end": 0
+  },
+  "speech_enet": {
+    "transport": "real ENet localhost, two processes",
+    "speech_provider": "synthetic fixture",
+    "live_api": false,
+    "cases": [
+      {
+        "role": "host",
+        "passed": true,
+        "exit_code": 0,
+        "environment_errors": [
+          "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+          "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+          "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+        ],
+        "unexpected_errors": []
+      },
+      {
+        "role": "client",
+        "passed": true,
+        "exit_code": 0,
+        "environment_errors": [
+          "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+          "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+          "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+        ],
+        "unexpected_errors": []
+      }
+    ]
+  },
+  "manual_enet": {
+    "transport": "real localhost ENet, two isolated processes",
+    "live_api": false,
+    "hardware_verified": false,
+    "cases": [
+      {
+        "role": "host",
+        "passed": true,
+        "exit_code": 0,
+        "unexpected_errors": []
+      },
+      {
+        "role": "client",
+        "passed": true,
+        "exit_code": 0,
+        "unexpected_errors": []
+      }
+    ]
+  },
+  "recorded_npc_pipeline": {
+    "status": "fixture_pipeline_pass",
+    "provider_kind": "loopback_fixture",
+    "provider_requests": false,
+    "fixture_requests": true,
+    "physical_microphone": false,
+    "audible_output_verified": false,
+    "resources_released": true,
+    "request_count": 16,
+    "models": {
+      "stt": "gpt-4o-mini-transcribe",
+      "text": "gpt-5.4-mini",
+      "tts": "gpt-4o-mini-tts"
+    },
+    "turns": [
+      {
+        "index": 1,
+        "capture_initialization_ms": 87,
+        "capture": {
+          "bytes": 121858,
+          "clipped_samples": 0,
+          "duration_seconds": 3.8080625,
+          "has_signal": true,
+          "nonzero_samples": 57462,
+          "peak": 0.681396484375,
+          "rms": 0.158500524020399,
+          "samples": 60929
+        },
+        "finish_to_audio_ms": 394,
+        "transcript_matches": true,
+        "playback": {
+          "audio_bytes": 32000,
+          "audio_rate": 16000,
+          "channel": "ac_lab",
+          "max_playback_seconds": 0.935999989509583,
+          "non_silent_audio": true,
+          "serial": 1,
+          "started_ms": 17551,
+          "subtitles_present": true,
+          "valid_audio": true
+        },
+        "playback_end": {
+          "delivered": true,
+          "finished_ms": 18587
+        }
+      },
+      {
+        "index": 2,
+        "capture_initialization_ms": 19,
+        "capture": {
+          "bytes": 77276,
+          "clipped_samples": 0,
+          "duration_seconds": 2.414875,
+          "has_signal": true,
+          "nonzero_samples": 33930,
+          "peak": 0.587188720703125,
+          "rms": 0.147730669179336,
+          "samples": 38638
+        },
+        "finish_to_audio_ms": 392,
+        "transcript_matches": true,
+        "playback": {
+          "audio_bytes": 32000,
+          "audio_rate": 16000,
+          "channel": "ac_lab",
+          "max_playback_seconds": 0.935999989509583,
+          "non_silent_audio": true,
+          "serial": 2,
+          "started_ms": 22381,
+          "subtitles_present": true,
+          "valid_audio": true
+        },
+        "playback_end": {
+          "delivered": true,
+          "finished_ms": 23411
+        },
+        "memory_followup_matches": true
+      },
+      {
+        "index": 3,
+        "capture_initialization_ms": 17,
+        "capture": {
+          "bytes": 95110,
+          "clipped_samples": 0,
+          "duration_seconds": 2.9721875,
+          "has_signal": true,
+          "nonzero_samples": 42704,
+          "peak": 0.59051513671875,
+          "rms": 0.144195685902695,
+          "samples": 47555
+        },
+        "finish_to_audio_ms": 381,
+        "transcript_matches": true,
+        "playback": {
+          "audio_bytes": 32000,
+          "audio_rate": 16000,
+          "channel": "ac_lab",
+          "max_playback_seconds": 0.935999989509583,
+          "non_silent_audio": true,
+          "serial": 3,
+          "started_ms": 27706,
+          "subtitles_present": true,
+          "valid_audio": true
+        },
+        "playback_end": {
+          "delivered": true,
+          "finished_ms": 28732
+        }
+      }
+    ],
+    "fixture_checks": {
+      "status": true,
+      "one_transcription_per_turn": true,
+      "prior_nickname_in_actual_context": true,
+      "resources_released": true,
+      "no_live_provider": true
+    }
+  },
+  "runtime_storage": [
+    {
+      "workload": "dialogue",
+      "repository_unchanged": true,
+      "command_exit_code": 0,
+      "unexpected_engine_errors": 0,
+      "tracked_files_checked": 6920,
+      "modified_tracked_paths": [],
+      "new_untracked_paths": [],
+      "new_tracked_paths": [],
+      "duration_seconds": 14.262,
+      "isolated_save_file_count": 101
+    },
+    {
+      "workload": "persistence-speech",
+      "repository_unchanged": true,
+      "command_exit_code": 0,
+      "unexpected_engine_errors": 0,
+      "tracked_files_checked": 6920,
+      "modified_tracked_paths": [],
+      "new_untracked_paths": [],
+      "new_tracked_paths": [],
+      "duration_seconds": 4.419,
+      "isolated_save_file_count": 68
+    }
+  ],
+  "menu_startup": {
+    "relay": "actual relay/worker.mjs through local Wrangler and DurableObject",
+    "headless": true,
+    "relay_ready": true,
+    "passed": true,
+    "unexpected_errors": [],
+    "exit_code": 0,
+    "game_seconds": 15.832675554000161,
+    "total_seconds": 20.50351342600061
+  },
+  "packaged_resource_verification": {
+    "export_type": "Windows preset resource pack only",
+    "standalone_executable": false,
+    "exit_code": 0,
+    "unexpected_errors": [],
+    "bytes": 119888732,
+    "passed": true,
+    "source_snapshot": "fcd2ff9e4dbf721731fedb3f86bff77c45a9fc95; before final retry metadata",
+    "packed_menu_passed": true,
+    "packed_playback_lifecycle_passed": true,
+    "runtime": "External Linux Mono editor plus framework-dependent release managed assembly; no standalone Windows executable",
+    "excluded_test": "Segment-route harness preloads a test helper excluded from production pack; not run successfully from pack"
+  },
+  "unverified": [
+    "Physical microphone input and OS permissions",
+    "Actual provider speech recognition, text generation and TTS",
+    "Human-audible output, voice distinctiveness and expressive quality",
+    "Acoustic feedback on actual devices",
+    "Native Windows executable, CEF and launcher behavior",
+    "Live WAN multiplayer, provider latency, token cost and a Live speech-to-speech comparison"
+  ],
+  "historical_findings": [
+    "New archive durability test failed6 of11 before its repair, then passed11 of11.",
+    "New listen-only no-provider-call assertion failed before repair, then47-check pipeline passed.",
+    "Combined45-case run passed44 initially; inspector network fixture required a real new UI selection after invalidation. Its final rerun passed preserving target/identity/range assertions.",
+    "Voice Studio layout assertions referred to obsolete hierarchy in basec8e50fb; corrected to meaningful containment/scroll reachability and passed."
+  ],
+  "editor_import": {
+    "passed": true,
+    "exit_code": 0,
+    "timed_out": false,
+    "duration_seconds": 25.929,
+    "tracked_files_checked": 6948,
+    "unignored_untracked_files_checked": 55,
+    "total_files_checked": 7003,
+    "untracked_sidecars_checked": 49,
+    "untracked_non_sidecar_files_checked": 6,
+    "modified_tracked_paths": [],
+    "modified_existing_untracked_paths": [],
+    "new_untracked_paths": [],
+    "new_tracked_paths": [],
+    "unexpected_engine_errors": [],
+    "known_linux_cef_messages": 7,
+    "dotnet_root_and_path_configured": true,
+    "scope": "Every tracked and unignored untracked file was content-hashed; ignored engine cache files are excluded.",
+    "snapshot": "Final report assets and generated sidecars before adopting 19 canonical UIDs from the intervening primary commit.",
+    "sidecars": {
+      "script_uid": 37,
+      "image_import": 9,
+      "wav_import": 3
+    },
+    "first_import": {
+      "exit_code": 0,
+      "duration_seconds": 24.248,
+      "sdk_discovery_errors": true,
+      "reason": "DOTNET_ROOT was set but its directory was missing from PATH; corrected on second import."
+    }
+  }
+}

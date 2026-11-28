@@ -35,6 +35,7 @@ def main() -> None:
                             duration_seconds=frames / 16000))
     (ROOT / "manifest.json").write_text(json.dumps({
         "source": "Original test phrases synthesized with CMU Flite slt via FFmpeg. No recordings of users.",
+        "provenance": "README.md",
         "format": "mono PCM16 WAV, 16000 Hz", "fixtures": entries}, indent=2) + "\n", encoding="utf-8")
 
 
