@@ -128,6 +128,9 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	var capacity_row:=HBoxContainer.new();details.add_child(capacity_row);_label(capacity_row,"Voices created elsewhere",14,T.INK)
 	external_count=SpinBox.new();external_count.min_value=0;external_count.max_value=100;external_count.step=1;external_count.custom_minimum_size.x=100;capacity_row.add_child(external_count)
 	external_count.value_changed.connect(func(value: float):
+		if not _context_current():
+			_refresh()
+			return
 		if not _refreshing:
 			var error:=Voices.set_external_voice_count(int(value))
 			if error!=OK:status.text="Could not save voice capacity: "+error_string(error)
@@ -261,6 +264,7 @@ func _refresh() -> void:
 	if _refreshing or not is_inside_tree() or not is_instance_valid(status) or not people.has(selected_id):return
 	if not _context_current():
 		status.text="Host profile or API credential changed. Reopen Character Voices to manage the current account."
+		external_count.editable=false
 		for control in [preview_button,core_button,approve_button,generate_button,batch_button,recover_button,clear_pending_button,legacy_adopt,legacy_separate,discard_button,next_candidate_button]:control.disabled=true
 		return
 	_refreshing=true

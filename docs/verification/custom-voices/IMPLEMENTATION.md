@@ -23,6 +23,8 @@ Prompt-to-voice generation itself is free; the speech auditions are billed at GP
 
 ## Verification and limitations
 
+Static repository verification: the 21 roster IDs exactly match the 21 authored voice designs; all descriptions are distinct, original adult designs and explicitly disallow imitation. All 21 remain honestly marked provisional until real provisioning and approval. Maximum authored prompt length: 552 characters (within the provider limit).
+
 The code contains regression coverage for authored voice coverage, expressive delivery, stable IDs, model-specific approvals, stopped auditions, batch provisioning, retry avoidance, interrupted creation recovery, quota accounting, legacy adoption, and cross-campus separation.
 
 Native Godot/.NET and a real provider account were unavailable in this session; the local Windows command tunnel was offline. The native tests are committed but not executed here. No actual account-owned custom voice IDs have been generated, no teacher has been acoustically auditioned or marked approved by the assistant, and no live API access or output quality is claimed. The host must execute the batch and judge the auditions in-game. The implementation is distinct from real-provider acceptance.
