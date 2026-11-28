@@ -71,7 +71,7 @@ func _run() -> void:
 	var next_id:=panel.selected_id
 	await panel._play_core()
 	var until:=Time.get_ticks_msec()+5000
-	while (panel.busy or panel.audio.playing or not panel.core_queue.is_empty()) and Time.get_ticks_msec()<until:await process_frame
+	while (panel.busy or panel.audio.playing or not panel.playing.is_empty() or not panel.core_queue.is_empty()) and Time.get_ticks_msec()<until:await process_frame
 	var heard:=Voices.auditions_for(Voices.candidate(next_id),panel._model(),panel.sentence.text)
 	check(Voices.AUDITION_MOODS.all(func(mood: String):return heard.has(mood)),"Three-core audition sequence records all moods on the same model and script")
 	check(panel.approve_button.disabled,"Batch audition never substitutes for human approval")

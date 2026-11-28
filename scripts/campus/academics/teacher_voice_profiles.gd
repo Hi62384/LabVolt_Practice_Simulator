@@ -301,7 +301,7 @@ static func capacity(person: Dictionary={}) -> Dictionary:
 		# faculty reservation. A pending or approved candidate does.
 		if custom_status({"id":id})=="missing":reserved+=1
 	var external:=int(_state.get("external_prompt_voices",0))
-	var unresolved:=_state.pending_creations.size()
+	var unresolved: int=_state.pending_creations.size()
 	var remaining:=maxi(0,PROMPT_VOICE_LIMIT-known-external-unresolved)
 	var faculty:=Roster.PEOPLE.has(str(person.get("id","")))
 	return {"available":remaining>0 and (faculty or remaining>reserved),"remaining":remaining,"known":known,
