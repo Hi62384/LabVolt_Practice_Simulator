@@ -16,6 +16,12 @@ func run() -> void:
 	for at in range(0,data.size(),142):
 		assert(normal.data.decode_s16(at)==data.decode_s16(at)*4,"The bounded native gain must match integer PCM reference values.")
 	assert(float(whisper.gain_db)<float(normal.gain_db),"Whispering must retain deliberately lower output energy.")
+	var medium:=PackedByteArray();medium.resize(48000)
+	for frame in 24000:medium.encode_s16(frame*2,int(sin(float(frame)*TAU*160./24000.)*4200.))
+	var sad: Dictionary=dsp.NormalizeExpressivePcm16(medium,24000,false,"normal","sad",.9)
+	var angry: Dictionary=dsp.NormalizeExpressivePcm16(medium,24000,false,"normal","angry",.9)
+	assert(sad.ok and angry.ok and float(angry.gain_db)>float(sad.gain_db)+3.0,"Equal input clips retain a meaningful loudness contrast")
+	assert(sad.data.size()==medium.size() and angry.data.size()==medium.size(),"Emotion does not change duration or pitch")
 	var loud:=PackedByteArray();loud.resize(4800)
 	for frame in 2400:loud.encode_s16(frame*2,32767 if frame%2==0 else -32768)
 	var limited: Dictionary=dsp.NormalizePcm16(loud,24000,false,"shout")

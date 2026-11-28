@@ -5,6 +5,7 @@ const T=preload("res://scripts/ui/design_system/tokens.gd")
 const Voices=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const People=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Delivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
+const VoiceMixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
 const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
 const Models=preload("res://scripts/campus/ai/openai_models.gd")
 const Toon=preload("res://scripts/toon_character.gd")
@@ -445,7 +446,7 @@ func _start_preview(mood: String) -> void:
 	if text.is_empty() or text.length()>1200 or profile.is_empty():core_queue.clear();status.text="Select a usable voice and a 1–1,200 character script.";_refresh();return
 	var model:=_model()
 	var spoken_mood:="steady" if mood=="normal" else mood
-	var delivery:=Delivery.build(people[selected_id],model,2,spoken_mood,{},"converse",{"voice_override":profile})
+	var delivery:=Delivery.build(people[selected_id],model,2,spoken_mood,{},"converse",{"voice_override":profile,"emotion_audition":true})
 	if not bool(delivery.get("ok",false)):core_queue.clear();status.text=str(delivery.get("error","This voice is unavailable."));_refresh();return
 	preview_ticket+=1
 	var ticket:=preview_ticket
@@ -459,16 +460,36 @@ func _start_preview(mood: String) -> void:
 	preview_draft.modalities.tts=model
 	preview_draft.tts_enabled=true
 	preview_draft.request_type="test"
+	var metadata:={"character_id":character_id,"scope":scope,"voice_id":str(profile.permanent_voice_id),"mood":mood,"model":model,"script":text}
+	var playback:={"started":false}
+	var started_at:=Time.get_ticks_msec()
+	# Play the verified waveform before the provider finishes usage accounting.
+	var mix_delivery:=delivery.duplicate(true)
+	delivery._audio_ready=func(value: Dictionary):
+		if not playback.started:
+			playback.started=_play_preview_audio(value,ticket,metadata,mix_delivery,started_at)
 	var result: Dictionary=await service.speak(text,preview_draft,delivery.voice,delivery)
 	if not is_inside_tree() or ticket!=preview_ticket:return
 	preview_request_id="";busy=false
-	if not _context_current() or character_id!=selected_id or scope!=_scope():core_queue.clear();_refresh();return
-	if not bool(result.get("ok",false)) or not result.get("stream") is AudioStreamWAV or result.stream.get_length()<=0.:
-		core_queue.clear();status.text=str(result.get("error","The voice preview could not be played."));_refresh();return
-	playing={"character_id":character_id,"scope":scope,"voice_id":str(profile.permanent_voice_id),"mood":mood,"model":model,"script":text}
-	audio.stream=result.stream;audio.play()
-	status.text="Listen to the "+mood+" rendition. Generation alone does not establish voice quality."
+	if not _context_current() or character_id!=selected_id or scope!=_scope():_stop();return
+	if not bool(result.get("ok",false)):
+		_stop();status.text=str(result.get("error","The voice preview could not be played."));_refresh();return
+	if not playback.started:
+		playback.started=_play_preview_audio(result,ticket,metadata,mix_delivery,started_at)
+		if not playback.started:
+			core_queue.clear();status.text="The voice preview contained no playable audio.";_refresh();return
 	_refresh()
+	# Both the request and playback must finish before the next batch audition.
+	if playing.is_empty() and not core_queue.is_empty():_preview_next.call_deferred()
+
+func _play_preview_audio(result: Dictionary,ticket: int,metadata: Dictionary,delivery: Dictionary,started_at: int) -> bool:
+	if not is_inside_tree() or ticket!=preview_ticket or not _context_current() or metadata.character_id!=selected_id or metadata.scope!=_scope():return false
+	if not result.get("ok",false) or not result.get("stream") is AudioStreamWAV or result.stream.get_length()<=0.:return false
+	playing=metadata.duplicate()
+	audio.stream=VoiceMixer.normalise(result.stream,delivery);audio.play()
+	status.text="Playing "+str(metadata.mood)+" · audio ready in %.2f s. Compare the delivery while listening."%[float(Time.get_ticks_msec()-started_at)/1000.]
+	_refresh()
+	return true
 
 func _heard() -> void:
 	if playing.is_empty():return
@@ -479,7 +500,7 @@ func _heard() -> void:
 	status.text="Audition played. Confirm the character fit after listening." if error==OK else "The audition played, but its record could not be saved."
 	if error!=OK:core_queue.clear()
 	_refresh()
-	if not core_queue.is_empty():_preview_next.call_deferred()
+	if not busy and not core_queue.is_empty():_preview_next.call_deferred()
 
 func _stop() -> void:
 	preview_ticket+=1;playing.clear();core_queue.clear()

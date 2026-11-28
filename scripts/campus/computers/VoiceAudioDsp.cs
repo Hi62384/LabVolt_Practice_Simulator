@@ -8,6 +8,12 @@ public partial class VoiceAudioDsp : RefCounted
     private const int MaxBytes = 16_000_000;
 
     public Godot.Collections.Dictionary NormalizePcm16(byte[] pcm, int rate, bool stereo, string projection)
+        => NormalizeCore(pcm, rate, stereo, projection, "", 0);
+
+    public Godot.Collections.Dictionary NormalizeExpressivePcm16(byte[] pcm, int rate, bool stereo, string projection, string mood, double intensity)
+        => NormalizeCore(pcm, rate, stereo, projection, mood, double.IsFinite(intensity) ? Math.Clamp(intensity, 0, 1) : 0);
+
+    private Godot.Collections.Dictionary NormalizeCore(byte[] pcm, int rate, bool stereo, string projection, string mood, double intensity)
     {
         var result = new Godot.Collections.Dictionary { ["ok"] = false };
         int channels = stereo ? 2 : 1;
@@ -48,7 +54,20 @@ public partial class VoiceAudioDsp : RefCounted
             "shout" => -16,
             _ => -20,
         };
+        // Keep modest differences in recorded performance instead of forcing
+        // every mood to the same RMS. Genuine prosody still comes from the model.
+        double emotionalDb = mood switch
+        {
+            "angry" or "extremely angry" or "excited" => 3.5,
+            "irritated" or "frustrated" or "happy" => 1.8,
+            "sad" or "tired" => -3.5,
+            "disappointed" or "bored" or "dismissive" => -2.2,
+            _ => 0,
+        };
+        targetDb += emotionalDb * intensity;
         double gain = rms > 0.0001 ? Math.Clamp(Math.Pow(10, targetDb / 20) / rms, 0.25, 4.0) : 1;
+        if (mood.Length != 0 && rms > 0.0001) gain = Math.Pow(gain, 0.75);
+
         // One gain for the whole utterance preserves expressive internal dynamics.
         // Limit peak to -0.54 dBFS before independent output-bus protection.
         if (peak > 0) gain = Math.Min(gain, 0.94 / peak);

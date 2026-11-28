@@ -101,6 +101,25 @@ func _run() -> void:
 	delayed._try_finish_live(17200)
 	check(delayed._render_result.get("ok",false),"Delayed non-silent matching output validates after the quiet tail")
 	delayed.free()
+	var quick:=Session.new()
+	quick._live=true;quick._render_only=true;quick.state="ready"
+	quick._expected_text="Hello there.";quick._live_ready_at=10000
+	var signal_pcm:=PackedByteArray();signal_pcm.resize(4800)
+	for sample in 2400:signal_pcm.encode_s16(sample*2,1000)
+	quick.receive_event({"type":"session.output_audio.delta","delta":Marshalls.raw_to_base64(signal_pcm)})
+	quick._last_voice_at=10300
+	quick.receive_event({"type":"session.output_transcript.delta","delta":"Hello there."})
+	quick._last_transcript_at=10300
+	quick._try_finish_live(10600)
+	check(not quick._render_finished,"A network gap without received quiet PCM does not fast-finish")
+	var tail:=PackedByteArray();tail.resize(24000)
+	quick.receive_event({"type":"session.output_audio.delta","delta":Marshalls.raw_to_base64(tail)})
+	quick._try_finish_live(10800)
+	check(quick._render_result.get("ok",false) and quick._render_result.get("completion_mode","")=="matched_pcm_tail","Exact transcript and half-second actual silent tail release without another 1.1s wait")
+	if quick._render_result.get("ok",false):
+		check(quick._render_result.stream.data.size()==signal_pcm.size()+4800,"Trim only exact trailing silence and retain a 100ms tail")
+		check(quick._render_result.stream.data.slice(0,signal_pcm.size())==signal_pcm,"Fast delivery preserves every voiced sample")
+	quick.free()
 	var silent_live:=Session.new()
 	silent_live._live=true;silent_live._render_only=true;silent_live.state="ready"
 	silent_live._expected_text="Hello there.";silent_live._live_ready_at=10000

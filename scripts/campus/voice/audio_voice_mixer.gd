@@ -32,7 +32,11 @@ static func normalise(stream: AudioStreamWAV,delivery: Dictionary={}) -> AudioSt
 		# compression and limiting; never claim integrated loudness measurement.
 		stream.set_meta("voice_normalization_status","native DSP unavailable")
 		return stream
-	var result: Dictionary=dsp.call("NormalizePcm16",stream.data,stream.mix_rate,stream.stereo,projection)
+	var mood:=str(delivery.get("mood",""))
+	var result: Dictionary
+	if not mood.is_empty() and dsp.has_method("NormalizeExpressivePcm16"):
+		result=dsp.call("NormalizeExpressivePcm16",stream.data,stream.mix_rate,stream.stereo,projection,mood,float(stream.get_meta("voice_intensity",.5)))
+	else:result=dsp.call("NormalizePcm16",stream.data,stream.mix_rate,stream.stereo,projection)
 	if not bool(result.get("ok",false)):
 		stream.set_meta("voice_normalization_status",str(result.get("error","invalid audio")))
 		return stream

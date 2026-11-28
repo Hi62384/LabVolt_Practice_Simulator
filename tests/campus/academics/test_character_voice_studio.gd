@@ -9,6 +9,8 @@ class HostFixture:
 	var tts_model:="gpt-realtime-2.1-mini"
 	var requests: Array[Dictionary]=[]
 	var creations:=0
+	var early_audio:=false
+	var finalizing:=false
 	func host_allowed() -> bool:return true
 	func create_prompt_voice(name: String,prompt: String,_hint: String,_draft: Dictionary) -> Dictionary:
 		creations+=1
@@ -21,7 +23,14 @@ class HostFixture:
 		var pcm:=PackedByteArray();pcm.resize(9600)
 		for index in 4800:pcm.encode_s16(index*2,int(sin(float(index)*.07)*2000.))
 		stream.data=pcm
-		return {"ok":true,"stream":stream}
+		var result:={"ok":true,"stream":stream}
+		if early_audio:
+			finalizing=true
+			var ready: Callable=delivery.get("_audio_ready",Callable())
+			if ready.is_valid():ready.call(result)
+			await get_tree().create_timer(.4).timeout
+			finalizing=false
+		return result
 
 func check(condition: bool,message: String) -> void:
 	if not condition:failures.append(message);push_error(message)
@@ -44,6 +53,15 @@ func _run() -> void:
 	check(Voices.identity(People.teacher("mr_bro"))==previous,"Pending auditions do not affect gameplay identity")
 	check(panel._model()=="gpt-live-1.1" and panel.use_candidate.button_pressed,"Prompt candidate selects the compatible audition route")
 	check(panel.approve_button.disabled,"Unheard candidate cannot be approved from the UI")
+	host.early_audio=true
+	panel._preview()
+	await process_frame
+	await process_frame
+	check(host.finalizing and panel.busy and panel.audio.playing,"Voice studio plays verified audio while final accounting is still pending")
+	panel._stop()
+	await create_timer(.45).timeout
+	check(not panel.audio.playing and not Voices.candidate("mr_bro").get("auditions",{}).has("normal"),"Canceling early playback cannot resurrect the clip or count an unheard audition")
+	host.early_audio=false
 	await panel._preview()
 	panel._stop()
 	await create_timer(.3).timeout

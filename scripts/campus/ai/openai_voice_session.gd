@@ -19,6 +19,10 @@ const MAX_TRANSCRIPT_CHARS:=24000
 const START_TIMEOUT_MS:=20000
 const CLOSE_TIMEOUT_MS:=5000
 const SILENCE_MS:=1100
+const MATCHED_TAIL_MS:=400
+const MATCHED_TRANSCRIPT_SETTLE_MS:=180
+const LIVE_LEADING_SILENCE_MS:=80
+const LIVE_TRAILING_SILENCE_MS:=100
 const LIVE_SPEECH_START_TIMEOUT_MS:=20000
 const MAX_PACKET_BYTES:=1024*1024
 const MAX_APPEND_BYTES:=480 # A UTF-8 byte ceiling also bounds byte-token count below 500.
@@ -66,6 +70,12 @@ var _blocked:=false
 var _idle_timeout_ms:=180000
 var _received_signal:=false
 var _first_audio_at:=0
+var _first_pcm_at:=0
+var _trailing_zero_bytes:=0
+var _match_source:=""
+var _match_expected:=""
+var _match_result:=false
+var _completion_mode:=""
 
 func begin(choice: String,voice: Variant,voice_type: String,key: String,instructions: String,
 		_context: Array=[],render_text: String="",endpoint: String="",identity: String="",audio_rate: int=RATE) -> Dictionary:
@@ -259,11 +269,15 @@ func receive_event(event: Dictionary) -> void:
 			# starts speaking. Retain only a short leading-silence pre-roll.
 			_pcm.append_array(chunk)
 			if _live and not _received_signal and not signal_present:
-				var preroll_bytes:=int(sample_rate/4)*2
+				var preroll_bytes:=int(sample_rate*LIVE_LEADING_SILENCE_MS/1000.)*2
 				if _pcm.size()>preroll_bytes:_pcm=_pcm.slice(_pcm.size()-preroll_bytes)
 			_last_audio_at=Time.get_ticks_msec()
-			if _first_audio_at==0:_first_audio_at=_last_audio_at
-			if signal_present:_received_signal=true
+			if _first_pcm_at==0:_first_pcm_at=_last_audio_at
+			if signal_present:
+				_trailing_zero_bytes=0
+				if not _received_signal:_first_audio_at=_last_audio_at
+				_received_signal=true
+			elif _received_signal:_trailing_zero_bytes+=chunk.size()
 			if _has_voice(chunk):_last_voice_at=_last_audio_at
 		"response.output_audio_transcript.delta":
 			if _blocked:return
@@ -333,17 +347,34 @@ func _try_finish_live(now: int) -> void:
 		_validate_output()
 		if _render_only:close_session("speech_start_timeout")
 		return
-	if _last_voice_at==0 and not transcript_matches(_expected_text,_transcript):
+	# A transcript gap is not proof of silence. Fast completion requires
+	# ALL words to match plus actual continuous zero PCM after voiced output.
+	var matches:=_matches_output()
+	if _last_voice_at==0 and not matches:
 		if now-_live_ready_at<LIVE_SPEECH_START_TIMEOUT_MS:return
+	var trailing_ms:=float(_trailing_zero_bytes)*500./sample_rate
+	if matches and _last_voice_at>0 and trailing_ms>=MATCHED_TAIL_MS and now-_last_transcript_at>=MATCHED_TRANSCRIPT_SETTLE_MS:
+		_completion_mode="matched_pcm_tail"
+		_validate_output()
+		if _render_only:close_session("rendered")
+		return
 	if now-_last_voice_at<SILENCE_MS or now-_last_transcript_at<SILENCE_MS:return
-	if not transcript_matches(_expected_text,_transcript):
+	if not matches:
 		if now-maxi(_last_voice_at,_last_transcript_at)<3500:return
+	_completion_mode="conservative_quiet"
 	_validate_output()
 	if _render_only:close_session("rendered")
 
+func _matches_output() -> bool:
+	# Canonicalization uses multiple regex passes. Recheck only when changed.
+	if _match_source!=_transcript or _match_expected!=_expected_text:
+		_match_source=_transcript;_match_expected=_expected_text
+		_match_result=transcript_matches(_expected_text,_transcript)
+	return _match_result
+
 func _validate_output() -> void:
 	if _expected_text.is_empty() or _blocked:return
-	if _pcm.is_empty() or not _received_signal or not transcript_matches(_expected_text,_transcript):
+	if _pcm.is_empty() or not _received_signal or not _matches_output():
 		var silent:=not _pcm.is_empty() and not _received_signal
 		var missing:=_pcm.is_empty()
 		var error:=_error("The voice service returned no audio before its deadline. The written dialogue is still available." if missing else "The voice service returned silent audio. The written dialogue is still available." if silent else "Speech validation could not confirm the supplied words and values. The written dialogue is still available.")
@@ -356,8 +387,13 @@ func _validate_output() -> void:
 	stream.format=AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate=sample_rate
 	stream.stereo=false
-	stream.data=_pcm
-	var result:={"ok":true,"stream":stream,"text":_expected_text,"transcript_verified":true,"request_id":request_id,"model":model,"provider":"openai_live" if _live else "openai_realtime","first_audio_ms":maxi(0,_first_audio_at-_started_at),"validated_audio_ms":Time.get_ticks_msec()-_started_at,"_api_metadata":_response_usage.duplicate(true)}
+	# Trim only packets known to be entirely digital zero; preserve whispers.
+	var trim:=maxi(0,_trailing_zero_bytes-int(sample_rate*LIVE_TRAILING_SILENCE_MS/1000.)*2) if _live else 0
+	stream.data=_pcm.slice(0,_pcm.size()-trim) if trim>0 else _pcm
+	var ready_ms:=Time.get_ticks_msec()-_started_at
+	var timing:={"first_pcm_ms":maxi(0,_first_pcm_at-_started_at),"first_audio_ms":maxi(0,_first_audio_at-_started_at),"validated_audio_ms":ready_ms,"trimmed_silence_ms":float(trim)*500./sample_rate}
+	if _live_ready_at>=0:timing.session_ready_ms=maxi(0,_live_ready_at-_started_at)
+	var result:={"ok":true,"stream":stream,"text":_expected_text,"transcript_verified":true,"request_id":request_id,"model":model,"provider":"openai_live" if _live else "openai_realtime","first_audio_ms":timing.first_audio_ms,"validated_audio_ms":ready_ms,"timing":timing,"completion_mode":_completion_mode if _live else "response_done","_api_metadata":_response_usage.duplicate(true)}
 	if _render_only:_complete_render(result)
 	else:
 		audio_segment_ready.emit(_pcm,_expected_text,request_id+"_"+str(_utterance_epoch))
@@ -388,6 +424,12 @@ func _reset_output(text: String) -> void:
 	_last_audio_at=0
 	_last_transcript_at=0
 	_first_audio_at=0
+	_first_pcm_at=0
+	_trailing_zero_bytes=0
+	_match_source=""
+	_match_expected=""
+	_match_result=false
+	_completion_mode=""
 	_received_signal=false
 	_blocked=false
 

@@ -20,6 +20,32 @@ const EMOTION_KEYS:={"happy":"happiness","angry":"anger","extremely angry":"ange
 	"stressed":"stress","excited":"excitement","bored":"boredom","sad":"sadness","disappointed":"disappointment",
 	"anxious":"anxiety","embarrassed":"embarrassment","amused":"amusement","confident":"confidence","tired":"tiredness",
 	"interested":"interest","dismissive":"disinterest","careless":"carelessness","confused":"confusion","concerned":"concern","sarcastic":"sarcasm"}
+# Audible acting directions, independent of permanent speaker identity.
+const MOOD_PERFORMANCE:={
+	"steady":"Use the speaker's ordinary natural cadence and inflection.",
+	"happy":"Audibly smile through the words, with warm open resonance and buoyant melodic emphasis.",
+	"excited":"Sound genuinely thrilled: energetic attacks, animated rises and falls, quick connected words and eager breaths.",
+	"amused":"Use smiling tone, playful timing and a brief held-back laugh only when appropriate.",
+	"angry":"Sound genuinely angry from the first word: tense breath, hard stressed consonants, forceful emphasis and clipped, sharply contrasted rhythm.",
+	"extremely angry":"Sound furious: forceful breath, abrupt attacks, intense tension and striking stress contrasts, not a neutral reading of angry words.",
+	"irritated":"Sound audibly impatient: dry, sharp consonants, pointed stress and curtailed pauses without shouting.",
+	"frustrated":"Make exasperation audible through pressed emphasis, tight breath, uneven pauses and weary phrase endings.",
+	"sad":"Sound genuinely sad: subdued breath energy, heavy falling intonation, slower thought groups and expressive pauses. Remove habitual cheerfulness.",
+	"disappointed":"Let expectation collapse audibly: restrained energy, falling stress and a reluctant pause.",
+	"tired":"Use weary breath, reduced energy, slower articulation and drooping endings, while remaining intelligible.",
+	"bored":"Sound disengaged: flatter contours, languid timing and little investment, rather than sorrow.",
+	"dismissive":"Use detached, impatient stress and short decisive endings; avoid reassuring warmth.",
+	"anxious":"Use tense, slightly unsteady breath and uncertain rises, with natural hesitation.",
+	"stressed":"Use tight breath, clipped phrases and marked pressure on important words.",
+	"embarrassed":"Use an awkward tentative start, softer words and a brief recovery in confidence.",
+	"confused":"Use questioning contours, uneven emphasis and a brief thinking pause.",
+	"confident":"Use settled decisive stress, clear resonance and firm endings.",
+	"patient":"Use even, unhurried articulation and an attentive tone.",
+	"interested":"Sound engaged, with alert melodic emphasis and attentive rhythm.",
+	"concerned":"Use attentive softer phrasing and serious deliberate stress.",
+	"sarcastic":"Use ironic contrasts in emphasis and dry timing.",
+	"careless":"Use relaxed, slightly loose articulation and casual falling endings."
+}
 const INTENTS:={
 	"converse":"Talk to one person, with natural turns and ordinary conversational phrasing.",
 	"explain":"Explain the supplied facts clearly; preserve every number, qualifier and technical term.",
@@ -51,7 +77,12 @@ static func build(person: Dictionary,model: String,priority: int,mood: String="s
 		var value: Variant=supplied[feeling]
 		if (value is float or value is int) and is_finite(float(value)):values[feeling]=clampf(float(value),0.,1.)
 	var mood_key:=str(EMOTION_KEYS.get(mood,""))
-	if not mood_key.is_empty() and not supplied.has(mood_key):values[mood_key]=.92 if mood=="extremely angry" else .62
+	var audition:=bool(context.get("emotion_audition",false))
+	if audition:
+		# The studio compares deliberate moods, not competing resting affect.
+		for key in EMOTION_KEYS.values():values[key]=0.0
+		if not mood_key.is_empty():values[mood_key]=.98 if mood=="extremely angry" else .8 if mood=="angry" else .88
+	elif not mood_key.is_empty() and not supplied.has(mood_key):values[mood_key]=.95 if mood=="extremely angry" else .72
 	var reaction: Dictionary=context.get("immediate_reaction",{})
 	var reaction_key:=str(EMOTION_KEYS.get(str(reaction.get("emotion","")),reaction.get("emotion","")))
 	if not reaction_key.is_empty():values[reaction_key]=maxf(float(values.get(reaction_key,0.)),_value(reaction,"intensity",.6))
@@ -64,24 +95,39 @@ static func build(person: Dictionary,model: String,priority: int,mood: String="s
 	var excitement:=float(values.excitement)*(1.-sorrow*.85)*(1.-fatigue*.55)
 	var energy:=clampf(.28+_value(traits,"energy",.5)*.55+excitement*.44+anger*.22-sorrow*.58-fatigue*.36-float(values.boredom)*.22,.08,1.)
 	var pace:=clampf(float(identity.normal_pace)+excitement*.16+anger*.09-sorrow*.2-fatigue*.12-float(values.get("confusion",0.))*.08,.68,1.25)
-	var intensity:=clampf(maxf(anger,maxf(excitement,sorrow))*(.6+expressiveness*.4),0.,1.)
+	var primary_strength:=float(values.get(mood_key,0.0)) if not mood_key.is_empty() else 0.0
+	var intensity:=clampf(maxf(primary_strength,maxf(anger,maxf(excitement,sorrow)))*(.7+expressiveness*.3),0.,1.)
+	if audition and not mood_key.is_empty():intensity=primary_strength
 	var projection: String="lecture" if priority>=3 else "normal"
 	if selected_intent=="whisper":projection="whisper"
 	elif anger>=.85 and restraint<.7:projection="shout"
 	elif context.get("projection","") in ["whisper","quiet","normal","lecture","shout"]:projection=str(context.projection)
 	var feelings: Array[String]=[]
+	var secondary: Array=[]
+	var baseline:=Affect.baseline(traits)
 	for feeling: String in values:
 		if float(values[feeling])>=.14:feelings.append("%s %.1f"%[feeling,float(values[feeling])])
+		if feeling!=mood_key and feeling in EMOTION_KEYS.values() and float(values[feeling])>=.45 and float(values[feeling])-float(baseline.get(feeling,0.))>=.15:
+			secondary.append(feeling)
 	feelings.sort()
-	var instructions:="PERMANENT SPEAKER: "+str(identity.design_description)+" Preserve age, accent, resonance and timbre through every phrase. "
-	instructions+="USUAL SPEAKING STYLE: "+str(person.get("style",identity.mannerisms)).left(1000)+". Articulation: "+str(identity.articulation)+". Mannerisms: "+str(identity.mannerisms)+". These are tendencies, not an unchanging emotion. "
-	instructions+="CURRENT MOOD: "+mood+". Emotional mixture: "+", ".join(feelings)+". Vocal energy %.2f, intensity %.2f, conversational pace %.2f. "%[energy,intensity,pace]
-	instructions+=_emotional_direction(values,anger,sorrow,fatigue,restraint,expressiveness)
-	instructions+=" CHARACTER EXPRESSION: "+str(identity.emotional_tendencies)+" "
-	if _value(traits,"arrogance",0.)>.75:instructions+="Keep the character's arrogant, sometimes dismissive outlook; do not turn it into friendly encouragement. "
-	if _value(traits,"shyness",0.)>.7:instructions+="Shyness can create tentative starts and pauses; maintain ordinary audible speech instead of making the permanent voice weak or inaudible. "
-	instructions+="INTENT: "+str(INTENTS[selected_intent])+" Projection: "+projection+". "
-	instructions+="Perform the exact supplied spoken words. Do not add, omit, translate or paraphrase them. Never read stage directions aloud. Use a natural breath, tiny hesitation, sigh or chuckle only when the emotion and line support it; avoid repeated filler or a constant smile. Do not imitate a real person."
+	secondary.sort_custom(func(a,b):return float(values[a])>float(values[b]))
+	var direction_values: Dictionary=values.duplicate(true)
+	for feeling in EMOTION_KEYS.values():
+		if feeling!=mood_key and feeling not in secondary.slice(0,2):direction_values[feeling]=0.0
+	var emphasis:="strong and unmistakable" if audition or primary_strength>=.75 else "clear and recognizable" if primary_strength>=.35 else "light but perceptible"
+	var instructions:="CURRENT PERFORMANCE: "+mood+". "+str(MOOD_PERFORMANCE.get(mood,MOOD_PERFORMANCE.steady))+" "
+	if not mood_key.is_empty():
+		instructions+="Make this emotion "+emphasis+". It overrides conflicting habitual cheerfulness, calmness, pace or energy in the permanent voice design. "
+	instructions+="SAME SPEAKER: "+str(identity.design_description)+" Preserve perceived age, accent, resonance, and timbre; emotion may change inflection and rhythm. "
+	instructions+="Usual speech style: "+str(person.get("style",identity.mannerisms)).left(480)+". Adapt its mood and pace to this performance. "
+	var direction_anger:=maxf(float(direction_values.anger),maxf(float(direction_values.irritation)*.72,float(direction_values.frustration)*.8))
+	var direction_sorrow:=maxf(float(direction_values.sadness),float(direction_values.disappointment)*.85)
+	instructions+=_emotional_direction(direction_values,direction_anger,direction_sorrow,float(direction_values.tiredness),restraint,expressiveness)
+	if not audition and not secondary.is_empty():instructions+=" Secondary feelings may color, but never replace, the primary mood. "
+	if _value(traits,"arrogance",0.)>.75:instructions+="Retain the person's arrogant outlook without automatic encouragement. "
+	if _value(traits,"shyness",0.)>.7:instructions+="Retain shyness and ordinary audible speech. "
+	instructions+="Pace "+("slower" if pace<.9 else "brisk" if pace>1.08 else "natural")+". "+str(INTENTS[selected_intent])+" "+str(PROJECTIONS[projection])+" "
+	instructions+="Speak the supplied words exactly once; do not read directions aloud or add words. Keep the current performance evident throughout."
 	resolved.merge({"instructions":instructions,"speed":pace,"projection":projection,"intensity":intensity,"energy":energy,
 		"mood":mood,"emotions":values,"immediate_reaction":reaction.duplicate(true),"intent":selected_intent,
 		"expressive_supported":bool(Models.voice_capabilities(model).get("expressive",false)),"playback_pitch":1.0},true)
@@ -219,7 +265,7 @@ static func _emotional_direction(values: Dictionary,anger: float,sorrow: float,f
 	if float(values.get("carelessness",0.))>=.4:lines.append("Carelessness loosens enunciation and lets endings fall away slightly; keep the actual words intelligible.")
 	if float(values.get("sarcasm",0.))>=.4:lines.append("Sarcasm uses restrained ironic stress and timing, not a new voice or repeated laughter.")
 	if float(values.get("concern",0.))>=.4:lines.append("Concern steadies and softens the phrasing with attentive pauses; do not automatically become happy.")
-	lines.append("Express these feelings subtly." if expression<.35 else "Allow recognizable emotional variation within the person's natural range.")
+	lines.append("Use recognizable emotional variation rather than a neutral read." if expression>=.35 else "A restrained personality can still sound emotional; use stress, rhythm and breath instead of caricature.")
 	return " ".join(lines)
 
 static func _value(values: Dictionary,key: String,fallback: float) -> float:
