@@ -30,6 +30,24 @@ static func conversation_orientation(person: Dictionary,relationship: Dictionary
 	if drivers.is_empty():drivers.append("Judge whether this topic is interesting or worth acknowledging according to your own values and relationship.")
 	return {"priorities":drivers.slice(0,4),"activity":occupation.left(100),"engagement":snappedf(clampf((social+float(t.get("talkativeness",.5))+warmth*.5)/2.5-(.25 if busy else 0.),0.,1.),.05),"brevity":snappedf(1.-float(t.get("talkativeness",.5)),.05)}
 
+static func social_appraisal(person: Dictionary,relationship: Dictionary,semantics: Dictionary) -> Dictionary:
+	if bool(semantics.get("official_communication",false)) or str(semantics.get("phase",""))=="assignment":return {}
+	if str(semantics.get("question_kind","")) not in ["casual","opinion","biography","personal_experience"]:return {}
+	var t: Dictionary=person.get("traits",{})
+	var relevance:=clampf(float(semantics.get("personal_relevance",.5)),0.,1.)
+	var unfamiliar:=clampf(1.-float(relationship.get("familiarity",0.))/3.,0.,1.)
+	var social:=float(t.get("sociability",.5))
+	var shyness:=float(t.get("shyness",.5))
+	var warmth:=float(t.get("warmth",.5))
+	var patience:=float(t.get("patience",.5))
+	var interest:=clampf(relevance*.55+social*.25+patience*.2,0.,1.)
+	var comfort:=clampf(.55+warmth*.2-shyness*unfamiliar*.45,0.,1.)
+	var pose:=""
+	if comfort<.32 and str(semantics.get("tone","")) in ["mixed","vulnerable","neutral"]:pose="awkward_stare"
+	elif interest<.3:pose="shrug"
+	return {"interest":snappedf(interest,.05),"comfort":snappedf(comfort,.05),"pose":pose,
+		"priority":"engage" if interest>.7 else "brief_acknowledgment" if interest<.35 else "ordinary"}
+
 static func priorities(person: Dictionary,question: String,relationship: Dictionary,phase: String,emotion := "steady",interpretation: Dictionary={}) -> Dictionary:
 	var text := question.to_lower()
 	var traits: Dictionary = person.traits

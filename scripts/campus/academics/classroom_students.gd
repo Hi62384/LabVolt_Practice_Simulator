@@ -317,7 +317,7 @@ func act(room: String,activity: Dictionary,member: Dictionary,action: String,poi
 	if not multiplayer.is_server() or member.get("removed_from_class",false) or member.get("leaving_class",false) or member.get("using_bench",false) or not member.get("arrived",false):return false
 	# A nod or glance during an assessment is harmless. Walking, changing seats
 	# and demonstrations still require the host's discipline/activity systems.
-	if activity.phase=="assignment" and action not in ["nod","wave","shrug","turn_away","defensive"]:return false
+	if activity.phase=="assignment" and action not in ["nod","wave","shrug","turn_away","defensive","shake_head","confused","awkward_stare"]:return false
 	if action in Motion.POSES:
 		member.gesture=action
 		member.gesture_point=point

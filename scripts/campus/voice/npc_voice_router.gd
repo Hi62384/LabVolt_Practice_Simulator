@@ -181,6 +181,8 @@ func _speech_segment(pcm: PackedByteArray, final: bool, turn_id: int, index: int
  if not faculty.voice_target_valid(multiplayer.get_unique_id(),completed.target):cancel_current();return
  var wav:=TeacherAI.wav_16k(completed.audio)
  diagnostic.state="transcribing";diagnostic.recorded_bytes=completed.audio.size();diagnostic.recording_completed_ms=Time.get_ticks_msec()
+ diagnostic.capture_duration_ms=int(diagnostic.recording_completed_ms)-int(completed.started)
+ diagnostic.pcm_duration_ms=float(completed.audio.size())/32.
  show_hearing(completed.target,"Transcribing…",30000)
  if multiplayer.is_server():_deliver(multiplayer.get_unique_id(),str(completed.token),wav)
  elif game.session.online:_send_recording(str(completed.token),wav)

@@ -409,7 +409,7 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	if not access.ok:return access
 	var id:=str(draft.request_id)
 	var queued_at:=Time.get_ticks_msec()
-	if not await _acquire_lane("speech",id,_request_guard(draft)):return _queue_error(id)
+	if not await _acquire_lane("speech",id,_request_guard(draft),_request_priority(draft)):return _queue_error(id)
 	var pool_key:=JSON.stringify([choice,voice_type,voice,_account_cache_id(str(access.key)),_test_voice_base,_connection_epoch]).sha256_text()
 	var use_pool:=Models.verified_family(choice) in Models.REALTIME and voice_type=="preset"
 	var session: VoiceSession=_take_idle_voice(pool_key) as VoiceSession if use_pool else null
@@ -622,7 +622,7 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if not draft.has("subsystem"):draft.subsystem="npc_microphone" if production else "microphone_test"
 	if not draft.has("request_purpose"):draft.request_purpose="transcription"
 	var queued_at:=Time.get_ticks_msec()
-	if not await _acquire_lane("transcription",id,_request_guard(draft)):return _queue_error(id)
+	if not await _acquire_lane("transcription",id,_request_guard(draft),4):return _queue_error(id)
 	var now:=Time.get_ticks_msec()
 	_begin_request_diagnostics(draft,id,choice,"stt",queued_at)
 	if Models.verified_family(choice) in Models.STREAMING_STT:
@@ -714,18 +714,27 @@ static func _request_guard(draft: Dictionary) -> Callable:
 static func _guard_cancelled(guard: Callable) -> bool:
 	return not guard.is_null() and (not guard.is_valid() or not bool(guard.call()))
 
-func _acquire_lane(lane: String,id: String,guard: Callable=Callable()) -> bool:
+static func _request_priority(draft: Dictionary) -> int:
+	return 4 if str(draft.get("origin",""))=="player" else 2 if str(draft.get("origin",""))=="teaching" else 0
+
+func _acquire_lane(lane: String,id: String,guard: Callable=Callable(),priority: int=0) -> bool:
 	var queue: Array=_lane_waiting.get_or_add(lane,[])
 	if queue.size()>=MAX_WAITERS:return false
 	var epoch:=_connection_epoch
-	var ticket:={"id":id,"created":Time.get_ticks_msec()}
+	var ticket:={"id":id,"created":Time.get_ticks_msec(),"priority":clampi(priority,0,4)}
 	queue.append(ticket)
 	while is_inside_tree():
 		if epoch!=_connection_epoch or _guard_cancelled(guard):_cancelled_requests[id]=true
 		if _cancelled_requests.has(id) or Time.get_ticks_msec()-int(ticket.created)>30000:
 			queue.erase(ticket);return false
-		if queue[0]==ticket and int(_lane_active.get(lane,0))<int(LANE_LIMITS.get(lane,1)):
-			queue.pop_front()
+		var best: Dictionary=queue[0]
+		var now:=Time.get_ticks_msec()
+		for waiting: Dictionary in queue:
+			var score:=float(waiting.priority)+float(now-int(waiting.created))/3000.
+			var best_score:=float(best.priority)+float(now-int(best.created))/3000.
+			if score>best_score:best=waiting
+		if best==ticket and int(_lane_active.get(lane,0))<int(LANE_LIMITS.get(lane,1)):
+			queue.erase(ticket)
 			_lane_active[lane]=int(_lane_active.get(lane,0))+1
 			busy=int(_lane_active.get("text",0))>0
 			speech_busy=int(_lane_active.get("speech",0))>0
@@ -807,7 +816,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	draft.request_id=id
 	if not draft.has("request_type"):draft.request_type="feature" if needs_enabled else "test"
 	var queued_at:=Time.get_ticks_msec()
-	if not await _acquire_lane(lane,id,_request_guard(draft)):return _queue_error(id)
+	if not await _acquire_lane(lane,id,_request_guard(draft),_request_priority(draft)):return _queue_error(id)
 	var started:=Time.get_ticks_msec()
 	_begin_request_diagnostics(draft,id,request_model,purpose if not purpose.is_empty() else lane,queued_at)
 	var headers:=PackedStringArray(["Authorization: Bearer "+str(access.key),"Content-Type: application/json"])

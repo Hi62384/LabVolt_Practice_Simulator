@@ -1709,17 +1709,21 @@ func _character_context_current(epoch: int,activity: Dictionary) -> bool:
  return false
 
 func _announce_character(room: String,id: String,activity: Dictionary,identity: String,intention: String,_fallback: String,priority: int=2,extensions: Dictionary={}) -> void:
+ if not bool(extensions.get("official_communication",false)) and _voice_recipients(room).is_empty():return
  var extra:=extensions.duplicate(true)
  extra.initiate=true;extra.intention=intention;extra.defer_record=true
  var result:=await generate_character_exchange(Characters.teacher(id),identity,activity,"",extra)
  if result.is_empty() or result.get("cancelled",false):return
  var point:=_teacher_position(room)
- if not point.is_finite() or str(result.get("line","")).is_empty():
+ if not point.is_finite():
   character_interaction.record(result,false)
   return
  var pose:=str(extra.get("_presentation_pose",result.turn.get("pose","")))
  if pose.is_empty():pose=str(result.turn.get("pose",""))
- if pose in CharacterMotion.POSES:_character_gesture(room,_model_for_room(room,id),str(result.emotion),false,pose,extra.get("_presentation_point",Vector3.INF))
+ if pose in CharacterMotion.POSES and is_instance_valid(_model_for_room(room,id)):_character_gesture(room,_model_for_room(room,id),str(result.emotion),false,pose,extra.get("_presentation_point",Vector3.INF))
+ if str(result.get("line","")).is_empty():
+  character_interaction.record(result,bool(result.get("silent",false)))
+  return
  var serial:=_next_speech(room)
  _show_reaction(room,id,str(result.line),point,serial,priority,false,str(result.emotion))
  _broadcast_reaction(room,id,str(result.line),point,serial,priority)
@@ -1927,8 +1931,9 @@ func _answer_classmate_inner(entry: Dictionary) -> void:
   _report_voice_stage(peer,voice_context,"response_failed",str(result.get("technical_status","Character response unavailable.")))
   _notify_classmate(peer,room,class_id,actor,str(result.get("technical_status","Character response unavailable.")),false,"steady",false,"",{},"",{},voice_context)
   return
- for gesture in result.get("nonverbal",[]):
-  if gesture in ["nod","wave"]:students.act(room,activity,member,str(gesture),member.position,game.lecture_classes._now())
+ if not bool(prepared.extra.get("executed_action",{}).get("accepted",false)):
+  var pose:=str(result.turn.get("pose",""))
+  if pose in CharacterMotion.POSES and students.act(room,activity,member,pose,Vector3.INF,game.lecture_classes._now()):game.lecture_classes._publish()
  _report_voice_stage(peer,voice_context,"response_generated")
  _notify_classmate(peer,room,class_id,actor,str(result.line),true,str(result.emotion),raised,str(result.turn.get("pose","")),result.turn.get("emotions",{}),str(result.event_id),timing,voice_context)
 
@@ -2147,8 +2152,6 @@ func _answer_question_inner(peer: int,room: String,id: String,class_id: String,q
   _report_voice_stage(peer,voice_context,"response_failed",str(result.get("technical_status","Character response unavailable.")))
   _context_question_status(peer,room,id,str(result.get("technical_status","Character response unavailable.")),voice_context)
   return
- for gesture in result.get("nonverbal",[]):
-  _character_gesture(room,model,str(result.emotion),false,str(gesture))
  var reply:=str(result.line)
  _report_voice_stage(peer,voice_context,"response_generated")
  _context_question_status(peer,room,id,reply,voice_context)
