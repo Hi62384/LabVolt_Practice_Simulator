@@ -1,0 +1,97 @@
+{
+  "synthetic_fixtures": true,
+  "isolated_user_data_not_included": true,
+  "engine": "Godot 4.5.1 Mono Linux x86_64",
+  "dotnet_root": "/tmp/labvolt-runtime/dotnet",
+  "all_passed": true,
+  "results": [
+    {
+      "test": "lazy_store",
+      "script": "tests/campus/academics/dossier/test_dossier_lazy_store.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 1.526,
+      "evidence": [
+        "DOSSIER_LAZY_STORE PASS (38 checks)"
+      ]
+    },
+    {
+      "test": "portable_population",
+      "script": "tests/campus/academics/test_student_population_portable.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 2.615,
+      "evidence": [
+        "STUDENT_POPULATION_PORTABLE PASS (107 checks)"
+      ]
+    },
+    {
+      "test": "corruption",
+      "script": "tests/campus/academics/test_student_population_corruption.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 4.389,
+      "evidence": [
+        "STUDENT_POPULATION_CORRUPTION PASS (208 checks): damaged bytes preserved, backup recovery, session identity, host isolation, bounded cache"
+      ]
+    },
+    {
+      "test": "scope_failures",
+      "script": "tests/campus/academics/dossier/test_dossier_scope_failures.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 0.819,
+      "evidence": [
+        "DOSSIER_SCOPE_FAILURES PASS (56 checks)"
+      ]
+    },
+    {
+      "test": "adversarial_sync",
+      "script": "tests/campus/academics/test_student_sync_adversarial.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 0.71,
+      "evidence": [
+        "STUDENT_SYNC_ADVERSARIAL PASS (46 checks)"
+      ]
+    },
+    {
+      "test": "dossier_canon_race",
+      "script": "tests/campus/academics/dossier/test_dossier_canon_race.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 1.762,
+      "evidence": [
+        "DOSSIER_CANON_RACE PASS checks=40 synthetic_provider_actual_brain"
+      ]
+    },
+    {
+      "test": "sync_lifecycle",
+      "script": "tests/campus/academics/test_student_sync_lifecycle.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 0.903,
+      "evidence": [
+        "STUDENT_SYNC_LIFECYCLE PASS"
+      ]
+    },
+    {
+      "test": "dossier_generation",
+      "script": "tests/campus/academics/dossier/test_dossier_generation.gd",
+      "engine": "Godot 4.5.1 Mono Linux x86_64",
+      "exit_code": 0,
+      "passed": true,
+      "elapsed_seconds": 0.916,
+      "evidence": [
+        "DOSSIER_GENERATION PASS (synthetic transport contract, not live AI quality)"
+      ]
+    }
+  ]
+}

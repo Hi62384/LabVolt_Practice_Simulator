@@ -11,6 +11,7 @@ class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
 	var online:=false
 	var hold_next:=false
 	var held:=false
+	var reject_while_held:=false
 	var requests: Array[Dictionary]=[]
 	var replies: Array[String]=[
 		"Compare each connection with the diagram on the board before changing it.",
@@ -26,6 +27,10 @@ class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
 	func interpret_character(_instructions: String,_context: Dictionary,_dialogue: String) -> Dictionary:
 		return {"ok":true,"text":JSON.stringify({"event":"chat","tone":"neutral","severity":0.,"meaning":"A colleague is speaking about the office-hours shift.","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]})}
 	func respond_character(instructions: String,context: Dictionary,dialogue: String,_visual:=false) -> Dictionary:
+		# busy is telemetry for independent request lanes, not a global lock.
+		# This scenario explicitly simulates a provider that cannot service the
+		# next request while the first request remains stalled.
+		if held and reject_while_held:return {"ok":false,"error":"Fixture provider is unavailable while the held request times out."}
 		var index:=requests.size()
 		requests.append({"instructions":instructions,"context":context.duplicate(true),"dialogue":dialogue})
 		if hold_next:
@@ -128,7 +133,7 @@ func run() -> void:
 	check(school.start_activity({"mode":"Freeplay"}).get("ok",false),"The completed formal session returns to Freeplay")
 	faculty._sync_lab_teachers()
 	check(faculty._lab_visit(ROOM).get("phase","")=="office_hours","Real office-hours visit is available")
-	client.hold_next=true
+	client.hold_next=true;client.reject_while_held=true
 	serial=int(faculty.speech_serial.get(ROOM,0))
 	faculty._rotate(ROOM)
 	var exchange: Dictionary=faculty.lab_handoffs.get(ROOM,{})
@@ -151,6 +156,7 @@ func run() -> void:
 		var after_incoming: int=faculty.brain.recall(incoming,outgoing).size()
 		serial=int(faculty.speech_serial.get(ROOM,0))
 		client.released.emit();await settle(faculty)
+		client.reject_while_held=false
 		check(int(faculty.speech_serial.get(ROOM,0))==serial,"Late outgoing opening is cancelled after the shift changed")
 		check(faculty.brain.recall(outgoing,incoming).size()==after_outgoing and faculty.brain.recall(incoming,outgoing).size()==after_incoming,"Late handoff callback creates no duplicate or unheard conversation")
 

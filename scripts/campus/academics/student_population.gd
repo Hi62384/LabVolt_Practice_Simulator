@@ -33,6 +33,7 @@ var contribution_sources: Dictionary={}
 var reconciliation_conflicts: Array=[]
 var index: Dictionary={}
 var _selection_serial:=0
+var _pending_profile_handoff:=""
 
 
 func set_host_profile(profile_id: String) -> Error:
@@ -41,6 +42,12 @@ func set_host_profile(profile_id: String) -> Error:
 		return ERR_INVALID_PARAMETER
 	var selected:=Memory.profile_prefix(profile_id)+".population.json"
 	if selected==path:
+		var rebound:=Dossiers.set_host_profile(profile_id)
+		if Dossiers.host_identity!=profile_id or rebound not in [OK,ERR_FILE_CORRUPT]:
+			profile_blocked=true
+			return rebound if rebound!=OK else ERR_UNAUTHORIZED
+		_host_profile=profile_id
+		_pending_profile_handoff=""
 		profile_blocked=false
 		return OK
 	# A damaged save may have a useful session roster. Keep it under its owner
@@ -48,7 +55,7 @@ func set_host_profile(profile_id: String) -> Error:
 	var needs_cache:=false
 	# Recheck a loaded roster even when clean: the files may have been damaged
 	# since the last read, and its still-known identities must not be discarded.
-	if dirty or (not _host_profile.is_empty() and _loaded_path==path and not people.is_empty()):
+	if _pending_profile_handoff.is_empty() and (dirty or (not _host_profile.is_empty() and _loaded_path==path and not people.is_empty())):
 		profile_blocked=false
 		var saved:=save_population()
 		if saved!=OK:
@@ -64,10 +71,22 @@ func set_host_profile(profile_id: String) -> Error:
 	if not _exists(selected) and not _exists(selected+".bak"):
 		error=_migrate_legacy(profile_id,selected)
 		if error!=OK:return error
-	if needs_cache:
-		error=_cache_unsaved_profile(selected)
-		if error!=OK:return error
-	else:_unsaved_profiles.erase(path)
+	if _pending_profile_handoff.is_empty():
+		if needs_cache:
+			error=_cache_unsaved_profile(selected)
+			if error!=OK:return error
+		else:_unsaved_profiles.erase(path)
+	# The dossier authority must accept the namespace before this collection
+	# changes its owner. A failed cache/save transition can leave the Store on
+	# its previous owner; even ERR_FILE_CORRUPT is safe only after it switched.
+	var dossier_error:=Dossiers.set_host_profile(profile_id)
+	if Dossiers.host_identity!=profile_id or dossier_error not in [OK,ERR_FILE_CORRUPT]:
+		profile_blocked=true
+		# The outgoing population was already saved/cached. If Store reached
+		# the target but its migration failed, retry that migration without
+		# writing the outgoing collection through the new authority.
+		if Dossiers.host_identity==profile_id:_pending_profile_handoff=profile_id
+		return dossier_error if dossier_error!=OK else ERR_UNAUTHORIZED
 	path=selected
 	_host_profile=profile_id
 	_loaded_path=""
@@ -83,10 +102,7 @@ func set_host_profile(profile_id: String) -> Error:
 	recovered_backup=false
 	preserved_corrupt_paths.clear()
 	profile_blocked=false
-	var dossier_error:=Dossiers.set_host_profile(profile_id)
-	if dossier_error!=OK and dossier_error!=ERR_FILE_CORRUPT:
-		profile_blocked=true
-		return dossier_error
+	_pending_profile_handoff=""
 	if _unsaved_profiles.has(selected):
 		var state: Dictionary=_unsaved_profiles[selected].state
 		people=state.people;next_index=state.next_index;dirty=state.dirty
@@ -143,6 +159,7 @@ static func claim_legacy(profile_id: String) -> bool:
 
 func load_population() -> bool:
 	if profile_blocked:return false
+	if not _dossier_owner_matches():profile_blocked=true;last_load_error=ERR_UNAUTHORIZED;return false
 	# Reconfiguration and host switching can call load again. Unsaved session
 	# identities must survive, including a restored corruption fallback.
 	if dirty and not _loaded_path.is_empty():
@@ -229,7 +246,7 @@ func generation_seed(id: String) -> Dictionary:
 		"design_specification":"Create a distinct adult campus student enrolled in %s. Their enrolled courses are %s. Keep this program and stable ID. Develop their complete coherent life, independent personality, speech, knowledge, appearance and permanent vocal characteristics. No official marks are generated."%[program,", ".join(Programs.courses_for(program))]}
 
 func import_generated(person: Dictionary) -> bool:
-	if profile_blocked or persistence_blocked:return false
+	if profile_blocked or persistence_blocked or not _dossier_owner_matches():return false
 	var id:=str(person.get("id",""))
 	if not valid_identity(id):return false
 	var d:=Dossiers.get_dossier(id)
@@ -314,7 +331,7 @@ func available(excluded: Dictionary,count: int,seed_value: int,course: String=""
 	return result
 
 func record_attendance(id: String,course: String,activity_id: String,participants: Array=[]) -> void:
-	if not people.has(id) or course not in Programs.COURSES or activity_id.is_empty():return
+	if profile_blocked or not _dossier_owner_matches() or not people.has(id) or course not in Programs.COURSES or activity_id.is_empty():return
 	var person: Dictionary=people[id]
 	var attendance: Dictionary=person.get_or_add("attendance",{"count":0,"events":[],"courses":{},"familiar_players":[]})
 	var event:=activity_id.sha256_text().left(32)
@@ -336,7 +353,7 @@ func record_attendance(id: String,course: String,activity_id: String,participant
 	save_population()
 
 func profile_for(id: String) -> Dictionary:
-	if not people.has(id):return {}
+	if profile_blocked or not people.has(id) or not _dossier_owner_matches():return {}
 	_stamp_identity(people[id])
 	index[id]=_index_entry(people[id])
 	var person:=Dossiers.project(people[id])
@@ -348,7 +365,7 @@ func profile_for(id: String) -> Dictionary:
 	return person
 
 func save_population() -> Error:
-	if profile_blocked:
+	if profile_blocked or not _dossier_owner_matches():
 		last_save_error=ERR_UNAUTHORIZED
 		return last_save_error
 	if persistence_blocked:
@@ -447,9 +464,11 @@ func _read(source: String) -> Dictionary:
 		for value in person.traits.values():
 			if not (value is float or value is int) or not is_finite(float(value)) or float(value)<0. or float(value)>1.:return {}
 		if person.get("dossier_ref",false):
-			if float(version)<4. or person.get("dossier_ref")!=true or not person.get("program") is String or person.program.is_empty() or person.program.length()>160:return {}
+			if float(version)<4. or not person.get("dossier_ref") is bool or not person.get("program") is String or person.program.is_empty() or person.program.length()>160:return {}
+			var age: Variant=person.get("age")
+			if not (age is float or age is int) or not is_finite(float(age)) or float(age)<18. or float(age)>110. or floorf(float(age))!=float(age):return {}
 			if person.get("dossier_status")!="complete" or not person.get("dossier_revision") is float and not person.get("dossier_revision") is int:return {}
-			if not is_finite(float(person.dossier_revision)) or float(person.dossier_revision)<1. or float(person.dossier_revision)>1000000000.:return {}
+			if not is_finite(float(person.dossier_revision)) or float(person.dossier_revision)<1. or float(person.dossier_revision)>1000000000. or floorf(float(person.dossier_revision))!=float(person.dossier_revision):return {}
 			if _legacy_identity(str(id)):last_index=maxi(last_index,index)
 			continue
 		# Add new schema defaults without changing any saved identity or trait.
@@ -557,6 +576,7 @@ func export_person(persistent_id: String) -> Dictionary:
 	var id:=local_id(persistent_id)
 	if id.is_empty():return {}
 	var person:=profile_for(id)
+	if person.is_empty():return {}
 	var dossier:=Dossiers.get_dossier(id)
 	if dossier.is_empty():return {}
 	# The identity dossier contains the person's fictional canon only. Host
@@ -567,7 +587,7 @@ func export_person(persistent_id: String) -> Dictionary:
 	return {"version":1,"id":persistent_id,"origin_population":str(person.origin_population),"revision":int(dossier.get("revision",1)),"dossier":dossier,"enrollment":person.get("enrollment",{}).duplicate(true),"learning":person.get("learning",{}).duplicate(true),"learning_weeks":person.get("learning_weeks",{}).duplicate(true),"attendance":{"count":int(person.attendance.get("count",0)),"events":person.attendance.get("events",[]).duplicate(),"courses":person.attendance.get("courses",{}).duplicate(true)},"digest":_digest(dossier)}
 
 func import_person(payload: Dictionary,source_peer:=0) -> Dictionary:
-	if profile_blocked or persistence_blocked:return {"ok":false,"error":"Local population storage is unavailable."}
+	if profile_blocked or persistence_blocked or not _dossier_owner_matches():return {"ok":false,"error":"Local population storage is unavailable."}
 	if JSON.stringify(payload).to_utf8_buffer().size()>300000:return {"ok":false,"error":"Profile exceeds size limit."}
 	var id:=str(payload.get("id",""))
 	var origin:=str(payload.get("origin_population",""))
@@ -659,6 +679,7 @@ static func _valid_metadata(person: Dictionary) -> bool:
 
 func record_learning(id: String,course: String,value: float,week:=0,concept_gain:=0.,persist:=true) -> Error:
 	if profile_blocked or persistence_blocked:return ERR_FILE_CORRUPT
+	if not _dossier_owner_matches():return ERR_UNAUTHORIZED
 	if not people.has(id) or course not in Programs.COURSES or not is_finite(value) or not is_finite(concept_gain) or week<0 or week>52:return ERR_INVALID_PARAMETER
 	var learned_courses: Dictionary=people[id].get_or_add("learning",{})
 	learned_courses[course]=maxf(float(learned_courses.get(course,0.)),clampf(value,0.,.35))
@@ -690,7 +711,7 @@ static func _valid_learning(progress: Variant,maximum: float,weekly: bool) -> bo
 
 func import_progress(payload: Dictionary) -> Dictionary:
 	var id:=local_id(str(payload.get("id","")))
-	if id.is_empty() or profile_blocked or persistence_blocked:return {"ok":false,"error":"A complete local identity is required before an update."}
+	if id.is_empty() or profile_blocked or persistence_blocked or not _dossier_owner_matches():return {"ok":false,"error":"A complete local identity is required before an update."}
 	var person: Dictionary=people[id]
 	if str(payload.get("origin_population",""))!=str(person.get("origin_population","")):return {"ok":false,"error":"Progress origin does not match the saved identity."}
 	if not _valid_learning(payload.get("learning",{}),.35,false) or not _valid_learning(payload.get("learning_weeks",{}),.25,true):return {"ok":false,"error":"Invalid NPC learning update."}
@@ -709,3 +730,6 @@ func import_progress(payload: Dictionary) -> Dictionary:
 		courses[course]=maxi(int(courses.get(course,0)),int(payload.attendance.courses[course]))
 	index[id]=_index_entry(person);dirty=true
 	return {"ok":save_population()==OK,"id":id,"persistent_id":str(person.persistent_id)}
+
+func _dossier_owner_matches() -> bool:
+	return Dossiers.host_identity==_host_profile

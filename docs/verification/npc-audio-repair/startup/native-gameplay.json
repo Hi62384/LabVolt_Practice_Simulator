@@ -1,0 +1,23 @@
+{
+  "adapter": "llvmpipe (LLVM 19.1.7, 256 bits)",
+  "display": "X11",
+  "failures": [],
+  "routes": [
+    {
+      "faculty_mounted": true,
+      "in_game": true,
+      "mode": "Singleplayer",
+      "online": false,
+      "player_enabled": true,
+      "room_code_received": false
+    },
+    {
+      "faculty_mounted": true,
+      "in_game": true,
+      "mode": "Host Game",
+      "online": true,
+      "player_enabled": true,
+      "room_code_received": true
+    }
+  ]
+}

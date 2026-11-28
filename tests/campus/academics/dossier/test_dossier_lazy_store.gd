@@ -30,6 +30,7 @@ func _initialize() -> void:
 		var id:="campus_student_"+(owner+str(number)).sha256_text().left(32)
 		var dossier:=Fixture.make(id,"Saved Student "+str(number))
 		dossier.version=1;dossier.revision=1;dossier.generation={"status":"complete"};dossier.subjects=["ELM253","MTH147"]
+		dossier.identity.origin_population="f".repeat(64) if number==0 else owner.sha256_text()
 		legacy.dossiers[id]=dossier
 	var text:=JSON.stringify(legacy)
 	write_file(path,text)
@@ -52,6 +53,7 @@ func _initialize() -> void:
 	population.load_population()
 	check(population.people.size()==24 and population.people.values().all(func(person):return person.get("dossier_ref",false)),"population recovers index rows without eager biographies")
 	check(Store.hydrated_count==0,"loading population and index does not hydrate dossiers")
+	check(population.people[id].origin_population=="f".repeat(64),"dossier-only recovery preserves a foreign student's original population")
 	for person in population.people.values():Store.queue(person)
 	check(Store.hydrated_count==0 and Store.jobs.is_empty(),"completed index entries never trigger re-generation or hydration")
 	var classmates:=population.available({},3,87,"ELM253")
@@ -91,5 +93,6 @@ func _initialize() -> void:
 	check(FileAccess.get_file_as_string(interrupted_path)==text,"interrupted migration preserves complete legacy authority")
 	DirAccess.remove_absolute(interrupted_path+".tmp")
 	check(Store.save()==OK,"migration resumes from already committed blobs")
+	check(not Store.publish({"identity":[]}).get("ok",true),"malformed generation identity is rejected before nested access")
 	print("DOSSIER_LAZY_STORE %s (%d checks)"%["PASS" if failures.is_empty() else "FAIL",checks])
 	quit(0 if failures.is_empty() else 1)

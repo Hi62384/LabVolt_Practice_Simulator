@@ -1,0 +1,49 @@
+{
+  "all_passed": true,
+  "separate_processes": true,
+  "isolated_user_data_not_included": true,
+  "results": [
+    {
+      "test": "network",
+      "runner": "tests/campus/academics/run_student_population_network.py",
+      "exit_code": 0,
+      "passed": true,
+      "evidence": [
+        "POPULATION_NETWORK_SERVER PASS",
+        "POPULATION_NETWORK_CLIENT PASS own relationship, learning, mood and incremental update persisted",
+        "STUDENT_POPULATION_NETWORK PASS /tmp/labvolt-population-network-iujqezu0"
+      ]
+    },
+    {
+      "test": "departure",
+      "runner": "tests/campus/academics/run_student_population_departure.py",
+      "exit_code": 0,
+      "passed": true,
+      "evidence": [
+        "host/server: DEPARTURE_TIMING host 61ms saved=true",
+        "host/server: STUDENT_DEPARTURE_HOST_SERVER PASS",
+        "host/client: STUDENT_DEPARTURE_HOST_CLIENT PASS",
+        "client/server: STUDENT_DEPARTURE_CLIENT_SERVER PASS",
+        "client/client: STUDENT_DEPARTURE_CLIENT_CLIENT PASS",
+        "paused/server: DEPARTURE_TIMING paused 57ms saved=true",
+        "paused/server: STUDENT_DEPARTURE_PAUSED_SERVER PASS",
+        "paused/client: STUDENT_DEPARTURE_PAUSED_CLIENT PASS",
+        "timeout/server: DEPARTURE_TIMING timeout 2021ms saved=false",
+        "timeout/server: STUDENT_DEPARTURE_TIMEOUT_SERVER PASS",
+        "timeout/client: STUDENT_DEPARTURE_TIMEOUT_CLIENT PASS",
+        "STUDENT_POPULATION_DEPARTURE PASS /tmp/labvolt-population-departure-pnudzn8e"
+      ]
+    },
+    {
+      "test": "process_restart",
+      "runner": "tests/campus/academics/dossier/run_dossier_process_restart.py",
+      "exit_code": 0,
+      "passed": true,
+      "evidence": [
+        "{\"phase\": \"write\", \"exit_code\": 0, \"passed\": true, \"evidence\": [\"DOSSIER_PROCESS_RESTART PASS phase=write pid=14 synthetic_fixture_only\"]}",
+        "{\"phase\": \"read\", \"exit_code\": 0, \"passed\": true, \"evidence\": [\"DOSSIER_PROCESS_RESTART PASS phase=read pid=54 synthetic_fixture_only\"]}"
+      ]
+    }
+  ],
+  "engine": "Godot 4.7.2.stable.official.ed1daf0bf Linux x86_64"
+}

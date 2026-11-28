@@ -1,0 +1,52 @@
+{
+  "captured_at_utc": "2026-11-28T04:51:54.121401+00:00",
+  "environment": "Linux, Godot 4.5.1 Mono, isolated test data",
+  "results": [
+    {
+      "test": "test_microphone_capture_lifecycle.gd",
+      "status": "PASS",
+      "log": "capture-lifecycle.log",
+      "scope": "Synthetic tone through real AudioServer bus, capture effect, shared subscriptions and C# voice activity"
+    },
+    {
+      "test": "run_natural_voice_gameplay.py",
+      "status": "PASS",
+      "checks": 22,
+      "failures": 0,
+      "log": "natural-voice-gameplay.log",
+      "scope": "Actual Main scene; injected PCM; loopback HTTP provider; menu, targeting, STT envelope, memory, positional playback, PTT/manual paths, mute and range gates"
+    },
+    {
+      "test": "test_session_graceful_lifecycle.gd",
+      "status": "PASS",
+      "log": "session-graceful-lifecycle.log",
+      "scope": "Offline leave, coalesced repeated leave and replacement-connection race"
+    },
+    {
+      "test": "run_student_population_departure.py",
+      "status": "PASS",
+      "cases": [
+        "host",
+        "client",
+        "paused",
+        "timeout"
+      ],
+      "logs": "departure/",
+      "host_ack_ms": 57,
+      "paused_ack_ms": 50,
+      "unresponsive_timeout_ms": 2012,
+      "scope": "Two independent actual Session/ENet processes; recipient reopens durable memory after last event"
+    }
+  ],
+  "expected_environment_errors": [
+    "Three Windows-only CEF extension loading messages per Linux Godot process"
+  ],
+  "not_verified": [
+    "Physical microphone capture or OS permission behavior",
+    "Live OpenAI transcription, reasoning or speech",
+    "Perceived speech or custom-voice quality",
+    "Windows execution; tunnel remained offline",
+    "Delivery after abrupt physical/network loss"
+  ],
+  "privacy": "Only test logs and this summary are retained. No user-data directories, credentials, voice recordings or real participant data are included."
+}

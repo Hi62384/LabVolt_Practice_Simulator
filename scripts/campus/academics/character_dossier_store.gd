@@ -23,12 +23,20 @@ static var unavailable: Dictionary = {}
 
 static func set_host_profile(identity: String) -> Error:
 	if identity.is_empty() or identity.length() > 128: return ERR_INVALID_PARAMETER
-	if identity == host_identity and not path.is_empty(): return OK
+	if identity == host_identity and not path.is_empty():
+		if dirty and last_save_error!=OK:
+			var before:=_read(path)
+			var retried:=save()
+			if retried==OK and int(before.get("version",0))==VERSION:
+				var migrated:=_read(path)
+				if not migrated.is_empty():dossiers=migrated.dossiers;_projection_cache.clear()
+			return retried
+		return ERR_FILE_CORRUPT if blocked else OK
 	if dirty and not path.is_empty():
 		var error := save()
 		if error != OK:
 			# Preserve an unsaved owner namespace rather than leak it to another host.
-			if _session_cache.size() >= 8 and not _session_cache.has(host_identity): return error
+			if _session_cache.size() >= 8 and not _session_cache.has(host_identity) and not _session_cache.has(identity): return error
 			var total_bytes:=JSON.stringify({"dossiers":dossiers,"jobs":jobs}).to_utf8_buffer().size()
 			for cached_id in _session_cache:
 				if cached_id not in [host_identity,identity]: total_bytes+=JSON.stringify(_session_cache[cached_id]).to_utf8_buffer().size()
@@ -192,6 +200,8 @@ static func update_job(id: String, job: Dictionary) -> void:
 
 static func publish(candidate: Dictionary, seed: Dictionary = {}, telemetry: Dictionary = {}) -> Dictionary:
 	if blocked: return {"ok": false, "error": "Dossier persistence is blocked."}
+	if not candidate.get("identity") is Dictionary:return {"ok":false,"error":"Dossier identity must be an object."}
+	if not _valid_storage_metadata(seed) or not seed.get("identity",{}) is Dictionary:return {"ok":false,"error":"Invalid saved identity seed metadata."}
 	var id := str(candidate.get("identity",{}).get("id",""))
 	if dossiers.has(id):
 		seed=get_dossier(id)
@@ -308,6 +318,7 @@ static func _read(source: String) -> Dictionary:
 			if not d is Dictionary or not _valid_entry(str(id),d):return {}
 			continue
 		if not d is Dictionary or not d.get("identity") is Dictionary or d.identity.get("id") != id: return {}
+		if not _valid_storage_metadata(d):return {}
 		for field in ["personality", "communication", "traits", "knowledge", "voice", "generation"]:
 			if not d.get(field) is Dictionary: return {}
 		if not d.get("life_history") is Array or not d.communication.get("examples") is Array: return {}
@@ -340,7 +351,7 @@ static func _read(source: String) -> Dictionary:
 				if not example is String or example.length()>1800: return {}
 		if job.has("canon_communication_description") and not job.canon_communication_description is bool: return {}
 		if JSON.stringify(job.get("draft",{})).to_utf8_buffer().size()>Dossier.MAX_BYTES: return {}
-		if job.has("seed") and (not job.seed is Dictionary or not job.seed.get("identity") is Dictionary or job.seed.identity.get("id")!=id): return {}
+		if job.has("seed") and (not job.seed is Dictionary or not job.seed.get("identity") is Dictionary or job.seed.identity.get("id")!=id or not _valid_storage_metadata(job.seed)): return {}
 	return parsed
 
 static func _digest(value: Variant) -> bool:
@@ -373,6 +384,7 @@ static func _storage_bytes() -> int:
 	return bytes
 
 static func _entry(dossier: Dictionary,blob: String,bytes: int) -> Dictionary:
+	if not _valid_storage_metadata(dossier):return {}
 	var identity: Dictionary=dossier.get("identity",{})
 	var compact_identity:={}
 	for field in ["id","name","age","role","program"]:compact_identity[field]=identity.get(field,"" if field!="age" else 18)
@@ -405,8 +417,11 @@ static func _read_blob(source: String,id: String,digest: String) -> Dictionary:
 	if file.get_length()>Dossier.MAX_BYTES:file.close();return {}
 	var serialized:=file.get_as_text();file.close()
 	if serialized.sha256_text()!=digest:return {}
-	var raw: Variant=JSON.parse_string(serialized)
+	var parser:=JSON.new()
+	if parser.parse(serialized)!=OK:return {}
+	var raw: Variant=parser.data
 	if not raw is Dictionary or not raw.get("identity") is Dictionary or raw.identity.get("id")!=id:return {}
+	if not _valid_storage_metadata(raw):return {}
 	return raw if Dossier.validate(raw,{},false).get("ok",false) else {}
 
 static func _blob_path(digest: String) -> String:
@@ -434,7 +449,7 @@ static func _load_blob(id: String,entry: Dictionary) -> Dictionary:
 	return loaded
 
 static func _store_blob(id: String,dossier: Dictionary) -> Dictionary:
-	if not dossier.get("identity") is Dictionary or dossier.identity.get("id")!=id or not Dossier.validate(dossier,{},false).get("ok",false):last_save_error=ERR_INVALID_DATA;return {}
+	if not _valid_storage_metadata(dossier) or not dossier.get("identity") is Dictionary or dossier.identity.get("id")!=id or not Dossier.validate(dossier,{},false).get("ok",false):last_save_error=ERR_INVALID_DATA;return {}
 	var serialized:=JSON.stringify(dossier,"",true)
 	var digest:=serialized.sha256_text()
 	var source:=_blob_path(digest)
@@ -457,8 +472,33 @@ static func _store_blob(id: String,dossier: Dictionary) -> Dictionary:
 	last_save_error=DirAccess.copy_absolute(source,source+".bak")
 	return entry if last_save_error==OK else {}
 
+static func _valid_storage_metadata(dossier: Dictionary) -> bool:
+	# Dossier.validate covers fictional identity content. Storage/projection
+	# metadata has its own shape checks before get/duplicate/integer conversion.
+	if not _whole(dossier.get("version",VERSION),VERSION,VERSION) or not _whole(dossier.get("revision",1),1,1000000000):return false
+	if not dossier.get("generation",{}) is Dictionary:return false
+	var generation: Dictionary=dossier.get("generation",{})
+	if generation.get("status","needs_expansion") not in ["needs_expansion","complete"] or not generation.get("measurement",{}) is Dictionary:return false
+	var subjects: Variant=dossier.get("subjects",[])
+	if not subjects is Array or subjects.size()>128:return false
+	for subject in subjects:
+		if not subject is String or subject.length()>256:return false
+	for field in ["established_biography","trait_constraints","provenance"]:
+		if not dossier.get(field,{}) is Dictionary:return false
+	for topic in dossier.get("established_biography",{}):
+		if not (topic is String or topic is StringName) or str(topic).length()>96 or not dossier.established_biography[topic] is String or dossier.established_biography[topic].length()>16000:return false
+	for trait_key in dossier.get("trait_constraints",{}):
+		var bounds: Variant=dossier.trait_constraints[trait_key]
+		if not (trait_key is String or trait_key is StringName) or not bounds is Array or bounds.size()!=2:return false
+		for value in bounds:
+			if not (value is float or value is int) or not is_finite(float(value)) or float(value)<0. or float(value)>1.:return false
+		if float(bounds[0])>float(bounds[1]):return false
+	if not dossier.get("design_specification","") is String:return false
+	return true
+
 static func import_identity(incoming: Dictionary) -> Dictionary:
 	if blocked or path.is_empty():return {"ok":false,"error":"Character storage is unavailable."}
+	if not _valid_storage_metadata(incoming):return {"ok":false,"error":"Contributed dossier has invalid storage metadata."}
 	var validation:=Dossier.validate(incoming,{},false)
 	if not validation.get("ok",false):return {"ok":false,"error":"Contributed dossier failed schema validation."}
 	var id:=str(incoming.identity.id)

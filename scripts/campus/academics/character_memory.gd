@@ -894,13 +894,13 @@ func export_social_record(id: String,identity: String) -> Dictionary:
 
 func valid_social_record(id: String,identity: String,snapshot: Dictionary) -> bool:
 	var key:=_key(id,identity)
-	if key.is_empty() or JSON.stringify(snapshot).to_utf8_buffer().size()>262144:return false
+	if key.is_empty():return false
 	if not snapshot.get("relationship") is Dictionary or not snapshot.get("decision",{}) is Dictionary:return false
 	for field in snapshot:
 		if field not in ["relationship","decision"]:return false
 	if not _validate_relationships({key:snapshot.relationship}).get("ok",false):return false
 	var decision: Dictionary=snapshot.get("decision",{})
-	return _valid_character_states({"version":1,"moods":{},"disengagements":{key:decision} if not decision.is_empty() else {}})
+	return _valid_character_states({"version":1,"moods":{},"disengagements":{key:decision} if not decision.is_empty() else {}}) and JSON.stringify(snapshot).to_utf8_buffer().size()<=262144
 
 func import_social_record(id: String,identity: String,snapshot: Dictionary,replace_causal:=false) -> bool:
 	if not valid_social_record(id,identity,snapshot):return false
@@ -990,8 +990,8 @@ func export_mood_record(id: String) -> Dictionary:
 	return safe if _valid_character_states({"version":1,"moods":{id:safe},"disengagements":{}}) else {}
 
 func valid_mood_record(id: String,incoming: Dictionary) -> bool:
-	if id.is_empty() or id.length()>64 or JSON.stringify(incoming).to_utf8_buffer().size()>16000:return false
-	return _valid_character_states({"version":1,"moods":{id:incoming},"disengagements":{}})
+	if id.is_empty() or id.length()>64:return false
+	return _valid_character_states({"version":1,"moods":{id:incoming},"disengagements":{}}) and JSON.stringify(incoming).to_utf8_buffer().size()<=16000
 
 func import_mood_record(id: String,incoming: Dictionary,replace_causal:=false) -> bool:
 	if not valid_mood_record(id,incoming):return false

@@ -1,0 +1,7 @@
+{
+  "adapter": "llvmpipe (LLVM 19.1.7, 256 bits)",
+  "audio_hardware": false,
+  "display": "X11",
+  "failures": [],
+  "live_api": false
+}

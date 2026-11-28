@@ -101,7 +101,8 @@ func run() -> void:
  game.host_openai.enabled=true
  faculty.present_class_call("ac_lab","jeff",1)
  assert(faculty.class_calls.has("ac_lab") and faculty.speech_player.subtitles.has("ac_lab"))
- var text: String=faculty.reaction_labels.ac_lab.text
+ var text: String=faculty.speech_player.subtitles.ac_lab.item.text
+ assert(faculty.reaction_labels.is_empty(),"Class prompts use the subtitle HUD without a floating world-space speech label")
  assert(text.contains("answer") or text.contains("reasoning") or text.contains("method"))
  assert(not text.contains("mA") and not text.contains("correct value"))
  var serial:=int(faculty.speech_player.last_serial.ac_lab)

@@ -61,7 +61,8 @@ func run():
  assert(not lab.powered and not str(lab.readings.get("fault","")).is_empty())
  game.session.academic_equipment_observer.call(1,0,{"op":"power"},before_fault)
  assert(game.faculty.brain.incidents.has("mr_phillips:"+identity))
- assert(game.faculty.reaction_labels.has("ac_lab"))
+ assert(game.faculty.speech_player.subtitles.has("ac_lab"))
+ assert(game.faculty.reaction_labels.is_empty(),"Hazard speech uses the subtitle HUD without a world-space speech label")
  assert(game.faculty.attention.has("ac_lab"))
  var model: Node3D=game.faculty.attention.ac_lab.model
  var before: float=model.rotation.y
@@ -70,7 +71,8 @@ func run():
  game.faculty.attention.ac_lab.until=0
  for i in 40:game.faculty._process(.1)
  assert(not game.faculty.attention.has("ac_lab"))
- assert(game.faculty.reaction_labels.ac_lab.text.contains("circuit") or game.faculty.reaction_labels.ac_lab.text.contains("fault"))
+ var warning: String=game.faculty.speech_player.subtitles.ac_lab.item.text
+ assert(warning.contains("circuit") or warning.contains("fault"))
  var room="elm253_lecture"
  # This fixture supplies a synthetic class only for faculty perception; do not
  # let the real class scheduler advance or publish it between assertions.

@@ -1,0 +1,57 @@
+[
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 1.39,
+    "markers": [
+      "STUDENT_POPULATION_BINDING PASS checks=23 failures=0"
+    ],
+    "test": "test_student_population_binding"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.81,
+    "markers": [
+      "CHARACTER_MEMORY_RESILIENCE PASS checks=54"
+    ],
+    "test": "test_character_memory_resilience"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 1.0,
+    "markers": [
+      "CHARACTER_PUBLIC_AFFECT PASS: actual public profile, 600 recovery frames, private traits absent, full-profile behavior preserved"
+    ],
+    "test": "test_character_public_affect"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 12.29,
+    "markers": [
+      "TEACHER_SPEECH_INTEGRATION PASS (fixture audio; no teacher voice asset)"
+    ],
+    "test": "test_teacher_speech_integration"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 13.32,
+    "markers": [
+      "STUDENT_WORLD_INTEGRATION PASS"
+    ],
+    "test": "test_student_world_integration"
+  }
+]

@@ -77,7 +77,7 @@ func receive(entry: Dictionary,merged_snapshot: Dictionary) -> bool:
 static func valid(entry: Dictionary) -> bool:
 	if entry.get("version")!=1 or not entry.get("character") is String or not entry.get("player") is String:return false
 	if entry.character.length()>64 or entry.player.length()>64 or entry.character.is_empty() or entry.player.is_empty():return false
-	if not entry.get("snapshot") is Dictionary or JSON.stringify(entry).to_utf8_buffer().size()>300000:return false
+	if not entry.get("snapshot") is Dictionary:return false
 	if not entry.get("parents") is Array or entry.parents.size()>64:return false
 	for digest in entry.parents:
 		if not digest is String or digest.length()!=64:return false
@@ -85,6 +85,7 @@ static func valid(entry: Dictionary) -> bool:
 	if entry.player=="_npc_mood":
 		if entry.snapshot.size()!=1 or not entry.snapshot.get("mood") is Dictionary or not _validator.valid_mood_record(entry.character,entry.snapshot.mood):return false
 	elif not _validator.valid_social_record(entry.character,entry.player,entry.snapshot):return false
+	if JSON.stringify(entry).to_utf8_buffer().size()>300000:return false
 	return str(entry.get("digest",""))==digest(entry.snapshot)
 
 func save() -> Error:

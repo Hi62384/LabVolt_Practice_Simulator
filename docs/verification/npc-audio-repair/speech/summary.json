@@ -1,0 +1,91 @@
+{
+  "live_api": false,
+  "audio_hardware": false,
+  "voice_listening": false,
+  "platform_note": "Windows CEF extension unavailable in Linux; exact three loader diagnostics separately recorded. All other errors fail.",
+  "cases": [
+    {
+      "case": "academics/test_character_voice_identity",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 0.63
+    },
+    {
+      "case": "academics/test_custom_voice_recovery",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 0.54
+    },
+    {
+      "case": "academics/test_teacher_speech_synth",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 0.54
+    },
+    {
+      "case": "academics/test_teacher_speech_player",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 0.34
+    },
+    {
+      "case": "academics/test_voice_speech_scheduler",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 0.91
+    },
+    {
+      "case": "academics/test_voice_audio_dsp",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 0.34
+    },
+    {
+      "case": "academics/test_teacher_speech_long_delivery",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 1.65
+    },
+    {
+      "case": "academics/test_character_voice_studio",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 3.15,
+      "final_log": "test_character_voice_studio.log"
+    },
+    {
+      "case": "ai/test_speech_transcript",
+      "passed": true,
+      "exit_code": 0,
+      "unexpected_errors": [],
+      "expected_platform_errors": 3,
+      "seconds": 0.34,
+      "final_log": "test_speech_transcript.log",
+      "equivalence_and_rejection_cases": 38
+    },
+    {
+      "case": "academics/test_portable_character_voice",
+      "passed": true,
+      "expected_platform_errors": 3,
+      "unexpected_errors": [],
+      "exit_code": 0,
+      "final_log": "labvolt-portable-voice.log"
+    }
+  ]
+}

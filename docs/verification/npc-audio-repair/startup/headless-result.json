@@ -1,0 +1,18 @@
+{
+  "repository": "/workspace/scratch/7f32e8e61d53/LabVolt",
+  "relay": "actual relay/worker.mjs through local Wrangler and DurableObject",
+  "headless": true,
+  "relay_ready": true,
+  "pass_found": true,
+  "expected_pass": "MENU_ROUTES PASS",
+  "unexpected_errors": [],
+  "known_environment_errors": [
+    "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+    "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+    "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+  ],
+  "exit_code": 0,
+  "game_seconds": 16.59099843199965,
+  "passed": true,
+  "total_seconds": 18.48143980199984
+}
