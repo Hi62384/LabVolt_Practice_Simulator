@@ -142,6 +142,7 @@ func build(owner: Node) -> void:
  speech_player.playback_started.connect(_character_audio_started)
  speech_synth=SpeechSynth.new();speech_synth.name="TeacherSpeechSynth";add_child(speech_synth)
  speech_synth.completed.connect(_speech_completed)
+ speech_synth.pcm_ready.connect(_speech_pcm_ready)
  speech_synth.segment_completed.connect(_speech_segment_completed)
  speech_synth.configure_provider(game.host_openai)
  shared_microphone=preload("res://scripts/campus/voice/microphone_capture.gd").shared(self)
@@ -2701,12 +2702,14 @@ func _mark_character_response_ready(result: Dictionary) -> void:
  var prepared: Dictionary=result.get("prepared",{})
  if prepared.get("extra",{}).get("_timing") is Dictionary:
   prepared.extra._timing.host_text_ready_ms=Time.get_ticks_msec()
+  var interpretation: Dictionary=result.get("turn",{}).get("interpretation",{})
+  prepared.extra._timing.stream_safe=str(prepared.activity.get("phase",""))!="assignment" and str(interpretation.get("question_kind","")) in ["casual","opinion"] and str(interpretation.get("domain","")) in ["","conversation","social","personal","general"] and str(interpretation.get("event","")) not in ["hazard","threat","help"] and not bool(prepared.extra.get("official_communication",false))
 
 func _track_character_audio(room: String,serial: int,event_id: String,timing: Dictionary) -> void:
  if not multiplayer.is_server() or event_id.is_empty() or not timing.has("host_received_ms"):return
  var key:=room+":"+str(serial)
  if not speech_turn_timings.has(key) and speech_turn_timings.size()>=128:speech_turn_timings.erase(speech_turn_timings.keys()[0])
- speech_turn_timings[key]={"event_id":event_id,"host_received_ms":int(timing.host_received_ms)}
+ speech_turn_timings[key]={"event_id":event_id,"host_received_ms":int(timing.host_received_ms),"stream_safe":bool(timing.get("stream_safe",false))}
 
 func _character_audio_ready(room: String,serial: int) -> void:
  _note_character_audio(room,serial,"audio_ready",Time.get_ticks_msec())
@@ -2885,6 +2888,9 @@ func _request_reaction_audio(channel: String,serial: int,id: String,text: String
   _speech_completed.call_deferred(channel,serial,key,stream,"ok");return
  delivery=delivery.duplicate(true)
  delivery.erase("segmented");delivery.erase("sentence_mode");delivery.erase("prefetch_turn")
+ delivery.early_stream=bool(timing.get("stream_safe",false)) and RegEx.create_from_string("[0-9=+*/%]|\\b(?:volts?|amps?|ohms?|watts?|hazard|danger|emergency|exam|assessment)\\b").search(text.to_lower())==null
+ var route: Dictionary=speech_routes.get(_voice_key(channel,serial),{})
+ if not route.is_empty():route.live_delivery={"projection":delivery.get("projection","normal"),"intensity":delivery.get("intensity",.5)}
  speech_synth.discard_prefetch(owner)
  var result: String=speech_synth.request(channel,serial,id,text,key,priority,delivery)
  if result not in ["queued","duplicate","cached"]:
@@ -2929,6 +2935,37 @@ func _speech_route_recipient(peer: int,route: Dictionary) -> bool:
   if not is_instance_valid(anchor) or game.lecture_classes._position(peer).distance_to(anchor.global_position)>max_range:return false
  return true
 
+func _speech_pcm_ready(channel: String,serial: int,offset: int,pcm: PackedByteArray) -> void:
+ var token:=_voice_key(channel,serial)
+ var route: Dictionary=speech_routes.get(token,{})
+ if not _speech_route_current(channel,serial,route):return
+ if pcm.is_empty() or pcm.size()>12000 or pcm.size()%2!=0:return
+ if offset==0:
+  _character_audio_ready(channel,serial)
+  route.live_peers=[]
+  for peer in route.get("peers",[]):
+   if _speech_route_recipient(int(peer),route):route.live_peers.append(int(peer))
+  route.live_local=speech_player.append_live_pcm(channel,serial,offset,pcm,route.get("live_delivery",{}))
+ elif bool(route.get("live_local",false)):
+  if not speech_player.append_live_pcm(channel,serial,offset,pcm,route.get("live_delivery",{})):
+   speech_player.finish_live_pcm(channel,serial,false)
+   route.live_local=false;route.live_local_failed=true
+ for peer in route.get("live_peers",[]):
+  if _speech_route_recipient(int(peer),route):_voice_live_pcm.rpc_id(int(peer),channel,serial,offset,pcm,route.get("live_delivery",{}))
+  elif game.session.online and game.session.peer_connected_now(int(peer)):_voice_cancel.rpc_id(int(peer),channel,serial)
+
+@rpc("authority","call_remote","reliable")
+func _voice_live_pcm(channel: String,serial: int,offset: int,pcm: PackedByteArray,delivery: Dictionary) -> void:
+ if not pending_voice.has(_voice_key(channel,serial)) or pcm.size()>12000:return
+ speech_player.append_live_pcm(channel,serial,offset,pcm,delivery)
+
+@rpc("authority","call_remote","reliable")
+func _voice_live_end(channel: String,serial: int,success: bool) -> void:
+ if not pending_voice.has(_voice_key(channel,serial)):return
+ pending_voice.erase(_voice_key(channel,serial))
+ if not speech_player.finish_live_pcm(channel,serial,success):
+  speech_player.fail_stream(channel,serial,"Speech unavailable; written dialogue preserved.")
+
 func _speech_completed(channel: String,serial: int,key: String,stream: AudioStreamWAV,status: String) -> void:
  if not is_instance_valid(speech_player):return
  var token:=_voice_key(channel,serial)
@@ -2942,6 +2979,9 @@ func _speech_completed(channel: String,serial: int,key: String,stream: AudioStre
    if game.session.online and game.session.peer_connected_now(int(peer)):_voice_cancel.rpc_id(int(peer),channel,serial)
   return
  if status!="ok" or stream==null:
+  if route.get("live_local",false):speech_player.finish_live_pcm(channel,serial,false)
+  for peer in route.get("live_peers",[]):
+   if _speech_route_recipient(int(peer),route):_voice_live_end.rpc_id(int(peer),channel,serial,false)
   if route.get("segmented",false) and int(route.get("sending",0))>0:
    route.final_failure=status;route.generation_complete=true
    speech_player.fail_stream(channel,serial,status)
@@ -2961,11 +3001,15 @@ func _speech_completed(channel: String,serial: int,key: String,stream: AudioStre
   route.generation_complete=true
   if int(route.get("sending",0))==0:speech_routes.erase(token)
   return
- _character_audio_ready(channel,serial)
- speech_player.deliver_stream(channel,serial,stream)
+ if route.get("live_local",false):speech_player.finish_live_pcm(channel,serial,true)
+ elif not route.get("live_local_failed",false):
+  _character_audio_ready(channel,serial)
+  speech_player.deliver_stream(channel,serial,stream)
  var available: Array=[]
  for peer in recipients:
-  if _speech_route_recipient(int(peer),route):available.append(int(peer))
+  if not _speech_route_recipient(int(peer),route):continue
+  if int(peer) in route.get("live_peers",[]):_voice_live_end.rpc_id(int(peer),channel,serial,true)
+  else:available.append(int(peer))
  route.sending=available.size()
  if available.is_empty():speech_routes.erase(token);return
  for peer in available:_send_voice_clip_to(int(peer),channel,serial,stream,route)

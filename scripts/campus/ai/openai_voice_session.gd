@@ -5,6 +5,7 @@ signal session_ready
 signal transcript_received(speaker: String, delta: String, start_ms: int, end_ms: int)
 signal delegation_requested(delegation_id: String, history: Array)
 signal audio_received(pcm: PackedByteArray)
+signal verified_pcm(offset: int,pcm: PackedByteArray)
 signal audio_segment_ready(pcm: PackedByteArray, text: String, utterance_id: String)
 signal speech_completed(result: Dictionary)
 signal failed(details: Dictionary)
@@ -77,6 +78,8 @@ var _match_expected:=""
 var _match_result:=false
 var _completion_mode:=""
 var reusable:=false
+var early_stream:=false
+var _published_bytes:=0
 var _idle_since:=0
 var _response_id:=""
 var _response_instructions:=""
@@ -154,6 +157,7 @@ func reuse(text: String,instructions: String,identity: String) -> Dictionary:
 	_render_finished=false;_render_result={};usage_observed=false;final_usage_confirmed=false
 	_response_instructions=instructions
 	_reset_output(text)
+	_published_bytes=0
 	state="ready"
 	_request_realtime_line()
 	return {"ok":true,"request_id":request_id}
@@ -256,7 +260,9 @@ func receive_event(event: Dictionary) -> void:
 			return
 		if response.get("status","")!="completed":
 			_complete_render(_error("The voice response was interrupted or incomplete."))
-		else:_validate_output()
+		else:
+			if early_stream and _matches_output():_publish_pcm()
+			_validate_output()
 		if reusable and bool(_render_result.get("ok",false)):
 			final_usage_confirmed=usage_observed
 			state="idle";_idle_since=Time.get_ticks_msec()
@@ -320,20 +326,44 @@ func receive_event(event: Dictionary) -> void:
 				_received_signal=true
 			elif _received_signal:_trailing_zero_bytes+=chunk.size()
 			if _has_voice(chunk):_last_voice_at=_last_audio_at
-			if not _live:audio_received.emit(chunk)
+			if not _live:
+				audio_received.emit(chunk)
+				if early_stream and _matches_output():_publish_pcm()
 		"response.output_audio_transcript.delta":
 			if _blocked:return
 			_transcript+=str(event.get("delta",""))
-			if _transcript.length()>MAX_TRANSCRIPT_CHARS:_fail(_error("The voice transcript exceeded its budget."))
+			if _transcript.length()>MAX_TRANSCRIPT_CHARS:_fail(_error("The voice transcript exceeded its budget."));return
+			if early_stream and prefix_matches(_expected_text,_transcript):_publish_pcm()
 		"response.output_audio_transcript.done":
-			if not _blocked:_transcript=str(event.get("transcript",_transcript))
+			if not _blocked:
+				_transcript=str(event.get("transcript",_transcript))
+				if early_stream and _matches_output():_publish_pcm()
+
+# For conversational speech only: exact textual prefix, not fuzzy similarity.
+# No timestamps are promised by this API; technical/assessment speech uses
+# the existing complete transcript check before any audio is delivered.
+static func prefix_matches(expected: String,actual: String) -> bool:
+	var pattern:=RegEx.create_from_string("[^\\p{L}0-9']+")
+	var wanted:=pattern.sub(expected.to_lower().replace("’","'")," ",true).strip_edges()
+	var heard:=pattern.sub(actual.to_lower().replace("’","'")," ",true).strip_edges()
+	return heard.length()>=3 and wanted.begins_with(heard) and (heard.contains(" ") or heard==wanted)
+
+func _publish_pcm() -> void:
+	if _blocked or not early_stream:return
+	while _published_bytes<_pcm.size():
+		var offset:=_published_bytes
+		var end:=mini(offset+12000,_pcm.size())
+		_published_bytes=end
+		verified_pcm.emit(offset,_pcm.slice(offset,end))
+		if _blocked:return
 
 func _request_realtime_line() -> void:
 	# Out-of-band rendering: no prior NPC text, microphone or conversation state.
-	_response_pending=_send({"type":"response.create","event_id":request_id+"_speak","response":{
-		"conversation":"none","metadata":{"request_id":request_id},"output_modalities":["audio"],
+	var response:={"conversation":"none","metadata":{"request_id":request_id},"output_modalities":["audio"],
 		"instructions":str(_config.instructions)+" "+_response_instructions,
-		"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":_expected_text}]}]}})
+		"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":_expected_text}]}]}
+	if model.begins_with("gpt-realtime-2"):response.reasoning={"effort":"minimal" if early_stream else "low"}
+	_response_pending=_send({"type":"response.create","event_id":request_id+"_speak","response":response})
 	if not _response_pending:_fail(_error("Could not submit the speech request."))
 
 func _cancel_realtime_response() -> void:

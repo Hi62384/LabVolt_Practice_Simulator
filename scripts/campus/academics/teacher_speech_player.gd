@@ -8,6 +8,9 @@ signal channel_resumed(channel: String)
 const Speech=preload("res://scripts/campus/academics/character_speech.gd")
 const Face=preload("res://scripts/campus/academics/character_face.gd")
 const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
+const LiveBuffer=preload("res://scripts/campus/voice/realtime_speech_buffer.gd")
+var live_buffers: Dictionary={}
+const MAX_LIVE_BUFFERS:=8
 const MAX_QUEUED:=24
 const MAX_TEXT:=Speech.MAX_TEXT
 const MAX_SEGMENTS:=Speech.MAX_SEGMENTS
@@ -43,6 +46,8 @@ func configure(speech: bool,captions: bool) -> void:
 	if disabling:
 		for channel in active.keys():
 			var item: Dictionary=active[channel].item
+			if item.has("live_buffer"):
+				cancel_utterance(channel,int(item.serial));continue
 			item.resume_seconds=active[channel].player.get_playback_position()
 			_stop(channel)
 			if not bool(item.options.get("authoritative_audio",false)):item.stream=null
@@ -144,6 +149,7 @@ func cancellation_revision(channel: String) -> int:return int(cancel_revisions.g
 func was_cancelled(channel: String,serial: int) -> bool:return cancelled_serials.has(channel+"|"+str(serial))
 
 func cancel_utterance(channel: String,serial: int) -> void:
+	live_buffers.erase(channel+"|"+str(serial))
 	cancelled_serials[channel+"|"+str(serial)]=true
 	while cancelled_serials.size()>512:cancelled_serials.erase(cancelled_serials.keys()[0])
 	_erase_pending(channel,serial)
@@ -161,6 +167,8 @@ func cancel_utterance(channel: String,serial: int) -> void:
 	if current:_advance_queue(channel)
 
 func cancel(channel: String) -> void:
+	for key in live_buffers.keys():
+		if str(key).begins_with(channel+"|"):live_buffers.erase(key)
 	cancel_revisions[channel]=cancellation_revision(channel)+1
 	_stop(channel)
 	queued.erase(channel);awaiting.erase(channel);presentations.erase(channel)
@@ -188,7 +196,8 @@ func pause_for_interruption(channel: String) -> bool:
 			snapshot.playback_position=player.get_playback_position()
 			# stop() also cancels a play scheduled for the next physics frame.
 			# stream_paused alone cannot pause that not-yet-started playback.
-			player.stop()
+			if snapshot.active.has("live_buffer"):player.stream_paused=true
+			else:player.stop()
 		_rest_mouth(snapshot.active)
 	if not snapshot.subtitle.is_empty() and is_instance_valid(snapshot.subtitle.get("label")):snapshot.subtitle.label.hide()
 	var stack: Array=suspended.get(channel,[]);stack.append(snapshot);suspended[channel]=stack
@@ -219,7 +228,7 @@ func resume_suspended(channel: String) -> bool:
 		var player: AudioStreamPlayer3D=snapshot.active.get("player")
 		if is_instance_valid(player):
 			active[channel]=snapshot.active;player.stream_paused=false
-			player.play(float(snapshot.get("playback_position",0.)))
+			if not active[channel].has("live_buffer"):player.play(float(snapshot.get("playback_position",0.)))
 			active[channel].mouth=_mouth(active[channel].item.anchor)
 		else:presentations.erase(channel)
 	if not snapshot.subtitle.is_empty() and is_instance_valid(snapshot.subtitle.get("label")):
@@ -271,6 +280,8 @@ func _start(channel: String,item: Dictionary) -> void:
 		_erase_completed_pending(channel,item)
 		return
 	if stream==null:
+		if can_play and item.has("live_buffer") and item.live_buffer.ready():
+			_start_live(channel,item);return
 		if waiting:return
 		if caption:_show_subtitle(channel,item,now,duration)
 		else:presentations[channel].until=now
@@ -311,6 +322,56 @@ func _start(channel: String,item: Dictionary) -> void:
 		item.segment_started=true
 		utterance_started.emit(channel,int(item.serial))
 		playback_started.emit(channel,int(item.serial),Time.get_ticks_msec())
+
+func append_live_pcm(channel: String,serial: int,offset: int,pcm: PackedByteArray,delivery: Dictionary={}) -> bool:
+	if not speech_enabled or not has_pending(channel,serial) or was_cancelled(channel,serial):return false
+	var item: Dictionary=awaiting[channel].items[serial]
+	if bool(item.options.get("muted",false)) or item.stream!=null:return false
+	var key:=channel+"|"+str(serial)
+	if not item.has("live_buffer"):
+		if offset!=0 or live_buffers.size()>=MAX_LIVE_BUFFERS:return false
+		item.live_buffer=LiveBuffer.new()
+		live_buffers[key]=item.live_buffer
+		item.options.delivery=delivery.duplicate(true)
+	if not item.live_buffer.append(offset,pcm):return false
+	if int(presentations.get(channel,{}).get("serial",-1))==serial and not active.has(channel) and item.live_buffer.ready():_start(channel,item)
+	return true
+
+func finish_live_pcm(channel: String,serial: int,success: bool) -> bool:
+	if not has_pending(channel,serial):return false
+	var item: Dictionary=awaiting[channel].items[serial]
+	if not item.has("live_buffer"):return false
+	if not success:
+		cancel_utterance(channel,serial)
+		return true
+	item.live_buffer.finished=true
+	if int(presentations.get(channel,{}).get("serial",-1))==serial and not active.has(channel):_start(channel,item)
+	return true
+
+func _start_live(channel: String,item: Dictionary) -> void:
+	var identity:=str(item.options.get("character_id",item.teacher))
+	for other in active:
+		if other!=channel and str(active[other].item.options.get("character_id",active[other].item.teacher))==identity:
+			presentations[channel].blocked_speaker=true
+			return
+	var anchor: Node3D=item.anchor
+	var buffer: RefCounted=item.live_buffer
+	var player:=AudioStreamPlayer3D.new()
+	player.name="NpcStreamingSpeech";player.stream=buffer.create_stream();player.bus=Mixer.NPC_BUS
+	Mixer.configure_spatial(player,item.options.get("delivery",{}))
+	anchor.add_child(player)
+	var head:=anchor.find_child("Head",true,false) as Node3D
+	if is_instance_valid(head):player.global_position=head.global_position
+	Mixer.update_occlusion(player,anchor,get_viewport().get_camera_3d(),0.)
+	var now:=Time.get_ticks_msec()
+	active[channel]={"serial":item.serial,"priority":item.priority,"teacher":item.teacher,"player":player,"mouth":_mouth(anchor),"item":item,"base_db":0.,"occlusion_clock":0.,"live_buffer":buffer,"playback_reported":false}
+	presentations[channel].until=now+WAIT_MS+750
+	presentations[channel].started=now;presentations[channel].waiting=false
+	if subtitles_enabled and bool(item.options.get("show_subtitles",true)):
+		_show_subtitle(channel,item,now,maxi(2000,str(item.text).length()*65))
+		subtitles[channel].until=presentations[channel].until
+	player.play()
+	utterance_started.emit(channel,int(item.serial))
 
 func deliver_segment(channel: String,serial: int,stream: AudioStreamWAV,index: int,total: int,text: String) -> bool:
 	if not valid_stream(stream) or not has_pending(channel,serial) or total<2 or total>MAX_SEGMENTS or index<0 or index>=total or text.is_empty() or text.length()>MAX_TEXT:return false
@@ -363,6 +424,7 @@ static func _remaining_text(item: Dictionary,index: int) -> String:
 func deliver_stream(channel: String,serial: int,stream: AudioStreamWAV) -> bool:
 	if not valid_stream(stream) or not has_pending(channel,serial):return false
 	var item: Dictionary=awaiting[channel].items[serial]
+	if item.has("live_buffer"):return false
 	if not speech_enabled and not bool(item.options.get("authoritative_audio",false)):return false
 	if not is_instance_valid(item.anchor):_erase_pending(channel,serial);return false
 	item.stream=stream;item.expect_audio=false
@@ -373,6 +435,7 @@ func deliver_stream(channel: String,serial: int,stream: AudioStreamWAV) -> bool:
 func fail_stream(channel: String,serial: int,_reason: String="unavailable") -> bool:
 	if not has_pending(channel,serial):return false
 	var item: Dictionary=awaiting[channel].items[serial]
+	if item.has("live_buffer"):return finish_live_pcm(channel,serial,false)
 	item.expect_audio=false
 	if int(item.get("segment_count",0))>0:
 		item.segments_closed=true;item.segment_failure=true
@@ -405,7 +468,14 @@ func _process(delta: float) -> void:
 		if presentations.has(channel) and now>=int(presentations[channel].until):
 			_finished(channel,int(state.serial),false);continue
 		var mouth=state.get("mouth")
-		if is_instance_valid(mouth):
+		if state.has("live_buffer"):
+			var buffer: RefCounted=state.live_buffer
+			if buffer.pump(player):_finished(channel,int(state.serial));continue
+			if buffer.playback_at>=0 and not state.playback_reported:
+				state.playback_reported=true
+				playback_started.emit(channel,int(state.serial),int(buffer.playback_at))
+			if is_instance_valid(mouth):Face.speech_level(mouth,buffer.level(),delta)
+		elif is_instance_valid(mouth):
 			var level:=_pcm_level(player.stream,player.get_playback_position())
 			Face.speech_level(mouth,level,delta)
 		state.occlusion_clock=float(state.occlusion_clock)+delta
@@ -419,9 +489,9 @@ func _process(delta: float) -> void:
 		var progress:=clampf(float(now-int(subtitle.started))/maxf(1.,float(subtitle.duration)),0.,.9999)
 		if has_audio:
 			var player: AudioStreamPlayer3D=active[channel].player
-			progress=clampf(player.get_playback_position()/maxf(.1,player.stream.get_length()),0.,.9999)
+			progress=active[channel].live_buffer.progress(maxf(2.,str(subtitle.item.text).length()*.065)) if active[channel].has("live_buffer") else clampf(player.get_playback_position()/maxf(.1,player.stream.get_length()),0.,.9999)
 		if pages.size()>1:
-			var page_index:=_page_at(pages,progress)
+			var page_index:=maxi(int(subtitle.get("page",0)),_page_at(pages,progress))
 			if page_index!=int(subtitle.get("page",0)):
 				subtitle.page=page_index;subtitle.label.text=str(subtitle.item.teacher)+": "+str(pages[page_index])
 		if not has_audio and now>=int(subtitle.until):_clear_subtitle(channel)
@@ -447,7 +517,7 @@ func _process(delta: float) -> void:
 		var pending_items: Dictionary=awaiting[channel].items
 		for serial in pending_items.keys():
 			var item: Dictionary=pending_items[serial]
-			if now-int(item.accepted)>=WAIT_MS and not _is_suspended(channel,int(serial)):fail_stream(channel,int(serial),"timeout")
+			if now-int(item.accepted)>=WAIT_MS and not _is_suspended(channel,int(serial)) and not (item.has("live_buffer") and item.live_buffer.finished):fail_stream(channel,int(serial),"timeout")
 
 func _is_suspended(channel: String,serial: int) -> bool:
 	for snapshot in suspended.get(channel,[]):
@@ -482,6 +552,7 @@ static func _pcm_level(stream: AudioStreamWAV,seconds: float) -> float:
 func _finished(channel: String,serial: int,delivered: bool=true) -> void:
 	if not active.has(channel) or int(active[channel].serial)!=serial:return
 	var item: Dictionary=active[channel].item
+	live_buffers.erase(channel+"|"+str(serial))
 	_stop(channel);_clear_subtitle(channel)
 	if not delivered:item.segment_failure=true
 	if _advance_segment(channel,item):return
@@ -548,7 +619,7 @@ func _caption_current(channel: String) -> void:
 	var progress:=clampf(float(Time.get_ticks_msec()-int(presentation.started))/duration,0.,.9999)
 	if active.has(channel):
 		var player: AudioStreamPlayer3D=active[channel].player
-		progress=clampf(player.get_playback_position()/maxf(.1,player.stream.get_length()),0.,.9999)
+		progress=active[channel].live_buffer.progress(maxf(2.,str(item.text).length()*.065)) if active[channel].has("live_buffer") else clampf(player.get_playback_position()/maxf(.1,player.stream.get_length()),0.,.9999)
 	var page:=_page_at(subtitles[channel].pages,progress)
 	subtitles[channel].page=page
 	subtitles[channel].label.text=str(item.teacher)+": "+str(subtitles[channel].pages[page])
@@ -628,7 +699,7 @@ func _subtitle_score(channel: String,camera: Camera3D) -> float:
 		var player: AudioStreamPlayer3D=state.player
 		if not is_instance_valid(player) or not player.playing or player.stream_paused:return -INF
 		# Track the actual waveform, with a short release through natural gaps.
-		var peak:=_pcm_level(player.stream,player.get_playback_position())
+		var peak: float=state.live_buffer.level() if state.has("live_buffer") else _pcm_level(player.stream,player.get_playback_position())
 		var envelope:=maxf(peak,float(state.get("caption_envelope",0.))*.58)
 		state.caption_envelope=envelope
 		return Mixer.perceived_db(player,camera,envelope)

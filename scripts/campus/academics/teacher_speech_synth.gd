@@ -2,6 +2,7 @@ extends Node
 ## Bounded host speech scheduler. Provider failures never change vocal identity.
 ## The legacy process path is isolated behind explicit selection/test adapters.
 signal completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String)
+signal pcm_ready(room: String,serial: int,offset: int,pcm: PackedByteArray)
 signal segment_completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String,index: int,total: int,text: String)
 const Profiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
@@ -261,6 +262,7 @@ func _run_cloud(job: Dictionary) -> void:
 	job.delivery.request_id=str(job.request_id)+( "-retry-"+str(job.delivery.retry_count) if int(job.attempts)>1 else "")
 	var voice: Variant=job.delivery.get("voice","alloy")
 	job.delivery._audio_ready=_cloud_audio_ready.bind(job)
+	if bool(job.delivery.get("early_stream",false)):job.delivery._pcm_ready=_cloud_pcm_ready.bind(job)
 	var result: Dictionary=await _take_prefetched(job,0,str(job.text),job.delivery)
 	if result.is_empty():result=await provider.speak(str(job.text),{},voice,job.delivery)
 	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id):return
@@ -290,6 +292,11 @@ static func _safe_to_retry(result: Dictionary) -> bool:
 	# Retry only explicit rejection before generation, never an unknown outcome.
 	if bool(result.get("canceled",false)):return false
 	return int(result.get("status",0))==429 or str(result.get("code","")) in ["429","rate_limit_exceeded","queue_full"] or str(result.get("error","")).to_lower()=="busy"
+
+func _cloud_pcm_ready(offset: int,pcm: PackedByteArray,job: Dictionary) -> void:
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or bool(job.get("delivered",false)):return
+	for listener: Dictionary in cloud_keys.get(job.key,[]):
+		pcm_ready.emit(str(listener.room),int(listener.serial),offset,pcm)
 
 func _cloud_audio_ready(result: Dictionary,job: Dictionary) -> void:
 	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or bool(job.get("delivered",false)):return
