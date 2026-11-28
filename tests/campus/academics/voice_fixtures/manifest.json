@@ -1,0 +1,24 @@
+{
+  "source": "Original test phrases synthesized with CMU Flite slt via FFmpeg. No recordings of users.",
+  "format": "mono PCM16 WAV, 16000 Hz",
+  "fixtures": [
+    {
+      "file": "remember_nickname.wav",
+      "text": "My project nickname is Copper Comet. Please remember it.",
+      "sha256": "84f38d7d40064421e7d21bc69f7ccc15830713ecf5762850747ead01e0952a62",
+      "duration_seconds": 3.75
+    },
+    {
+      "file": "recall_nickname.wav",
+      "text": "What is my project nickname?",
+      "sha256": "f75cd03025cafc4256e80899f9260b7a9e35968a32917bd927c7ac210c44391f",
+      "duration_seconds": 2.24
+    },
+    {
+      "file": "technical_question.wav",
+      "text": "What is the difference between voltage and current?",
+      "sha256": "f5bdddc2a03f8161b51da20444615e9a6417acf39ed3f2b75e8fe3b8a30afe82",
+      "duration_seconds": 2.77
+    }
+  ]
+}

@@ -43,7 +43,7 @@ def main() -> int:
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     tests = [] if args.only_character else ["test_host_openai_client", "test_teacher_ai", "test_openai_evaluation"]
-    tests.extend(["test_character_http_transport", "test_character_background_http"])
+    tests.extend(["test_character_http_transport", "test_character_background_http", "test_text_stream_http"])
     summary = {"source": "actual loopback HTTP, authored provider fixture; not live AI", "tests": []}
     try:
         for test in tests:

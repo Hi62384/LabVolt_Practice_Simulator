@@ -25,6 +25,7 @@ var started_at := 0
 var last_frame_at := 0
 var owned_buses: Array[String] = []
 var draining := false
+var capture_epoch := 0
 
 static func shared(owner: Node) -> Node:
  var service := owner.get_tree().root.get_node_or_null("MicrophoneCapture")
@@ -103,9 +104,9 @@ func _sync_device() -> void:
  if not is_instance_valid(player):
   player=AudioStreamPlayer.new();player.name="SharedInputDevice";player.stream=AudioStreamMicrophone.new();add_child(player)
  player.bus=BUS;player.volume_db=0.0
- capture.clear_buffer();pending.clear();processor.Reset();activity.Reset()
+ capture.clear_buffer();pending.clear();processor.Reset();activity.Reset();capture_epoch+=1
  started_at=Time.get_ticks_msec();last_frame_at=0
- diagnostic.merge({"frames_received":0,"pcm_bytes":0,"discarded_frames":0,"speech":false,"rms":0.0,"stage":"starting","reason":"Starting microphone capture…","input_device":AudioServer.input_device},true)
+ diagnostic.merge({"frames_received":0,"pcm_bytes":0,"discarded_frames":0,"speech":false,"rms":0.0,"peak":0.0,"stage":"starting","reason":"Starting microphone capture…","input_device":AudioServer.input_device,"capture_epoch":capture_epoch,"initialization_ms":0,"first_frame_ms":-1},true)
  player.play()
  diagnostic.active=is_active()
  if not diagnostic.active:diagnostic.stage="failed";diagnostic.reason="The microphone stream could not start. Check the input device and Windows microphone permissions."
@@ -135,6 +136,12 @@ func finish_turn() -> void:
 func reset_turn() -> void:
  # Reset segmentation only; packet recording and other subscribers continue.
  activity.Reset()
+
+func begin_explicit_turn() -> void:
+ # A deliberate PTT press defines an utterance, even when quiet speech does
+ # not cross the automatic VAD threshold. Release ends it, not a quiet pause.
+ _drain_capture()
+ _emit_activity(activity.BeginExplicitTurn())
 
 func _process(delta: float) -> void:
  device_refresh += delta
@@ -167,6 +174,9 @@ func _drain_capture() -> void:
   var frames:=capture.get_buffer(count)
   if frames.is_empty():break
   last_frame_at=Time.get_ticks_msec()
+  if int(diagnostic.get("first_frame_ms",-1))<0:
+   diagnostic.first_frame_ms=last_frame_at
+   diagnostic.initialization_ms=last_frame_at-started_at
   diagnostic.frames_received=int(diagnostic.frames_received)+frames.size()
   diagnostic.last_frame_ms=last_frame_at
   var processed: Dictionary=processor.Process(frames,rate,float(preferences.get("teacher_mic_sensitivity",1.0)),bool(preferences.get("microphone_noise_gate",true)))

@@ -18,8 +18,27 @@ func _run() -> void:
 	var pcm:=PackedByteArray();pcm.resize(9600)
 	var wav:=TeacherAI.wav_16k(pcm)
 	for model in ["gpt-live-transcribe","gpt-realtime-whisper"]:
-		var transcript: Dictionary=await client.transcribe_wav(wav,{"stt_enabled":true,"modalities":{"stt":model}})
+		var request_id: String="diagnostic_"+model
+		var transcript: Dictionary=await client.transcribe_wav(wav,{"request_id":request_id,"stt_enabled":true,"modalities":{"stt":model},"_valid":func():return true,"_transcription_progress":func(_partial: String):pass})
 		assert(transcript.get("ok",false) and transcript.get("text")=="What is voltage?")
+		assert(transcript.get("request_id")==request_id)
+		var journal: Dictionary=client.request_journal[-1]
+		assert(journal.request_id==request_id and journal.purpose=="transcription")
+		# The transport's plural timings must survive the central journal's
+		# singular timing schema, including conversion and early delta evidence.
+		for field in ["conversion_ms","connected_ms","committed_ms","first_delta_ms","total_ms"]:
+			assert(transcript.get("timings",{}).has(field) and int(transcript.timings[field])>=0)
+			assert(transcript.get("timing",{}).get(field)==transcript.timings[field])
+			assert(journal.timing.get(field)==transcript.timings[field])
+		assert(journal.timing.has("queue_ms"))
+	var file_id:="diagnostic_file_stt"
+	var file_transcript: Dictionary=await client.transcribe_wav(wav,{"request_id":file_id,"stt_enabled":true,"modalities":{"stt":"gpt-transcribe"}})
+	assert(file_transcript.get("ok",false) and int(file_transcript.get("status",0))==200)
+	assert(file_transcript.request_id==file_id and not file_transcript.get("retryable",true))
+	assert(client.request_journal[-1].request_id==file_id and client.request_journal[-1].status==200)
+	assert(client.active_requests.is_empty() and int(client._lane_active.get("transcription",0))==0)
+	var saved:=FileAccess.get_file_as_string("user://host_openai.cfg")
+	assert(not saved.contains("sk-fixture") and not saved.contains("Callable"))
 	var draft:={"tts_enabled":true,"modalities":{"tts":"gpt-audio-1.5"}}
 	var spoken: Dictionary=await client.speak("Voltage is 12.5 volts.",draft,"ash")
 	assert(spoken.get("ok",false) and spoken.get("transcript_verified",false) and spoken.get("stream") is AudioStreamWAV)

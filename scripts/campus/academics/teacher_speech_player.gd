@@ -34,6 +34,7 @@ var subtitle_layout_clock:=0.
 
 func configure(speech: bool,captions: bool) -> void:
 	var disabling:=speech_enabled and not speech
+	var enabling_captions:=not subtitles_enabled and captions
 	speech_enabled=speech;subtitles_enabled=captions
 	if disabling:
 		for channel in active.keys():
@@ -67,6 +68,8 @@ func configure(speech: bool,captions: bool) -> void:
 				_start(channel,item)
 	if not captions:
 		for channel in subtitles.keys():_clear_subtitle(channel)
+	elif enabling_captions:
+		for channel in presentations.keys():_caption_current(channel)
 
 func _ready() -> void:
 	Mixer.ensure_buses()
@@ -95,6 +98,7 @@ func stream_for(key: String) -> AudioStreamWAV:
 
 func accept(channel: String,teacher: String,serial: int,text: String,priority: int,anchor: Node3D,stream: AudioStream=null,pitch:=1.0,options: Dictionary={}) -> bool:
 	if channel.is_empty() or channel.length()>160 or teacher.is_empty() or serial<=int(last_serial.get(channel,0)) or serial<1 or serial>2147483647:return false
+	if was_cancelled(channel,serial):return false
 	if text.is_empty() or text.length()>MAX_TEXT or priority<0 or priority>4 or not is_instance_valid(anchor):return false
 	if not is_finite(pitch) or pitch<.5 or pitch>2.:return false
 	if stream!=null and not stream is AudioStreamWAV:return false
@@ -227,6 +231,7 @@ func resume_suspended(channel: String) -> bool:
 			item.resume_seconds=float(snapshot.get("playback_position",0.))
 			if not bool(presentations[channel].get("virtual_audio",false)) or (speech_enabled and not bool(item.options.get("muted",false))):_start(channel,item)
 		elif not item.expect_audio and not subtitles.has(channel):_start(channel,item)
+	if subtitles_enabled and not subtitles.has(channel):_caption_current(channel)
 	_layout_subtitles();channel_resumed.emit(channel)
 	if not active.has(channel) and not presentations.has(channel):_advance_queue(channel)
 	return true
@@ -259,7 +264,7 @@ func _start(channel: String,item: Dictionary) -> void:
 		if caption:
 			_show_subtitle(channel,item,now-offset_ms,duration)
 			subtitles[channel].until=presentations[channel].until
-		_erase_pending(channel,int(item.serial))
+		_erase_completed_pending(channel,item)
 		return
 	if stream==null:
 		if waiting:return
@@ -294,10 +299,50 @@ func _start(channel: String,item: Dictionary) -> void:
 	if caption:
 		_show_subtitle(channel,item,now,maxi(1,duration))
 		subtitles[channel].until=presentations[channel].until
-	_erase_pending(channel,int(item.serial))
+	_erase_completed_pending(channel,item)
 	player.finished.connect(func():_finished(channel,int(item.serial)))
-	player.play(offset_seconds);utterance_started.emit(channel,int(item.serial))
-	playback_started.emit(channel,int(item.serial),Time.get_ticks_msec())
+	player.play(offset_seconds)
+	if int(item.get("segment_count",0))==0 or not bool(item.get("segment_started",false)):
+		item.segment_started=true
+		utterance_started.emit(channel,int(item.serial))
+		playback_started.emit(channel,int(item.serial),Time.get_ticks_msec())
+
+func deliver_segment(channel: String,serial: int,stream: AudioStreamWAV,index: int,total: int,text: String) -> bool:
+	if not valid_stream(stream) or not has_pending(channel,serial) or total!=2 or index<0 or index>=total or text.is_empty() or text.length()>MAX_TEXT:return false
+	var item: Dictionary=awaiting[channel].items[serial]
+	if not is_instance_valid(item.anchor) or bool(item.get("segments_closed",false)):return false
+	if not speech_enabled and not bool(item.options.get("authoritative_audio",false)):return false
+	if not item.has("segments"):
+		item.segments={};item.segment_count=total;item.segment_index=0;item.full_text=str(item.text).strip_edges();item.segment_bytes=0
+	if int(item.segment_count)!=total:return false
+	if item.segments.has(index):
+		var prior: Dictionary=item.segments[index]
+		return prior.text==text and prior.stream.data==stream.data and prior.stream.mix_rate==stream.mix_rate and prior.stream.stereo==stream.stereo
+	if int(item.segment_bytes)+stream.data.size()>MAX_WAV_BYTES:return false
+	item.segments[index]={"stream":stream,"text":text};item.segment_bytes=int(item.segment_bytes)+stream.data.size()
+	if index==int(item.segment_index):
+		item.stream=stream;item.text=text;item.expect_audio=false
+		if int(presentations.get(channel,{}).get("serial",-1))==serial and not active.has(channel):_start(channel,item)
+	_erase_completed_pending(channel,item)
+	return true
+
+func _erase_completed_pending(channel: String,item: Dictionary) -> void:
+	if int(item.get("segment_count",0))>0 and not bool(item.get("segments_closed",false)) and item.get("segments",{}).size()<int(item.segment_count):return
+	_erase_pending(channel,int(item.serial))
+
+func _advance_segment(channel: String,item: Dictionary) -> bool:
+	var next:=int(item.get("segment_index",0))+1
+	if int(item.get("segment_count",0))<=next:return false
+	item.segment_index=next
+	item.erase("resume_seconds")
+	var segment: Dictionary=item.segments.get(next,{})
+	item.stream=segment.get("stream")
+	item.expect_audio=segment.is_empty() and not bool(item.get("segments_closed",false))
+	# If synthesis failed mid-utterance, retain only the unspoken tail as text.
+	var consumed:=str(item.segments.get(0,{}).get("text","")).length()
+	item.text=str(segment.get("text",str(item.full_text).substr(consumed).strip_edges()))
+	_start(channel,item)
+	return true
 
 func deliver_stream(channel: String,serial: int,stream: AudioStreamWAV) -> bool:
 	if not valid_stream(stream) or not has_pending(channel,serial):return false
@@ -313,6 +358,13 @@ func fail_stream(channel: String,serial: int,_reason: String="unavailable") -> b
 	if not has_pending(channel,serial):return false
 	var item: Dictionary=awaiting[channel].items[serial]
 	item.expect_audio=false
+	if int(item.get("segment_count",0))>0:
+		item.segments_closed=true;item.segment_failure=true
+		if item.stream==null:
+			var consumed:=str(item.segments.get(0,{}).get("text","")).length() if int(item.segment_index)>0 else 0
+			item.text=str(item.full_text).substr(consumed).strip_edges()
+			# This caption includes every remaining word; don't show it twice.
+			item.segment_count=int(item.segment_index)+1
 	_erase_pending(channel,serial)
 	if int(presentations.get(channel,{}).get("serial",-1))==serial and not active.has(channel):_start(channel,item)
 	return true
@@ -331,9 +383,12 @@ func _process(delta: float) -> void:
 	if not subtitles.is_empty() and subtitle_layout_clock>=.1:
 		subtitle_layout_clock=0.;_layout_subtitles()
 	for channel in active.keys():
+		if not active.has(channel):continue
 		var state: Dictionary=active[channel]
 		var player: AudioStreamPlayer3D=state.get("player")
-		if not is_instance_valid(player):_finished(channel,int(state.serial));continue
+		if not is_instance_valid(player):_finished(channel,int(state.serial),false);continue
+		if presentations.has(channel) and now>=int(presentations[channel].until):
+			_finished(channel,int(state.serial),false);continue
 		var mouth=state.get("mouth")
 		if is_instance_valid(mouth):
 			var level:=_pcm_level(player.stream,player.get_playback_position())
@@ -369,6 +424,7 @@ func _process(delta: float) -> void:
 		if bool(presentation.get("waiting",false)):
 			fail_stream(channel,int(presentation.serial),"timeout")
 		else:
+			if _advance_segment(channel,presentation.item):continue
 			_erase_pending(channel,int(presentation.serial))
 			utterance_finished.emit(channel,int(presentation.serial),false)
 			_advance_queue(channel)
@@ -407,11 +463,14 @@ static func _pcm_level(stream: AudioStreamWAV,seconds: float) -> float:
 		peak=maxf(peak,absf(float(data.decode_s16(at))/32768.))
 	return peak
 
-func _finished(channel: String,serial: int) -> void:
+func _finished(channel: String,serial: int,delivered: bool=true) -> void:
 	if not active.has(channel) or int(active[channel].serial)!=serial:return
+	var item: Dictionary=active[channel].item
 	_stop(channel);_clear_subtitle(channel)
+	if not delivered:item.segment_failure=true
+	if _advance_segment(channel,item):return
 	_erase_pending(channel,serial)
-	utterance_finished.emit(channel,serial,true)
+	utterance_finished.emit(channel,serial,delivered and not bool(item.get("segment_failure",false)))
 	_advance_queue(channel)
 
 func _advance_queue(channel: String) -> void:
@@ -460,11 +519,29 @@ func _show_subtitle(channel: String,item: Dictionary,started: int,duration: int)
 	subtitles[channel]={"label":label,"item":item,"pages":pages,"page":0,"started":started,"duration":duration,"until":started+duration}
 	_layout_subtitles()
 
+func _caption_current(channel: String) -> void:
+	var presentation: Dictionary=presentations.get(channel,{})
+	if presentation.is_empty() or bool(presentation.get("waiting",false)) or bool(presentation.get("blocked_speaker",false)):return
+	var item: Dictionary=presentation.item
+	if not bool(item.options.get("show_subtitles",true)):return
+	var duration:=maxi(1,int(presentation.until)-int(presentation.started))
+	if item.stream!=null:duration=maxi(1,int(ceil(item.stream.get_length()*1000./float(item.pitch))))
+	_show_subtitle(channel,item,int(presentation.started),duration)
+	if not subtitles.has(channel):return
+	subtitles[channel].until=presentation.until
+	var progress:=clampf(float(Time.get_ticks_msec()-int(presentation.started))/duration,0.,.9999)
+	if active.has(channel):
+		var player: AudioStreamPlayer3D=active[channel].player
+		progress=clampf(player.get_playback_position()/maxf(.1,player.stream.get_length()),0.,.9999)
+	var page:=_page_at(subtitles[channel].pages,progress)
+	subtitles[channel].page=page
+	subtitles[channel].label.text=str(item.teacher)+": "+str(subtitles[channel].pages[page])
+
 func _layout_subtitles() -> void:
 	var viewport:=get_viewport().get_visible_rect().size
 	var width:=minf(880.,maxf(160.,viewport.x-40.))
 	var left:=(viewport.x-width)*.5
-	var bottom:=viewport.y-24.
+	var regions: Array[Vector2]=[Vector2(16.,viewport.y-24.)]
 	# Measure live HUD rectangles in viewport coordinates, including CanvasLayer
 	# transforms and user scale. No assumptions about hotbar height or position.
 	for value in get_tree().get_nodes_in_group("subtitle_obstacle"):
@@ -472,8 +549,15 @@ func _layout_subtitles() -> void:
 		if control==null or not control.is_visible_in_tree():continue
 		if control is Label and control.text.is_empty():continue
 		var rect: Rect2=control.get_global_transform_with_canvas()*Rect2(Vector2.ZERO,control.size)
-		if rect.end.x<=left or rect.position.x>=left+width or rect.end.y<viewport.y*.4:continue
-		bottom=minf(bottom,rect.position.y-12.)
+		if rect.end.x<=left or rect.position.x>=left+width:continue
+		var clear: Array[Vector2]=[]
+		for region: Vector2 in regions:
+			var top:=maxf(region.x,rect.position.y-12.)
+			var bottom:=minf(region.y,rect.end.y+12.)
+			if top>=bottom:clear.append(region);continue
+			if top>region.x:clear.append(Vector2(region.x,top))
+			if bottom<region.y:clear.append(Vector2(bottom,region.y))
+		regions=clear
 	var channels: Array=subtitles.keys()
 	channels.sort_custom(func(a,b):
 		var first: Dictionary=subtitles[a].item;var second: Dictionary=subtitles[b].item
@@ -484,10 +568,18 @@ func _layout_subtitles() -> void:
 		label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		label.size=Vector2(width,0.)
 		var height:=maxf(52.,label.get_minimum_size().y)
-		label.position=Vector2(left,maxf(16.,bottom-height))
 		label.size.y=height
-		label.visible=index<3 and bottom-height>=16.
-		if label.visible:bottom-=height+8.
+		label.visible=false
+		if index<3:
+			# Prefer the lowest free area. A central interaction prompt must not
+			# drag captions above it when there is room underneath it.
+			for slot in range(regions.size()-1,-1,-1):
+				var region: Vector2=regions[slot]
+				if region.y-region.x<height:continue
+				label.position=Vector2(left,region.y-height)
+				label.visible=true
+				regions[slot]=Vector2(region.x,region.y-height-8.)
+				break
 		index+=1
 
 func _clear_subtitle(channel: String) -> void:

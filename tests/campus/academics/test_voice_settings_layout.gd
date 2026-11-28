@@ -18,6 +18,22 @@ func check_rows(parent: Node,caption: String) -> void:
 					check(control.position.x>=-.5 and control.position.x+control.size.x<=child.size.x+.5,"%s row clips %s: x=%s width=%s row=%s"%[caption,control.get_class(),control.position.x,control.size.x,child.size.x])
 		check_rows(child,caption)
 
+func check_studio_regions(studio: Control,outer: ScrollContainer,caption: String) -> void:
+	var details: ScrollContainer=studio.detail_scroll
+	check(studio.size.x<=outer.size.x+.5,caption+" fits without hidden horizontal scrolling")
+	check(studio.character_list.size.x>=180. and studio.character_list.size.y>=160.,caption+" roster shows several readable selectable rows")
+	check(details.size.x>=380. and details.size.y>=260.,caption+" has a usable independently scrollable detail area")
+	check(not details.get_global_rect().intersects(studio.character_list.get_global_rect()),caption+" roster and details do not overlap")
+	check(details.get_child(0).size.x<=details.size.x+.5,caption+" details wrap within the available width")
+	check_rows(studio,caption)
+
+func check_reachable(studio: Control,outer: ScrollContainer,control: Control,caption: String) -> void:
+	studio.detail_scroll.ensure_control_visible(control)
+	outer.ensure_control_visible(studio.detail_scroll)
+	for frame in 2:await process_frame
+	var visible_area:=outer.get_global_rect().intersection(studio.detail_scroll.get_global_rect()).grow(1.)
+	check(visible_area.encloses(control.get_global_rect()),caption+" remains fully reachable by scrolling")
+
 func run() -> void:
 	root.size=Vector2i(1280,720)
 	# Embed the actual popup so its Controls use the gameplay viewport.
@@ -48,23 +64,23 @@ func run() -> void:
 	window.size=Vector2i(1060,660)
 	for frame in 3:await process_frame
 	check(window.size==Vector2i(1060,660),"Character Voices preserves the requested audition window size")
-	check(studio.size.x<=outer.size.x+.5,"Character Voices fits its 1060px audition window")
-	check(studio.character_list.size.x>=180. and studio.character_list.size.y>=300.,"Searchable character list has readable stable dimensions")
-	check_rows(studio,"Character Voices")
+	check_studio_regions(studio,outer,"Character Voices")
 	for id: String in ["mr_bro","dr_volts","ms_bird_heart"]:
 		studio._select(id)
 		await process_frame
 		check(studio.identity_label.get_minimum_size().y<=studio.identity_label.size.y+.5,"Voice identity details fit for "+id)
 	var nominal_geometry:={"window":window.size,"content":studio.size,"list":studio.character_list.size,"identity":studio.identity_label.size}
+	var roster_rect: Rect2=studio.character_list.get_global_rect()
+	await check_reachable(studio,outer,studio.preview_button,"Audition action")
+	check(studio.character_list.get_global_rect()==roster_rect,"Roster stays fixed while voice details scroll")
 	window.size=Vector2i(720,460)
 	for frame in 3:await process_frame
-	check_rows(studio,"Character Voices minimum window")
-	var split: HBoxContainer=studio.get_child(2)
-	var details_scroller: ScrollContainer=split.get_child(1)
-	details_scroller.scroll_vertical=int(details_scroller.get_v_scroll_bar().max_value)
-	outer.scroll_vertical=int(outer.get_v_scroll_bar().max_value)
-	await process_frame
-	check(studio.generate_button.get_global_rect().end.y<=outer.get_global_rect().end.y+1.,"Character Voices allocation action remains reachable at minimum size")
+	check_studio_regions(studio,outer,"Character Voices minimum window")
+	for action in [studio.generate_button,studio.preview_button,studio.approve_button,studio.advanced_toggle]:
+		await check_reachable(studio,outer,action,"Character Voices "+action.text)
+	studio.advanced_toggle.button_pressed=true
+	for frame in 3:await process_frame
+	await check_reachable(studio,outer,studio.batch_button,"Advanced allocation action")
 	var studio_geometry:={"window":window.size,"content":studio.size,"list":studio.character_list.size,"identity":studio.identity_label.size}
 	print("VOICE_SETTINGS_LAYOUT ","PASS" if failures.is_empty() else "FAIL", " audio=",audio_geometry," studio=",nominal_geometry," minimum=",studio_geometry," (native geometry; screenshots unavailable)")
 	window.queue_free();game.queue_free();await process_frame;await process_frame

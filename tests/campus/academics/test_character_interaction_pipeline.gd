@@ -20,9 +20,12 @@ class FixtureClient extends Node:
 	var interpreted_contexts: Array[Dictionary]=[]
 	var invalid_semantics:=false
 	var generation_count:=0
+	var moderation_count:=0
 	var after_interpret: Callable
 	func ready_for_class() -> bool:return enabled
-	func moderate(text: String) -> Dictionary:return {"ok":true,"flagged":text=="fixture moderated incident","categories":{"harassment":text=="fixture moderated incident"}}
+	func moderate(text: String) -> Dictionary:
+		moderation_count+=1
+		return {"ok":true,"flagged":text=="fixture moderated incident","categories":{"harassment":text=="fixture moderated incident"}}
 	func interpret_character(_instructions: String,context: Dictionary,_question: String) -> Dictionary:
 		interpreted_contexts.append(context.duplicate(true))
 		if after_interpret.is_valid():after_interpret.call()
@@ -126,7 +129,9 @@ func _run() -> void:
 	var silent_reply:=await pipeline.generate(client,silent);pipeline.record(silent_reply)
 	check(silent_reply.silent and silent_reply.line.is_empty(),"Silence produces no repeated boundary sentence")
 	check(not brain.recall("stanley","silent-student").is_empty(),"Silence still records the perceived interaction")
+	var before_listening_calls:=client.generation_count+client.moderation_count+client.interpreted_contexts.size()
 	var heard:=await pipeline.prepare(client,person,"heard-student",activity,"I did the work myself.",{"listen_only":true})
+	check(client.generation_count+client.moderation_count+client.interpreted_contexts.size()==before_listening_calls,"Listening to an already delivered NPC reply performs zero provider calls")
 	count_before=client.generation_count
 	var listening:=await pipeline.generate(client,heard);pipeline.record(listening)
 	check(listening.source=="listening" and listening.line.is_empty() and client.generation_count==count_before,"Hearing an NPC reply records perception without generating a third utterance")

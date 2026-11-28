@@ -13,6 +13,7 @@ var local_token:=0
 var remote_turns: Dictionary={}
 var transfers: Dictionary={}
 var last_requests: Dictionary={}
+var accepted_tokens: Dictionary={}
 var cooldown_until:=0
 var refresh:=0.0
 var capture_enabled:=false
@@ -49,13 +50,18 @@ func _process(delta: float) -> void:
   if capture_enabled and not capture_requested and _submission_permitted() and game.client_preferences.values.get("microphone_mode","")=="push_to_talk":microphone.finish_turn()
   capture_enabled=capture_requested
   microphone.subscribe("npc_conversation",capture_enabled)
-  if capture_enabled and turn.is_empty():microphone.reset_turn()
+  if capture_enabled and turn.is_empty():
+   if game.client_preferences.values.get("microphone_mode","")=="push_to_talk":microphone.begin_explicit_turn()
+   else:microphone.reset_turn()
+ if not turn.is_empty() and int(turn.get("capture_epoch",microphone.capture_epoch))!=int(microphone.capture_epoch):
+  cancel_current()
+  diagnostic.reason="The microphone device changed. Please repeat the question."
  if capture_enabled and not microphone.is_active():
   if not current.is_empty() or not turn.is_empty():cancel_current()
   diagnostic.state="microphone_unavailable";diagnostic.reason=str(microphone.diagnostic.get("reason","Microphone capture stopped."))
   return
  var interrupt_pressed: bool=game.player.down("voice")
- if capture_requested and interrupt_pressed and not interrupt_key_held and turn.is_empty():
+ if capture_requested and interrupt_pressed and not interrupt_key_held and turn.is_empty() and game.client_preferences.values.get("microphone_mode","")!="push_to_talk":
   # Speaker protection may already be ignoring an echo-triggered VAD turn.
   # An explicit key press starts a fresh local onset, so interruption can work
   # before the NPC finishes speaking and before a two-second silent gap.
@@ -66,10 +72,24 @@ func _process(delta: float) -> void:
  refresh=0.0
  var now:=Time.get_ticks_msec()
  for key in transfers.keys():
-  if now-int(transfers[key].started)>180000:transfers.erase(key)
+  if now-int(transfers[key].started)>180000:
+   var expired: Dictionary=transfers[key]
+   if multiplayer.is_server():
+    report_stage(int(key),{"token":str(expired.token)},"transcription_failed","The recording upload timed out before all microphone data arrived.")
+    _cancel_host(int(key),str(expired.token))
+   transfers.erase(key)
  if multiplayer.is_server():
   for peer in remote_turns.keys():
-   if not game.session.roster.has(peer) or not faculty.voice_target_valid(peer,remote_turns[peer].target) or now-int(remote_turns[peer].started)>300000:_cancel_host(int(peer),str(remote_turns[peer].token))
+   var state: Dictionary=remote_turns[peer]
+   var expired:=now-int(state.get("last_stage_ms",state.started))>(300000 if state.get("input_finished",false) else 185000)
+   if expired:report_stage(int(peer),{"token":str(state.token)},"response_failed","This voice turn timed out without further progress. Please try again.")
+   if expired or not game.session.roster.has(peer) or not faculty.voice_target_valid(peer,state.target):_cancel_host(int(peer),str(state.token))
+  for peer in accepted_tokens.keys():
+   if not game.session.roster.has(peer):accepted_tokens.erase(peer);continue
+   var seen: Dictionary=accepted_tokens[peer]
+   for token in seen.keys():
+    if now-int(seen[token])>300000:seen.erase(token)
+   if seen.is_empty():accepted_tokens.erase(peer)
  if not _permitted():
   # Releasing PTT ends the recorded turn but preserves the conversational target.
   var cancelled:=not _submission_permitted()
@@ -92,6 +112,7 @@ func _choose() -> Dictionary:
 func force_target(target: Dictionary) -> bool:
  if not game.client_preferences.values.get("teacher_automatic_conversation",false):return false
  if not faculty.voice_target_valid(multiplayer.get_unique_id(),target):return false
+ if not current.is_empty() and str(current.get("id",""))!=str(target.get("id","")):cancel_current()
  current=target.duplicate();_show_target()
  return true
 
@@ -109,11 +130,13 @@ func _speech_started(turn_id: int) -> void:
  if str(current.get("id",""))!=str(selected.id) and not current.is_empty():cancel_current(false)
  current=selected;local_token+=1
  var token:="%d:%d:%d"%[multiplayer.get_unique_id(),Time.get_ticks_msec(),local_token]
- turn={"id":turn_id,"token":token,"target":current.duplicate(),"audio":PackedByteArray(),"index":0,"started":Time.get_ticks_msec(),"speech_ms":0,"interrupted":false}
- remote_turns[multiplayer.get_unique_id()]={"token":token,"target":current.duplicate(),"started":Time.get_ticks_msec(),"input_finished":false}
+ turn={"id":turn_id,"token":token,"target":current.duplicate(),"audio":PackedByteArray(),"index":0,"started":Time.get_ticks_msec(),"speech_ms":0,"interrupted":false,"capture_epoch":microphone.capture_epoch}
+ if multiplayer.is_server():
+  if not _begin_host(multiplayer.get_unique_id(),token,current):
+   turn.clear();diagnostic.state="ready";diagnostic.reason="The NPC could not accept this recording. Please try again.";return
+ else:remote_turns[multiplayer.get_unique_id()]={"token":token,"target":current.duplicate(),"started":Time.get_ticks_msec(),"input_finished":false}
  diagnostic.state="listening";diagnostic.last_error="";diagnostic.recorded_bytes=0;diagnostic.reason=str(selected.get("reason",""));_show_target()
- if multiplayer.is_server():_begin_host(multiplayer.get_unique_id(),token,current)
- elif game.session.online:_begin.rpc_id(1,token,current)
+ if not multiplayer.is_server() and game.session.online:_begin.rpc_id(1,token,current)
 
 func _packet(_pcm: PackedByteArray, activity: Dictionary) -> void:
  if turn.is_empty() or not _permitted():return
@@ -136,6 +159,9 @@ func _speech_segment(pcm: PackedByteArray, final: bool, turn_id: int, index: int
  var completed:=turn.duplicate(true);turn.clear()
  if completed.audio.size()<4800:
   _finish_without_submission(str(completed.token),"The recorded utterance was too short. Please try again.");return
+ var signal_stats: Dictionary=microphone.processor.InspectPcm16(completed.audio)
+ if not signal_stats.get("has_signal",false):
+  _finish_without_submission(str(completed.token),"The recording contains no usable microphone signal. Check input level and hardware mute.");return
  if not faculty.voice_target_valid(multiplayer.get_unique_id(),completed.target):cancel_current();return
  var wav:=TeacherAI.wav_16k(completed.audio)
  diagnostic.state="transcribing";diagnostic.recorded_bytes=completed.audio.size();diagnostic.recording_completed_ms=Time.get_ticks_msec()
@@ -156,6 +182,8 @@ func _send_recording(token: String,wav: PackedByteArray) -> void:
    cancel_current();return
   _upload_chunk.rpc_id(1,token,offset,wav.slice(offset,offset+CHUNK_BYTES))
   if offset%(CHUNK_BYTES*8)==0:await get_tree().process_frame
+ mark_input_finished(multiplayer.get_unique_id(),token)
+ diagnostic.upload_completed_ms=Time.get_ticks_msec()
 
 func _show_target() -> void:
  diagnostic.target=str(current.get("name",""))
@@ -180,18 +208,34 @@ func is_current(peer: int,token: String) -> bool:
 @rpc("any_peer","call_remote","reliable",10)
 func _begin(token: String,target: Dictionary) -> void:
  if multiplayer.is_server():_begin_host(multiplayer.get_remote_sender_id(),token,target)
-func _begin_host(peer: int,token: String,target: Dictionary) -> void:
- if not game.session.roster.has(peer) or token.is_empty() or token.length()>100 or target.size()>16 or not faculty.voice_target_valid(peer,target):return
+func _begin_host(peer: int,token: String,target: Dictionary) -> bool:
+ if not game.session.roster.has(peer) or token.is_empty() or token.length()>100 or target.size()>16:return false
+ if not faculty.voice_target_valid(peer,target):_reject_begin(peer,token,"The NPC is no longer in conversation range.");return false
  var now:=Time.get_ticks_msec()
- if now-int(last_requests.get(peer,-1000))<250:return
- last_requests[peer]=now
+ var seen: Dictionary=accepted_tokens.get_or_add(peer,{})
+ if seen.has(token):return false
+ if now-int(last_requests.get(peer,-1000))<250:_reject_begin(peer,token,"Please wait briefly before beginning another recording.");return false
  var canonical: Dictionary={}
  for candidate in faculty.voice_candidates(peer):
   if str(candidate.get("id",""))==str(target.get("id","")) and str(candidate.get("class_id",""))==str(target.get("class_id","")) and str(candidate.get("student",""))==str(target.get("student","")):
    canonical=candidate.duplicate();break
- if canonical.is_empty():return
- remote_turns[peer]={"token":token,"target":canonical,"started":now,"input_finished":false}
+ if canonical.is_empty():_reject_begin(peer,token,"That NPC conversation has ended.");return false
+ if remote_turns.has(peer):_cancel_host(peer,str(remote_turns[peer].token))
+ last_requests[peer]=now
+ seen[token]=now
+ while seen.size()>256:seen.erase(seen.keys()[0])
+ remote_turns[peer]={"token":token,"target":canonical,"started":now,"last_stage_ms":now,"input_finished":false}
  faculty.attend_voice_target(peer,canonical)
+ return true
+
+func _reject_begin(peer: int,token: String,message: String) -> void:
+ if peer!=multiplayer.get_unique_id() and game.session.online and game.session.peer_connected_now(peer):_begin_rejected.rpc_id(peer,token,message)
+
+@rpc("authority","call_remote","reliable",10)
+func _begin_rejected(token: String,message: String) -> void:
+ if not is_current(multiplayer.get_unique_id(),token):return
+ cancel_current()
+ _error(message.left(500))
 
 @rpc("any_peer","call_remote","reliable",10)
 func _interrupt(token: String) -> void:
@@ -203,7 +247,7 @@ func _interrupt_host(peer: int,token: String) -> void:
 @rpc("any_peer","call_remote","reliable",10)
 func _upload_begin(token: String,total: int) -> void:
  var peer:=multiplayer.get_remote_sender_id()
- if not multiplayer.is_server() or not is_current(peer,token) or total<4844 or total>MAX_AUDIO_BYTES+44:return
+ if not multiplayer.is_server() or not is_current(peer,token) or remote_turns[peer].get("input_finished",false) or total<4844 or total>MAX_AUDIO_BYTES+44:return
  transfers[peer]={"token":token,"total":total,"data":PackedByteArray(),"started":Time.get_ticks_msec()}
 @rpc("any_peer","call_remote","reliable",10)
 func _upload_chunk(token: String,offset: int,chunk: PackedByteArray) -> void:
@@ -217,14 +261,16 @@ func _upload_chunk(token: String,offset: int,chunk: PackedByteArray) -> void:
   _deliver(peer,token,upload.data)
 
 func _deliver(peer: int,token: String,wav: PackedByteArray) -> void:
- if not multiplayer.is_server() or not is_current(peer,token):return
+ if not multiplayer.is_server() or not is_current(peer,token) or remote_turns[peer].get("input_finished",false):return
  mark_input_finished(peer,token)
  report_stage(peer,{"token":token},"recording_submitted")
  var state: Dictionary=remote_turns[peer]
  faculty.accept_voice_turn(peer,state.target,wav,{"token":token})
 
 func mark_input_finished(peer: int,token: String) -> void:
- if remote_turns.has(peer) and str(remote_turns[peer].token)==token:remote_turns[peer].input_finished=true
+ if remote_turns.has(peer) and str(remote_turns[peer].token)==token:
+  remote_turns[peer].input_finished=true
+  remote_turns[peer].last_stage_ms=Time.get_ticks_msec()
 
 func addressed_speech_active(peer: int) -> bool:
  var state: Dictionary=remote_turns.get(peer,{})
@@ -242,6 +288,8 @@ func report_stage(peer: int,context: Dictionary,stage: String,message: String=""
  if not multiplayer.is_server():return
  var token:=str(context.get("token",""))
  if token.is_empty() or not is_current(peer,token):return
+ remote_turns[peer].last_stage_ms=Time.get_ticks_msec()
+ remote_turns[peer].stage=stage
  if peer==multiplayer.get_unique_id():_receive_stage(token,stage,message)
  elif game.session.online and game.session.peer_connected_now(peer):_receive_stage.rpc_id(peer,token,stage,message.left(500))
 
@@ -250,6 +298,8 @@ func _receive_stage(token: String,stage: String,message: String) -> void:
  if not is_current(multiplayer.get_unique_id(),token):return
  if stage not in ["recording_submitted","transcription_received","transcription_failed","response_generated","response_failed","intentional_silence","playback_started","playback_completed"]:return
  diagnostic.state=stage;diagnostic.last_stage_ms=Time.get_ticks_msec()
+ remote_turns[multiplayer.get_unique_id()].last_stage_ms=Time.get_ticks_msec()
+ remote_turns[multiplayer.get_unique_id()].stage=stage
  if not message.is_empty():_error(message.left(500))
 
 func _error(message: String) -> void:
@@ -257,7 +307,7 @@ func _error(message: String) -> void:
  if is_instance_valid(faculty.voice_hint):faculty.voice_hint.text=message;faculty.voice_hint.show()
 
 func clear_session() -> void:
- turn.clear();current.clear();remote_turns.clear();transfers.clear();last_requests.clear()
+ turn.clear();current.clear();remote_turns.clear();transfers.clear();last_requests.clear();accepted_tokens.clear()
  if is_instance_valid(microphone):
   microphone.subscribe("npc_conversation",false)
   microphone.reset_turn()

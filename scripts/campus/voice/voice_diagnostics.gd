@@ -17,6 +17,7 @@ func _refresh() -> void:
   "echo_management":"The game does not provide acoustic echo cancellation. Speaker protection gates open-mic NPC recognition during playback; headphones or push-to-talk allow interruption.",
   "speech_model":game.host_openai.tts_model,"recognition_model":game.host_openai.stt_model,
   "lifecycle":preload("res://scripts/campus/ai/openai_models.gd").lifecycle(game.host_openai.tts_model)}
+ if game.host_openai.has_method("request_diagnostics"):data.ai_requests=game.host_openai.request_diagnostics()
  if is_instance_valid(game.faculty):
   data.conversation=game.faculty.natural_voice.diagnostic
   data.synthesis=game.faculty.speech_synth.diagnostics()
@@ -27,4 +28,4 @@ func _refresh() -> void:
    if not person.is_empty():
     data.voice=preload("res://scripts/campus/academics/teacher_voice_profiles.gd").identity(person)
     data.emotion=game.faculty.character_mind.context(person,Time.get_ticks_msec())
- readout.text=JSON.stringify(data,"  ").left(16000)
+ readout.text=JSON.stringify(data,"  ")

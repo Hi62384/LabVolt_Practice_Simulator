@@ -11,7 +11,7 @@ from aiohttp import web
 PCM = b"".join(struct.pack("<h", round(5000 * math.sin(i * .07))) for i in range(4800))
 ENCODED = base64.b64encode(PCM).decode()
 USAGE = {"input_tokens":100,"output_tokens":40,"input_token_details":{"text_tokens":100,"audio_tokens":0,"cached_tokens":0},"output_token_details":{"text_tokens":10,"audio_tokens":30}}
-COUNTS = {"create":0,"active":0,"peak":0,"transcriptions":0}
+COUNTS = {"create":0,"active":0,"peak":0,"transcriptions":0,"renders":0}
 
 async def transcription_ws(request):
     ws=web.WebSocketResponse()
@@ -99,6 +99,7 @@ async def voice_ws(request):
                 text=event["item"]["content"][0]["text"]
             elif kind=="response.create":
                 assert not live and text
+                COUNTS["renders"]+=1
                 if "Rate limit" in text:
                     await ws.send_json({"type":"error","error":{"code":"rate_limit_exceeded","message":"private fixture secret"}})
                     continue
@@ -106,7 +107,8 @@ async def voice_ws(request):
                 else:await asyncio.sleep(.08)
                 if ws.closed:continue
                 spoken="Incorrect answer." if "Mismatch" in text else text
-                await ws.send_json({"type":"response.output_audio.delta","delta":ENCODED})
+                encoded=base64.b64encode(bytes(len(PCM))).decode() if "Silent audio" in text else ENCODED
+                await ws.send_json({"type":"response.output_audio.delta","delta":encoded})
                 if "Missing transcript" not in text:
                     await ws.send_json({"type":"response.output_audio_transcript.done","transcript":spoken})
                 await ws.send_json({"type":"response.done","response":{"status":"completed","usage":USAGE}})
@@ -116,6 +118,7 @@ async def voice_ws(request):
                 assert len(pcm)%2==0
                 if text and not emitted:
                     emitted=True
+                    COUNTS["renders"]+=1
                     await ws.send_json({"type":"session.output_audio.delta","delta":ENCODED})
                     await ws.send_json({"type":"session.output_transcript.delta","delta":text,"start_ms":0,"end_ms":200})
                 elif not text and not delegated:
@@ -146,6 +149,7 @@ async def voice_ws(request):
                 if block:dialogue_blocks.setdefault(block.group(1),[]).append(block.group(4))
             elif kind=="session.close":
                 assert live
+                if "Slow finalization" in text:await asyncio.sleep(.3)
                 await ws.send_json({"type":"session.usage.updated","usage":{"seconds":4}})
                 await ws.send_json({"type":"session.closed","reason":"client_closed","session":{"id":"live_fixture"},"usage":{"seconds":4}})
                 # The client releases the transport after observing session.closed.

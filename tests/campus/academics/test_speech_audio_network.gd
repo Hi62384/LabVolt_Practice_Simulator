@@ -10,6 +10,7 @@ const ACTOR:="campus_student_14"
 const ROOM:="ac_lab"
 const CLASS_ID:="voice-network-class"
 const CHANNEL:="classmate:"+ACTOR
+const LONG_REPLY:="Start with the voltage across the resistor and keep the exact value of 12.5 volts while we work through the next calculation. The current follows Ohm's law; use the same units throughout the calculation and explain the physical meaning. Check the polarity before connecting a meter and be certain that its selected range can measure the expected value. Each step should preserve the same circuit assumptions so the numerical answer corresponds to what you would observe on the bench."
 class Session extends Node:
 	var online:=true
 	var roster: Dictionary={}
@@ -30,14 +31,17 @@ class Provider extends Node:
 	var held:=false
 	var starts:=0
 	var cancelled: Array=[]
+	var fail_tail:=false
+	var clip_bytes:=256000
 	func configured() -> bool:return true
 	func cancel_speech_request(request_id: String) -> void:cancelled.append(request_id)
 	func speak(_text: String,_draft: Dictionary,_voice: Variant,_delivery: Dictionary) -> Dictionary:
 		starts+=1
 		await get_tree().process_frame
 		while held:await get_tree().process_frame
+		if fail_tail and str(_delivery.get("request_id","")).ends_with("-part-1"):return {"ok":false,"error":"fixture tail unavailable","retryable":false}
 		var wav:=AudioStreamWAV.new();wav.format=AudioStreamWAV.FORMAT_16_BITS;wav.mix_rate=16000
-		var data:=PackedByteArray();data.resize(256000);data.fill(24);wav.data=data
+		var data:=PackedByteArray();data.resize(clip_bytes);data.fill(24);wav.data=data
 		return {"ok":true,"stream":wav}
 class Game extends Node:
 	var session:=Session.new()
@@ -46,6 +50,11 @@ class Game extends Node:
 	var host_openai:=Provider.new()
 	var faculty: Node
 class ProbeFaculty extends FacultyScript:
+	var deferred_failure_observed:=false
+	func _speech_completed(channel: String,serial: int,key: String,stream: AudioStreamWAV,status: String) -> void:
+		super._speech_completed(channel,serial,key,stream,status)
+		var route: Dictionary=speech_routes.get(_voice_key(channel,serial),{})
+		if route.has("final_failure") and int(route.get("sending",0))>0:deferred_failure_observed=true
 	func _ai_activity(_room: String) -> Dictionary:return {"id":CLASS_ID,"phase":"lesson","teacher":"mr_bro"}
 	func _voice_recipients(_room: String) -> Array[int]:
 		var result: Array[int]=[]
@@ -88,9 +97,10 @@ func run() -> void:
 	faculty.speech_player=Player.new();faculty.speech_player.name="TeacherSpeechPlayer";faculty.add_child(faculty.speech_player)
 	faculty.speech_synth=Synth.new();faculty.add_child(faculty.speech_synth);faculty.speech_synth.configure_provider(game.host_openai)
 	faculty.speech_synth.completed.connect(faculty._speech_completed)
+	faculty.speech_synth.segment_completed.connect(faculty._speech_segment_completed)
 	var actor:=Node3D.new();game.add_child(actor)
 	game.lecture_classes.classroom_students.models[CLASS_ID+":"+ACTOR]=actor
-	StudentsScript.known_profiles[ACTOR]=People.student(14)
+	StudentsScript.known_profiles[ACTOR]=People.legacy_student(14)
 	deadline=Time.get_ticks_msec()+25000
 	if host:print("SPEECH_AUDIO_HOST_READY")
 	if not await until(func():return not root.multiplayer.get_peers().is_empty(),"connection"):return
@@ -98,10 +108,11 @@ func run() -> void:
 	var client:=int(root.multiplayer.get_peers()[0]) if host else root.multiplayer.get_unique_id()
 	game.session.roster[client]={}
 	if host:
-		faculty._notify_classmate(client,ROOM,CLASS_ID,ACTOR,"A private reply keeps the same original voice.",true)
+		faculty._notify_classmate(client,ROOM,CLASS_ID,ACTOR,LONG_REPLY,true)
 		if not await until(func():return not faculty.speech_player.cached.is_empty() and faculty.speech_routes.is_empty(),"remote-only synthesis and chunk sends"):return
 		assert(not faculty.speech_player.active.has(CHANNEL) and not faculty.speech_player.subtitles.has(CHANNEL),"A remote private reply must remain silent and hidden on the host while its presentation clock stays authoritative.")
 		var wav: AudioStreamWAV=faculty.speech_player.cached.values()[0]
+		assert(game.host_openai.starts==2,"The long response has exactly two voice renders.")
 		bus.announce.rpc_id(client,1,Transfer.digest(wav.data))
 		if not await until(func():return bus.acknowledged>=1,"identical delivered PCM"):return
 		faculty.pause_voice_target({"student":ACTOR,"room":ROOM,"class_id":CLASS_ID})
@@ -111,23 +122,33 @@ func run() -> void:
 		if not await until(func():return bus.acknowledged>=3,"remote resume"):return
 		game.host_openai.held=true
 		faculty._notify_classmate(client,ROOM,CLASS_ID,ACTOR,"This cancelled reply must never play.",true)
-		if not await until(func():return game.host_openai.starts>=2,"cancelled request started"):return
+		if not await until(func():return game.host_openai.starts>=3,"cancelled request started"):return
 		faculty.speech_synth.cancel(CHANNEL);game.host_openai.held=false
 		for frame in 8:await process_frame
 		bus.announce.rpc_id(client,4)
 		if not await until(func():return bus.acknowledged>=4,"cancelled late result rejected"):return
 		game.host_openai.held=true
 		faculty._notify_classmate(client,ROOM,CLASS_ID,ACTOR,"This previous session reply must never play.",true)
-		if not await until(func():return game.host_openai.starts>=3,"old session request started"):return
+		if not await until(func():return game.host_openai.starts>=4,"old session request started"):return
 		faculty.character_epoch+=1;game.host_openai.held=false
 		for frame in 8:await process_frame
 		bus.announce.rpc_id(client,5)
 		if not await until(func():return bus.acknowledged>=5,"stale session rejected"):return
-		print("SPEECH_AUDIO_HOST PASS (remote-only generation, identical PCM, interruption, cancellation, session guard)")
+		faculty._voice_cancel(CHANNEL,1);faculty._voice_cancel.rpc_id(client,CHANNEL,1)
+		game.host_openai.clip_bytes=960000;game.host_openai.fail_tail=true
+		faculty._notify_classmate(client,ROOM,CLASS_ID,ACTOR,LONG_REPLY+" The next turn preserves its first part if the remainder fails.",true)
+		if not await until(func():return faculty.deferred_failure_observed and faculty.speech_routes.is_empty(),"tail failure waits for in-flight prefix transfer"):return
+		var prefix: AudioStreamWAV=faculty.speech_player.presentations[CHANNEL].item.stream
+		bus.announce.rpc_id(client,6,Transfer.digest(prefix.data))
+		if not await until(func():return bus.acknowledged>=6,"failed tail preserves delivered first part"):return
+		print("SPEECH_AUDIO_HOST PASS (segmented private voice, identical PCM, interruption, cancellation, session guard, deferred failure)")
 	else:
 		if not await until(func():return bus.stage>=1 and faculty.speech_player.active.has(CHANNEL),"first actual audio"):return
 		var player: AudioStreamPlayer3D=faculty.speech_player.active[CHANNEL].player
-		assert(Transfer.digest(player.stream.data)==bus.checksum)
+		var item: Dictionary=faculty.speech_player.active[CHANNEL].item
+		assert(item.segment_count==2 and item.segments.size()==2)
+		var combined: PackedByteArray=item.segments[0].stream.data.duplicate();combined.append_array(item.segments[1].stream.data)
+		assert(Transfer.digest(combined)==bus.checksum and item.segment_index==0)
 		assert(faculty.speech_player.active[CHANNEL].serial==1)
 		bus.acknowledge.rpc_id(1,1)
 		if not await until(func():return bus.stage>=2 and faculty.speech_player.has_suspended(CHANNEL),"pause"):return
@@ -140,8 +161,15 @@ func run() -> void:
 		if not await until(func():return bus.stage>=5,"old session"):return
 		assert(not faculty.speech_player.has_utterance(CHANNEL,3) and faculty.pending_voice.is_empty())
 		bus.acknowledge.rpc_id(1,5)
+		if not await until(func():return bus.stage>=6 and faculty.speech_player.active.has(CHANNEL) and int(faculty.speech_player.active[CHANNEL].serial)==4,"prefix audio after tail failure"):return
+		var partial: Dictionary=faculty.speech_player.active[CHANNEL].item
+		assert(partial.segment_index==0 and partial.segments.size()==1 and partial.segments_closed)
+		assert(Transfer.digest(partial.stream.data)==bus.checksum and faculty.pending_voice.is_empty(),"The entire first part must arrive before failure clears the transfer.")
+		faculty.speech_player._finished(CHANNEL,4)
+		assert(not faculty.speech_player.active.has(CHANNEL) and faculty.speech_player.subtitles[CHANNEL].item.text==Synth.speech_parts(LONG_REPLY+" The next turn preserves its first part if the remainder fails.")[1])
+		bus.acknowledge.rpc_id(1,6)
 		await create_timer(.15).timeout
-		print("SPEECH_AUDIO_CLIENT PASS (remote-only generation, identical PCM, interruption, cancellation, session guard)")
+		print("SPEECH_AUDIO_CLIENT PASS (segmented private voice, identical PCM, interruption, cancellation, session guard, deferred failure)")
 	network.close();game.queue_free();bus.queue_free();await process_frame;await process_frame
 	# Let AudioServer consume stopped playback cleanup before process teardown.
 	await create_timer(.12).timeout

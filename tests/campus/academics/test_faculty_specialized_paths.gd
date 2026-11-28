@@ -24,6 +24,7 @@ class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
 	func _ready() -> void:pass
 	func ready_for_class() -> bool:return online
 	func moderate(_input: String) -> Dictionary:return {"ok":true,"flagged":false}
+	func moderate_context(input: String,_metadata: Dictionary) -> Dictionary:return await moderate(input)
 	func interpret_character(_instructions: String,_context: Dictionary,_dialogue: String) -> Dictionary:
 		return {"ok":true,"text":JSON.stringify({"event":"chat","tone":"neutral","severity":0.,"meaning":"A colleague is speaking about the office-hours shift.","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]})}
 	func respond_character(instructions: String,context: Dictionary,dialogue: String,_visual:=false) -> Dictionary:

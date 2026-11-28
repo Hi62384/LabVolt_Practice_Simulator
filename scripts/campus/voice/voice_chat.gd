@@ -13,6 +13,9 @@ var voice_hangover_until := 0
 var dropped_packets := 0
 var talking:=false
 var last_packet:={}
+var packet_budget:={}
+const PACKET_RATE:=60.0
+const PACKET_BURST:=12.0
 var remotes:={}
 var badge: Label
 var refresh:=0.0
@@ -105,7 +108,11 @@ func _relay(peer: int,packet: PackedByteArray,detect: bool=true) -> void:
  if not game.session.roster.has(peer) or packet.size()!=int(SAMPLE_RATE*PACKET_SECONDS)*2:return
  if not detect:teacher_sound.forget(peer)
  var now:=Time.get_ticks_msec()
- if now-int(last_packet.get(peer,-1000))<10:return
+ # Audio is produced in 20 ms blocks but arrives in render/network batches.
+ # Rejecting every second packet within 10 ms discarded ordinary speech at
+ # 30 FPS and after brief frame hitches. A token bucket bounds floods while
+ # preserving legitimate batches without delaying or copying their audio.
+ if not _packet_allowed(peer,now):dropped_packets+=1;return
  last_packet[peer]=now
  var source: Vector3=_position(peer)
  var private_call: bool=is_instance_valid(game.get("smartphones")) and game.smartphones.comm.calls.get(peer,{}).get("state","")=="active"
@@ -122,6 +129,14 @@ func _relay(peer: int,packet: PackedByteArray,detect: bool=true) -> void:
   if not destination.is_finite() or source.distance_squared_to(destination)>MAX_RANGE*MAX_RANGE:continue
   if int(target)==multiplayer.get_unique_id():_play_packet(peer,packet)
   elif game.session.peer_connected_now(int(target)):_receive.rpc_id(int(target),peer,packet)
+
+func _packet_allowed(peer: int,now: int) -> bool:
+ var budget: Dictionary=packet_budget.get(peer,{"tokens":PACKET_BURST,"at":now}) if last_packet.has(peer) else {"tokens":PACKET_BURST,"at":now}
+ budget.tokens=minf(PACKET_BURST,float(budget.tokens)+maxf(0.,float(now-int(budget.at)))*PACKET_RATE/1000.)
+ budget.at=now;packet_budget[peer]=budget
+ if float(budget.tokens)<1.:return false
+ budget.tokens=float(budget.tokens)-1.
+ return true
 
 @rpc("authority","call_remote","unreliable_ordered",9)
 func _receive(peer: int,packet: PackedByteArray) -> void:
@@ -203,6 +218,7 @@ func _clear_call_players() -> void:
  call_last.clear()
  teacher_sound.state.clear()
  teacher_sensitivity.clear()
+ packet_budget.clear();last_packet.clear()
  _refresh_call_indicators()
 func _sync_call_state() -> void:
  if not is_instance_valid(game) or not is_instance_valid(game.get("smartphones")):return
@@ -225,7 +241,7 @@ func _prune() -> void:
  for peer in teacher_sound.state.keys():
   if not game.session.roster.has(peer):teacher_sound.forget(peer)
  for peer in last_packet.keys():
-  if not game.session.roster.has(peer):last_packet.erase(peer)
+  if not game.session.roster.has(peer):last_packet.erase(peer);packet_budget.erase(peer)
  for peer in teacher_sensitivity.keys():
   if not game.session.roster.has(peer):teacher_sensitivity.erase(peer)
  for peer in call_players.keys():

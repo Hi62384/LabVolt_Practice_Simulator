@@ -162,6 +162,11 @@ func _run() -> void:
 		client.faculty.conversation_class = "inspection_class"
 		client.faculty.conversation.set_meta("selected_character_id", "mr_bro")
 		client.game.lecture_classes.public_classes[ROOM].teacher = "mr_bro"
+		# Invalidating a selected character ends that manual conversation. A
+		# new user selection creates a fresh nonce before testing transit races.
+		client.faculty.open_conversation(ROOM)
+		await _flush_remote(client, 100)
+		_check(server.faculty.manual_conversations.has(guest), "Reselecting the current teacher opens an authenticated fresh conversation")
 		# The client still sees the selected teacher while the host has already
 		# rotated the classroom. These calls exercise production outbound methods
 		# and production RPC handlers, not a locally called queue substitute.

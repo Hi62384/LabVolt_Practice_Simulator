@@ -2,6 +2,7 @@ extends Node
 ## Bounded host speech scheduler. Provider failures never change vocal identity.
 ## The legacy process path is isolated behind explicit selection/test adapters.
 signal completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String)
+signal segment_completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String,index: int,total: int,text: String)
 const Profiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
 const Delivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
@@ -31,6 +32,7 @@ var cloud_keys: Dictionary={}
 var session_epoch:=0
 var request_serial:=0
 var last_error:=""
+var instance_id:=Crypto.new().generate_random_bytes(8).hex_encode()
 
 func configure_provider(client: Node,mode: String="openai") -> void:
 	if provider!=client or legacy_enabled!=(mode=="legacy_offline"):clear_session()
@@ -55,6 +57,9 @@ func request(room: String,serial: int,id: String,text: String,key: String,priori
 			if str(listener.room)==room and int(listener.serial)==serial:return "duplicate"
 		if listeners.size()>=MAX_LISTENERS:return "busy"
 		listeners.append({"room":room,"serial":serial})
+		for running: Dictionary in cloud_active.values():
+			if str(running.key)==key and running.get("parts",[]).size()>1:
+				for index in running.get("part_streams",{}):segment_completed.emit.call_deferred(room,serial,key,running.part_streams[index],"ok",int(index),running.parts.size(),str(running.parts[index]))
 		for queued_job in cloud_pending:
 			if str(queued_job.key)==key:queued_job.priority=maxi(int(queued_job.priority),priority)
 		return "duplicate"
@@ -62,10 +67,12 @@ func request(room: String,serial: int,id: String,text: String,key: String,priori
 	request_serial+=1
 	var now:=Time.get_ticks_msec()
 	var details:=Delivery.for_text(delivery,text)
-	var request_id:="voice-%d-%d"%[session_epoch,request_serial]
+	var request_id:="voice-%s-%d-%d"%[instance_id,session_epoch,request_serial]
 	details.request_id=request_id
 	var job:={"room":room,"serial":serial,"id":id,"text":text,"key":key,"priority":clampi(priority,0,14),"delivery":details,"request_id":request_id,
 		"created":now,"ready_at":now,"attempts":0,"epoch":session_epoch}
+	if bool(delivery.get("segmented",false)):
+		job.parts=speech_parts(text)
 	cloud_keys[key]=[{"room":room,"serial":serial}]
 	cloud_pending.append(job)
 	_pump_cloud.call_deferred()
@@ -74,6 +81,13 @@ func request(room: String,serial: int,id: String,text: String,key: String,priori
 func _pump_cloud() -> void:
 	if not is_inside_tree() or not is_instance_valid(provider):return
 	var now:=Time.get_ticks_msec()
+	for request_id in cloud_active.keys():
+		var running: Dictionary=cloud_active[request_id]
+		if now-int(running.created)<CLOUD_TIMEOUT_MS:continue
+		cloud_active.erase(request_id)
+		_cancel_provider_job(running)
+		last_error="Speech generation timed out. The written response is preserved."
+		_complete_cloud(running,null,"timeout")
 	for index in range(cloud_pending.size()-1,-1,-1):
 		if now-int(cloud_pending[index].created)>=CLOUD_TIMEOUT_MS:
 			var expired: Dictionary=cloud_pending.pop_at(index);_complete_cloud(expired,null,"expired")
@@ -95,19 +109,25 @@ func _pump_cloud() -> void:
 		_run_cloud(job)
 
 func _run_cloud(job: Dictionary) -> void:
+	if job.get("parts",[]).size()>1:
+		await _run_segmented(job)
+		return
 	job.attempts=int(job.attempts)+1
 	var voice: Variant=job.delivery.get("voice","alloy")
+	job.delivery._audio_ready=_cloud_audio_ready.bind(job)
 	var result: Dictionary=await provider.speak(str(job.text),{},voice,job.delivery)
 	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id):return
 	cloud_active.erase(job.request_id)
+	if bool(job.get("delivered",false)):
+		_pump_cloud.call_deferred()
+		return
 	if bool(result.get("ok",false)) and result.get("stream") is AudioStreamWAV and SpeechPlayer.valid_stream(result.stream):
 		var stream: AudioStreamWAV=Mixer.normalise(result.stream,job.delivery)
 		last_synthesis_ms=Time.get_ticks_msec()-int(job.created)
 		_complete_cloud(job,stream,"ok")
 	else:
-		var code:=int(result.get("status",result.get("code",0)))
 		var reason:=str(result.get("error","speech unavailable"))
-		var retryable:=bool(result.get("retryable",false)) or code==429 or code>=500 or reason.to_lower() in ["busy","timeout","network error"]
+		var retryable:=_safe_to_retry(result)
 		if retryable and int(job.attempts)<MAX_ATTEMPTS and Time.get_ticks_msec()-int(job.created)<CLOUD_TIMEOUT_MS and cloud_keys.has(job.key):
 			var retry_after:=clampi(int(result.get("retry_after_ms",0)),0,15000)
 			job.ready_at=Time.get_ticks_msec()+maxi(retry_after,500*(1<<int(job.attempts)))
@@ -117,16 +137,123 @@ func _run_cloud(job: Dictionary) -> void:
 			_complete_cloud(job,null,"unavailable")
 	_pump_cloud.call_deferred()
 
+static func _safe_to_retry(result: Dictionary) -> bool:
+	# A timeout, lost response or transcript mismatch may already be billable.
+	# Retry only explicit rejection before generation, never an unknown outcome.
+	if bool(result.get("canceled",false)):return false
+	return int(result.get("status",0))==429 or str(result.get("code","")) in ["429","rate_limit_exceeded","queue_full"] or str(result.get("error","")).to_lower()=="busy"
+
+func _cloud_audio_ready(result: Dictionary,job: Dictionary) -> void:
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or bool(job.get("delivered",false)):return
+	if not bool(result.get("ok",false)) or not result.get("stream") is AudioStreamWAV or not SpeechPlayer.valid_stream(result.stream):return
+	job.delivered=true
+	last_synthesis_ms=Time.get_ticks_msec()-int(job.created)
+	_complete_cloud(job,Mixer.normalise(result.stream,job.delivery),"ok")
+
+static func speech_parts(text: String) -> Array[String]:
+	var result: Array[String]=[text]
+	if text.length()<=420:return result
+	# At most two renders: first complete thought + remainder. No word, number,
+	# equation or abbreviation is cut to meet an arbitrary token boundary.
+	var phrases:=Delivery.phrase_texts(text)
+	var offset:=0
+	for index in range(phrases.size()-1):
+		var found:=text.find(phrases[index],offset)
+		if found<0:return result
+		offset=found+phrases[index].length()
+		var first:=text.substr(0,offset).strip_edges()
+		if first.length()<100 or first[-1] not in ".!?":continue
+		if first.length()>360:break
+		var tail:=text.substr(offset).strip_edges()
+		if tail.length()<100:break
+		return [first,tail]
+	return result
+
+func _run_segmented(job: Dictionary) -> void:
+	job.attempts=int(job.attempts)+1
+	job.part_streams={};job.started_parts={};job.finished_parts={};job.part_failures={}
+	_start_part(job,0)
+	while is_inside_tree() and int(job.epoch)==session_epoch and cloud_active.has(job.request_id) and job.finished_parts.size()<job.parts.size():await get_tree().process_frame
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id):return
+	cloud_active.erase(job.request_id)
+	if job.part_failures.is_empty() and job.part_streams.size()==job.parts.size():
+		var combined:=_combine_parts(job)
+		_complete_cloud(job,combined,"ok" if combined!=null else "invalid audio")
+	else:
+		last_error="Part of the voice response was unavailable. The written response is preserved."
+		_complete_cloud(job,null,"unavailable")
+	_pump_cloud.call_deferred()
+
+func _start_part(job: Dictionary,index: int) -> void:
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or job.started_parts.has(index):return
+	job.started_parts[index]=true
+	var details: Dictionary=job.delivery.duplicate(true)
+	details.request_id=str(job.request_id)+"-part-"+str(index)
+	# Phrase-transition indices belong to the original full response. Apply the
+	# last preceding transition at the start of the next render, then reindex.
+	var offset:=Delivery.phrase_texts(str(job.parts[0])).size() if index>0 else 0
+	var transitions: Array=[]
+	var inherited: Dictionary={"phrase":0}
+	for transition: Dictionary in details.get("phrase_transitions",[]):
+		var at:=int(transition.get("phrase",-1))
+		if at<offset:
+			for field: String in ["mood","intent","emotions"]:
+				if transition.has(field):inherited[field]=transition[field]
+		elif at-offset<Delivery.phrase_texts(str(job.parts[index])).size():
+			var next:=transition.duplicate(true);next.phrase=at-offset;transitions.append(next)
+	if inherited.size()>1:transitions.push_front(inherited)
+	details.phrase_transitions=transitions
+	details=Delivery.for_text(details,str(job.parts[index]))
+	details._audio_ready=_part_audio_ready.bind(job,index)
+	var result: Dictionary=await provider.speak(str(job.parts[index]),{},details.get("voice","alloy"),details)
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id):return
+	if not job.part_streams.has(index):_part_audio_ready(result,job,index)
+	if not job.part_streams.has(index):
+		job.part_failures[index]=true
+		for listener: Dictionary in cloud_keys.get(job.key,[]):segment_completed.emit(str(listener.room),int(listener.serial),str(job.key),null,"unavailable",index,job.parts.size(),str(job.parts[index]))
+		# Do not spend another request generating a tail after the first part
+		# already failed; the written response remains the recovery path.
+		for remaining in range(index+1,job.parts.size()):job.part_failures[remaining]=true;job.finished_parts[remaining]=true
+	job.finished_parts[index]=true
+	if job.part_streams.has(index) and index+1<job.parts.size():_start_part(job,index+1)
+
+func _part_audio_ready(result: Dictionary,job: Dictionary,index: int) -> void:
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or job.part_streams.has(index):return
+	if not bool(result.get("ok",false)) or not result.get("stream") is AudioStreamWAV or not SpeechPlayer.valid_stream(result.stream):return
+	var stream:=Mixer.normalise(result.stream,job.delivery)
+	job.part_streams[index]=stream
+	if index==0:last_synthesis_ms=Time.get_ticks_msec()-int(job.created)
+	for listener: Dictionary in cloud_keys.get(job.key,[]):segment_completed.emit(str(listener.room),int(listener.serial),str(job.key),stream,"ok",index,job.parts.size(),str(job.parts[index]))
+	# Start the next part while this verified part plays and the previous
+	# transport drains final accounting. Provider lane limits still apply.
+	if index+1<job.parts.size():_start_part.call_deferred(job,index+1)
+
+func _combine_parts(job: Dictionary) -> AudioStreamWAV:
+	var first: AudioStreamWAV=job.part_streams[0]
+	var data:=PackedByteArray()
+	for index in job.parts.size():
+		var part: AudioStreamWAV=job.part_streams[index]
+		if part.mix_rate!=first.mix_rate or part.stereo!=first.stereo or data.size()+part.data.size()>SpeechPlayer.MAX_WAV_BYTES:return null
+		data.append_array(part.data)
+	var result:=first.duplicate() as AudioStreamWAV
+	result.data=data
+	return result
+
+func _cancel_provider_job(job: Dictionary) -> void:
+	if not is_instance_valid(provider) or not provider.has_method("cancel_speech_request"):return
+	provider.cancel_speech_request(str(job.request_id))
+	for index in job.get("started_parts",{}):provider.cancel_speech_request(str(job.request_id)+"-part-"+str(index))
+
 func _complete_cloud(job: Dictionary,stream: AudioStreamWAV,status: String) -> void:
 	var listeners: Array=cloud_keys.get(job.key,[])
 	cloud_keys.erase(job.key)
 	for listener in listeners:completed.emit(str(listener.room),int(listener.serial),str(job.key),stream,status)
 
-func _cancel_cloud(room: String) -> void:
+func _cancel_cloud(room: String,serial: int=0) -> void:
 	for key in cloud_keys.keys():
 		var listeners: Array=cloud_keys[key]
 		for index in range(listeners.size()-1,-1,-1):
-			if str(listeners[index].room)==room:
+			if str(listeners[index].room)==room and (serial==0 or int(listeners[index].serial)==serial):
 				var listener: Dictionary=listeners.pop_at(index)
 				completed.emit(room,int(listener.serial),str(key),null,"cancelled")
 		if listeners.is_empty():cloud_keys.erase(key)
@@ -134,9 +261,10 @@ func _cancel_cloud(room: String) -> void:
 		if not cloud_keys.has(cloud_pending[index].key):cloud_pending.remove_at(index)
 	for request_id in cloud_active.keys():
 		var job: Dictionary=cloud_active[request_id]
+		if bool(job.get("delivered",false)):continue
 		if cloud_keys.has(job.key):continue
 		cloud_active.erase(request_id)
-		if is_instance_valid(provider) and provider.has_method("cancel_speech_request"):provider.cancel_speech_request(request_id)
+		_cancel_provider_job(job)
 	_pump_cloud.call_deferred()
 
 func _request_legacy(room: String,serial: int,id: String,text: String,key: String,priority := 0) -> String:
@@ -163,11 +291,14 @@ func _request_legacy(room: String,serial: int,id: String,text: String,key: Strin
 	return "queued"
 
 func cancel(room: String) -> void:
-	_cancel_cloud(room)
+	cancel_utterance(room,0)
+
+func cancel_utterance(room: String,serial: int) -> void:
+	_cancel_cloud(room,serial)
 	for key in keys.keys():
 		var listeners: Array=keys[key]
 		for index in range(listeners.size()-1,-1,-1):
-			if str(listeners[index].room)==room:
+			if str(listeners[index].room)==room and (serial==0 or int(listeners[index].serial)==serial):
 				completed.emit(str(listeners[index].room),int(listeners[index].serial),str(key),null,"cancelled")
 				listeners.remove_at(index)
 	for index in range(pending.size()-1,-1,-1):
@@ -178,7 +309,7 @@ func cancel(room: String) -> void:
 func clear_session() -> void:
 	session_epoch+=1
 	for request_id in cloud_active.keys():
-		if is_instance_valid(provider) and provider.has_method("cancel_speech_request"):provider.cancel_speech_request(request_id)
+		_cancel_provider_job(cloud_active[request_id])
 	cloud_pending.clear();cloud_active.clear();cloud_keys.clear()
 	pending.clear();keys.clear()
 	if not active.is_empty():_finish("cancelled",true)

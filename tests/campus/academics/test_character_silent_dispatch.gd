@@ -15,6 +15,7 @@ class Provider extends "res://scripts/campus/ai/host_openai_client.gd":
 	func _ready() -> void:pass
 	func ready_for_class() -> bool:return online
 	func moderate(_input: String) -> Dictionary:return {"ok":true,"flagged":false}
+	func moderate_context(input: String,_metadata: Dictionary) -> Dictionary:return await moderate(input)
 	func respond_character(_instructions: String,_context: Dictionary,_dialogue: String,_visual:=false) -> Dictionary:
 		calls += 1
 		if hold_next:

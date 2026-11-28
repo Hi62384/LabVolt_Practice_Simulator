@@ -2,7 +2,7 @@ extends RefCounted
 
 const Pricing=preload("res://scripts/campus/ai/model_pricing.gd")
 const MAX_ROWS:=2048
-const COUNT_FIELDS:=["input","output","cached","reasoning","write_30m","write_12h","text_input","text_output","audio_input","audio_output","audio_cached","image_input","image_output","text_cached","image_cached","characters"]
+const COUNT_FIELDS:=["input","output","cached","reasoning","cache_write","write_30m","write_12h","text_input","text_output","audio_input","audio_output","audio_cached","image_input","image_output","text_cached","image_cached","characters"]
 var rows: Dictionary={}
 
 static func _measure(source: Dictionary, names: Array) -> Dictionary:
@@ -24,6 +24,11 @@ static func usage_from(response: Dictionary,seconds := -1.0,characters := -1) ->
 	var detail:={"cached_tokens":"cached","text_tokens":"text_input","audio_tokens":"audio_input","image_tokens":"image_input","cached_text_tokens":"text_cached","cached_image_tokens":"image_cached","cache_write_30m_tokens":"write_30m","cache_write_12h_tokens":"write_12h"}
 	if input is Dictionary:
 		for key in _measure(input,detail.keys()):result[detail[key]]=int(input[key])
+		if _measure(input,["cache_write_tokens"]).has("cache_write_tokens"):result.cache_write=int(input.cache_write_tokens)
+		var writes: Variant=input.get("cache_write_tokens_details",{})
+		if writes is Dictionary:
+			for entry in [["ttl_30m_tokens","write_30m"],["ttl_12h_tokens","write_12h"]]:
+				if _measure(writes,[entry[0]]).has(entry[0]):result[entry[1]]=int(writes[entry[0]])
 		var cached: Variant=input.get("cached_tokens_details",{})
 		if cached is Dictionary:
 			for entry in [["text_tokens","text_cached"],["audio_tokens","audio_cached"],["image_tokens","image_cached"]]:
@@ -39,7 +44,7 @@ static func usage_from(response: Dictionary,seconds := -1.0,characters := -1) ->
 	return result
 
 func record(context: Dictionary, measurement: Dictionary, successful: bool, latency_ms: int) -> Dictionary:
-	var signature:=JSON.stringify([context.profile,context.model,context.get("snapshot",""),context.purpose,context.effort,context.mode,context.tier,context.date,context.type])
+	var signature:=JSON.stringify([context.profile,context.model,context.get("snapshot",""),context.purpose,context.effort,context.mode,context.tier,context.date,context.type,context.get("subsystem",""),context.get("origin",""),context.get("request_purpose","")])
 	if not rows.has(signature) and rows.size()>=MAX_ROWS:rows.erase(rows.keys()[0])
 	var row: Dictionary=rows.get_or_add(signature,context.duplicate())
 	row.requests=int(row.get("requests",0))+1

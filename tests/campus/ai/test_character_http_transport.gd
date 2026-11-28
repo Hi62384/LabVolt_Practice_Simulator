@@ -36,16 +36,25 @@ func _request_log() -> Array:
 
 func _wire(log: Array,marker: String,semantic:=false) -> Dictionary:
 	for entry in log:
-		if entry.path!="/v1/responses" or not entry.body.get("input") is String or not marker in entry.body.input:continue
-		var is_semantic: bool=str(entry.body.get("instructions","")).begins_with("Interpret one perceived interaction")
+		if entry.path!="/v1/responses" or not marker in _user_input(entry):continue
+		var is_semantic: bool=_instructions(entry).begins_with("Interpret one perceived interaction")
 		if is_semantic==semantic:return entry
 	return {}
 
 func _wires(log: Array, marker: String) -> Array:
-	return log.filter(func(entry): return entry.path=="/v1/responses" and entry.body.get("input") is String and marker in entry.body.input)
+	return log.filter(func(entry): return entry.path=="/v1/responses" and marker in _user_input(entry))
 
 func _input(wire: Dictionary) -> Dictionary:
-	return JSON.parse_string(str(wire.get("body",{}).get("input","{}")))
+	return JSON.parse_string(_user_input(wire))
+
+func _user_input(wire: Dictionary) -> String:
+	var input: Variant=wire.get("body",{}).get("input","")
+	return str(input[-1].content) if input is Array and not input.is_empty() else str(input)
+
+func _instructions(wire: Dictionary) -> String:
+	var input: Variant=wire.get("body",{}).get("input","")
+	if input is Array and not input.is_empty() and input[0].get("role")=="developer":return str(input[0].content)
+	return str(wire.get("body",{}).get("instructions",""))
 
 func _sequence(log: Array) -> int:
 	return int(log[-1].sequence) if not log.is_empty() else 0
@@ -100,13 +109,14 @@ func _run() -> void:
 	if hostile_wires.size()==2:
 		var joint: Dictionary=hostile_wires[0];var repair: Dictionary=hostile_wires[1]
 		var before:=_input(joint);var after:=_input(repair)
-		check("ONE JSON object" in joint.body.instructions and not "ONE JSON object" in repair.body.instructions,"only the first request jointly interprets and proposes dialogue")
+		check("ONE JSON object" in _instructions(joint) and not "ONE JSON object" in _instructions(repair),"only the first request jointly interprets and proposes dialogue")
 		check(float(after.context.emotional_state.emotions.irritation)>float(before.context.emotional_state.emotions.irritation),"repair HTTP context contains the already-updated affect")
 		check(after.context.interpretation.event=="insult" and after.context.decision.strategy==prepared.turn.strategy,"repair envelope contains the final resolved event and selected reaction")
 		check(after.context.emotional_state.emotion==prepared.turn.emotion and result.get("delivery",{}).get("emotion","")==prepared.turn.emotion,"spoken delivery reflects final validated host emotion")
-		check(before.player_dialogue==insult and after.player_dialogue==insult and not "TEST_INJECTION" in joint.body.instructions and not "TEST_INJECTION" in repair.body.instructions,"untrusted dialogue stays separate from trusted instructions across draft and repair")
-		check("Chad" in joint.body.instructions or "Chad" in str(before.context),"distinctive authoritative identity reaches the actual provider envelope")
+		check(before.player_dialogue==insult and after.player_dialogue==insult and not "TEST_INJECTION" in _instructions(joint) and not "TEST_INJECTION" in _instructions(repair),"untrusted dialogue stays separate from trusted instructions across draft and repair")
+		check("Chad" in _instructions(joint) or "Chad" in str(before.context),"distinctive authoritative identity reaches the actual provider envelope")
 		check(int(joint.body.max_output_tokens)>=1400 and int(repair.body.max_output_tokens)>=1400,"both coordinated dialogue and repair retain the character output budget")
+		check(joint.body.input is Array and joint.body.input[0].role=="developer" and not joint.body.has("instructions"),"stable trusted instructions use a cacheable developer prefix")
 		check(joint.body.store==false and repair.body.store==false and repair.body.reasoning.effort=="low","HTTP character requests disable storage and preserve the configured thinking effort")
 		evidence.coordinated_budget=joint.body.max_output_tokens;evidence.repair_budget=repair.body.max_output_tokens
 	var repaired_trace: Dictionary=pipeline.diagnostics[-1]
@@ -118,7 +128,7 @@ func _run() -> void:
 	check(ordinary_reply.source=="ai" and pipeline.record(ordinary_reply),"ordinary coordinated response passes the production pipeline")
 	log=await _request_log()
 	var routine_wires:=_wires(log,"HTTP_FIXTURE_ROUTINE")
-	check(routine_wires.size()==1 and "ONE JSON object" in routine_wires[0].body.instructions,"ordinary interaction uses one text generation request including interpretation")
+	check(routine_wires.size()==1 and "ONE JSON object" in _instructions(routine_wires[0]),"ordinary interaction uses one text generation request including interpretation")
 	var routine_trace: Dictionary=pipeline.diagnostics[-1]
 	check(int(routine_trace.request_count)==3 and routine_trace.usage=={"input":101,"output":37,"cached":64,"reasoning":8},"ordinary turn preserves both moderation requests and records exact HTTP usage without estimates")
 	check(routine_trace.measurements.filter(func(row): return row.purpose in ["input_moderation","output_moderation"]).all(func(row): return row.measurement.usage.is_empty()),"missing moderation usage remains unknown rather than fabricated zero tokens")
@@ -135,7 +145,7 @@ func _run() -> void:
 	var assessment_wires: Array=log.filter(func(entry):return entry.path=="/v1/responses" and int(entry.sequence)>assessment_start)
 	check(assessment_wires.size()==2,"assessment retains its justified interpretation boundary before dialogue")
 	if assessment_wires.size()==2:
-		check(str(assessment_wires[0].body.instructions).begins_with("Interpret one perceived interaction") and "COPIED_PROBLEM_MARKER" in str(assessment_wires[0].body.input),"only the interpretation request receives the copied problem")
+		check(str(_instructions(assessment_wires[0])).begins_with("Interpret one perceived interaction") and "COPIED_PROBLEM_MARKER" in str(assessment_wires[0].body.input),"only the interpretation request receives the copied problem")
 		check(not "COPIED_PROBLEM_MARKER" in str(assessment_wires[1].body.input) and not "347*991" in str(assessment_wires[1].body.input) and _input(assessment_wires[1]).context.get("assessment_help_blocked",false),"actual speech-generation HTTP input contains only the bounded assessment intention")
 		check(not "PRIVATE_ANSWER_MARKER" in JSON.stringify(assessment_wires) and not "PRIVATE_TEACHING_MARKER" in JSON.stringify(assessment_wires) and not "PRIVATE_READING_MARKER" in JSON.stringify(assessment_wires) and not "PRIVATE_DISPLAY_MARKER" in JSON.stringify(assessment_wires),"neither assessment stage receives private host answers, released teaching content or instrument hints")
 		check(int(assessment_wires[0].body.max_output_tokens)>=900 and int(assessment_wires[1].body.max_output_tokens)>=1400,"assessment stages preserve their distinct semantic and dialogue budgets")
@@ -162,7 +172,7 @@ func _run() -> void:
 		var surviving: Array=received.context.prior_turns
 		check(surviving.size()<original.prior_turns.size() and surviving.size()>=4 and surviving[-1].student==original.prior_turns[-1].student and surviving[-4].student==original.prior_turns[-4].student,"the newest coherent conversation turns survive while older turns are reduced")
 		check(received.context.memories[0].description==original.memories[0].description and received.context.reported_facts[0].statement==original.reported_facts[0].statement,"top-ranked retrieved memories and facts survive reduction")
-		evidence.reduced_context_chars=reduced_wire.body.input.length();evidence.retained_turns=surviving.size()
+		evidence.reduced_context_chars=_user_input(reduced_wire).length();evidence.retained_turns=surviving.size()
 
 	var request_count:=_sequence(log)
 	var impossible:=_base_context();impossible.character.worldview="Irreducible identity context. ".repeat(1000)

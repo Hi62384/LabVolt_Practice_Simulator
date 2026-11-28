@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 
 /// <summary>Streaming resampler for the shared capture device. No file or network access.</summary>
@@ -12,6 +13,7 @@ public partial class MicrophoneCaptureProcessor : RefCounted
     private bool hasPreviousFrame;
     private float previousInput, previousOutput;
     private float noiseFloor = .0015f;
+    private Task<byte[]> resampleTask;
     public void Reset()
     {
         position = 0; receivedFrames = 0; sourceRate = 0;
@@ -87,5 +89,73 @@ public partial class MicrophoneCaptureProcessor : RefCounted
             frames[i] = new Vector2(sample, sample);
         }
         return frames;
+    }
+
+    /// <summary>Signal evidence, independent of the VAD's speech classification.</summary>
+    public Godot.Collections.Dictionary InspectPcm16(byte[] pcm)
+    {
+        var stats = new Godot.Collections.Dictionary();
+        if (pcm == null || pcm.Length % 2 != 0) return stats;
+        int count = pcm.Length / 2, peak = 0, nonzero = 0, clipped = 0;
+        double energy = 0;
+        for (int i = 0; i < count; i++)
+        {
+            int value = (short)(pcm[2 * i] | pcm[2 * i + 1] << 8);
+            int magnitude = Math.Abs(value);
+            peak = Math.Max(peak, magnitude);
+            if (magnitude > 0) nonzero++;
+            if (magnitude >= 32440) clipped++;
+            energy += (double)value * value;
+        }
+        double rms = count == 0 ? 0 : Math.Sqrt(energy / count) / 32768d;
+        stats["samples"] = count; stats["bytes"] = pcm.Length;
+        stats["duration_seconds"] = count / 16000d;
+        stats["rms"] = rms; stats["peak"] = peak / 32768d;
+        stats["nonzero_samples"] = nonzero; stats["clipped_samples"] = clipped;
+        // An explicit record/PTT action does not need to pass a speech VAD.
+        // Reject digital silence and isolated clicks, while preserving quiet
+        // speech for the recognition model to evaluate.
+        stats["has_signal"] = count >= 2400 && nonzero >= 640 && peak >= 4 && rms >= .00003;
+        return stats;
+    }
+
+    public byte[] Resample16kTo24k(byte[] pcm) => Upsample(pcm);
+
+    public void BeginResample16kTo24k(byte[] pcm)
+    {
+        // No Godot object or Variant is touched from the worker. The marshalled
+        // byte array belongs to this operation and stays alive until completion.
+        resampleTask = Task.Run(() => Upsample(pcm));
+    }
+
+    public bool IsResampleReady() => resampleTask != null && resampleTask.IsCompleted;
+
+    public byte[] TakeResampledPcm()
+    {
+        if (resampleTask == null || !resampleTask.IsCompleted) return Array.Empty<byte>();
+        var completed = resampleTask;
+        resampleTask = null;
+        return completed.IsCompletedSuccessfully ? completed.Result : Array.Empty<byte>();
+    }
+
+    private static byte[] Upsample(byte[] pcm)
+    {
+        if (pcm == null || pcm.Length == 0 || pcm.Length % 2 != 0 || pcm.Length > 5760000)
+            return Array.Empty<byte>();
+        int frames = pcm.Length / 2, count = (frames * 3 + 1) / 2;
+        var output = new byte[count * 2];
+        // Exact rational 3:2 interpolation avoids accumulated floating error.
+        // Round halves away from zero, matching Godot roundi.
+        for (int i = 0; i < count; i++)
+        {
+            int numerator = i * 2, index = Math.Min(numerator / 3, frames - 1);
+            int next = Math.Min(index + 1, frames - 1), fraction = numerator % 3;
+            int a = (short)(pcm[index * 2] | pcm[index * 2 + 1] << 8);
+            int b = (short)(pcm[next * 2] | pcm[next * 2 + 1] << 8);
+            int value = a * (3 - fraction) + b * fraction;
+            short sample = (short)((value + (value >= 0 ? 1 : -1)) / 3);
+            output[i * 2] = (byte)sample; output[i * 2 + 1] = (byte)(sample >> 8);
+        }
+        return output;
     }
 }

@@ -28,6 +28,7 @@ var model:=""
 var state:="new"
 var sample_rate:=RATE
 var latest_usage_seconds:=0.0
+var usage_observed:=false
 var final_usage_confirmed:=false
 var history: Array=[]
 var _socket: WebSocketPeer
@@ -53,12 +54,16 @@ var _utterance_epoch:=0
 var _render_finished:=false
 var _render_result: Dictionary={}
 var _response_usage: Dictionary={}
+var _response_pending:=false
+var _response_cancel_sent:=false
 var _voice: Variant=""
 var _voice_type:="preset"
 var _server_ready:=false
 var _input_muted:=false
 var _blocked:=false
 var _idle_timeout_ms:=180000
+var _received_signal:=false
+var _first_audio_at:=0
 
 func begin(choice: String,voice: Variant,voice_type: String,key: String,instructions: String,
 		_context: Array=[],render_text: String="",endpoint: String="",identity: String="",audio_rate: int=RATE) -> Dictionary:
@@ -176,6 +181,7 @@ func receive_event(event: Dictionary) -> void:
 		if _seen_events.size()>4096:_seen_events.erase(_seen_events.keys()[0])
 	var kind:=str(event.get("type",""))
 	if kind=="error":
+		_response_pending=false
 		var details: Dictionary=event.get("error",{}) if event.get("error") is Dictionary else {}
 		var code:=str(details.get("code",details.get("type","")))
 		var retryable:=code in ["rate_limit_exceeded","server_error","service_unavailable","timeout"]
@@ -185,8 +191,25 @@ func receive_event(event: Dictionary) -> void:
 		_accept_usage(event)
 		return
 	if kind=="session.closed":
-		_accept_usage(event)
-		_finish_close(str(event.get("reason","closed")),true)
+		var final_usage_valid:=_accept_usage(event)
+		_finish_close(str(event.get("reason","closed")),final_usage_valid if _live else true)
+		return
+	if kind=="response.done" and not _live:
+		# Realtime reports usage for unsuccessful and cancelled responses too.
+		# Drain this terminal event even after output was blocked by cancellation.
+		var response: Dictionary=event.get("response",{}) if event.get("response") is Dictionary else {}
+		var usage: Variant=response.get("usage",{})
+		if usage is Dictionary and not usage.is_empty():
+			_response_usage={"usage":usage.duplicate(true),"model":model}
+			usage_observed=true
+		_response_pending=false
+		if state=="closing":
+			_finish_close("response_done",usage_observed)
+			return
+		if response.get("status","")!="completed":
+			_complete_render(_error("The voice response was interrupted or incomplete."))
+		else:_validate_output()
+		close_session("rendered")
 		return
 	if state=="closing":return
 	match kind:
@@ -230,6 +253,8 @@ func receive_event(event: Dictionary) -> void:
 				_fail(_error("The voice service returned invalid or oversized PCM audio."));return
 			_pcm.append_array(chunk)
 			_last_audio_at=Time.get_ticks_msec()
+			if _first_audio_at==0:_first_audio_at=_last_audio_at
+			if not _received_signal and chunk.count(0)!=chunk.size():_received_signal=true
 			if _has_voice(chunk):_last_voice_at=_last_audio_at
 		"response.output_audio_transcript.delta":
 			if _blocked:return
@@ -237,18 +262,10 @@ func receive_event(event: Dictionary) -> void:
 			if _transcript.length()>MAX_TRANSCRIPT_CHARS:_fail(_error("The voice transcript exceeded its budget."))
 		"response.output_audio_transcript.done":
 			if not _blocked:_transcript=str(event.get("transcript",_transcript))
-		"response.done":
-			if _live:return
-			var response: Dictionary=event.get("response",{}) if event.get("response") is Dictionary else {}
-			_response_usage={"usage":response.get("usage",{}),"model":model}
-			if response.get("status","")!="completed":
-				_complete_render(_error("The voice response was interrupted or incomplete."))
-			else:_validate_output()
-			close_session("rendered")
 
 func _request_realtime_line() -> void:
 	_send({"type":"conversation.item.create","event_id":request_id+"_text","item":{"type":"message","role":"user","content":[{"type":"input_text","text":_expected_text}]}})
-	_send({"type":"response.create","event_id":request_id+"_speak","response":{"output_modalities":["audio"]}})
+	_response_pending=_send({"type":"response.create","event_id":request_id+"_speak","response":{"output_modalities":["audio"]}})
 
 func append_audio(_pcm: PackedByteArray) -> bool:
 	# Compatibility guard for retired consumers: microphone input is impossible.
@@ -269,7 +286,8 @@ func interrupt() -> void:
 	_pcm.clear()
 	_transcript=""
 	_blocked=true
-	if state=="ready" and not _live:_send({"type":"response.cancel"})
+	if state=="ready" and not _live and _response_pending:
+		_response_cancel_sent=_send({"type":"response.cancel"})
 
 func cancel() -> void:
 	interrupt()
@@ -286,12 +304,16 @@ func close_session(reason: String="finished") -> void:
 		_finish_close(reason,false)
 	elif _live and _socket.get_ready_state()==WebSocketPeer.STATE_OPEN:
 		_send({"type":"session.close","event_id":request_id+"_close"})
+	elif _response_pending and _socket.get_ready_state()==WebSocketPeer.STATE_OPEN:
+		# Stop generation immediately, retain the connection only long enough
+		# to receive response.done accounting, bounded by CLOSE_TIMEOUT_MS.
+		if not _response_cancel_sent:_response_cancel_sent=_send({"type":"response.cancel"})
 	else:
 		_socket.close(1000,reason.left(80))
-		_finish_close(reason,not _live)
+		_finish_close(reason,usage_observed if not _live else false)
 
 func _try_finish_live(now: int) -> void:
-	if _expected_text.is_empty() or _pcm.is_empty() or _last_voice_at==0:return
+	if _expected_text.is_empty() or _pcm.is_empty():return
 	if now-_last_voice_at<SILENCE_MS or now-_last_transcript_at<SILENCE_MS:return
 	if not transcript_matches(_expected_text,_transcript):
 		if now-maxi(_last_voice_at,_last_transcript_at)<3500:return
@@ -300,9 +322,10 @@ func _try_finish_live(now: int) -> void:
 
 func _validate_output() -> void:
 	if _expected_text.is_empty() or _blocked:return
-	if _pcm.is_empty() or not transcript_matches(_expected_text,_transcript):
-		var error:=_error("Speech validation could not confirm the supplied words and values. The written dialogue is still available.",true)
-		error.code="speech_transcript_mismatch"
+	if _pcm.is_empty() or not _received_signal or not transcript_matches(_expected_text,_transcript):
+		var silent:=not _pcm.is_empty() and not _received_signal
+		var error:=_error("The voice service returned silent audio. The written dialogue is still available." if silent else "Speech validation could not confirm the supplied words and values. The written dialogue is still available.")
+		error.code="speech_silent_audio" if silent else "speech_transcript_mismatch"
 		if _render_only:_complete_render(error)
 		else:failed.emit(error)
 		_expected_text="";_pcm.clear();_transcript=""
@@ -312,7 +335,7 @@ func _validate_output() -> void:
 	stream.mix_rate=sample_rate
 	stream.stereo=false
 	stream.data=_pcm
-	var result:={"ok":true,"stream":stream,"text":_expected_text,"transcript_verified":true,"request_id":request_id,"model":model,"provider":"openai_live" if _live else "openai_realtime","_api_metadata":_response_usage.duplicate(true)}
+	var result:={"ok":true,"stream":stream,"text":_expected_text,"transcript_verified":true,"request_id":request_id,"model":model,"provider":"openai_live" if _live else "openai_realtime","first_audio_ms":maxi(0,_first_audio_at-_started_at),"validated_audio_ms":Time.get_ticks_msec()-_started_at,"_api_metadata":_response_usage.duplicate(true)}
 	if _render_only:_complete_render(result)
 	else:
 		audio_segment_ready.emit(_pcm,_expected_text,request_id+"_"+str(_utterance_epoch))
@@ -322,8 +345,16 @@ func _validate_output() -> void:
 func _complete_render(result: Dictionary) -> void:
 	if _render_finished:return
 	_render_finished=true
+	var metadata:=observed_api_metadata()
+	if not metadata.is_empty():result._api_metadata=metadata
 	_render_result=result
 	speech_completed.emit(result)
+
+func observed_api_metadata() -> Dictionary:
+	# Callers query again after graceful close: usage can arrive after the
+	# playback result, including a cancelled or rejected waveform result.
+	if _live:return {"usage":{"seconds":latest_usage_seconds},"model":model} if usage_observed else {}
+	return _response_usage.duplicate(true)
 
 func _reset_output(text: String) -> void:
 	_utterance_epoch+=1
@@ -334,15 +365,20 @@ func _reset_output(text: String) -> void:
 	_last_voice_at=0
 	_last_audio_at=0
 	_last_transcript_at=0
+	_first_audio_at=0
+	_received_signal=false
 	_blocked=false
 
-func _accept_usage(event: Dictionary) -> void:
+func _accept_usage(event: Dictionary) -> bool:
 	var usage: Variant=event.get("usage",{})
-	if not usage is Dictionary:return
+	if not usage is Dictionary:return false
 	var value: Variant=usage.get("seconds",-1)
 	if (value is int or value is float) and is_finite(float(value)) and float(value)>=latest_usage_seconds:
 		latest_usage_seconds=float(value)
+		usage_observed=true
 		usage_updated.emit(latest_usage_seconds)
+		return true
+	return false
 
 func _finish_close(reason: String,confirmed: bool) -> void:
 	if state=="closed":return
@@ -352,7 +388,7 @@ func _finish_close(reason: String,confirmed: bool) -> void:
 	if _render_only and not _render_finished:_complete_render(_error("The voice session closed without verified speech."))
 	_pcm.clear();_pending_delegations.clear();_seen_events.clear()
 	if _socket!=null and _socket.get_ready_state()==WebSocketPeer.STATE_OPEN:_socket.close(1000)
-	closed.emit({"model":model,"request_id":request_id,"session_id":session_id,"reason":reason,"usage":{"seconds":latest_usage_seconds} if _live else _response_usage.get("usage",{}),"usage_confirmed":confirmed,"elapsed_ms":Time.get_ticks_msec()-_started_at})
+	closed.emit({"model":model,"request_id":request_id,"session_id":session_id,"reason":reason,"usage":({"seconds":latest_usage_seconds} if usage_observed else {}) if _live else _response_usage.get("usage",{}),"usage_confirmed":confirmed,"elapsed_ms":Time.get_ticks_msec()-_started_at})
 
 func _fail(details: Dictionary) -> void:
 	if state in ["closed","closing"]:return

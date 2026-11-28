@@ -44,6 +44,16 @@ func run() -> void:
 	for frame in 8:await process_frame
 	assert(events.size()==2 and events[0].status=="cancelled" and events[1].channel=="listener" and events[1].status=="ok")
 	assert(int(provider.attempts["shared phrase"])==1,"Deduplication preserves remaining listeners when one conversation leaves.")
+	events.clear();provider.held=true
+	assert(synth.request("same-room",10,"bro","shared turn","exact-listener",1,{"voice":"onyx"})=="queued")
+	assert(synth.request("same-room",11,"bro","shared turn","exact-listener",1,{"voice":"onyx"})=="duplicate")
+	await process_frame
+	var previous_cancellations:=provider.cancellations.size()
+	synth.cancel_utterance("same-room",10)
+	assert(events.size()==1 and events[0].serial==10 and events[0].status=="cancelled" and provider.cancellations.size()==previous_cancellations,"Canceling one serial keeps another listener's shared request alive.")
+	provider.held=false
+	for frame in 8:await process_frame
+	assert(events.size()==2 and events[1].serial==11 and events[1].status=="ok" and int(provider.attempts["shared turn"])==1)
 	events.clear()
 	assert(synth.request("retry",3,"bro","retry","retry",1,{"voice":"onyx"})=="queued")
 	for frame in 5:await process_frame

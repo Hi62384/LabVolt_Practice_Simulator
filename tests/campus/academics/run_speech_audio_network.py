@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -20,6 +21,7 @@ try:
     for role in ('host','client'):
         profile=tempfile.TemporaryDirectory(prefix=role+'-',dir=logs);profiles.append(profile)
         env=dict(os.environ,XDG_DATA_HOME=profile.name,APPDATA=profile.name)
+        env.pop('OPENAI_API_KEY',None)
         handles[role]=(logs/(role+'.log')).open('w')
         command=[a.godot,'--headless','--path',str(root),'--script','res://tests/campus/academics/test_speech_audio_network.gd','--',role,str(port)]
         processes[role]=subprocess.Popen(command,stdout=handles[role],stderr=subprocess.STDOUT,env=env)
@@ -36,8 +38,16 @@ try:
     report={'transport':'real ENet localhost, two processes','speech_provider':'synthetic fixture','live_api':False,'cases':[]}
     for role,process in processes.items():
         output=(logs/(role+'.log')).read_text()
-        passed=process.returncode==0 and 'SPEECH_AUDIO_'+role.upper()+' PASS' in output and not any(x in output for x in ('SCRIPT ERROR','ERROR:','Assertion failed'))
-        report['cases'].append({'role':role,'passed':passed,'exit_code':process.returncode})
+        known_linux_errors={
+            'ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension',
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'.",
+        } if sys.platform.startswith('linux') else set()
+        errors=[line.strip() for line in output.splitlines() if line.startswith('ERROR:')]
+        environmental=[line for line in errors if line in known_linux_errors]
+        unexpected=[line for line in errors if line not in known_linux_errors]
+        passed=process.returncode==0 and 'SPEECH_AUDIO_'+role.upper()+' PASS' in output and not unexpected and not any(x in output for x in ('SCRIPT ERROR','Assertion failed'))
+        report['cases'].append({'role':role,'passed':passed,'exit_code':process.returncode,'environment_errors':environmental,'unexpected_errors':unexpected})
         print(('PASS ' if passed else 'FAIL ')+role,flush=True)
         if not passed:print(output[-4000:])
     (logs/'summary.json').write_text(json.dumps(report,indent=2)+'\n')

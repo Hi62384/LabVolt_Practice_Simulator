@@ -15,6 +15,7 @@ const SPEECH_MODEL := "gpt-realtime-2.1-mini"
 const Models = preload("res://scripts/campus/ai/openai_models.gd")
 const VoiceSession=preload("res://scripts/campus/ai/openai_voice_session.gd")
 const TranscriptionSession=preload("res://scripts/campus/ai/openai_transcription_session.gd")
+const TextStream=preload("res://scripts/campus/ai/openai_text_stream.gd")
 const VoiceDelivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
 const LANE_LIMITS:={"text":2,"background":1,"speech":3,"transcription":2,"management":1,"image":1}
 const MAX_WAITERS:=32
@@ -60,6 +61,11 @@ var _http_requests: Dictionary={}
 var _access_failures: Dictionary={}
 var _connection_epoch:=0
 var _test_voice_base:=""
+var request_journal: Array[Dictionary]=[]
+var active_requests: Dictionary={}
+var session_requests:=0
+var session_usage: Dictionary={}
+const MAX_REQUEST_JOURNAL:=256
 
 func _ready() -> void:
 	local_usage_session="Session "+Crypto.new().generate_random_bytes(5).hex_encode()
@@ -248,10 +254,10 @@ func plan_visual(prompt: String) -> Dictionary:
 	return await _request_text(prompt,model,clampi(max_output_tokens,1600,2400),reasoning_effort,true,{},24.)
 
 func respond_character(instructions: String,context: Dictionary,dialogue: String,visual := false) -> Dictionary:
-	return await _character_request(instructions,context,dialogue,clampi(max_output_tokens,1800 if visual else 1400,4096),24.0)
+	return await _character_request(instructions,context,dialogue,clampi(max_output_tokens,1800 if visual else 1400,4096),90.0 if visual or reasoning_effort in ["high","xhigh"] else 60.0)
 
 func interpret_character(instructions: String,context: Dictionary,dialogue: String) -> Dictionary:
-	return await _character_request(instructions,context,dialogue,clampi(max_output_tokens,900,2048),18.0)
+	return await _character_request(instructions,context,dialogue,clampi(max_output_tokens,900,2048),60.0)
 
 ## Independent bounded population lane, canceled on credential/model changes.
 func generate_character_dossier(instructions: String, context: Dictionary, output_limit: int=10000) -> Dictionary:
@@ -281,6 +287,11 @@ func cancel_background_generation() -> void:
 func _character_request(instructions: String,context: Dictionary,dialogue: String,output: int,timeout: float) -> Dictionary:
 	if dialogue.length()>8000:return {"ok":false,"error":"The character message is too long."}
 	var request:={"context":context.duplicate(true),"player_dialogue":dialogue}
+	var metadata: Dictionary=request.context.get("_request_metadata",{}).duplicate()
+	request.context.erase("_request_metadata")
+	metadata.request_type="feature"
+	metadata.subsystem=str(metadata.get("subsystem","npc_conversation"))
+	metadata.request_purpose=str(metadata.get("request_purpose","character_turn"))
 	var input:=JSON.stringify(request)
 	var reduced: Array[String]=[]
 	# Retain identity, worldview, current affect, semantic interpretation and the
@@ -296,7 +307,7 @@ func _character_request(instructions: String,context: Dictionary,dialogue: Strin
 			input=JSON.stringify(request)
 	if input.length()>MAX_CHARACTER_INPUT_CHARS or instructions.length()>MAX_CHARACTER_INSTRUCTION_CHARS:
 		return {"ok":false,"error":"Character context exceeds its bounded budget.","context_chars":input.length(),"instruction_chars":instructions.length(),"reduced_fields":reduced}
-	var result:=await _request_text(input,model,output,reasoning_effort,true,{},timeout,instructions)
+	var result:=await _request_text(input,model,output,reasoning_effort,true,metadata,timeout,instructions)
 	result.context_chars=input.length()
 	result.instruction_chars=instructions.length()
 	result.reduced_fields=reduced
@@ -325,6 +336,8 @@ func speak(text: String,draft: Dictionary={},voice: Variant="alloy",delivery: Di
 	var context:=draft.duplicate(true)
 	context.request_id=str(delivery.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
 	if draft.is_empty():context.request_type="feature"
+	if not context.has("subsystem"):context.subsystem="npc_speech" if draft.is_empty() else "voice_preview"
+	if not context.has("request_purpose"):context.request_purpose="speech_segment" if "-part-" in context.request_id else "character_speech" if draft.is_empty() else "voice_audition"
 	if Models.verified_family(choice) in Models.LIVE+Models.REALTIME:
 		return await _render_voice(text,choice,voice,voice_type,delivery,context,draft.is_empty())
 	if Models.verified_family(choice)=="gpt-audio-1.5":
@@ -349,7 +362,8 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	var access:=_voice_access(draft,needs_enabled)
 	if not access.ok:return access
 	var id:=str(draft.request_id)
-	if not await _acquire_lane("speech",id):return _queue_error(id)
+	var queued_at:=Time.get_ticks_msec()
+	if not await _acquire_lane("speech",id,_request_guard(draft)):return _queue_error(id)
 	var session:=VoiceSession.new()
 	add_child(session)
 	_voice_requests[id]=session
@@ -360,11 +374,16 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	if not begun.ok:
 		_voice_requests.erase(id);_release_lane("speech");session.queue_free()
 		return begun
+	_begin_request_diagnostics(draft,id,choice,"tts",queued_at)
 	var epoch:=_connection_epoch
 	while results.is_empty() and is_instance_valid(session):
 		if _cancelled_requests.has(id) or epoch!=_connection_epoch:session.cancel()
 		await get_tree().process_frame
 	var result: Dictionary=results[0] if not results.is_empty() else {"ok":false,"error":"The voice session ended.","retryable":true}
+	# Verified audio is usable before Live's final accounting event arrives.
+	# The transport still drains and records usage exactly once below.
+	var ready_callback: Callable=delivery.get("_audio_ready",Callable())
+	if bool(result.get("ok",false)) and not _cancelled_requests.has(id) and epoch==_connection_epoch and ready_callback.is_valid():ready_callback.call(result)
 	var availability_key:=_account_cache_id(str(access.key))+":"+choice
 	if str(result.get("code","")) in ["model_not_found","permission_denied","insufficient_permissions"] and voice_type=="preset":_access_failures[availability_key]=str(result.code)
 	elif result.get("ok",false):_access_failures.erase(availability_key)
@@ -373,12 +392,23 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	if is_instance_valid(session) and session.state!="closed":
 		session.close_session()
 		while is_instance_valid(session) and session.state!="closed":await get_tree().process_frame
+	# Cancel can arrive during graceful close, after speech_completed. A studio
+	# preview or caller without the early callback must not resurrect that audio.
+	if _cancelled_requests.has(id) or epoch!=_connection_epoch:
+		result.erase("stream");result.ok=false;result.canceled=true;result.retryable=false;result.error="Speech canceled."
 	var metadata: Dictionary=result.get("_api_metadata",{})
 	var seconds: float=-1.0
-	if is_instance_valid(session) and Models.supports(choice,"live"):
-		metadata={"usage":{"seconds":session.latest_usage_seconds},"model":choice}
-		seconds=session.latest_usage_seconds
+	if is_instance_valid(session):
+		# A canceled/invalid render can still carry billable provider usage.
+		# Read after the bounded close drain to include late response.done.
+		var observed:=session.observed_api_metadata()
+		if not observed.is_empty():metadata=observed
 		result.usage_confirmed=session.final_usage_confirmed
+	if is_instance_valid(session) and Models.supports(choice,"live"):
+		metadata={"usage":{"seconds":session.latest_usage_seconds},"model":choice} if session.usage_observed else {}
+		seconds=session.latest_usage_seconds if session.usage_observed else -1.0
+		result.usage_confirmed=session.final_usage_confirmed
+	_finish_request_diagnostics(draft,result)
 	result.measurement=_record_request(choice,"tts",metadata,bool(result.get("ok",false)),Time.get_ticks_msec()-started,draft,{},seconds,text.length())
 	result.erase("_api_metadata")
 	_voice_requests.erase(id);_cancelled_requests.erase(id);_release_lane("speech")
@@ -470,34 +500,63 @@ func _request_text(input: Variant, choice: String, output: int, effort: String, 
 		payload.messages=[{"role":"user","content":content}]
 		if not trusted_instructions.is_empty():payload.messages.push_front({"role":"system","content":trusted_instructions})
 		payload.max_completion_tokens=output
+		payload.stream=true
+		payload.stream_options={"include_usage":true}
 	else:
 		payload.input=input if input is String else [{"role":"user","content":input}]
-		if not trusted_instructions.is_empty():payload.instructions=trusted_instructions
+		if not trusted_instructions.is_empty():
+			# A stable developer prefix remains cacheable on current Responses
+			# models; top-level instructions are uncached on GPT-6.2 and later.
+			payload.input=[{"role":"developer","content":trusted_instructions},{"role":"user","content":input}]
+			var family:=Models.verified_family(choice)
+			if family.begins_with("gpt-6") or family.begins_with("gpt-5.6"):
+				payload.input[0].content=[{"type":"input_text","text":trusted_instructions,"prompt_cache_breakpoint":{"mode":"explicit"}}]
+				# Reuse the stable instructions without paying cache-write rates on
+				# changing mood, retrieved facts and the latest player message.
+				payload.prompt_cache_options={"mode":"explicit","ttl":"30m"}
 		payload.max_output_tokens=output
 		payload.store=false
+		payload.stream=true
 		if not effort.is_empty():payload.reasoning={"effort":effort}
 		if mode=="pro":payload.get_or_add("reasoning",{}).mode="pro"
 	return await _call(HTTPClient.METHOD_POST,path,payload,needs_enabled,draft,timeout,category)
 
 func moderate(input: String) -> Dictionary:
+	return await moderate_context(input,{})
+
+func moderate_context(input: String,metadata: Dictionary) -> Dictionary:
 	if input.strip_edges().is_empty() or input.length()>8000:return {"ok":false,"error":"The message is too long."}
-	var result: Dictionary=await _call(HTTPClient.METHOD_POST,"/moderations",{"model":"omni-moderation-latest","input":input},true)
-	return result
+	return await _call(HTTPClient.METHOD_POST,"/moderations",{"model":"omni-moderation-latest","input":input},true,metadata)
+
+func transcribe_wav_context(wav: PackedByteArray,metadata: Dictionary) -> Dictionary:
+	var draft:=metadata.duplicate()
+	draft.request_type="feature"
+	draft.subsystem="npc_microphone"
+	draft._production=true
+	return await transcribe_wav(wav,draft)
 
 func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if not valid_transcription_wav(wav):return {"ok":false,"error":"Record 0.15–180 seconds of mono 16 kHz PCM16 speech.","retryable":false}
-	var access:=_voice_access(draft,draft.is_empty())
+	var access:=_voice_access(draft,draft.is_empty() or bool(draft.get("_production",false)))
 	if not access.ok:return access
 	var choice:=str(draft.get("modalities",{}).get("stt",stt_model))
 	if not bool(draft.get("stt_enabled",stt_enabled)) or not Models.available_for(choice,"stt"):
 		return {"ok":false,"error":"Speech recognition is disabled or its model has retired.","retryable":false}
 	var id:=str(draft.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
-	if not await _acquire_lane("transcription",id):return _queue_error(id)
+	var production:=draft.is_empty() or bool(draft.get("_production",false))
+	draft=draft.duplicate(true);draft.request_id=id
+	if not draft.has("request_type"):draft.request_type="feature" if production else "test"
+	if not draft.has("subsystem"):draft.subsystem="npc_microphone" if production else "microphone_test"
+	if not draft.has("request_purpose"):draft.request_purpose="transcription"
+	var queued_at:=Time.get_ticks_msec()
+	if not await _acquire_lane("transcription",id,_request_guard(draft)):return _queue_error(id)
 	var now:=Time.get_ticks_msec()
+	_begin_request_diagnostics(draft,id,choice,"stt",queued_at)
 	if Models.verified_family(choice) in Models.STREAMING_STT:
 		var result:=await _stream_transcription(wav,choice,str(access.key),id,draft)
 		_release_lane("transcription")
 		var metadata: Dictionary=result.get("_api_metadata",{})
+		_finish_request_diagnostics(draft,result)
 		result.measurement=_record_request(choice,"stt",metadata,bool(result.get("ok",false)),Time.get_ticks_msec()-now,draft,{},float(wav.size()-44)/32000.)
 		result.erase("_api_metadata");_cancelled_requests.erase(id)
 		return result
@@ -514,7 +573,8 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	body.append_array(("\r\n--%s--\r\n"%boundary).to_utf8_buffer())
 	var headers:=PackedStringArray(["Authorization: Bearer "+str(access.key),"Content-Type: multipart/form-data; boundary="+boundary])
 	var base:=_test_base if not _test_base.is_empty() else API_BASE
-	var raw:=await _http_exchange(base+"/audio/transcriptions",headers,HTTPClient.METHOD_POST,body,90.0,131072,id)
+	var guard: Variant=draft.get("_valid")
+	var raw:=await _http_exchange(base+"/audio/transcriptions",headers,HTTPClient.METHOD_POST,body,90.0,131072,id,guard if guard is Callable else Callable())
 	_release_lane("transcription")
 	var result: Dictionary
 	if not raw.ok:
@@ -528,7 +588,12 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 			var words:=str(parsed.get("text","")).strip_edges()
 			if words.length()>8000:result={"ok":false,"error":"The recognized utterance exceeds the conversation limit; no partial question was sent.","retryable":false}
 			else:result={"ok":true,"text":words,"_api_metadata":parsed} if not words.is_empty() else {"ok":false,"error":"No speech was recognized.","retryable":false}
+	if raw.ok:
+		result.status=int(raw.code)
+		result.retryable=int(raw.code)==429
+		result.retry_after_ms=int(raw.get("retry_after_ms",1000)) if result.retryable else 0
 	var metadata: Dictionary=result.get("_api_metadata",{})
+	_finish_request_diagnostics(draft,result)
 	result.measurement=_record_request(choice,"stt",metadata,bool(result.get("ok",false)),Time.get_ticks_msec()-now,draft,{},float(wav.size()-44)/32000.0)
 	result.erase("_api_metadata")
 	_cancelled_requests.erase(id)
@@ -542,7 +607,8 @@ func _stream_transcription(wav: PackedByteArray,choice: String,key: String,id: S
 	var last_partial:=""
 	var progress: Variant=draft.get("_transcription_progress")
 	while session.state!="closed" and is_inside_tree():
-		if epoch!=_connection_epoch or _cancelled_requests.has(id):
+		var valid: Variant=draft.get("_valid")
+		if epoch!=_connection_epoch or _cancelled_requests.has(id) or (valid is Callable and (not valid.is_valid() or not bool(valid.call()))):
 			session.cancel();break
 		session.poll()
 		if session.partial!=last_partial:
@@ -567,14 +633,21 @@ func set_local_test_voice_endpoint(value: String) -> bool:
 	_test_voice_base=value
 	return true
 
-func _acquire_lane(lane: String,id: String) -> bool:
+static func _request_guard(draft: Dictionary) -> Callable:
+	var valid: Variant=draft.get("_valid")
+	return valid if valid is Callable else Callable()
+
+static func _guard_cancelled(guard: Callable) -> bool:
+	return not guard.is_null() and (not guard.is_valid() or not bool(guard.call()))
+
+func _acquire_lane(lane: String,id: String,guard: Callable=Callable()) -> bool:
 	var queue: Array=_lane_waiting.get_or_add(lane,[])
 	if queue.size()>=MAX_WAITERS:return false
 	var epoch:=_connection_epoch
 	var ticket:={"id":id,"created":Time.get_ticks_msec()}
 	queue.append(ticket)
 	while is_inside_tree():
-		if epoch!=_connection_epoch:_cancelled_requests[id]=true
+		if epoch!=_connection_epoch or _guard_cancelled(guard):_cancelled_requests[id]=true
 		if _cancelled_requests.has(id) or Time.get_ticks_msec()-int(ticket.created)>30000:
 			queue.erase(ticket);return false
 		if queue[0]==ticket and int(_lane_active.get(lane,0))<int(LANE_LIMITS.get(lane,1)):
@@ -595,9 +668,24 @@ func _release_lane(lane: String) -> void:
 func _queue_error(id: String) -> Dictionary:
 	var canceled:=_cancelled_requests.has(id)
 	_cancelled_requests.erase(id)
-	return {"ok":false,"error":"Speech canceled." if canceled else "The voice request queue is full or timed out. Please try again.","canceled":canceled,"retryable":not canceled,"retry_after_ms":1000}
+	return {"ok":false,"error":"Request canceled." if canceled else "The AI request queue is full or timed out. Please try again.","canceled":canceled,"retryable":not canceled,"retry_after_ms":1000}
 
-func _http_exchange(url: String,headers: PackedStringArray,method: HTTPClient.Method,body: PackedByteArray,timeout: float,limit: int,id: String) -> Dictionary:
+func _stream_text_exchange(url: String,headers: PackedStringArray,payload: Dictionary,timeout: float,limit: int,id: String,draft: Dictionary) -> Dictionary:
+	var transport:=TextStream.new()
+	var callback: Variant=draft.get("_text_progress")
+	transport.begin(url,headers,payload,timeout,limit,callback if callback is Callable else Callable())
+	var epoch:=_connection_epoch
+	while not transport.done and is_inside_tree():
+		var valid: Variant=draft.get("_valid")
+		if _cancelled_requests.has(id) or epoch!=_connection_epoch or (valid is Callable and (not valid.is_valid() or not bool(valid.call()))):
+			transport.cancel();break
+		transport.poll()
+		if not transport.done:await get_tree().process_frame
+	if not transport.done:transport.cancel()
+	return transport.result
+
+func _http_exchange(url: String,headers: PackedStringArray,method: HTTPClient.Method,body: PackedByteArray,timeout: float,limit: int,id: String,guard: Callable=Callable()) -> Dictionary:
+	if _guard_cancelled(guard):return {"ok":false,"error":"The conversation ended before this request was sent.","canceled":true,"retryable":false}
 	var request:=HTTPRequest.new()
 	request.timeout=timeout
 	request.body_size_limit=limit
@@ -612,12 +700,12 @@ func _http_exchange(url: String,headers: PackedStringArray,method: HTTPClient.Me
 		_http_requests.erase(id);request.queue_free()
 		return {"ok":false,"error":"Could not start the OpenAI request.","retryable":true,"retry_after_ms":1000}
 	while completed.is_empty() and is_inside_tree():
-		if _cancelled_requests.has(id) or epoch!=_connection_epoch:
+		if _cancelled_requests.has(id) or epoch!=_connection_epoch or _guard_cancelled(guard):
 			request.cancel_request();_http_requests.erase(id);request.queue_free()
 			return {"ok":false,"error":"The request was canceled or the host connection changed.","canceled":true,"retryable":false}
 		await get_tree().process_frame
 	_http_requests.erase(id);request.queue_free()
-	if _cancelled_requests.has(id) or epoch!=_connection_epoch:return {"ok":false,"error":"The request was canceled or the host connection changed.","canceled":true,"retryable":false}
+	if _cancelled_requests.has(id) or epoch!=_connection_epoch or _guard_cancelled(guard):return {"ok":false,"error":"The request was canceled or the host connection changed.","canceled":true,"retryable":false}
 	if completed.is_empty() or int(completed[0][0])!=HTTPRequest.RESULT_SUCCESS:
 		return {"ok":false,"error":"OpenAI could not be reached or timed out.","retryable":true,"retry_after_ms":1000}
 	var retry_after:=1000
@@ -638,21 +726,37 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var background_epoch:=_background_epoch
 	var lane:="background" if background else "speech" if speech else "management" if method==HTTPClient.METHOD_GET or path=="/audio/voices" else "image" if path=="/images/generations" else "text"
 	var id:=str(draft.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
-	if not await _acquire_lane(lane,id):return _queue_error(id)
+	draft=draft.duplicate()
+	draft.request_id=id
+	if not draft.has("request_type"):draft.request_type="feature" if needs_enabled else "test"
+	var queued_at:=Time.get_ticks_msec()
+	if not await _acquire_lane(lane,id,_request_guard(draft)):return _queue_error(id)
 	var started:=Time.get_ticks_msec()
+	_begin_request_diagnostics(draft,id,request_model,purpose if not purpose.is_empty() else lane,queued_at)
 	var headers:=PackedStringArray(["Authorization: Bearer "+str(access.key),"Content-Type: application/json"])
 	var base:=_test_base if not _test_base.is_empty() else API_BASE
 	var limit:=8388608 if speech else 2097152 if path=="/models" else MAX_IMAGE_RESPONSE_BYTES if path=="/images/generations" else MAX_RESPONSE_BYTES
-	var raw:=await _http_exchange(base+path,headers,method,JSON.stringify(payload).to_utf8_buffer() if method==HTTPClient.METHOD_POST else PackedByteArray(),timeout,limit,id)
+	var raw: Dictionary
+	if bool(payload.get("stream",false)) and not speech and path in ["/responses","/chat/completions"]:
+		raw=await _stream_text_exchange(base+path,headers,payload,timeout,limit,id,draft)
+	else:
+		var guard: Variant=draft.get("_valid")
+		raw=await _http_exchange(base+path,headers,method,JSON.stringify(payload).to_utf8_buffer() if method==HTTPClient.METHOD_POST else PackedByteArray(),timeout,limit,id,guard if guard is Callable else Callable())
 	_release_lane(lane)
+	draft.transport_timing=raw.get("timing",{})
 	var response: Dictionary=raw if not raw.ok else _read_response(HTTPRequest.RESULT_SUCCESS,int(raw.code),raw.body,path,request_model)
+	response.request_id=id
+	response.timing=raw.get("timing",{}).duplicate()
+	response.timing.queue_ms=draft.queue_ms
 	if speech and path=="/chat/completions" and response.get("ok",false):
 		if not VoiceSession.transcript_matches(str(draft.get("expected_spoken_text","")),str(response.get("transcript",""))):
 			response.erase("stream");response.ok=false;response.error="Generated speech did not match the validated dialogue. No mismatched audio was played.";response.code="speech_transcript_mismatch";response.retryable=true
 		else:response.transcript_verified=true;response.text=str(draft.expected_spoken_text)
 	if raw.ok:
 		response.status=int(raw.code)
-		response.retryable=int(raw.code)==429 or int(raw.code)>=500
+		# An uncertain POST failure can already have generated billable output.
+		# Retry only an explicit rate rejection; read-only discovery remains safe.
+		response.retryable=int(raw.code)==429 or (method==HTTPClient.METHOD_GET and int(raw.code)>=500)
 		response.retry_after_ms=int(raw.retry_after_ms) if response.retryable else 0
 		var availability_key:=_account_cache_id(str(access.key))+":"+request_model
 		if int(raw.code) in [403,404] and path!="/audio/voices" and not (speech and (payload.get("voice") is Dictionary or payload.get("audio",{}).get("voice") is Dictionary)):_access_failures[availability_key]=int(raw.code)
@@ -665,13 +769,17 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	if method==HTTPClient.METHOD_POST and path!="/audio/voices":
 		if background:purpose="character_generation"
 		if purpose.is_empty():purpose={"/images/generations":"image_generation","/audio/speech":"tts","/moderations":"moderation"}.get(path,"text")
+		_finish_request_diagnostics(draft,response)
 		var raw_data: Variant=response.get("_api_metadata",{})
 		if not raw_data is Dictionary:raw_data={}
 		var clip: AudioStreamWAV=response.get("stream")
 		var characters: int=str(payload.get("input","")).length() if purpose=="tts" else -1
 		response.measurement=_record_request(request_model,purpose,raw_data,bool(response.get("ok",false)),Time.get_ticks_msec()-started,draft,payload.get("reasoning",{}),clip.get_length() if clip!=null else -1.,characters)
 		response.erase("_api_metadata")
-	if (lane=="text" and draft.is_empty() or background) and connection_signature==_connection_signature() and (not background or background_epoch==_background_epoch) and raw.ok and int(raw.code) in [401,403,404]:
+	else:
+		_finish_request_diagnostics(draft,response)
+		_record_control_request("voice_creation" if path=="/audio/voices" else "model_catalog" if path=="/models" else "connection_check",request_model,response,draft,Time.get_ticks_msec()-started)
+	if (lane=="text" and needs_enabled or background) and connection_signature==_connection_signature() and (not background or background_epoch==_background_epoch) and raw.ok and int(raw.code) in [401,403,404]:
 		_verified_signature=""
 		verification_error=str(response.get("error","Connection verification is required."))
 	_cancelled_requests.erase(id)
@@ -692,6 +800,7 @@ func _read_response(result: int,code: int,body: PackedByteArray,path: String,req
 		if wav.is_empty():return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
 		var stream:=AudioStreamWAV.load_from_buffer(wav)
 		if stream==null or stream.data.is_empty():return {"ok":false,"error":"OpenAI returned an unreadable voice clip."}
+		if stream.data.count(0)==stream.data.size():return {"ok":false,"error":"OpenAI returned a silent voice clip.","code":"silent_audio","retryable":false}
 		return {"ok":true,"stream":stream}
 	var parser:=JSON.new()
 	if parser.parse(body.get_string_from_utf8())!=OK:return {"ok":false,"error":"OpenAI returned an unreadable response."}
@@ -766,6 +875,7 @@ func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 			if wav.size()<44 or wav.slice(0,4).get_string_from_ascii()!="RIFF" or wav.slice(8,12).get_string_from_ascii()!="WAVE":return {"ok":false,"error":"The audio completion did not return WAV audio."}
 			var clip:=AudioStreamWAV.load_from_buffer(_finish_streamed_wav(wav))
 			if clip==null or clip.data.is_empty() or clip.get_length()>120.:return {"ok":false,"error":"The audio completion returned invalid or oversized audio."}
+			if clip.data.count(0)==clip.data.size():return {"ok":false,"error":"The audio completion returned silent audio.","code":"silent_audio","retryable":false}
 			return {"ok":true,"stream":clip,"transcript":str(audio.get("transcript",""))}
 		return _text_result(str(message.get("content","")))
 	if parsed.get("status","")!="completed":
@@ -800,8 +910,31 @@ func usage_scope(draft := {}) -> String:
 	var label:=_clean_profile(str(draft.get("usage_profile",usage_profile)))
 	return "Profile "+label if not label.is_empty() else local_usage_session
 
+func _begin_request_diagnostics(draft: Dictionary,id: String,choice: String,purpose: String,queued_at: int) -> void:
+	var now:=Time.get_ticks_msec()
+	draft.request_id=id;draft.queue_ms=now-queued_at;draft._request_started_ms=now
+	active_requests[id]={"request_id":id,"model":choice,"purpose":str(draft.get("request_purpose",purpose)),"subsystem":str(draft.get("subsystem",purpose)),"origin":str(draft.get("origin","background" if draft.get("_character_background",false) else "player")),"started_ms":now,"queue_ms":draft.queue_ms}
+
+func _finish_request_diagnostics(draft: Dictionary,result: Dictionary) -> void:
+	active_requests.erase(str(draft.get("request_id","")))
+	draft.result_status=int(result.get("status",0));draft.error_code=str(result.get("code",""));draft.canceled=bool(result.get("canceled",false))
+	var timing: Dictionary=result.get("timing",result.get("timings",draft.get("transport_timing",{}))).duplicate()
+	if not timing.has("total_ms"):timing.total_ms=Time.get_ticks_msec()-int(draft.get("_request_started_ms",Time.get_ticks_msec()))
+	timing.queue_ms=int(draft.get("queue_ms",0));draft.transport_timing=timing
+	result.request_id=str(draft.get("request_id",""));result.timing=timing.duplicate()
+
+func _record_control_request(purpose: String,choice: String,result: Dictionary,draft: Dictionary,elapsed: int) -> void:
+	# Catalog and creation calls also belong in the request audit. With no usage
+	# reported they must not fabricate token counts or alter per-model billing.
+	session_requests+=1
+	request_journal.append({"request_id":str(draft.get("request_id","")),"purpose":purpose,"subsystem":"voice_management" if purpose=="voice_creation" else "ai_settings","origin":"player","requested_model":choice,"success":bool(result.get("ok",false)),"status":int(draft.get("result_status",0)),"error_code":str(draft.get("error_code","")),"canceled":bool(draft.get("canceled",false)),"usage":{},"usage_source":"unreported","latency_ms":elapsed,"timing":draft.get("transport_timing",{}).duplicate(),"retry_count":0,"finished_ms":Time.get_ticks_msec()})
+	while request_journal.size()>MAX_REQUEST_JOURNAL:request_journal.pop_front()
+	usage_changed.emit()
+
 func _record_request(id: String,purpose: String,response: Dictionary,success: bool,elapsed: int,draft: Dictionary,reasoning: Dictionary,seconds := -1.0,characters := -1) -> Dictionary:
 	var measurement:=Usage.usage_from(response,seconds,characters)
+	var raw_usage: Variant=response.get("usage")
+	var reported_usage: bool=raw_usage is Dictionary and not raw_usage.is_empty()
 	var requested_effort:=str(reasoning.get("effort",""))
 	var observed: Variant=response.get("reasoning",{})
 	var effort:=str(observed.get("effort",requested_effort)) if observed is Dictionary else requested_effort
@@ -812,7 +945,8 @@ func _record_request(id: String,purpose: String,response: Dictionary,success: bo
 	if processing.is_empty() or processing in ["auto","default"]:processing="standard"
 	if processing=="priority":processing="fast"
 	var data:={"profile":usage_scope(draft),"model":id,"snapshot":snapshot,"purpose":purpose,
-		"effort":effort,"mode":mode,"tier":processing,"date":Time.get_date_string_from_system(true),"type":str(draft.get("request_type","feature" if draft.is_empty() else "test")),"billed_usage":not response.get("usage",{}).is_empty()}
+		"effort":effort,"mode":mode,"tier":processing,"date":Time.get_date_string_from_system(true),"type":str(draft.get("request_type","feature" if draft.is_empty() else "test")),"billed_usage":reported_usage,
+		"subsystem":str(draft.get("subsystem",purpose)),"origin":str(draft.get("origin","background" if purpose=="character_generation" else "player")),"request_purpose":str(draft.get("request_purpose",purpose))}
 	var entry:=usage_tracker.record(data,measurement,success,elapsed)
 	if success or not measurement.is_empty():
 		var totals: Dictionary=model_usage.get_or_add(id,{"requests":0,"input":0,"output":0,"reasoning":0,"seconds":0.0})
@@ -820,9 +954,24 @@ func _record_request(id: String,purpose: String,response: Dictionary,success: bo
 		for field in ["input","output","reasoning","seconds"]:totals[field]+=measurement.get(field,0)
 	entry.effort=effort
 	entry.mode=mode
+	entry.request_id=str(draft.get("request_id",""))
+	entry.correlation_id=str(draft.get("correlation_id",""))
+	entry.timing=draft.get("transport_timing",{}).duplicate()
+	entry.timing.queue_ms=int(draft.get("queue_ms",0))
+	entry.usage_source="provider" if reported_usage else "local_duration_or_characters" if not measurement.is_empty() else "unreported"
+	session_requests+=1
+	for field in Usage.COUNT_FIELDS+["seconds"]:
+		if measurement.has(field):session_usage[field]=session_usage.get(field,0)+measurement[field]
+	var journal:=entry.duplicate(true)
+	journal.merge({"purpose":data.request_purpose,"subsystem":data.subsystem,"origin":data.origin,"requested_model":id,"success":success,"status":int(draft.get("result_status",0)),"error_code":str(draft.get("error_code","")),"canceled":bool(draft.get("canceled",false)),"retry_count":int(draft.get("retry_count",0)),"finished_ms":Time.get_ticks_msec()})
+	request_journal.append(journal)
+	while request_journal.size()>MAX_REQUEST_JOURNAL:request_journal.pop_front()
 	_save()
 	usage_changed.emit()
 	return entry
+
+func request_diagnostics() -> Dictionary:
+	return {"active":active_requests.values().duplicate(true),"recent_requests":request_journal.slice(-40),"session_requests":session_requests,"session_usage":session_usage.duplicate(),"usage_note":"Provider tokens remain unknown when not reported; monetary values are local estimates, not invoices.","lanes":voice_diagnostics()}
 
 func comparison_question(question: String,choice: String,effort: String,mode: String,limit: int,draft: Dictionary) -> Dictionary:
 	if not Models.available_for(choice,"text") or not _mode_allowed(choice,mode) or limit not in range(16,2049):

@@ -104,6 +104,8 @@ static func token_cost(rate: Dictionary,usage: Dictionary) -> int:
 	var cached:=int(usage.get("cached",0))
 	var write_30m:=int(usage.get("write_30m",0))
 	var write_12h:=int(usage.get("write_12h",0))
+	# An unsplit provider write total cannot be assigned a retention price.
+	if usage.has("cache_write") and int(usage.cache_write)!=write_30m+write_12h:return -1
 	var uncached:=int(usage.input)-cached-write_30m-write_12h
 	if uncached<0 or int(usage.output)<0:return -1
 	var total:=uncached*roundi(float(rate.input)*1000.0)+int(usage.output)*roundi(float(rate.output)*1000.0)

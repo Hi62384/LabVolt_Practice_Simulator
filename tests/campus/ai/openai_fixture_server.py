@@ -32,8 +32,35 @@ class Handler(BaseHTTPRequestHandler):
             del Handler.requests[:-256]
 
     def _text(self, text, status="completed", **metadata):
-        return self._reply(200, {"status": status, **metadata, "output": [
-            {"type": "message", "content": [{"type": "output_text", "text": text}]}]})
+        result = {"status": status, **metadata, "output": [
+            {"type": "message", "content": [{"type": "output_text", "text": text}]}]}
+        if getattr(self, "streaming_response", False):
+            return self._reply_stream(result)
+        return self._reply(200, result)
+
+    def _reply_stream(self, result, delay=0.0):
+        text = result["output"][0]["content"][0]["text"]
+        middle = max(1, len(text) // 2)
+        events = [{"type": "response.created", "sequence_number": 0, "response": {"status": "in_progress"}},
+                  {"type": "response.output_text.delta", "sequence_number": 1, "delta": text[:middle]},
+                  {"type": "response.output_text.delta", "sequence_number": 2, "delta": text[middle:]},
+                  {"type": "response.completed" if result["status"] == "completed" else "response.incomplete",
+                   "sequence_number": 3, "response": result}]
+        packets = [("data: " + json.dumps(event, ensure_ascii=False) + "\r\n\r\n").encode() for event in events]
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Content-Length", str(sum(map(len, packets))))
+            self.end_headers()
+            for index, packet in enumerate(packets):
+                # Exercise actual network fragmentation including Unicode bytes.
+                for offset in range(0, len(packet), 31):
+                    self.wfile.write(packet[offset:offset + 31])
+                self.wfile.flush()
+                if index == 1 and delay:
+                    time.sleep(delay)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     @staticmethod
     def _character_input(body):
@@ -132,6 +159,31 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, TypeError):
             return self._reply(400, {"error": {"message": "bad JSON"}})
         self._record_request(body)
+        self.streaming_response = bool(body.get("stream")) and self.path == "/v1/responses"
+        if self.path == "/v1/responses" and "HTTP_FIXTURE_CACHE" in str(body.get("input")):
+            messages = body.get("input", [])
+            prefix = messages[0].get("content", []) if messages else []
+            if (body.get("model") != "gpt-6.2-astra" or "instructions" in body
+                    or body.get("prompt_cache_options") != {"mode": "explicit", "ttl": "30m"}
+                    or not isinstance(prefix, list) or len(prefix) != 1
+                    or prefix[0].get("prompt_cache_breakpoint") != {"mode": "explicit"}
+                    or prefix[0].get("type") != "input_text"
+                    or messages[0].get("role") != "developer"
+                    or messages[-1] != {"role": "user", "content": "HTTP_FIXTURE_CACHE"}):
+                return self._reply(400, {"error": {"message": "invalid reusable cache prefix"}})
+            return self._text("Cache envelope accepted.", usage=self.CHARACTER_USAGE)
+        # Keep exact wire envelopes above; normalize only inside the authored fixture.
+        if isinstance(body.get("input"), list) and body["input"] and body["input"][0].get("role") == "developer":
+            body = dict(body)
+            messages = body["input"]
+            body["instructions"] = messages[0]["content"]
+            if isinstance(body["instructions"], list):
+                body["instructions"] = "".join(part.get("text", "") for part in body["instructions"])
+            body["input"] = messages[-1]["content"]
+        if self.path == "/v1/responses" and body.get("input") == "HTTP_FIXTURE_STREAM":
+            return self._reply_stream({"status": "completed", "model": body["model"],
+                "output": [{"type": "message", "content": [{"type": "output_text", "text": "Café — complete response."}]}],
+                "usage": self.CHARACTER_USAGE}, delay=0.15)
         if self.path == "/v1/audio/speech":
             if body.get("model") != "gpt-4o-mini-tts" or body.get("response_format") != "wav":
                 return self._reply(400, {"error": {"message": "wrong speech request"}})

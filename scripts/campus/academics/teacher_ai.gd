@@ -68,7 +68,7 @@ static func safe_reply(value: String) -> String:
 	return Speech.complete(cleaned)
 
 static func wav_16k(samples: PackedByteArray) -> PackedByteArray:
-	var wav:=PackedByteArray();wav.resize(44+samples.size())
+	var wav:=PackedByteArray();wav.resize(44)
 	for pair in [[0,"RIFF"],[8,"WAVE"],[12,"fmt "],[36,"data"]]:
 		var bytes: PackedByteArray=str(pair[1]).to_ascii_buffer()
 		for i in 4:wav[int(pair[0])+i]=bytes[i]
@@ -77,5 +77,7 @@ static func wav_16k(samples: PackedByteArray) -> PackedByteArray:
 	wav.encode_u32(24,16000);wav.encode_u32(28,32000)
 	wav.encode_u16(32,2);wav.encode_u16(34,16)
 	wav.encode_u32(40,samples.size())
-	for i in samples.size():wav[44+i]=samples[i]
+	# PackedByteArray copies in native code; a three-minute recording must not
+	# execute millions of interpreted assignments on the rendering thread.
+	wav.append_array(samples)
 	return wav

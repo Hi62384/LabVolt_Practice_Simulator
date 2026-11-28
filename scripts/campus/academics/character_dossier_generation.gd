@@ -23,6 +23,7 @@ var _generation := 0
 var _next_start_ms := 0
 var _bound_host := ""
 var _last_error := ""
+var publication_guard: Callable
 
 func configure(next_client: Node, next_population: RefCounted, next_brain: RefCounted = null) -> void:
 	var changed_host := _bound_host != Store.host_identity
@@ -71,7 +72,7 @@ static func _register_teacher(dossier: Dictionary) -> bool:
 func queue_teacher(profile: Dictionary) -> void:
 	Store.queue(profile, 5)
 
-func tick(preferred_ids: Array = []) -> void:
+func tick(preferred_ids: Array = [], relevant_only := false, allow_population := true) -> void:
 	if running or Time.get_ticks_msec() < _next_start_ms or Store.blocked or Store.host_identity != _bound_host: return
 	if not is_instance_valid(client) or not client.has_method("generate_character_dossier"): return
 	if not client.host_allowed() or not client.enabled or not client.configured(): return
@@ -79,13 +80,17 @@ func tick(preferred_ids: Array = []) -> void:
 	# Foreground requests retain priority; the separate HTTP lane prevents a
 	# generation already in flight from blocking a player's conversation.
 	if client.busy or client.get("background_busy") == true: return
-	_sync_population()
+	_sync_population(allow_population)
 	for id in preferred_ids:
 		if Store.jobs.has(str(id)): Store.jobs[str(id)].priority = 10
 	var ready: Array = []
 	var now := int(Time.get_unix_time_from_system())
 	for job in Store.jobs.values():
-		if job.get("status") in ["queued", "retry"] and int(job.get("attempts", 0)) < MAX_ATTEMPTS and int(job.get("retry_at", 0)) <= now: ready.append(job)
+		# Production callers pass the characters with a nearby audience. An
+		# explicitly requested custom instructor remains eligible without one.
+		if relevant_only and str(job.id) not in preferred_ids and job.get("kind")!="teacher" and not (allow_population and job.get("kind")=="student"):continue
+		if publication_guard.is_valid() and not bool(publication_guard.call(str(job.id))):continue
+		if job.get("status") in ["queued", "retry"] and (job.get("stage")=="publish" or int(job.get("attempts", 0)) < MAX_ATTEMPTS) and int(job.get("retry_at", 0)) <= now: ready.append(job)
 	if ready.is_empty(): return
 	ready.sort_custom(func(a, b): return int(a.priority) > int(b.priority) if int(a.priority) != int(b.priority) else int(a.created_at) < int(b.created_at))
 	running = true
@@ -93,7 +98,7 @@ func tick(preferred_ids: Array = []) -> void:
 	_next_start_ms = Time.get_ticks_msec() + START_INTERVAL_MS
 	_run(active_id, _generation, Store.revision)
 
-func _sync_population() -> void:
+func _sync_population(allow_new := true) -> void:
 	if population == null or population.profile_blocked or population.persistence_blocked: return
 	# A dossier may have been saved just before interruption; import it without
 	# charging another generation request or changing its stable identity.
@@ -103,6 +108,7 @@ func _sync_population() -> void:
 		if not population.people.has(id) or int(population.people[id].get("dossier_revision",0)) != int(d.get("revision",1)):
 			var full:=Store.get_dossier(str(id))
 			if not full.is_empty():population.import_generated(student_profile(full))
+	if not allow_new:return
 	var pending_new := 0
 	for job in Store.jobs.values():
 		if job.get("kind") == "student" and job.get("status") != "complete": pending_new += 1
@@ -194,7 +200,9 @@ func _run(id: String, generation: int, store_revision: int) -> void:
 	job.elapsed_ms = int(job.get("elapsed_ms", 0)) + Time.get_ticks_msec() - started
 	job.measurement = _measure(job.get("measurement", {}), response.get("measurement", {}))
 	if not response.get("ok", false):
-		_finish_failure(id, job, str(response.get("error", "Character generation failed.")), true)
+		# Auth/configuration errors and an uncertain accepted request must not
+		# silently regenerate a potentially billable full biography.
+		_finish_failure(id, job, str(response.get("error", "Character generation failed.")), bool(response.get("retryable",false)))
 		return
 	var decoded: Variant = decode(str(response.get("text", "")))
 	if not decoded is Dictionary:
@@ -245,6 +253,12 @@ func _run(id: String, generation: int, store_revision: int) -> void:
 	telemetry.attempts = job.attempts
 	telemetry.canon_repairs = int(job.get("canon_repairs",0))
 	telemetry.model = str(client.model)
+	if publication_guard.is_valid() and not bool(publication_guard.call(id)):
+		job.draft=candidate;job.stage="publish";job.status="queued";job.measurement=telemetry
+		job.last_error="Validated identity is waiting for the active conversation to finish."
+		Store.update_job(id,job);Store.save()
+		running=false;active_id=""
+		return
 	var published := Store.publish(candidate, seed, telemetry)
 	if not published.get("ok", false):
 		job.draft = candidate

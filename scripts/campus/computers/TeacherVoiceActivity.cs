@@ -15,11 +15,16 @@ public partial class TeacherVoiceActivity : RefCounted
     private readonly MicrophoneCaptureProcessor processor = new();
     private int onset, silence, spokenSamples, segment;
     private long turnId;
-    private bool speaking;
+    private bool speaking, explicitTurn;
     public void Reset()
     {
         preRoll.Clear(); turn.Clear(); processor.Reset();
-        onset = silence = spokenSamples = segment = 0; speaking = false;
+        onset = silence = spokenSamples = segment = 0; speaking = explicitTurn = false;
+    }
+    public Godot.Collections.Dictionary BeginExplicitTurn()
+    {
+        Reset(); speaking = explicitTurn = true; turnId++;
+        return new Godot.Collections.Dictionary { ["onset"] = true, ["speaking"] = true, ["turn_id"] = turnId };
     }
     // Compatibility for fixtures. Playback never increases the input threshold.
     public Godot.Collections.Dictionary Push(Vector2[] frames, double inputRate, float sensitivity, bool otherAudio)
@@ -49,7 +54,7 @@ public partial class TeacherVoiceActivity : RefCounted
         {
             if (voiceDetected) { spokenSamples += count; silence = 0; }
             else silence += count;
-            if (silence >= SilenceSamples) return Finish(result);
+            if (!explicitTurn && silence >= SilenceSamples) return Finish(result);
             if (turn.Count >= SegmentSamples)
             {
                 result["audio"] = Bytes(turn.Count); result["continued"] = true;
@@ -64,10 +69,12 @@ public partial class TeacherVoiceActivity : RefCounted
     }
     private Godot.Collections.Dictionary Finish(Godot.Collections.Dictionary result)
     {
-        int count = Math.Max(0, turn.Count - Math.Max(0, silence - Rate / 8));
-        if (spokenSamples >= MinimumSpeech || segment > 0)
+        int count = explicitTurn ? turn.Count : Math.Max(0, turn.Count - Math.Max(0, silence - Rate / 8));
+        var pcm = Bytes(count);
+        bool validExplicit = explicitTurn && processor.InspectPcm16(pcm)["has_signal"].AsBool();
+        if (validExplicit || (!explicitTurn && spokenSamples >= MinimumSpeech) || segment > 0)
         {
-            result["audio"] = Bytes(count); result["continued"] = false;
+            result["audio"] = pcm; result["continued"] = false;
             result["turn_id"] = turnId; result["segment"] = segment;
             result["speech_seconds"] = (double)spokenSamples / Rate;
         }
@@ -79,7 +86,7 @@ public partial class TeacherVoiceActivity : RefCounted
             result["turn_id"] = turnId; result["segment"] = segment;
             result["discarded"] = true;
         }
-        turn.Clear(); preRoll.Clear(); onset = silence = spokenSamples = segment = 0; speaking = false;
+        turn.Clear(); preRoll.Clear(); onset = silence = spokenSamples = segment = 0; speaking = explicitTurn = false;
         result["speaking"] = false; return result;
     }
     private byte[] Bytes(int count)
