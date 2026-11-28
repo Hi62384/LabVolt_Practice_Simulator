@@ -76,6 +76,12 @@ var _match_source:=""
 var _match_expected:=""
 var _match_result:=false
 var _completion_mode:=""
+var reusable:=false
+var _idle_since:=0
+var _response_id:=""
+var _response_instructions:=""
+var _realtime_ready_ms:=-1
+var _reused_connection:=false
 
 func begin(choice: String,voice: Variant,voice_type: String,key: String,instructions: String,
 		_context: Array=[],render_text: String="",endpoint: String="",identity: String="",audio_rate: int=RATE) -> Dictionary:
@@ -96,7 +102,8 @@ func begin(choice: String,voice: Variant,voice_type: String,key: String,instruct
 	_expected_text=render_text
 	request_id=identity if not identity.is_empty() else Crypto.new().generate_random_bytes(12).hex_encode()
 	history=[]
-	_config=live_config(model,voice,instructions,history,render_text,sample_rate) if _live else realtime_config(model,voice,instructions)
+	_response_instructions=instructions
+	_config=live_config(model,voice,instructions,history,render_text,sample_rate) if _live else realtime_config(model,voice,"")
 	var url:="wss://api.openai.com/v1/live/sessions" if _live else "wss://api.openai.com/v1/realtime?model="+model.uri_encode()
 	if not endpoint.is_empty():
 		if not OS.has_feature("editor") or RegEx.create_from_string("^ws://127\\.0\\.0\\.1:[0-9]{2,5}/v1$").search(endpoint)==null:
@@ -134,6 +141,23 @@ static func realtime_config(choice: String,voice: Variant,instructions: String) 
 		"audio":{"input":{"turn_detection":null},"output":{"format":{"type":"audio/pcm","rate":RATE},"voice":voice}},
 		"tools":[],"tool_choice":"none"}
 
+func can_reuse() -> bool:
+	return reusable and not _live and state=="idle" and _socket!=null and _socket.get_ready_state()==WebSocketPeer.STATE_OPEN and Time.get_ticks_msec()-_idle_since<45000
+
+func reuse(text: String,instructions: String,identity: String) -> Dictionary:
+	if not can_reuse() or text.strip_edges().is_empty() or text.length()>1600 or instructions.length()>12000:return _error("The pooled voice session is unavailable.")
+	request_id=identity
+	_started_at=Time.get_ticks_msec()
+	_realtime_ready_ms=0
+	_reused_connection=true
+	_response_id="";_response_usage.clear();_response_pending=false;_response_cancel_sent=false
+	_render_finished=false;_render_result={};usage_observed=false;final_usage_confirmed=false
+	_response_instructions=instructions
+	_reset_output(text)
+	state="ready"
+	_request_realtime_line()
+	return {"ok":true,"request_id":request_id}
+
 func _process(delta: float) -> void:
 	if _socket==null or state=="closed":return
 	_socket.poll()
@@ -162,6 +186,9 @@ func _process(delta: float) -> void:
 	if _socket.get_ready_state()==WebSocketPeer.STATE_CLOSED:
 		if not _render_finished and _render_only:_complete_render(_error("The voice connection ended before speech was verified.",true))
 		_finish_close("transport_closed",false)
+		return
+	if state=="idle" and now-_idle_since>=45000:
+		close_session("idle")
 		return
 	if state in ["connecting","starting"] and now-_started_at>START_TIMEOUT_MS:
 		_fail(_error("The voice connection timed out.",true))
@@ -192,6 +219,7 @@ func receive_event(event: Dictionary) -> void:
 		_seen_events[event_id]=true
 		if _seen_events.size()>4096:_seen_events.erase(_seen_events.keys()[0])
 	var kind:=str(event.get("type",""))
+	if state=="idle":return
 	if kind=="error":
 		_response_pending=false
 		var details: Dictionary=event.get("error",{}) if event.get("error") is Dictionary else {}
@@ -206,10 +234,18 @@ func receive_event(event: Dictionary) -> void:
 		var final_usage_valid:=_accept_usage(event)
 		_finish_close(str(event.get("reason","closed")),final_usage_valid if _live else true)
 		return
+	if kind=="response.created" and not _live:
+		if not _response_pending or not _response_id.is_empty():return
+		var created: Dictionary=event.get("response",{})
+		if str(created.get("metadata",{}).get("request_id",""))!=request_id:return
+		_response_id=str(created.get("id",""))
+		if state=="closing" and not _response_id.is_empty():_cancel_realtime_response()
+		return
 	if kind=="response.done" and not _live:
 		# Realtime reports usage for unsuccessful and cancelled responses too.
 		# Drain this terminal event even after output was blocked by cancellation.
 		var response: Dictionary=event.get("response",{}) if event.get("response") is Dictionary else {}
+		if _response_id.is_empty() or str(response.get("id",""))!=_response_id:return
 		var usage: Variant=response.get("usage",{})
 		if usage is Dictionary and not usage.is_empty():
 			_response_usage={"usage":usage.duplicate(true),"model":model}
@@ -221,9 +257,13 @@ func receive_event(event: Dictionary) -> void:
 		if response.get("status","")!="completed":
 			_complete_render(_error("The voice response was interrupted or incomplete."))
 		else:_validate_output()
-		close_session("rendered")
+		if reusable and bool(_render_result.get("ok",false)):
+			final_usage_confirmed=usage_observed
+			state="idle";_idle_since=Time.get_ticks_msec()
+		else:close_session("rendered")
 		return
 	if state=="closing":return
+	if not _live and kind.begins_with("response.") and (_response_id.is_empty() or str(event.get("response_id",""))!=_response_id):return
 	match kind:
 		"session.created":
 			if not _live:_send({"type":"session.update","event_id":request_id+"_configure","session":_config})
@@ -233,6 +273,7 @@ func receive_event(event: Dictionary) -> void:
 			_server_ready=true
 			state="ready"
 			_live_ready_at=Time.get_ticks_msec() if _live else -1
+			if not _live:_realtime_ready_ms=Time.get_ticks_msec()-_started_at
 			session_id=str(event.get("session",{}).get("id",""))
 			session_ready.emit()
 			if not _live and _render_only:_request_realtime_line()
@@ -279,6 +320,7 @@ func receive_event(event: Dictionary) -> void:
 				_received_signal=true
 			elif _received_signal:_trailing_zero_bytes+=chunk.size()
 			if _has_voice(chunk):_last_voice_at=_last_audio_at
+			if not _live:audio_received.emit(chunk)
 		"response.output_audio_transcript.delta":
 			if _blocked:return
 			_transcript+=str(event.get("delta",""))
@@ -287,8 +329,16 @@ func receive_event(event: Dictionary) -> void:
 			if not _blocked:_transcript=str(event.get("transcript",_transcript))
 
 func _request_realtime_line() -> void:
-	_send({"type":"conversation.item.create","event_id":request_id+"_text","item":{"type":"message","role":"user","content":[{"type":"input_text","text":_expected_text}]}})
-	_response_pending=_send({"type":"response.create","event_id":request_id+"_speak","response":{"output_modalities":["audio"]}})
+	# Out-of-band rendering: no prior NPC text, microphone or conversation state.
+	_response_pending=_send({"type":"response.create","event_id":request_id+"_speak","response":{
+		"conversation":"none","metadata":{"request_id":request_id},"output_modalities":["audio"],
+		"instructions":str(_config.instructions)+" "+_response_instructions,
+		"input":[{"type":"message","role":"user","content":[{"type":"input_text","text":_expected_text}]}]}})
+	if not _response_pending:_fail(_error("Could not submit the speech request."))
+
+func _cancel_realtime_response() -> void:
+	if not _response_cancel_sent and not _response_id.is_empty():
+		_response_cancel_sent=_send({"type":"response.cancel","response_id":_response_id})
 
 func append_audio(_pcm: PackedByteArray) -> bool:
 	# Compatibility guard for retired consumers: microphone input is impossible.
@@ -310,7 +360,7 @@ func interrupt() -> void:
 	_transcript=""
 	_blocked=true
 	if state=="ready" and not _live and _response_pending:
-		_response_cancel_sent=_send({"type":"response.cancel"})
+		_cancel_realtime_response()
 
 func cancel() -> void:
 	interrupt()
@@ -330,7 +380,7 @@ func close_session(reason: String="finished") -> void:
 	elif _response_pending and _socket.get_ready_state()==WebSocketPeer.STATE_OPEN:
 		# Stop generation immediately, retain the connection only long enough
 		# to receive response.done accounting, bounded by CLOSE_TIMEOUT_MS.
-		if not _response_cancel_sent:_response_cancel_sent=_send({"type":"response.cancel"})
+		_cancel_realtime_response()
 	else:
 		_socket.close(1000,reason.left(80))
 		_finish_close(reason,usage_observed if not _live else false)
@@ -393,6 +443,8 @@ func _validate_output() -> void:
 	var ready_ms:=Time.get_ticks_msec()-_started_at
 	var timing:={"first_pcm_ms":maxi(0,_first_pcm_at-_started_at),"first_audio_ms":maxi(0,_first_audio_at-_started_at),"validated_audio_ms":ready_ms,"trimmed_silence_ms":float(trim)*500./sample_rate}
 	if _live_ready_at>=0:timing.session_ready_ms=maxi(0,_live_ready_at-_started_at)
+	elif _realtime_ready_ms>=0:timing.session_ready_ms=_realtime_ready_ms
+	timing.connection_reused=_reused_connection
 	var result:={"ok":true,"stream":stream,"text":_expected_text,"transcript_verified":true,"request_id":request_id,"model":model,"provider":"openai_live" if _live else "openai_realtime","first_audio_ms":timing.first_audio_ms,"validated_audio_ms":ready_ms,"timing":timing,"completion_mode":_completion_mode if _live else "response_done","_api_metadata":_response_usage.duplicate(true)}
 	if _render_only:_complete_render(result)
 	else:

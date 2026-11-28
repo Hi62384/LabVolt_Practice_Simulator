@@ -2681,13 +2681,10 @@ func _next_speech(room: String) -> int:
  speech_serial[room]=serial
  return serial
 
-# Only addressed player conversations use speculative sentence rendering.
-# Background NPCs and assessed/visual dialogue retain their existing path.
-func _enable_sentence_prefetch(extra: Dictionary,peer: int,room: String) -> void:
- if not is_instance_valid(speech_synth) or not _uses_class_voice():return
- if peer==multiplayer.get_unique_id() and not game.client_preferences.values.get("teacher_speech",true) and _voice_recipients(room).is_empty():return
- extra._sentence_ready=_prefetch_character_sentence
- extra._discard_prefetch=speech_synth.discard_prefetch
+# Speech consumes the authoritative complete line. Speculative per-sentence
+# requests can duplicate charges and introduce discontinuous delivery.
+func _enable_sentence_prefetch(_extra: Dictionary,_peer: int,_room: String) -> void:
+ pass
 
 func _prefetch_character_sentence(event_id: String,index: int,text: String,prepared: Dictionary) -> void:
  if not _uses_class_voice() or not is_instance_valid(speech_synth):return
@@ -2709,7 +2706,7 @@ func _track_character_audio(room: String,serial: int,event_id: String,timing: Di
  if not multiplayer.is_server() or event_id.is_empty() or not timing.has("host_received_ms"):return
  var key:=room+":"+str(serial)
  if not speech_turn_timings.has(key) and speech_turn_timings.size()>=128:speech_turn_timings.erase(speech_turn_timings.keys()[0])
- speech_turn_timings[key]={"event_id":event_id,"host_received_ms":int(timing.host_received_ms),"sentence_mode":str(timing.get("input_kind","")) in ["typed","text","audio","microphone"]}
+ speech_turn_timings[key]={"event_id":event_id,"host_received_ms":int(timing.host_received_ms)}
 
 func _character_audio_ready(room: String,serial: int) -> void:
  _note_character_audio(room,serial,"audio_ready",Time.get_ticks_msec())
@@ -2887,9 +2884,8 @@ func _request_reaction_audio(channel: String,serial: int,id: String,text: String
   speech_synth.discard_prefetch(owner)
   _speech_completed.call_deferred(channel,serial,key,stream,"ok");return
  delivery=delivery.duplicate(true)
- delivery.segmented=true
- if timing.get("sentence_mode",false) or (not owner.is_empty() and speech_synth.prefetch_turns.has(owner)):
-  delivery.sentence_mode=true;delivery.prefetch_turn=owner
+ delivery.erase("segmented");delivery.erase("sentence_mode");delivery.erase("prefetch_turn")
+ speech_synth.discard_prefetch(owner)
  var result: String=speech_synth.request(channel,serial,id,text,key,priority,delivery)
  if result not in ["queued","duplicate","cached"]:
   speech_synth.discard_prefetch(owner)

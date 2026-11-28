@@ -56,6 +56,8 @@ var verification_error := ""
 var _lane_active: Dictionary={}
 var _lane_waiting: Dictionary={}
 var _voice_requests: Dictionary={}
+var _idle_voices: Dictionary={}
+const MAX_IDLE_VOICES:=3
 var _cancelled_requests: Dictionary={}
 var _http_requests: Dictionary={}
 var _access_failures: Dictionary={}
@@ -88,6 +90,7 @@ func set_session_key(value: String) -> bool:
 	cancel_background_generation()
 	_session_key=clean
 	_connection_epoch+=1
+	_clear_voice_pool()
 	for session: Node in _voice_requests.values():
 		if is_instance_valid(session):session.cancel()
 	return true
@@ -105,6 +108,7 @@ func clear_session_key() -> void:
 		_session_key=""
 		_verified_signature=""
 		_connection_epoch+=1
+		_clear_voice_pool()
 		for session: Node in _voice_requests.values():
 			if is_instance_valid(session):session.cancel()
 
@@ -361,21 +365,55 @@ func speak(text: String,draft: Dictionary={},voice: Variant="alloy",delivery: Di
 	result.request_id=context.request_id
 	return result
 
+func _clear_voice_pool() -> void:
+	for session: Node in _idle_voices.values():
+		if is_instance_valid(session):session.close_session("pool cleared");session.queue_free()
+	_idle_voices.clear()
+
+func _take_idle_voice(pool_key: String) -> Node:
+	for key in _idle_voices.keys():
+		var candidate: Node=_idle_voices[key]
+		if not is_instance_valid(candidate) or not candidate.can_reuse():
+			_idle_voices.erase(key)
+			if is_instance_valid(candidate):candidate.queue_free()
+	var session: Node=_idle_voices.get(pool_key)
+	_idle_voices.erase(pool_key)
+	return session
+
+func _keep_idle_voice(pool_key: String,session: Node) -> void:
+	if _idle_voices.has(pool_key):
+		var previous: Node=_idle_voices[pool_key]
+		if is_instance_valid(previous):previous.close_session("pool replaced");previous.queue_free()
+		_idle_voices.erase(pool_key)
+	while _idle_voices.size()>=MAX_IDLE_VOICES:
+		var oldest: Variant=_idle_voices.keys()[0]
+		var victim: Node=_idle_voices[oldest]
+		_idle_voices.erase(oldest)
+		if is_instance_valid(victim):victim.close_session("pool limit");victim.queue_free()
+	_idle_voices[pool_key]=session
+
 func _render_voice(text: String,choice: String,voice: Variant,voice_type: String,delivery: Dictionary,draft: Dictionary,needs_enabled: bool) -> Dictionary:
 	var access:=_voice_access(draft,needs_enabled)
 	if not access.ok:return access
 	var id:=str(draft.request_id)
 	var queued_at:=Time.get_ticks_msec()
 	if not await _acquire_lane("speech",id,_request_guard(draft)):return _queue_error(id)
-	var session:=VoiceSession.new()
+	var pool_key:=JSON.stringify([choice,voice_type,voice,_account_cache_id(str(access.key)),_test_voice_base,_connection_epoch]).sha256_text()
+	var use_pool:=Models.verified_family(choice) in Models.REALTIME and voice_type=="preset"
+	var session: Node=_take_idle_voice(pool_key) if use_pool else null
+	var reused:=is_instance_valid(session)
+	if not reused:
+		session=VoiceSession.new()
+		session.reusable=use_pool
+		add_child(session)
 	# Explicit settings auditions work while the singleplayer menu is paused.
-	if not needs_enabled:session.process_mode=Node.PROCESS_MODE_ALWAYS
-	add_child(session)
+	session.process_mode=Node.PROCESS_MODE_INHERIT if needs_enabled else Node.PROCESS_MODE_ALWAYS
 	_voice_requests[id]=session
 	var results: Array=[]
-	session.speech_completed.connect(func(value: Dictionary):results.append(value))
+	var completion:=func(value: Dictionary):results.append(value)
+	session.speech_completed.connect(completion)
 	var started:=Time.get_ticks_msec()
-	var begun:=session.begin(choice,voice,voice_type,str(access.key),str(delivery.get("instructions","")),[],text,_test_voice_base,id)
+	var begun: Dictionary=session.reuse(text,str(delivery.get("instructions","")),id) if reused else session.begin(choice,voice,voice_type,str(access.key),str(delivery.get("instructions","")),[],text,_test_voice_base,id)
 	if not begun.ok:
 		_voice_requests.erase(id);_release_lane("speech");session.queue_free()
 		return begun
@@ -395,7 +433,7 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	elif result.get("ok",false):_access_failures.erase(availability_key)
 	# Allow the Live terminal usage event to drain before releasing the transport.
 	# No client audio can become audible after cancellation, even if close is slow.
-	if is_instance_valid(session) and session.state!="closed":
+	if is_instance_valid(session) and session.state not in ["closed","idle"]:
 		session.close_session()
 		while is_instance_valid(session) and session.state!="closed":await get_tree().process_frame
 	# Cancel can arrive during graceful close, after speech_completed. A studio
@@ -418,7 +456,12 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	result.measurement=_record_request(choice,"tts",metadata,bool(result.get("ok",false)),Time.get_ticks_msec()-started,draft,{},seconds,text.length())
 	result.erase("_api_metadata")
 	_voice_requests.erase(id);_cancelled_requests.erase(id);_release_lane("speech")
-	if is_instance_valid(session):session.queue_free()
+	if is_instance_valid(session):
+		session.speech_completed.disconnect(completion)
+		if use_pool and result.get("ok",false) and session.can_reuse() and epoch==_connection_epoch:
+			session.process_mode=Node.PROCESS_MODE_ALWAYS
+			_keep_idle_voice(pool_key,session)
+		else:session.close_session("render complete");session.queue_free()
 	return result
 
 func create_prompt_voice(voice_name: String,prompt: String,script_hint: String="",draft: Dictionary={}) -> Dictionary:
@@ -474,7 +517,7 @@ func voice_diagnostics() -> Dictionary:
 		if is_instance_valid(session):active.append(session.diagnostics())
 	var queued:={}
 	for lane in _lane_waiting:queued[lane]=_lane_waiting[lane].size()
-	return {"active":active,"request_lanes":_lane_active.duplicate(),"queued":queued,"tts_model":tts_model,"stt_model":stt_model,"speech_only":true,"microphone_streaming":false,"lifecycle":Models.lifecycle(tts_model)}
+	return {"active":active,"idle_pool_size":_idle_voices.size(),"idle_pool_limit":MAX_IDLE_VOICES,"request_lanes":_lane_active.duplicate(),"queued":queued,"tts_model":tts_model,"stt_model":stt_model,"speech_only":true,"microphone_streaming":false,"lifecycle":Models.lifecycle(tts_model)}
 
 func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	var choice:=str(draft.get("modalities",{}).get("image_generation",image_generation_model))
@@ -636,6 +679,7 @@ func set_local_test_endpoint(value: String) -> bool:
 
 func set_local_test_voice_endpoint(value: String) -> bool:
 	if not OS.has_feature("editor") or RegEx.create_from_string("^ws://127\\.0\\.0\\.1:[0-9]{2,5}/v1$").search(value)==null:return false
+	_clear_voice_pool()
 	_test_voice_base=value
 	return true
 
@@ -1052,6 +1096,7 @@ func _save() -> Error:
 
 func _exit_tree() -> void:
 	_connection_epoch+=1
+	_clear_voice_pool()
 	for request: HTTPRequest in _http_requests.values():
 		if is_instance_valid(request):request.cancel_request()
 	for session: Node in _voice_requests.values():
