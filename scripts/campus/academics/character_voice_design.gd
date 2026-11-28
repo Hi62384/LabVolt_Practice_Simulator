@@ -98,6 +98,63 @@ static func draft(person: Dictionary) -> Dictionary:
 	profile.provisional_notice="Heuristically matched shared preset; not an auditioned custom voice. Speaker is saved once, never rematched on mood changes."
 	return profile
 
+# Acoustic intentions are editable independently; these are not measured
+# properties of a provider voice. Old authored/approved records still load.
+const EDITABLE_FIELDS:={
+	"accent":"Accent and pronunciation","pitch_range":"Pitch register","resonance":"Resonance",
+	"timbre":"Timbre","texture":"Texture","articulation":"Articulation",
+	"rhythm":"Cadence and rhythm","intonation":"Intonation","breathiness":"Breathiness",
+	"emphasis":"Typical emphasis","mannerisms":"Conversational manner","emotional_tendencies":"Emotional tendencies"
+}
+
+static func vocal_fields(profile: Dictionary) -> Dictionary:
+	var fields: Dictionary={}
+	for key: String in EDITABLE_FIELDS:
+		var fallback:="Natural and consistent"
+		match key:
+			"rhythm":fallback="Natural thought groups, "+("unhurried" if float(profile.get("normal_pace",1.))<.93 else "connected and brisk" if float(profile.get("normal_pace",1.))>1.05 else "conversational")
+			"intonation":fallback="Natural rises and falls, responsive to meaning"
+			"breathiness":fallback=str(profile.get("texture","Natural audible breath"))
+			"emphasis":fallback="Stress meaningful words, not every syllable"
+		fields[key]=_text(profile.get(key),fallback,220 if key in ["mannerisms","emotional_tendencies"] else 140)
+	fields.perceived_age=clampi(int(profile.get("perceived_age",22)),18,110)
+	fields.vocal_presentation=str(profile.get("vocal_presentation","androgynous"))
+	fields.normal_pace=clampf(float(profile.get("normal_pace",1.)),.65,1.3)
+	return fields
+
+static func apply_vocal_fields(profile: Dictionary,edits: Dictionary) -> Dictionary:
+	var result:=vocal_fields(profile)
+	for key: String in EDITABLE_FIELDS:
+		if edits.has(key):result[key]=_text(edits[key],str(result[key]),220 if key in ["mannerisms","emotional_tendencies"] else 140)
+	result.perceived_age=int(_number(edits.get("perceived_age"),float(result.perceived_age),18.,110.))
+	result.normal_pace=_number(edits.get("normal_pace"),float(result.normal_pace),.65,1.3)
+	if str(edits.get("vocal_presentation","")) in ["masculine","feminine","androgynous"]:result.vocal_presentation=edits.vocal_presentation
+	return result
+
+static func compose_vocal_prompt(fields: Dictionary) -> String:
+	var f:=vocal_fields(fields)
+	var lines: Array[String]=["Original fictional adult, age about %d, %s presentation. Normal pace %.2f."%[int(f.perceived_age),str(f.vocal_presentation),float(f.normal_pace)]]
+	for key: String in EDITABLE_FIELDS:lines.append(str(EDITABLE_FIELDS[key])+": "+str(f[key]).left(170 if key in ["mannerisms","emotional_tendencies"] else 100)+".")
+	var suffix:=" Keep the same accent, age, timbre and resonance across emotions. Current emotion controls delivery, not speaker identity. Never imitate an identifiable real person."
+	return " ".join(lines).left(MAX_PROMPT-suffix.length())+suffix
+
+static func alternate_preset(profile: Dictionary,previous: String) -> String:
+	# Offer nearby acoustic candidates from the heuristic palette without
+	# modifying the saved profile or deriving anything from appearance/name.
+	var f:=vocal_fields(profile)
+	var pitch:=" "+str(f.pitch_range).to_lower()+" "
+	var register:=.35 if "low" in pitch or "deep" in pitch else .7 if "upper" in pitch or "high" in pitch else .5
+	var warmth:=.72 if "warm" in str(f.timbre).to_lower() else .48
+	var pace:=clampf((float(f.normal_pace)-.65)/.65,0.,1.)
+	var ranked: Array=[]
+	for id: String in HINTS:
+		var h: Array=HINTS[id]
+		var penalty:=0. if h[0]==f.vocal_presentation else .65 if h[0]=="androgynous" else 2.
+		ranked.append({"id":id,"distance":absf(register-float(h[1]))*.9+absf(warmth-float(h[2]))*.7+absf(pace-float(h[3]))*.7+penalty})
+	ranked.sort_custom(func(a,b):return float(a.distance)<float(b.distance))
+	var index:=ranked.find_custom(func(item):return str(item.id)==previous)
+	return str(ranked[(index+1)%ranked.size()].id)
+
 static func dossier_seed(person: Dictionary) -> Dictionary:
 	var profile:=draft(person)
 	if profile.is_empty():return {}
