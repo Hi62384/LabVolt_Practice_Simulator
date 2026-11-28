@@ -1,0 +1,117 @@
+{
+  "kind": "actual Main.tscn faculty under diagnostic camera, native renderer, inspected18 captures; synthetic mood and audio inputs only",
+  "baseline_ref": "7ec6c95241fca70e724783d6234dc3f445a6630c",
+  "files": {
+    "baseline-dr_volts-angry.png": {
+      "bytes": 46059,
+      "sha256": "f3c6827db7a98bc01ce31dabba84bbb106249c0b1c16703147d6f7a43139f282"
+    },
+    "baseline-menu-routes.log": {
+      "bytes": 2653,
+      "sha256": "c1efa2ebb4c3adb1f55befcaff26574d92c7d90c6b9517026c42d5a8490597a8"
+    },
+    "baseline-mr_bro-neutral.png": {
+      "bytes": 26119,
+      "sha256": "ef84e75f62559486fbb6508935b5b219e437bff30937a18570b935c73cdc91f2"
+    },
+    "baseline-result.json": {
+      "bytes": 763,
+      "sha256": "c3237b00b37fea19596c54cb02410cd5d346bbee6b2271d1c911fbcf500a55c3"
+    },
+    "body-deformation-regression.log": {
+      "bytes": 683,
+      "sha256": "9452d2aa8319b8b09300fdd6df23097772054204c3eb3616724cfebde8546a94"
+    },
+    "dr_volts-after_speech_angry.png": {
+      "bytes": 69132,
+      "sha256": "0e58db51ab76f6e2ac715d704f2f3beeca32066ea88d259c575f449c5c637cea"
+    },
+    "dr_volts-angry.png": {
+      "bytes": 67435,
+      "sha256": "1bc9c912ab2b64a14787dea69c66fa3b59e65288e27a4423c3adc76971b92cb5"
+    },
+    "dr_volts-blinking_angry.png": {
+      "bytes": 65103,
+      "sha256": "6f9ebac712cdcfea634a3bcee02a1bc201722c1241b8e9411dac4ee1f700ae4c"
+    },
+    "dr_volts-excited.png": {
+      "bytes": 69230,
+      "sha256": "6eb5b9f5fce2a9d4047eeca6d62793974d67078deed3f90afbb29ecc68eed4c2"
+    },
+    "dr_volts-happy.png": {
+      "bytes": 69006,
+      "sha256": "c18b7e0b9af2571558bbf2064873fa666cfe1c3cbb829d98a52c18b3b1026e24"
+    },
+    "dr_volts-neutral.png": {
+      "bytes": 68730,
+      "sha256": "b5eab66a6a5a3a5eb2e1288b950657cddde9e6b78cac61688381f3837c684877"
+    },
+    "dr_volts-sad.png": {
+      "bytes": 65502,
+      "sha256": "bbf5d88baa235b1a58ab9f004e9431741c95c4b783628107c03fb1f0875f7d3e"
+    },
+    "dr_volts-speaking_sad.png": {
+      "bytes": 66357,
+      "sha256": "c459bcd7c849948c8a1dae27ae341a1ae152ceb0af41d09353894c519948f556"
+    },
+    "dr_volts-tired.png": {
+      "bytes": 63988,
+      "sha256": "e533401272ed91d04414d30a9e7f42644f8c8007094a31d69b7635d080e318de"
+    },
+    "in-game-faces.json": {
+      "bytes": 4925,
+      "sha256": "b82f45e6676d880b5daa4cb4493100246927793205b43c580c83832cfb51fa2c"
+    },
+    "menu-routes.log": {
+      "bytes": 2431,
+      "sha256": "eda7e9cba59bd18012ed4a0b4a30e33cc2cefe82915edb160ea5026002495ad4"
+    },
+    "mr_bro-after_speech_angry.png": {
+      "bytes": 63265,
+      "sha256": "3b85a7f056aee71ae6231c5e75528ad30a88e00e4905050d79fc48e2bf05a4e5"
+    },
+    "mr_bro-angry.png": {
+      "bytes": 61711,
+      "sha256": "a49042d87e46e178f18d0f236105f794bdae821c19be8002d6ee71962f44fd2b"
+    },
+    "mr_bro-blinking_angry.png": {
+      "bytes": 62696,
+      "sha256": "93cf50e9ebe735cffc8c902a1e9d6338336d81d5655d9a592c0c7f481af1c0e5"
+    },
+    "mr_bro-excited.png": {
+      "bytes": 64806,
+      "sha256": "1dc1f1367f8f877dbde556c75e0759ef75fc498ff31ebd7f50346299e993862c"
+    },
+    "mr_bro-happy.png": {
+      "bytes": 63552,
+      "sha256": "763915ac71136a14dcb0bf2b582a3381ff5fb5d2244c6307f8ed6ddb58f87164"
+    },
+    "mr_bro-neutral.png": {
+      "bytes": 62305,
+      "sha256": "8736423b4c64f060876ab672a5c3d9ef9796224fe2b6d445efa699bc478b4f27"
+    },
+    "mr_bro-sad.png": {
+      "bytes": 60718,
+      "sha256": "6ba44fbef27ffcaa30e7ed5520957c186fdc92934e1d09b5940ed718ef93daf5"
+    },
+    "mr_bro-speaking_sad.png": {
+      "bytes": 61419,
+      "sha256": "1cdda723d43960dbbe9989f749c6d8869e69c6d6138eda83a85535d172059f42"
+    },
+    "mr_bro-tired.png": {
+      "bytes": 59324,
+      "sha256": "5b1d4618549a99bdf0149ff72329be85566ca739d051fb45b68f2607cd65a02b"
+    },
+    "result.json": {
+      "bytes": 766,
+      "sha256": "3e2a6ff4e66720cb3b4ce1f64447ade7e4beaaa90f7051ee13981947c062a897"
+    }
+  },
+  "production_and_fixture_sources": {
+    "scripts/toon_character.gd": "dc3785dccd2b72390180a39807fbe5af9c250be1d5e33bb29f4578512157420d",
+    "scripts/campus/academics/character_face.gd": "3459bc1cb2cf31fbc9a34d8ecfc7f3c5769a9787b2cee20245c167bb48025126",
+    "scripts/campus/academics/character_motion.gd": "dd3d61c35d5684ffe8477a8dabdc4ca9ab16d8ebf59ba4cc16b09d065116b655",
+    "scripts/campus/academics/teacher_speech_player.gd": "239defc2e6870c3d957f22b77a4742ce242ddeea16b2b1ef15f1b2d8f23aa0a1",
+    "tests/campus/academics/render_character_in_game.gd": "82adfdc8fdd24b3a2d3535fd629a1568a0dc3c89e7f4bdde7aee45f0f30fa88b"
+  }
+}

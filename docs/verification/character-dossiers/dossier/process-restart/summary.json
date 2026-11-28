@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "synthetic_fixture_not_live_AI": true,
+  "results": [
+    {
+      "phase": "write",
+      "exit_code": 0,
+      "passed": true,
+      "evidence": [
+        "DOSSIER_PROCESS_RESTART PASS phase=write pid=7 synthetic_fixture_only"
+      ]
+    },
+    {
+      "phase": "read",
+      "exit_code": 0,
+      "passed": true,
+      "evidence": [
+        "DOSSIER_PROCESS_RESTART PASS phase=read pid=26 synthetic_fixture_only"
+      ]
+    }
+  ]
+}

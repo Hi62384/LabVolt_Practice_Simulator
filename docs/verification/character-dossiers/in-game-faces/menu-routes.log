@@ -1,0 +1,32 @@
+ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension
+   at: parse_gdextension_file (core/extension/gdextension_library_loader.cpp:360)
+ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.
+   at: open_library (core/extension/gdextension.cpp:738)
+ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'.
+   at: load_extensions (core/extension/gdextension_manager.cpp:321)
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:364)
+OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 19.1.7, 256 bits)
+
+WARNING: Screen-space reflections (SSR) can only be enabled when using the Forward+ renderer.
+     at: environment_set_ssr (servers/rendering/storage/environment_storage.cpp:539)
+     GDScript backtrace (most recent call first):
+         [0] run (res://tests/campus/academics/render_character_in_game.gd:25)
+WARNING: Screen-space ambient occlusion (SSAO) can only be enabled when using the Forward+ renderer.
+     at: environment_set_ssao (servers/rendering/storage/environment_storage.cpp:586)
+     GDScript backtrace (most recent call first):
+         [0] run (res://tests/campus/academics/render_character_in_game.gd:25)
+WARNING: Screen-space indirect lighting (SSIL) can only be enabled when using the Forward+ renderer.
+     at: environment_set_ssil (servers/rendering/storage/environment_storage.cpp:661)
+     GDScript backtrace (most recent call first):
+         [0] run (res://tests/campus/academics/render_character_in_game.gd:25)
+WARNING: SDFGI can only be enabled when using the Forward+ renderer.
+     at: environment_set_sdfgi (servers/rendering/storage/environment_storage.cpp:708)
+     GDScript backtrace (most recent call first):
+         [0] run (res://tests/campus/academics/render_character_in_game.gd:25)
+WARNING: Volumetric fog can only be enabled when using the Forward+ renderer.
+     at: environment_set_volumetric_fog (servers/rendering/storage/environment_storage.cpp:344)
+     GDScript backtrace (most recent call first):
+         [0] run (res://tests/campus/academics/render_character_in_game.gd:25)
+IN_GAME_FACES PASS

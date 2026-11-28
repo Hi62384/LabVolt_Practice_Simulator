@@ -40,22 +40,34 @@ static func visibility(origin: Vector3,forward: Vector3,point: Vector3,obstructe
 func consider(id: String,student: String,kind: String,severity: float,personality: Dictionary,now_ms: int,roll: float,audibility: float=1.0,record_memory: bool=true) -> Dictionary:
  if id.is_empty() or student.is_empty() or kind not in ["lab_hazard","class_message","addressed_speech","voice_noise","ambient_speech","phone_use","seat_departure","thrown_object"]:return {}
  if id.length()+student.length()+1>128:return {}
+ if not is_finite(severity) or not is_finite(roll) or not is_finite(audibility):return {}
+ severity=clampf(severity,0.,1.)
+ audibility=clampf(audibility,0.,1.)
+ # Disposition can influence attention, never create hearing through a wall or
+ # make an inaudible event count as an observed student action.
+ if audibility<=0.:return {}
  var state: Dictionary=teachers.get(id,{"frustration":0.0,"last_update":now_ms,"last_reaction":-45000})
  var elapsed:=maxf(0.0,float(now_ms-int(state.last_update))/1000.0)
- state.frustration=maxf(0.0,float(state.frustration)-elapsed/180.0)
+ state.frustration=maxf(0.0,float(state.frustration)-elapsed*(.7+.6*_personality_trait(personality,"emotional_stability"))/180.0)
  state.last_update=now_ms
- var difficulty: float=float(personality.get("difficulty",.5)) if personality.get("difficulty")!=null else .9
- var focus: float=float(personality.get("focus",.5)) if personality.get("focus")!=null else .5
- var talk: float=float(personality.get("talkativeness",.5)) if personality.get("talkativeness")!=null else .5
- var traits:=str(personality.get("description","")).to_lower()
+ var difficulty:=_personality_trait(personality,"strictness",_personality_number(personality.get("difficulty"),.5))
+ var focus:=_personality_trait(personality,"focus",_personality_number(personality.get("focus"),.5))
+ var talk:=_personality_trait(personality,"talkativeness",_personality_number(personality.get("talkativeness"),.5))
+ var patience:=_personality_trait(personality,"patience")
+ var sensitivity:=_personality_trait(personality,"anger_sensitivity")
+ var attention_span:=_personality_trait(personality,"attention_span")
+ var motivation:=_personality_trait(personality,"teaching_motivation",_personality_trait(personality,"teaching_effort"))
+ var laziness:=_personality_trait(personality,"laziness")
  var key:=id+":"+student
  var memory: Dictionary=incidents.get(key,{"count":0,"last":0,"kind":""})
  if kind in ["class_message","voice_noise"] and str(memory.get("kind","")) in ["class_message","voice_noise"] and str(memory.get("kind",""))!=kind and now_ms-int(memory.last)<2000:return {}
- var notice:=clampf((.2+.45*focus+.45*severity)*clampf(audibility,0.0,1.0),0.0,1.0)
- if kind=="ambient_speech":notice*=.18*clampf(talk,0.0,1.0)
- if kind!="lab_hazard" and "disengagement" in traits:notice*=.65
- if kind!="lab_hazard" and "short temper" in traits:notice=minf(1.0,notice+.12)
- if roll>notice:
+ var awareness:=.2+.45*focus+.45*severity
+ if kind!="lab_hazard":
+  awareness*=clampf(1.+.3*(attention_span-.5)+.2*(motivation-.5)-.25*(laziness-.5),.55,1.3)
+  awareness+=.15*(sensitivity-.5)
+ var notice:=clampf(awareness*audibility,0.0,1.0)
+ if kind=="ambient_speech":notice*=.18*talk*(.65+.7*_personality_trait(personality,"sociability"))
+ if notice<=0. or roll>notice:
   teachers[id]=state
   return {}
  if kind in ["class_message","voice_noise","lab_hazard","phone_use","seat_departure","thrown_object"]:
@@ -67,15 +79,15 @@ func consider(id: String,student: String,kind: String,severity: float,personalit
    if not oldest_incident.is_empty():incidents.erase(oldest_incident)
   memory.count=mini(20,int(memory.count)+1);memory.last=now_ms;memory.kind=kind;incidents[key]=memory
  if record_memory:remember(id,student,"disruption" if kind in ["class_message","voice_noise","phone_use","seat_departure","thrown_object"] else ("hazard" if kind=="lab_hazard" else "conversation"),int(Time.get_unix_time_from_system()))
- if kind in ["class_message","voice_noise","lab_hazard","phone_use","seat_departure","thrown_object"]:state.frustration=clampf(float(state.frustration)+severity*(.08+.20*difficulty),0.0,1.0)
+ if kind in ["class_message","voice_noise","lab_hazard","phone_use","seat_departure","thrown_object"]:
+  state.frustration=clampf(float(state.frustration)+severity*(.08+.20*difficulty)*(1.+.55*(sensitivity-.5)-.45*(patience-.5)),0.0,1.0)
  teachers[id]=state
  var reaction_cooldown:=45000 if kind=="ambient_speech" else COOLDOWN_MS
  if now_ms-int(reaction_times.get(key,-45000))<reaction_cooldown or now_ms-int(state.last_reaction)<2000:return {}
  var utility:=severity*(.4+.6*difficulty)+float(state.frustration)*.25
  if kind in ["class_message","voice_noise","phone_use","seat_departure"]:utility+=minf(.3,maxi(0,int(memory.count)-1)*.05)
- if kind!="lab_hazard" and "short temper" in traits:utility+=.16
- if kind!="lab_hazard" and "military bearing" in traits:utility+=.08
- if kind!="lab_hazard" and ("friendly jokes" in traits or "warm encouragement" in traits):utility=minf(utility,.64)
+ if kind!="lab_hazard":
+  utility+=.18*(_personality_trait(personality,"confrontation")-.5)+.12*(_personality_trait(personality,"discipline")-.5)+.1*(sensitivity-.5)-.12*(patience-.5)-.1*(_personality_trait(personality,"empathy")-.5)
  if kind=="class_message" and utility<.25:return {}
  state.last_reaction=now_ms
  teachers[id]=state
@@ -87,6 +99,15 @@ func consider(id: String,student: String,kind: String,severity: float,personalit
   if not oldest_key.is_empty():reaction_times.erase(oldest_key)
  reaction_times[key]=now_ms
  return {"intent":"hazard" if kind=="lab_hazard" else ("throw" if kind=="thrown_object" else ("chat" if kind in ["addressed_speech","ambient_speech"] else ("seat_departure" if kind=="seat_departure" else ("phone" if kind=="phone_use" else ("noise" if kind=="voice_noise" else "class_message"))))),"level":"firm" if utility>.65 else "calm","student":student}
+
+static func _personality_number(value: Variant,fallback: float) -> float:
+ if not (value is float or value is int) or not is_finite(float(value)):return fallback
+ return clampf(float(value),0.,1.)
+
+static func _personality_trait(personality: Dictionary,key: String,fallback: float=.5) -> float:
+ var values: Variant=personality.get("traits",{})
+ if values is Dictionary and values.has(key):return _personality_number(values[key],fallback)
+ return _personality_number(personality.get(key),fallback)
 
 ## A perceived, teacher-addressed apology can ease one recent warning. It does
 ## not erase the student's longer-lived relationship history or any grade.

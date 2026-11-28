@@ -1,0 +1,44 @@
+{
+  "baseline_commit": "7ec6c95241fca70e724783d6234dc3f445a6630c",
+  "scope": "One identical ordinary text turn through the actual production pipeline; deterministic zero-network provider",
+  "results": {
+    "baseline": {
+      "actual_input_tokens": null,
+      "actual_output_tokens": null,
+      "calls": [
+        "moderation",
+        "interpretation",
+        "dialogue",
+        "moderation"
+      ],
+      "context_measurement": "bytes, not tokens",
+      "context_utf8_bytes": [
+        9218,
+        10550
+      ],
+      "local_pipeline_usec": 1483,
+      "moderation_calls": 2,
+      "remote_response_latency_ms": null,
+      "semantic_model_calls": 2,
+      "source": "deterministic provider instrumentation; no live AI or network"
+    },
+    "current": {
+      "actual_input_tokens": null,
+      "actual_output_tokens": null,
+      "calls": [
+        "moderation",
+        "dialogue",
+        "moderation"
+      ],
+      "context_measurement": "bytes, not tokens",
+      "context_utf8_bytes": [
+        6827
+      ],
+      "local_pipeline_usec": 3139,
+      "moderation_calls": 2,
+      "remote_response_latency_ms": null,
+      "semantic_model_calls": 1,
+      "source": "deterministic provider instrumentation; no live AI or network"
+    }
+  }
+}

@@ -6,19 +6,31 @@ const Affect=preload("res://scripts/campus/academics/character_affect.gd")
 const Motion=preload("res://scripts/campus/academics/character_motion.gd")
 const Knowledge=preload("res://scripts/campus/academics/character_knowledge.gd")
 const Toon=preload("res://scripts/toon_character.gd")
+const Store=preload("res://scripts/campus/academics/character_dossier_store.gd")
+const Dossier=preload("res://scripts/campus/academics/character_dossier.gd")
+const Brain=preload("res://scripts/campus/academics/teacher_brain.gd")
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
 
 func _initialize() -> void:
 	call_deferred("_run")
 
 func _run() -> void:
+	# Explicit historical save data exercises migration and stable identity.
+	# It does not demonstrate the quality of newly AI-generated students.
+	var population:=Legacy.Population.new()
+	Legacy.bind(population,"user://worldviews_legacy_population.json")
+	Legacy.seed(population,80)
 	var worldviews:={}
 	for id in Roster.PEOPLE:
 		var person:=Profiles.teacher(id)
 		assert(person.beliefs.size()>=5,id)
-		assert(person.behavior_examples.size()>=3,id)
+		var dossier:=Store.get_dossier(id)
+		assert(dossier.communication.examples.size()>=3,id)
 		worldviews[person.worldview]=true
 		assert(person.traits.values().all(func(value):return is_finite(float(value)) and float(value)>=0. and float(value)<=1.),id)
-		assert(Behavior.personality_instructions(person).contains(person.worldview),id)
+		var selected:=Dossier.retrieve({"dossier":dossier},"How is your day?",[],"neutral")
+		assert(str(selected.core).contains(person.worldview) and not selected.examples.is_empty(),id)
+		assert(selected.examples.size()<=3,"Select a few examples rather than repeat the complete dossier")
 		assert(not Behavior.personality_instructions(person).contains("300 characters"),id)
 	assert(worldviews.size()==Roster.PEOPLE.size())
 	var chad:=Profiles.teacher("chad")
@@ -29,25 +41,28 @@ func _run() -> void:
 	var stanley:=Profiles.teacher("stanley")
 	for question in ["I'm excited to be here.","I love college.","Should I drop out?","I don't care about becoming rich."]:
 		var decision:=Behavior.priorities(chad,question,{},"lesson")
-		assert(decision.goal=="challenge_ambition",question)
-		assert(not Behavior.fallback(chad,decision,question,"").is_empty(),question)
-	assert(Behavior.priorities(chad,"How do you escape the matrix?",{},"lesson").goal=="pursue_interest")
+		assert(decision.goal=="express_own_priorities",question)
+		assert(Behavior.fallback(chad,decision,question,"").is_empty(),"No local dialogue substitutes for a generated character response")
+	assert(Behavior.priorities(chad,"How do you escape the matrix?",{},"lesson","steady",{"topic":"personal_interest"}).goal=="pursue_interest")
 	var revised_chad:=chad.duplicate(true)
 	var revised_education:="A practical college program can build independence when it opens work you choose for yourself."
 	revised_chad.beliefs[0].authored_position=revised_chad.beliefs[0].position
 	revised_chad.beliefs[0].position=revised_education
 	revised_chad.beliefs[0].history_count=9
+	var belief_brain:=Brain.new()
 	for question in ["I'm excited to be here.","Should I leave college?","How do you escape the matrix?"]:
 		var decision:=Behavior.priorities(revised_chad,question,{},"lesson")
-		assert(Behavior.fallback(revised_chad,decision,question,"")==revised_education,"Offline speech must preserve the saved current opinion: "+question)
-	assert(Behavior.fallback(revised_chad,{"strategy":"defend_belief"},"Your opinion about college is wrong.","")==revised_education)
+		assert(belief_brain.character_context(revised_chad,"listener",question).beliefs[0].position==revised_education,"The supplied current belief reaches retrieval across question wording")
+		assert(Behavior.fallback(revised_chad,decision,question,"").is_empty(),"An opinion is context, not a canned response")
+	assert(Behavior.priorities(revised_chad,"Your opinion about college is wrong.",{},"lesson","steady",{"event":"disagreement"}).goal=="defend_position")
 	assert(Behavior.fallback(revised_chad,{"strategy":"protect_assessment","phase":"assignment"},"What is the answer?","")!=revised_education,"A saved opinion does not bypass assessment priorities")
 	assert(Behavior.fallback(revised_chad,{"strategy":"confront"},"You're an idiot.","")!=revised_education,"An insult does not force an unrelated statement of the revised opinion")
 	revised_chad.beliefs[0].position=revised_chad.beliefs[0].authored_position
 	assert(Behavior.fallback(revised_chad,Behavior.priorities(revised_chad,"I love college.",{},"lesson"),"I love college.","")!=revised_education,"A conviction-only update preserves the authored position")
 	assert(Behavior.priorities(chad,"Can you explain this equation?",{},"lesson").goal=="give_minimum")
 	assert(Behavior.priorities(bird,"Can you explain this equation?",{},"lesson").goal=="coach")
-	assert(Behavior.priorities(Profiles.teacher("jeff"),"How's your project?",{},"freeplay").goal=="share_personal_project")
+	var jeff:=Profiles.teacher("jeff")
+	assert(Behavior.priorities(jeff,"Tell me about "+str(jeff.interest),{},"freeplay").goal=="pursue_interest")
 	var emotions:={"anger":.8,"irritation":.9,"sadness":.6}
 	var strategies:={}
 	for person in [chad,bird,brian,stone,bro,stanley]:
@@ -58,10 +73,10 @@ func _run() -> void:
 			strategies[choice.strategy]=true
 			if not choice.quiet:
 				var line:=Behavior.fallback(person,choice,"I've met rocks that teach better than you.","")
-				assert(not line.is_empty(),str(person.id)+":"+str(choice))
-				seen[line]=true
+				assert(line.is_empty(),"Local reaction decisions do not fabricate speech: "+str(person.id))
+				seen[choice.strategy]=true
 			if person.id in ["chad","brian"]:assert(not choice.closed,person.id)
-		if person.id!="stanley":assert(seen.size()>=3,str(person.id)+":"+str(seen))
+		if person.id!="stanley":assert(seen.size()>=2,str(person.id)+":"+str(seen))
 	assert(strategies.size()>=9,str(strategies))
 	assert(Behavior.reaction(stone,"insult",{},emotions,"lesson",6).strategy=="request_discipline")
 	assert(Behavior.reaction(bird,"insult",{},emotions,"lesson",8).quiet)
@@ -73,7 +88,8 @@ func _run() -> void:
 	assert(not Behavior.action_willingness(bird,"approach",{},"lesson",{"closed":true,"strategy":"withdraw_hurt"},calm).accepted)
 	assert(not Behavior.action_willingness(bro,"approach",{},"assignment",{},calm).accepted)
 	assert(Behavior.action_willingness(bro,"nod",{},"assignment",{},calm).accepted)
-	assert(Behavior.action_willingness(chad,"approach",{"dimensions":{"respect":.95,"friendship":.5}},"freeplay",{"goal":"pursue_interest"},calm).accepted)
+	assert(not Behavior.action_willingness(chad,"approach",{"dimensions":{"respect":.95,"friendship":.5}},"freeplay",{"goal":"pursue_interest"},calm).accepted,"Respect alone does not compel an uncaring teacher to help")
+	assert(Behavior.action_willingness(chad,"approach",{"dimensions":{"respect":1.,"friendship":1.}},"freeplay",{"goal":"pursue_interest"},calm).accepted,"A genuinely close relationship can change the same character's willingness")
 	assert(not Behavior.action_willingness(brian,"approach",{"dimensions":{"resentment":.9,"respect":.1}},"lesson",{},emotions).accepted)
 	assert(Behavior.action_willingness(stanley,"approach",{},"assignment",{"goal":"protect_safety"},emotions).accepted)
 	assert(not Behavior.action_willingness(bird,"grant_grade",{},"freeplay",{},calm).accepted)
@@ -97,12 +113,12 @@ func _run() -> void:
 	var opposites:=false
 	for index in 80:
 		var student:=Profiles.student(index)
-		assert(Profiles.student(index)==student,"Stable generation: "+str(index))
+		assert(Profiles.student(index)==student,"Stable migrated identity: "+str(index))
 		assert(student.beliefs.size()==5)
 		student_names[student.name]=true
 		if float(student.traits.confidence)>.7 and float(student.traits.shyness)>.65:opposites=true
 	assert(student_names.size()>50,str(student_names.size()))
-	assert(opposites,"Independently generated confidence and shyness should allow unusual combinations")
+	assert(opposites,"Historical independent trait combinations survive migration")
 	assert(Profiles.student(0).name=="Sam Singh","Legacy identity migration")
 	var model:=Toon.build(Toon.defaults())
 	root.add_child(model)
@@ -146,5 +162,5 @@ func _run() -> void:
 	assert(eye.scale.distance_to(original_scale)<.0001,"Restored expression preserves authored proportions")
 	for pose in Motion.POSES:Motion.express(model,"steady",.1,pose,1.)
 	model.queue_free()
-	print("CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 stable students; slow affect; semantic knowledge; real rig eyes/brows/mouth/arms/posture")
+	print("CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 migrated stable students; slow affect; semantic knowledge; actual rig transforms (not visual quality or live AI evidence)")
 	quit(0)

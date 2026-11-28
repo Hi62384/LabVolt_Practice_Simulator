@@ -1,5 +1,6 @@
 extends RefCounted
 const BodyDeformation = preload("res://scripts/avatar_cosmetics/body_deformation/rig_adapter.gd")
+const Face = preload("res://scripts/campus/academics/character_face.gd")
 # Original LabVolt toy-like character geometry. All settings are portable JSON.
 const VERSION := 2
 const HAIR := ["Sweep", "Curls", "Bob", "Bun", "Spikes", "Crop", "Bald"]
@@ -78,7 +79,12 @@ static func form(parent: Node3D,rows: Array,mat: Material,label: String) -> Mesh
 				var slope: float=((after.y-before.y)*radial.x*radial.x+(after.z-before.z)*radial.z*radial.z)/maxf(after.x-before.x,.001)
 				var normal := Vector3(radial.x,-slope,radial.z).normalized()
 				if radial.length_squared()<.01:normal=Vector3.DOWN if row_index==0 else Vector3.UP
-				st.set_normal(normal);st.add_vertex(v)
+				# The campus graphics settings enable anisotropic material filtering.
+				# An explicit UV stream is required even for plain-color materials:
+				# missing UV attributes render these surfaces black in compatibility.
+				var u: float=(float(i)+(1.0 if index in [2,3] else 0.0))/32.0
+				var v_coord: float=inverse_lerp(rows[0].x,rows[-1].x,v.y)
+				st.set_uv(Vector2(u,v_coord));st.set_normal(normal);st.add_vertex(v)
 	var node := MeshInstance3D.new();node.name=label;node.mesh=st.commit();node.material_override=mat;node.set_meta("toon_part",label);parent.add_child(node);return node
 static func _torso_width_at(y: float,c: Dictionary) -> float:
 	# Keep the waist and shoulder controls independent while blending the ribcage between them.
@@ -171,17 +177,30 @@ static func build(raw: Dictionary, modern_body: Dictionary = {}) -> Node3D:
 		_torso_line(body,[Vector3(.018,1.185,.16),Vector3(-.025,1.13,.163),Vector3(.018,1.13,.163),Vector3(-.018,1.08,.16)],.008,white,c)
 	if not coat:_torso_ellipsoid(body,Vector3(0,.89,0),Vector3(.235*width,.027,.135),accent,"Hem",c)
 	var head := Node3D.new();head.name="Head";head.position=Vector3(0,1.56,0);head.scale=Vector3(c.head*c.face_width,c.head*c.face_height,c.head);body.add_child(head)
+	Face.tag(head,"head");head.set_meta("character_mouth_width",c.mouth_width)
 	form(head,[Vector3(-.205,0,0),Vector3(-.19,.10,.10),Vector3(-.12,.195,.148),Vector3(.015,.225,.17),Vector3(.14,.205,.155),Vector3(.22,.135,.105),Vector3(.24,0,0)],skin,"Face")
 	for side in [-1,1]:
 		ellipsoid(head,Vector3(side*.222,-.01,0),Vector3(.046,.065,.038),skin,"Ear")
 		ellipsoid(head,Vector3(side*.242,-.012,.025),Vector3(.021,.035,.012),material(Color(c.skin).darkened(.18).to_html()),"InnerEar")
 		var x: float=side*.087*c.eye_spacing
-		ellipsoid(head,Vector3(x,.015,.155),Vector3(.051*c.eye_size,.062*c.eye_size,.024),white,"EyeWhite")
-		ellipsoid(head,Vector3(x,.013,.179),Vector3(.026*c.eye_size,.035*c.eye_size,.011),iris,"Iris")
-		ellipsoid(head,Vector3(x,.014,.189),Vector3(.013*c.eye_size,.023*c.eye_size,.006),dark,"Pupil")
-		ellipsoid(head,Vector3(x-.008,.029,.195),Vector3(.008,.01,.004),white,"EyeSpark")
-		var brow_y: float=.102+(.014 if c.expression=="Curious" and side==1 else 0)
-		line(head,[Vector3(x-.038,brow_y+(.014*side if c.expression=="Stern" else -.006),.165),Vector3(x,brow_y+.007,.17),Vector3(x+.035,brow_y+(-.014*side if c.expression=="Stern" else 0),.162)],.009*c.brow_thickness,hair)
+		# Construct both eyes identically. Searching duplicate mesh names after
+		# Godot renames siblings left one eye outside the blinking hierarchy.
+		var eye:=Node3D.new();eye.name="EyeL" if side<0 else "EyeR"
+		eye.position=Vector3(x,.015,0);eye.scale.y=c.eye_height;head.add_child(eye);Face.tag(eye,"eye",side)
+		var blink:=Node3D.new();blink.name="Blink";eye.add_child(blink);Face.tag(blink,"blink",side)
+		Face.tag(ellipsoid(blink,Vector3(0,0,.155),Vector3(.051*c.eye_size,.062*c.eye_size,.024),white,"EyeWhite"),"eye_white",side)
+		Face.tag(ellipsoid(blink,Vector3(0,-.002,.179),Vector3(.026*c.eye_size,.035*c.eye_size,.011),iris,"Iris"),"iris",side)
+		Face.tag(ellipsoid(blink,Vector3(0,-.001,.189),Vector3(.013*c.eye_size*c.pupil_size,.023*c.eye_size*c.pupil_size,.006),dark,"Pupil"),"pupil",side)
+		Face.tag(ellipsoid(blink,Vector3(-.008,.014,.195),Vector3(.008,.01,.004),white,"EyeSpark"),"eye_spark",side)
+		var brow:=Node3D.new();brow.name="BrowL" if side<0 else "BrowR"
+		brow.position=Vector3(x,.102+(.014 if c.expression=="Curious" and side==1 else 0),0)
+		head.add_child(brow);Face.tag(brow,"brow",side);brow.set_meta("toon_part","Brow")
+		var brow_points: Array[Vector3]=[Vector3(-.038,-.004,.165),Vector3(0,.007,.17),Vector3(.038,-.004,.165)]
+		if c.expression=="Stern":
+			for i in brow_points.size():brow_points[i].y+=brow_points[i].x*side*.36
+		for i in 2:
+			var segment:=link(brow,brow_points[i],brow_points[i+1],.009*c.brow_thickness,hair)
+			segment.name="Segment%d"%i;segment.set_meta("toon_part","Brow");Face.tag(segment,"brow_segment",side)
 		if c.freckles:
 			for j in 4:ellipsoid(head,Vector3(side*(.11+j*.018),-.055+(j%2)*.014,.155-j*.006),Vector3(.004,.004,.002),material("9b614a"),"Freckle")
 		if c.earrings:ring(head,Vector3(side*.244,-.067,.018),.022,.03,accent,.006)
@@ -193,8 +212,15 @@ static func build(raw: Dictionary, modern_body: Dictionary = {}) -> Node3D:
 		var y: float=-.122+(-.018*pow(x/(.056*c.mouth_width),2) if c.expression in ["Stern","Frown"] else (.022*pow(x/(.056*c.mouth_width),2) if c.expression!="Calm" else 0.))
 		points.append(Vector3(x,y,.144-abs(x)*.03))
 	var lips:=Node3D.new();lips.name="NeutralMouth";head.add_child(lips)
-	line(lips,points,.006,mouth)
-	if c.expression=="Grin":ellipsoid(lips,Vector3(0,-.109,.146),Vector3(.045,.013,.006),white,"Teeth")
+	lips.set_meta("toon_part","Mouth");Face.tag(lips,"mouth_lips")
+	for i in range(points.size()-1):
+		var segment:=link(lips,points[i],points[i+1],.006,mouth)
+		segment.name="Lip%d"%i;segment.set_meta("toon_part","Mouth");Face.tag(segment,"lip")
+	if c.expression=="Grin":
+		var teeth:=MeshInstance3D.new();teeth.name="Teeth"
+		var tooth_mesh:=BoxMesh.new();tooth_mesh.size=Vector3(.078*c.mouth_width,.012,.004)
+		teeth.mesh=tooth_mesh;teeth.material_override=white;teeth.position=Vector3(0,-.109,.146)
+		lips.add_child(teeth);teeth.set_meta("toon_part","Teeth");Face.tag(teeth,"teeth")
 	if c.beard:
 		for i in 15:
 			var a: float=PI+i*PI/14.
@@ -234,16 +260,17 @@ static func _hair(head: Node3D,c: Dictionary,mat: Material) -> void:
 static func _glasses(head: Node3D,c: Dictionary,dark: Material,accent: Material) -> void:
 	if c.glasses=="None":return
 	var mat: Material=accent if c.glasses=="Safety" else dark
+	var frame:=Node3D.new();frame.name="Glasses";head.add_child(frame);Face.tag(frame,"glasses")
 	for side in [-1,1]:
 		var x: float=side*.087*c.eye_spacing
-		if c.glasses=="Round":ring(head,Vector3(x,.013,.207),.064,.071,mat,.007)
+		if c.glasses=="Round":ring(frame,Vector3(x,.013,.207),.064,.071,mat,.007)
 		else:
-			line(head,[Vector3(x-.062,.071,.205),Vector3(x+.062,.071,.205),Vector3(x+.062,-.043,.205),Vector3(x-.062,-.043,.205),Vector3(x-.062,.071,.205)],.007,mat)
-		link(head,Vector3(side*.15,.03,.20),Vector3(side*.22,.02,.015),.006,mat)
-	link(head,Vector3(-.025,.025,.209),Vector3(.025,.025,.209),.006,mat)
+			line(frame,[Vector3(x-.062,.071,.205),Vector3(x+.062,.071,.205),Vector3(x+.062,-.043,.205),Vector3(x-.062,-.043,.205),Vector3(x-.062,.071,.205)],.007,mat)
+		link(frame,Vector3(side*.15,.03,.20),Vector3(side*.22,.02,.015),.006,mat)
+	link(frame,Vector3(-.025,.025,.209),Vector3(.025,.025,.209),.006,mat)
 static func _details(root: Node3D,body: Node3D,head: Node3D,c: Dictionary,skin: Material,accent: Material) -> void:
 	for node in head.get_children():
-		if str(node.name).begins_with("Ear") or str(node.name).begins_with("InnerEar"):node.scale*=c.ear_size
+		if str(node.get_meta("toon_part","")) in ["Ear","InnerEar"]:node.scale*=c.ear_size
 		if str(node.name).begins_with("Face"):node.scale.x*=c.jaw
 	for side in [-1,1]:
 		var suffix := "L" if side<0 else "R"
@@ -256,12 +283,6 @@ static func _details(root: Node3D,body: Node3D,head: Node3D,c: Dictionary,skin: 
 		leg.position.y+=.8*(c.leg_length-1)
 		for child in leg.get_children():
 			if str(child.name).begins_with("Sneaker") or str(child.name).begins_with("Sole"):child.scale.x*=c.shoe_size;child.scale.z*=c.shoe_size
-		var eye := Node3D.new();eye.name="Eye"+suffix;eye.position=Vector3(side*.087*c.eye_spacing,.015,0);head.add_child(eye)
-		for child in head.get_children():
-			if child is MeshInstance3D and (str(child.name).begins_with("Eye") or str(child.name).begins_with("Iris") or str(child.name).begins_with("Pupil")) and signf(child.position.x)==side:
-				var at: Vector3=child.position;head.remove_child(child);eye.add_child(child);child.position=at-eye.position
-				child.scale.y*=c.eye_height
-				if str(child.name).begins_with("Pupil"):child.scale.x*=c.pupil_size;child.scale.y*=c.pupil_size
 	body.position.y=.8*(c.leg_length-1)
 	if c.bow_tie:
 		for side in [-1,1]:_torso_ellipsoid(body,Vector3(side*.046,1.285,.138),Vector3(.043,.03,.018),accent,"BowTie",c)
@@ -291,7 +312,10 @@ static func _animations(root: Node3D) -> void:
 				if name=="Seated":angle=-1.35 if path.begins_with("Leg") else -.35+sin(t*TAU/4)*.025
 				if path.ends_with("Head"):angle=sin(t*TAU/4)*.035
 				anim.rotation_track_insert_key(track,t,node.quaternion*Quaternion(Vector3.RIGHT,angle))
-		for eye in ["Body/Head/EyeL","Body/Head/EyeR"]:
+		for eye_root in ["Body/Head/EyeL","Body/Head/EyeR"]:
+			# The bundled legacy GLB still has group-only eyes. Keep its existing
+			# animation seam while newly built rigs isolate blink on a child.
+			var eye: String=eye_root+"/Blink" if root.has_node(eye_root+"/Blink") else eye_root
 			var track := anim.add_track(Animation.TYPE_SCALE_3D);anim.track_set_path(track,NodePath(eye))
 			for key in [[0,1],[2.7,1],[2.78,.06],[2.86,1],[4,1]]:anim.scale_track_insert_key(track,key[0],Vector3(1,key[1],1))
 		library.add_animation(name,anim)

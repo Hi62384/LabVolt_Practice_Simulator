@@ -3,6 +3,37 @@ const Visuals=preload("res://scripts/campus/academics/classroom_visuals.gd")
 const Profiles=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Breadboard=preload("res://scripts/breadboard_model.gd")
 const Route=preload("res://scripts/campus/academics/classroom_teacher_route.gd")
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
+
+# Synthetic provider responses exercise actual host observations, actions and
+# delivery. They are not evidence of live AI quality or natural speaking style.
+class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
+	var requests: Array[Dictionary]=[]
+	func _ready()->void:
+		enabled=true;tts_enabled=false
+	func ready_for_class()->bool:return true
+	func configured()->bool:return true
+	func moderate(_text: String)->Dictionary:return {"ok":true,"flagged":false}
+	func respond_character(_instructions: String,context: Dictionary,question: String,_visual:=false)->Dictionary:
+		requests.append({"context":context.duplicate(true),"question":question})
+		var index:=requests.size()-1
+		var lower:=question.to_lower()
+		var event:="insult" if lower.contains("idiot") else "apology" if lower.contains("sorry") else "chat"
+		var action:=""
+		for pair in [["raise your hand","raise_hand"],["wave","wave"],["nod your head","nod"],["point to the board","point"]]:
+			if lower.contains(pair[0]):action=pair[1]
+		var observations: Dictionary=context.get("observations",{})
+		var lines:=["I heard you.","Give me a moment.","Go on.","I was distracted for a second.","All right, I'm listening.","I see what you mean.","I have a moment to talk.","Let me think about that.","I'm still here.","I can follow that.","I remember the conversation.","What were you going to say?","I was just getting settled.","That caught my attention.","I haven't finished thinking.","You've got my attention.","I'll leave it there for now.","I have something else on my mind.","You wanted to tell me something?","I was listening."]
+		var speech: String=lines[index%lines.size()]
+		if lower.contains("arms"):
+			speech="Yes. Two of them." if observations.get("has_arms",false) else "I cannot see that."
+		elif lower.contains("my outfit"):
+			var outfit: Variant=observations.get("player_outfit",[])
+			speech="I see the "+str(outfit[0])+"." if observations.get("player_visible",false) and not outfit.is_empty() else "I cannot see your outfit from here."
+		return {"ok":true,"text":JSON.stringify({"speech":speech,"action":null,"biography_facts":[],"belief_updates":[],
+			"interpretation":{"event":event,"tone":"hostile" if event=="insult" else "neutral","severity":.9 if event=="insult" else .2,"meaning":"The speaker insults the character." if event=="insult" else "The speaker asks an ordinary social question or requests a supported action.","question_kind":"casual","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":action,"sincere":true,"memories":[]},
+			"behavior":{"mode":"engage","intention":"Respond to the supplied interaction and respect the host's decision."},
+			"delivery":{"emotion":str(context.get("emotional_state",{}).get("emotion","steady")),"knowledge_mode":"personal_conversation"}})}
 
 func _initialize() -> void:
 	call_deferred("run")
@@ -12,11 +43,17 @@ func run() -> void:
 	var game: Node=load("res://scenes/Main.tscn").instantiate()
 	root.add_child(game)
 	for i in 4:await process_frame
-	game.front.entered()
+	game.front.singleplayer_page();game.front._start_play(true)
+	game.faculty.set_process(false);game.lecture_classes.set_process(false);game.school.set_process(false)
+	var original_client: Node=game.host_openai
+	original_client.enabled=false
+	var fixture:=FixtureClient.new();game.add_child(fixture);game.host_openai=fixture
+	game.client_preferences.values.teacher_speech=false
 	game.player.set_physics_process(false)
 	var classes: Node=game.lecture_classes
 	var classmates: Node=classes.classroom_students
 	var faculty: Node=game.faculty
+	Legacy.seed(classmates.population,24)
 	var room:="ac_lab"
 	game.player.global_position=classes.signs[room].desk
 	assert(classes._start(room,{"kind":"lab","course_id":"ELM253","week":1,"difficulty":1})=="")
@@ -42,6 +79,7 @@ func run() -> void:
 	faculty.conversation_input.text="What is your hobby?"
 	faculty._submit_question()
 	assert(not faculty.conversation_text.text.is_empty())
+	assert(faculty.character_interaction.diagnostics.back().source=="ai","The provider fixture uses the actual shared generated-response path")
 	var original_facing:=model.rotation.y
 	classmates.render(room,classes.public_classes,.2)
 	assert(absf(angle_difference(original_facing,model.rotation.y))>.1)
@@ -53,11 +91,13 @@ func run() -> void:
 	faculty.conversation_input.text="Do you have arms?"
 	faculty._submit_question()
 	assert("Two of them" in faculty.conversation_text.text or "Yes." in faculty.conversation_text.text)
+	assert(fixture.requests.back().context.observations.has_arms,"Arms are observed on the actual model, not guessed by the fixture")
 	var toward: Vector3=model.global_basis.z.normalized()
 	game.player.global_position=model.global_position+toward*.75
 	game.cosmetic_appearances[1]={"equipped":{"top_inner":{"id":"tops.harbor_fitted_tee","parameters":{"primary_color":"E00000"}}}}
 	await faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Do you like my outfit?"})
 	assert("red Harbor Fitted Tee" in faculty.conversation_text.text)
+	assert(fixture.requests.back().context.observations.player_visible and str(fixture.requests.back().context.observations.player_outfit).contains("red Harbor Fitted Tee"))
 	await faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Raise your hand"})
 	var hand_trace: Dictionary=faculty.character_interaction.diagnostics.back()
 	var hand_willing: bool=bool(hand_trace.retrieved_context.action_willingness.accepted)
@@ -71,6 +111,7 @@ func run() -> void:
 	game.player.global_position=model.global_position-toward*.75
 	await faculty._answer_classmate({"peer":1,"room":room,"class":activity.id,"student":member.profile.id,"content":"Do you like my outfit?"})
 	assert("see" in faculty.conversation_text.text and "Fitted Tee" not in faculty.conversation_text.text)
+	assert(not fixture.requests.back().context.observations.player_visible and not fixture.requests.back().context.observations.has("player_outfit"),"Unseen cosmetic details never reach generation")
 	game.cosmetic_appearances.erase(1)
 	var before_conflict: int=faculty.brain.recall(member.profile.id,game.school.identities[1]).size()
 	for index in range(8):
@@ -192,8 +233,8 @@ func run() -> void:
 	assert(events.start(lecture_room,now,[],"group"))
 	var group: Dictionary=events.rooms[lecture_room]
 	var human: String=game.school.identities[1]
-	assert(events._classmate_group(group,lecture,now+8.))
-	assert(not events._classmate_group(group,lecture,now+9.))
+	assert(events._classmate_group(lecture_room,group,lecture,now+8.))
+	assert(not events._classmate_group(lecture_room,group,lecture,now+9.))
 	var shared: Dictionary=group.shared.view(human)
 	assert(shared.entries.size()==1 and shared.entries[0].name==partner.name and shared.can_explain)
 	assert(group.shared.view("outsider").entries.is_empty())
@@ -390,5 +431,7 @@ func run() -> void:
 	assert(faculty.current.ac_lab==cancelled.outgoing and not faculty.lab_handoffs.has("ac_lab"))
 	assert(faculty.brain.recall(cancelled.outgoing,cancelled.incoming)==prior)
 	classes.classes.erase(lecture_room)
-	print("CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS")
+	print("CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS (actual solvers/gameplay; synthetic character provider, no live AI or voice)")
+	game.host_openai=original_client
+	game.queue_free();await process_frame
 	quit()

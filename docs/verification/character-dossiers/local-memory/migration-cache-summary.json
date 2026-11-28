@@ -1,0 +1,24 @@
+[
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.53,
+    "markers": [
+      "CHARACTER_MEMORY_RESILIENCE PASS checks=54"
+    ],
+    "test": "test_character_memory_resilience"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.53,
+    "markers": [
+      "CHARACTER_MEMORY_MIGRATION PASS versions=1,2,3,4,5 profile_isolation=true affect_only_switch=true"
+    ],
+    "test": "test_character_memory_migration"
+  }
+]

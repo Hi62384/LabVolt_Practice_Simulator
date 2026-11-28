@@ -34,6 +34,9 @@ var image_reasoning_mode:="standard"
 var model_usage: Dictionary = {}
 var busy := false
 var speech_busy:=false
+var background_busy := false
+var _background_request: HTTPRequest
+var _background_epoch := 0
 var _session_key := ""
 var _environment_key_disconnected := false
 var _model_cache_key := ""
@@ -77,6 +80,7 @@ func clear_session_key() -> void:
 
 func disconnect_key() -> void:
 	if not host_allowed():return
+	cancel_background_generation()
 	clear_session_key()
 	_environment_key_disconnected=true
 	_model_cache_key=""
@@ -86,6 +90,8 @@ func disconnect_key() -> void:
 func configure(next_model: String, output_limit: int, next_effort: String, next_enabled: bool) -> Error:
 	if not host_allowed() or not Models.valid_id(next_model) or Models.endpoint(next_model).is_empty():return ERR_INVALID_PARAMETER
 	if next_effort!=Models.normalize_effort(next_model,next_effort):return ERR_INVALID_PARAMETER
+	if next_model != model or next_effort != reasoning_effort or not next_enabled:
+		cancel_background_generation()
 	var previous: Array=[model,max_output_tokens,reasoning_effort,enabled]
 	model=next_model
 	max_output_tokens=clampi(output_limit,16,32768)
@@ -214,6 +220,32 @@ func respond_character(instructions: String,context: Dictionary,dialogue: String
 func interpret_character(instructions: String,context: Dictionary,dialogue: String) -> Dictionary:
 	return await _character_request(instructions,context,dialogue,clampi(max_output_tokens,900,2048),18.0)
 
+## Population work has one independent, cancellable lane. It cannot occupy the
+## foreground dialogue/transcription lock while the player is interacting.
+func generate_character_dossier(instructions: String, context: Dictionary, output_limit: int = 10000) -> Dictionary:
+	if not host_allowed() or not ready_for_class():return {"ok":false,"error":"Character generation is unavailable."}
+	if background_busy:return {"ok":false,"error":"A character generation job is already running."}
+	var input := JSON.stringify(context)
+	if instructions.length() > 24000 or input.length() > 60000:
+		return {"ok":false,"error":"Character generation context exceeds its bounded budget."}
+	var epoch := _background_epoch
+	var result := await _request_text(input, model, clampi(output_limit,4096,16000), reasoning_effort, true, {"_character_background":true,"request_type":"feature"}, 75.0, instructions)
+	if epoch != _background_epoch:
+		result.ok = false
+		result.cancelled = true
+		result.error = "Character generation was cancelled."
+	return result
+
+func cancel_background_generation() -> void:
+	_background_epoch += 1
+	if not is_instance_valid(_background_request):return
+	var request := _background_request
+	_background_request = null
+	request.cancel_request()
+	# HTTPRequest.cancel_request does not complete its signal. Wake the awaiting
+	# job explicitly so cancellation cannot strand a population reservation.
+	request.request_completed.emit(HTTPRequest.RESULT_REQUEST_FAILED, 0, PackedStringArray(), PackedByteArray())
+
 func _character_request(instructions: String,context: Dictionary,dialogue: String,output: int,timeout: float) -> Dictionary:
 	if dialogue.length()>1000:return {"ok":false,"error":"The character message is too long."}
 	var request:={"context":context.duplicate(true),"player_dialogue":dialogue}
@@ -257,7 +289,7 @@ func speak(text: String,draft: Dictionary={},voice := "alloy",delivery: Dictiona
 	if not delivery.is_empty():
 		payload.speed=clampf(float(delivery.get("speed",1.)),.5,1.5)
 		if Models.verified_family(choice)=="gpt-4o-mini-tts":
-			payload.instructions=str(delivery.get("instructions","")).left(500)
+			payload.instructions=str(delivery.get("instructions","")).left(3000)
 	return await _call(HTTPClient.METHOD_POST,"/audio/speech",payload,draft.is_empty(),draft)
 
 func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
@@ -349,10 +381,14 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	if key.is_empty():key=_credential()
 	if key.is_empty():return {"ok":false,"error":"Add an API key in OpenAI Settings or set OPENAI_API_KEY for the host process."}
 	var speech:=path=="/audio/speech"
-	if speech_busy if speech else busy:return {"ok":false,"error":"An OpenAI request is already running."}
+	var background := bool(draft.get("_character_background",false))
+	if (speech_busy if speech else background_busy if background else busy):return {"ok":false,"error":"An OpenAI request is already running."}
+	var connection_signature := _connection_signature()
+	var background_epoch := _background_epoch
 	var request_model:=str(payload.get("model",model))
 	if not Models.valid_id(request_model):return {"ok":false,"error":"Choose a valid model ID in OpenAI Settings."}
 	if speech:speech_busy=true
+	elif background:background_busy=true
 	else:busy=true
 	var started:=Time.get_ticks_msec()
 	var request := HTTPRequest.new()
@@ -361,20 +397,24 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	if path=="/images/generations":request.body_size_limit=MAX_IMAGE_RESPONSE_BYTES
 	request.max_redirects=0
 	add_child(request)
+	if background:_background_request=request
 	var headers := PackedStringArray(["Authorization: Bearer "+key,"Content-Type: application/json"])
 	var base := _test_base if not _test_base.is_empty() else API_BASE
 	var error := request.request(base+path,headers,method,JSON.stringify(payload) if method==HTTPClient.METHOD_POST else "")
 	if error!=OK:
 		request.queue_free()
 		if speech:speech_busy=false
+		elif background:background_busy=false;_background_request=null
 		else:busy=false
 		return {"ok":false,"error":"Could not start the OpenAI request."}
 	var completed: Array=await request.request_completed
 	request.queue_free()
 	if speech:speech_busy=false
+	elif background:background_busy=false;_background_request=null
 	else:busy=false
 	var response:=_read_response(int(completed[0]),int(completed[1]),completed[3],path,request_model)
 	if method==HTTPClient.METHOD_POST:
+		if background:purpose="character_generation"
 		if purpose.is_empty():purpose={"/images/generations":"image_generation","/audio/speech":"tts","/moderations":"moderation"}.get(path,"text")
 		var raw_data: Variant=response.get("_api_metadata",{})
 		if not raw_data is Dictionary:raw_data={}
@@ -382,7 +422,10 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 		var characters: int=str(payload.get("input","")).length() if purpose=="tts" else -1
 		response["measurement"]=_record_request(request_model,purpose,raw_data,bool(response.get("ok",false)),Time.get_ticks_msec()-started,draft,payload.get("reasoning",{}),clip.get_length() if clip!=null else -1.,characters)
 		response.erase("_api_metadata")
-	if not speech and draft.is_empty() and int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
+	# Internal population jobs use the live connection too. An old request may
+	# finish after a credential/model change; it must not invalidate the newly
+	# verified connection, nor can a cancelled generation epoch do so.
+	if not speech and (draft.is_empty() or background) and connection_signature==_connection_signature() and (not background or background_epoch==_background_epoch) and int(completed[0])==HTTPRequest.RESULT_SUCCESS and int(completed[1]) in [401,403,404]:
 		_verified_signature=""
 		verification_error=str(response.get("error","Connection verification is required."))
 	return response

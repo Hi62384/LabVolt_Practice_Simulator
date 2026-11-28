@@ -42,7 +42,7 @@ func apply(room: String,snapshot: Dictionary) -> void:
   if snapshot.get("mode","")=="teacher":lines.append("%d students solved it before the teacher"%int(snapshot.get("teacher_result",{}).get("students_beat_teacher",0)))
   if snapshot.get("mode","")=="duel":lines.append("Winner: "+str(snapshot.get("duel",{}).get("winner","No correct answer")))
   if snapshot.get("mode","")=="race":lines.append("Fastest correct: "+str(snapshot.get("race",{}).get("winner","No correct answer")))
-  if snapshot.has("teacher_comment") and not reveal.has("diagram"):lines.append("Teacher: "+str(snapshot.teacher_comment).left(160))
+  if snapshot.has("teacher_comment") and not reveal.has("diagram"):lines.append("Result: "+str(snapshot.teacher_comment).left(160))
   if snapshot.get("mode","")=="pass":
    for step in snapshot.get("reveal",{}).get("steps",[]):lines.append("Step %d · %s"%[int(step.get("step",0)),"correct" if step.get("correct",false) else "review"])
   if snapshot.get("mode","") in ["demonstration","mistake","mystery"] and reveal.has("initial_ma"):lines.append("Simulated: %.2f mA → %.2f mA · %s"%[float(reveal.get("initial_ma",0.0)),float(reveal.get("changed_ma",0.0)),str(reveal.get("source",""))])

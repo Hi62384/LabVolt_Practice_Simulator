@@ -147,17 +147,14 @@ static func _hide_legacy(head: Node3D, category: String) -> void:
 	elif category == "facial_hair":
 		names = ["Beard", "Mustache"]
 	elif category == "faces":
-		names = ["Eye", "Iris", "Pupil", "EyeSpark", "Nose", "Freckle", "Teeth"]
+		names = ["Eye", "Iris", "Pupil", "EyeSpark", "Nose", "Freckle", "Teeth", "Brow", "Mouth"]
 	var hidden: Array = []
 	for node in _descendants(head):
 		var should_hide := false
-		# Legacy brows and mouth are unnamed CylinderMesh links. Their vertical
-		# bands are disjoint from glasses (near eye center), so suppress only
-		# direct head links in the brow/mouth bands when a face preset is active.
-		if category == "faces" and node is MeshInstance3D and node.get_parent() == head:
-			var legacy_mesh := (node as MeshInstance3D).mesh
-			if legacy_mesh is CylinderMesh and (node.position.y > 0.075 or node.position.y < -0.075):
-				should_hide = true
+		# Generated rigs declare semantic facial parts. Coordinate bands also
+		# matched the upper arcs of glasses and hid or deformed their frames.
+		if category == "faces" and str(node.get_meta("character_facial_role", "")) in ["brow", "brow_segment", "mouth_lips", "lip", "teeth"]:
+			should_hide = true
 		for prefix in names:
 			if str(node.get_meta("toon_part", node.name)).begins_with(prefix):
 				should_hide = true

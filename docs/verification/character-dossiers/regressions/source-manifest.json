@@ -1,0 +1,3665 @@
+{
+  "captured_utc": "2026-11-28T01:30:19.288222+00:00",
+  "files": [
+    {
+      "path": "scripts/ac_auxiliary.gd",
+      "sha256": "b261644968164e04bd1692f9567041299450a4093478c98585e84156103fdf20",
+      "modified_unix": 1795825062.8392498
+    },
+    {
+      "path": "scripts/ac_network.gd",
+      "sha256": "89c5b356475a43ecfb3984290fbea3e398d78413557d0e74865bc59f3d3f83d0",
+      "modified_unix": 1795825062.8392997
+    },
+    {
+      "path": "scripts/ac_supply_bridge.gd",
+      "sha256": "1e936b1e5422c30dc2f9fb7c350f4d910ebbd63389409e0dbdeb9554ff300557",
+      "modified_unix": 1795825062.8392997
+    },
+    {
+      "path": "scripts/analyzer/capture.gd",
+      "sha256": "29f180d452ad5a2985671ac40ae5e69d9d9e842f91d9d43192121fca691d0b9d",
+      "modified_unix": 1795825062.8392997
+    },
+    {
+      "path": "scripts/avatar_cosmetics/accessories/accessory_provider.gd",
+      "sha256": "54f0ff3079273ea85bd18f92407da4faed2652d6266d3c81dbbab38b0632d6cc",
+      "modified_unix": 1795825062.839506
+    },
+    {
+      "path": "scripts/avatar_cosmetics/body_deformation/body_fit.gd",
+      "sha256": "57e99daa4ca10edbcdd6f68623839666c84423ecc832df5617d6500d2b84c300",
+      "modified_unix": 1795825062.839506
+    },
+    {
+      "path": "scripts/avatar_cosmetics/body_deformation/mesh_envelope.gd",
+      "sha256": "91e6cec4a84844292ee92c0a9d5823a4095913ac13a6a6f7e351885b300bbeb2",
+      "modified_unix": 1795825062.8395674
+    },
+    {
+      "path": "scripts/avatar_cosmetics/body_deformation/mesh_warp.gd",
+      "sha256": "b6a3171d0bbec25df2676764a31536da70314b9ede26f4433592f6a86fcda2ee",
+      "modified_unix": 1795825062.8395674
+    },
+    {
+      "path": "scripts/avatar_cosmetics/body_deformation/rig_adapter.gd",
+      "sha256": "1abf91392df434f9d7c4f8a114b2493a92fe2af89973b83730464ed36980fdea",
+      "modified_unix": 1795825062.8395674
+    },
+    {
+      "path": "scripts/avatar_cosmetics/clothing/clothing_provider.gd",
+      "sha256": "bfb62cabf6aa7db4ef5a844fb72b8d7245a0f639f2666d429136901896fca29a",
+      "modified_unix": 1795825062.8397694
+    },
+    {
+      "path": "scripts/avatar_cosmetics/core/avatar_core.gd",
+      "sha256": "fa996401ac4c8a5b7508223139b218299337574d6c66c55d0af69dae22366a26",
+      "modified_unix": 1795825062.8397694
+    },
+    {
+      "path": "scripts/avatar_cosmetics/core/avatar_renderer.gd",
+      "sha256": "c3d44fe64b90a1eb373a0ea5ae58a986a9b797a00f361de4f6f1141982d99a36",
+      "modified_unix": 1795825062.839832
+    },
+    {
+      "path": "scripts/avatar_cosmetics/core/catalog.gd",
+      "sha256": "8ea87456b6e113983163d168c7c9591c2b81dcf64a4cf506556a4a64dde37303",
+      "modified_unix": 1795825062.839832
+    },
+    {
+      "path": "scripts/avatar_cosmetics/core/coordinator.gd",
+      "sha256": "a8046d15d9b5d51cad5b8a1bf0403cc9f644ca0414c6447f81b2290a78c434ba",
+      "modified_unix": 1795825062.839832
+    },
+    {
+      "path": "scripts/avatar_cosmetics/core/editor_host.gd",
+      "sha256": "06f2f0534e8dcc3bfbb5b0a4509c396d7dce53a5f634dcc6ba7eccb3b6ea715d",
+      "modified_unix": 1795825062.839832
+    },
+    {
+      "path": "scripts/avatar_cosmetics/faces_hair/faces_hair_provider.gd",
+      "sha256": "0df9f5f00175df73dd0e3371d2d3de50997f080aa716e349c50f7bdd417a8ce3",
+      "modified_unix": 1795825335.6040473
+    },
+    {
+      "path": "scripts/avatar_cosmetics/footwear/footwear_provider.gd",
+      "sha256": "3e1e0fb8442970c56ae665ccb381534dd6ca325ebeabb963240c8400b9a1a3ba",
+      "modified_unix": 1795825062.8400137
+    },
+    {
+      "path": "scripts/avatar_cosmetics/persistence/character_reconciliation.gd",
+      "sha256": "d71525300a9adcddf329a493f576f271e9a93dc7767af04e7ee546c035e10f4e",
+      "modified_unix": 1795825062.8401191
+    },
+    {
+      "path": "scripts/avatar_cosmetics/persistence/profile_adapter.gd",
+      "sha256": "2f3ec57807e22a24f1e312fca0588c642f044112f18ab633b22e02444f0d0c3a",
+      "modified_unix": 1795825062.8401191
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/catalog_adapter.gd",
+      "sha256": "fab9240e8f821c047b021bf65b910a6ea677a0006e85434d94469d06f2e7e0e1",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/customizer_panel.gd",
+      "sha256": "8f35d8589ae70287cf96155bb0c2fd5e92cf707d1d6fce103005b422ab99231f",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/edit_intent_builder.gd",
+      "sha256": "b0c7569d40845d6260d540cb62afa25b0c5d5140c644b072ff514a077f880b5f",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/item_card.gd",
+      "sha256": "610710eef3f65abfab1341b67d67fcd7b71121379a38c6214953f6f74b77aecd",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/item_grid.gd",
+      "sha256": "bbb4653469efd67bc3a9be17430e9f55966c9152f5c11098916190b02923e06f",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/live_preview.gd",
+      "sha256": "2d31fe269387bc4566887371e640af3c8f2be9cfe3b5852c4bc715b6139c8b00",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/parameter_panel.gd",
+      "sha256": "be308f68c9fba0b748ef069f602f5f467cc221dd4738919c0c9f404f24b186fa",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/preview_camera_state.gd",
+      "sha256": "f81edeeac1e7174a4a4b876357b00e58bcf2f19d3d1693e8aab1ab2ad7fdc64e",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/tests/test_ui_contract.gd",
+      "sha256": "df83110f9156c4e8ab9a1ac6f7e2e22b75a250b161b9add67a8dec9c17b83056",
+      "modified_unix": 1795825062.8402467
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/thumbnail_cache.gd",
+      "sha256": "d2e255717d9ff3a96022a017697976d0ba36a4bc4deefa3af790e55ddf7be97d",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/thumbnail_renderer.gd",
+      "sha256": "40d3c0980772ea6c2f9f0e6d10b6e563f838633eedea2a8f94c7aff9e4564410",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/avatar_cosmetics/ui/ui_binding.gd",
+      "sha256": "653b20af1e90db5b15052e8884d6823cd0a8ebeb384c86ea4c062976df728c86",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/avatar_model.gd",
+      "sha256": "a7c6663da6cdf48a2efad66b326e3f109d6adeba124cfa92bd5891b86d80fe34",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/beginner_bench_instructions.gd",
+      "sha256": "771cc1082b7e97bf87c1551d3f6e2283875b3872c4a2bfc5809835819b8bf60a",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/board_components_3d.gd",
+      "sha256": "2fe347dde0c568de8da579081622be888f8903c766215f3d8764109a67a89d31",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/breadboard_canvas.gd",
+      "sha256": "ba52396d41bb670503bc96c175128b51d78ebf4ffdc3fb6e5f201ab8ef6fc23f",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/breadboard_model.gd",
+      "sha256": "f77f67b16f2808c621600f911394cfe4850e127bf3cdaa4b6e4230533230b8b5",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/cable_drawer.gd",
+      "sha256": "3e217e33f0b3d78c7f032efcb66a2e204df04fb2deed7939e61d2594bab48da4",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/cable_mesh.gd",
+      "sha256": "a29a71dae7f6fcb54b6397a304b50d82ea5ef21435d62d12a90db5a0264cb181",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/cable_route.gd",
+      "sha256": "f01548e1a23ad2c67a31cab5794b8890e8e34dc5d5df55fd410975dcf7470b57",
+      "modified_unix": 1795825062.8405557
+    },
+    {
+      "path": "scripts/campus/ac_laptops/model.gd",
+      "sha256": "6a5aa0b8bb5abeeba63432515146ed98e34e409722a4a6bd79ef39054e331e57",
+      "modified_unix": 1795825062.8414528
+    },
+    {
+      "path": "scripts/campus/ac_laptops/plot.gd",
+      "sha256": "696eb7a5b5f9d151ffe7d160dce26b9439be1f8fa22afe9c41c0c938b930aa8b",
+      "modified_unix": 1795825062.8414948
+    },
+    {
+      "path": "scripts/campus/ac_laptops/service.gd",
+      "sha256": "b1655b027fdbc90a28a58ff03f028391aa8285e8649dd47170a94d75b4c93631",
+      "modified_unix": 1795825062.8414948
+    },
+    {
+      "path": "scripts/campus/academics/adaptive_lesson.gd",
+      "sha256": "536972ad7a48496b359de355c645dd20e847aa450d8599990214b3a4b3b39139",
+      "modified_unix": 1795825062.8418202
+    },
+    {
+      "path": "scripts/campus/academics/ai_assessment_plan.gd",
+      "sha256": "3eba12a711388a7985b2232d4e1a6bc8c4b3f345ab8d9d866a8041359de9985c",
+      "modified_unix": 1795825062.8418202
+    },
+    {
+      "path": "scripts/campus/academics/attempt_selector.gd",
+      "sha256": "1b0f673451b301b8c83bb767e4e20ed37dae1bebd32d7174f9979b9025ba18d4",
+      "modified_unix": 1795825062.8418202
+    },
+    {
+      "path": "scripts/campus/academics/attendance_ledger.gd",
+      "sha256": "f502efab925f30dbd4cc8116d679ad12c692a936cba5083785f9527058ec7f3e",
+      "modified_unix": 1795825062.8418202
+    },
+    {
+      "path": "scripts/campus/academics/attention/focus_guard.gd",
+      "sha256": "393a6e0341bd68f2126209713c134d6660656f73df89bfb3f36fd5789ed0d0a0",
+      "modified_unix": 1795825062.8418202
+    },
+    {
+      "path": "scripts/campus/academics/bench_allocator.gd",
+      "sha256": "845883c4524437276e43f582c226b7c7be182e647997a3685e495bdd3f4bbf28",
+      "modified_unix": 1795825062.8419487
+    },
+    {
+      "path": "scripts/campus/academics/character_affect.gd",
+      "sha256": "a2af265e3d2c1d4a77354f961337e5350d206dd711a3cc58a48490c90f17295c",
+      "modified_unix": 1795825062.8419487
+    },
+    {
+      "path": "scripts/campus/academics/character_behavior.gd",
+      "sha256": "95e1b2dbbc7fc6ad4bea0fbab6c75865e9440bc97eacfc3947cb19e5af5e73ed",
+      "modified_unix": 1795827037.7512667
+    },
+    {
+      "path": "scripts/campus/academics/character_beliefs.gd",
+      "sha256": "a939e1b2355ff610e51ae21e236989db7a0e3c151271183e413a644097a238e3",
+      "modified_unix": 1795825062.8419487
+    },
+    {
+      "path": "scripts/campus/academics/character_dossier.gd",
+      "sha256": "03f6ab5753f5cc3bd972b607f78e5abed616ac61350d27cded8d7fbb5d565ce1",
+      "modified_unix": 1795828905.9525175
+    },
+    {
+      "path": "scripts/campus/academics/character_dossier_generation.gd",
+      "sha256": "b5a2b49a75ea669aa762ec4bc66e9a25b1c66ab18cf9a0ee7f651b6bdf4f3a3a",
+      "modified_unix": 1795828091.9474015
+    },
+    {
+      "path": "scripts/campus/academics/character_dossier_store.gd",
+      "sha256": "94dbb7f7097137c6897fe72a56b9f3b85e5c437121f194faab0f8d8135b2f049",
+      "modified_unix": 1795829124.7474883
+    },
+    {
+      "path": "scripts/campus/academics/character_face.gd",
+      "sha256": "3459bc1cb2cf31fbc9a34d8ecfc7f3c5769a9787b2cee20245c167bb48025126",
+      "modified_unix": 1795828491.3109252
+    },
+    {
+      "path": "scripts/campus/academics/character_interaction.gd",
+      "sha256": "d5a1a7783c3ad6ee552c0537e8e9090b962f6979407ff7772c268324f21eb4bf",
+      "modified_unix": 1795828870.3080466
+    },
+    {
+      "path": "scripts/campus/academics/character_knowledge.gd",
+      "sha256": "bcc7301b4ce271b31bbfa81bf5abb12cbfe3782958f3a13de0bfa1b9dcebd929",
+      "modified_unix": 1795826538.8140273
+    },
+    {
+      "path": "scripts/campus/academics/character_life_memory.gd",
+      "sha256": "c73539e8de58a0fc549799bb2fed48cadeb3ea271bddd8e7eca72fbb1f86c62c",
+      "modified_unix": 1795828529.8394012
+    },
+    {
+      "path": "scripts/campus/academics/character_memory.gd",
+      "sha256": "4029e80746e19d620bbdd14d8a36af133fa6a909d4b3070daf814beaa4b66a89",
+      "modified_unix": 1795828958.0889063
+    },
+    {
+      "path": "scripts/campus/academics/character_memory_summary.gd",
+      "sha256": "6e2812a080daac088c8aa127cd81750982df63bc2ff9899fec6a5b05af0fde12",
+      "modified_unix": 1795825062.8419487
+    },
+    {
+      "path": "scripts/campus/academics/character_mind.gd",
+      "sha256": "46f3a0ff61ebbcf2b29165da5fcbb4d34873a179ef9840c1a9a53f397a343610",
+      "modified_unix": 1795828681.3614604
+    },
+    {
+      "path": "scripts/campus/academics/character_motion.gd",
+      "sha256": "dd3d61c35d5684ffe8477a8dabdc4ca9ab16d8ebf59ba4cc16b09d065116b655",
+      "modified_unix": 1795825563.859336
+    },
+    {
+      "path": "scripts/campus/academics/character_personas.gd",
+      "sha256": "79b11e63ac0cef13ff1441c1db37263b29a9876edef1fa93811812823b1f32f0",
+      "modified_unix": 1795825585.9815948
+    },
+    {
+      "path": "scripts/campus/academics/character_speech.gd",
+      "sha256": "64b30ffd9fd213d7458bc5b76115ee668553451c167de18b1e6c1a8aa0de55b9",
+      "modified_unix": 1795825062.8419487
+    },
+    {
+      "path": "scripts/campus/academics/character_traits.gd",
+      "sha256": "abc86faf9b441c512726b827e0677926462aba80f10374d513b37a8fc447dc04",
+      "modified_unix": 1795826654.554408
+    },
+    {
+      "path": "scripts/campus/academics/character_worldview.gd",
+      "sha256": "b66b3b62fd9fbeffed477a6d5f61ab07dace80d12a69de3b887659b889b2d316",
+      "modified_unix": 1795825585.981842
+    },
+    {
+      "path": "scripts/campus/academics/class_character_profile.gd",
+      "sha256": "de397a89198bb82eb867e6648958d78ae9c7f98d8620e5ae5bcde521d3450119",
+      "modified_unix": 1795826466.2385714
+    },
+    {
+      "path": "scripts/campus/academics/class_lesson_plan.gd",
+      "sha256": "d4b9073539e39f41285f953586655a2dac07d63a6a5eb32215e9a54d979b1a3d",
+      "modified_unix": 1795825062.8419487
+    },
+    {
+      "path": "scripts/campus/academics/class_start/class_start_clock.gd",
+      "sha256": "658b55b01564f08ed90713c1677058a3cb19b4b330b3c2061d612ceeb278234a",
+      "modified_unix": 1795825062.8419487
+    },
+    {
+      "path": "scripts/campus/academics/class_start/room_classes.gd",
+      "sha256": "524f4853b63d2186e0562b5f9724cfdb250482b0ce86a175491c379b830c03ec",
+      "modified_unix": 1795826705.1309152
+    },
+    {
+      "path": "scripts/campus/academics/class_start/test_applied_lifecycle.gd",
+      "sha256": "7ea737cef8da41fd5c8c8718ff98e0038a8108dade288329791bde3a93ec1ef9",
+      "modified_unix": 1795825062.843221
+    },
+    {
+      "path": "scripts/campus/academics/class_start/test_class_start_clock.gd",
+      "sha256": "70abcc5d6d1149fd463c97fd10c278c78ab2f8d73259a0745acf5cc5469435f3",
+      "modified_unix": 1795825062.843221
+    },
+    {
+      "path": "scripts/campus/academics/class_start/test_course_marks.gd",
+      "sha256": "dde8d3beef2cddc1e8680b1468130eec535ab86e45ec929774588464c2f5f069",
+      "modified_unix": 1795825062.843221
+    },
+    {
+      "path": "scripts/campus/academics/classmate_digital_practice.gd",
+      "sha256": "4d501c977271f079d45cd82a437ae26f00037eac16bb2739eae0480329d254cd",
+      "modified_unix": 1795825062.843221
+    },
+    {
+      "path": "scripts/campus/academics/classmate_social.gd",
+      "sha256": "d7d9fabf0892b69df0577a7aad33c912d33ecd24d8d19f987ea318cf4fa9b2ab",
+      "modified_unix": 1795825444.012003
+    },
+    {
+      "path": "scripts/campus/academics/classroom_discipline.gd",
+      "sha256": "4ee21a2bcb3bf57846f238e9ce7c184d915a578ef3fb5e73f0324930575597a6",
+      "modified_unix": 1795825062.843221
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/ac_demonstration_round.gd",
+      "sha256": "91609edae9502e7cc7ccec394c1da802e602f6080803de3323a54195e6afc453",
+      "modified_unix": 1795825062.843221
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/controller.gd",
+      "sha256": "78fedfe7a093437efb7e650ca7ab18df8374ad8971b18aa5342f9cc40bfedc2a",
+      "modified_unix": 1795826566.8822653
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/demonstration_round.gd",
+      "sha256": "6a8e66921d25e710a8a771c57f3d8be229242e3cfc743ee506bd3b2c197d51c6",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/event_lifecycle.gd",
+      "sha256": "dd06fa3881bb1780405d0d9651337c1cb28c4d9211be57a161e63c39286da063",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/event_selector.gd",
+      "sha256": "8f633a8c3a8ecbf1efae1aaf81faf9a9566edef74ee1f2318045db950f5df060",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/hand_queue.gd",
+      "sha256": "1da4a0e3a8461a0b8cff2e5c30997d24e880ec60225f7b90be1dafc87ee1c62c",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/math_demonstration_round.gd",
+      "sha256": "15b30a2cad60ee2099652af6ac044afa621dca55be93add0ea7fe016488ccb97",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/mistake_round.gd",
+      "sha256": "4cbfbee02d8c7da5f037911e565e2d0e49a83d635a5475569cca8f04f0cd01e5",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/mystery_round.gd",
+      "sha256": "cc1951a56d56ab897342fbd2843f3183de710198c1eef8ac8103fe29d263f665",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/participant_authority.gd",
+      "sha256": "9d148016369dd778166f4e648b7e2d67ced4fe71957daaa29e332abfc35395d8",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/pass_round.gd",
+      "sha256": "97261faafda14bef2808c60eabfb77bf5e988a61cf21ee2452c0ae8cb9912397",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/physical_round.gd",
+      "sha256": "a1e8c0311187ef494215d0e02ceb60f28158f3668bac802af17293369aca6c3c",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/practice_panel.gd",
+      "sha256": "f2e42569852b07aea7b351f8ddbcff1f72efb42d2daa2f4de9208ec7d0945f79",
+      "modified_unix": 1795829222.7047079
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/practice_round.gd",
+      "sha256": "f608566365f3e20861df0673091d25420637d62a92928deaeabc2d4fc1f3c1ae",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/projector.gd",
+      "sha256": "1573660cc1b5d0b62487404a3b4b2746ab982378862283d921ba320a8fb13666",
+      "modified_unix": 1795826566.8826914
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/service.gd",
+      "sha256": "a31da676fd06f9a80a91be2185377da309bf62a309906facfacbcfe9144dca50",
+      "modified_unix": 1795829366.7588937
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/shared_work.gd",
+      "sha256": "ce0bff876b12b4e8acdac12254e9936b307f26cbe1639257831708ea5f4ff116",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_events/view.gd",
+      "sha256": "ad9e3c8969a7f5bafcb326d12d279870d8f3b2339326ffe2a17aecf1cb065dca",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_lab_practice.gd",
+      "sha256": "e58a52533173810ef06f305d76b5e5e4872a97ce21b16ecf7ba2fd6a12d06389",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_layout.gd",
+      "sha256": "25f0387d4dee336d45d220c652f71f29df4ea5061485bbda71afc6d580191bea",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_projectiles.gd",
+      "sha256": "baf5aa0582890c018135e8675298078e89871748ac4a3fd831b00a966daebf0c",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_students.gd",
+      "sha256": "a7a575db8c9c15ad5d09c133681bdcc9288aec152c29a844a16200f8ec2896ef",
+      "modified_unix": 1795828906.3445227
+    },
+    {
+      "path": "scripts/campus/academics/classroom_teacher_route.gd",
+      "sha256": "0e02d4945edd2b6ff4eca6120ec4ddc068b3912e94c00504744742351d7bb8f1",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/classroom_visuals.gd",
+      "sha256": "2c95fbf35e4d636744ffcb4fe9f1a85a3516826ae07394969c27d72b005d2394",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/course_bridge.gd",
+      "sha256": "dfff60df2a73ff7d83f042e4c3b5ce20c325e8e95f7a94db60d28431e9c9bd08",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/course_progression.gd",
+      "sha256": "cc0f22f21908a3149075343b63d0670f6a7b495b7f873be5e455873f06499067",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/course_progression_adapter.gd",
+      "sha256": "68df4ca85507e4823d016c1dde3f64c59f676ac285cba285fcedd59d07a961ea",
+      "modified_unix": 1795825062.8436446
+    },
+    {
+      "path": "scripts/campus/academics/digital_evidence.gd",
+      "sha256": "1bab37cdd226025fe85eba137aa7803f4eb9f9676988f8b7d9aabc0b261847f5",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/equipment_evidence.gd",
+      "sha256": "f002433153c14a5b608478a4b01579f290ad280bceead40fe83c863237c32fcb",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/faculty.gd",
+      "sha256": "d61e2b2c423fb547648764a7a6d611d9b232218c8396e6eb1547b286ed666c2f",
+      "modified_unix": 1795829004.8177245
+    },
+    {
+      "path": "scripts/campus/academics/faculty_roster.gd",
+      "sha256": "9c495e08fecefaf73b05335a61aeaa668a9403cc19894f006260d7df60aaea6e",
+      "modified_unix": 1795826006.8987782
+    },
+    {
+      "path": "scripts/campus/academics/food_patrol.gd",
+      "sha256": "fe7b64e0e8da1d030a682e0c60c2640716be071151a62bb9001af222ea936503",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/grade_policy.gd",
+      "sha256": "02add18b1bcdebbf9f9b68f3317a77312cfa946bf38aad00826a4ffc8c0f46b4",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/grade_weight_policy.gd",
+      "sha256": "a54848b329dd975a87e46ac2e1f8ca90a1f838f1d2abebe5d136d8b2b13575a4",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/gradebook_adapter.gd",
+      "sha256": "54da07631e244918b65f2abb152b357d3a5bdf0269a79d01dc73d72b3d149272",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/gradebook_view.gd",
+      "sha256": "e062df024e95fa063a795a058af9194eb674c0555a4b48761463dfb093ab8eef",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/invention_rubric.gd",
+      "sha256": "03afbfcb2336dba23ecad40a8b74b8a8f8cd99e237dfade3d25e0b7bff9ea4b7",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/lecture_director.gd",
+      "sha256": "29f55a64a244880cb6da3a84e17e11d359ce600e1c28a9ed7c8a59816abdc2ec",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/lesson_board_state.gd",
+      "sha256": "1caa0c53840e92bb885cda9113dcdc65579f06f29b663694bcc19d67a3432e8b",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/open_lab_panel.gd",
+      "sha256": "8e569587e0430dfad494a980f03ad26693d404667ebc87c8319c4eafea50a75b",
+      "modified_unix": 1795825062.8444054
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/practice/practice_service.gd",
+      "sha256": "23703a67a82d948ed00e4e147eef354e04358939497a2c55f1fb2a95fa83e406",
+      "modified_unix": 1795825062.84599
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/practice/practice_sheet_store.gd",
+      "sha256": "235c0477c86c5a23c2a4a9f29915f067c68d100456de0b0c49c245d350cc2713",
+      "modified_unix": 1795825062.8460402
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/tutorials/catalog.gd",
+      "sha256": "f9c0317b712548c6ecd4699f9a3916d9ce2b2e266fbbe9603af189f8ecfad823",
+      "modified_unix": 1795825062.8460402
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/tutorials/controller.gd",
+      "sha256": "62c552780de1306b1f26b77640efb1ef2454eaba4dfb59ff901d82348f872f0b",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/tutorials/fixture.gd",
+      "sha256": "64b4a471e2af7a4c3abdc54f912fb83ac11572c2fadc224d1a00a412abf78a71",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/tutorials/formal_guide_policy.gd",
+      "sha256": "d19541a47d4b80beff1c71dc3b32decedb5e8b67aaf186f9ebb76da7a0b3f45f",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/tutorials/projection.gd",
+      "sha256": "04de19dca1baa6d89d0cebd4de48cebe11d09db0de5f2174ab20c022c532249d",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/tutorials/session.gd",
+      "sha256": "73fb28c12b5bf8d1f3c30c7975aef0a4ecf0f3c41331f2ec438c9acb84c79bc3",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/open_lab/tutorials/target_resolver.gd",
+      "sha256": "2952983630b2362ab631033b5f70bb95e8ea890a257625840d185da7eb385f79",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/pending_assessment.gd",
+      "sha256": "e0d7d7b5f925461050d57d16f5c4d40a7085e646686c54f7a025aa39fe561b67",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/record_metadata.gd",
+      "sha256": "0721bec0d0448fc51d5b794139a3447e67d2dfc802113e4eeb1da26c1716d061",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/room_bridge.gd",
+      "sha256": "54ec9c36876b9b26e9c47637928d45af4fb9b7dde5af5d71cdbe09b68be5f06b",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/speech_math.gd",
+      "sha256": "a8b5c84dbb0b0a9f0569fe2d4c168a857afb3d2065f9511131c9deaf09b29b8b",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/student_population.gd",
+      "sha256": "96ea2a59f738763c180e78cb186522053d258a516c0df143a1bd5debf5cfa4e4",
+      "modified_unix": 1795826466.238131
+    },
+    {
+      "path": "scripts/campus/academics/teacher_ai.gd",
+      "sha256": "661ffd45af7bc0f218a74254a11dedaae90fc4b83afc775662685119c3b0ac1d",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/teacher_brain.gd",
+      "sha256": "af0665fe4b9ac0171689b265aca04e0c63c18f1788d75fa7d12dd04a69bebb8d",
+      "modified_unix": 1795826175.095579
+    },
+    {
+      "path": "scripts/campus/academics/teacher_dialogue.gd",
+      "sha256": "f9fb7c821078ed6006d81cfbef2fb94db90675dbf87359ec89323a584c807dc2",
+      "modified_unix": 1795829004.9379663
+    },
+    {
+      "path": "scripts/campus/academics/teacher_speech_player.gd",
+      "sha256": "239defc2e6870c3d957f22b77a4742ce242ddeea16b2b1ef15f1b2d8f23aa0a1",
+      "modified_unix": 1795827951.1437335
+    },
+    {
+      "path": "scripts/campus/academics/teacher_speech_synth.gd",
+      "sha256": "fb7c81db46c605f675f2aa9dfd23f6db46df1f1072b69c13c7b7dd8a612ab28b",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/teacher_voice_policy.gd",
+      "sha256": "6e94658913c51e8775eec329954b9af392ce63ecc23fdd38d563fc97954e0b7b",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/teacher_voice_profiles.gd",
+      "sha256": "23aa681d4e99329e5a428d6bf9e82c5ebcddc85dd7ab2a3d4b578d3476569f78",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/academics/teaching_board.gd",
+      "sha256": "f84d7df6a9db28d3ad39e96a1b40a464c3603159c972282c69185f54d2f50f1c",
+      "modified_unix": 1795825062.8460927
+    },
+    {
+      "path": "scripts/campus/ai/browser_assistant_policy.gd",
+      "sha256": "1c906f121a1758600bcce75101714101e527f69c5f1ba3a2986b19be065f9615",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/ai/browser_assistant_service.gd",
+      "sha256": "0a28d281d84b01de182b9462123b469ca698c0dd21dadf2ef9421b96a3131a8a",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/ai/host_openai_client.gd",
+      "sha256": "673a4160bf83db77a2bdd0f16155a70ecf2ce74275c0267da789480c4e632494",
+      "modified_unix": 1795826680.910606
+    },
+    {
+      "path": "scripts/campus/ai/model_comparison.gd",
+      "sha256": "387db8b97401cbedf2aa382fe97a773be104a6c479b9cd2e5de2ad3d327e0230",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/ai/model_pricing.gd",
+      "sha256": "663d962b7aac1b8d58f024a0c575bdf7e833ff204bc4f7b0283ec211da0b8660",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/ai/openai_evaluation.gd",
+      "sha256": "3b84255b44e2cc23df3350b44b3baf1216f7ef080cb3c8d4f377fd98fe01fa12",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/ai/openai_models.gd",
+      "sha256": "85fdc35162ec209dc2eb2a6e2c482f1d1338f32f622cfb07909e825cbca0993e",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/ai/openai_usage.gd",
+      "sha256": "162138c608a3a4c069e6913ff201aa53b5c99f9722e7cee3b82cbdce8542d89d",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/chat/chat.gd",
+      "sha256": "53b16542364009e1858e068d92de6d3aecee6cac29fdefd5460b5105afb0e127",
+      "modified_unix": 1795825062.847069
+    },
+    {
+      "path": "scripts/campus/computers/CalculatorMath.cs",
+      "sha256": "4458274c9f202e2a8245fcb0dbdd0bdf98f20b80a254fb34666e57fd22af622c",
+      "modified_unix": 1795825062.84746
+    },
+    {
+      "path": "scripts/campus/computers/CampusNativeClient.cs",
+      "sha256": "9fda88f31d169bb4a17db5d479d162519893c9e9623dec05aaee4559f0c0271f",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/CampusWindowsBundle.cs",
+      "sha256": "e60d502c6117c5e4e263ec9e7de3ed73ea2ee6a137921babedeab907b7a28887",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/EditorAssetServer.cs",
+      "sha256": "e2533a3a2d3668e4a95b1e5bba5611f887e330fab06d281d5786d56b9ae17738",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/ExecutableIcon.cs",
+      "sha256": "3157de310ff86d225c7de96a242cdf7d66b87cd132a59c749aa48267bbf5878a",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/TeacherVoiceActivity.cs",
+      "sha256": "9532d4534ea953974869a58612310edc848037d4a61a8896e6fb8cb2f8ce2da7",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/VirtualZip.cs",
+      "sha256": "015c6d5941c8d02862a15e713c1ae1b5b2998a5a145c2c7a52be322af4899c0f",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/WindowsExecutableInspector.cs",
+      "sha256": "d061a8e93829401e2ab868da07df7e06f8873859d3fb658b6fd8a6c825368d84",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/WindowsPortablePackage.cs",
+      "sha256": "9262247838c68d568382ac2def94c7702e37807dad50647ee8894a28f49b4442",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/WorkspaceMesh.cs",
+      "sha256": "8eebe63221c72e1fb847f03e870495e51df2691091a7f8a33949d616d8b4b41c",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/application_package.gd",
+      "sha256": "3de6e3e41ae0951065feba736af8b2dad2e249d5b5c0acb7d52ad0f8a61003fa",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/application_registry.gd",
+      "sha256": "1f92fb9c333d1cf081535561bd273b43379d63539b7009c2829a3732e00f9474",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/browser_download.gd",
+      "sha256": "e0d9b692f3a07e7c6ad919867af20f4865548cbd202bf9edc37a915e8be83cd6",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/browser_surface.gd",
+      "sha256": "f41c7f13624d64275d48869ecf4cae985ff615582ce4160ab2003606f146f762",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/browser_surface_native.gd",
+      "sha256": "25c71ac5acaf35cb15de70f931860a42005225d73616472517c1cf9c982b3b58",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/classroom_adapter.gd",
+      "sha256": "a2f89e8b7f001e7b6503d6d64f368b6e00c56c2eccc3c4ecbac5283d431a4b7a",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/computer_sessions.gd",
+      "sha256": "d80ec61096f80b937245d52f6ea9510692ff2ba20cf17a0bc174680ade850c82",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/course_desktop.gd",
+      "sha256": "73d3874b0171d76300d3ca89cccc5462b45dde11a3cf03470eca8f73fe973de8",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/desktop_preferences.gd",
+      "sha256": "171743ae01db3f89c3b50757404ff58754afdc95d779a1fa11db08e8094c83b3",
+      "modified_unix": 1795825062.847545
+    },
+    {
+      "path": "scripts/campus/computers/desktop_ui.gd",
+      "sha256": "2bf59f8186562a2ecb34d1849f3396931bec091b9908f8a890715507e1cb595b",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/device_filesystem.gd",
+      "sha256": "940508f3e71bf23c4b813336d0d738e05b83e9e1c9559e6ddd3bf1ab55b0847c",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/device_power.gd",
+      "sha256": "212fd93c1df9c35057e64c9dc4564db14b2fd2ebdaae186a7ff88d63e7fb2c70",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/file_viewer.gd",
+      "sha256": "e8ff796a938fd9f6fee28824ffb161db3556262f5ecb92a21333da7c13ec5d40",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/ide_execution.gd",
+      "sha256": "59b776458b4293166945fe7df916dc3d559a4d1fea5b5966ad8f33ecc00fc0ef",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/laptop_inventory.gd",
+      "sha256": "356e2e05842e81db3e494476975b39b0889ed937d1554584ad4083328b88d1e4",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/local_documents.gd",
+      "sha256": "4345e714bdae3212e11ae0194b42fc34d43196eae3284aa9dfd7b31beaad3dc3",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/monaco_surface.gd",
+      "sha256": "5678290eca03bb1e71df0bad110c38c99921e80096c67b0dd3cad9bfc8905ad6",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/native_windows_surface.gd",
+      "sha256": "843962f6ad264bec4af8365dac03fdd4859b948ccf9751d6339bbd7616539cfb",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/offline_web_surface.gd",
+      "sha256": "f0ab37e8bb2c5ef3b3679a803b1b39cf301378c6e32041b7cf1e474232043852",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/portable_world.gd",
+      "sha256": "ed8cd160c6383887767e5655ff4d94d9673eb2a3316869fe1094b3ebb83987c3",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/usb_archive.gd",
+      "sha256": "bb1a0b0817f0aa889ece677c17f8b6e0c4398df74572f66dedda31357d96375b",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/usb_handoff.gd",
+      "sha256": "35ac0741e9b61029552f27c9195147fa9c89db23158b191e539a6c0e28a45107",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/usb_inventory.gd",
+      "sha256": "3c0b35f62ef32b4acc3cda4d2979c1e0673bb8e41c654d006b1cc3967c3d321e",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/usb_transfer.gd",
+      "sha256": "217c55cd264d089fadbae381cb693ea21562595806b743e299ba1882e35c8d24",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/virtual_file_operations.gd",
+      "sha256": "9b42fa1e267f4867796483967052de578934c380ea1e6f86bd0c0c839ab7c017",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/virtual_files.gd",
+      "sha256": "58452df2d64844af904cbf42da550fafd75e4fe8452d032db2c95348cf7d6903",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/computers/virtual_terminal.gd",
+      "sha256": "cd0a6555b32635bbeea1910f71cec3804fd068c34bba72043bd647b6df6a5de0",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/courses/ac_assignments.gd",
+      "sha256": "b5c76e288cd1b48e35f5a8092c46e288cc5ea63b5869db51984258be5f3d9ed4",
+      "modified_unix": 1795825062.8484054
+    },
+    {
+      "path": "scripts/campus/courses/ac_lab_plan.gd",
+      "sha256": "700629b8917b3018f15da46cdcad37767031ba613ab76a06482b8cb1a1f3ea3a",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/courses/course_diagram.gd",
+      "sha256": "0f5d815978a50cde642c2c18137da483c592d53cb361197011834ec2f6321706",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/courses/course_provider.gd",
+      "sha256": "50071f70072e885753eac6525857d3234de3004f44f6101627699560344a13ab",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/courses/dc_assignments.gd",
+      "sha256": "44588c785cc97419f395e0757627d0f5f0808253ce4c36351da30d52b7271f58",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/courses/digital_course.gd",
+      "sha256": "97ad478ed82f84511d10cef88c3a9e07fca9443727d00fdd8c2c27100d8fda43",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/courses/equipment_plan.gd",
+      "sha256": "b6fabeacf2da181fcb8748bc4067d6532d5782d56ba23d14703e22e6b1450cde",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/courses/practical_validation.gd",
+      "sha256": "39ec48bd506f1d8b62bb105b2170b2629efe1722094a77fa2e47850fe7967908",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/courses/quantity.gd",
+      "sha256": "ded4775b1f96cd0d9b1bbd3784b5cf0bad6b21b763d0e8bb87fd38937605f90e",
+      "modified_unix": 1795825062.850028
+    },
+    {
+      "path": "scripts/campus/dc_lab/bindings/cable_binding.gd",
+      "sha256": "87dfe53bafcf1499cdf528670a53ab3eba9bdff9030f9a3c8deeabfde606e2d8",
+      "modified_unix": 1795825062.8504314
+    },
+    {
+      "path": "scripts/campus/dc_lab/bindings/control_adapter.gd",
+      "sha256": "02c5b43bf46b3c38592ae59fccc3effc081a06bf234e73b8e4dc2ab612f1822d",
+      "modified_unix": 1795825062.8504667
+    },
+    {
+      "path": "scripts/campus/dc_lab/bindings/device_binding.gd",
+      "sha256": "69cd72c235cdd89b2892b0622622228886767d6bc9443715a674db9ea3332ce5",
+      "modified_unix": 1795825062.8504667
+    },
+    {
+      "path": "scripts/campus/dc_lab/bindings/physical_binding.gd",
+      "sha256": "e6c7698edd5f5f12954a393f0a832620b1ee141c65e88ea53fa3cf589f1c3098",
+      "modified_unix": 1795825062.8504667
+    },
+    {
+      "path": "scripts/campus/dc_lab/bindings/socket_registry.gd",
+      "sha256": "a2a77e1a7655398f19082accbdde8c28dd5c8d6d33c53049a67fca9e5d7884a7",
+      "modified_unix": 1795825062.8504667
+    },
+    {
+      "path": "scripts/campus/dorms/authority/backpack_inventory.gd",
+      "sha256": "593aa4f5336aaf3e85ee54b2e084fdf16ffe7a44412f0688c4a895738903dbc6",
+      "modified_unix": 1795825062.850681
+    },
+    {
+      "path": "scripts/campus/dorms/authority/network_adapter.gd",
+      "sha256": "072b2585881e32d21fd322cab27c49e6165d8384b4562975b8bac8d40767c5cb",
+      "modified_unix": 1795825062.850681
+    },
+    {
+      "path": "scripts/campus/dorms/authority/ownership.gd",
+      "sha256": "880e44d108331c53f86e38882144a225cd88a40f7cbb0fcba577aec5389756d5",
+      "modified_unix": 1795825062.850681
+    },
+    {
+      "path": "scripts/campus/dorms/authority/persistent_dorm.gd",
+      "sha256": "1d2e7537f6e287cc4f26b83f6b1923919b8e2efddd471b62675b8f63b00ecd31",
+      "modified_unix": 1795825062.850681
+    },
+    {
+      "path": "scripts/campus/dorms/customization/decorate_panel.gd",
+      "sha256": "2aced156615d210f7c9c1627ba5e9da2285a902dfc95680f3b7dedc3c116ac61",
+      "modified_unix": 1795825062.850681
+    },
+    {
+      "path": "scripts/campus/dorms/customization/edit_service.gd",
+      "sha256": "61354a706b15b8180d53ac6f5832eb88c83a344225427a515f8c37a1762e7670",
+      "modified_unix": 1795825062.8509698
+    },
+    {
+      "path": "scripts/campus/dorms/customization/placement_rules.gd",
+      "sha256": "0c43a7871c80803fc6de87c540bb9f907e21af41747fe71690f3368ff33fd3df",
+      "modified_unix": 1795825062.8509698
+    },
+    {
+      "path": "scripts/campus/dorms/customization/room_edits.gd",
+      "sha256": "782e1d6a140224e4a85357e85f82f8fcd676ed0466fa3ad8d4c2f4e3cd5882e3",
+      "modified_unix": 1795825062.8509698
+    },
+    {
+      "path": "scripts/campus/dorms/integration/coordinator.gd",
+      "sha256": "bb24071b5d258c7e7afac1320888b188ba90f6f6a1f21fa0e0c89ce86911b8bd",
+      "modified_unix": 1795825062.8509698
+    },
+    {
+      "path": "scripts/campus/dorms/integration/render_adapter.gd",
+      "sha256": "ce0f4daf726dc316bdf7607ab0e597b8e184dfe23d93e9a9e91f023b09bdd3b1",
+      "modified_unix": 1795825062.8511794
+    },
+    {
+      "path": "scripts/campus/dorms/integration/room_adapter.gd",
+      "sha256": "b649e1dcec38191806e15a15c80c5357a94603817761100a6ca5efb3086d7a9b",
+      "modified_unix": 1795825062.8511794
+    },
+    {
+      "path": "scripts/campus/dorms/interactions/personal_station_router.gd",
+      "sha256": "68365c3ce6f774a4d3c63da99434a7b4e49f2eea828e268960a171e0ad23ce24",
+      "modified_unix": 1795825062.8511794
+    },
+    {
+      "path": "scripts/campus/dorms/interactions/shop_fallback_policy.gd",
+      "sha256": "73dc87c98b09442e7082b1c24e678fe0864c82959cfc241c4a382ab12cad1ff2",
+      "modified_unix": 1795825062.8512697
+    },
+    {
+      "path": "scripts/campus/dorms/interactions/station_mount.gd",
+      "sha256": "b4ca81214ecb2f1c2353fea12fe7997a887ea21661a3dd6a5d67fd00ca1afdf4",
+      "modified_unix": 1795825062.8512697
+    },
+    {
+      "path": "scripts/campus/dorms/rest/rest_controller.gd",
+      "sha256": "4db0c3c622cb09fbaeadac482a10e8aeb242c9f5485e0c0b88db1e731b5e4a9a",
+      "modified_unix": 1795825062.8512697
+    },
+    {
+      "path": "scripts/campus/dorms/rest/rest_pose.gd",
+      "sha256": "79355a9f9a8cb2a1ecd3f72773757d6fde069e7d0e3922957d335434fa2576cc",
+      "modified_unix": 1795825062.8513353
+    },
+    {
+      "path": "scripts/campus/dorms/rest/rest_state.gd",
+      "sha256": "1ed2e53d112e4bd07d8ac74325db58cafa5ac1275597308bda6cd6ff0e487609",
+      "modified_unix": 1795825062.8513353
+    },
+    {
+      "path": "scripts/campus/dorms/rest/safe_stand.gd",
+      "sha256": "e0d072b6db69034439959245129e9135128a0247c0e5d7ee60e35d5e437bd62d",
+      "modified_unix": 1795825062.8513353
+    },
+    {
+      "path": "scripts/campus/dorms/world/dorm_hall.gd",
+      "sha256": "4b0d4cef87d915191c453fa87f196909e9d241f10892c2c8f642e7334125a76e",
+      "modified_unix": 1795825062.8513353
+    },
+    {
+      "path": "scripts/campus/dorms/world/dorm_hall_finish.gd",
+      "sha256": "f5dfb57e503878ae7019f1fb8b6c81a0992d2e7fae219d665afaab777bdcfafd",
+      "modified_unix": 1795825062.8515081
+    },
+    {
+      "path": "scripts/campus/dorms/world/dorm_layout.gd",
+      "sha256": "1987a027b70add40dc540b47522ef844599862c73421aed588daf525bb0299eb",
+      "modified_unix": 1795825062.8515081
+    },
+    {
+      "path": "scripts/campus/dorms/world/room_interior.gd",
+      "sha256": "01cb4f1dc89ae21473963622f81a951363a3457b8f989a3611d279ee09fce838",
+      "modified_unix": 1795825062.8515081
+    },
+    {
+      "path": "scripts/campus/elevator/elevator_geometry.gd",
+      "sha256": "a8328899651689d5eac4867f8c583c7d5f9dc2bb9e772e5a3e1b7c1e836ff1ec",
+      "modified_unix": 1795825062.8515081
+    },
+    {
+      "path": "scripts/campus/elevator/elevator_service.gd",
+      "sha256": "210585cd71d32f3037d5f6c7446b88813239b589c3ef337fdb9005d6bf8cf938",
+      "modified_unix": 1795825062.8517015
+    },
+    {
+      "path": "scripts/campus/elevator/elevator_state.gd",
+      "sha256": "0d66753e37325f0ba2e8213c8b6b9f090c8644ff4f97362dd70e13f597e39866",
+      "modified_unix": 1795825062.8517015
+    },
+    {
+      "path": "scripts/campus/facilities/accessory_layout.gd",
+      "sha256": "19e8bf0319decf26c094bcaa9f9f0fd8f328c4c0d657f9a8c3cdaceb3b8febc8",
+      "modified_unix": 1795825062.851877
+    },
+    {
+      "path": "scripts/campus/facilities/arm_bend.gd",
+      "sha256": "9a44cbdb39b983f4ac0292581246560af68a11973d447fd528b3d6a52671ba48",
+      "modified_unix": 1795825062.851877
+    },
+    {
+      "path": "scripts/campus/facilities/avatar_activity.gd",
+      "sha256": "ac83259440f3d908c6c660eabed97d2ee17683e253a60b0de7e2e736493e8868",
+      "modified_unix": 1795825062.851877
+    },
+    {
+      "path": "scripts/campus/facilities/carry_load_service.gd",
+      "sha256": "12ff59dad5b6422c82b9fc15530c01ac94d52f6b1701ac3638a12d5339e1a995",
+      "modified_unix": 1795825062.851877
+    },
+    {
+      "path": "scripts/campus/facilities/carry_mass.gd",
+      "sha256": "946d9083ae7e47df9323182a40c0e39b309529eee8834e14dc8bb484e53447f8",
+      "modified_unix": 1795825062.851877
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/assembly_model.gd",
+      "sha256": "aec2a676c5b7e8f467bb1314861952fdbd3ea8a5dd3087450c9c58ad661e5aab",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/assembly_pcb_panel.gd",
+      "sha256": "4e7244247de1f38e8947fd8ace8c0e2b65cfffa50255cb2f08f8d969e6c94b58",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/assembly_pcb_runtime.gd",
+      "sha256": "80c1192710b2ab75ec721f1ddb32c471fb3efd1d1b602d5155100ee843abd853",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/assembly_preview.gd",
+      "sha256": "81448bb24a004f6296b45d72d7a131605055c27ae393ea3886dd4a3329df8507",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/assembly_window.gd",
+      "sha256": "a0d55174249a983ae5f832151ae22079f39e7b35d32ff21806792b211a4cf348",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/builder_window.gd",
+      "sha256": "1650aadc49a65fd16ffcd996f0d21a13bd6e2ab25d537b04deec907590e731fb",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/interaction_adapter.gd",
+      "sha256": "a2fde7dea130d18644ed6baa56ad301775a9382328ef447ac71f101f05f73541",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/invention_world.gd",
+      "sha256": "082fa442a6f26f40c6458ee086e7936f2676f15e6fd4358b7578714cb8e99a0c",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/mount_controller.gd",
+      "sha256": "987e1d87121e4126e4e3aaf9fbb805975afd69bb9f165a0feafcd6d873aa2000",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/studio_contract.gd",
+      "sha256": "afacaee2b74a40ecc0f247e062aee3026060a56c5be387ba6d682c0f4c7f6527",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/circuit_studio/studio_room.gd",
+      "sha256": "c7cd0a8e63099379481e8e0bb405ff1ccb1f82c3b9134bc22417b43991d78f56",
+      "modified_unix": 1795825062.8523073
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/ledger_bridge.gd",
+      "sha256": "2a8c943de282fbf0d0f06917b235bee6042ffb1ae3396546f5cc650e3a80007c",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/legacy_cosmetic_adapter.gd",
+      "sha256": "c79fe75b18ef8ce4b506b7727924d31cef0e8d197de546ad08174ad746e51d9a",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/legacy_wear_section.gd",
+      "sha256": "8acdbb7644b771e7da386931e09e4a9a924fd8ffebc7e3ed5cb60c5426abf92e",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/room_builder.gd",
+      "sha256": "a55c66404559dd7564930c9b91eb1fc74126ffaa37cb61cf3000174dfa30aa5a",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_catalog.gd",
+      "sha256": "d0df9bdf5703ee97473af9baed970614066a9b894ebef22aa0a2a8fbd2b4ca6a",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_panel.gd",
+      "sha256": "703a5a27658b8bdbf7a23f7d49df7bff29dda7c99b9c2ce8ca6ef555c3dacc25",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/clothing_store/store_session.gd",
+      "sha256": "2e8add8f54c190f868b84082b436d172c596922018de31b6b8cbb0e38ad00c73",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/facility_controller.gd",
+      "sha256": "29350f16c0eda577e81bb07ee1bb741564ac2f5e337f937e2de35d8a0d798701",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/facility_host.gd",
+      "sha256": "b51c3eb5d28716655b9f0f5dbfef608c8b043fdd5dd3a6a59513129a2b3c8aa2",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/facility_panel.gd",
+      "sha256": "ec10f46da6dd830f033d8916ad7c78c7da75bc33e43a74b4db60c7e6a1d9b42c",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/facility_room.gd",
+      "sha256": "3a51208c098db9cb4ec0419a58ce14224cccfe51df0d232c9ded577da7324324",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/facility_service.gd",
+      "sha256": "beb684af891cf0bc61844db673f4f8238a471f1a80988afefdbfcc59a8336617",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/food_bite.gdshader",
+      "sha256": "0b3d76ed79c4b12babec5f3d5d3c722cd97c5cb57b53c5f594357a3942217dda",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/food_visual.gd",
+      "sha256": "62b6269268d4a49897c147086b20d9f6608c8a0f8ac9a14877fb50499268f6c1",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_barbells.gd",
+      "sha256": "0e595ba9f630ed0818a672ab105d5360dbadb3cc46d10eb19895675ae10ac129",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_bench.gd",
+      "sha256": "8b08475e5ede5aaf413e6e416164da939c658bafedad0399fe8017b056c40d66",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_cable_machine.gd",
+      "sha256": "f90875296f5293d5bd21b689502200ccd2b31c70c29de1c2baeaa73f450fbbc5",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_layout.gd",
+      "sha256": "d06c5ea17283333281fc604421354847c7870cac980f445b2147cd537ca0d0c7",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_lift_control.gd",
+      "sha256": "7458c44ed9bb10ffcadc3977a635c6d9f03d2f238accb0f241ba6d60df332e3d",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_mat_pose.gd",
+      "sha256": "2d937b2199d205f3690fc42e619abec95e1da694c70ae5af478a00f30918c2f6",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_muscle_icon.gd",
+      "sha256": "211fae9af54c3fc102d4e9cd964ad0fd41eaaa7b19fb6891fe5439bd3fcb4644",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_progress.gd",
+      "sha256": "db6a90a4061bd0aaa1aa342293391a211d86d96c1e261f90971ff7acd580cdbe",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/gym_weights.gd",
+      "sha256": "8f16cc5d13a8720563eda6c8dbea5f6f04bfd95298e84b217bbd0ea1a0f439ce",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/ledger_adapter.gd",
+      "sha256": "763a016a7e2c9b3d54ec3f23db205b8a19b168c20707147e98c27ab19aecae57",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/muscle_visual.gd",
+      "sha256": "acab95c004c41668b53fb9de731f8bbcbd186c0b8a97ae5db4af4224e52295ab",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/profile_adapter.gd",
+      "sha256": "93d3ed9f76a05be6bdda440899afc78e309534720dc70a59e98e93afd18cd8b9",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/sandwich_counter.gd",
+      "sha256": "573f97fe2631eb2ff309ef8b8469d6f9e279a129c0864fd8a7c132c742f7bcd2",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/sandwich_counter_rules.gd",
+      "sha256": "e008d46b6dfdc13a6ca35aa06c90144cd0922edc99c7510505227844c5327ff3",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/sandwich_recipe.gd",
+      "sha256": "46b7e88845e667b7c7e8cdbe3932e29eb911e36f8317937cafbbef7fbb740ca0",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/facilities/squat_bend.gd",
+      "sha256": "8dce8c2134e33f7facb295e42afd6f400853733e0fb25973b1bf460b2b17d58a",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/health/service.gd",
+      "sha256": "edad6ab53fc026ee2db173542ea405354f76e1e6884634a1942b463d94f91081",
+      "modified_unix": 1795825062.8530219
+    },
+    {
+      "path": "scripts/campus/health/shock_model.gd",
+      "sha256": "faa8766ad7d9010d6d4e2d77dfbcc4c59b1eb87f2a9ad1af8891ece0fc9dd9f2",
+      "modified_unix": 1795825062.8548017
+    },
+    {
+      "path": "scripts/campus/items/EquipmentSurfaceGeometry.cs",
+      "sha256": "1bb8b4636443e586c7ac19de4507fa9f05c28e555dd5aad0e28621a907211ed7",
+      "modified_unix": 1795825062.8548017
+    },
+    {
+      "path": "scripts/campus/items/backpack_model.gd",
+      "sha256": "b69204b5b62fc512beeb4279a4bd322087062ff4a2e45d9d517dd5f39e7396c3",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/calculator_equation_view.gd",
+      "sha256": "d630d0a082969137adb687f84868e74633b317ad22ddf03a8c5dd43864adc063",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/calculator_graph_view.gd",
+      "sha256": "2bae9915bfd082e131207ffc58014745f9e9eb7d15b2dcf0bb819db4b0cdcbae",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/calculator_layout.gd",
+      "sha256": "fb71e5ce0c16ef785a7e476ed55763aeeb3414552c4617744595f1be8d53bcc5",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/decoration_document.gd",
+      "sha256": "3a457d91f54c32fe92599bcb2bcb68357b0032aa74d26a238ee01c2ff9d06027",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/decoration_surface.gd",
+      "sha256": "0662ace1a96b9237372150cdb54dca776d7007f9da8515db91ecee9c1cb64cf9",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/device_audio_quality.gd",
+      "sha256": "d2220c88eb70962d6a11608b245da0abe745c16e5d15cb2bf55c1ad4000e0ac5",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/device_charging.gd",
+      "sha256": "6cc593e9c848902df9a30b04f8fc310912f28ec7cf0125eebe8af91c7c461436",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/device_display.gd",
+      "sha256": "40a061e211c185eae1278bf32b266a876d9903ffed49ed680b0178fa8f13ac6e",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/device_performance.gd",
+      "sha256": "506fc76c497936adb06a2e15afb43bc6bc2bc5a2befa647012fb3ff1400eea99",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/equipment_configuration.gd",
+      "sha256": "05fe4f659e8b217f98802a8ef2afc1faf511cddbfcaee114acbfc385944bb31b",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/equipment_finish.gd",
+      "sha256": "6f6b0f4627059f880fe42ca31e60791ca23f516514e622cf61af1f68d1a71c90",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/equipment_ownership.gd",
+      "sha256": "7c143c890e6fdab4203ebfb4afa5dbf8f1cfd2b21b00164d21cf0269635953eb",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/item_throw.gd",
+      "sha256": "87639f3548c0ee32652c85a83f7d8e51d3e25a4a9bde2285bd9cf53800eed1e3",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/keyboard_backlight.gdshader",
+      "sha256": "c6f0b9f0fd5eb3465003f92ee8d86a499381a42de43cc9843997a257f7e12bb7",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/material_segments.gd",
+      "sha256": "3a9e4e6cc3bc6f08f9ad176bfc2a38aee2948bbbe1d1e5158e139ff76236fea6",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/mesh_decoration.gd",
+      "sha256": "dc52b126be7021e5f87578d9c94dba13012ac4f2c3f073b3c87cd620df527069",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/mesh_decoration.gdshader",
+      "sha256": "1681b6dd28c547facc4a8c5d8032bd7bacc28bc1e8524b348d2d4995b54e31e5",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/notebook_model.gd",
+      "sha256": "4d0e436f4daaaf1ce62497be410cfb48262b67b15a782d208bb817bda98ab93b",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/personal_placement.gd",
+      "sha256": "c17e96c9ebdf300425620196143476d00ffa618bab97776b22ef0187a3bad397",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/placement_input.gd",
+      "sha256": "033f521cf0788d5bcabafc1056771be97e96d7242aa6a937c532e66948e7256b",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/placement_target.gd",
+      "sha256": "d9fb6e598fcfd487c9b6116a4219e80f2770a59329675e7fde98425e6c581f93",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/power_bank_charging.gd",
+      "sha256": "f0fcfcf574bc0696e8d219f814501c3905c74cb43a841e377f4f197eed32d5f4",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/power_bank_inventory.gd",
+      "sha256": "86836312def49dce3f683392f90bdc62cba413a1c6348eaee5be2472b15687f5",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/items/power_bank_model.gd",
+      "sha256": "1947d532e6a9df69e592629d60707eb37ff5823015fe380f00386014d9e73aaa",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/lost_found/claim_authority.gd",
+      "sha256": "712591488cdc59aa9744085948d57e761865d289836aad8122a164a57dd63e1f",
+      "modified_unix": 1795825062.8548944
+    },
+    {
+      "path": "scripts/campus/lost_found/pcb_preview.gd",
+      "sha256": "3963cb4bba6f2575d418bb51f6d3dfe43b8604a2c654081f1ee70cdd90ca430b",
+      "modified_unix": 1795825062.8561478
+    },
+    {
+      "path": "scripts/campus/lost_found/room.gd",
+      "sha256": "bd8c7b6ef525771944b427319acc3db1bcf3c878f913463206d702bec9f4f8e5",
+      "modified_unix": 1795825062.8561478
+    },
+    {
+      "path": "scripts/campus/npcs/crowd_mesh.gd",
+      "sha256": "e97fbd8ebc002af2f2ef6afb61467ed10c94a7841e10ba3f0f445353ba52a72d",
+      "modified_unix": 1795825062.8561478
+    },
+    {
+      "path": "scripts/campus/npcs/crowd_variant.gdshader",
+      "sha256": "03abe4106755764fa15ab083524ac66baf4d7fa7fe5b8c67d68a3f1fce8b5e74",
+      "modified_unix": 1795825062.8563006
+    },
+    {
+      "path": "scripts/campus/npcs/hallway_routes.gd",
+      "sha256": "4672b3ffb24c340690d6a9e0e57ff508c1a85bbf241367d220492591422d0116",
+      "modified_unix": 1795825062.8563006
+    },
+    {
+      "path": "scripts/campus/npcs/local_crowd.gd",
+      "sha256": "6f4f5e8fffe18489d108df4e1a58758a773f6b3d4c6ab72ec8fe5ba878f304df",
+      "modified_unix": 1795825062.8563006
+    },
+    {
+      "path": "scripts/campus/npcs/student_behavior.gd",
+      "sha256": "efcbc32678a5a64c4bd3ba6533270f273f9eb4028eb96b9edc63a8f85134b990",
+      "modified_unix": 1795825062.8563006
+    },
+    {
+      "path": "scripts/campus/performance/bench_interest_context.gd",
+      "sha256": "66c531c0f93cc9f8a53b0c3a7453376f87327e937d87f3021f0c29c6eab80748",
+      "modified_unix": 1795825062.8563006
+    },
+    {
+      "path": "scripts/campus/performance/dc_interest_bridge.gd",
+      "sha256": "d7544c04fabe7799bda785445326dc54f529b2221a6276ba3c165d23ff7d8ef0",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/dc_interest_service.gd",
+      "sha256": "477c51caef963ab42764448888e6876571dcf48e98e140327e356c76f6dc829a",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/equipment_budget.gd",
+      "sha256": "1de5b3533442ad47fe46f307eee8a64c8ad5248e14bc3a9f7153bc934546c7d6",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/equipment_builder_adapter.gd",
+      "sha256": "25a4336aa9dc03727522fc208b1a35d1e7d24ebe4477a40e37a1d781c5a05155",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/equipment_mesh_cache.gd",
+      "sha256": "1d8d8521379fcfc73d19f8e67e3d2493a89208e006810aa2d5886abfe0cbac65",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/equipment_render_optimizer.gd",
+      "sha256": "4e055f949e5f4b655f6f9a493851d175f03a58db1f7c372403f92aaf624e033e",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/frame_probe.gd",
+      "sha256": "27a9b23965f35f1f4994128bc431554c72276eca6ff78d4d35ed054cc5c49cb5",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/hitch_trace.gd",
+      "sha256": "8a024322f40102333075dcd656e1346ca6aeb56823e755d3998c658d6df8ad4e",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/linear_ac_fast_path.gd",
+      "sha256": "d0234e5090d0ca7c9a4c1f7f9b3094c3e29bf4e69c52ed9aa13ff66e696dd633",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/lit_tile_batches.gd",
+      "sha256": "bec27fb96155c639c21c25664695f8fe9b9ae2d3169e2f389c2e2d0900aca00e",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/profiling_overlay.gd",
+      "sha256": "27375659b9383bf5e5b45bdddb4195710bcfdfe990a7f65e99e3f38713cd11c9",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/readout_adapter.gd",
+      "sha256": "8333a1c5ea0281d82d1a458def2355daff1649bab640801dcc50f104eb761039",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/runtime.gd",
+      "sha256": "07e57bde9e40910a66c680a3fa492ec3e93ba5ddc35694f9163780ba3b7ecba9",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/snapshot_router.gd",
+      "sha256": "2a378b2c6051ff341e3f2588f795356ca7ed2992f34d1530bc5f0594de25f18f",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/socket_visual_batch.gd",
+      "sha256": "fabc33472ad577c56472dea4ccd7fb0d59632ff3db57cfd4f8e94d85097a2e29",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/static_panel_batch.gd",
+      "sha256": "f31071df0d128f547cf51f6fb6f16ca399cf6cfecf5f6b97421c40369a0d6a32",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/wall_frame_probe.gd",
+      "sha256": "85fa6344566779410105bd11d168d4ab7fccf7c4062515252b6d2cd8bd13f2b7",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/performance/zone_interest.gd",
+      "sha256": "222814a4c841a2f8ceaeee179e46fec0d94fd7f0dc169d0a9e3579df7f4dca23",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/phones/phone_handset.gd",
+      "sha256": "c24ba3405205e40a6747e77a5e264003b9cf5b42d2f8b71fe37220cc2b29d436",
+      "modified_unix": 1795825062.8564909
+    },
+    {
+      "path": "scripts/campus/phones/phone_inventory.gd",
+      "sha256": "956c733dcdd3079b45ddf09c109e1d86ec7a76ad8c13b1b3a30fb81c47fd491e",
+      "modified_unix": 1795825062.8571825
+    },
+    {
+      "path": "scripts/campus/phones/phone_network.gd",
+      "sha256": "f7f11df8689e0a13b3689bce33e1f65948f591101b59ffa0b3d969efbf451e52",
+      "modified_unix": 1795825062.8571825
+    },
+    {
+      "path": "scripts/campus/phones/phone_service.gd",
+      "sha256": "b1125508ae835eca777cbe25856a99c5c97276edb26987b6fff14633fbc0d76f",
+      "modified_unix": 1795825062.8571825
+    },
+    {
+      "path": "scripts/campus/phones/phone_tiers.gd",
+      "sha256": "43d1897a0a853cb902bb60ab164002cb82dfca72b23624c3c1e9cef674a9b216",
+      "modified_unix": 1795825062.8571825
+    },
+    {
+      "path": "scripts/campus/phones/photo_library.gd",
+      "sha256": "f9c447fcd55e65aa2c2c7325829c86d6f65124502afaceb74c202fcd04652e41",
+      "modified_unix": 1795825062.8571825
+    },
+    {
+      "path": "scripts/campus/presentation/decor/campus_decor.gd",
+      "sha256": "0f1162fe0dea79602e27d4d786732cb89ead2b120578591849fe30dcf0f13646",
+      "modified_unix": 1795825062.8575106
+    },
+    {
+      "path": "scripts/campus/presentation/decor/component_shop_fitout.gd",
+      "sha256": "18d46e13cb8e332f50edf369445bdde4e8c21721e53041fcb0c1eb4c5f1df796",
+      "modified_unix": 1795825062.8575106
+    },
+    {
+      "path": "scripts/campus/presentation/decor/component_shop_fitout_candidate.gd",
+      "sha256": "9c2d4de43f4260c747ad621b53f5af0ce022c410818b3a552847746657f871c3",
+      "modified_unix": 1795825062.8575106
+    },
+    {
+      "path": "scripts/campus/presentation/decor/computer_rooms/commons_room.gd",
+      "sha256": "c5f57d198bc5ff00755c17c229e074fabc11809f406c28c9226c94f2e7024984",
+      "modified_unix": 1795825062.8575106
+    },
+    {
+      "path": "scripts/campus/presentation/decor/computer_rooms/computer_station.gd",
+      "sha256": "dda3b6c459367ea12844ed84da381be22e2b6bb220eb93b6f02a6597ed153394",
+      "modified_unix": 1795825062.8577323
+    },
+    {
+      "path": "scripts/campus/presentation/decor/computer_rooms/m203_room.gd",
+      "sha256": "c7a234ff437d5805d4547eae5b5e66098ddef6c4bd9dfde541057bc55f2327e0",
+      "modified_unix": 1795825062.8577323
+    },
+    {
+      "path": "scripts/campus/presentation/decor/electronics_workshop.gd",
+      "sha256": "1847c95dfcd8eada1b281c5253f493a71402289afcf8f9e53fd7a45b8de2077b",
+      "modified_unix": 1795825062.8577323
+    },
+    {
+      "path": "scripts/campus/presentation/decor/lecture_rooms/classroom_chair_skin.gd",
+      "sha256": "974ca597cd8c6d09f947da0c4455e54379a40fed72cca74f3f85c34898ca34b8",
+      "modified_unix": 1795825062.8577323
+    },
+    {
+      "path": "scripts/campus/presentation/decor/lecture_rooms/classroom_furniture_skin.gd",
+      "sha256": "363a2af9ba5e2ef7cf734be596c4f69ab109cdf7e701f6fb120ed8935ea8a415",
+      "modified_unix": 1795825062.8579493
+    },
+    {
+      "path": "scripts/campus/presentation/decor/lecture_rooms/instructor_area.gd",
+      "sha256": "941b062c3cea68bc1073f7229b1a7fbdda394a2e86c9e41b5526bb183e291211",
+      "modified_unix": 1795825062.8579493
+    },
+    {
+      "path": "scripts/campus/presentation/decor/m101_environment.gd",
+      "sha256": "046ff1c18d690537be6761994ebdc3ebf34b737e19e079bcdd9ce922b812e1ea",
+      "modified_unix": 1795825062.8579493
+    },
+    {
+      "path": "scripts/campus/presentation/decor/m103_room_finish.gd",
+      "sha256": "855f289d6965c36c6ffa52718268b39b3115b2c7ea96993bbcaddc44a930d90c",
+      "modified_unix": 1795825062.8579493
+    },
+    {
+      "path": "scripts/campus/presentation/decor/m105/gym_equipment_motion.gd",
+      "sha256": "13482d4fa580ec817a72077ecee22eb1c9e3d14783f91d26051d2de415bd15e5",
+      "modified_unix": 1795825062.8579493
+    },
+    {
+      "path": "scripts/campus/presentation/decor/m105/m105_decor.gd",
+      "sha256": "1579057fdb65024efe91d50f3facd98308d060e752495e3d3703c1cd4c203140",
+      "modified_unix": 1795825062.8581936
+    },
+    {
+      "path": "scripts/campus/presentation/decor/potted_plant.gd",
+      "sha256": "cdbca18a9c27e6eaad193cb7653cfd3a36ef63c42f964f4e545914c423a9cbbf",
+      "modified_unix": 1795825062.8581936
+    },
+    {
+      "path": "scripts/campus/presentation/decor/service_rooms/service_room_decor.gd",
+      "sha256": "f91690e5ab997f23cd42a837d31d9e31c017f37c7ee76e807b81d9db5b90f208",
+      "modified_unix": 1795825062.8581936
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/ceramic_floor.gdshader",
+      "sha256": "f5f3089bb9b672c80feb9def189e47edd8a3059f2e0639076b9dd8122c98806b",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/m104_finish.gd",
+      "sha256": "465ed10361f7a345c8454a67a196ab8aaf823358679c5900f072f86442be7a6e",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/m106_finish.gd",
+      "sha256": "c7041376d929ce6b2fe024493d5f805c8d15b8058d70f7dcdcef34a29774c2f4",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/m108_subway_finish.gd",
+      "sha256": "d0d88bc206bf3625627b56b85261010dd271c2b17d24fb92a7a6be49e4368511",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/quiet_study.gd",
+      "sha256": "e9bdedeb828080b949ea87c48108bacdd3b402543f24a51daedde3152c280f21",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/social_rooms.gd",
+      "sha256": "6ce3656bf874384951f31385ee388c43203c4b445f6cdf675463a36c044cb605",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/study_finish.gd",
+      "sha256": "844ea15e994e7a580a426bc2165393566e72a63872106f2b0f706d23978e21ac",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/social_rooms/study_resources.gd",
+      "sha256": "eae6f4ae2b054dac2bef245cf12b153cebb9692acef0876ce6509291c64f09ce",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/teaching_rooms/reference_style_finish.gd",
+      "sha256": "62f72ee1b3419cf02b5da020488a0231a211bc48ceac4687e6ef212586179839",
+      "modified_unix": 1795825062.8584146
+    },
+    {
+      "path": "scripts/campus/presentation/decor/teaching_rooms/teaching_room_finish.gd",
+      "sha256": "5adfc155648ca22a7bd6ecce07ff488effcbbf3520f3f2b6680cb6bb868bc4d4",
+      "modified_unix": 1795825062.8587642
+    },
+    {
+      "path": "scripts/campus/presentation/decor/washrooms/stall_state.gd",
+      "sha256": "b8d6a286fd7227862ba5071996c19c75b5ba762a4515afb60e708ea5aa8d0d33",
+      "modified_unix": 1795825062.8587642
+    },
+    {
+      "path": "scripts/campus/presentation/decor/washrooms/washroom_finish.gd",
+      "sha256": "d57a6a1858f95b08ffef710db9545d2ac0674166c978c77f0a2f3acdbb796e80",
+      "modified_unix": 1795825062.8588443
+    },
+    {
+      "path": "scripts/campus/presentation/entrance_signage.gd",
+      "sha256": "e6b37b15e1f4862038fa76802e1cf83b4cfb450cf8ac4a7bc70f500353d9119e",
+      "modified_unix": 1795825062.8588443
+    },
+    {
+      "path": "scripts/campus/presentation/exterior_finish.gd",
+      "sha256": "5d0cbc5a707cfa078d523cfcc2f3ddb2c074219babdc078b9079a9d740514c77",
+      "modified_unix": 1795825062.8588443
+    },
+    {
+      "path": "scripts/campus/presentation/exterior_lighting.gd",
+      "sha256": "354d5d4239348d1406c1d789d8f846eff6af20d4d7168859d3b9e441e8b6ae3d",
+      "modified_unix": 1795825062.8588443
+    },
+    {
+      "path": "scripts/campus/presentation/fixture_light.gd",
+      "sha256": "c38a97f605b282445e454c121ee0479e474f773c539a91207c8b289f6882ae2a",
+      "modified_unix": 1795825062.8588443
+    },
+    {
+      "path": "scripts/campus/presentation/hallway_finish.gd",
+      "sha256": "ee4f52f5b886319ee5b8c388fce0ea96cf4c27009bcd7fdbdfbefda7f3fd3bd0",
+      "modified_unix": 1795825062.8588443
+    },
+    {
+      "path": "scripts/campus/presentation/lighting/campus_lighting_rig.gd",
+      "sha256": "3d8b184e126b934cafc65f03c5b14330eeca806973fab742fe89bb0a983659a5",
+      "modified_unix": 1795825062.8588443
+    },
+    {
+      "path": "scripts/campus/presentation/lighting/campus_lightmaps.gd",
+      "sha256": "acc341d03159cce283caa13e2bf7f4839ec64d37b4af11ec7fd626d2ac59e584",
+      "modified_unix": 1795825062.8591197
+    },
+    {
+      "path": "scripts/campus/presentation/lighting/campus_visual_settings.gd",
+      "sha256": "5696c16109279ac1b61b96d7d7dfc3a99e60632124ca2f960f637c030ff3e960",
+      "modified_unix": 1795825062.8591197
+    },
+    {
+      "path": "scripts/campus/presentation/lighting/interior_shadows.gd",
+      "sha256": "01d8871509da49529dc2116ea892fc8dbc44e1926cac07ea4dda5490d03eab4a",
+      "modified_unix": 1795825062.8591197
+    },
+    {
+      "path": "scripts/campus/presentation/lighting/satin_tiles.gdshader",
+      "sha256": "0e043cd6dc8c60cb21c41905fc66dd05db9ff98b42c321339b003ab6597f5a57",
+      "modified_unix": 1795825062.8591197
+    },
+    {
+      "path": "scripts/campus/presentation/menu_flythrough/ambience.gd",
+      "sha256": "43bc9a6ee37e978e46802367e49696f6f1d4fe3ecce4bde2775a80a0601e7822",
+      "modified_unix": 1795825062.8591197
+    },
+    {
+      "path": "scripts/campus/presentation/menu_flythrough/campus_presentation.gd",
+      "sha256": "64ec1fb0a130b8b94bd9522d5680ec07711985f4f8afbaaf27eaab4635a0c5fa",
+      "modified_unix": 1795825062.8592951
+    },
+    {
+      "path": "scripts/campus/presentation/menu_flythrough/controller.gd",
+      "sha256": "11aa8d3ecfbe69d6668ac39488caffe1132d4941a96fdb0846d47be0d369066f",
+      "modified_unix": 1795825062.8592951
+    },
+    {
+      "path": "scripts/campus/presentation/menu_flythrough/routes.gd",
+      "sha256": "2773ea74bbf92f1991390733650daf42338d843fc40c77c9892abf9d58df29bb",
+      "modified_unix": 1795825062.8592951
+    },
+    {
+      "path": "scripts/campus/presentation/navigation_safety/hallway_geometry.gd",
+      "sha256": "43f4fd4685e809f7a2e270bca6b563fe41cb5461569a13027d3719187a600344",
+      "modified_unix": 1795825062.8592951
+    },
+    {
+      "path": "scripts/campus/presentation/navigation_safety/safe_recovery.gd",
+      "sha256": "9ec2c882d8711e22e52c0b2b7e8e7dd1ef0083b10cf3b09c9779baeb4a165ea4",
+      "modified_unix": 1795825062.8595314
+    },
+    {
+      "path": "scripts/campus/presentation/signage/campus_signage.gd",
+      "sha256": "6c509fb94cca45d6b6fb136ccb95ff595e65007a03ff5712e2e562ae7f2069a6",
+      "modified_unix": 1795825062.8595314
+    },
+    {
+      "path": "scripts/campus/seating/chair_controls/look_state.gd",
+      "sha256": "8680940e4c7aa2390a27d6c8b79ce77d26608ee6f46ce964ba0fa5d851332740",
+      "modified_unix": 1795825062.8597245
+    },
+    {
+      "path": "scripts/campus/social/name_tags.gd",
+      "sha256": "19da0e7a55d1904d6c8d398c3e179e6b6da51679265732f99cc81260bbcf9d80",
+      "modified_unix": 1795825062.8597481
+    },
+    {
+      "path": "scripts/campus/social/profile_cache.gd",
+      "sha256": "8549ff3ab51931bc0306740bd2f16fe54c5082286e9beed0cbf9aced14c9762b",
+      "modified_unix": 1795825062.8597767
+    },
+    {
+      "path": "scripts/campus/social/profile_replication.gd",
+      "sha256": "0c0b80ccfb8088ed7c2c7f6135fa9da9d3ef020a3320e51659aa45f16ba01d46",
+      "modified_unix": 1795825062.8597767
+    },
+    {
+      "path": "scripts/campus/social/public_identity.gd",
+      "sha256": "a42cc978435775671835dc942ac5ec6060f122e68be45c217dc528936abfd6d0",
+      "modified_unix": 1795825062.8597767
+    },
+    {
+      "path": "scripts/campus/social/public_profiles.gd",
+      "sha256": "fabb037cf13d8ef567c0127061ea48550bac56e1afb2efa5338179c6eca476b4",
+      "modified_unix": 1795825062.8597767
+    },
+    {
+      "path": "scripts/campus/social/student_appearance/student_appearance_provider.gd",
+      "sha256": "12158ef08b9454f6b0a2e8f1d1cde6486954c5efd04c1e701faba2f04c28eaa1",
+      "modified_unix": 1795825062.8597767
+    },
+    {
+      "path": "scripts/campus/ui/campus_adapter.gd",
+      "sha256": "5365c39e1f1f23b1794387a3ab5faca2e37b3b4ad40f60dfeaad91d805348cde",
+      "modified_unix": 1795825062.8600256
+    },
+    {
+      "path": "scripts/campus/ui/campus_dashboard.gd",
+      "sha256": "ff90a2430a0292f9efdf6d2af0ad4b8c404232cd680e6e9b9e65e38bfaf6ae42",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/campus_hud.gd",
+      "sha256": "0aeb0b6c6de806ea91f0e5dd47637247154d1b7340c595cae3f4eb4149f22363",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/campus_map.gd",
+      "sha256": "94c63b92a5b5c1db6a07edcdb32ff3f47e509ac75fe405bf750c505cf3b784cb",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/campus_theme.gd",
+      "sha256": "ce94bd26ee97ca70948219849202cea66f243b88a99e9df0b5d792e3829bd894",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/character_inspector.gd",
+      "sha256": "3526e88eba67bbdfb0b917a921d9906374463fb82837b35030d8b114696f2c53",
+      "modified_unix": 1795828004.6924064
+    },
+    {
+      "path": "scripts/campus/ui/character_inspector_snapshot.gd",
+      "sha256": "56e87546cab2c476718227a755a5b2a6ff06ec7aa9c32ef976f3298c1268dc02",
+      "modified_unix": 1795828004.496404
+    },
+    {
+      "path": "scripts/campus/ui/character_inspector_transport.gd",
+      "sha256": "a47a1041a8bf728906af6762f45179cfbd4e253efd8e9aaf0c588a9bb50cdee6",
+      "modified_unix": 1795825877.8116965
+    },
+    {
+      "path": "scripts/campus/ui/character_selector.gd",
+      "sha256": "1e7c4b093de174d48ed8840480129ab2fc4a10f0dfb1d0c0d716e1e60e1f77b1",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/client_preferences.gd",
+      "sha256": "a2a976d1f769f4abc00b31ff7f6392fe21397a62d65ee0ab4e3123592349346b",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/gradebook_page.gd",
+      "sha256": "a1bda24e1ba1892fd55587bed47adf8a06b756e039fa6854e6e3731639257875",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/gradebook_source.gd",
+      "sha256": "68bebd9b7f4b33ca34acf1fba902d905bba1e3da14243a347a4e439119bc092f",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/graphics_settings.gd",
+      "sha256": "68ca9a2ab4039485f248407dddc9716e5788de4f988e1d7b7213ff144ca3655d",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/host_game_page.gd",
+      "sha256": "c6f5422f3582420467b27500c6f6a30f9bf01c86754b3ecf3a24c613eb36bfdd",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/openai_effort_chart.gd",
+      "sha256": "40944233ab84318568007fbc9b94a72e876be582c3b6e191703746be9dd2ba99",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/openai_settings.gd",
+      "sha256": "2617ea1982307d31328870f23701f5fdce2ab8609db10e72ae58f9c87cf27612",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/openai_test_panel.gd",
+      "sha256": "c43643165e8dcc13326b5b1e4698e8b9c1910775f837e6b284423dbf16d3a9e6",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/profile_inspector.gd",
+      "sha256": "aea5a3041f6dde77d1cba0f91947e1e908a29b6a6d541376913b3d42e66fcef0",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/profile_visibility.gd",
+      "sha256": "094abd18e2aab899ba2dc301356fe40eda9f5c6d341d20900b0801fe2560532f",
+      "modified_unix": 1795825062.8600664
+    },
+    {
+      "path": "scripts/campus/ui/settings_page.gd",
+      "sha256": "b503272e0939cfd7a0fa709c1b503f70a127ae9b65df7b5d61e35c40b76c562c",
+      "modified_unix": 1795826112.4388921
+    },
+    {
+      "path": "scripts/campus/voice/microphone_meter.gd",
+      "sha256": "6337afe871f3ef6cb0de3157d9df59fbb48a3b9c20c559ae2f51c0ed7911f02b",
+      "modified_unix": 1795825062.8604054
+    },
+    {
+      "path": "scripts/campus/voice/teacher_sound_activity.gd",
+      "sha256": "ac892f1d785a10933703adde64f042e5a1dd72592ded677624425f094252357a",
+      "modified_unix": 1795825062.8611012
+    },
+    {
+      "path": "scripts/campus/voice/voice_chat.gd",
+      "sha256": "98e2e8b9f4223504b0de649a5c5c8f9c092e1b0cb4f6529f3e6fd63d157a2942",
+      "modified_unix": 1795825062.8611012
+    },
+    {
+      "path": "scripts/campus/world/campus_world.gd",
+      "sha256": "dfcc78caa50e985c123eb4ced8eb50909239f3a2f7c2863383e1d7c7e6c2034d",
+      "modified_unix": 1795825062.8611012
+    },
+    {
+      "path": "scripts/campus/world/navigation.gd",
+      "sha256": "b0c5499b55c712418714f1d3754432d6d9b0917b0230a9bc84ea944cddcafc85",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus/world/room_door.gd",
+      "sha256": "6e1fc70b889231cf1497df3df4319fdd5f73f05e89803e025dbdbdba14b0a44e",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus/world/room_door_leaf.gd",
+      "sha256": "16c6bc040544e9d8b8d801820c12dc82c517d0749831bcabb14895e492995eea",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus/world/room_registry.gd",
+      "sha256": "5aacb4b1c1d5d0e0d05c8c8be9a6a02ba14329b20474e86cdd11f1825e8401f2",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus/world/zone_streamer.gd",
+      "sha256": "93dd5231e5513a8e8114017f5cfe6603f4c39ad9e65ef5179b87fa96193666d5",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus_course_provider.gd",
+      "sha256": "3828c25090d75bfce40813444e32e9e824f3cd7d2a7950080f16b7965db1143f",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus_equipment_adapter.gd",
+      "sha256": "ebf6d0112dfcdf52fcf5b96dcc929e5fe521feae1b01f6924813bbc51d2cf65c",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus_integration.gd",
+      "sha256": "639faa314d5277ed134d389672a562be0687993ce94e26b2d8f59a5cefec7916",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus_math_router.gd",
+      "sha256": "5f611193fc165eaef4850dd301ba805e1cb00fbc81612344c56b7816f1eb1b21",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus_recovery_journal.gd",
+      "sha256": "cf8924f4547025907bb63a656eafbf5e295accfef93dec8ec4c86ba774d1608c",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/campus_social.gd",
+      "sha256": "6b48d7b2b25a2622272efe62847006e8b63b55f8e5a9e5b3f098eda2591c0441",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/carry_hotbar.gd",
+      "sha256": "1046e40bf86c8e4ef51b0216766c721ef36190f30313afddceedef5635e6277b",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/character_library.gd",
+      "sha256": "084b9c83e431422de0d28191de4c0973d4a161e3bfb5e6823751477539f5b771",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/circuit_audio.gd",
+      "sha256": "b2c4f33cb090c12ef7728d7a3877b302e9aeb0c29652c08c1c15aefcc938af38",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/circuit_solver.gd",
+      "sha256": "ee20d0820109b61a8018943985cbbae320bea3882b70ffee5d482042b9b3917c",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/commercial_devices/catalog.gd",
+      "sha256": "423961b9c6ee3112b3ffe6f4f7c1694812a3aed5b0353ad109294f7483ea4fd1",
+      "modified_unix": 1795825062.8612921
+    },
+    {
+      "path": "scripts/commercial_devices/display_surface.gd",
+      "sha256": "9e84d1bc7eef576d35e6f1449cf61458966ea2256ceaab9af26534c709f9fd36",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/commercial_devices/event_adapter.gd",
+      "sha256": "ee897a16289fd0ac605a91e5e3026f30a55065a60f68ee6034bfb18c3cf8931b",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/commercial_devices/hd44780.gd",
+      "sha256": "56be8abdd1dfbe0c7e75a0df85060b59cb19251b543904788b8999ec72cc79ed",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/commercial_devices/i2c_slave.gd",
+      "sha256": "0c64dc9ebf6c39add93ba7ed221ea7e079a56e0c7ee440f58cf61c36b0327074",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/commercial_devices/peripherals.gd",
+      "sha256": "a27c559ea5c4d481cd3d8f238a3c9328cc95e49a9ae7be69f69f3a076a5e8a0d",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/commercial_devices/publication.gd",
+      "sha256": "919a3401199f6cb78e793a7d7df5b83c5820896f8d79aadeb1c0444df3914308",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/commercial_devices/registers.gd",
+      "sha256": "5236e46c20bd3cd78e9c48f95408eb44d4ca682e0833c05230f1f6fbb7b8a780",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/component_models/catalog.gd",
+      "sha256": "9f1a66263e3e2dadccdae71d411e19356fc564d8994d252a46b1681248fe6c92",
+      "modified_unix": 1795825062.862252
+    },
+    {
+      "path": "scripts/component_models/catalog_data.gd",
+      "sha256": "ccbca6336ed117c0dc762c52fcf00cb974b9c8ecf2e16270ff0ebf0343654602",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/component_models/i2c_expander.gd",
+      "sha256": "c5e83b30f9d08a79a2a2db0fbe9141daa4ec4f9ce0de21b9d92a17a9d4fb5b06",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/component_models/library.gd",
+      "sha256": "b1b6e346e22b594cae8a1ee6b9a8bf4407ec6a035ffa5feda38a4eca00ed64c6",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/component_models/serial_devices.gd",
+      "sha256": "8688cd0c223001a42d32a4cb1be46040c6b6f018082482269a4ae8c063783c56",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/component_models/standalone.gd",
+      "sha256": "76d14db28c6e8ae958a1f8a7d2b5eed9eaee7b8388075aaae080b5486f0d68f4",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/course_generator.gd",
+      "sha256": "16a2783d26e8b3a86d2922d8c740532957ef391d0c71b5dc13b0bd9329aed0b2",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/custom_circuit.gd",
+      "sha256": "843298e33f397f835b6ea1b5bb8bc62b4402d639a39fce1c6d2eca5a9bed44c0",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/dc_coupling.gd",
+      "sha256": "18f45e6457bb7a4a7e43099a5e3cc73b4ec1af4fa6638c42fb4663bdf8352fcc",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/dc_lab.gd",
+      "sha256": "a3d707d8998052c7c16442765528083535e8a93a18a2d0bcdbec6623578407cb",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/dc_scope/acquisition.gd",
+      "sha256": "7c621d4d7cd132ad5167b8be7e212df19cdc9dd171f8d91315749eabf1c33e94",
+      "modified_unix": 1795825062.862502
+    },
+    {
+      "path": "scripts/dc_scope/autoset.gd",
+      "sha256": "f0ae828718d66895bae0e276cae0077e080dcdaa686a95e49ce844aea3f104ff",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_scope/measurements.gd",
+      "sha256": "6d6f22f6016caeb53bbb1049265a3bdc39cec64b59558718ff6ffb7edf0b9b93",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_scope/probe_connections.gd",
+      "sha256": "56061587fbedbe13fe81da25788700656cb6b00570575a0f040b6f5d37bd6ce9",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_scope/scope_panel.gd",
+      "sha256": "0c66cf02c3af3d63d4d52a8e064746ff04a364babf76ee98942984bdc102739a",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_scope/settings.gd",
+      "sha256": "004095d4a53e28a3f4804117e9c479b10fcac07cca02227375c6fa77559791bc",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_scope/settings_store.gd",
+      "sha256": "a83a5f1a43baee9ed8319c4193baaa271423fefc25f97d2222dc4d845c81d34a",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_scope/units.gd",
+      "sha256": "7ba33811cb1bb33cdeca8be1e0e6193d3193fe71ca510dfef3452f56d2a21475",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_station.gd",
+      "sha256": "23f0a0bd65e563e75421165806240cfbebf62490f0967bff6a61f81482d31312",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/dc_ui.gd",
+      "sha256": "26cac2d763d7e78e0c84c0c0a0bc3f984486fa50b8d5606e8ddd756ab8176768",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/device_models.gd",
+      "sha256": "aa10c8ba369b0aa5680afde68d933a8d34b59fdb8683176987e546e26e601ab2",
+      "modified_unix": 1795825062.8632324
+    },
+    {
+      "path": "scripts/economy/temporary_playtest/policy.gd",
+      "sha256": "a2e24fb256970b9b8bbaf212e401981a6ddfde59c9256aec6eb8b9fc2f20a80a",
+      "modified_unix": 1795825062.8637543
+    },
+    {
+      "path": "scripts/economy/temporary_playtest/policy_core.gd",
+      "sha256": "dcb75eaa6bb8d5aed804617ff86fd0e6b4d3ecce432e21d5958edc3e56f48c4e",
+      "modified_unix": 1795825062.8637543
+    },
+    {
+      "path": "scripts/electrical_safety/profile.gd",
+      "sha256": "ced87ebb6bd2dc9e56bfbac7f8901f3da6eefcb43400d3a4da3588f1db019810",
+      "modified_unix": 1795825062.8637543
+    },
+    {
+      "path": "scripts/electrical_safety/protective_earth.gd",
+      "sha256": "f374462e36d837a3eaaa1a1edea3cbba56641459103e042c0f62d18fd7a38089",
+      "modified_unix": 1795825062.8638253
+    },
+    {
+      "path": "scripts/electronics/MnaLinearKernel.cs",
+      "sha256": "c6716d9ec381da11bebcbef8fad41efe9f831839fb61a98797abdf62869d3d80",
+      "modified_unix": 1795825062.8638253
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/debug_instruments.gd",
+      "sha256": "cc36bea8ab79440418e2e5cb5c63aa5f626b939475d9f3dbd3b5e5b6d91b8028",
+      "modified_unix": 1795825062.8639271
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/host_adapter.gd",
+      "sha256": "be837250b1092bbaf3e786ad45e972f649217db79a55080d7b5697fa3967d003",
+      "modified_unix": 1795825062.86397
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/maker_canvas.gd",
+      "sha256": "b807a7f3abc3f6c472f5fdf942c8850d73d3cc56c89decd553dd99d0d282ad55",
+      "modified_unix": 1795825062.86397
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/package_mount.gd",
+      "sha256": "007f42f514b0583bb2024e62d456bce9e71b142828d5cb15985daa720d83c0e7",
+      "modified_unix": 1795825062.86397
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/placement.gd",
+      "sha256": "f3b7c50d37ccf5baa2d3b2522f0f6327b157eafb6d9b38672ea00a8dd3f864da",
+      "modified_unix": 1795825062.86397
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/projects.gd",
+      "sha256": "c7e7d40ea39bb6f7fc0e2de7f765d6571d692dad6efd7b93f557397676635f97",
+      "modified_unix": 1795825062.86397
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/workspace.gd",
+      "sha256": "6fdf884850536c607f3b1550b828f51bed1c328a72b39e51c36e0b501aff24be",
+      "modified_unix": 1795825062.86397
+    },
+    {
+      "path": "scripts/electronics/circuit_workspace/workspace_canvas.gd",
+      "sha256": "53eb96b748df69599b9dcf0641a939750c24a1619eef80e090035aa408ed966c",
+      "modified_unix": 1795825062.86397
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/catalog_presentation.gd",
+      "sha256": "2b5e4fa6602e0db2bd64d8ad74c4102f4948d73b3b7e7d1e2916f177be4dc468",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/component_art.gd",
+      "sha256": "baf80ded96d7d657d68df8e7d1c3baac8ecb8dcfd6c3fbbdb777d4a34d6f9eda",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/guide_content.gd",
+      "sha256": "07ba81ef536d87acdf62eeacf88df18af36dbee72356721299bbade0dc5074cb",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/guide_preview.gd",
+      "sha256": "4cc3e4d3b332240d1373566e26bb0a72fec78ea2030b9d9d96c3a3a115ead89d",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/inventory_view.gd",
+      "sha256": "aaecc488e34d57e710a99793382b055d6e0ef32665791fff148953850a3a9651",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/resistor_bands.gd",
+      "sha256": "a83516202f115642b62ea3ae5ae427511991df66aba37f40ba3e92937d1911e2",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/shop_adapter.gd",
+      "sha256": "be5e0a97aa2ee6e5fdd300ac4512ef5ee8428df411eb045cd9bb1358d11ed1a3",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/shop_state.gd",
+      "sha256": "f61f16b3a20ea24977eaa8a841ddc4b7f1fb746e45e818ea6421c561a28210dc",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_shop_ui/store_panel.gd",
+      "sha256": "0fcc1c42d7aa282e3ad563a556a1d5f1f41d32b0d5e7c53d7bf631519eb45a16",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_values/shop_services.gd",
+      "sha256": "bbab19b6b8eb63525967873f8c3fccd461d3ce7ce17a43f2a5ef039569474bef",
+      "modified_unix": 1795825062.864485
+    },
+    {
+      "path": "scripts/electronics/component_values/values.gd",
+      "sha256": "023653d084d14fbf57ef68a5d0b83c1b71c5a7315ae78d9eeae3d16c64f2c0a6",
+      "modified_unix": 1795825062.865003
+    },
+    {
+      "path": "scripts/electronics/contextual_panels/analyzer_panel.gd",
+      "sha256": "f9c39e13bbd4a84632c4e1606916ee9bb99cd1fcb742982cb14e5751b667de0a",
+      "modified_unix": 1795825062.865003
+    },
+    {
+      "path": "scripts/electronics/contextual_panels/bench_connections.gd",
+      "sha256": "df53f25976ff537c0db73a00348de94d0be94e85cbcd7b7bc3be17b669ff3336",
+      "modified_unix": 1795825062.8650985
+    },
+    {
+      "path": "scripts/electronics/contextual_panels/component_picker.gd",
+      "sha256": "61805568fb002cd647891b935fbd97e8864c3f32a1bb5cea37f8b9e80888ad35",
+      "modified_unix": 1795825062.8650985
+    },
+    {
+      "path": "scripts/electronics/contextual_panels/panel_host.gd",
+      "sha256": "020b49f668f58c2fb5dacdecd14a138588dcb466d8acf3fd1b5530cb9bbe6888",
+      "modified_unix": 1795825062.8650985
+    },
+    {
+      "path": "scripts/electronics/contextual_panels/selection_inspector.gd",
+      "sha256": "591cbaa5be1e3511d887de0945d8d53b5dc1d1a11b05f783f8716983f98ef50c",
+      "modified_unix": 1795825062.8650985
+    },
+    {
+      "path": "scripts/electronics/contextual_panels/status_help.gd",
+      "sha256": "a6cb704239d9abc9505bef087ece914c9ce88268e20b369874d8f956da5691b2",
+      "modified_unix": 1795825062.8650985
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/converter.gd",
+      "sha256": "54916425c01791e4acd0ecfaff02a0c3b638257aaca178e64bc79867e1027c55",
+      "modified_unix": 1795825062.8650985
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/converter_ui.gd",
+      "sha256": "dc85734cebe65cb52f124ad8a440b7841b9d6105cdb88ab82c66dbca15c7d1f6",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/package_editor.gd",
+      "sha256": "3aba534d9cfced8fd786abcba8959c6bc353f0b4832a15957ca500cc4a80fc9e",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/package_pin_model.gd",
+      "sha256": "d5c3cec86fb3bd81f1633426b443461af334bbe6ec85e2a2dfc112e1ca70b25c",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/package_preview.gd",
+      "sha256": "e7d112c90fc8fd8c6e9bd30a7530cde04ca785a7d7b3fd38f4fb08cc0e295444",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/package_view_3d.gd",
+      "sha256": "3d7bf5e0c7c7d7bf2a9f768ee29cd65da30007ebe00fbf34b957e4d00868050f",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/source_canvas.gd",
+      "sha256": "fbf3e79286028ecf07c5012ed5a0e88917ec3af9d1e38d2db32803aa1fa70267",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/ic_pcb_editor/upgrade.gd",
+      "sha256": "c6abcba90a353f4f2b1e6234b353bf541a5a3a74fd57319439b65bac78b9dbd9",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/inventory_value_search/picker.gd",
+      "sha256": "244022e199e0ae9b94c388c21d8bd350adc0e6aa38dddd7c0dbbdf73093ee827",
+      "modified_unix": 1795825062.8652868
+    },
+    {
+      "path": "scripts/electronics/inventory_value_search/query.gd",
+      "sha256": "cf60db0c12c1d3b13bf17214b8f856ac9cf3876413563c50cc99b054bfc8130e",
+      "modified_unix": 1795825062.8656619
+    },
+    {
+      "path": "scripts/electronics/inventory_value_search/selection.gd",
+      "sha256": "1acaf8d28150450ecedd21574199edc9c2eb45f571b2c994803c84af5af8e40c",
+      "modified_unix": 1795825062.8656619
+    },
+    {
+      "path": "scripts/electronics/portable_sources.gd",
+      "sha256": "ffe061279bdeb1afd10214449bef97601be6101c6a5e02eef14bba6227c42eec",
+      "modified_unix": 1795825062.8656619
+    },
+    {
+      "path": "scripts/electronics_buses/cooperative_link.gd",
+      "sha256": "00059142d39707b1e8c0eab250591816c9bec61dc565202a55bb00e2973bfedb",
+      "modified_unix": 1795825062.8656619
+    },
+    {
+      "path": "scripts/electronics_buses/edge_replay.gd",
+      "sha256": "93766c9e3c07bcbeae53c0b5a6a5afa20f7d18f4e40ab27afbf949e3cabd07b7",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_buses/group_scheduler.gd",
+      "sha256": "0d0a8eb91382bf17793618c6d19f71e8167155cb64868200e6c408455a9f8a3f",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_buses/held_state.gd",
+      "sha256": "27513abb198900a44fe9e6b5487d8494e2a47879fc228bbae4674fd6f128881e",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_buses/station_adapter.gd",
+      "sha256": "1d85b2b85ddbf7866df6a489a13f80a2ae828bd1341ef6b68cf91aa6f6d4525b",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_catalog.gd",
+      "sha256": "cc5776d78048367380539f20ce17401b549511c9bc01d06ee3971279cb2afa5b",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_profile.gd",
+      "sha256": "bdd2efb9fe8275d0d0b66d79e94f70f78573d3124094193c3ce68b544a64150b",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_solver.gd",
+      "sha256": "93df3dee1cec8425ce36d563369d50f627ecb4079c488ce6951feeb99cd2992b",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_trade.gd",
+      "sha256": "ac1d5612dbf80613bd82cbcbbea64a46a036be720a3d8eb2f538243bb4ace9b1",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/electronics_ui.gd",
+      "sha256": "c2dbbe7a5b2a43b49e45dead5a6f3bf121464bc8ad5d89731522126550d2d63e",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/equipment_builder.gd",
+      "sha256": "df852295d2940d887668073b925136139641852ea569e07b6bac7851386e16ec",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/equipment_catalog.gd",
+      "sha256": "da116139d5a919c1763ed129d2ee093ea135f614b219eb38e63dc88e07e28d22",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/equipment_guide.gd",
+      "sha256": "f5ed1107cc842125538f47f8e5fb2260114cac7f88c095e4be2785fc73014b37",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/financial_calculator.gd",
+      "sha256": "7d29b9e190b79a6b77c34f25dd5fd9a418d97de33145c94d24e60b809eabb028",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/firmware_backends/board_adapter.gd",
+      "sha256": "591223a3af0b41cf5b4a00aecca8ad85b77054517348ac16d3c4c13c91105a3b",
+      "modified_unix": 1795825062.8657892
+    },
+    {
+      "path": "scripts/firmware_backends/native_boards.gd",
+      "sha256": "91526f2a980aa96d0ed042040617f928ff8ba38ac28e69e8391fddcc8a4fbfb8",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/native_bridge.gd",
+      "sha256": "b6b643965ae103223e89d6b5d29cd4f5c13b2177d2913316566fde0712c880be",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/native_host_config.gd",
+      "sha256": "0691cc124ef5d5aab75749b1722cc767dc73f98416696df43ac570bb9cb4a17c",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/native_ide.gd",
+      "sha256": "6a35b94b4dbf577cf4f664ba9f7f9da7ba2b356f5bf69d6d38b08eb4a29dad50",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/native_runtime.gd",
+      "sha256": "b2d00a9fb3d4255270f8326f4a470c02a39f2af3b4997d095cd200df70c26ccb",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/native_studio.gd",
+      "sha256": "6ca9b6a26bec1a1a4b151a9ed3cc1f3b8033dc7936738c1bbdc4d311f649a0eb",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/pin_metadata.gd",
+      "sha256": "2da1e7905edcfef4da4ae54896fdad4665d916dc5dff56aa58c8fa899fed4305",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/program_document.gd",
+      "sha256": "bac54ec977c75abc7dd50e598f7a734c2508c3b76290d5836a951775e3a27a72",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_backends/source_project.gd",
+      "sha256": "c953886c9a596355e4be236fc80839122e9271aafa9070a6ecfc65490d645082",
+      "modified_unix": 1795825062.867217
+    },
+    {
+      "path": "scripts/firmware_ide.gd",
+      "sha256": "65b6c4f4102808adae42a1ebb1d2f1d1099875a6d7172955906ca2731c2716db",
+      "modified_unix": 1795825062.8709757
+    },
+    {
+      "path": "scripts/firmware_runtime.gd",
+      "sha256": "697e1c26b7f20b3828e960bbcc2e8f45fa6fdfc36b52456b0bba14270b2b41fc",
+      "modified_unix": 1795825062.8709757
+    },
+    {
+      "path": "scripts/firmware_toolchain/acceptance.gd",
+      "sha256": "28fa5065b6fdc5338be7a685f7e56a89c0aac9d35413f846320bad55ecce0f23",
+      "modified_unix": 1795825062.8709757
+    },
+    {
+      "path": "scripts/firmware_toolchain/artifact.gd",
+      "sha256": "b1d40b737b8735db275b866f37cc77f90b3b94c9d8f6ab4916123d4a4d0ed477",
+      "modified_unix": 1795825062.8713255
+    },
+    {
+      "path": "scripts/firmware_toolchain/compile_service.gd",
+      "sha256": "b72b8ef8cb9b061422d577ca030a7243e6cccc4330806dcef2b660c5a4d8e56a",
+      "modified_unix": 1795825062.8713255
+    },
+    {
+      "path": "scripts/firmware_toolchain/diagnostics.gd",
+      "sha256": "0002cd8b5d4ddc4aab39f75e43a6debaba58fc26532e1aa64debb51316970d38",
+      "modified_unix": 1795825062.8713255
+    },
+    {
+      "path": "scripts/firmware_toolchain/source_request.gd",
+      "sha256": "aaf9de42de823400ede8dde2888dc260b46482a6191046d1eb23353714b5c91b",
+      "modified_unix": 1795825062.8723242
+    },
+    {
+      "path": "scripts/firmware_toolchain/windows_sandbox.cs",
+      "sha256": "72ff069397f97e25b344e84867764e6e949bd67dc65d2f7bfdd7ffb21f0db7b8",
+      "modified_unix": 1795825062.8723242
+    },
+    {
+      "path": "scripts/first_person.gd",
+      "sha256": "dbaacc68611b9d404edea428b2fc4fb9ecff526e987b4a1b32b39f32509a176e",
+      "modified_unix": 1795825062.8723242
+    },
+    {
+      "path": "scripts/front_menu.gd",
+      "sha256": "8381282790d5709a4059e389daf57c875eb262af3666eab95bbc4c6622cc1258",
+      "modified_unix": 1795825062.8723242
+    },
+    {
+      "path": "scripts/game.gd",
+      "sha256": "3f6fa4960efed01e9170abd375f392e0d80f5323da24570ecbe9bdf4e796d5f5",
+      "modified_unix": 1795825062.8724058
+    },
+    {
+      "path": "scripts/induction_motor.gd",
+      "sha256": "f5efa18626b0877e9fec05bbf135c4c08d87e8421d6e64a1f77d4a0f15957eb7",
+      "modified_unix": 1795825062.8724058
+    },
+    {
+      "path": "scripts/instruments/physical/bench_instruments.gd",
+      "sha256": "f6ed374750c18cf445a6fbeb8f8187b59aebfafd847296a7bd7df06120f615c3",
+      "modified_unix": 1795825062.8731728
+    },
+    {
+      "path": "scripts/interaction_presentation/accepted_event.gd",
+      "sha256": "35126b026d02c7fbb165b271857fb40ccea35efd72a0fb657d5616a7dd9aa2c6",
+      "modified_unix": 1795825062.873218
+    },
+    {
+      "path": "scripts/interaction_presentation/actor.gd",
+      "sha256": "6d150bef2b4aa51c815859bd8c37dd618bd4f70e260f704bc1490ab44aff8fb7",
+      "modified_unix": 1795825062.8732584
+    },
+    {
+      "path": "scripts/interaction_presentation/bridge.gd",
+      "sha256": "e601f7c6e0028a64c559223b65210370016adc36484e4b6300d501c7dc5d2d27",
+      "modified_unix": 1795825062.8732584
+    },
+    {
+      "path": "scripts/interaction_presentation/timeline.gd",
+      "sha256": "5807038e0a5f3962d9b93ee84f40e3e28b5e30e59a036d83ce6c942a8383e37d",
+      "modified_unix": 1795825062.8732584
+    },
+    {
+      "path": "scripts/inventory_authority/component_persistence.gd",
+      "sha256": "d0e00640df4c1f8fbc777f98d41883b0df8eb8eb94bb517fedd25579245a50e2",
+      "modified_unix": 1795825062.8732584
+    },
+    {
+      "path": "scripts/inventory_authority/firmware_schema.gd",
+      "sha256": "70fd57421a986e3517c784eeb549e826d25779ac240c6cbc70c5252afcfe2e38",
+      "modified_unix": 1795825062.8734465
+    },
+    {
+      "path": "scripts/inventory_authority/io_control_schema.gd",
+      "sha256": "247e3d906573a94a1da01b22e35818b83e84cdac37527513bed2295e0087b4ff",
+      "modified_unix": 1795825062.8734465
+    },
+    {
+      "path": "scripts/inventory_authority/ledger.gd",
+      "sha256": "5dc4231a494fdc21b5a03879320ae5d563e08fefd1a166341bfe1b8e481815f9",
+      "modified_unix": 1795825062.8734465
+    },
+    {
+      "path": "scripts/inventory_authority/network.gd",
+      "sha256": "0c23618f5f60eb39a9976ee6e779a48e1bd5799e0ea2e5550932601c49534949",
+      "modified_unix": 1795825062.8734465
+    },
+    {
+      "path": "scripts/inventory_authority/receipt_archive/blob_store.gd",
+      "sha256": "8b40dcadcf24a09de8730c94396bf93526e3b47667e761216db60b7725b40aa3",
+      "modified_unix": 1795825062.8734465
+    },
+    {
+      "path": "scripts/inventory_authority/receipt_archive/coordinator.gd",
+      "sha256": "6395896ffa03573f7bb87586000929a3eba5ae6d865b44248df61f6b518d5d79",
+      "modified_unix": 1795825062.8738818
+    },
+    {
+      "path": "scripts/inventory_authority/receipt_archive/format.gd",
+      "sha256": "a475db946811bd48a67472c9b171c8db564c7dc0f43f318aaca230f7d27fca9d",
+      "modified_unix": 1795825062.8738818
+    },
+    {
+      "path": "scripts/inventory_authority/store.gd",
+      "sha256": "9435327fce3fa4ae23749922a46bead31de514d13d3448daeb53a22dde6bc9a1",
+      "modified_unix": 1795825062.8738818
+    },
+    {
+      "path": "scripts/inventory_authority/validation.gd",
+      "sha256": "3124d22fa0e34eca5e66b7dbef67a7f8a872048f851b837beabc5da759418866",
+      "modified_unix": 1795825062.8738818
+    },
+    {
+      "path": "scripts/io_devices/catalog.gd",
+      "sha256": "30f0a981a6e734c5105142b7ea93b3f0d356e388c2777282b104f8c2a1af1cd4",
+      "modified_unix": 1795825062.8738818
+    },
+    {
+      "path": "scripts/io_devices/controls.gd",
+      "sha256": "0cda369a4135dac03b7e7dfb028983774aab09d555cdc518e447eefcfcd36c9a",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/io_devices/devices.gd",
+      "sha256": "cc7af39695c51cb5645c2d30d006cae82468d02f5a85cf455e5e0a3b69820dcc",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/io_devices/host_adapter.gd",
+      "sha256": "dbeb51344d8532ff5074ee2405d0cb81ce584b6cbe5c2f3c557369bd0dfc5a94",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/io_devices/physical_surface.gd",
+      "sha256": "0762ee83590a2155b15caf7520d2a17848ea18089124850c6cbbb8b31174a8fb",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/io_devices/replication.gd",
+      "sha256": "27c8cd5b5c0f57c81b91b25cd7bc5e40166a0fdd1c1ce7996554d11186783722",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/io_devices/surface.gd",
+      "sha256": "7631402a4dbc948290d15af8465b01b9f42b304e6e6f7499d304c8f614a4002d",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/io_input_guard.gd",
+      "sha256": "10fbb2f4a93d077f0510f4635e5885801e5754c0f9c42690468df813575e2daa",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/kit_world.gd",
+      "sha256": "4251ab167607afdbf9e8a5a6914f92af23c31036b61af2067af96663930b8727",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/lab_audio.gd",
+      "sha256": "8058f622d8c744695c5c94a12a76c121957e1714ee2dfc21a0c2fe76bf261263",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/lab_challenges/bridge.gd",
+      "sha256": "e2d81ff1bb615b9d71486542058ced1a8e53d141a06e0d684bbdb443c2d8bb1e",
+      "modified_unix": 1795825062.87416
+    },
+    {
+      "path": "scripts/lab_challenges/decorations.gd",
+      "sha256": "b8a610dcf2bf990dc3ab1fc4afb5377c88cb9c13178f37a4e9445f5d5cec1616",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_challenges/host.gd",
+      "sha256": "5251c9062c2edae1e55d9c58eb4ed435f5e0e9c570a8a8d2d11d076a4c40a6ac",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_challenges/ledger_adapter.gd",
+      "sha256": "6d7e4542885bee539ca68e7bf1cb19493981a09a68f4f2fe87e6c8dc1ea9c68b",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_challenges/objectives.gd",
+      "sha256": "51eb8863da2d19c5f6d7da1671f4659af2195befaa6d2858beac3d89c87d9ee7",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_challenges/panel.gd",
+      "sha256": "f98b4fe0749154e507a00753a2585200eb5aedb0792bba9a6de10270792171a8",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_challenges/scenario_catalog.gd",
+      "sha256": "d56ec3d06f3b7da09498ef00040d004a799f2e8395dd7a5fd88c220100782770",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_relay_peer.gd",
+      "sha256": "a62197dc0b799192a3ebdd673b61cf98208cbb959c5e0a1740a89a25daf674ec",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_state.gd",
+      "sha256": "c1f299aea9f3d6ff2f3615ea1412d1350b44d44deffd3e73ebdc4c53bcafc9bf",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lab_ui.gd",
+      "sha256": "526a551eaa0e5916f59edd2f37f3a0270bf5c5717ae920c1a39181a11fee59f4",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/lesson_content.gd",
+      "sha256": "be1957138136bc7f37c8422e9e3ed1b1f9eccf0850a614d5b0b8ded155ff3436",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/math_course_paper.gd",
+      "sha256": "21f8d1bba12cac52097263c17e61aba43c3fe79e41ce97561a02b8c262cb61fc",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/math_ui/answer_codec.gd",
+      "sha256": "7a5293b97554f3c01431c52f32b56e2e92c8b2bb8149a2612fb2b9a2e709f4b7",
+      "modified_unix": 1795825062.8746338
+    },
+    {
+      "path": "scripts/math_ui/diagram_view.gd",
+      "sha256": "40b45156dd6b3303716eaf56caf0b71909ff0281d5b1b5385224a9e1d490e664",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/expression_editor.gd",
+      "sha256": "5062a05cc426939660426099d96fb63f501ed1e5e5e5b4631dfca85701583982",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/expression_view.gd",
+      "sha256": "182d62658d9a85d25d3cf86f3b02acfb0785398740a6cced8d4e08bb4aec6787",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/graph_canvas.gd",
+      "sha256": "734e24ec08dc60a3c273b10cf75eb25b957eff37d50c0c57be22d8e396e45a48",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/math_notation.gd",
+      "sha256": "286869dc0aaa6fdbc1d0ead5a02cf81ba6476281bc9ce11109b139cad3d39084",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/math_paper_page.gd",
+      "sha256": "75d33d695cfcaa87d61021f346698a1eb65a4806007e2ba3bcaffb076c3b1d45",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/paper_adapter.gd",
+      "sha256": "292dfa71453f82a3fd129288c0c161e1ade4ed6f5a2c093b6345727281375b60",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/plot_model.gd",
+      "sha256": "c67f394c3e9370e08f7d913a336c67a7b517556e54821c3de9bdda0f20644483",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/table_editor.gd",
+      "sha256": "ed1a6da484f1531937cc0af8125174c2fd60e894432ebb767d8a737b584d8314",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_ui/workspace.gd",
+      "sha256": "96e5eb2f9d6c7c84466e7f56517b3816b361c36504bdc1d5179ae93389310a1a",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/math_whiteboard.gd",
+      "sha256": "88d7d3029297dcec1e679b128e7899a0b9da6ec981fd685d67210088e60006cd",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/mth147/attempts.gd",
+      "sha256": "1c755dbf391abed174b92703de854a1ec5b7bebd2ff68d1b368511fa423d5e97",
+      "modified_unix": 1795825062.8754475
+    },
+    {
+      "path": "scripts/mth147/course_registry.gd",
+      "sha256": "7098e81291ab0bd2482a0b160a9dc7786b2d88201a9f6138c946762f2ee8ee9a",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/curriculum.gd",
+      "sha256": "f68f10c0ef062f497484ff0c1c56dff955705533c9619975d71f5bc16b0b1cb2",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/exact.gd",
+      "sha256": "818b276c7ad5c941051b3390fd4ab9c4ceed88c583bbc3f1dfe962a8d9dbc998",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/forms.gd",
+      "sha256": "d380d6355e9b94dfc4a2d269414382ce37a7e070d6cd3348a6d2923984495af9",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/generator.gd",
+      "sha256": "c74f25ad2c0bc968259f71e749b55fe9ccde473888ff785f295043ca59d4fed9",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/grader.gd",
+      "sha256": "e6d499c8dc05a3a9fcbdaa25537c8885daf11e9c00dfa52704ddb26045d9611a",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/math_core.gd",
+      "sha256": "0b7e97958f81d9ae436c5545a6b04ff6ee56c56cd8624df3adc7f1a767b8fdfe",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/numeric.gd",
+      "sha256": "82f9fd9aef68d38b217d402ccdf387ca8afe487a51a86196ceae2e9d4f506504",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/parser.gd",
+      "sha256": "038bb752b84199109fac0329c3ce7340afb047a932f9686738ff459a4e64515f",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/provider.gd",
+      "sha256": "f71b0a0daa7e39d478b0870f0d4a1ca397ecb02c21d8eac37ca59b3883ddf4fd",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/solver.gd",
+      "sha256": "2e7c88a6055ae8559385a302efac4d96e2b97a2b9b0fe57a163527ccd6581644",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/test_builder.gd",
+      "sha256": "386ec83c58c6edd101ddd3f8a0d02266feaff5f4bf50578258fc68b2373061a7",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/validator.gd",
+      "sha256": "f248f6e2a5322414976c24a55244a7f114fb2df8829e1f5d64802147d5995dca",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth147/worked.gd",
+      "sha256": "e2f581a7a2c5bbd869e8766b202af55a75add1ca81f036f580884ae406c6397b",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth255/ac_verifier.gd",
+      "sha256": "e270bbfceeffc29877687c375d62f014af3ab4d14859bc1c05516123f61f4406",
+      "modified_unix": 1795825062.8759708
+    },
+    {
+      "path": "scripts/mth255/advanced_generators.gd",
+      "sha256": "f1cfbfe7ece1dc0c3f6f64861743da1c902b3c750110a34c38ef52931c3ab9ba",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/algebra_generators.gd",
+      "sha256": "30f362c51a6f0d1627db4d7f3a8b43048be5186a37c6eb566a38c30758e98a46",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/application_generators.gd",
+      "sha256": "ebdc0f1b13716405e3529f79158e29b5a0d10ff8ecf6e609b0bb7b38273039f7",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/campus_adapter.gd",
+      "sha256": "80d61421af0addd9a6bfb5bdfb645c9d49bc7952dccf1594f31b1ff654f67fb4",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/card_rules.gd",
+      "sha256": "a81e08dd7cb93773825dad04fc505c6c3bb2015cda43a487d81d0b1816cd6507",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/complex_domain.gd",
+      "sha256": "be9934c62b3bc83a1ef7f8b11279a7e9a5addfd844aca231c6c6c163515af4af",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/data_domains.gd",
+      "sha256": "698320411d1a7ddcbfe07af4e3d597bd3fcd7a296e4891ead00e1bb7fb723a45",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/demonstrations.gd",
+      "sha256": "37d6783d500dd952546876a96d9d9a8d0de0ea9b8a4675508470de25949cc071",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/diagram_verifier.gd",
+      "sha256": "27a2f35bf55902993fa2b338c408ec42d70455794a0b31d7ba223407c0ebc0f9",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/impedance_view.gd",
+      "sha256": "90c29f4835140d8f14052dfef24da1282d09b04d9164d31b959dc629bb6c1b79",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/model_generators.gd",
+      "sha256": "f3d188cb33313522c1c5f349d30768b7a8c9393675db46c120cc5c53e9da829e",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/preparer.gd",
+      "sha256": "e147a0bac43147af8f4707f85d1d34e6ada2ea6cdc06cbf1a66f3101bd4e33b7",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/provider.gd",
+      "sha256": "242eea222ee979d5e27f49af3a4864247126b7e2f5a8d7bcdd5fdba17e8476c9",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/trig_generators.gd",
+      "sha256": "c9a3ce512d36a1b15ec3ab0e8f3858e558302a5efd7ed6678613cd026e78229b",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/verifier.gd",
+      "sha256": "16b50d037ec13aab5746dd37eaf2eda49dbd21d46b84ba89d275800affedc461",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/mth255/worksheet_adapter.gd",
+      "sha256": "8dad93f16fb4fdfa8c998e3aab0e971e78912b4b95d984c3747955c39e9b6512",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/native_circuit_host.gd",
+      "sha256": "e362e4f834fd88a7420d5ca14606074c38d0605d63b983786b2463bd2f652b36",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/native_circuit_scheduler.gd",
+      "sha256": "2a75ba05e5d7f369e8fb299e7f81739a0b53c5f2330b220dabf8728124129559",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/native_electrical_scheduler.gd",
+      "sha256": "2b7fdcb291a488548b13b267a98044bf957295caf21721c1654aa234ae852451",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/native_program_transfer.gd",
+      "sha256": "a55ab36066ecdd8fe317643029b7c70ff5f75ded737d163484ff3437baf86513",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/notebook_store.gd",
+      "sha256": "8b889e6d1cd7103292e814306e34c65e79a0d74bed0d5cdedfde42cb25631f1c",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/package_editor/io_surface_adapter.gd",
+      "sha256": "bed1a0adfca0075761e46d3ee0b6bb1d525d73578eba7d7bd83176afffac583f",
+      "modified_unix": 1795825062.8768353
+    },
+    {
+      "path": "scripts/package_editor/package_form.gd",
+      "sha256": "71d68b0bd1f09c0aba14d987f2dc800ef82242a2c8de428fda13cc4360f3bc13",
+      "modified_unix": 1795825062.8780932
+    },
+    {
+      "path": "scripts/package_editor/package_geometry.gd",
+      "sha256": "f61bfd5eb3c43817c61b71ddda5c0955166f66a6efd3242933ce1260c4755442",
+      "modified_unix": 1795825062.8780932
+    },
+    {
+      "path": "scripts/package_editor/package_store.gd",
+      "sha256": "d5540f4ecc015b2001305a45db96220856aaa7d2a85ded9d4c73102641d2a00e",
+      "modified_unix": 1795825062.8780932
+    },
+    {
+      "path": "scripts/paper_annotations.gd",
+      "sha256": "0b5c4f0e8065ff533626f2fed0c83e17074abc4b94f23fdaca62d650266726cf",
+      "modified_unix": 1795825062.8780932
+    },
+    {
+      "path": "scripts/paper_ink.gd",
+      "sha256": "f7d242c442437535ec658ec7350b2efb9d2a2f3acca1c10634752bceccc9b15f",
+      "modified_unix": 1795825062.8780932
+    },
+    {
+      "path": "scripts/paper_ui.gd",
+      "sha256": "8f2f9d615b2ea7c7bf61b534e02bea5f2c37523f152b94bc37b2e531a63fbb55",
+      "modified_unix": 1795825062.8780932
+    },
+    {
+      "path": "scripts/pcb_design/design.gd",
+      "sha256": "c60e9b0795873f37399237d38d0c263a0f91ceba9a4722f1460e346425809afe",
+      "modified_unix": 1795825062.8780932
+    },
+    {
+      "path": "scripts/pcb_design/document.gd",
+      "sha256": "20e0de1fa2061d795ea2021f3361a227220c5675de6b4af33fb0719436ce7142",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/pcb_design/editor.gd",
+      "sha256": "f1b408f42d94baed37caa8cb1ff1f5de6ec808872636cb087b9c81138ea22671",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/pcb_design/route_canvas.gd",
+      "sha256": "9364056e77a2f236068d2f82da12825b81438c6e78136a8865888776955bc81c",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/pcb_design/routed_components.gd",
+      "sha256": "c6be59a98ea65f59520bd7c2fc24138fc5a466d6fd951b26e2dadd46b1ddd84d",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/pcb_design/substrate.gd",
+      "sha256": "1b8052dc4cfc292c148b095cde2b645250097c812c2d3097d3aea754b1c8c7ea",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/pcb_design/surface_layout.gd",
+      "sha256": "4acfbc7b6adc6b67eb30c61bec2ff1f3d668a866e203f2311620e59aebd47e45",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/physical_breadboard.gd",
+      "sha256": "6291280f901a4942d2b8b5ddc706636adbd5e8e9513d933dd47616d0588b6200",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/physical_resistors.gd",
+      "sha256": "a2a0a703967784b55fbe21b0a8e67443919bffaa2acab9594beed63c3b759011",
+      "modified_unix": 1795825062.878651
+    },
+    {
+      "path": "scripts/procedural_animation/canvas.gd",
+      "sha256": "7e8bec03a89bbb6d36bb398a4131936dc80f49885c74d89204089d67c6b9a84a",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/procedural_animation/document.gd",
+      "sha256": "b39f985af64f4fac20f43c4364cf121e27262eb81d82f6afa43609785fb2bb10",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/procedural_animation/formula.gd",
+      "sha256": "f6a0a9ac5d86eae9fdc95f8c17720667a3906e96f7e1c8d05d76dcf8badb5938",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/procedural_animation/playback.gd",
+      "sha256": "39d75ca0f46c2e185929f65b58e9e61fc9f8592250027980c3e8777205d02ac3",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/procedural_animation/storage.gd",
+      "sha256": "5a95c3008120823d95667ee208f291b3823abceaaa0b921b60c99266b453610c",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/relay_account.gd",
+      "sha256": "84d94dc24b7ea9311c71a8182c4dd279048aa179cde377c79fcdf30979c66a5d",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/rolling_chair.gd",
+      "sha256": "3a5a82df3466556feb923466f89069728a40869f4c86b01dd1a7c8f451a4ee1d",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/room_finish.gd",
+      "sha256": "bf1a58481a5b379845a354b266be58ef9b918abdee8c845208900422d9a266e3",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/school_session.gd",
+      "sha256": "fe0a4eb69ca37a2b7e1fe84f122969b38fbbe3e209c1a16d7dfa7ad29ea536e4",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/school_world.gd",
+      "sha256": "c7b3a6c8fe0c4fe08b0c5c90a5cce6ee1869c71d99097c3ceb83f625a6fbab83",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/scientific_calculator.gd",
+      "sha256": "0c68ad83c89551becd8652b0bb65a98c684690f1c0e1501ab0250a9f26787005",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/scope_trace.gd",
+      "sha256": "47a76dd49c877833b1476ff0949a49cc921715855ab706caa17ad52aeb865768",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/session.gd",
+      "sha256": "689647da706242ab3bd835c2846a41b5058b62aa03e9aec7d2d2c293012e2650",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/shop_room.gd",
+      "sha256": "fd6d583ed88f9783f8d37efdda12f8e270f951706d58ccc8015ad85ad72b6c5a",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/stateful_devices.gd",
+      "sha256": "9d196c9848542fe0aefc081b0930e9a1afd6ac51ff8c39c52b3bf03d554f3436",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/toon_character.gd",
+      "sha256": "dc3785dccd2b72390180a39807fbe5af9c250be1d5e33bb29f4578512157420d",
+      "modified_unix": 1795828298.742667
+    },
+    {
+      "path": "scripts/toon_editor.gd",
+      "sha256": "df26eb7d0e421f7a90d7930aa18a1d5256a2ba0396bc104084b24582320878c0",
+      "modified_unix": 1795825062.8792098
+    },
+    {
+      "path": "scripts/ui/circuit_editor_panels/chrome.gd",
+      "sha256": "29f0bee375437c635e7382e8cf6e0d5bc4d074e988a04339e2e199484f4f119b",
+      "modified_unix": 1795825062.8805165
+    },
+    {
+      "path": "scripts/ui/design_system/demo.gd",
+      "sha256": "4ef764034f340d28c1c5be898dfff6a98b3a554f9de7117280f26f9ac066f1b7",
+      "modified_unix": 1795825062.8805466
+    },
+    {
+      "path": "scripts/ui/design_system/device_battery.gd",
+      "sha256": "b2e2cfa34711c7e256e90feb9035f235393006682793fe5e0fc4896e516b68ee",
+      "modified_unix": 1795825062.8805854
+    },
+    {
+      "path": "scripts/ui/design_system/dialog.gd",
+      "sha256": "1c1f912aba1ae51fe735cc92653dcd7fa9df3ac10dc56b1be03f4837ab22eee1",
+      "modified_unix": 1795825062.8805854
+    },
+    {
+      "path": "scripts/ui/design_system/responsive_grid.gd",
+      "sha256": "d20ba1ddb2dbf26755c1a51ce55e9109fa4f0c9af7b400551e548645805b46fc",
+      "modified_unix": 1795825062.8805854
+    },
+    {
+      "path": "scripts/ui/design_system/theme.gd",
+      "sha256": "4730da903d96fda8016af62b134adb40ed5840297f072be1909248c0fe568099",
+      "modified_unix": 1795825062.8805854
+    },
+    {
+      "path": "scripts/ui/design_system/tokens.gd",
+      "sha256": "98cc1757e267e3b6f548c7fdcd712500b5998acd9631e270fd295c18d1eff735",
+      "modified_unix": 1795825062.8805854
+    },
+    {
+      "path": "scripts/ui/design_system/widgets.gd",
+      "sha256": "ffd99ffd941a7e9593b106d1c58c91a407749fe17304cb2583d62ddad6d0b6b8",
+      "modified_unix": 1795825062.8805854
+    },
+    {
+      "path": "scripts/ui/hud_settings/layout.gd",
+      "sha256": "e4b1c81770389b6642ad128ce3dfc5bf8adb35e2a5fedb41dcaf70c5f48f0d38",
+      "modified_unix": 1795825062.8805854
+    },
+    {
+      "path": "scripts/ui/hud_settings/readout.gd",
+      "sha256": "8d1ba8fca95251e46c7916e82ae3e554ec649d41b728e8a8e79fee4c97a68abf",
+      "modified_unix": 1795825062.8808348
+    },
+    {
+      "path": "scripts/ui/instrument_panels/layout.gd",
+      "sha256": "1cb0fbce6af8f68d27cab5f8ca2f6571c699c0ef68845813dbd4425240d1dac2",
+      "modified_unix": 1795825062.8809047
+    },
+    {
+      "path": "scripts/ui/paper_workspace/PaperStrokeCoverage.cs",
+      "sha256": "48dc7b87e32d693a99da9c8bcda3bf25fbe68b071ac215c66d4785cb36c6755f",
+      "modified_unix": 1795825062.881214
+    },
+    {
+      "path": "scripts/ui/paper_workspace/calculator/drawer.gd",
+      "sha256": "593f3343a7b1db934e621c7ab0588440f8a36049eee445454f49de507d5fe0d8",
+      "modified_unix": 1795825062.8812659
+    },
+    {
+      "path": "scripts/ui/paper_workspace/equations/editor.gd",
+      "sha256": "09091f6bac5f45f7be84dcdb36ad7d30f2d0ee2bb88004e9c4191bd15fc44fbe",
+      "modified_unix": 1795825062.8813994
+    },
+    {
+      "path": "scripts/ui/paper_workspace/equations/layout.gd",
+      "sha256": "8f773c174ab697c94856eb61d6a26f3ab2b1a72fbee7c7458d1ff92bd70c6c84",
+      "modified_unix": 1795825062.8813994
+    },
+    {
+      "path": "scripts/ui/paper_workspace/equations/parser.gd",
+      "sha256": "e7aafcca303d059cf07f2a049181265445ae7c17e9072c430f9c9267328dc844",
+      "modified_unix": 1795825062.8813994
+    },
+    {
+      "path": "scripts/ui/paper_workspace/equations/test_equations.gd",
+      "sha256": "4cbe8a1b43142ea80bf7545c57301d9d7218ceb53fce249e3f3d0718b6671845",
+      "modified_unix": 1795825062.8813994
+    },
+    {
+      "path": "scripts/ui/paper_workspace/tools/body.gd",
+      "sha256": "14de3e868493cdef151f6d6ac822debfc9d7c7e29ff68955f49e21eacdb92941",
+      "modified_unix": 1795825062.8816476
+    },
+    {
+      "path": "scripts/ui/paper_workspace/tools/case.gd",
+      "sha256": "74d1d0b4028e2c7d18d265cea99f3d8a32f5f4d08e084d975826f8909c4964a3",
+      "modified_unix": 1795825062.8816476
+    },
+    {
+      "path": "scripts/ui/paper_workspace/whiteboard_workspace.gd",
+      "sha256": "18a3ff4ae7800fdf8314b9c99f32a879f33dc45b0a3799fbf9cc90f8ae75b553",
+      "modified_unix": 1795825062.8816476
+    },
+    {
+      "path": "scripts/ui/paper_workspace/workspace/viewport.gd",
+      "sha256": "468cf8fdaf1d807f283eca71ed40e9129b7cb56ae3120b8aa6e38e8b0b63f6cd",
+      "modified_unix": 1795825062.8816476
+    },
+    {
+      "path": "scripts/ui/personal_inventory/discard_transfer.gd",
+      "sha256": "05175db5ae46bddc37271c3caf9a145f42e608e0d5684c494569747ee9d37a66",
+      "modified_unix": 1795825062.881811
+    },
+    {
+      "path": "scripts/ui/personal_inventory/discard_world.gd",
+      "sha256": "d52437dad688273b7aa505674c1829513d7e8a2e97d5f551c40e3d9297293373",
+      "modified_unix": 1795825062.8818698
+    },
+    {
+      "path": "scripts/ui/personal_inventory/equipment_portraits.gd",
+      "sha256": "14ae52b3a1302ca61e3754eb00792822473bbc9c9f49c98dfa4b39a6de1adae4",
+      "modified_unix": 1795825062.8818698
+    },
+    {
+      "path": "scripts/ui/personal_inventory/item_portraits.gd",
+      "sha256": "f60fcd12b471b45dcd21cd3b4716c7ca25c295cac4ccdacaeaeb4bc876c2b457",
+      "modified_unix": 1795825062.8818698
+    },
+    {
+      "path": "scripts/ui/personal_inventory/panels.gd",
+      "sha256": "a0235d53b03a6ec22e4b7c775c3b68f171d714a35f81ce25f61503e2b5ce8b98",
+      "modified_unix": 1795825062.8818698
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/bundle_catalog.gd",
+      "sha256": "5e9a0f2e4a34224e89eaf7c42b5dcd7c01e763939ae29d8bd0c0dee525281f87",
+      "modified_unix": 1795825062.8818698
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/bundle_reveal.gd",
+      "sha256": "c13a0cc23351bc1d4677bf4c12d40c29b95de8534ccaa52767c6ddb7bcc782ce",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/decoration_editor.gd",
+      "sha256": "35cc85aa24c80a434c1963c059c43c463daaede7d33d3955010df61a5676af66",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/equipment_configurator.gd",
+      "sha256": "11db6b5bad82e9ec4198caa75691982e4c03029d8a7a9fdfb961e23040ee0add",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/keypad_designer.gd",
+      "sha256": "d2aec3ead44e64ac4a2ef1cca37439c8f3adeb1daeb00dc94be5c827b25d0462",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/mesh_editor.gd",
+      "sha256": "6f037c4621d3ba471a8364b3d1010cb5fc35e82bb17a5be3446227da2a7f11af",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/module.gd",
+      "sha256": "6e399edf03c0bade52a8a9365d878fa1b093785dd3a0ded0dfe41556cefd7a79",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/product_orbit.gd",
+      "sha256": "7947c7c0164573aff2e2fa7538e2abe2f1b842006d27020575e3dbdb0b9c72c0",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/ui/store_bundles_equipment/surface_canvas.gd",
+      "sha256": "67e3bc9c06cf57caadda8ec18409d8d44f056a4b3d03bbed71d53e940d23e5bc",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/worksheet_diagram.gd",
+      "sha256": "0227b2b8860e54ec4554880510c3d26bb1a5d61d3d3338bef0c8c75d6d7fe445",
+      "modified_unix": 1795825062.8822954
+    },
+    {
+      "path": "scripts/worksheet_page.gd",
+      "sha256": "117ccf9f87f80741a0efd701cfc7d81921e15f86372f98fef7f067f4b3ed5c81",
+      "modified_unix": 1795825062.8822954
+    }
+  ],
+  "verified_after_tests_utc": "2026-11-28T01:35:26.854349+00:00",
+  "base_checkpoint": "d55cd873841e4c5dc299d58075766f07e2bcba48",
+  "branch": "dev/character-dossiers-20261127",
+  "working_tree_after_checkpoint": true,
+  "scope": "All 684 production .gd, .cs and .gdshader files; frozen before final affected-suite retakes and unchanged afterward. Earlier unaffected suite logs retained in summary have individual provenance.",
+  "changed_during_final_retakes": [],
+  "test_sources": [
+    {
+      "path": "tests/campus/academics/test_character_dossier_pipeline.gd",
+      "sha256": "025129443374892b89b4dbbf1f3bacbb4667608883a8ba62da3c5bc490d7a36f"
+    },
+    {
+      "path": "tests/campus/academics/test_character_life_ledger.gd",
+      "sha256": "0314a585b2428b2e7f7909a159a3f7912060de93df49d3c253b7cc79218cd061"
+    },
+    {
+      "path": "tests/campus/academics/test_character_relationship_decisions.gd",
+      "sha256": "ca839bd191dea1a0ef2952afc959c13434a19f5ea55e57ef62df8eb4cf1972d3"
+    },
+    {
+      "path": "tests/campus/academics/test_character_group_intent.gd",
+      "sha256": "2a7d56775bc3e6041690662510af742633384ac1f49bd4d00c3ed5c5660741fa"
+    },
+    {
+      "path": "tests/campus/academics/test_character_silent_dispatch.gd",
+      "sha256": "be14736a55824a24cffa1b24b3f39d09c919eaaeea425a0e90a762eaf803cda8"
+    },
+    {
+      "path": "tests/campus/academics/test_character_request_timing.gd",
+      "sha256": "c021f2acff313640ca2e97624639354165666851573c241ede1528c877b9cf1a"
+    },
+    {
+      "path": "tests/campus/academics/test_character_request_accounting.gd",
+      "sha256": "631d504199c3982e75057e66ae65cb2c81bdd87cfa602bfe463547e8e270e700"
+    },
+    {
+      "path": "tests/campus/academics/test_character_inspector.gd",
+      "sha256": "2ed9e4dbb90b02cc873dff56730f147a2a13332f3cb92f664c66ad4d15a97a7f"
+    },
+    {
+      "path": "tests/campus/academics/test_character_inspector_transport.gd",
+      "sha256": "d815aa72134fc27192bc3b8b3fbeaa5041c04d61278bd51dcd68d5a94732fa58"
+    },
+    {
+      "path": "tests/campus/academics/test_character_inspector_network.gd",
+      "sha256": "2cec59da6a4fc7784451aa31112686df28ffb34be3cf1ec3a9036061f3b94bfa"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_numeric_disposition.gd",
+      "sha256": "f4a7519721054a7413423b9f66d68bd6605c30855ce9a6c66379669d118e274e"
+    },
+    {
+      "path": "tests/campus/academics/test_character_facial_compositor.gd",
+      "sha256": "98d6aac09df462653cd6374bf74e6ba7323a36b51b5fb10e7653998447cf7f0a"
+    },
+    {
+      "path": "tests/campus/academics/test_character_interaction_pipeline.gd",
+      "sha256": "16373f58580750089e247490fa7de81bd6b84e8f6e08c5006ed25759a2aa5097"
+    },
+    {
+      "path": "tests/campus/academics/test_character_evolution_pipeline.gd",
+      "sha256": "07f1d8f21871e4b4c03f0c7c9c865fc54841f28ed69c1e5b8334ca69413c5d6b"
+    },
+    {
+      "path": "tests/campus/academics/test_character_worldviews.gd",
+      "sha256": "21efc58edfd53810052be21bfa5dd32aeca618a180414a0f69ba37884496ac37"
+    },
+    {
+      "path": "tests/campus/academics/test_character_reactions.gd",
+      "sha256": "0b19795edbc2a7836dedc6b6f51929ebc7eab5850ff6aea3b280679e97877934"
+    },
+    {
+      "path": "tests/campus/academics/test_character_beliefs.gd",
+      "sha256": "8042c39212b35b7d8b4ba67a002295da5777ffe1868c9037253f8ff9f527552e"
+    },
+    {
+      "path": "tests/campus/academics/test_character_memory_v5.gd",
+      "sha256": "c6d534f5eb7b9e211c1659d0394891ef7039ed12dba7320aac43060e074e170b"
+    },
+    {
+      "path": "tests/campus/academics/test_character_memory_migration.gd",
+      "sha256": "170a5f3ebb7a2477275e1b44d2fc98b4f53a0e37bae2da87625af4ee423a08dc"
+    },
+    {
+      "path": "tests/campus/academics/test_character_memory_resilience.gd",
+      "sha256": "f0c3d7b2b99cdd11a32c01f63b108c7dd6dee19349f9244853c81f9f49a4e439"
+    },
+    {
+      "path": "tests/campus/academics/test_character_public_affect.gd",
+      "sha256": "c4ebcf709ac8f65c1ba2a2f2edf06a3d8330bd95d4a38609dcfa9de5f1f31d02"
+    },
+    {
+      "path": "tests/campus/academics/test_character_memory_summaries.gd",
+      "sha256": "3cff478ca08c19f0169786d625cca551c8b2546814eb931ed72010eba1533469"
+    },
+    {
+      "path": "tests/campus/academics/test_character_prior_learning.gd",
+      "sha256": "1fd7d194993e1e4121e13ecbfd1c2918124ca5386855a255793ac65d7abd123a"
+    },
+    {
+      "path": "tests/campus/academics/test_student_population_corruption.gd",
+      "sha256": "81b2b32d7c55a1ddf303cf533a236e427acd3a39d1fc7959063faed4781fd8c5"
+    },
+    {
+      "path": "tests/campus/academics/test_student_population_binding.gd",
+      "sha256": "19a42366fff7d9464d0cfebf0b72c39f0e6332367abe1fc0356948d7eb338ba0"
+    },
+    {
+      "path": "tests/campus/academics/test_student_population_and_discipline.gd",
+      "sha256": "24c428d5338541a29036d312b06f75d81291317ebd73ac93ff20e48cf6b967d6"
+    },
+    {
+      "path": "tests/campus/academics/test_student_discipline_routes.gd",
+      "sha256": "de6a49b9d628d37f1484d1176352324257386b7ea68324d5d3cd8c668fe992ff"
+    },
+    {
+      "path": "tests/campus/academics/test_character_academic_memory.gd",
+      "sha256": "7b564807af6dc0229fc2347eeabdc9c304582a9166b8e0f1cdf4a33db27a3716"
+    },
+    {
+      "path": "tests/campus/academics/test_character_human_academic_memory.gd",
+      "sha256": "fed6fafe169f9257edb75fcb58e249f071b9718a058c93a590473d417e77d9f3"
+    },
+    {
+      "path": "tests/campus/academics/test_assignment_student_behavior.gd",
+      "sha256": "3542e837f19212052fb50325b1a835be547947385bfdc040aed12b6309345289"
+    },
+    {
+      "path": "tests/campus/academics/test_assignment_npc_discipline.gd",
+      "sha256": "0a6a9fefb690eab6a2ee7aadc4757f12c84192b059c7527a8d6fc10361569d46"
+    },
+    {
+      "path": "tests/campus/academics/test_faculty_specialized_paths.gd",
+      "sha256": "d982d4851d43dba50a6c0790f9ae287e5fcb39fa7a40579eeab9631985858fd4"
+    },
+    {
+      "path": "tests/campus/academics/test_character_gameplay_overhaul.gd",
+      "sha256": "f3b3f4edc4a3ae301887d5367c1dce72f4ec06fd8afc57eaf942e204b967b910"
+    },
+    {
+      "path": "tests/campus/academics/test_student_world_integration.gd",
+      "sha256": "f1e51940356fad7de99d9180b40bf8c26884dc7019e5960da55ce060b0adc5de"
+    },
+    {
+      "path": "tests/campus/academics/test_classmate_lab_and_dialogue.gd",
+      "sha256": "b490b1e986bd86c78bd24732c679f2dfe037b54cd7b6a83886faccf72f772be4"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_speech_player.gd",
+      "sha256": "3eb6ed54311f2100d1e6bac84da964294f155ea2f706d22bd6d88d37c1c6cbee"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_speech_synth.gd",
+      "sha256": "53febccb90e840c20c0532d7817093eac530476e84958bb4e6904b8f7da04bad"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_speech_long_delivery.gd",
+      "sha256": "ed219e7e914cb31a55fb1ec88769f211fe94f7f61b6478dc22cdaf16db934c84"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_speech_integration.gd",
+      "sha256": "f016423d90c46cefa333e8daaeec710a1909f95a203c85e83efce9d9e23920d3"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_voice_stale.gd",
+      "sha256": "ad122a4c84ac4d8ee5bc6621631dd7a6c49825091c0d444baea0bd71b91dc805"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_class_call_prompt.gd",
+      "sha256": "f00ecce5eaa8ad9fb63dc686cb6f712450165aab767f2e08f0049ae9e50eb0a2"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_events.gd",
+      "sha256": "79a965d110e6fb2b2c91582861fc5aace1c8c4bf1310f872668dfa1560f79f7d"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_relationships.gd",
+      "sha256": "407dccc7d94223acaf4af2d759586a0d8203551a7084295a0e2c70691bef98a6"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_dialogue.gd",
+      "sha256": "64ea3947e6251bbd0e0e16e9b6572dd06a54cd558db61936c45a64f9345a17ad"
+    },
+    {
+      "path": "tests/campus/academics/test_faculty.gd",
+      "sha256": "16f780e5ae4e796033b961effb98958c82d1eb3fca65a2c79b6e5d4cbb8b0091"
+    },
+    {
+      "path": "tests/campus/academics/test_classroom_demonstration.gd",
+      "sha256": "27470de5cb58729465edfb6642243807da7b361c6dc05be3569814b992c28dc5"
+    },
+    {
+      "path": "tests/campus/academics/test_classroom_director_fixture.gd",
+      "sha256": "7e3f1bb3143efb36d24dae88b31571f3769bff0cc8e5cb22a63d88be7b6f4d55"
+    },
+    {
+      "path": "tests/campus/academics/test_classroom_multiround_quiz.gd",
+      "sha256": "4708f950d33bb7eef61d5ffe610261939f9a8c5282f345571b2e297d57d83802"
+    },
+    {
+      "path": "tests/campus/academics/test_classroom_participation_fixture.gd",
+      "sha256": "0656338f5e1544b66af5e576996941df8efbed4f897a9563aa9a4fe945b1a5de"
+    },
+    {
+      "path": "tests/campus/academics/test_classroom_practice_panel_fixture.gd",
+      "sha256": "77f806ec545255b6d2bf722f1ca16ad7567acec7a928f0d68242b1bf2bea833a"
+    },
+    {
+      "path": "tests/campus/academics/test_classroom_shared_work.gd",
+      "sha256": "e6c64fc86642d9ab6ca1918f745fb1937d5ac32d1ccb85b0595e478de97a3273"
+    },
+    {
+      "path": "tests/campus/academics/test_projectile_teacher_reaction.gd",
+      "sha256": "447d8097aadd5e2e60c91d7deafb51b6e5c2053e87a233d00b9f9fc08691b727"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_apology.gd",
+      "sha256": "b049bb64ff8a70bf735b61a07c8d0a2418f3fa3283b7132f130591016778d301"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_classroom_escalation.gd",
+      "sha256": "a633e74ab242119f6a1974874f457d52e3813b65309bafc2b11d1ab67948fdee"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_hearing_context.gd",
+      "sha256": "e3d3587505a71aca2956f59b44469c42b57fe12a1f833a737ae4fd0f466dfb82"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_personality_isolated.gd",
+      "sha256": "1ab728d44442f36c7fdcefa6f9f62c75195722c4063494773c21330b0304d2a6"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_solution_challenge.gd",
+      "sha256": "d15cbcad3fbad22770251bcb2813e30f9ffda7eb84d5d006c46ca4a1e4a73fe6"
+    },
+    {
+      "path": "tests/campus/academics/test_teacher_surprise.gd",
+      "sha256": "b77f906ebf1e25b29fbc1270851424614dbb286e9ba434a73e6cef76ac77e632"
+    }
+  ]
+}

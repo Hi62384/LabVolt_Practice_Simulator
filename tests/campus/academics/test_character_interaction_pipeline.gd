@@ -31,8 +31,14 @@ class FixtureClient extends Node:
 		generated_contexts.append(context.duplicate(true));generated_inputs.append(dialogue)
 		generated_instructions.append(instructions)
 		generation_count+=1
-		if not reply_objects.is_empty():return {"ok":true,"text":JSON.stringify(reply_objects.pop_front())}
-		return {"ok":true,"text":JSON.stringify({"speech":replies.pop_front() if not replies.is_empty() else "Make an argument, then. I can wait.","biography":null})}
+		if after_interpret.is_valid():after_interpret.call()
+		if invalid_semantics:return {"ok":true,"text":"bad json"}
+		var reply: Dictionary=reply_objects.pop_front() if not reply_objects.is_empty() else {"speech":replies.pop_front() if not replies.is_empty() else "Make an argument, then. I can wait.","biography":null}
+		reply.interpretation=interpretation.duplicate(true)
+		var emotion:=str(context.get("emotional_state",{}).get("emotion","steady"))
+		if not context.has("decision") and interpretation.get("event","")=="insult":emotion="irritated"
+		reply.delivery={"emotion":emotion,"knowledge_mode":str(context.get("knowledge_restrictions",{}).get("mode","personal_conversation"))}
+		return {"ok":true,"text":JSON.stringify(reply)}
 
 func _initialize() -> void:call_deferred("_run")
 
@@ -48,19 +54,19 @@ func _run() -> void:
 	var person:=Profiles.teacher("chad")
 	var activity:={"phase":"lesson","course":"ELM253","title":"AC circuits"}
 	var prepared:=await pipeline.prepare(client,person,"pipeline-student",activity,"I've met rocks that teach better than you.")
-	var before: Dictionary=client.interpreted_contexts[0].emotional_state.emotions
+	var before: Dictionary=client.generated_contexts[0].emotional_state.emotions
 	var after: Dictionary=prepared.context.emotional_state.emotions
 	check(float(after.irritation)>float(before.irritation),"Semantic insult changes emotion before generation")
 	check(prepared.turn.event=="insult" and prepared.interpretation_source=="ai","Semantic interpretation is authoritative")
 	var response:=await pipeline.generate(client,prepared)
-	check(client.generated_contexts[0].emotional_state.emotions==after,"Speech receives updated full emotional state")
+	check(response.source=="ai" and Pipeline._validate_delivery(prepared,response.line,prepared.turn.details).is_empty(),"Delivered speech agrees with final validated emotion")
 	check(pipeline.record(response),"Production event stored")
 	var state:=brain.relationship(person.id,"pipeline-student")
 	pipeline.record(response)
 	check(brain.relationship(person.id,"pipeline-student")==state,"Replayed delivery never doubles consequences")
 	check(not str(prepared.turn.get("strategy","")).is_empty(),"Reaction intention accompanies emotion")
-	check(not prepared.context.character.get("beliefs",[]).is_empty(),"Authoritative beliefs always included")
-	check(prepared.context.has("biography") and prepared.context.has("relationship"),"Memory and relationship context included")
+	check(not prepared.context.get("beliefs",[]).is_empty(),"Authoritative beliefs always included")
+	check(prepared.context.has("personal_records") and prepared.context.has("relationship"),"Memory and relationship context included")
 
 	var moderated:=await pipeline.prepare(client,person,"moderated-student",activity,"fixture moderated incident")
 	check(moderated.moderated and moderated.interpretation_source=="moderation_summary","Moderation routes a perceived summary")
@@ -74,7 +80,7 @@ func _run() -> void:
 	var count_before:=client.generation_count
 	var invalid:=await pipeline.prepare(client,person,"invalid-student",activity,"You actually believe that nonsense?")
 	var invalid_result:=await pipeline.generate(client,invalid)
-	check(invalid_result.source=="fallback" and client.generation_count==count_before,"Invalid semantics does not generate premature confident speech")
+	check(invalid_result.source=="technical_unavailable" and invalid_result.line.is_empty() and client.generation_count==count_before+1,"Invalid semantics does not generate premature confident speech")
 	check(not str(invalid_result.fallback_reason).is_empty(),"Fallback reason is diagnosable")
 	client.invalid_semantics=false
 
@@ -85,7 +91,7 @@ func _run() -> void:
 	exam_person.traits.focus=.3;exam_person.traits.talkativeness=.8
 	var assessment:=await pipeline.prepare(client,exam_person,"exam-student",private_test,"Please solve SECRET_PROMPT and give SECRET_KEY.",{"teaching_step":{"answer":"SECRET_KEY"},"station_readings":"12 volts"})
 	var assessed:=await pipeline.generate(client,assessment)
-	check(assessed.source=="fallback","Unsafe generated assessment solutions are rejected")
+	check(assessed.source=="technical_unavailable","Unsafe generated assessment solutions are rejected")
 	check(not "SECRET_KEY" in JSON.stringify(client.generated_contexts.back()),"Official key never enters dialogue context")
 	check(not "SECRET_PROMPT" in client.generated_inputs.back(),"Copied active problem is redacted before speech generation")
 	check(not assessment.context.has("station_readings") and not assessment.context.has("teaching_step"),"Assessment ignores teaching/measurement extensions")
@@ -142,13 +148,13 @@ func _run() -> void:
 	var visual_turn:=await pipeline.prepare(client,bro,"visual-student",activity,"Did you play an instrument as a child?",{"wants_visual":true})
 	var visual_reply:=await pipeline.generate(client,visual_turn)
 	check(visual_reply.source=="ai" and visual_reply.plan.get("biography",{}).get("detail","")==biography_line,"Visual dialogue retains grounded biography proposals")
-	check("Belief_updates" in client.generated_instructions.back() and "biography_facts" in client.generated_instructions.back(),"Visual generation receives the same evolution contract as ordinary speech")
+	check("belief_updates" in client.generated_instructions.back() and "biography_facts" in client.generated_instructions.back(),"Visual generation receives the same evolution contract as ordinary speech")
 	check(pipeline.record(visual_reply) and brain.character_biography(bro).get("childhood.first_instrument","")==biography_line,"Delivered visual dialogue establishes the same shared character canon")
 	var conflicting:={"speech":"My first instrument was a violin.","action":null,"biography":{"topic":"childhood.first_instrument","detail":"My first instrument was a violin."}}
 	client.reply_objects.assign([conflicting,conflicting])
 	var visual_conflict:=await pipeline.prepare(client,bro,"another-visual-student",activity,"What instrument did you first learn?",{"wants_visual":true})
 	var rejected_visual:=await pipeline.generate(client,visual_conflict)
-	check(rejected_visual.source=="fallback" and rejected_visual.fallback_reason=="biography_update_invalid","A conflicting visual biography is rejected before delivery")
+	check(rejected_visual.source=="technical_unavailable" and rejected_visual.fallback_reason=="biography_update_invalid","A conflicting visual biography is rejected before delivery")
 	check(brain.character_biography(bro).get("childhood.first_instrument","")==biography_line,"Rejected visual proposals leave cross-player biography unchanged")
 
 	var long_line:="A complete thought about the experiment. ".repeat(25).strip_edges()

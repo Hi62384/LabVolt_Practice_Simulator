@@ -365,21 +365,26 @@ func _hand_turn(room: String,activity: Dictionary,now: float) -> void:
 		game.faculty.invite_question(room,str(activity.teacher),peer,str(activity.id))
 		return
 	if activity.kind!="lecture" or lesson_duration(activity)-maxf(0.,float(activity.deadline)-now)<40.:return
+	if game.host_openai.busy or not game.host_openai.ready_for_class():return
 	var stage:=_stage(activity)
 	var topic:=str(stage.get("title",""))
 	if topic.is_empty() or activity.get("npc_question_topic","")==topic:return
 	for member in activity.get("classmates",{}).values():
 		if not member.seated or member.action not in ["raising hand","asking for help"]:continue
-		var question: String="Could you walk us through the first step?" if member.profile.confidence<.6 else "Which part of this should we check first?"
-		member.action="asking a question"
-		member.line=question
-		member.next=now+8.
 		activity.npc_question_topic=topic
 		activity.next_hand=now+45.
 		var phase_id:=str(activity.id)
+		var opening: Dictionary=await game.faculty.generate_character_exchange(member.profile,str(activity.teacher),activity,"",{
+			"initiate":true,"defer_record":true,"teaching_step":stage,"intention":"You raised your hand during this released lesson. Ask the question you actually care about, consistent with your knowledge, motivation and speaking style. You may instead decide to stay quiet. Do not invent an earlier classroom event."})
+		if str(classes.get(room,{}).get("id",""))!=phase_id or classes.get(room,{}).get("phase","")!="lesson" or opening.get("cancelled",false):return
+		var question:=str(opening.get("line",""))
+		if question.is_empty():return
+		member.action="asking a question";member.line=question;member.next=_now()+8.
+		game.faculty.character_interaction.record(opening,true)
+		_publish()
 		var answer: String=await game.faculty.classroom_character_exchange(activity,member,stage,question)
 		if str(classes.get(room,{}).get("id",""))!=phase_id or classes.get(room,{}).get("phase","")!="lesson" or answer.is_empty():return
-		game.faculty.present_class_reaction(room,activity.teacher,"%s, %s"%[str(member.profile.name).get_slice(" ",0),answer],2)
+		game.faculty.present_class_reaction(room,activity.teacher,answer,2)
 		break
 
 func _advance() -> void:

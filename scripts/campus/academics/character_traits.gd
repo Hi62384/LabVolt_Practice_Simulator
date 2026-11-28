@@ -5,12 +5,12 @@ extends RefCounted
 static func author_overrides(id: String) -> Dictionary:
 	match id:
 		"chad":
-			return {"confidence":.98,"arrogance":.96,"selfishness":.86,"meanness":.85,"empathy":.14,
+			return {"independence":.96,"confidence":.98,"arrogance":.96,"selfishness":.86,"meanness":.85,"empathy":.14,
 				"ambition":.99,"generosity":.17,"willingness_to_help":.19,"interest_in_student_success":.21,
 				"dominance":.90,"humility":.09,"respectfulness":.30,"competitiveness":.96,"teaching_patience":.28,"confrontation":.83,"stubbornness":.91,"willingness_to_disagree":.97,"sarcasm":.82,"forgiveness":.22}
 		"mr_bro":
-			return {"confidence":.87,"arrogance":.35,"empathy":.68,"ambition":.77,"generosity":.63,"slang":.96,
-				"willingness_to_help":.63,"storytelling":.89,"teaching_patience":.59,"playfulness":.89,"risk_taking":.63,"stubbornness":.57,"confrontation":.66,"shyness":.05}
+			return {"confidence":.9,"arrogance":.67,"empathy":.44,"ambition":.7,"generosity":.46,"slang":.96,
+				"willingness_to_help":.38,"storytelling":.62,"teaching_patience":.38,"playfulness":.93,"risk_taking":.68,"stubbornness":.57,"confrontation":.66,"shyness":.05,"teaching_effort":.28,"interest_in_student_success":.32,"professionalism":.18,"formality":.08,"carelessness":.76,"focus":.16,"conversational_length":.26}
 		"ms_rivera":
 			return {"willingness_to_help":.28,"teaching_patience":.38,"interest_in_student_success":.30,"professionalism":.54,"focus":.16,"laziness":.87,"motivation":.23,"initiative":.19,"stubbornness":.6,"confidence":.66,"shyness":.25}
 		"ms_bird_heart":
@@ -20,7 +20,7 @@ static func author_overrides(id: String) -> Dictionary:
 		"brian":
 			return {"confrontation":.88,"teaching_patience":.13,"interruption_tolerance":.12,"self_control":.46,"anger_sensitivity":.98,"meanness":.71,"confidence":.86,"stubbornness":.84,"willingness_to_disagree":.95,"empathy":.22,"forgiveness":.25}
 		"stanley":
-			return {"motivation":.12,"energy":.19,"initiative":.08,"confrontation":.12,"shyness":.16,"confidence":.78,"laziness":.82,"stubbornness":.71,"willingness_to_help":.28,"teaching_patience":.35}
+			return {"teaching_effort":.08,"interest_in_student_success":.2,"motivation":.12,"energy":.19,"initiative":.08,"confrontation":.12,"shyness":.16,"confidence":.78,"laziness":.82,"stubbornness":.71,"willingness_to_help":.28,"teaching_patience":.35}
 		"ms_clocks":
 			return {"confidence":.88,"organization":.98,"focus":.95,"self_control":.93,"confrontation":.58,"stubbornness":.58,"sarcasm":.34,"respectfulness":.7,"teaching_effort":.9}
 		"dr_volts":
@@ -38,13 +38,13 @@ static func author_overrides(id: String) -> Dictionary:
 		"mr_hamstrings":
 			return {"confidence":.76,"stubbornness":.62,"competitiveness":.67,"discipline":.81,"initiative":.73,"teasing":.54}
 		"mr_allu":
-			return {"confidence":.38,"shyness":.86,"awkwardness":.82,"initiative":.22,"curiosity":.78,"stubbornness":.32,"respect_for_authority":.39,"willingness_to_disagree":.49,"focus":.24}
+			return {"teaching_effort":.22,"confidence":.38,"shyness":.86,"awkwardness":.82,"initiative":.22,"curiosity":.78,"stubbornness":.32,"respect_for_authority":.39,"willingness_to_disagree":.49,"focus":.24}
 		"bill":
 			return {"confidence":.9,"stubbornness":.81,"confrontation":.7,"organization":.94,"sarcasm":.61,"empathy":.39,"respect_for_authority":.86}
 		"mr_blake":
 			return {"confidence":.8,"curiosity":.9,"stubbornness":.46,"risk_taking":.66,"patience":.49,"initiative":.86,"focus":.41}
 		"josh_wildes":
-			return {"confidence":.84,"stubbornness":.69,"willingness_to_disagree":.94,"respect_for_authority":.36,"playfulness":.55,"competitiveness":.78,"bluntness":.82,"criticism_sensitivity":.46,"teaching_effort":.34,"willingness_to_help":.38}
+			return {"confidence":.84,"stubbornness":.69,"willingness_to_disagree":.94,"respect_for_authority":.36,"playfulness":.55,"competitiveness":.78,"bluntness":.82,"criticism_sensitivity":.46,"teaching_effort":.18,"willingness_to_help":.38}
 		"bradley":
 			return {"confidence":.72,"shyness":.42,"stubbornness":.56,"focus":.83,"confrontation":.36,"self_control":.87,"initiative":.41}
 		"ms_lunch":
@@ -102,7 +102,7 @@ static func expand(base: Dictionary, social: float, confidence: float, focus: fl
 		"conversational_length":lerpf(social,patience,.3),"awkwardness":(1.-resilience)*(1.-social*.4),
 		"slang":social*(1.-strictness*.75),"laziness":1.-lerpf(energy,discipline,.5),
 		"work_ethic":lerpf(discipline,effort,.4),"motivation":lerpf(energy,effort,.45),
-		"curiosity":curiosity,"creativity":lerpf(curiosity,humor,.4),"focus":focus,"attention_span":lerpf(focus,patience,.35),
+		"intelligence":reasoning,"carelessness":1.-discipline,"curiosity":curiosity,"creativity":lerpf(curiosity,humor,.4),"focus":focus,"attention_span":lerpf(focus,patience,.35),
 		"discipline":discipline,"independence":lerpf(confidence,focus,.35),"risk_taking":confidence*(1.-discipline*.75),
 		"responsibility":lerpf(discipline,empathy,.25),"professionalism":lerpf(discipline,strictness,.3),
 		"organization":lerpf(focus,discipline,.35),"adaptability":lerpf(curiosity,patience,.4),
@@ -133,3 +133,9 @@ static func prompt_traits(traits: Dictionary) -> String:
 	for name in traits:
 		rounded[name]=snappedf(float(traits[name]),.01)
 	return JSON.stringify(rounded)
+
+static func required_keys() -> Array:
+	# Generated people supply every dimension themselves. These legacy defaults
+	# define the compatibility schema only; they never generate new students.
+	var base := {"warmth":.5,"patience":.5,"humor":.5,"temper":.5,"energy":.5,"reasoning":.5}
+	return expand(base,.5,.5,.5,.5,.5).keys()

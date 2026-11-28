@@ -1,0 +1,365 @@
+[
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.8,
+    "markers": [
+      "ASSIGNMENT_NPC_DISCIPLINE PASS checks=25 failures=0"
+    ],
+    "test": "test_assignment_npc_discipline"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 12.5,
+    "markers": [
+      "ASSIGNMENT_STUDENT_BEHAVIOR PASS checks=553 failures=0 actions={ \"campus_student_14\": { \"working\": true, \"handed in work\": true, \"studying\": true }, \"campus_student_15\": { \"working\": true, \"sleeping\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_16\": { \"working\": true, \"using phone\": true, \"handed in work\": true, \"waiting quietly\": true } }"
+    ],
+    "test": "test_assignment_student_behavior"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.01,
+    "markers": [
+      "CHARACTER_ACADEMIC_MEMORY PASS checks=43 source=actual_main_grader_and_station"
+    ],
+    "test": "test_character_academic_memory"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.53,
+    "markers": [
+      "CHARACTER_BELIEFS PASS checks=56 source=deterministic_host_validation"
+    ],
+    "test": "test_character_beliefs"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.8,
+    "markers": [
+      "CHARACTER_EVOLUTION_PIPELINE PASS checks=36 (deterministic provider; not live AI)"
+    ],
+    "test": "test_character_evolution_pipeline"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.98,
+    "markers": [
+      "CHARACTER_GAMEPLAY_OVERHAUL PASS checks=583 failures=0 teachers=21 students=6 (offline, not live AI)"
+    ],
+    "test": "test_character_gameplay_overhaul"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.38,
+    "markers": [
+      "CHARACTER_HUMAN_ACADEMIC_MEMORY PASS checks=55 source=actual_singleplayer_submit_and_host_grader"
+    ],
+    "test": "test_character_human_academic_memory"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.73,
+    "markers": [
+      "CHARACTER_PIPELINE PASS checks=45 failures=0 (deterministic fixture, not live AI)"
+    ],
+    "test": "test_character_interaction_pipeline"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.53,
+    "markers": [
+      "CHARACTER_MEMORY_MIGRATION PASS versions=1,2,3,4,5 profile_isolation=true affect_only_switch=true"
+    ],
+    "test": "test_character_memory_migration"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.53,
+    "markers": [
+      "CHARACTER_MEMORY_RESILIENCE PASS checks=52"
+    ],
+    "test": "test_character_memory_resilience"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.71,
+    "markers": [
+      "CHARACTER_MEMORY_SUMMARIES PASS checks=35"
+    ],
+    "test": "test_character_memory_summaries"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.62,
+    "markers": [
+      "CHARACTER_MEMORY_V5 PASS checks=107"
+    ],
+    "test": "test_character_memory_v5"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.61,
+    "markers": [
+      "CHARACTER_PRIOR_LEARNING PASS checks=69 source=persisted_host_outcomes_to_real_prepare student=campus_student_00"
+    ],
+    "test": "test_character_prior_learning"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.72,
+    "markers": [
+      "CHARACTER_PUBLIC_AFFECT PASS: actual public profile, 600 recovery frames, private traits absent, full-profile behavior preserved"
+    ],
+    "test": "test_character_public_affect"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.62,
+    "markers": [
+      "CHARACTER_REACTIONS PASS"
+    ],
+    "test": "test_character_reactions"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.43,
+    "markers": [
+      "CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 stable students; slow affect; semantic knowledge; real rig eyes/brows/mouth/arms/posture"
+    ],
+    "test": "test_character_worldviews"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 13.3,
+    "markers": [
+      "CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS"
+    ],
+    "test": "test_classmate_lab_and_dialogue"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.33,
+    "markers": [
+      "PASS faculty roster, eligibility and lab rotation lock"
+    ],
+    "test": "test_faculty"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.79,
+    "markers": [
+      "FACULTY_SPECIALIZED_PATHS PASS checks=45 failures=0 (local provider fixture, not live AI)"
+    ],
+    "test": "test_faculty_specialized_paths"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 12.04,
+    "markers": [
+      "STUDENT_DISCIPLINE_ROUTES PASS"
+    ],
+    "test": "test_student_discipline_routes"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.9,
+    "markers": [
+      "STUDENT_POPULATION_AND_DISCIPLINE PASS (30 profiles, 9 assessment reactions)"
+    ],
+    "test": "test_student_population_and_discipline"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.82,
+    "markers": [
+      "STUDENT_POPULATION_BINDING PASS checks=17 failures=0"
+    ],
+    "test": "test_student_population_binding"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 1.76,
+    "markers": [
+      "STUDENT_POPULATION_CORRUPTION PASS (207 checks): damaged bytes preserved, backup recovery, session identity, host isolation, bounded cache"
+    ],
+    "test": "test_student_population_corruption"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.33,
+    "markers": [
+      "STUDENT_WORLD_INTEGRATION PASS"
+    ],
+    "test": "test_student_world_integration"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 1.37,
+    "markers": [
+      "TEACHER_CLASS_CALL_PROMPT PASS"
+    ],
+    "test": "test_teacher_class_call_prompt"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.07,
+    "markers": [
+      "PASS teacher personality values and host-validated conversation"
+    ],
+    "test": "test_teacher_dialogue"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 11.99,
+    "markers": [
+      "PASS perceived hazard reactions, class messages, cooldown and per-student memory"
+    ],
+    "test": "test_teacher_events"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.62,
+    "markers": [
+      "TEACHER_RELATIONSHIPS PASS"
+    ],
+    "test": "test_teacher_relationships"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 12.01,
+    "markers": [
+      "TEACHER_SPEECH_INTEGRATION PASS (fixture audio; no teacher voice asset)"
+    ],
+    "test": "test_teacher_speech_integration"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 1.03,
+    "markers": [
+      "TEACHER_SPEECH_LONG_DELIVERY PASS (native WAV, captions and player; adapter launch, no live voice)"
+    ],
+    "test": "test_teacher_speech_long_delivery"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.34,
+    "markers": [
+      "TEACHER_SPEECH_PLAYER PASS"
+    ],
+    "test": "test_teacher_speech_player"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.62,
+    "markers": [
+      "TEACHER_SPEECH_SYNTH PASS (adapter only; no real voice)"
+    ],
+    "test": "test_teacher_speech_synth"
+  },
+  {
+    "exit_code": 0,
+    "passed": true,
+    "skipped": false,
+    "stopped_for": "",
+    "seconds": 0.25,
+    "markers": [
+      "TEACHER_VOICE_STALE PASS"
+    ],
+    "test": "test_teacher_voice_stale"
+  }
+]

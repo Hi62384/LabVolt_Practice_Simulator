@@ -20,10 +20,10 @@ func check(condition: bool,message: String) -> void:
 func _initialize() -> void:call_deferred("_run")
 
 func _learner() -> Dictionary:
-	# Use a real generated student's authored knowledge, not a modified profile
-	# chosen to manufacture the knowledge transition.
+	# Reuse an explicit historical profile to exercise verified learning, not
+	# live AI generation or a profile modified to manufacture a transition.
 	for index in 96:
-		var person:=Profiles.student(index)
+		var person:=Profiles.legacy_student(index)
 		if float(person.knowledge_domains.math)>=.38 and float(person.knowledge_domains.math)<.5:return person
 	return {}
 

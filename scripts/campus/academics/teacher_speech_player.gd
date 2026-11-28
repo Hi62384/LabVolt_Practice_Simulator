@@ -1,7 +1,9 @@
 extends Node
 ## Consumes host-ordered teacher speech events. Only a real supplied stream plays.
+signal playback_started(room: String, serial: int, at_ms: int)
 const MAX_QUEUED:=6
 const Speech=preload("res://scripts/campus/academics/character_speech.gd")
+const Face=preload("res://scripts/campus/academics/character_face.gd")
 const MAX_TEXT:=Speech.MAX_TEXT
 const MAX_CACHED:=32
 const MAX_WAV_BYTES:=8_000_000
@@ -121,6 +123,7 @@ func _start(room: String,item: Dictionary) -> void:
 	if subtitles.has(room):subtitles[room].until=presentations[room].until
 	player.finished.connect(func():_finished(room,int(item.serial)))
 	player.play()
+	playback_started.emit(room, int(item.serial), Time.get_ticks_msec())
 
 func deliver_stream(room: String,serial: int,stream: AudioStreamWAV) -> bool:
 	if not speech_enabled or not valid_stream(stream) or serial!=int(last_serial.get(room,0)) or not awaiting.has(room):return false
@@ -138,30 +141,7 @@ func deliver_stream(room: String,serial: int,stream: AudioStreamWAV) -> bool:
 	return active.has(room)
 
 func _mouth(anchor: Node3D) -> MeshInstance3D:
-	var head:=anchor.find_child("Head",true,false) as Node3D
-	if head==null:return null
-	var mouth:=head.get_node_or_null("SpeechMouth") as MeshInstance3D
-	if mouth==null:
-		mouth=MeshInstance3D.new();mouth.name="SpeechMouth"
-		var vertices:=PackedVector3Array()
-		for sector in 12:
-			var a:=TAU*sector/12.0
-			var b:=TAU*(sector+1)/12.0
-			vertices.append(Vector3.ZERO)
-			for angle in [b,a]:
-				var x: float=cos(angle)*.044
-				vertices.append(Vector3(x,sin(angle)*.020,-absf(x)*.14))
-		var arrays:=[];arrays.resize(Mesh.ARRAY_MAX);arrays[Mesh.ARRAY_VERTEX]=vertices
-		var mesh:=ArrayMesh.new();mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays);mouth.mesh=mesh
-		var material:=StandardMaterial3D.new();material.albedo_color=Color("352423")
-		material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-		mouth.material_override=material
-		mouth.position=Vector3(0,-.125,.151);head.add_child(mouth)
-		mouth.scale.y=.12
-	mouth.visible=true
-	var neutral:=head.get_node_or_null("NeutralMouth") as Node3D
-	if neutral:neutral.hide()
-	return mouth
+	return Face.begin_speech(Face.head_for(anchor))
 
 func _process(delta: float) -> void:
 	var now:=Time.get_ticks_msec()
@@ -172,7 +152,7 @@ func _process(delta: float) -> void:
 		var mouth=state.get("mouth")
 		if is_instance_valid(mouth):
 			var level:=_pcm_level(player.stream,player.get_playback_position()) if player.stream is AudioStreamWAV else 0.0
-			mouth.scale.y=lerpf(mouth.scale.y,.12+clampf(level*5.0,0.0,1.25),1.0-exp(-delta*20.0))
+			Face.speech_level(mouth,level,delta)
 	for room in subtitles.keys():
 		var subtitle: Dictionary=subtitles[room]
 		var pages: Array=subtitle.get("pages",[])
@@ -258,12 +238,7 @@ func _stop(room: String) -> void:
 	var player=state.get("player")
 	if is_instance_valid(player):player.stop();player.queue_free()
 	var mouth=state.get("mouth")
-	if is_instance_valid(mouth):
-		mouth.scale.y=.12
-		var neutral:=mouth.get_parent().get_node_or_null("NeutralMouth") as Node3D
-		if neutral:
-			neutral.show()
-			mouth.hide()
+	if is_instance_valid(mouth):Face.end_speech(mouth)
 	active.erase(room)
 
 func _show_subtitle(room: String,item: Dictionary,started: int,duration: int) -> void:

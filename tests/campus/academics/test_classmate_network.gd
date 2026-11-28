@@ -1,5 +1,7 @@
 extends SceneTree
 ## Two real ENet peers with separate user data; tests host-owned character state.
+## The first spoken line uses an explicit structured provider fixture. This is
+## transport and gameplay integration evidence, never live language-quality proof.
 const Students=preload("res://scripts/campus/academics/classroom_students.gd")
 const Affect=preload("res://scripts/campus/academics/character_affect.gd")
 const ROOM:="ac_lab"
@@ -8,6 +10,18 @@ const PORT:=26363
 const WIRE_LINE:="I heard you. We can talk before class starts."
 var game: Node
 var deadline:=0
+
+class Provider extends Node:
+	var busy:=false
+	var enabled:=true
+	var tts_enabled:=false
+	func ready_for_class() -> bool:return true
+	func configured() -> bool:return true
+	func moderate(_text: String) -> Dictionary:return {"ok":true,"flagged":false}
+	func respond_character(_instructions: String,context: Dictionary,_question: String,_visual:=false) -> Dictionary:
+		return {"ok":true,"text":JSON.stringify({"speech":"Morning. That depends on the day.",
+			"interpretation":{"event":"greeting","tone":"friendly","severity":0.,"meaning":"A classmate greets this student and asks for a casual opinion.","domain":"conversation","question_kind":"opinion","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]},
+			"delivery":{"emotion":str(context.get("emotional_state",{}).get("emotion","steady")),"knowledge_mode":"personal_conversation"}})}
 
 func _initialize() -> void:call_deferred("run")
 
@@ -56,6 +70,7 @@ func run() -> void:
 		var peer: int=game.session.roster.keys().filter(func(id):return id!=1)[0]
 		var identity:=str(game.school.identities[peer])
 		if not await until(func():return classes._inside(peer,ROOM),"client in classroom"):return
+		preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd").seed(students.population,24)
 		if classes._start(ROOM,{"kind":"lab","course_id":"ELM253","week":1,"difficulty":0})!="":fail("Class did not start");return
 		var activity: Dictionary=classes.classes[ROOM]
 		if activity.classmates.is_empty():fail("Practical class has no student");return
@@ -70,6 +85,7 @@ func run() -> void:
 		member.action="studying"
 		activity.deadline=classes._now()+300.
 		students.social_next_global=classes._now()+300.
+		var provider:=Provider.new();game.add_child(provider);game.host_openai=provider
 		classes._publish()
 		if not await until(func():return not students.nearby_member(peer,ROOM,str(activity.id),ACTOR).is_empty(),"host-confirmed proximity"):return
 		member.line="Network proximity confirmed."

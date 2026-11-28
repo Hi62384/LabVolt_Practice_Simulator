@@ -1,0 +1,151 @@
+{
+  "adapter": "llvmpipe (LLVM 19.1.7, 256 bits)",
+  "captures": [
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-neutral.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "neutral"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-happy.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "happy"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-angry.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "angry"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-sad.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "sad"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-tired.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "tired"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-excited.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "excited"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-blinking_angry.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "blinking_angry"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-speaking_sad.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "speaking_sad"
+    },
+    {
+      "actual_main_model": true,
+      "character": "mr_bro",
+      "faculty_id": "mr_bro",
+      "file": "mr_bro-after_speech_angry.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "after_speech_angry"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-neutral.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "neutral"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-happy.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "happy"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-angry.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "angry"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-sad.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "sad"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-tired.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "tired"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-excited.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "excited"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-blinking_angry.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "blinking_angry"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-speaking_sad.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "speaking_sad"
+    },
+    {
+      "actual_main_model": true,
+      "character": "dr_volts",
+      "faculty_id": "dr_volts",
+      "file": "dr_volts-after_speech_angry.png",
+      "model_path": "/root/LabVoltTraining/@Node3D@10350/@Node3D@10351/InstructorModel",
+      "state": "after_speech_angry"
+    }
+  ],
+  "display": "X11",
+  "source": "Main.tscn actual faculty models; diagnostic camera and emotion/blink/fixture-audio inputs; no live AI or synthesized voice"
+}

@@ -1,0 +1,25 @@
+{
+  "recorded_utc": "2026-11-28T01:27:21.883567+00:00",
+  "note": "Source hashes captured after final targeted checks. Earlier unaffected network cases were run before the classmate public-scope correction.",
+  "sha256": {
+    "scripts/campus/academics/character_dossier.gd": "03f6ab5753f5cc3bd972b607f78e5abed616ac61350d27cded8d7fbb5d565ce1",
+    "scripts/campus/academics/character_dossier_store.gd": "94dbb7f7097137c6897fe72a56b9f3b85e5c437121f194faab0f8d8135b2f049",
+    "scripts/campus/academics/character_dossier_generation.gd": "b5a2b49a75ea669aa762ec4bc66e9a25b1c66ab18cf9a0ee7f651b6bdf4f3a3a",
+    "scripts/campus/academics/character_memory.gd": "4029e80746e19d620bbdd14d8a36af133fa6a909d4b3070daf814beaa4b66a89",
+    "scripts/campus/academics/character_mind.gd": "46f3a0ff61ebbcf2b29165da5fcbb4d34873a179ef9840c1a9a53f397a343610",
+    "scripts/campus/academics/character_interaction.gd": "d5a1a7783c3ad6ee552c0537e8e9090b962f6979407ff7772c268324f21eb4bf",
+    "scripts/campus/academics/faculty.gd": "d61e2b2c423fb547648764a7a6d611d9b232218c8396e6eb1547b286ed666c2f",
+    "scripts/campus/academics/classroom_students.gd": "a7a575db8c9c15ad5d09c133681bdcc9288aec152c29a844a16200f8ec2896ef",
+    "scripts/campus/academics/classroom_events/service.gd": "fa665cff47d9f2f2e2efc15d26968cc9613986d137df5754a524346ef36a1844",
+    "tests/campus/academics/test_character_process_restart.gd": "3824ce59e8fb0515ccccf788fc6f7b8f21d33c05d9d53bb7c83e5cab5381b0f4",
+    "tests/campus/academics/test_classmate_network.gd": "b638c16924cca1d13af29e9103b1c6b8be94fa520d4d862503a0fad678500156",
+    "tests/campus/academics/test_character_group_intent.gd": "d524d04b6c59b1e95d173c5f1c6a1b0017fc5d5882693df24a43d12b892ab1dd",
+    "tests/campus/academics/dossier/test_dossier_schema.gd": "ec7ad48867eac4df52ed5134c425e3af30232c0ddb880122df29724f4e2f8d44"
+  },
+  "followup_hashes": {
+    "scripts/campus/academics/classroom_events/service.gd": "a31da676fd06f9a80a91be2185377da309bf62a309906facfacbcfe9144dca50",
+    "tests/campus/academics/test_character_group_intent.gd": "2a7d56775bc3e6041690662510af742633384ac1f49bd4d00c3ed5c5660741fa"
+  },
+  "followup_recorded_utc": "2026-11-28T01:30:00.335257+00:00",
+  "followup_note": "Corrected NPC group helper membership after actual Main regression exposed graded round.present exclusion; updated held-response fixture PASS18. Prior hashes retain the original targeted restart/network review state."
+}

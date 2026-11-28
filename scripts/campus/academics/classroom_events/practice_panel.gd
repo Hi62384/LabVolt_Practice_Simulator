@@ -144,7 +144,7 @@ func update_state(state: Dictionary) -> void:
   decline_button.disabled=not bool(state.get("can_submit",false)) or bool(state.get("declined",false))
  if is_instance_valid(hint_label):
   hint_label.visible=state.has("hint")
-  hint_label.text="Teacher hint · "+str(state.get("hint","")).left(220)
+  hint_label.text="Practice hint · "+str(state.get("hint","")).left(220)
  seconds_left=maxf(0.0,float(state.get("seconds_left",0.0)))
  if state.get("submitted",false):submission_accepted=true;submission_pending=false
  if state.has("result"):submission_pending=false
@@ -184,18 +184,18 @@ func update_state(state: Dictionary) -> void:
    if measurement.has("after_v"):status_label.text+="  Station %d, voltmeter %d: %.2f V → %.2f V RMS."%[int(state.get("station",0)),int(measurement.channel),float(measurement.before_v),float(measurement.after_v)]
    elif measurement.has("fault"):status_label.text+="  Station fault: "+str(measurement.fault).left(160)
    elif measurement.has("status"):status_label.text+="  "+str(measurement.status).left(160)
-  if state.has("teacher_comment"):status_label.text+="  Teacher: "+str(state.teacher_comment).left(160)
+  if state.has("teacher_comment"):status_label.text+="  Result: "+str(state.teacher_comment).left(160)
  elif state.get("submitted",false):status_label.text="Answer submitted. Feedback appears when practice ends."
  elif state.has("progress"):
   var progress: Dictionary=state.progress
-  status_label.text="Teacher: "+str(progress.get("message","Review your answer.")).left(180)+" %d attempt remaining."%int(progress.get("attempts_left",0))
+  status_label.text="Result: "+str(progress.get("message","Review your answer.")).left(180)+" %d attempt remaining."%int(progress.get("attempts_left",0))
  elif state.get("mode","")=="pass":status_label.text="Your step." if state.get("pass_turn",false) else "Waiting for the next student."
  elif state.get("mode","")=="physical":status_label.text="Station changed; the host will show the measured result at the end." if state.get("measurement_changed",false) else ("Station tripped; reset it safely before time runs out." if state.get("equipment_fault",false) else "Use the station controls to make a measurement change.")
  elif not shared.is_empty():status_label.text="Group %s · %d notes"%[str(shared.get("group","A")),int(shared.get("count",0))]
  if state.get("mode","")=="group" and state.has("team_progress"):
   var team_progress: Dictionary=state.team_progress
   status_label.text+="\nTeam %s · %d present · %d notes · %d explanations · %d submitted"%[str(shared.get("group","A")),int(team_progress.members),int(team_progress.notes),int(team_progress.explanations),int(team_progress.submitted)]
- if state.get("mode","")=="group" and not str(state.get("team_prompt","")).is_empty():status_label.text+="\nTeacher to your team: "+str(state.team_prompt).left(180)
+ if state.get("mode","")=="group" and not str(state.get("team_prompt","")).is_empty():status_label.text+="\nTeam status: "+str(state.team_prompt).left(180)
  if state.get("mode","")=="group" and state.has("group_result"):
   var group_result: Dictionary=state.group_result
   status_label.text+="  Group %s: %d correct of %d answers (%d members)."%[str(group_result.team),int(group_result.correct),int(group_result.answered),int(group_result.members)]

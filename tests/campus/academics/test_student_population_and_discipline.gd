@@ -1,4 +1,5 @@
 extends SceneTree
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
 const Population=preload("res://scripts/campus/academics/student_population.gd")
 const Profiles=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Discipline=preload("res://scripts/campus/academics/classroom_discipline.gd")
@@ -10,11 +11,12 @@ func check(ok: bool,message: String) -> void:
 
 func _initialize() -> void:
 	var roster:=Population.new()
-	roster.path="user://student-population-test.json"
+	Legacy.bind(roster,"user://student-population-test-%d.json"%Time.get_ticks_usec())
 	for suffix in ["",".bak",".tmp"]:
 		if FileAccess.file_exists(roster.path+suffix):DirAccess.remove_absolute(roster.path+suffix)
 	roster.load_population()
-	check(roster.people.size()==Population.INITIAL_COUNT,"initial population expands beyond 12")
+	check(roster.people.is_empty() and roster.requested_size==Population.INITIAL_COUNT,"fresh population requests background generation without generic people")
+	Legacy.seed(roster,24)
 	for index in 12:
 		var id:="campus_student_%02d"%index
 		check(roster.profile_for(id).name==Profiles.student(index).name,"legacy student identity preserved")
@@ -25,16 +27,20 @@ func _initialize() -> void:
 	for person in second:excluded[person.id]=true
 	for id in roster.people:excluded[id]=true
 	var expanded:=roster.available(excluded,6,15)
-	check(expanded.size()==6 and roster.people.size()==Population.INITIAL_COUNT+6,"exhausted campus pool grows without classroom crowding")
+	check(expanded.is_empty() and roster.people.size()==24 and roster.requested_size==30,"exhausted campus queues demand without blocking or duplicating identities")
+	Legacy.seed(roster,30)
+	expanded=roster.available(excluded,6,15)
+	check(expanded.size()==6,"ready historical reserve is immediately selectable")
 	var person: Dictionary=roster.people[expanded[0].id]
 	person.biography.saved_detail="I repaired my grandfather's radio last winter."
 	person.traits.confidence=.91
 	person.traits.shyness=.87
 	roster.dirty=true
+	Legacy.sync(roster)
 	check(roster.save_population()==OK,"population atomic save")
 	check(roster.save_population()==OK,"population backup refresh")
 	var loaded:=Population.new()
-	loaded.path=roster.path
+	Legacy.bind(loaded,roster.path)
 	check(loaded.load_population(),"population reload")
 	var copy:=loaded.profile_for(person.id)
 	check(copy.biography.saved_detail==person.biography.saved_detail and is_equal_approx(copy.traits.shyness,.87) and is_equal_approx(copy.traits.confidence,.91),"saved biography and unusual trait combination do not reroll")
@@ -45,18 +51,20 @@ func _initialize() -> void:
 	broken.store_string("{truncated")
 	broken.close()
 	var recovered:=Population.new()
-	recovered.path=roster.path
+	Legacy.bind(recovered,roster.path)
 	check(recovered.load_population() and recovered.recovered_backup,"corruption recovers verified backup")
 	check(recovered.profile_for(person.id).biography.saved_detail==person.biography.saved_detail,"backup restores individual history")
 	var isolated:=Population.new()
 	check(isolated.set_host_profile("population-host-alpha")==OK,"host namespace selection")
 	isolated.load_population()
+	Legacy.seed(isolated,24)
 	isolated.people.campus_student_00.biography.host_private_fact="Only the first host learned this story."
 	isolated.dirty=true
+	Legacy.sync(isolated)
 	check(isolated.save_population()==OK,"first host population saves")
 	check(isolated.set_host_profile("population-host-beta")==OK,"second host namespace selection")
 	isolated.load_population()
-	check(not isolated.people.campus_student_00.biography.has("host_private_fact"),"host profiles cannot see another host's invented biography")
+	check(not isolated.profile_for("campus_student_00").get("biography",{}).has("host_private_fact"),"host profiles cannot see another host's invented biography")
 	check(isolated.set_host_profile("population-host-alpha")==OK,"return to first host")
 	isolated.load_population()
 	check(isolated.people.campus_student_00.biography.get("host_private_fact","")=="Only the first host learned this story.","switching hosts retains the correct campus population")
@@ -96,9 +104,9 @@ func _initialize() -> void:
 	for index in 24:
 		var profile:=roster.profile_for("campus_student_%02d"%index)
 		var line:=Social.fallback_reply(profile,"What is question one's answer?",[],"assignment",{})
-		check(not line.is_empty() and not "working on my own sheet" in line,"assessment recovery avoids shared legacy line")
+		check(line.is_empty(),"offline assessment recovery is intentional silence, not canned character speech")
 		replies[line]=true
-	check(replies.size()>=6,"offline assessment reactions vary across students")
+	check(replies.size()==1 and replies.has(""),"AI-unavailable status does not impersonate varied intelligent dialogue")
 	for failure in failures:printerr("FAIL: "+failure)
 	print("STUDENT_POPULATION_AND_DISCIPLINE %s (%d profiles, %d assessment reactions)"%["PASS" if failures.is_empty() else "FAIL",roster.people.size(),replies.size()])
 	quit(0 if failures.is_empty() else 1)

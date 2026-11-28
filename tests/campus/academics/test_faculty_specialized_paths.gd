@@ -32,7 +32,9 @@ class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
 			hold_next=false;held=true;busy=true
 			await released
 			held=false;busy=false
-		return {"ok":true,"text":JSON.stringify({"speech":replies[mini(index,replies.size()-1)],"biography":null})}
+		return {"ok":true,"text":JSON.stringify({"speech":replies[mini(index,replies.size()-1)],"biography":null,
+			"interpretation":{"event":"chat","tone":"neutral","severity":0.,"meaning":"A colleague is speaking about the office-hours shift.","domain":"conversation","question_kind":"casual","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]},
+			"delivery":{"emotion":str(context.get("emotional_state",{}).get("emotion","steady")),"knowledge_mode":"personal_conversation"}})}
 
 func _initialize() -> void:call_deferred("run")
 
@@ -77,10 +79,11 @@ func run() -> void:
 	var serial:=int(faculty.speech_serial.get(ROOM,0))
 	var before: int=faculty.brain.recall(teacher,listener).size()
 	check(faculty.formal_lesson_ready(),"Offline formal cue releases the lesson wait")
-	check(int(faculty.speech_serial.get(ROOM,0))==serial+1,"Offline formal lesson presents a real cue")
-	check(faculty.brain.recall(teacher,listener).size()==before+1,"Offline formal lesson records the delivered cue exactly once")
+	check(int(faculty.speech_serial.get(ROOM,0))==serial,"Offline formal lesson does not impersonate generated teacher speech")
+	check(not str(school.activity.get("ai_status","")).is_empty(),"Offline formal lesson exposes the technical service status")
+	check(faculty.brain.recall(teacher,listener).size()==before+1 and str(faculty.brain.recall(teacher,listener).back().get("teacher",""))=="","Offline formal lesson records the observed intention once with no invented speech")
 	var trace: Dictionary=faculty.character_interaction.diagnostics.back()
-	check(trace.source=="fallback" and trace.delivered and trace.speech.length()>0,"Offline formal cue passes through the shared character pipeline")
+	check(trace.source=="technical_unavailable" and not trace.delivered and trace.speech.is_empty(),"Offline formal cue exposes its actual silent outcome in shared diagnostics")
 
 	client.online=true
 	faculty.ai_stage.erase(ROOM)
@@ -90,7 +93,7 @@ func run() -> void:
 	if not client.requests.is_empty():
 		var request: Dictionary=client.requests.back()
 		check(request.dialogue=="" and request.context.get("initiate",false),"A lecture is a genuine initiation with no fabricated student quote")
-		check(request.context.has("teaching_step") and request.context.has("classroom"),"Generated lecture receives the released lesson board")
+		check(request.context.has("teaching_step") and not request.context.teaching_step.is_empty(),"Generated lecture receives the released lesson board without a duplicate classroom payload")
 		check(not JSON.stringify(request).contains("UNRELEASED_FORMAL_SECRET"),"Private formal activity/project fields never reach generation")
 	check(faculty.brain.recall(teacher,listener).size()==before+1,"Generated formal cue is recorded exactly once after presentation")
 	check(faculty.character_interaction.diagnostics.back().source=="ai","Local provider fixture exercises generation rather than offline recovery")
@@ -126,21 +129,24 @@ func run() -> void:
 	faculty._sync_lab_teachers()
 	check(faculty._lab_visit(ROOM).get("phase","")=="office_hours","Real office-hours visit is available")
 	client.hold_next=true
+	serial=int(faculty.speech_serial.get(ROOM,0))
 	faculty._rotate(ROOM)
 	var exchange: Dictionary=faculty.lab_handoffs.get(ROOM,{})
 	check(not exchange.is_empty() and client.held,"Office-hours rotation holds the outgoing generated opening")
 	if not exchange.is_empty():
 		var outgoing:=str(exchange.outgoing);var incoming:=str(exchange.incoming)
-		check(str(exchange.get("handoff",""))=="" and not str(exchange.get("fallback","")).is_empty(),"Fallback text is not marked as spoken while generation is pending")
+		check(str(exchange.get("handoff",""))=="" and exchange.get("waiting",false),"A pending generated handoff has no spoken opening")
+		check(not exchange.has("fallback"),"Pending handoff does not store canned fallback dialogue")
+		check(int(faculty.speech_serial.get(ROOM,0))==serial,"A genuinely pending handoff does not start speech playback")
 		var outgoing_before: int=faculty.brain.recall(outgoing,incoming).size()
 		var incoming_before: int=faculty.brain.recall(incoming,outgoing).size()
 		faculty._finish_lab_handoffs(int(exchange.started)+35001)
 		check(faculty.current.get(ROOM,"")==incoming and not faculty.lab_handoffs.has(ROOM),"A stalled provider does not prevent the real shift change")
 		var received: Array=faculty.brain.recall(incoming,outgoing)
-		check(received.size()==incoming_before+1,"Incoming colleague records its actual initiation once")
+		check(received.size()==incoming_before+1,"Incoming colleague records its observed shift change once")
 		if received.size()>incoming_before:
-			check(str(received.back().get("student",""))=="" and not str(received.back().get("teacher","")).is_empty(),"Timed-out opening is not fabricated as a heard colleague quote")
-		check(faculty.brain.recall(outgoing,incoming).size()==outgoing_before+1,"Outgoing colleague remembers only the actual incoming reply")
+			check(str(received.back().get("student",""))=="" and str(received.back().get("teacher","")).is_empty(),"A busy provider fabricates neither the timed-out opening nor an incoming reply")
+		check(faculty.brain.recall(outgoing,incoming).size()==outgoing_before,"Outgoing colleague does not remember an unheard incoming reply")
 		var after_outgoing: int=faculty.brain.recall(outgoing,incoming).size()
 		var after_incoming: int=faculty.brain.recall(incoming,outgoing).size()
 		serial=int(faculty.speech_serial.get(ROOM,0))
@@ -153,7 +159,7 @@ func run() -> void:
 		var silent_exchange:={"outgoing":outgoing,"incoming":incoming,"handoff":"","fallback":"This opening was never spoken."}
 		var request_count:=client.requests.size()
 		await faculty._answer_staff_handoff(ROOM,silent_exchange)
-		check(client.requests.size()==request_count+1,"A silent opening allows one fresh incoming initiation")
+		check(client.requests.size()==request_count+2,"A silent opening generates one incoming initiation and one outgoing listener interpretation")
 		if client.requests.size()>request_count:
 			var request: Dictionary=client.requests[request_count]
 			check(request.dialogue=="" and request.context.get("initiate",false) and request.context.get("observed_event",{}).get("kind","")=="staff_shift_started","Silent handoff is observed as a shift change, with no invented quote")

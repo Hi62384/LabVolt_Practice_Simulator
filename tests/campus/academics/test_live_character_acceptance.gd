@@ -24,10 +24,11 @@ const Models=preload("res://scripts/campus/ai/openai_models.gd")
 const Brain=preload("res://scripts/campus/academics/teacher_brain.gd")
 const Mind=preload("res://scripts/campus/academics/character_mind.gd")
 const Interaction=preload("res://scripts/campus/academics/character_interaction.gd")
+const DossierStore=preload("res://scripts/campus/academics/character_dossier_store.gd")
 const REPORT_DIR:="user://live_character_acceptance"
 const ROOM:="elm253_lecture"
 const PRIVATE_CANARY:="PRIVATE_ASSESSMENT_KEY_GOLDEN_LANTERN_73921"
-const STUDENT_INDICES:=[0,2,7,11,14,25]
+const GENERATED_STUDENT_COUNT:=3
 const CHAD_PROMPTS:=["I'm excited to be here.","I love college.","Do you think college is worth it?","Should I drop out?","I think escaping the matrix is stupid.","Your opinions about money are ridiculous.","I want to become financially independent.","I don't care about becoming rich."]
 const CONTRAST_PROMPTS:=["I'm excited to be here.","Do you think college is worth it?","I don't think your explanation supports that conclusion.","I've met rocks that teach better than you.","You actually believe that nonsense?","Another teacher explains things much better than you.","I'm sorry about insulting you. That was unfair."]
 const CONFLICT_PROMPTS:=["I've met rocks that teach better than you.","Your teaching is terrible.","You don't understand your own subject.","That sounded clever until you actually explained it.","Your favourite hobby sounds boring.","You keep talking, but none of it sounds useful.","I'm sorry about insulting you. I should have made a specific criticism."]
@@ -44,6 +45,8 @@ var blind: Array[Dictionary]=[]
 var codes: Dictionary={}
 var config: Dictionary={}
 var persistence: Dictionary={}
+var generation_evidence: Dictionary={"teachers":{},"students":{}}
+var generated_students: Array[String]=[]
 var teachers_tested: Array[String]=[]
 var students_tested: Array[String]=[]
 var identity:=""
@@ -97,12 +100,14 @@ func _run() -> void:
 	if not verified.get("ok",false):check(false,"live configured model is reachable and returns a response");_finish(1);return
 	identity=str(game.school.local_identity)
 	if identity.is_empty():check(false,"host has a stable local identity");_finish(1);return
+	if not faculty._sync_character_profile():check(false,"dossier host namespace is active");_finish(1);return
 	game.school.identities[1]=identity
 	activity={"id":"live-character-acceptance","phase":"freeplay","teacher":"chad","course":"ETY155","week":1,"kind":"lecture","title":"Controlled character acceptance",
 		"room":ROOM,"students":{identity:{"peer":1,"done":false}},"private_answer_key":PRIVATE_CANARY,"private_grade":73}
 	game.lecture_classes.classes[ROOM]=activity
 	for teacher_id in Roster.PEOPLE:
 		if stopped:break
+		if not await _ensure_teacher_dossier(str(teacher_id)):stopped=true;break
 		var person:=Profiles.teacher(str(teacher_id))
 		activity.teacher=teacher_id;activity.phase="freeplay"
 		var prompts: Array=CHAD_PROMPTS if teacher_id=="chad" else CONTRAST_PROMPTS
@@ -116,12 +121,12 @@ func _run() -> void:
 		if not stopped:teachers_tested.append(str(teacher_id))
 		_checkpoint("RUNNING")
 	var population: RefCounted=game.lecture_classes.classroom_students.population
-	population.ensure_size(26)
-	check(population.save_population()==OK,"generated representative student identities persist")
-	for index in STUDENT_INDICES:
+	if not stopped and not await _generate_students():stopped=true
+	check(population.save_population()==OK,"validated AI-generated representative identities persist")
+	for student_id in generated_students:
 		if stopped:break
-		var person: Dictionary=population.profile_for("campus_student_%02d"%index)
-		check(not person.is_empty(),"representative student %d exists"%index)
+		var person: Dictionary=population.profile_for(student_id)
+		check(not person.is_empty() and person.get("dossier_status")=="complete","representative student has a complete AI-created identity")
 		if person.is_empty():continue
 		activity.phase="freeplay"
 		for prompt in ["What do you like about your program?","Your major sounds completely useless.","Your favourite hobby sounds boring.","You actually believe that nonsense?"]:
@@ -137,8 +142,50 @@ func _run() -> void:
 		_checkpoint("RUNNING")
 	if not stopped:await _persistence_roundtrip()
 	check(teachers_tested.size()==Roster.PEOPLE.size(),"every established teacher completed the live contrast sequence")
-	check(students_tested.size()==STUDENT_INDICES.size(),"all representative generated students completed assessment and social sequences")
+	check(students_tested.size()==GENERATED_STUDENT_COUNT,"all representative generated students completed assessment and social sequences")
 	_finish(0 if failures.is_empty() and not stopped else 1)
+
+func _ensure_teacher_dossier(id: String) -> bool:
+	var deadline:=Time.get_ticks_msec()+300000
+	while Time.get_ticks_msec()<deadline and not finished:
+		var dossier:=DossierStore.get_dossier(id)
+		if dossier.get("generation",{}).get("status")=="complete":
+			generation_evidence.teachers[id]=dossier.generation
+			_checkpoint("RUNNING")
+			return true
+		var job: Dictionary=DossierStore.jobs.get(id,{})
+		if job.get("status")=="failed":
+			check(false,"teacher dossier generation failed for "+id+": "+str(job.get("last_error","")))
+			return false
+		faculty.character_generation.tick([id])
+		await create_timer(.25).timeout
+	check(false,"teacher dossier generation timed out for "+id)
+	return false
+
+func _generate_students() -> bool:
+	var population: RefCounted=game.lecture_classes.classroom_students.population
+	population.ensure_size(GENERATED_STUDENT_COUNT)
+	var deadline:=Time.get_ticks_msec()+900000
+	while Time.get_ticks_msec()<deadline and not finished:
+		generated_students.clear()
+		for id in population.people:
+			var dossier:=DossierStore.get_dossier(str(id))
+			if dossier.get("generation",{}).get("status")=="complete" and dossier.get("provenance",{}).get("source")=="ai_generated":
+				generated_students.append(str(id))
+				generation_evidence.students[id]=dossier.generation
+			if generated_students.size()==GENERATED_STUDENT_COUNT:
+				_checkpoint("RUNNING")
+				return true
+		var failed:=0
+		for job in DossierStore.jobs.values():
+			if job.get("kind")=="student" and job.get("status")=="failed":failed+=1
+		if failed>=3:
+			check(false,"Three student generation jobs failed; stopping instead of substituting generic personalities.")
+			return false
+		faculty.character_generation.tick()
+		await create_timer(.25).timeout
+	check(false,"AI student reserve generation exceeded its bounded acceptance window")
+	return false
 
 func _exchange(person: Dictionary,question: String,scenario: String) -> void:
 	var before_count: int=faculty.brain.recall(person.id,identity).size()
@@ -169,7 +216,7 @@ func _exchange(person: Dictionary,question: String,scenario: String) -> void:
 		"semantic_source":str(prepared.get("interpretation_source","")),"interpretation":turn.get("interpretation",{}),"decision":turn.get("decision",{}),
 		"emotions":turn.get("emotions",{}),"emotional_history":turn.get("emotional_history",[]),"traits":person.traits,
 		"worldview":person.get("worldview",""),"relationship":faculty.brain.social_context(memory),"memory_diagnostics":faculty.brain.diagnostics(),
-		"retrieved_context":context,"human_style_judgment":"PENDING"}
+		"retrieved_context":context,"human_style_judgment":"PENDING","request_count":prepared.get("request_count",0),"measurements":prepared.get("measurements",[]),"actual_usage":Interaction._usage(prepared),"retrieval":context.get("_retrieval",{})}
 	transcripts.append(row)
 	if not codes.has(person.id):codes[person.id]="character_%02d"%(codes.size()+1)
 	blind.append({"character":codes[person.id],"scenario":scenario,"phase":phase,"speaker":question,"response":speech.replace(str(person.name),"[character]"),"silent":speech.is_empty()})
@@ -206,7 +253,7 @@ func _persistence_roundtrip() -> void:
 func _checkpoint(status: String) -> void:
 	if DirAccess.make_dir_recursive_absolute(REPORT_DIR)!=OK:check(false,"report directory can be created");return
 	var report:={"version":1,"status":status,"config":config,"teachers_completed":teachers_tested,"students_completed":students_tested,
-		"failures":failures,"transcripts":transcripts,"blind_identity_key":codes,"persistence":persistence,"elapsed_seconds":(Time.get_ticks_msec()-started)/1000.,
+		"failures":failures,"generation":generation_evidence,"transcripts":transcripts,"blind_identity_key":codes,"persistence":persistence,"elapsed_seconds":(Time.get_ticks_msec()-started)/1000.,
 		"acceptance":{"hard_invariants":"PASS" if failures.is_empty() else "FAIL","human_personality_review":"PENDING","rendered_emotion_and_voice":"NOT_TESTED","multiplayer":"NOT_TESTED"}}
 	_write_report(REPORT_DIR+"/transcripts.json",report)
 	_write_report(REPORT_DIR+"/blind_review.json",{"instructions":"Judge distinct beliefs, disagreement, varied reactions, memory and recognizable personalities without names/appearance/voice. Do not infer human-like quality merely from valid JSON or these invariant results.","turns":blind,"judgment":"PENDING"})
@@ -226,5 +273,6 @@ func _finish(code: int) -> void:
 	print("LIVE_CHARACTER_ACCEPTANCE ","INVARIANTS PASS; HUMAN STYLE REVIEW PENDING" if code==0 else "FAIL / INCOMPLETE",
 		" turns=",transcripts.size()," teachers=",teachers_tested.size()," students=",students_tested.size())
 	print("LIVE_CHARACTER_ACCEPTANCE reports: ",ProjectSettings.globalize_path(REPORT_DIR))
+	if is_instance_valid(faculty):faculty.character_generation.cancel()
 	if is_instance_valid(game):game.queue_free()
 	quit(code)

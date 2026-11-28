@@ -1,0 +1,10 @@
+ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension
+   at: parse_gdextension_file (core/extension/gdextension_library_loader.cpp:360)
+ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.
+   at: open_library (core/extension/gdextension.cpp:738)
+ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'.
+   at: load_extensions (core/extension/gdextension_manager.cpp:321)
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+CHARACTER_RESTART_PROCESS {"phase":"write","pid":5}
+CHARACTER_PROCESS_RESTART PASS phase=write pid=5 checks=45

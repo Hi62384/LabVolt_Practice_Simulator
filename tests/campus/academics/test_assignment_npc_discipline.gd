@@ -1,6 +1,7 @@
 extends SceneTree
 ## Actual classroom geometry, instructor perception and NPC prop/custody state
 ## during an issued assessment. No model or grading result is fabricated.
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
 const ROOM:="ac_lab"
 var checks:=0
 var failures: Array[String]=[]
@@ -30,6 +31,7 @@ func run() -> void:
 	var faculty: Node=game.faculty
 	var classes: Node=game.lecture_classes
 	var students: Node=classes.classroom_students
+	Legacy.seed(students.population,24) # Existing saved residents, not generated offline placeholders.
 	game.player.global_position=classes.signs[ROOM].desk
 	if not check(classes._start(ROOM,{"kind":"lab","course_id":"ELM253","week":1,"difficulty":0,"teacher_override":"mr_stone"})=="","Actual classroom starts with a strict eligible instructor"):
 		await finish(game);return

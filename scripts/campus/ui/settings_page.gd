@@ -185,7 +185,7 @@ func _instructor_controls() -> void:
 		if not is_instance_valid(game.faculty):_notice("Enter a game before creating an instructor.");return
 		_notice("Creating instructor…")
 		var created: Dictionary=await game.faculty.generate_teacher(course_choice.get_item_text(course_choice.selected),style_field.text)
-		if is_inside_tree() and active=="Host Server":_notice("%s can now teach that course this session."%str(created.get("name","")) if created.get("ok",false) else str(created.get("error","Could not create instructor."))))
+		if is_inside_tree() and active=="Host Server":_notice(str(created.get("message","Instructor creation is queued in the background.")) if created.get("ok",false) else str(created.get("error","Could not create instructor."))))
 
 func _display_controls() -> void:
 	_choice("Display mode", ["Windowed","Borderless Fullscreen","Exclusive Fullscreen","Maximized"], pending_mode, func(index):

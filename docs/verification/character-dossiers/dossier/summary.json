@@ -1,0 +1,38 @@
+[
+  {
+    "test": "test_dossier_canon_race.gd",
+    "exit": 0,
+    "seconds": 1.67,
+    "synthetic_fixture_not_live_AI": true,
+    "evidence": [
+      "DOSSIER_CANON_RACE PASS checks=40 synthetic_provider_actual_brain"
+    ]
+  },
+  {
+    "test": "test_dossier_schema.gd",
+    "exit": 0,
+    "seconds": 0.69,
+    "synthetic_fixture_not_live_AI": true,
+    "evidence": [
+      "DOSSIER_SCHEMA PASS"
+    ]
+  },
+  {
+    "test": "test_dossier_generation.gd",
+    "exit": 0,
+    "seconds": 0.71,
+    "synthetic_fixture_not_live_AI": true,
+    "evidence": [
+      "DOSSIER_GENERATION PASS (synthetic transport contract, not live AI quality)"
+    ]
+  },
+  {
+    "test": "test_dossier_performance.gd",
+    "exit": 0,
+    "synthetic_fixture_not_live_AI": true,
+    "evidence": [
+      "DOSSIER_PERFORMANCE {\"actual_tokens\":\"unavailable_without_live_API\",\"baseline\":{\"student_profile_usec\":65.768,\"teacher_profile_usec\":61.57},\"baseline_commit\":\"7ec6c95241fca70e724783d6234dc3f445a6630c\",\"full_dossier_bytes\":21617,\"iterations\":500,\"lightweight_profile_bytes\":9175,\"retrieval_usec\":3030.42,\"selected_context_chars\":3659,\"student_profile_usec\":25.342,\"synthetic_fixture_not_live_ai\":true,\"teacher_profile_usec\":36.028}"
+    ],
+    "note": "Earlier recorded 500-call measurement; the full log is retained."
+  }
+]

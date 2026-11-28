@@ -6,6 +6,7 @@ func _initialize() -> void:
 	var decision: Dictionary=brain.consider("bill_nye","student","thrown_object",1.0,{"difficulty":1.0,"focus":1.0},50000,0.0,1.0)
 	assert(decision.get("intent","")=="throw")
 	var response:=Dialogue.respond("bill_nye","throw",{"impact_kind":"student"},0)
-	assert(response.contains("student"))
+	assert(response.is_empty(),"A verified impact supplies an intention rather than a canned teacher sentence")
+	assert(decision.student=="student" and not brain.incidents.is_empty(),"The actual observed impact remains associated with its actor")
 	print("PROJECTILE_TEACHER_REACTION PASS")
 	quit()

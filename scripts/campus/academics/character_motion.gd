@@ -1,7 +1,9 @@
 extends RefCounted
-## Persistent affect layers over the normal walk/seated animation. The rig cache
-## stores authored scales; expressions never resize eyes to unit scale or modify
-## speech-mouth visibility. Unsupported rigs degrade to available body parts.
+## Persistent affect layers over the normal walk/seated animation. Facial parts
+## have explicit roles and immutable authored rests. Blink uses a child pivot;
+## expressions own the eye parent and head, and the mouth compositor owns audio.
+## Unsupported imported rigs degrade to declared parts, without geometry guesses.
+const Face=preload("res://scripts/campus/academics/character_face.gd")
 const POSES:=["raise_hand","point","wave","nod","phone","write","sleep","whisper","argue","think","celebrate","shrug","turn_away","defensive"]
 const APPEARANCE:={
 	"angry":[.18,.63,.97],"irritated":[.13,.74,.97],"frustrated":[.15,.7,.96],
@@ -30,7 +32,7 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 	var head: Node3D=rig.head
 	if is_instance_valid(head):
 		var nod:=sin(elapsed*TAU*1.5)*.18 if pose=="nod" else 0.
-		var pitch_angle:=float(appearance[0])+nod
+		var pitch_angle:=float(appearance[0])+nod+sin(elapsed*TAU/4.)*.02
 		if pose in ["phone","write","think"]:pitch_angle+=.19
 		if pose=="phone":pitch_angle=.38
 		if pose=="sleep":pitch_angle=.48
@@ -54,14 +56,17 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 		for entry in rig.brows:
 			var brow: Node3D=entry.node
 			if not is_instance_valid(brow):continue
-			var at: Vector3=entry.position
-			var side:=signf(at.x)
+			var side:=float(entry.side)
 			var slant:=side*(anger*.5-anxiety*.27-sadness*.4)*amplitude
 			var lift:=anxiety*.013+sadness*.006-anger*.018
 			var a: Vector3=entry.a
 			var b: Vector3=entry.b
-			a.y+=lift+tan(slant)*(a.x-float(entry.center_x))
-			b.y+=lift+tan(slant)*(b.x-float(entry.center_x))
+			# Rotate both endpoints around the same authored brow anchor. A shear
+			# stretched the outer/inner segments by different amounts at anger.
+			var rotated_a:=Vector2(a.x,a.y).rotated(slant)
+			var rotated_b:=Vector2(b.x,b.y).rotated(slant)
+			a=Vector3(rotated_a.x,rotated_a.y+lift,a.z)
+			b=Vector3(rotated_b.x,rotated_b.y+lift,b.z)
 			_pose_link(brow,entry,a,b,blend)
 		var mouth_strength:=clampf(maxf(maxf(joy,anger),maxf(sadness,tired))*amplitude,0.,1.)
 		var curve:=clampf(joy*.028-anger*.024-sadness*.034-tired*.012,-.04,.035)
@@ -78,6 +83,7 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 			a.y=lerpf(a.y,float(rig.mouth_center)+curve*pow(a.x/radius,2.),mouth_strength)
 			b.y=lerpf(b.y,float(rig.mouth_center)+curve*pow(b.x/radius,2.),mouth_strength)
 			_pose_link(segment,entry,a,b,blend)
+		Face.expression(head,curve,mouth_strength)
 	var body: Node3D=rig.body
 	if is_instance_valid(body):
 		var lean:=(tired*.1+anxiety*.045-anger*.035-(confidence-.5)*.04)*amplitude
@@ -131,43 +137,50 @@ static func _pose_link(node: Node3D,entry: Dictionary,a: Vector3,b: Vector3,blen
 	node.scale=node.scale.lerp(Vector3(rest.x,a.distance_to(b)/float(entry.height),rest.z),blend)
 
 static func _segment(node: Node3D) -> Dictionary:
-	var entry:={"node":node,"position":node.position,"rotation":node.rotation,"scale":node.scale}
+	var rest: Transform3D=node.get_meta(Face.REST,node.transform)
+	var entry:={"node":node,"position":rest.origin,"rotation":rest.basis.get_euler(),"scale":rest.basis.get_scale(),"side":node.get_meta(Face.SIDE,0)}
 	if node is MeshInstance3D and node.mesh is CylinderMesh:
-		var half: Vector3=node.basis.y*node.mesh.height*.5
-		entry.a=node.position-half;entry.b=node.position+half
+		var half: Vector3=rest.basis.y*node.mesh.height*.5
+		entry.a=rest.origin-half;entry.b=rest.origin+half
 		entry.height=node.mesh.height
 	return entry
 
 static func _rig(model: Node3D) -> Dictionary:
 	if model.has_meta("character_expression_rig"):return model.get_meta("character_expression_rig")
-	var head:=model.get_node_or_null("Body/Head") as Node3D
+	var head:=Face.head_for(model)
 	var result:={"head":head,"body":model.get_node_or_null("Body"),"left":model.get_node_or_null("Body/ArmL"),"right":model.get_node_or_null("Body/ArmR"),"eyes":[],"brows":[],"mouth":[],"mouth_radius":.056,"mouth_center":-.122}
 	if is_instance_valid(head):
-		for child in head.get_children():
-			if not child is Node3D:continue
-			var part:=str(child.get_meta("toon_part",child.name))
-			var entry:=_segment(child)
-			if part in ["EyeWhite","Iris","Pupil","EyeSpark","EyeL","EyeR"] or str(child.name) in ["EyeL","EyeR"]:
-				result.eyes.append(entry)
-			elif child is MeshInstance3D and child.mesh is CylinderMesh and child.position.y>.07 and child.position.y<.14 and child.position.z>.12:
-				result.brows.append(entry)
-		for entry in result.brows:
-			var total:=0.
-			var count:=0
-			for neighbor in result.brows:
-				if signf(neighbor.position.x)==signf(entry.position.x):total+=neighbor.position.x;count+=1
-			entry.center_x=total/maxi(1,count)
-		var mouth:=head.get_node_or_null("NeutralMouth")
-		if is_instance_valid(mouth):
-			var central_distance:=INF
-			for segment in mouth.get_children():
-				if not segment is Node3D:continue
-				var entry:=_segment(segment)
-				if entry.has("a"):
-					result.mouth_radius=maxf(float(result.mouth_radius),maxf(absf(entry.a.x),absf(entry.b.x)))
-					if absf(segment.position.x)<central_distance:
-						central_distance=absf(segment.position.x)
-						result.mouth_center=segment.position.y
-				result.mouth.append(entry)
+		var eyes:=Face.parts(head,"eye")
+		if eyes.is_empty():
+			# Stable imported rig nodes are an explicit compatibility seam. Never
+			# identify an eyeball, brow or glasses frame by shape or coordinates.
+			for path in ["EyeL","EyeR"]:
+				var eye:=head.get_node_or_null(path) as Node3D
+				if eye!=null:eyes.append(eye)
+		for eye in eyes:result.eyes.append(_segment(eye))
+		for brow in Face.parts(head,"brow_segment"):result.brows.append(_segment(brow))
+		var central_distance:=INF
+		for lip in Face.parts(head,"lip"):
+			var entry:=_segment(lip)
+			if not entry.has("a"):continue
+			result.mouth_radius=maxf(float(result.mouth_radius),maxf(absf(entry.a.x),absf(entry.b.x)))
+			if absf(entry.position.x)<central_distance:
+				central_distance=absf(entry.position.x)
+				result.mouth_center=entry.position.y
+			result.mouth.append(entry)
+		_claim_head_animation(model,head)
 	model.set_meta("character_expression_rig",result)
 	return result
+
+static func _claim_head_animation(model: Node3D,head: Node3D) -> void:
+	# Generated NPCs use this compositor for the complete head rotation. Their
+	# locomotion retains body/limb tracks and independent Blink child tracks.
+	# Player avatars not using Motion keep the original idle head animation.
+	if str(head.get_meta(Face.ROLE,""))!="head":return
+	var player:=model.get_node_or_null("AnimationPlayer") as AnimationPlayer
+	if player==null:return
+	for name in player.get_animation_list():
+		var animation:=player.get_animation(name)
+		for track in animation.get_track_count():
+			if animation.track_get_type(track)==Animation.TYPE_ROTATION_3D and str(animation.track_get_path(track))=="Body/Head":
+				animation.track_set_enabled(track,false)

@@ -61,6 +61,7 @@ var conversation_class:=""
 var voice_room:=""
 var voice_class:=""
 var voice_student:=""
+var voice_teacher:=""
 var voice_until:=0
 var voice_invited:=false
 var voice_hint: Label
@@ -79,7 +80,12 @@ var character_mind:=CharacterMind.new()
 const CharacterInteraction=preload("res://scripts/campus/academics/character_interaction.gd")
 const CharacterSpeech=preload("res://scripts/campus/academics/character_speech.gd")
 const Discipline=preload("res://scripts/campus/academics/classroom_discipline.gd")
+const DossierStore=preload("res://scripts/campus/academics/character_dossier_store.gd")
+const DossierGeneration=preload("res://scripts/campus/academics/character_dossier_generation.gd")
+const Personas=preload("res://scripts/campus/academics/character_personas.gd")
 var character_interaction:=CharacterInteraction.new()
+var character_generation:=DossierGeneration.new()
+var character_generation_clock:=0.0
 var character_epoch:=0
 var character_jobs:=0
 var discipline_records: Dictionary={}
@@ -91,6 +97,7 @@ var reaction_until:={}
 var speech_player: Node
 var speech_synth: Node
 var speech_serial:={}
+var speech_turn_timings: Dictionary={}
 var received_voice:={}
 var pending_voice:={}
 var classmate_voice_serials:={}
@@ -114,6 +121,7 @@ func build(owner: Node) -> void:
  if multiplayer.is_server():_sync_character_profile()
  _build_conversation_ui()
  speech_player=SpeechPlayer.new();speech_player.name="TeacherSpeechPlayer";add_child(speech_player)
+ speech_player.playback_started.connect(_character_audio_started)
  speech_synth=SpeechSynth.new();speech_synth.name="TeacherSpeechSynth";add_child(speech_synth)
  speech_synth.completed.connect(_speech_completed)
  lunch=_make_model("ms_lunch");lunch.name="MsLunch";add_child(lunch)
@@ -131,9 +139,10 @@ func _sync_character_profile() -> bool:
  if not multiplayer.is_server():return false
  var profile:=str(game.school.local_identity)
  if profile.is_empty():memory_error=ERR_INVALID_PARAMETER;return false
- if profile==brain.host_profile():return true
+ if profile==brain.host_profile() and DossierStore.host_identity==profile:return true
  # Finish an already-perceived exchange in its original host namespace.
  if character_jobs>0 or not ai_busy.is_empty() or game.host_openai.busy:return false
+ character_generation.cancel()
  var error: Error=brain.set_host_profile(profile)
  if error!=OK:
   memory_error=error
@@ -145,7 +154,22 @@ func _sync_character_profile() -> bool:
   memory_error=ERR_FILE_CORRUPT
   push_warning("Character memory could not be loaded; the existing files are preserved for recovery.")
  else:memory_error=OK
+ var dossier_error:=DossierStore.set_host_profile(profile)
+ if dossier_error!=OK:push_warning("Character dossiers could not be loaded; existing data is preserved.")
+ for teacher_id in Roster.all_people():
+  var person:=Characters.teacher(str(teacher_id))
+  # Only older save formats carried these authored anchors. A new host's first
+  # conversation must not introduce legacy personal answers at the next load.
+  var existing_history: bool=int(brain.loaded_memory_version)<8
+  if existing_history:
+   var prior: Dictionary=Personas.legacy_biography(str(teacher_id))
+   var saved: Dictionary=brain.biographies.get_or_add(teacher_id,{})
+   for topic in prior:
+    if not saved.has(topic):saved[topic]=prior[topic];brain.memory_dirty=true
+  if DossierStore.get_dossier(str(teacher_id)).get("generation",{}).get("status")!="complete":
+   DossierStore.preserve_biography(str(teacher_id),brain.character_biography(person))
  if is_instance_valid(game.lecture_classes.classroom_students):game.lecture_classes.classroom_students.configure(game)
+ character_generation.configure(game.host_openai,game.lecture_classes.classroom_students.population,brain)
  return true
 
 ## Host-only completion callbacks supply an already checked outcome. Never
@@ -164,6 +188,7 @@ func record_human_academic_outcome(activity: Dictionary,identity: String,kind: S
   int(Time.get_unix_time_from_system()),token,int(activity.get("week",0)))
 
 func _clear_speech() -> void:
+ character_generation.cancel()
  _cancel_recording()
  _stop_voice_conversation()
  ai_stage.clear()
@@ -177,6 +202,7 @@ func _clear_speech() -> void:
  if is_instance_valid(speech_player):speech_player.clear_session()
  if is_instance_valid(speech_synth):speech_synth.clear_session()
  speech_serial.clear()
+ speech_turn_timings.clear()
  received_voice.clear()
  pending_voice.clear()
  classmate_voice_serials.clear()
@@ -192,6 +218,7 @@ func _save_memory() -> void:
  if brain.memory_blocked and not brain.memory_dirty:
   if brain.retry_memory_load():memory_error=OK
  var error: Error=brain.save_memory()
+ if DossierStore.dirty:DossierStore.save()
  if error!=memory_error:
   if error!=OK:push_warning("Teacher relationship save failed (%d); observations remain in memory for retry."%error)
   memory_error=error
@@ -205,18 +232,9 @@ func pick_lecture(course: String) -> String:
   if not id.is_empty() and id not in excluded:excluded.append(id)
  return _pick([course],excluded)
 func generate_teacher(course: String,style: String) -> Dictionary:
- if not multiplayer.is_server() or course not in ["MTH147","MTH255","ETY155","ELM253","DGS266"] or style.strip_edges().length()<3 or style.length()>120:return {"ok":false,"error":"Choose a course and describe a teaching style."}
+ if not multiplayer.is_server() or not _sync_character_profile():return {"ok":false,"error":"Only the active host can create an instructor."}
  if not game.host_openai.enabled or not game.host_openai.configured():return {"ok":false,"error":"Enable the host OpenAI connection first."}
- var prompt:="Create one original fictional campus instructor for course %s with this teaching style: %s. Return only compact JSON with keys name and style. Name must be 3-32 letters/spaces; style must be 3-120 characters. Do not use a real person's name, copyrighted character, or a living person's likeness. No markdown."%[course,style]
- var result: Dictionary=await game.host_openai.respond(prompt)
- if not result.get("ok",false):return result
- var parsed: Variant=JSON.parse_string(str(result.get("text","")))
- if not parsed is Dictionary:return {"ok":false,"error":"The generated instructor profile was invalid. Try again."}
- var id: String="generated_"+Crypto.new().generate_random_bytes(8).hex_encode()
- var profile:={"name":str(parsed.get("name","")),"course":course,"style":str(parsed.get("style","")),"appearance":{}}
- if not Roster.add_generated(id,profile):return {"ok":false,"error":"The generated profile was invalid or the session has reached 12 generated instructors."}
- _publish()
- return {"ok":true,"name":str(Roster.entry(id).name),"id":id}
+ return character_generation.request_teacher(course,style)
 func _rotate(room: String) -> void:
  var excluded: Array=current.values()
  for exchange in lab_handoffs.values():excluded.append(exchange.incoming)
@@ -231,9 +249,7 @@ func _rotate(room: String) -> void:
    remaining[room]=10.
    return
   var outgoing: String=visit.teacher
-  var name_to_address:=str(Roster.entry(id).name)
-  var handoff:="Good to see you again, %s. Are you ready to take the next office-hours shift?"%name_to_address if int(brain.relationship(outgoing,id).familiarity)>0 else "%s, can you take over office hours? I'm heading out."%name_to_address
-  lab_handoffs[room]={"outgoing":outgoing,"incoming":id,"due":Time.get_ticks_msec()+4400,"started":Time.get_ticks_msec(),"waiting":true,"handoff":"","fallback":handoff}
+  lab_handoffs[room]={"outgoing":outgoing,"incoming":id,"due":Time.get_ticks_msec()+4400,"started":Time.get_ticks_msec(),"waiting":true,"handoff":""}
   remaining[room]=ROTATE_SECONDS
   _begin_staff_handoff(room,lab_handoffs[room],visit.duplicate(true))
   return
@@ -264,7 +280,7 @@ func _begin_staff_handoff(room: String,exchange: Dictionary,activity: Dictionary
  var outgoing:=str(exchange.outgoing)
  var incoming:=str(exchange.incoming)
  var started:=int(exchange.started)
- var result:=await generate_character_exchange(Characters.teacher(outgoing),incoming,activity,"",{"initiate":true,"defer_record":true,"intention":"Your office-hours shift is ending. Address the incoming colleague and hand over in your own manner. Do not promise effort or warmth that is unlike you.","interlocutor":{"name":Roster.entry(incoming).name,"role":"teacher"},"fallback":str(exchange.get("fallback","")),"_valid":func():return lab_handoffs.get(room,{}).get("incoming","")==incoming and int(lab_handoffs.get(room,{}).get("started",-1))==started})
+ var result:=await generate_character_exchange(Characters.teacher(outgoing),incoming,activity,"",{"initiate":true,"defer_record":true,"intention":"Your office-hours shift is ending. Address the incoming colleague and hand over in your own manner. Do not promise effort or warmth that is unlike you.","interlocutor":{"name":Roster.entry(incoming).name,"role":"teacher"},"_valid":func():return lab_handoffs.get(room,{}).get("incoming","")==incoming and int(lab_handoffs.get(room,{}).get("started",-1))==started})
  if not lab_handoffs.has(room) or lab_handoffs[room].get("incoming","")!=incoming or int(lab_handoffs[room].get("started",-1))!=started:return
  exchange.waiting=false
  if result.is_empty() or result.get("cancelled",false):return
@@ -277,14 +293,13 @@ func _answer_staff_handoff(room: String,exchange: Dictionary) -> void:
  var incoming:=str(exchange.incoming)
  var outgoing:=str(exchange.outgoing)
  var person:=Characters.teacher(incoming)
- var fallback:="I'm here. You can go." if float(person.traits.teaching_effort)<.4 else "I'll take it from here."
  var activity:=_lab_visit(room)
  # A timed-out or deliberately silent opening was never heard. The incoming
  # colleague can observe the shift change without remembering an invented quote.
  var opening:=str(exchange.get("handoff",""))
  var intention:="Your colleague handed over the office-hours shift. Reply as yourself; do not imply enthusiasm or unlimited help if it is unlike you."
  if opening.is_empty():intention="Your office-hours shift has started. Your colleague has said nothing to you. If you speak, initiate naturally in your own manner without inventing a prior exchange."
- var result:=await generate_character_exchange(person,outgoing,activity,opening,{"initiate":opening.is_empty(),"defer_record":true,"intention":intention,"observed_event":{"kind":"staff_shift_started","room":room},"interlocutor":{"name":Roster.entry(outgoing).name,"role":"teacher"},"fallback":fallback})
+ var result:=await generate_character_exchange(person,outgoing,activity,opening,{"initiate":opening.is_empty(),"defer_record":true,"intention":intention,"observed_event":{"kind":"staff_shift_started","room":room},"interlocutor":{"name":Roster.entry(outgoing).name,"role":"teacher"}})
  if result.is_empty() or result.get("cancelled",false):return
  if str(result.line).is_empty():
   character_interaction.record(result,false)
@@ -498,6 +513,13 @@ func _process(delta: float) -> void:
  _step_lab_routes(delta)
  if multiplayer.is_server():
   _next_question()
+  character_generation_clock+=delta
+  if character_generation_clock>=1.0:
+   character_generation_clock=0.0
+   if game.front.in_game and _sync_character_profile():
+    var preferred: Array=current.values()
+    for class_state in game.lecture_classes.classes.values():preferred.append(str(class_state.get("teacher","")))
+    character_generation.tick(preferred)
   if not lab_handoffs.is_empty():_finish_lab_handoffs(Time.get_ticks_msec())
   memory_clock+=delta
   if memory_clock>=10.0:memory_clock=0;_save_memory()
@@ -662,7 +684,7 @@ func _direct_lectures() -> void:
   var now: float = game.lecture_classes._now()
   var cue: Dictionary
   if phase == "arrival":
-   cue = {"key":"arrival", "text":"%s Sign in for %s and take a seat."%[Characters.teacher(teacher).lines.greeting,activity.course]}
+   cue = {"key":"arrival", "text":""}
   elif phase == "lesson":
    if lesson_question_active(room):continue
    if activity.get("ai_teaching",false) and current_event.is_empty():
@@ -681,7 +703,6 @@ func _direct_lectures() -> void:
   var point := _teacher_position(room)
   if not point.is_finite(): continue
   lecture_cues[room] = key
-  var text := CharacterSpeech.complete(str(cue.text))
   var teacher_profile:=Characters.teacher(teacher)
   var pose:=""
   var gesture_point:=Vector3.INF
@@ -690,7 +711,9 @@ func _direct_lectures() -> void:
   elif phase=="lesson" and cue.has("anchor") and float(teacher_profile.traits.demonstrations)>.87 and lecture_models.has(room):
    pose="point"
    gesture_point=game.lecture_classes.signs[room].board.global_position
-  _announce_character(room,teacher,activity,"classroom:"+str(activity.get("course","")),"Deliver this classroom cue in your own voice. Keep its practical instructions and official teaching content intact.",text,2,{"teaching_step":cue,"_presentation_pose":pose,"_presentation_point":gesture_point,"_valid":func():return str(lecture_cues.get(room,""))==key})
+  var intention:="You have entered the classroom. Greet the students as yourself and remind them to sign attendance for "+str(activity.course)+" and take a seat." if phase=="arrival" else "Address the next classroom objective as this person. Explain the supplied course point accurately or introduce the upcoming independent practice. Your interests, teaching motivation and mood determine the manner."
+  var objective: Dictionary=game.lecture_classes._stage(activity) if phase=="lesson" else {"required_information":["Sign attendance for "+str(activity.course),"Take a seat"]}
+  _announce_character(room,teacher,activity,"classroom:"+str(activity.get("course","")),intention,"",2,{"teaching_step":objective,"official_communication":true,"_presentation_pose":pose,"_presentation_point":gesture_point,"_valid":func():return str(lecture_cues.get(room,""))==key})
   if phase == "lesson" and cue.has("anchor") and lecture_models.has(room):
    var board: Node3D = game.lecture_classes.signs[room].board
    var goal := Vector3(board.global_position.x + float(cue.anchor), classroom_homes[room].y, board.global_position.z + 1.7)
@@ -706,8 +729,6 @@ func _character_lecture_cue(activity: Dictionary,board: Dictionary,now: float,id
  var person:=Characters.teacher(id)
  var preferences: Dictionary=Dialogue.personalities().get(id,{}).duplicate()
  preferences.talkativeness=clampf(float(person.talk)*.65+float(person.traits.teaching_effort)*.35,0.,1.)
- preferences.opening=person.lines.greeting
- preferences.check_in="Show me your reasoning. " if float(person.strictness)>=.65 else ("Try this one with me. " if float(person.traits.warmth)>.7 else "Check your notes against this. ")
  var cue_activity:=activity.duplicate(true)
  if activity.has("teaching_seconds"):
   cue_activity.teaching={"duration_seconds":float(activity.teaching_seconds)}
@@ -769,8 +790,7 @@ func _generate_ai_lesson(room: String,activity: Dictionary,state: Dictionary,key
  var intention:="Teach the current point in your own teaching style. Official content must come from the supplied board; do not invent measurements, grade changes, or a different curriculum. "+focus
  if float(person.traits.teaching_effort)<.3:intention+=" Give the essential point accurately, then let the class work independently."
  elif float(person.traits.demonstrations)>.85:intention+=" Ask for a concrete prediction if this step supports it."
- var fallback:=str(_character_lecture_cue(activity,board,game.lecture_classes._now(),id).get("text",""))
- var result:=await generate_character_exchange(person,"classroom:"+str(activity.get("course","")),activity,"",{"initiate":true,"defer_record":true,"intention":intention,"teaching_step":board,"classroom":TeacherAI.context(activity,id,board),"fallback":fallback,"_valid":func():return str(ai_stage.get(room,""))==key})
+ var result:=await generate_character_exchange(person,"classroom:"+str(activity.get("course","")),activity,"",{"initiate":true,"official_communication":true,"defer_record":true,"intention":intention,"teaching_step":board,"_valid":func():return str(ai_stage.get(room,""))==key})
  var latest:=_ai_activity(room)
  if str(latest.get("id",""))!=class_id or latest.get("phase","")!="lesson" or str(ai_stage.get(room,""))!=key:
   _release_lesson_wait(room,state,key,true)
@@ -782,14 +802,19 @@ func _generate_ai_lesson(room: String,activity: Dictionary,state: Dictionary,key
   _release_lesson_wait(room,state,key)
   character_interaction.record(result,false)
   return
+ if result.get("source","")=="technical_unavailable":
+  _release_lesson_wait(room,state,key)
+  state.ai_status=str(result.get("technical_status","AI teaching is unavailable; the course material remains on the board."))
+  character_interaction.record(result,false)
+  return
  _finish_lesson_cue(room,activity,state,key,board,formal,str(result.line))
  character_interaction.record(result,true)
 
 func _finish_lesson_cue(room: String,activity: Dictionary,state: Dictionary,key: String,board: Dictionary,formal: bool,text_value: String) -> void:
  var id:=str(activity.get("teacher",""))
  if text_value.is_empty():
-  var now: float=game.lecture_classes._now()
-  text_value=CharacterSpeech.complete(str(_character_lecture_cue(activity,board,now,id).get("text","")))
+  _release_lesson_wait(room,state,key)
+  return
  _release_lesson_wait(room,state,key)
  if formal:
   var position:=_teacher_position(room)
@@ -981,31 +1006,42 @@ func _clear_reaction_pose(room: String) -> void:
   CharacterMotion.express(model,"steady",1.)
  reaction_pose.erase(room)
 
+var character_inspection_exchange=preload("res://scripts/campus/ui/character_inspector_transport.gd").new()
+
 func _build_conversation_ui() -> void:
  var layer:=CanvasLayer.new();layer.layer=31;add_child(layer)
- var wrapper := Control.new()
+ var wrapper:=Control.new()
  wrapper.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
- wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+ wrapper.mouse_filter=Control.MOUSE_FILTER_IGNORE
  layer.add_child(wrapper)
- conversation=PanelContainer.new()
- conversation.theme=preload("res://scripts/ui/design_system/theme.gd").create()
- var panel_style: StyleBoxFlat=preload("res://scripts/ui/design_system/theme.gd").card_style()
- panel_style.bg_color=Color("102331ec")
- panel_style.set_content_margin_all(8)
- conversation.add_theme_stylebox_override("panel",panel_style)
+ var inspector=preload("res://scripts/campus/ui/character_inspector.gd").new()
+ conversation=inspector
  wrapper.add_child(conversation)
- conversation.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
- conversation.grow_vertical=Control.GROW_DIRECTION_BEGIN
+ conversation.set_anchors_preset(Control.PRESET_CENTER)
+ conversation.grow_vertical=Control.GROW_DIRECTION_BOTH
  conversation.grow_horizontal=Control.GROW_DIRECTION_BOTH
- var fit := func():
-  var width:=minf(820.0,get_viewport().get_visible_rect().size.x*.82)
+ var fit:=func():
+  var viewport_size:=get_viewport().get_visible_rect().size
+  var width:=minf(1100.,maxf(540.,viewport_size.x-36.))
+  var height:=minf(850.,maxf(510.,viewport_size.y-36.))
   conversation.offset_left=-width*.5
   conversation.offset_right=width*.5
-  conversation.offset_top=-185
-  conversation.offset_bottom=-15
+  conversation.offset_top=-height*.5
+  conversation.offset_bottom=height*.5
  wrapper.resized.connect(fit)
  fit.call()
- conversation.hide()
+ inspector.configure(_character_inspection_snapshot)
+ inspector.close_requested.connect(close_conversation)
+ inspector.send_requested.connect(_submit_question)
+ inspector.record_requested.connect(_toggle_recording)
+ inspector.action_requested.connect(_conversation_choice)
+ conversation_name=inspector.heading
+ conversation_input=inspector.input
+ conversation_text=inspector.dialogue
+ conversation_scroll=inspector.conversation_scroll
+ ask_button=inspector.send_button
+ record_button=inspector.microphone_button
+ conversation_actions=inspector.action_buttons
  voice_hint=Label.new()
  voice_hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
  voice_hint.offset_top=-150.
@@ -1018,30 +1054,8 @@ func _build_conversation_ui() -> void:
  voice_hint.mouse_filter=Control.MOUSE_FILTER_IGNORE
  wrapper.add_child(voice_hint)
  voice_hint.hide()
- var body:=VBoxContainer.new();body.add_theme_constant_override("separation",4);conversation.add_child(body)
- conversation_name=Label.new();conversation_name.add_theme_font_size_override("font_size",18);body.add_child(conversation_name)
- conversation_scroll=ScrollContainer.new()
- conversation_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
- conversation_scroll.custom_minimum_size.y=52
- conversation_scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL
- body.add_child(conversation_scroll)
- conversation_text=Label.new()
- conversation_text.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
- conversation_text.size_flags_horizontal=Control.SIZE_EXPAND_FILL
- conversation_scroll.add_child(conversation_text)
- var input_row:=HBoxContainer.new();body.add_child(input_row)
- conversation_input=LineEdit.new();conversation_input.placeholder_text="Type a question or reply";conversation_input.max_length=500;conversation_input.size_flags_horizontal=Control.SIZE_EXPAND_FILL;conversation_input.text_submitted.connect(func(_value: String):_submit_question());input_row.add_child(conversation_input)
- ask_button=Button.new();ask_button.text="Send";ask_button.pressed.connect(_submit_question);input_row.add_child(ask_button)
- record_button=Button.new();record_button.text="Mic";record_button.tooltip_text="Record a question";record_button.pressed.connect(_toggle_recording);input_row.add_child(record_button)
- var actions:=ScrollContainer.new()
- actions.vertical_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED
- actions.follow_focus=true
- body.add_child(actions)
- var row:=HBoxContainer.new();actions.add_child(row)
- for option in [["Talk","chat"],["Ask for help","help"],["I'm ready","ready"],["Explain another way","clarify"],["Inspect circuit","inspect_circuit"],["Evaluate LED","evaluate_led"],["Hand over phone","hand_phone"],["Reclaim phone","reclaim_phone"],["Goodbye","bye"]]:
-  var button:=Button.new();button.text=option[0];button.pressed.connect(_conversation_choice.bind(str(option[1])));row.add_child(button);conversation_actions[option[1]]=button
 func _unhandled_input(event: InputEvent) -> void:
- if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_F8 and "--character-debug" in OS.get_cmdline_user_args():
+ if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==KEY_F8 and multiplayer.is_server():
   _toggle_character_debug();get_viewport().set_input_as_handled();return
  if not is_instance_valid(game) or not game.front.in_game or Input.mouse_mode!=Input.MOUSE_MODE_CAPTURED:return
  if not (event is InputEventKey and event.pressed and not event.echo and event.physical_keycode==game.player.keys.call_teacher):return
@@ -1063,9 +1077,18 @@ func open_conversation(room: String, student := "", class_id := "") -> void:
  var id:=str(activity.get("teacher",""))
  var member: Dictionary=game.lecture_classes.classroom_students.visible_member(room,class_id,student) if not student.is_empty() else {}
  if (student.is_empty() and not Roster.has(id)) or (not student.is_empty() and member.is_empty()):return
+ _cancel_recording()
  conversation_room=room
  conversation_student=student
- conversation_class=class_id
+ conversation_class=class_id if not student.is_empty() else str(activity.get("id",""))
+ conversation.set_meta("selected_character_id",id if student.is_empty() else student)
+ conversation.set_meta("inspection_nonce",Crypto.new().generate_random_bytes(12).hex_encode())
+ conversation.set_meta("inspection_serial",0)
+ conversation.set_meta("inspection_revision","")
+ conversation.set_meta("inspection_snapshot",{})
+ conversation.set_meta("inspection_sent",-10000)
+ conversation.set_meta("inspection_received",0)
+ conversation.set_meta("inspection_waiting",false)
  conversation_name.text=str(Roster.entry(id).name) if student.is_empty() else str(member.name)
  conversation_input.text=""
  record_button.visible=bool(game.host_openai.enabled) if multiplayer.is_server() else game.session.online
@@ -1075,8 +1098,9 @@ func open_conversation(room: String, student := "", class_id := "") -> void:
   conversation_actions[intent].visible=student.is_empty() and room in ["ac_lab","dc_lab"]
  for intent in ["ready","clarify"]:
   conversation_actions[intent].visible=student.is_empty() and activity.get("ai_teaching",false) and activity.get("phase","")=="lesson"
- conversation_text.text="What would you like to talk about?"
- conversation.show();speech_player.subtitle_layer.hide();game.release_mouse()
+ conversation_text.text="Type a message or use the microphone to begin a conversation."
+ _stop_voice_conversation()
+ conversation.call("open_character");speech_player.subtitle_layer.hide();game.release_mouse()
 func close_conversation() -> bool:
  if not voice_room.is_empty():
   _stop_voice_conversation()
@@ -1092,14 +1116,55 @@ func interact(target: Node) -> bool:
  var room:=str(target.get_meta("room",""))
  var student:=str(target.get_meta("student_id",""))
  var class_id:=str(target.get_meta("class_id",""))
- if not _start_voice_conversation(room,false,student,class_id):open_conversation(room,student,class_id)
+ open_conversation(room,student,class_id)
  return true
+
+func _character_inspection_snapshot() -> Dictionary:
+ var reader=preload("res://scripts/campus/ui/character_inspector_snapshot.gd")
+ if multiplayer.is_server():return reader.capture(self)
+ if not is_instance_valid(conversation) or conversation_room.is_empty():return {}
+ var now:=Time.get_ticks_msec()
+ var elapsed:=now-int(conversation.get_meta("inspection_sent",-10000))
+ if game.session.online and elapsed>=2000 and (not conversation.get_meta("inspection_waiting",false) or elapsed>=5000):
+  var serial:=int(conversation.get_meta("inspection_serial",0))+1
+  conversation.set_meta("inspection_serial",serial)
+  conversation.set_meta("inspection_sent",now)
+  conversation.set_meta("inspection_waiting",true)
+  _request_character_inspection.rpc_id(1,conversation_room,conversation_student,conversation_class,str(conversation.get_meta("selected_character_id","")),str(conversation.get_meta("inspection_nonce","")),serial,str(conversation.get_meta("inspection_revision","")))
+ var received:=int(conversation.get_meta("inspection_received",0))
+ if received>0 and now-received<=8000:return conversation.get_meta("inspection_snapshot",{}).duplicate(true)
+ return reader.capture(self)
+
+@rpc("any_peer","call_remote","reliable")
+func _request_character_inspection(room: String,student: String,class_id: String,selected: String,nonce: String,serial: int,known_revision: String) -> void:
+ if not multiplayer.is_server() or not is_instance_valid(game):return
+ if room not in ["ac_lab","dc_lab"]+LECTURE_ROOMS or student.length()>64 or class_id.length()>160 or selected.length()>96 or known_revision.length()>64:return
+ var peer:=multiplayer.get_remote_sender_id()
+ if not character_inspection_exchange.allow_request(peer,Time.get_ticks_msec(),game.session.roster,serial,nonce):return
+ var snapshot:=preload("res://scripts/campus/ui/character_inspector_snapshot.gd").for_peer(self,peer,room,student,class_id,selected)
+ var packet:=preload("res://scripts/campus/ui/character_inspector_transport.gd").public_packet(snapshot,known_revision,nonce,serial)
+ if game.session.online and game.session.peer_connected_now(peer):_receive_character_inspection.rpc_id(peer,packet)
+
+@rpc("authority","call_remote","reliable")
+func _receive_character_inspection(packet: Dictionary) -> void:
+ if multiplayer.is_server() or multiplayer.get_remote_sender_id()!=1:return
+ if not is_instance_valid(conversation) or not conversation.visible or conversation_room.is_empty():return
+ var accepted:=preload("res://scripts/campus/ui/character_inspector_transport.gd").accept_packet(packet,str(conversation.get_meta("inspection_nonce","")),int(conversation.get_meta("inspection_serial",0)),str(conversation.get_meta("selected_character_id","")),conversation.get_meta("inspection_snapshot",{}),str(conversation.get_meta("inspection_revision","")))
+ if accepted.is_empty():return
+ conversation.set_meta("inspection_snapshot",accepted.snapshot)
+ conversation.set_meta("inspection_revision",accepted.revision)
+ conversation.set_meta("inspection_received",Time.get_ticks_msec())
+ conversation.set_meta("inspection_waiting",false)
+ conversation.call("apply_snapshot",accepted.snapshot)
 
 func invite_question(room: String,id: String,peer: int,class_id: String) -> void:
  if not multiplayer.is_server() or not game.lecture_classes._inside(peer,room):return
  var target: Vector3=game.lecture_classes._position(peer)
  _publish_attention(room,id,target)
- present_class_reaction(room,id,"Go ahead. What would you like me to explain?",3)
+ var activity:=_ai_activity(room)
+ var identity:=str(game.school.identities.get(peer,""))
+ if str(activity.get("id",""))!=class_id or str(activity.get("teacher",""))!=id or identity.is_empty():return
+ _announce_character(room,id,activity,identity,"You have noticed this student raising their hand. Invite their question in your own manner.","",3,{"official_communication":true})
  if peer==multiplayer.get_unique_id():_question_invited(room,class_id)
  elif game.session.online and game.session.peer_connected_now(peer):_question_invited.rpc_id(peer,room,class_id)
 
@@ -1118,6 +1183,7 @@ func _start_voice_conversation(room: String,invited: bool,student := "",class_id
  voice_room=room
  voice_class=class_id if not student.is_empty() else str(activity.get("id",""))
  voice_student=student
+ voice_teacher=str(activity.get("teacher","")) if student.is_empty() else ""
  voice_invited=invited
  voice_until=Time.get_ticks_msec()+25000
  voice_recognizer.Reset()
@@ -1137,6 +1203,7 @@ func _stop_voice_conversation() -> void:
  voice_room=""
  voice_class=""
  voice_student=""
+ voice_teacher=""
  voice_recognizer.Reset()
  _cancel_recording()
  if is_instance_valid(voice_hint):voice_hint.hide()
@@ -1152,7 +1219,7 @@ func _voice_conversation_step() -> void:
   var member: Dictionary=game.lecture_classes.classroom_students.visible_member(voice_room,voice_class,voice_student)
   if member.is_empty():_stop_voice_conversation();return
   point=member.position
- if str(activity.get("id",""))!=voice_class or game.campus.registry.locate(game.player.global_position)!=voice_room or (not voice_invited and game.player.global_position.distance_to(point)>5.):
+ if str(activity.get("id",""))!=voice_class or (voice_student.is_empty() and str(activity.get("teacher",""))!=voice_teacher) or game.campus.registry.locate(game.player.global_position)!=voice_room or (not voice_invited and game.player.global_position.distance_to(point)>5.):
   _stop_voice_conversation()
   return
  if Time.get_ticks_msec()>=voice_until:
@@ -1172,29 +1239,48 @@ func _consume_voice_capture() -> void:
   voice_hint.text="Listening to your question · Esc to end"
  if result.has("audio"):
   var wav:=TeacherAI.wav_16k(result.audio)
-  _send_voice_question(voice_room,wav,voice_student,voice_class)
+  _send_voice_question(voice_room,wav,voice_student,voice_class,voice_teacher)
   voice_hint.text="Question sent · Esc to end"
+func _selected_conversation_current() -> bool:
+ if conversation_room.is_empty() or not is_instance_valid(conversation) or not conversation.visible:return false
+ var selected:=str(conversation.get_meta("selected_character_id",""))
+ var activity:=_ai_activity(conversation_room)
+ if conversation_student.is_empty():return not selected.is_empty() and Roster.has(selected) and str(activity.get("teacher",""))==selected and str(activity.get("id",""))==conversation_class
+ if selected!=conversation_student or str(activity.get("id",""))!=conversation_class:return false
+ return not game.lecture_classes.classroom_students.visible_member(conversation_room,conversation_class,conversation_student).is_empty()
+
+func _require_selected_conversation() -> bool:
+ if _selected_conversation_current():return true
+ _cancel_recording()
+ if is_instance_valid(conversation):
+  conversation.call("apply_snapshot",{})
+  conversation_text.text="This character is no longer available here. Close the panel and select them again."
+ return false
+
 func _conversation_choice(intent: String) -> void:
  if conversation_room.is_empty():return
- if intent=="chat":conversation_input.grab_focus();return
  if intent=="bye":close_conversation();return
+ if not _require_selected_conversation():return
+ if intent=="chat":conversation_input.grab_focus();return
+ var selected:=str(conversation.get_meta("selected_character_id",""))
  if intent in ["ready","clarify"]:
-  if multiplayer.is_server():_lesson_feedback(multiplayer.get_unique_id(),conversation_room,intent)
-  elif game.session.online:_send_lesson_feedback.rpc_id(1,conversation_room,intent)
+  if multiplayer.is_server():_lesson_feedback(multiplayer.get_unique_id(),conversation_room,intent,selected,conversation_class)
+  elif game.session.online:_send_lesson_feedback.rpc_id(1,conversation_room,intent,selected,conversation_class)
   return
  if intent=="help":
   conversation_input.text="Can you help me with the current topic?"
   _submit_question()
   return
  var phone_id: String=game.smartphones.selected() if intent=="hand_phone" else ""
- if multiplayer.is_server():_dialogue_request(multiplayer.get_unique_id(),conversation_room,intent,phone_id)
- elif game.session.online:_ask.rpc_id(1,conversation_room,intent,phone_id)
+ if multiplayer.is_server():_dialogue_request(multiplayer.get_unique_id(),conversation_room,intent,phone_id,selected,conversation_class)
+ elif game.session.online:_ask.rpc_id(1,conversation_room,intent,phone_id,selected,conversation_class)
 @rpc("any_peer","call_remote","reliable")
-func _send_lesson_feedback(room: String,signal_name: String) -> void:
- if multiplayer.is_server():_lesson_feedback(multiplayer.get_remote_sender_id(),room,signal_name)
-func _lesson_feedback(peer: int,room: String,signal_name: String) -> void:
+func _send_lesson_feedback(room: String,signal_name: String,expected_teacher: String,expected_class: String) -> void:
+ if multiplayer.is_server() and _valid_selected_target(expected_teacher,expected_class):_lesson_feedback(multiplayer.get_remote_sender_id(),room,signal_name,expected_teacher,expected_class)
+func _lesson_feedback(peer: int,room: String,signal_name: String,expected_teacher: String="",expected_class: String="") -> void:
  if signal_name not in ["ready","clarify"] or not game.session.roster.has(peer):return
  var activity:=_ai_activity(room)
+ if not _matches_selected_target(activity,expected_teacher,expected_class):return
  if activity.get("phase","")!="lesson" or not activity.get("ai_teaching",false) or not game.lecture_classes._inside(peer,room):return
  var school: Node=game.school
  var token:=str(school.identities.get(peer,""))
@@ -1220,7 +1306,7 @@ func _lesson_feedback(peer: int,room: String,signal_name: String) -> void:
   else:state.deadline-=advance_by
  var response:="I'll try another explanation." if signal_name=="clarify" else "Readiness noted."
  var teacher:=str(activity.get("teacher",""))
- var result:=await generate_character_exchange(Characters.teacher(teacher),token,activity,"I'm still confused by that step." if signal_name=="clarify" else "I'm ready for the next step.",{"teaching_step":board,"executed_action":{"action":"lesson_feedback","signal":signal_name,"received":true},"intention":"Acknowledge this verified feedback in your own voice. The lesson progression remains host controlled.","fallback":response,"_valid":func():return str(game.school.identities.get(peer,""))==token})
+ var result:=await generate_character_exchange(Characters.teacher(teacher),token,activity,"I'm still confused by that step." if signal_name=="clarify" else "I'm ready for the next step.",{"teaching_step":board,"executed_action":{"action":"lesson_feedback","signal":signal_name,"received":true},"intention":"Acknowledge this verified feedback in your own voice. The lesson progression remains host controlled.","_valid":func():return str(game.school.identities.get(peer,""))==token})
  if result.is_empty() or result.get("cancelled",false):return
  response=str(result.line)
  if peer==multiplayer.get_unique_id():_dialogue_reply(room,teacher,response)
@@ -1228,17 +1314,20 @@ func _lesson_feedback(peer: int,room: String,signal_name: String) -> void:
 func _submit_question() -> void:
  var question:=conversation_input.text.strip_edges()
  if conversation_room.is_empty() or question.is_empty():return
+ if not _require_selected_conversation():return
  conversation_input.clear()
  conversation_text.text="You: "+question+"\n\nWaiting for a reply…"
  conversation_scroll.set_deferred("scroll_vertical", 100000)
  if not conversation_student.is_empty():
   _send_classmate_question(conversation_room,conversation_class,conversation_student,question)
   return
- if multiplayer.is_server():_question_request(multiplayer.get_unique_id(),conversation_room,question)
- elif game.session.online:_ask_question.rpc_id(1,conversation_room,question)
+ var selected:=str(conversation.get_meta("selected_character_id",""))
+ if multiplayer.is_server():_question_request(multiplayer.get_unique_id(),conversation_room,question,selected,conversation_class)
+ elif game.session.online:_ask_question.rpc_id(1,conversation_room,question,selected,conversation_class)
 func _toggle_recording() -> void:
  if recording:_finish_recording();return
  if conversation_room.is_empty() or record_player!=null:return
+ if not _require_selected_conversation():return
  var voice: Node=game.voice_chat
  if not is_instance_valid(voice) or not is_instance_valid(voice.capture):return
  voice.capture.clear_buffer()
@@ -1271,45 +1360,60 @@ func _finish_recording() -> void:
  if not recording:return
  var samples:=record_samples.duplicate()
  _cancel_recording()
+ if not _require_selected_conversation():return
  if samples.size()<32000:conversation_text.text="Record at least one second of speech.";return
  conversation_text.text="Transcribing…"
  var wav:=TeacherAI.wav_16k(samples)
- _send_voice_question(conversation_room,wav,conversation_student,conversation_class)
+ _send_voice_question(conversation_room,wav,conversation_student,conversation_class,str(conversation.get_meta("selected_character_id","")))
 
-func _send_voice_question(room: String,wav: PackedByteArray,student: String,class_id: String) -> void:
+func _send_voice_question(room: String,wav: PackedByteArray,student: String,class_id: String,expected_teacher: String="") -> void:
  if not student.is_empty():_send_classmate_question(room,class_id,student,wav)
- elif multiplayer.is_server():_speech_question_request(multiplayer.get_unique_id(),room,wav)
- elif game.session.online:_ask_speech.rpc_id(1,room,wav)
+ elif multiplayer.is_server():_speech_question_request(multiplayer.get_unique_id(),room,wav,expected_teacher,class_id)
+ elif game.session.online and _valid_selected_target(expected_teacher,class_id):_ask_speech.rpc_id(1,room,wav,expected_teacher,class_id)
 @rpc("any_peer","call_remote","reliable")
-func _ask_speech(room: String,wav: PackedByteArray) -> void:
- if multiplayer.is_server():_speech_question_request(multiplayer.get_remote_sender_id(),room,wav)
+func _ask_speech(room: String,wav: PackedByteArray,expected_teacher: String,expected_class: String) -> void:
+ if multiplayer.is_server() and _valid_selected_target(expected_teacher,expected_class):_speech_question_request(multiplayer.get_remote_sender_id(),room,wav,expected_teacher,expected_class)
 func _ai_activity(room: String) -> Dictionary:
  if room in ["ac_lab","dc_lab"]:return _lab_visit(room)
  if room not in LECTURE_ROOMS:return {}
  var activities: Dictionary=game.lecture_classes.classes if multiplayer.is_server() else game.lecture_classes.public_classes
  return activities.get(room,_formal_activity(room))
-func _speech_question_request(peer: int,room: String,wav: PackedByteArray) -> void:
+func _speech_question_request(peer: int,room: String,wav: PackedByteArray,expected_teacher: String="",expected_class: String="") -> void:
  if wav.size()<32044 or wav.size()>224044:return
- _queue_question(peer,room,wav)
+ _queue_question(peer,room,wav,expected_teacher,expected_class)
 
-func _transcribe_question(peer: int,room: String,id: String,class_id: String,wav: PackedByteArray,pos: Vector3) -> void:
+func _transcribe_question(peer: int,room: String,id: String,class_id: String,wav: PackedByteArray,pos: Vector3,timing: Dictionary={}) -> void:
+ timing=timing.duplicate(true)
+ timing.transcription_started_ms=Time.get_ticks_msec()
  var result: Dictionary=await game.host_openai.transcribe_wav(wav)
- if str(_ai_activity(room).get("id",""))!=class_id:
+ timing.transcription_finished_ms=Time.get_ticks_msec()
+ timing.transcription_ms=int(timing.transcription_finished_ms)-int(timing.transcription_started_ms)
+ var activity:=_ai_activity(room)
+ if str(activity.get("id",""))!=class_id or str(activity.get("teacher",""))!=id:
   ai_busy.erase(peer)
   return
  if not result.get("ok",false):
   ai_busy.erase(peer)
   _question_status(peer,room,id,str(result.get("error","Speech was not recognized.")))
   return
- await _answer_question(peer,room,id,class_id,str(result.get("text","")),pos)
+ await _answer_question(peer,room,id,class_id,str(result.get("text","")),pos,timing)
 
 @rpc("any_peer","call_remote","reliable")
-func _ask_question(room: String,question: String) -> void:
- if multiplayer.is_server():_question_request(multiplayer.get_remote_sender_id(),room,question)
+func _ask_question(room: String,question: String,expected_teacher: String,expected_class: String) -> void:
+ if multiplayer.is_server() and _valid_selected_target(expected_teacher,expected_class):_question_request(multiplayer.get_remote_sender_id(),room,question,expected_teacher,expected_class)
 
-func _question_request(peer: int,room: String,question: String) -> void:
+func _question_request(peer: int,room: String,question: String,expected_teacher: String="",expected_class: String="") -> void:
  if question.is_empty() or question.length()>500:return
- _queue_question(peer,room,question)
+ _queue_question(peer,room,question,expected_teacher,expected_class)
+
+static func _valid_selected_target(teacher: String,class_id: String) -> bool:
+ return not teacher.is_empty() and teacher.length()<=64 and not class_id.is_empty() and class_id.length()<=160
+
+static func _matches_selected_target(activity: Dictionary,teacher: String,class_id: String) -> bool:
+ # Empty targets are reserved for trusted internal current-target calls. RPC
+ # entry points require an explicit teacher and class before reaching here.
+ if teacher.is_empty():return class_id.is_empty()
+ return _valid_selected_target(teacher,class_id) and str(activity.get("teacher",""))==teacher and str(activity.get("id",""))==class_id
 
 func _send_classmate_question(room: String,class_id: String,student: String,content: Variant) -> void:
  if multiplayer.is_server():_classmate_question(multiplayer.get_unique_id(),room,class_id,student,content)
@@ -1320,6 +1424,7 @@ func _ask_classmate(room: String,class_id: String,student: String,content: Varia
  if multiplayer.is_server():_classmate_question(multiplayer.get_remote_sender_id(),room,class_id,student,content)
 
 func _classmate_question(peer: int,room: String,class_id: String,student: String,content: Variant) -> void:
+ var received_ms:=Time.get_ticks_msec()
  if content is String:
   if content.strip_edges().is_empty() or content.length()>500:return
  elif content is PackedByteArray:
@@ -1329,7 +1434,7 @@ func _classmate_question(peer: int,room: String,class_id: String,student: String
  if questions.size()>=32 or questions.filter(func(entry):return entry.peer==peer).size()>=4:
   _notify_classmate(peer,room,class_id,student,"The conversation queue is full.",false)
   return
- questions.append({"peer":peer,"room":room,"class":class_id,"student":student,"content":content})
+ questions.append({"peer":peer,"room":room,"class":class_id,"student":student,"content":content,"_timing":{"host_received_ms":received_ms,"input_kind":"microphone" if content is PackedByteArray else "typed"}})
  if game.host_openai.busy or not ai_busy.is_empty() or questions.size()>1:
   _notify_classmate(peer,room,class_id,student,"Message queued.",false)
  _next_question()
@@ -1342,8 +1447,12 @@ func generate_character_exchange(person: Dictionary,identity: String,activity: D
  var captured_activity:=activity.duplicate(true)
  var extra_guard: Variant=extra.get("_valid")
  extra._valid=func():return _character_context_current(epoch,captured_activity) and (not extra_guard is Callable or (extra_guard.is_valid() and bool(extra_guard.call())))
- if extra.has("offline_fallback"):extra.fallback=extra.offline_fallback
  var prepared:=await character_interaction.prepare(game.host_openai,person,identity,activity,question,extra)
+ if extra.get("record_incoming",false) and not prepared.get("cancelled",false) and _character_context_current(epoch,prepared.activity):
+  # The incoming words were actually heard. Persist that perception once;
+  # complete this event only if its reply is later delivered.
+  brain.remember_event(prepared.person,identity,prepared.turn,str(prepared.question),"",int(Time.get_unix_time_from_system()),str(prepared.event_id))
+  prepared.extra.existing_event_id=prepared.event_id
  var result:=await character_interaction.generate(game.host_openai,prepared)
  var valid: bool=_character_context_current(epoch,prepared.activity) and not result.get("cancelled",false)
  if not extra.get("defer_record",false):character_interaction.record(result,valid)
@@ -1364,9 +1473,9 @@ func _character_context_current(epoch: int,activity: Dictionary) -> bool:
    return current_activity.get("phase","")==activity.get("phase","") and str(current_activity.get("teacher",""))==str(activity.get("teacher",""))
  return false
 
-func _announce_character(room: String,id: String,activity: Dictionary,identity: String,intention: String,fallback: String,priority: int=2,extensions: Dictionary={}) -> void:
+func _announce_character(room: String,id: String,activity: Dictionary,identity: String,intention: String,_fallback: String,priority: int=2,extensions: Dictionary={}) -> void:
  var extra:=extensions.duplicate(true)
- extra.initiate=true;extra.intention=intention;extra.fallback=fallback;extra.defer_record=true
+ extra.initiate=true;extra.intention=intention;extra.defer_record=true
  var result:=await generate_character_exchange(Characters.teacher(id),identity,activity,"",extra)
  if result.is_empty() or result.get("cancelled",false):return
  var point:=_teacher_position(room)
@@ -1382,21 +1491,15 @@ func _announce_character(room: String,id: String,activity: Dictionary,identity: 
  character_interaction.record(result,true)
 
 func character_debug_snapshot() -> Dictionary:
- return {"students":game.lecture_classes.classroom_students.debug_snapshot(),"interactions":character_interaction.diagnostics.duplicate(true),"memory":brain.diagnostics(),"memory_save_error":memory_error,"memory_dirty":brain.memory_dirty,"memory_blocked":brain.memory_blocked,"pending_requests":questions.size(),"discipline":discipline_records.duplicate(true)}
+ # No global conversation dump. This checks host authority at data access and
+ # returns only the selected character's history with the local host player.
+ return preload("res://scripts/campus/ui/character_inspector_snapshot.gd").capture(self)
 
 func _toggle_character_debug() -> void:
- if not OS.has_feature("editor") or "--character-debug" not in OS.get_cmdline_user_args():return
- if not is_instance_valid(character_debug):
-  character_debug=Window.new();character_debug.title="Character diagnostics";character_debug.size=Vector2i(980,680)
-  character_debug.close_requested.connect(func():character_debug.hide())
-  add_child(character_debug)
-  var column:=VBoxContainer.new();column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);character_debug.add_child(column)
-  var refresh:=Button.new();refresh.text="Refresh interaction trace";column.add_child(refresh)
-  character_debug_text=TextEdit.new();character_debug_text.editable=false;character_debug_text.size_flags_vertical=Control.SIZE_EXPAND_FILL;column.add_child(character_debug_text)
-  refresh.pressed.connect(func():character_debug_text.text=JSON.stringify(character_debug_snapshot(),"  "))
- character_debug_text.text=JSON.stringify(character_debug_snapshot(),"  ")
- if character_debug.visible:character_debug.hide()
- else:character_debug.popup_centered()
+ if not preload("res://scripts/campus/ui/character_inspector_snapshot.gd").can_inspect_private(self):return
+ if not is_instance_valid(conversation) or not conversation.visible:return
+ conversation.call("refresh")
+ conversation.call("show_diagnostics")
 
 func _character_observations(peer: int,model: Node3D,activity: Dictionary) -> Dictionary:
  var result:={"phase":str(activity.get("phase","")),"player_visible":false}
@@ -1449,16 +1552,8 @@ func _outfit_color(color: Color) -> String:
  if hue<260.:return "blue"
  return "purple" if hue<310. else "pink"
 
-func _embodied_reply(person: Dictionary,question: String,observations: Dictionary) -> String:
- var lower:=question.strip_edges().to_lower()
- if "do you have arms" in lower:return "Sure. Two of them. Why?" if float(person.traits.humor)>.5 else "Yes. What are you asking me to do?"
- if ("what are you wearing" in lower or "what color is your shirt" in lower) and not str(observations.get("character_outfit","")).is_empty():
-  return "I've got my %s on."%str(observations.character_outfit).to_lower()
- if "my outfit" in lower or "what am i wearing" in lower:
-  if not observations.player_visible:return "Come where I can see you." if float(person.traits.temper)>.6 else "Turn this way a moment. I can't see what you're wearing from here."
-  var outfit: PackedStringArray=observations.get("player_outfit",PackedStringArray())
-  if outfit.is_empty():return "I can see you, but I can't pick out the details from here."
-  return ("I noticed the %s. Looks good." if float(person.traits.humor)>.5 else "I can see the %s from here.")%outfit[0]
+func _embodied_reply(_person: Dictionary,_question: String,_observations: Dictionary) -> String:
+ # Visible facts go to character context; only the model supplies their wording.
  return ""
 
 func _character_action(question: String) -> String:
@@ -1480,31 +1575,24 @@ func _character_action_point(room: String,action: String,requester: Vector3) -> 
  var board: Node3D=game.lecture_classes.signs.get(room,{}).get("board") as Node3D
  return board.global_position if is_instance_valid(board) else Vector3.INF
 
-func _character_action_reply(action: String,accepted: bool) -> String:
- if not accepted:return "I can't do that from here."
- return str({"raise_hand":"Like this?","point":"Over there, on the board.","wave":"Hey!","nod":"Mm-hm.",
-  "approach":"Give me a moment to get over there.","approach_board":"I'll go to the board.","stand":"There we go.","sit":"I'll sit here."}.get(action,""))
+func _character_action_reply(_action: String,_accepted: bool) -> String:
+ # The executed-action record informs generated speech; gestures have no
+ # deterministic spoken acknowledgement.
+ return ""
 
 func _character_action_status(action: String,accepted: bool) -> Dictionary:
  var walking:=action in ["approach","approach_board"]
  return {"action":action,"accepted":accepted,"pending":accepted and walking,"completed":accepted and not walking,"succeeded":accepted and not walking,
   "status":"started" if accepted and walking else ("completed" if accepted else "rejected")}
 
-func answer_observed_lesson_question(person: Dictionary,stage: Dictionary,question: String) -> String:
- var explanation:=LectureDirector.answer(question,stage)
- var response:=CharacterBehavior.fallback(person,CharacterBehavior.priorities(person,question,{},"lesson"),question,explanation if not stage.is_empty() else "")
- if not response.is_empty():return CharacterSpeech.complete(response)
- if stage.is_empty():return explanation
- if float(person.strictness)>=.68:return CharacterSpeech.complete("Focus on this step. "+explanation)
- if float(person.traits.teaching_effort)<.4:return explanation
- if float(person.traits.warmth)>.8:return CharacterSpeech.complete("Let's take it one step at a time. "+explanation)
- if float(person.traits.demonstrations)>.92:return CharacterSpeech.complete("Compare that with what you see on the board. "+explanation)
- return explanation
+func answer_observed_lesson_question(_person: Dictionary,_stage: Dictionary,_question: String) -> String:
+ # Compatibility seam: released curriculum is context, not offline persona speech.
+ return ""
 
 func classroom_character_exchange(activity: Dictionary,member: Dictionary,stage: Dictionary,question: String) -> String:
  var teacher:=Characters.teacher(str(activity.teacher))
  var student: Dictionary=member.profile
- var result:=await generate_character_exchange(teacher,student.id,activity,question,{"teaching_step":stage,"fallback":answer_observed_lesson_question(teacher,stage,question),"interlocutor":{"name":student.name,"role":"student"}})
+ var result:=await generate_character_exchange(teacher,student.id,activity,question,{"teaching_step":stage,"interlocutor":{"name":student.name,"role":"student"}})
  if result.is_empty() or result.get("cancelled",false):return ""
  var answer:=str(result.line)
  if not answer.is_empty():
@@ -1526,9 +1614,13 @@ func _answer_classmate(entry: Dictionary) -> void:
  var epoch:=character_epoch
  ai_busy[peer]="classmate"
  var client: Node=game.host_openai
+ var timing: Dictionary=entry.get("_timing",{}).duplicate(true)
  var question: String
  if entry.content is PackedByteArray:
+  timing.transcription_started_ms=Time.get_ticks_msec()
   var transcript: Dictionary=await client.transcribe_wav(entry.content)
+  timing.transcription_finished_ms=Time.get_ticks_msec()
+  timing.transcription_ms=int(timing.transcription_finished_ms)-int(timing.transcription_started_ms)
   if not transcript.get("ok",false):
    ai_busy.erase(peer)
    _notify_classmate(peer,room,class_id,actor,str(transcript.get("error","Speech was not recognized.")),false)
@@ -1545,8 +1637,8 @@ func _answer_classmate(entry: Dictionary) -> void:
  observations.character_posture="seated" if member.get("seated",false) else "standing"
  observations.current_activity=str(member.get("action","working"))
  var stage: Dictionary=game.lecture_classes._stage(activity) if activity.phase=="lesson" else {}
- var fallback: String=students.dialogue(person,activity.course,stage,question,brain.recall(actor,identity),activity.phase,brain.relationship(actor,identity))
- var extra:={"observations":observations,"fallback":fallback,"observed_fallback":_embodied_reply(person,question,observations),"available_actions":CharacterInteraction.ACTIONS}
+ var extra:={"observations":observations,"available_actions":CharacterInteraction.ACTIONS}
+ extra._timing=timing
  var captured_activity:=activity.duplicate(true)
  extra._valid=func():return _character_context_current(epoch,captured_activity) and str(game.school.identities.get(peer,""))==identity and not students.nearby_member(peer,room,class_id,actor).is_empty()
  var prepared:=await character_interaction.prepare(client,person,identity,activity,question,extra)
@@ -1566,24 +1658,35 @@ func _answer_classmate(entry: Dictionary) -> void:
   raised=accepted and action=="raise_hand"
   prepared.context.executed_action=_character_action_status(action,accepted)
   prepared.extra.executed_action=prepared.context.executed_action
-  prepared.extra.fallback=_character_action_reply(action,accepted)
   if accepted:game.lecture_classes._publish()
  var result:=await character_interaction.generate(client,prepared)
  ai_busy.erase(peer)
  var valid: bool=not result.get("cancelled",false) and bool(extra._valid.call())
+ if valid:_mark_character_response_ready(result)
  character_interaction.record(result,valid)
  if not valid:return
  if result.silent:
   member.action="returning to work";member.erase("look_at");member.next=maxf(float(member.next),game.lecture_classes._now()+3.)
+  # Silence can still include an actual gesture. The host's action gate owns
+  # whether it happens; a rejected proposal produces neither speech nor prose.
+  # A member has one gesture slot, so dispatch only the first accepted action.
+  for gesture in result.get("nonverbal",[]):
+   if gesture in CharacterMotion.POSES and students.act(room,activity,member,str(gesture),Vector3.INF,game.lecture_classes._now()):break
   game.lecture_classes._publish()
-  _notify_classmate(peer,room,class_id,actor,"They turn back to their work.",false)
+  _notify_classmate(peer,room,class_id,actor,"",false)
   return
- _notify_classmate(peer,room,class_id,actor,str(result.line),true,str(result.emotion),raised,str(result.turn.get("pose","")),result.turn.get("emotions",{}))
+ if result.source=="technical_unavailable":
+  _notify_classmate(peer,room,class_id,actor,str(result.get("technical_status","Character response unavailable.")),false)
+  return
+ for gesture in result.get("nonverbal",[]):
+  if gesture in ["nod","wave"]:students.act(room,activity,member,str(gesture),member.position,game.lecture_classes._now())
+ _notify_classmate(peer,room,class_id,actor,str(result.line),true,str(result.emotion),raised,str(result.turn.get("pose","")),result.turn.get("emotions",{}),str(result.event_id),timing)
 
-func _notify_classmate(peer: int,room: String,class_id: String,actor: String,line: String,speak: bool,mood := "steady",raised := false,gesture := "",affect: Dictionary={}) -> void:
+func _notify_classmate(peer: int,room: String,class_id: String,actor: String,line: String,speak: bool,mood := "steady",raised := false,gesture := "",affect: Dictionary={},event_id: String="",timing: Dictionary={}) -> void:
  var local:=peer==multiplayer.get_unique_id()
  if not local and (not game.session.online or not game.session.peer_connected_now(peer)):return
  var serial:=_next_speech("classmate") if speak else 0
+ if speak:_track_character_audio("classmate",serial,event_id,timing)
  var delivery:=Characters.speech(Classmates.profile_for(actor),game.host_openai.tts_model,2,mood,affect) if speak and _uses_class_voice() else {}
  var provider:=not delivery.is_empty()
  if local:_classmate_reply(room,class_id,actor,line,speak,mood,raised,serial,provider,gesture,affect)
@@ -1609,6 +1712,7 @@ func _classmate_reply(room: String,class_id: String,actor: String,line: String,s
  var key:=speech_cache_key(actor,text)
  var stream: AudioStreamWAV=speech_player.stream_for(key)
  speech_player.configure(bool(game.client_preferences.values.teacher_speech),bool(game.client_preferences.values.teacher_subtitles))
+ if stream!=null and not provider:_character_audio_ready("classmate",serial)
  speech_player.accept("classmate",profile.name,serial,text,2,model,null if provider else stream,1. if provider else _character_pitch(mood))
  _character_gesture("classmate",model,mood,raised,gesture)
  reaction_pose["classmate"].speech_serial=serial
@@ -1626,6 +1730,7 @@ func _request_classmate_audio(peer: int,serial: int,actor: String,text: String,d
   var result: Dictionary=await game.host_openai.speak(text,{},delivery.voice,delivery)
   stream=result.get("stream")
  if int(classmate_voice_serials.get(peer,0))!=serial:return
+ if stream!=null:_character_audio_ready("classmate",serial)
  if peer==multiplayer.get_unique_id():
   if stream==null:_voice_fallback("classmate",serial)
   elif int(pending_voice.get("classmate",{}).get("serial",0))==serial:
@@ -1635,11 +1740,15 @@ func _request_classmate_audio(peer: int,serial: int,actor: String,text: String,d
   if stream!=null:speech_player.cache_stream(key,stream)
   _send_voice_clip_to(peer,"classmate",serial,stream)
 
-func _queue_question(peer: int,room: String,content: Variant) -> void:
+func _queue_question(peer: int,room: String,content: Variant,expected_teacher: String="",expected_class: String="") -> void:
+ var received_ms:=Time.get_ticks_msec()
  if not multiplayer.is_server() or not game.session.roster.has(peer):return
  var activity: Dictionary=_ai_activity(room)
  var teacher:=str(activity.get("teacher",""))
  if not Roster.has(teacher):return
+ if not _matches_selected_target(activity,expected_teacher,expected_class):
+  if Roster.has(expected_teacher):_question_status(peer,room,expected_teacher,"The selected character or class has changed. Please select them again.")
+  return
  if not game.lecture_classes._inside(peer,room):
   _question_status(peer,room,teacher,"Please stay in the classroom to ask a question.")
   return
@@ -1650,7 +1759,7 @@ func _queue_question(peer: int,room: String,content: Variant) -> void:
  if questions.size()>=32 or count>=4:
   _question_status(peer,room,teacher,"The question queue is full. Let the teacher answer a queued question first.")
   return
- questions.append({"peer":peer,"room":room,"teacher":teacher,"class":str(activity.get("id","")),"content":content})
+ questions.append({"peer":peer,"room":room,"teacher":teacher,"class":str(activity.get("id","")),"content":content,"_timing":{"host_received_ms":received_ms,"input_kind":"microphone" if content is PackedByteArray else "typed"}})
  if game.host_openai.busy or not ai_busy.is_empty() or questions.size()>1:
   _question_status(peer,room,teacher,"Question queued. Position %d."%questions.size())
  _next_question()
@@ -1663,6 +1772,9 @@ func _next_question() -> void:
  if not _sync_character_profile():return
  if questions.is_empty() or not ai_busy.is_empty() or game.host_openai.busy:return
  var entry: Dictionary=questions.pop_front()
+ var timing: Dictionary=entry.get_or_add("_timing",{})
+ timing.queue_started_ms=Time.get_ticks_msec()
+ if timing.has("host_received_ms"):timing.queue_wait_ms=int(timing.queue_started_ms)-int(timing.host_received_ms)
  if entry.has("student"):_answer_classmate(entry);return
  var peer: int=entry.peer
  var room: String=entry.room
@@ -1676,13 +1788,13 @@ func _next_question() -> void:
  var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.ZERO)
  ai_busy[peer]=room
  _question_status(peer,room,teacher,"The teacher is answering…")
- if entry.content is PackedByteArray:_transcribe_question(peer,room,teacher,entry.class,entry.content,pos)
- else:_answer_question(peer,room,teacher,entry.class,entry.content,pos)
+ if entry.content is PackedByteArray:_transcribe_question(peer,room,teacher,entry.class,entry.content,pos,timing)
+ else:_answer_question(peer,room,teacher,entry.class,entry.content,pos,timing)
 
 func lesson_question_active(room: String) -> bool:
  return room in ai_busy.values() or questions.any(func(entry: Dictionary):return entry.get("room")==room and not entry.has("student"))
 
-func _answer_question(peer: int,room: String,id: String,class_id: String,question: String,pos: Vector3) -> void:
+func _answer_question(peer: int,room: String,id: String,class_id: String,question: String,pos: Vector3,timing: Dictionary={}) -> void:
  var activity:=_ai_activity(room)
  if not multiplayer.is_server() or activity.get("id","")!=class_id or activity.get("teacher","")!=id or not game.lecture_classes._inside(peer,room):
   ai_busy.erase(peer);return
@@ -1695,13 +1807,12 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
  var model:=_model_for_room(room,id)
  var observations:=_character_observations(peer,model,activity)
  var lab_evidence:=_ac_measurement_context(peer,activity) if room=="ac_lab" else ""
- var inspection:=not lab_evidence.is_empty() and "inspect" in question.to_lower()
- var fallback:=lab_evidence if inspection else answer_observed_lesson_question(person,stage,question)
  var active_room: Dictionary=game.lecture_classes.classes.get(room,{})
  var can_show: bool=active_room.get("id","")==class_id and activity.get("phase","")=="lesson"
  var visual:=Visuals.description(activity) if can_show else {}
  var wants_visual:=can_show and Visuals.requested(question,not visual.is_empty())
- var extra:={"observations":observations,"teaching_step":stage,"station_readings":lab_evidence,"current_display":visual,"wants_visual":wants_visual,"fallback":fallback,"observed_fallback":_embodied_reply(person,question,observations),"available_actions":CharacterInteraction.ACTIONS}
+ var extra:={"observations":observations,"teaching_step":stage,"station_readings":lab_evidence,"current_display":visual,"wants_visual":wants_visual,"available_actions":CharacterInteraction.ACTIONS}
+ extra._timing=timing.duplicate(true)
  var captured_activity:=activity.duplicate(true)
  extra._valid=func():return _character_context_current(epoch,captured_activity) and game.lecture_classes._inside(peer,room) and str(game.school.identities.get(peer,""))==identity
  var client: Node=game.host_openai
@@ -1730,7 +1841,6 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
   prepared.context.executed_action=_character_action_status(action,accepted)
   prepared.context.executed_action.current_posture="standing"
   prepared.extra.executed_action=prepared.context.executed_action
-  prepared.extra.fallback=_character_action_reply(action,accepted)
   prepared.extra.wants_visual=false
  elif permitted and can_show:
   var presentation:=Visuals.presentation_request(question)
@@ -1742,7 +1852,6 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
   if not outcome.is_empty():
    prepared.context.executed_action={"action":"presentation_control","result":outcome}
    prepared.extra.executed_action=prepared.context.executed_action
-   prepared.extra.fallback=outcome
    prepared.extra.wants_visual=false
  var result:=await character_interaction.generate(client,prepared)
  ai_busy.erase(peer)
@@ -1756,32 +1865,39 @@ func _answer_question(peer: int,room: String,id: String,class_id: String,questio
   var applied: bool=live.get("id","")==class_id and live.get("phase","")=="lesson" and Visuals.apply(live,plan.action,game.lecture_classes._now())
   prepared.extra.executed_action={"action":"visual_plan","succeeded":applied}
   if not applied:
-   result.line=CharacterBehavior.fallback(person,{"goal":"explain_limit"},"", "The display did not accept that change.")
-   if str(result.line).is_empty():result.line="The display did not accept that change."
+   result.line="";result.source="technical_unavailable";result.technical_status="The display did not accept that change."
  if current_class.has("visual_playback"):game.lecture_classes._publish()
+ _mark_character_response_ready(result)
  character_interaction.record(result,true)
  if not bool(prepared.extra.get("executed_action",{}).get("accepted",prepared.extra.get("executed_action",{}).get("succeeded",false))) and str(turn.get("pose","")) in CharacterMotion.POSES:
   _character_gesture(room,model,str(result.emotion),false,str(turn.pose))
  if result.silent:
   if attention.has(room):attention[room].until=Time.get_ticks_msec()
-  _question_status(peer,room,id,"The instructor returns to their work.")
+  _question_status(peer,room,id,"")
   return
+ if result.source=="technical_unavailable":
+  _question_status(peer,room,id,str(result.get("technical_status","Character response unavailable.")))
+  return
+ for gesture in result.get("nonverbal",[]):
+  _character_gesture(room,model,str(result.emotion),false,str(gesture))
  var reply:=str(result.line)
  _question_status(peer,room,id,reply)
  if not reply.is_empty():
   _publish_attention(room,id,pos)
-  if current_class.get("phase","")=="lesson":present_class_reaction(room,id,reply,3)
+  if current_class.get("phase","")=="lesson":present_class_reaction(room,id,reply,3,str(result.event_id),timing)
   else:
    var serial:=_next_speech(room)
+   _track_character_audio(room,serial,str(result.event_id),timing)
    _show_reaction(room,id,reply,pos,serial,3,false,str(result.emotion))
    _broadcast_reaction(room,id,reply,pos,serial,3)
  if reaction_pose.has(room):reaction_pose[room].erase("requested_pose")
 @rpc("any_peer","call_remote","reliable")
-func _ask(room: String,intent: String,phone_id: String="") -> void:
- if multiplayer.is_server():_dialogue_request(multiplayer.get_remote_sender_id(),room,intent,phone_id)
-func _dialogue_request(peer: int,room: String,intent: String,phone_id: String="") -> void:
+func _ask(room: String,intent: String,phone_id: String,expected_teacher: String,expected_class: String) -> void:
+ if multiplayer.is_server() and _valid_selected_target(expected_teacher,expected_class):_dialogue_request(multiplayer.get_remote_sender_id(),room,intent,phone_id,expected_teacher,expected_class)
+func _dialogue_request(peer: int,room: String,intent: String,phone_id: String="",expected_teacher: String="",expected_class: String="") -> void:
  if not game.session.roster.has(peer) or intent not in ["inspect_circuit","evaluate_led","hand_phone","reclaim_phone"]:return
  var activity:=_ai_activity(room)
+ if not _matches_selected_target(activity,expected_teacher,expected_class):return
  var id:=str(activity.get("teacher",""))
  var point:=_teacher_position(room)
  var pos: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
@@ -1803,11 +1919,11 @@ func _dialogue_request(peer: int,room: String,intent: String,phone_id: String=""
  var identity:=str(game.school.identities.get(peer,""))
  if identity.is_empty():return
  var request:=str({"inspect_circuit":"Please inspect my circuit.","evaluate_led":"Please evaluate my LED circuit.","hand_phone":"Please hold my phone.","reclaim_phone":"May I have my phone back?"}.get(intent,""))
- var extra:={"executed_action":{"action":intent,"result":reply},"station_readings":reply,"intention":"Respond to the confirmed operation in your own voice. The exact instrument or custody result is displayed separately. Do not invent another action, measurement, grade, or safety guarantee.","fallback":reply,"_valid":func():return str(game.school.identities.get(peer,""))==identity and game.lecture_classes._inside(peer,room)}
+ var extra:={"executed_action":{"action":intent,"result":reply},"station_readings":reply,"intention":"Respond to the confirmed operation in your own voice. The exact instrument or custody result is displayed separately. Do not invent another action, measurement, grade, or safety guarantee.","_valid":func():return str(game.school.identities.get(peer,""))==identity and game.lecture_classes._inside(peer,room)}
  var result:=await generate_character_exchange(Characters.teacher(id),identity,activity,request,extra)
  if result.is_empty() or result.get("cancelled",false):return
  var commentary:=str(result.get("line",""))
- var display:=reply if commentary.is_empty() or commentary==reply else reply+"\n\n"+commentary
+ var display:="Result: "+reply+("\n\n"+commentary if not commentary.is_empty() and commentary!=reply else "")
  if peer==multiplayer.get_unique_id():_dialogue_reply(room,id,display)
  elif game.session.online and game.session.peer_connected_now(peer):_dialogue_reply.rpc_id(peer,room,id,display)
  if not commentary.is_empty():
@@ -1874,6 +1990,7 @@ func _inspect_student_circuit(peer: int,room: String,teacher: String,activity: D
 @rpc("authority","call_remote","reliable")
 func _dialogue_reply(room: String,id: String,response: String) -> void:
  if not conversation.visible or conversation_room!=room or not conversation_student.is_empty() or not Roster.has(id):return
+ if str(conversation.get_meta("selected_character_id",""))!=id or not _selected_conversation_current():return
  conversation_name.text=str(Roster.entry(id).name)
  conversation_text.text=SpeechMath.display(response)
  conversation_scroll.set_deferred("scroll_vertical",0)
@@ -2045,7 +2162,7 @@ func report_event(peer: int,room: String,kind: String,position: Vector3,severity
   response_context.physical_state={"fault":bool(physical_view.get("equipment_fault",false)),"changed":bool(physical_view.get("measurement_changed",false))}
  if decision.intent=="demonstration_request" and is_instance_valid(class_events) and class_events.has_method("request_demonstration"):
   response_context.scheduled=bool(class_events.call("request_demonstration",peer,room,id,Time.get_ticks_msec()/1000.0))
- var text:=Dialogue.respond(id,str(decision.intent),response_context,rng.randi_range(0,8))
+ var text:="Power is off after a circuit fault. Check the connections before trying again." if kind=="lab_hazard" else ""
  if kind in ["class_message","voice_noise","phone_use"] and str(decision.get("level",""))=="firm" and activity.get("phase","")=="lesson" and is_instance_valid(class_events) and class_events.has_method("request_board_challenge"):
   class_events.call("request_board_challenge",peer,room,id,Time.get_ticks_msec()/1000.0)
  var priority:=4 if kind in ["lab_hazard","thrown_object"] else (3 if kind in ["class_message","voice_noise","phone_use"] else 1)
@@ -2057,7 +2174,7 @@ func report_event(peer: int,room: String,kind: String,position: Vector3,severity
   _show_reaction(room,id,text,position,serial,priority)
   _broadcast_reaction(room,id,text,position,serial,priority)
   return true
- var extra:={"initiate":str(context.get("message","")).is_empty(),"observed_event":{"kind":kind,"description":description},"discipline":{"action":discipline.get("action","remark"),"reason":discipline.get("reason",""),"execution":consequence},"intention":"React to the actual perceived behavior as yourself. Refer only to a consequence that was executed; a pending request is not a completed action.","fallback":text}
+ var extra:={"initiate":str(context.get("message","")).is_empty(),"observed_event":{"kind":kind,"description":description},"discipline":{"action":discipline.get("action","remark"),"reason":discipline.get("reason",""),"execution":consequence},"intention":"React to the actual perceived behavior as yourself. Refer only to a consequence that was executed; a pending request is not a completed action."}
  if not turn.is_empty():extra.existing_turn=turn;extra.existing_event_id=event_id
  _respond_observed_event.call_deferred(peer,room,id,activity.duplicate(true),str(context.get("message","")),extra,position,priority)
  return true
@@ -2218,8 +2335,7 @@ func _observe_class_overlap(peer: int,room: String,activity: Dictionary,point: V
  if int(state.first_peer)>0 and int(state.first_peer)!=peer and game.session.roster.has(int(state.first_peer)) and game.lecture_classes._inside(int(state.first_peer),room) and now-float(state.first_at)<=2.0:
   state.first_peer=0;state.next_notice=now+30.0
   class_overlap[room]=state
-  var text: String=Dialogue.overlap_comment(Dialogue.personalities().get(teacher,{}))
-  _announce_character(room,teacher,activity,"classroom:"+str(activity.get("course","")),"Two distinct students are speaking over each other during the lesson. Respond according to your tolerance, authority and current mood without inventing individual blame.",text,2,{"observed_event":{"kind":"overlapping_speech","speakers":2}})
+  _announce_character(room,teacher,activity,"classroom:"+str(activity.get("course","")),"Two distinct students are speaking over each other during the lesson. Respond according to your tolerance, authority and current mood without inventing individual blame.","",2,{"observed_event":{"kind":"overlapping_speech","speakers":2}})
   return
  state.first_peer=peer;state.first_at=now;class_overlap[room]=state
 func _model_for_room(room: String,id: String) -> Node3D:
@@ -2250,15 +2366,22 @@ func _publish_attention(room: String,id: String,point: Vector3) -> void:
   var at: Vector3=game.session.poses.get(peer,{}).get("position",Vector3.INF)
   if at.is_finite() and game.campus.registry.locate(at)==room:_attention.rpc_id(int(peer),room,id,point)
 
-func present_class_reaction(room: String,id: String,text: String,priority: int=1) -> void:
+func present_class_reaction(room: String,id: String,text: String,priority: int=1,event_id: String="",timing: Dictionary={}) -> void:
  if not multiplayer.is_server() or text.is_empty() or text.length()>CharacterSpeech.MAX_TEXT or priority<1 or priority>3:return
  var activity: Dictionary=game.lecture_classes.classes.get(room,{})
  if str(activity.get("teacher",""))!=id or activity.get("phase","")!="lesson":return
  var point:=_teacher_position(room)
  if not point.is_finite():return
  var speech_id:=_next_speech(room)
+ _track_character_audio(room,speech_id,event_id,timing)
  _show_reaction(room,id,text,point,speech_id,priority)
  _broadcast_reaction(room,id,text,point,speech_id,priority)
+
+func present_class_intention(room: String,id: String,intention: String,observed: Dictionary={},priority: int=1) -> void:
+ if not multiplayer.is_server() or intention.is_empty() or not Roster.has(id):return
+ var activity: Dictionary=game.lecture_classes.classes.get(room,{})
+ if str(activity.get("teacher",""))!=id or activity.get("phase","")!="lesson":return
+ _announce_character(room,id,activity,"classroom:"+str(activity.get("course","")),intention,"",priority,{"observed_event":observed,"official_communication":true})
 
 func acknowledge_attendance(room: String,teacher: String,peer: int) -> void:
  if not multiplayer.is_server() or not Roster.has(teacher):return
@@ -2277,14 +2400,35 @@ func present_assessment_intro(room: String,id: String,course: String) -> void:
  if is_instance_valid(speech_synth):speech_synth.cancel(room)
  _clear_reaction_pose(room)
  classroom_phase[room]="assignment"
- var text:=CharacterBehavior.classroom_line(Characters.teacher(id),"assessment",course)
- if text.is_empty():text=Dialogue.assessment_intro(Dialogue.personalities().get(id,{}),course)
- _announce_character(room,id,activity,"classroom:"+course,"The assessment has opened. Announce individual work and the classroom rules in your own voice. Never include questions, solutions, numerical hints, or private marks.",text,2,{"administrative_rules":"Individual assessment; work independently. Clarification of administrative rules is allowed."})
+ _announce_character(room,id,activity,"classroom:"+course,"The assessment has opened. Announce individual work and the classroom rules in your own voice. Never include questions, solutions, numerical hints, or private marks.","",2,{"official_communication":true,"administrative_rules":"Individual assessment; work independently. Clarification of administrative rules is allowed."})
 
 func _next_speech(room: String) -> int:
  var serial:=int(speech_serial.get(room,0))+1
  speech_serial[room]=serial
  return serial
+
+func _mark_character_response_ready(result: Dictionary) -> void:
+ var prepared: Dictionary=result.get("prepared",{})
+ if prepared.get("extra",{}).get("_timing") is Dictionary:
+  prepared.extra._timing.host_text_ready_ms=Time.get_ticks_msec()
+
+func _track_character_audio(room: String,serial: int,event_id: String,timing: Dictionary) -> void:
+ if not multiplayer.is_server() or event_id.is_empty() or not timing.has("host_received_ms"):return
+ var key:=room+":"+str(serial)
+ if not speech_turn_timings.has(key) and speech_turn_timings.size()>=128:speech_turn_timings.erase(speech_turn_timings.keys()[0])
+ speech_turn_timings[key]={"event_id":event_id,"host_received_ms":int(timing.host_received_ms)}
+
+func _character_audio_ready(room: String,serial: int) -> void:
+ _note_character_audio(room,serial,"audio_ready",Time.get_ticks_msec())
+
+func _character_audio_started(room: String,serial: int,at_ms: int) -> void:
+ _note_character_audio(room,serial,"playback_started",at_ms)
+
+func _note_character_audio(room: String,serial: int,phase: String,at_ms: int) -> void:
+ if not multiplayer.is_server():return
+ var timing: Dictionary=speech_turn_timings.get(room+":"+str(serial),{})
+ if timing.is_empty() or at_ms<int(timing.host_received_ms):return
+ character_interaction.note_audio_latency(str(timing.event_id),phase,float(at_ms-int(timing.host_received_ms)))
 
 static func speech_cache_key(id: String,text: String) -> String:
  return id+":"+text.sha256_text()
@@ -2326,13 +2470,12 @@ func present_class_call(room: String,id: String,peer: int) -> void:
  if state.is_empty() or str(state.get("class_id",""))!=str(activity.get("id","")) or state.hands.selected!=identity or state.round.closed or not state.round.present.has(identity) or not game.lecture_classes._inside(peer,room):return
  var point: Vector3=game.player.global_position if peer==multiplayer.get_unique_id() else game.session.poses.get(peer,{}).get("position",Vector3.INF)
  if not point.is_finite() or game.campus.registry.locate(point)!=room:return
- var text:=Dialogue.respond(id,"call_on",{"course":str(activity.get("course","")),"in_class":true,"phase":"lesson"},int(state.round.event_id.hash()))
  var serial:=_next_speech(room)
  class_calls[room]={"class_id":str(activity.id),"event_id":str(state.round.event_id),"identity":identity,"serial":serial}
  _request_classroom_route(room,id,"event:"+str(activity.id)+":"+str(state.round.event_id)+":called:"+str(peer),point,1.8,peer)
  _publish_attention(room,id,point)
  var event_id:=str(state.round.event_id)
- var result:=await generate_character_exchange(Characters.teacher(id),identity,activity,"",{"initiate":true,"intention":"Call on the selected student to explain their reasoning. Use your own teaching manner and do not reveal the practice answer.","fallback":text,"_valid":func():return class_calls.get(room,{}).get("event_id","")==event_id and str(state.hands.selected)==identity and not state.round.closed})
+ var result:=await generate_character_exchange(Characters.teacher(id),identity,activity,"",{"initiate":true,"official_communication":true,"intention":"Call on the selected student to explain their reasoning. Use your own teaching manner and do not reveal the practice answer.","_valid":func():return class_calls.get(room,{}).get("event_id","")==event_id and str(state.hands.selected)==identity and not state.round.closed})
  if result.is_empty() or result.get("cancelled",false) or str(result.line).is_empty():return
  serial=_next_speech(room)
  class_calls[room].serial=serial
@@ -2410,6 +2553,7 @@ func _show_reaction(room: String,id: String,text: String,point: Vector3,serial: 
   var key:=speech_cache_key(id,text)
   if not delivery.is_empty():key=_provider_speech_key(id,text,delivery)
   var stream: AudioStreamWAV=speech_player.stream_for(key)
+  if stream!=null:_character_audio_ready(room,serial)
   speech_player.accept(room,str(Roster.entry(id).name),serial,text,priority,root,stream,1. if provider or use_openai else _character_pitch(mood))
   if provider:
    pending_voice[room]={"serial":serial,"teacher":id,"text":text,"priority":priority}
@@ -2433,7 +2577,9 @@ func _request_reaction_audio(room: String,serial: int,id: String,text: String,ke
 
 func _speech_completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String) -> void:
  if status!="ok" or stream==null or not is_instance_valid(speech_player):return
- if speech_player.cache_stream(key,stream):speech_player.deliver_stream(room,serial,stream)
+ if speech_player.cache_stream(key,stream):
+  if serial==int(speech_player.last_serial.get(room,0)):_character_audio_ready(room,serial)
+  speech_player.deliver_stream(room,serial,stream)
 
 func _send_voice_clip(room: String,serial: int,stream: AudioStreamWAV) -> void:
  if serial!=int(speech_player.last_serial.get(room,0)):return

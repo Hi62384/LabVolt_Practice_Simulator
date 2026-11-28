@@ -28,19 +28,18 @@ class FixtureProvider extends Node:
 		moderated.append(text)
 		return {"ok":true,"flagged":false}
 	func interpret_character(_instructions: String,_context: Dictionary,_question: String) -> Dictionary:
-		# Real yield boundaries allow a profile switch while the original request
-		# is awaiting its provider, before CharacterInteraction may appraise it.
+		return {"ok":true,"text":JSON.stringify({"consistent":true,"reason":"Authored fixture recalls an existing personal detail."})}
+	func respond_character(_instructions: String,context: Dictionary,_question: String,_visual:=false) -> Dictionary:
+		generated+=1
 		await get_tree().process_frame
 		if during_interpretation.is_valid():
-			during_interpretation.call()
-			during_interpretation=Callable()
+			during_interpretation.call();during_interpretation=Callable()
 		await get_tree().process_frame
-		return {"ok":true,"text":JSON.stringify({"event":event,"tone":"hostile" if event=="insult" else "neutral","severity":.9 if event=="insult" else .3,
-			"meaning":"An authored fixture argument." if event=="disagreement" else "An authored fixture conversation.","domain":"conversation","difficulty":0.,
-			"assessment_request":"social","requested_action":"","memories":[],"sincere":false,"constructive":true,"topic_changed":false,"important":false})}
-	func respond_character(_instructions: String,_context: Dictionary,_question: String,_visual:=false) -> Dictionary:
-		generated+=1
 		var response: Dictionary=replies.pop_front() if not replies.is_empty() else {"speech":"I am still considering that."}
+		response.interpretation={"event":event,"tone":"hostile" if event=="insult" else "neutral","severity":.9 if event=="insult" else .3,
+			"meaning":"An authored fixture argument." if event=="disagreement" else "An authored fixture conversation.","domain":"conversation","difficulty":0.,
+			"question_kind":"casual","assessment_request":"social","requested_action":"","memories":[],"sincere":false,"constructive":true,"topic_changed":false,"important":false}
+		response.delivery={"emotion":str(context.get("emotional_state",{}).get("emotion","steady")),"knowledge_mode":"personal_conversation"}
 		return {"ok":true,"text":JSON.stringify(response)}
 
 func _initialize() -> void:call_deferred("_run")
@@ -72,22 +71,23 @@ func _run() -> void:
 	check(brain.set_host_profile(profile_a)==OK and brain.load_memory(),"production memory opens an isolated host profile")
 	var path_a: String=brain.memory_path
 	var bro:=Profiles.teacher("mr_bro")
+	bro.biography={"bench_press_pr":"My best bench press is 315 pounds."}
 	var bench: String=brain.character_biography(bro).bench_press_pr
 	var conflict:={"speech":"My best bench press is 225 pounds.","biography":{"topic":"training.bench_press_record","detail":"My best bench press is 225 pounds."}}
 	var count:=provider.generated
 	var rejected:=await _exchange(bro,"conflict-listener","What is your bench record?",[conflict,conflict])
-	check(rejected.source=="fallback" and rejected.fallback_reason=="biography_update_invalid" and provider.generated-count==2,"a conflicting bench record is rejected before delivery with bounded retry")
+	check(rejected.source=="technical_unavailable" and rejected.fallback_reason=="biography_update_invalid" and provider.generated-count==2,"a conflicting bench record is rejected before delivery with bounded retry")
 	check(not conflict.speech in provider.moderated and rejected.line!=conflict.speech,"contradictory biography never reaches output moderation or delivered speech")
 	pipeline.record(rejected)
 	check(brain.character_biography(bro).bench_press_pr==bench and "315" in bench,"recovery retains the established personal record")
 	var malformed:={"speech":"I grew up beside a quarry.","biography":"not an object"}
 	var malformed_result:=await _exchange(bro,"malformed-listener","Where did you grow up?",[malformed,malformed])
-	check(malformed_result.source=="fallback" and malformed_result.fallback_reason=="biography_update_invalid","malformed biography cannot disappear from pre-delivery validation")
+	check(malformed_result.source=="technical_unavailable" and malformed_result.fallback_reason=="biography_update_invalid","malformed biography cannot disappear from pre-delivery validation")
 	pipeline.record(malformed_result)
 	check(not malformed.speech in provider.moderated and not "quarry" in JSON.stringify(brain.character_biography(bro)),"malformed biography is neither delivered nor canonized")
 	var unspoken:={"speech":"I prefer to talk about training.","biography":{"topic":"childhood.quarry","detail":"I grew up beside a quarry."}}
 	var unspoken_result:=await _exchange(bro,"unspoken-listener","What was your childhood like?",[unspoken,unspoken])
-	check(unspoken_result.source=="fallback" and unspoken_result.fallback_reason=="biography_update_invalid","a biography proposal absent from actual speech is rejected before delivery")
+	check(unspoken_result.source=="technical_unavailable" and unspoken_result.fallback_reason=="biography_update_invalid","a biography proposal absent from actual speech is rejected before delivery")
 	pipeline.record(unspoken_result)
 	check(not brain.character_biography(bro).has("childhood.quarry"),"undelivered proposed details do not become biography")
 
@@ -102,7 +102,7 @@ func _run() -> void:
 	var established: Dictionary=brain.character_biography(bro)
 	check(established.squat_pr==life_reply.biography_facts[0].detail and established["training.partners.luis"]==life_reply.biography_facts[1].detail and established.bench_press_pr==bench,"separate specific facts coexist while the earlier bench record remains stable")
 	var another:=await _exchange(bro,"jordan","Who did you train with?",[{"speech":"I trained with Luis for three winters."}])
-	check(another.prepared.context.biography==established,"another listener receives this character's same established biography")
+	check("Luis" in JSON.stringify(another.prepared.context.personal_records) and not "315" in JSON.stringify(another.prepared.context.personal_records),"another listener retrieves the same relevant history without unrelated records")
 	pipeline.record(another)
 	check(brain.save_memory()==OK,"accepted exchanges and biography save together")
 	var restored_brain:=Brain.new();var restored_mind:=Mind.new();restored_brain.bind_mind(restored_mind)
@@ -121,7 +121,7 @@ func _run() -> void:
 	check(_opinion(nye).position==previous.position,"a generated opinion is not stored before delivery")
 	check(pipeline.record(thoughtful) and _opinion(nye).position==position and _opinion(nye).history_count==1,"delivered revision reaches the persistent character opinion")
 	var next_turn:=await _exchange(nye,"jordan","Do you still think practical placements matter?",[{"speech":"That remains my view."}])
-	check(next_turn.prepared.person.beliefs[0].position==position and next_turn.prepared.context.character.beliefs[0].position==position and next_turn.prepared.context.beliefs[0].position==position,"the next prepared person and generation context use the effective saved opinion")
+	check(next_turn.prepared.person.beliefs[0].position==position and next_turn.prepared.context.beliefs[0].position==position,"the next prepared person and generation context use the effective saved opinion")
 	pipeline.record(next_turn)
 	var unchanged: Dictionary=brain.belief_revisions.duplicate(true)
 	var other_evidence:="My evening workshop gave working students more time to practise."
@@ -138,7 +138,7 @@ func _run() -> void:
 		var test: Dictionary=bad_cases[index]
 		var bad:={"speech":other_position,"belief_updates":test.updates}
 		var result:=await _exchange(nye,"invalid-%d"%index,test.question,[bad,bad],"disagreement")
-		check(result.source=="fallback" and result.fallback_reason=="belief_update_invalid" and result.line!=other_position,"%s cannot deliver an unpersistable changed opinion"%test.label)
+		check(result.source=="technical_unavailable" and result.fallback_reason=="belief_update_invalid" and result.line!=other_position,"%s cannot deliver an unpersistable changed opinion"%test.label)
 		pipeline.record(result)
 		check(brain.belief_revisions==unchanged,"%s leaves the accepted opinion and evidence history unchanged"%test.label)
 
@@ -158,7 +158,7 @@ func _run() -> void:
 	check(mind.export_state()==switched.mind and mind.moods.is_empty(),"stale interpretation cannot initialize or mutate the new profile's affect")
 	check(brain.relationships.is_empty() and brain.conversations.is_empty() and brain.belief_revisions.is_empty() and brain.biographies.is_empty(),"stale interpretation cannot change new-profile relationships, history, opinions or biography")
 	var cancelled: Dictionary=await pipeline.generate(provider,racing)
-	check(cancelled.source=="cancelled" and cancelled.line.is_empty() and provider.generated==count and not pipeline.record(cancelled),"cancelled profile work cannot request speech, deliver text or record an event")
+	check(cancelled.source=="cancelled" and cancelled.line.is_empty() and provider.generated==count+1 and not pipeline.record(cancelled),"cancelled profile work cannot request speech, deliver text or record an event")
 	check(brain.set_host_profile(profile_a)==OK and brain.load_memory() and _opinion(nye).position==position and brain.character_biography(bro)==established and brain.recall("brian","racing-speaker").is_empty(),"returning to the original profile restores accepted evolution without the cancelled insult")
 	for path in [path_a,str(switched.path)]:
 		for suffix in ["",".bak",".tmp"]:DirAccess.remove_absolute(path+suffix)

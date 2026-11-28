@@ -11,7 +11,7 @@ const BRIAN_BASELINE:={"happiness":.189,"anger":0.,"irritation":.1209404,"frustr
 const BRIAN_RECOVERED:={"happiness":.189,"anger":.3545818,"irritation":.506445,"frustration":.04,"stress":.05,"excitement":.07,"boredom":.05,"sadness":.1051386,"disappointment":.03,"anxiety":.1056,"embarrassment":.02644532,"amusement":.04,"confidence":.86,"tiredness":.28,"interest":.11888,"patience":.0274022}
 
 func _initialize() -> void:
-	var person:=Profiles.student(14)
+	var person:=Profiles.legacy_student(14)
 	var public:=Students._public_profile(person)
 	var original_public:=public.duplicate(true)
 	assert(public.traits.size()==PUBLIC_TRAITS.size())

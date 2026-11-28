@@ -18,6 +18,7 @@ func run() -> void:
 	game.player.set_physics_process(false)
 	var classes: Node=game.lecture_classes
 	var students: Node=classes.classroom_students
+	preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd").seed(students.population,24)
 	var faculty: Node=game.faculty
 	var room:="ac_lab"
 	game.player.global_position=classes.signs[room].desk

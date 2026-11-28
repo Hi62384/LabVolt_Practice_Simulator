@@ -71,13 +71,18 @@ func _initialize() -> void:
 	remembered_turn.details=turn.details.duplicate(true)
 	check(scoped.remember_event(person,"alex",remembered_turn,question,speech,now,"cached-event"),"corrupt profile accumulates complete session progress")
 	var old_emotions: Dictionary=scoped_mind.context(person,0).emotions.duplicate(true)
+	# Another host's actual legacy version must not become this quarantined
+	# host's migration source when its unsaved state is restored from RAM.
+	write_text(Brain.profile_prefix(b)+".json",JSON.stringify({"version":1,"relationships":{}}))
 	check(scoped.set_host_profile(b)==OK and scoped.load_memory(),"a corrupt profile can switch to another valid host identity")
+	check(scoped.loaded_memory_version==1,"the other host independently loads its actual legacy migration version")
 	var path_b:=scoped.memory_path
 	check(scoped.diagnostics().cached_unsaved_profiles==1 and not scoped.diagnostics().profile_cache_durable,"diagnostics expose that an inactive profile has session-only unsaved data")
 	check(scoped.recall(person.id,"alex").is_empty() and scoped.belief_revisions.is_empty() and scoped_mind.moods.is_empty(),"cached conversations, opinions and affect do not leak into the valid profile")
 	scoped.remember_conversation(person.id,"jordan","I keep a different notebook.","Use it.",now)
 	check(scoped.save_memory()==OK,"the second profile saves normally while the first is quarantined in RAM")
 	check(scoped.set_host_profile(a)==OK and not scoped.load_memory(),"returning to a corrupt profile restores RAM and honestly reports blocked durability")
+	check(scoped.loaded_memory_version==Brain.MEMORY_VERSION,"restoring quarantined state preserves its own migration source version")
 	check(scoped.recall(person.id,"alex").size()==1 and scoped.recall(person.id,"jordan").is_empty() and scoped.character_beliefs(person)[0].position==position,"returning restores only the original profile's transcript and current opinion")
 	check(absf(float(scoped_mind.context(person,Time.get_ticks_msec()).emotions.interest)-float(old_emotions.interest))<.02,"cached emotional state returns with its host identity")
 	check(scoped.diagnostics().persistence_state=="blocked_unsaved" and scoped.diagnostics().cached_unsaved_profiles==0,"restored unsaved state is active and no longer counted as an inactive cache entry")

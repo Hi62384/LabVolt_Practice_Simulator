@@ -1,0 +1,42 @@
+{
+  "source": "actual loopback HTTP, authored provider fixture; not live AI",
+  "tests": [
+    {
+      "test": "test_host_openai_client",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false,
+      "log": "test_host_openai_client.log"
+    },
+    {
+      "test": "test_teacher_ai",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false,
+      "log": "test_teacher_ai.log"
+    },
+    {
+      "test": "test_openai_evaluation",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false,
+      "log": "test_openai_evaluation.log"
+    },
+    {
+      "test": "test_character_http_transport",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false,
+      "log": "test_character_http_transport.log"
+    },
+    {
+      "test": "test_character_background_http",
+      "exit_code": 0,
+      "passed": true,
+      "script_errors": false,
+      "log": "test_character_background_http.log"
+    }
+  ],
+  "verified_commit": "d55cd873841e4c5dc299d58075766f07e2bcba48",
+  "runtime": "Godot 4.5.1 Mono"
+}

@@ -6,6 +6,7 @@ import math
 import os
 import struct
 import threading
+import time
 import wave
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -16,11 +17,18 @@ class Handler(BaseHTTPRequestHandler):
     requests = []
     request_sequence = 0
     request_lock = threading.Lock()
+    CHARACTER_USAGE = {"input_tokens": 101, "output_tokens": 37,
+                       "input_tokens_details": {"cached_tokens": 64},
+                       "output_tokens_details": {"reasoning_tokens": 8}}
+    BACKGROUND_USAGE = {"input_tokens": 611, "output_tokens": 231,
+                        "input_tokens_details": {"cached_tokens": 128},
+                        "output_tokens_details": {"reasoning_tokens": 17}}
 
     def _record_request(self, body):
         with self.request_lock:
             Handler.request_sequence += 1
-            Handler.requests.append({"sequence": Handler.request_sequence, "path": self.path, "body": body})
+            Handler.requests.append({"sequence": Handler.request_sequence, "path": self.path,
+                                     "received_at_ms": time.monotonic_ns() // 1_000_000, "body": body})
             del Handler.requests[:-256]
 
     def _text(self, text, status="completed", **metadata):
@@ -41,25 +49,55 @@ class Handler(BaseHTTPRequestHandler):
     def _interpret(request):
         # These authored fixture labels test orchestration, not semantic quality.
         hostile = "HTTP_FIXTURE_SEMANTIC_INSULT" in request
-        return {"event": "insult" if hostile else "chat", "tone": "hostile" if hostile else "neutral",
+        result = {"event": "insult" if hostile else "chat", "tone": "hostile" if hostile else "neutral",
                 "severity": 0.9 if hostile else 0.1, "meaning": "The speaker attacks the teacher's competence." if hostile else "The speaker makes a fixture conversation request.",
-                "topic": "fixture conversation", "domain": "conversation", "difficulty": 0.0,
+                "topic": "fixture conversation", "domain": "conversation", "difficulty": 0.0, "question_kind": "casual",
                 "assessment_request": "social", "requested_action": "", "memories": [],
                 "sincere": False, "constructive": False, "topic_changed": False,
                 "important": False, "current_information": False}
+        if "HTTP_FIXTURE_ASSESSMENT_COPY" in request:
+            result.update(assessment_request="solution", question_kind="academic", domain="math",
+                          difficulty=0.5, meaning="The speaker requests help solving the assessed problem.")
+        return result
+
+    @classmethod
+    def _character_details(cls, body, character_input, speech):
+        context = character_input["context"]
+        request = character_input["player_dialogue"]
+        joint = "generate the same character's response in ONE JSON object" in body.get("instructions", "")
+        emotion = context.get("emotional_state", {}).get("emotion", "steady")
+        # Deliberately stale delivery exercises the production host validation
+        # and bounded repair, without pretending to model a realistic person.
+        if joint and "HTTP_FIXTURE_SEMANTIC_INSULT" in request:
+            emotion = "sad"
+        if "HTTP_FIXTURE_BAD_DELIVERY" in request:
+            emotion = "invalid_fixture_emotion"
+        result = {"speech": speech, "event": "", "memory": "", "memories": [],
+                  "biography": None, "biography_facts": [], "belief_updates": [],
+                  "delivery": {"emotion": emotion, "knowledge_mode": "personal_conversation"
+                               if context.get("knowledge_restrictions", {}).get("allowed", True) else "uncertain"}}
+        if joint:
+            result["interpretation"] = cls._interpret(request)
+            result["behavior"] = {"intention": "respond", "mode": "engage", "action": ""}
+        return result
 
     def _reply(self, code, data):
         self._reply_bytes(code, json.dumps(data).encode(), "application/json")
 
     def _reply_bytes(self, code, body, content_type):
-        self.send_response(code)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            # Cancellation intentionally closes an actual in-flight socket.
+            pass
 
     def _authorized(self):
-        return self.headers.get("Authorization") == "Bearer sk-test-12345678901234567890"
+        return self.headers.get("Authorization") in {
+            "Bearer sk-test-12345678901234567890", "Bearer sk-replacement-12345678901234567890"}
 
     def do_GET(self):
         if self.headers.get("Authorization") == "Bearer sk-rate-limited-12345678901234567890":
@@ -124,13 +162,27 @@ class Handler(BaseHTTPRequestHandler):
                 return self._reply(400, {"error": {"message": "bad moderation model"}})
             return self._reply(200, {"results": [{"flagged": body.get("input") == "flag this"}]})
         instructions = str(body.get("instructions", ""))
+        if self.path == "/v1/responses" and instructions.startswith("HTTP_FIXTURE_GENERATE_DOSSIER"):
+            try:
+                data = json.loads(body.get("input", ""))
+            except (ValueError, TypeError):
+                return self._reply(400, {"error": {"message": "invalid background context"}})
+            if (not isinstance(data, dict) or body.get("store") is not False
+                    or not 4096 <= int(body.get("max_output_tokens", 0)) <= 16000
+                    or "_character_background" in body):
+                return self._reply(400, {"error": {"message": "invalid population request envelope"}})
+            time.sleep(max(0, min(3.0, float(data.get("delay_ms", 1200)) / 1000)))
+            if data.get("reject_credentials"):
+                return self._reply(403, {"error": {"message": "fixture credential rejection"}})
+            return self._text(json.dumps({"fixture_dossier": str(data.get("marker", ""))}),
+                              usage=self.BACKGROUND_USAGE)
         if self.path == "/v1/responses" and instructions.startswith("Interpret one perceived interaction"):
             character_input = self._character_input(body)
             if character_input is None or body.get("store") is not False or int(body.get("max_output_tokens", 0)) < 900:
                 return self._reply(400, {"error": {"message": "invalid semantic character envelope or budget"}})
             if "TEST_INJECTION" in instructions:
                 return self._reply(400, {"error": {"message": "player input reached semantic instructions"}})
-            return self._text(json.dumps(self._interpret(character_input["player_dialogue"])))
+            return self._text(json.dumps(self._interpret(character_input["player_dialogue"])), usage=self.CHARACTER_USAGE)
         if self.path == "/v1/responses" and (
                 "You are teaching a simulator classroom" in instructions
                 or str(body.get("input", "")).startswith("You are teaching a simulator classroom")):
@@ -163,10 +215,13 @@ class Handler(BaseHTTPRequestHandler):
                 plan["speech"] = "The arrow and the graph show the same cycle from two different viewpoints. " * 16
                 plan["speech"] = plan["speech"].strip()
                 plan.update(memory="", memories=[], biography=None, biography_facts=[], belief_updates=[])
-            return self._reply(200, {"status": "completed", "output": [
-                {"type": "message", "content": [{"type": "output_text", "text": json.dumps(plan)}]}]})
+            if instructions and ("Return JSON:" in instructions or "Return JSON with speech," in instructions):
+                details = self._character_details(body, self._character_input(body), plan["speech"])
+                details.update(plan)
+                plan = details
+            return self._text(json.dumps(plan), usage=self.CHARACTER_USAGE)
         if self.path == "/v1/responses" and (
-            instructions.startswith("You are ")
+            instructions.startswith(("You are ", "Portray the campus person described in character_core."))
             or str(body.get("input", "")).startswith(("You are a fictional classroom instructor", "Speak in character as this classroom instructor"))
         ):
             if instructions:
@@ -189,16 +244,18 @@ class Handler(BaseHTTPRequestHandler):
             if "HTTP_FIXTURE_BAD_DIALOGUE_JSON" in request:
                 return self._text('{"speech":"This JSON never closes')
             answer = "The board shows a current path."
+            if instructions and character_input["context"].get("activity", {}).get("phase") == "assignment":
+                answer = "That part is yours to work out."
             if "HTTP_FIXTURE_LONG_SPEECH" in request:
                 answer = ("This complete sentence belongs to a long fixture explanation. " * 20).strip()
-            if "Return JSON with speech," in instructions:
-                if "decision" not in character_input["context"]:
+            if "Return JSON with speech," in instructions or "Return JSON: {speech," in instructions:
+                joint = "generate the same character's response in ONE JSON object" in instructions
+                if not joint and "decision" not in character_input["context"]:
                     return self._reply(400, {"error": {"message": "missing authoritative character decision"}})
                 if int(body.get("max_output_tokens", 0)) < 1400:
                     return self._reply(400, {"error": {"message": "character speech budget is too small"}})
-                answer = json.dumps({"speech": answer, "event": "", "memory": "", "memories": [],
-                                     "biography": None, "biography_facts": [], "belief_updates": []})
-            return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": answer}]}]})
+                answer = json.dumps(self._character_details(body, character_input, answer))
+            return self._text(answer, usage=self.CHARACTER_USAGE)
         if self.path == "/v1/responses" and body.get("store") is False:
             request_input = body.get("input")
             if isinstance(request_input, str) and request_input.startswith("Choose one answer."):
@@ -214,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
                 plan = {"focus": "evidence", "scenarios": [37, 526, 1044]}
                 return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": json.dumps(plan)}]}]})
             if request_input == "Reply with the single word Ready.":
-                if body.get("model") != "gpt-5.4-mini":
+                if body.get("model") not in {"gpt-5.4-mini", "gpt-4.1"}:
                     return self._reply(403, {"error": {"message": "unavailable model"}})
                 return self._reply(200, {"status": "completed", "output": [{"type": "message", "content": [{"type": "output_text", "text": "Ready"}]}]})
             if isinstance(request_input, str) and request_input.startswith("You are an assistant inside a fictional campus browser"):
