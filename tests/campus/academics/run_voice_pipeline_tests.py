@@ -13,6 +13,13 @@ import tempfile
 import time
 
 CASES = (
+    "test_voice_meter_input",
+    "test_subtitle_audibility",
+    "test_realtime_stream_buffer",
+    "test_character_worldviews",
+    "test_teacher_personality_isolated",
+    "test_character_interaction_pipeline",
+    "test_character_request_timing",
     "test_character_voice_identity",
     "test_character_voice_studio",
     "test_custom_voice_recovery",

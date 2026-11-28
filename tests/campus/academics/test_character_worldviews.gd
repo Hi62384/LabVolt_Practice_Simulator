@@ -39,6 +39,12 @@ func _run() -> void:
 	var stone:=Profiles.teacher("mr_stone")
 	var bro:=Profiles.teacher("mr_bro")
 	var stanley:=Profiles.teacher("stanley")
+	var chad_orientation:=Behavior.conversation_orientation(chad,{},{},"freeplay")
+	var bird_orientation:=Behavior.conversation_orientation(bird,{},{},"freeplay")
+	var tired_orientation:=Behavior.conversation_orientation(stanley,{},{"current_activity":"sleeping"},"freeplay")
+	assert(chad_orientation.priorities!=bird_orientation.priorities,"Initial model request distinguishes different personalities")
+	assert(tired_orientation.engagement<=Behavior.conversation_orientation(stanley,{},{},"freeplay").engagement,"Current activity affects willingness to engage")
+	assert(not Behavior.priorities(chad,"Help me decide what to do with my career.",{},"lesson","steady",{"question_kind":"opinion","domain":"conversation","event":"initiative"}).academic,"Personal opinions are not academic help merely because the speaker says help")
 	for question in ["I'm excited to be here.","I love college.","Should I drop out?","I don't care about becoming rich."]:
 		var decision:=Behavior.priorities(chad,question,{},"lesson")
 		assert(decision.goal=="express_own_priorities",question)
