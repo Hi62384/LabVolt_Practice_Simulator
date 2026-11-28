@@ -4,7 +4,6 @@ extends RefCounted
 const PATH := "res://assets/campus/faculty/voice_profiles.json"
 const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
 const Models=preload("res://scripts/campus/ai/openai_models.gd")
-const DESIGNS_PATH := "res://assets/campus/faculty/character_voice_designs.json"
 const Design=preload("res://scripts/campus/academics/character_voice_design.gd")
 const SCHEMA_VERSION := 1
 const MAX_IDENTITIES := 8192
@@ -23,11 +22,11 @@ static var last_error: Error=OK
 
 static func designs() -> Dictionary:
 	if _designs.is_empty():
-		var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string(DESIGNS_PATH))
-		if parsed is Dictionary and parsed.get("version")==1 and parsed.get("voices") is Dictionary:
-			for id: String in Roster.PEOPLE:
-				if not _valid_identity(parsed.voices.get(id,{}),id):return {}
-			_designs=parsed.voices.duplicate(true)
+		var authored:=Design.authored()
+		if authored.size()!=Roster.PEOPLE.size():return {}
+		for id: String in Roster.PEOPLE:
+			if not _valid_identity(authored.get(id,{}),id):return {}
+		_designs=authored
 	return _designs.duplicate(true)
 
 static func scope_for(person: Dictionary) -> String:

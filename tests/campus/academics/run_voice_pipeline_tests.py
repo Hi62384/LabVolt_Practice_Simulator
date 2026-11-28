@@ -13,6 +13,9 @@ import tempfile
 import time
 
 CASES = (
+    "test_character_voice_identity",
+    "test_character_voice_studio",
+    "test_custom_voice_recovery",
     "test_teacher_speech_player",
     "test_teacher_speech_synth",
     "test_teacher_speech_long_delivery",

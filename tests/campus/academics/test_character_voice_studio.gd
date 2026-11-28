@@ -68,6 +68,13 @@ func _run() -> void:
 	check(host.creations==21,"Repeated batch never creates duplicate provider allocations")
 	panel._next_candidate()
 	check(panel.selected_id!="mr_bro" and panel.use_candidate.button_pressed,"Next candidate advances to an unapproved teacher")
+	var next_id:=panel.selected_id
+	await panel._play_core()
+	var until:=Time.get_ticks_msec()+5000
+	while (panel.busy or panel.audio.playing or not panel.core_queue.is_empty()) and Time.get_ticks_msec()<until:await process_frame
+	var heard:=Voices.auditions_for(Voices.candidate(next_id),panel._model(),panel.sentence.text)
+	check(Voices.AUDITION_MOODS.all(func(mood: String):return heard.has(mood)),"Three-core audition sequence records all moods on the same model and script")
+	check(panel.approve_button.disabled,"Batch audition never substitutes for human approval")
 	check(host.requests[0].text==host.requests[1].text and host.requests[1].voice==host.requests[2].voice,"Emotion comparisons use the same words and stable voice")
 	check(host.requests[1].delivery.instructions!=host.requests[2].delivery.instructions,"Emotion comparisons change model performance instructions")
 	panel.queue_free();host.queue_free();await process_frame

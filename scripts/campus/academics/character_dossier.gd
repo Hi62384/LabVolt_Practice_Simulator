@@ -95,7 +95,7 @@ static func project(profile: Dictionary, dossier: Dictionary, include_dossier :=
 	# Existing faculty have an authored acoustic design independent of legacy
 	# modulo suggestions or any generated dossier prose. Actual approved IDs
 	# remain in the separate voice store and never enter the dossier.
-	if VocalDesign.authored().has(str(result.get("id",""))):result.voice=VocalDesign.dossier_seed(result)
+	if VocalDesign.has_authored(str(result.get("id",""))):result.voice=VocalDesign.dossier_seed(result)
 	result.subjects = dossier.get("subjects",profile.get("subjects",[])).duplicate()
 	result.behavior_examples = []
 	# Examples live only in the dossier and are retrieved for real requests.

@@ -12,12 +12,19 @@ const HINTS:={
 const MAX_PROMPT:=2000
 static var _authored: Dictionary={}
 
-static func authored() -> Dictionary:
+static func _load_authored() -> void:
 	if _authored.is_empty():
 		var parsed: Variant=JSON.parse_string(FileAccess.get_file_as_string(DESIGNS_PATH))
 		if parsed is Dictionary and parsed.get("version")==1 and parsed.get("voices") is Dictionary:
 			_authored=parsed.voices.duplicate(true)
+
+static func authored() -> Dictionary:
+	_load_authored()
 	return _authored.duplicate(true)
+
+static func has_authored(id: String) -> bool:
+	_load_authored()
+	return _authored.has(id)
 
 static func _text(value: Variant,fallback: String,limit: int) -> String:
 	if not value is String:return fallback
@@ -42,8 +49,8 @@ static func _suggest(presentation: String,pitch: float,warmth: float,pace: float
 static func draft(person: Dictionary) -> Dictionary:
 	var id:=str(person.get("id",""))
 	if id.is_empty():return {}
-	var designed:=authored()
-	if designed.has(id):return designed[id].duplicate(true)
+	_load_authored()
+	if _authored.has(id):return _authored[id].duplicate(true)
 	var role:=str(person.get("role","student"))
 	var traits: Dictionary=person.get("traits",{}) if person.get("traits",{}) is Dictionary else {}
 	var vocal: Dictionary={}
