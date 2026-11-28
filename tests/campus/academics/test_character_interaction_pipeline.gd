@@ -200,6 +200,13 @@ func _run() -> void:
 	check(Pipeline.leading_speech("{\"speech\":\"half")==null,"An incomplete string is never displayed")
 	check(Pipeline.leading_speech("{ \"speech\" : \"He said \\\"hello\\\".\", \"delivery\":")== 'He said "hello".',"Streaming parser preserves escaped speech without exposing metadata")
 	check(Pipeline.leading_speech("{\"interpretation\":{\"speech\":\"nested\"}}")==null,"A nested speech key cannot become a preview")
+	check(Pipeline.speech_progress("{\"speech\":\"Hello wor").get("text","")=="Hello wor","Partial speech words are decoded before the closing quote")
+	check(Pipeline.speech_progress("{\"speech\":\"He said \\").get("text","")=="He said ","A split escape never leaks into the preview")
+	check(Pipeline.speech_progress("{\"speech\":\"A \\uD83D").get("text","")=="A ","A split surrogate stays buffered")
+	check(Pipeline.speech_progress("{\"speech\":\"A \\uD83D\\uDE00!").get("text","")=="A 😀!","Complete surrogate is decoded")
+	check(Speech.sentence_parts("Voltage is 12.",false).is_empty(),"A trailing period might be a decimal and is held until lookahead")
+	check(Speech.sentence_parts("Dr. Volts measured 12.5 volts. Next",false)==["Dr. Volts measured 12.5 volts."],"Completed sentences preserve decimal values and titles")
+	check(Speech.sentence_parts("First. Second. Third. Fourth. Fifth. Sixth. Seventh.",true)==["First.","Second.","Third.","Fourth.","Fifth.","Sixth. Seventh."],"Long text segmentation is bounded without dropping words")
 
 	# Models can predict a different mood from the deterministic host, or omit
 	# optional delivery metadata on a normal question. Neither warrants retrying.
