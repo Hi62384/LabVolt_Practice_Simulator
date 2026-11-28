@@ -7,10 +7,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
 import time
+
+SPAWN_CASES = ("test_faculty", "test_npc_spawn_smoke")
 
 CASES = (
     "test_voice_meter_input",
@@ -40,7 +43,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--godot", required=True)
     parser.add_argument("--logs", required=True)
-    parser.add_argument("--cases", nargs="+", choices=CASES, default=CASES)
+    parser.add_argument("--cases", nargs="+", choices=CASES + SPAWN_CASES, default=CASES)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     logs = Path(args.logs).resolve()
@@ -62,7 +65,7 @@ def main() -> int:
                 output += "\nTEST TIMEOUT\n"
                 code = 124
             (logs / f"{case}.log").write_text(output, encoding="utf-8")
-            failed = code != 0 or " PASS" not in output or any(
+            failed = code != 0 or not re.search(r"\bPASS\b", output) or any(
                 marker in output for marker in ("SCRIPT ERROR", "Parse Error", "ERROR:", "Assertion failed", "TEST TIMEOUT")
             )
             results.append({"case": case, "passed": not failed, "exit_code": code,

@@ -1,7 +1,9 @@
 name: NPC native regressions
 on:
   push:
-    branches: [dev/npc-realtime-overhaul-20261128]
+    branches: [dev/npc-realtime-overhaul-20261128, dev/npc-spawn-hotfix-20261128, windows-launcher]
+  pull_request:
+    branches: [windows-launcher]
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,8 +45,16 @@ jobs:
         run: |
           dotnet build CollegeSimulator.sln --configuration Debug
           if ($LASTEXITCODE) { throw 'C# build failed' }
-          & $env:GODOT --headless --path . --import
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/npc-logs" | Out-Null
+          & $env:GODOT --headless --path . --import --log-file "$env:RUNNER_TEMP/npc-logs/import.log"
           if ($LASTEXITCODE) { throw 'Godot import failed' }
+          if (Select-String -Path "$env:RUNNER_TEMP/npc-logs/import.log" -Pattern 'SCRIPT ERROR|Parse Error|Compile Error|Failed to load script' -Quiet) { throw 'Godot import logged a script compilation failure' }
+      - name: Campus startup and NPC presence smoke tests
+        id: spawn
+        shell: pwsh
+        run: |
+          python tests/campus/academics/run_voice_pipeline_tests.py --godot "$env:GODOT" --logs "$env:RUNNER_TEMP/npc-logs/spawn" --cases test_faculty test_npc_spawn_smoke
+          if ($LASTEXITCODE) { throw 'NPC startup/spawn regression' }
       - name: Targeted native streaming and UI regressions
         shell: pwsh
         run: |

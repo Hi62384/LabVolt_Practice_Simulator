@@ -81,10 +81,11 @@ static func project(profile: Dictionary, dossier: Dictionary, include_dossier :=
 	# Authored faculty constraints are still authoritative after a dossier was
 	# generated or loaded from an older save. Do not rewrite the saved history.
 	var constraints: Dictionary=profile.get("trait_constraints",{})
-	for trait: String in constraints:
-		var bounds: Variant=constraints[trait]
-		if bounds is Array and bounds.size()==2 and result.traits.has(trait):
-			result.traits[trait]=clampf(float(result.traits[trait]),float(bounds[0]),float(bounds[1]))
+	# `trait` is a reserved GDScript identifier (including in Godot 4.5).
+	for trait_name: String in constraints:
+		var bounds: Variant=constraints[trait_name]
+		if bounds is Array and bounds.size()==2 and result.traits.has(trait_name):
+			result.traits[trait_name]=clampf(float(result.traits[trait_name]),float(bounds[0]),float(bounds[1]))
 	result.personality_description = str(personality.get("description", ""))
 	result.speaking_description = str(communication.get("description", ""))
 	result.style = result.speaking_description
