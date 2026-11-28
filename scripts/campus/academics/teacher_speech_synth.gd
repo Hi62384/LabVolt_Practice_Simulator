@@ -85,9 +85,13 @@ func prefetch_sentence(owner: String,index: int,text: String,delivery: Dictionar
 	var signature:=part_signature(text,delivery)
 	if part_cache.has(signature):return
 	var entries:=0
-	for parts in prefetch_turns.values():entries+=parts.size()
+	for existing_parts in prefetch_turns.values():entries+=existing_parts.size()
 	var parts: Dictionary=prefetch_turns.get_or_add(owner,{})
 	if parts.has(index) or entries>=MAX_PREFETCH_ENTRIES:return
+	# Identical earlier sentences can populate the exact-performance cache;
+	# don't speculate a second billable rendering within the same turn.
+	for earlier in parts.values():
+		if earlier.signature==signature:return
 	prefetch_sequence+=1
 	var request_id:="voice-%s-%d-prefetch-%d-part-%d"%[instance_id,session_epoch,prefetch_sequence,index]
 	parts[index]={"signature":signature,"text":text,"delivery":Delivery.for_text(delivery,text),"owner":owner,"index":index,"request_id":request_id,"guard":guard,"created":Time.get_ticks_msec(),"epoch":session_epoch,"done":false,"canceled":false}

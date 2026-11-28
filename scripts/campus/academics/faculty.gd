@@ -1154,7 +1154,15 @@ func open_conversation(room: String, student := "", class_id := "") -> void:
  var member: Dictionary=game.lecture_classes.classroom_students.visible_member(room,class_id,student) if not student.is_empty() else {}
  if (student.is_empty() and not Roster.has(id)) or (not student.is_empty() and member.is_empty()):return
  _cancel_recording()
- # Switching/reopening creates a fresh UI session; hiding alone does not.
+ # Reopening the same hidden conversation must not invalidate its reply.
+ var next_class:=class_id if not student.is_empty() else str(activity.get("id",""))
+ var next_actor:=id if student.is_empty() else student
+ if manual_detached and not manual_conversation_nonce.is_empty() and conversation_room==room and conversation_class==next_class and conversation_student==student and str(conversation.get_meta("selected_character_id",""))==next_actor and _selected_conversation_current(false):
+  manual_detached=false
+  _stop_voice_conversation()
+  conversation.call("open_character");speech_player.subtitle_layer.show();game.release_mouse()
+  return
+ # Switching targets creates a new UI session and retires the old one.
  _close_manual_session()
  conversation_room=room
  conversation_student=student
@@ -1562,10 +1570,13 @@ func _context_question_status(peer: int,room: String,actor: String,message: Stri
 
 @rpc("authority","call_remote","reliable")
 func _manual_dialogue_reply(room: String,actor: String,message: String,nonce: String,request_id: String) -> void:
- if nonce!=manual_conversation_nonce or request_id!=manual_latest_request or not _selected_conversation_current():return
+ if nonce!=manual_conversation_nonce or request_id!=manual_latest_request or not _selected_conversation_current(false):return
  if conversation_room!=room or str(conversation.get_meta("selected_character_id",""))!=actor:return
- if conversation_student.is_empty():_dialogue_reply(room,actor,message)
- else:conversation_text.text=SpeechMath.display(message);conversation_scroll.set_deferred("scroll_vertical",0)
+ if conversation_student.is_empty() and Roster.has(actor):conversation_name.text=str(Roster.entry(actor).name)
+ var streaming:=message.begins_with("Reply (verifying…)")
+ var was_streaming: bool=conversation_text.text.begins_with("Reply (verifying…)")
+ conversation_text.text=SpeechMath.display(message)
+ if conversation.visible:conversation_scroll.set_deferred("scroll_vertical",100000 if streaming or was_streaming else 0)
 
 func _transcribe_context(peer: int,wav: PackedByteArray,context: Dictionary,guard: Callable) -> Dictionary:
  if not guard.is_valid() or not bool(guard.call()):return {"ok":false,"cancelled":true}
@@ -1942,7 +1953,7 @@ func _classmate_reply(room: String,class_id: String,actor: String,line: String,s
  var model: Node3D=students.models.get(class_id+":"+actor)
  var profile:=Classmates.profile_for(actor)
  if not is_instance_valid(model) or profile.is_empty():return
- if not tracking_only and (not manual or str(voice_context.get("request_id",""))==manual_latest_request) and conversation.visible and conversation_room==room and conversation_class==class_id and conversation_student==actor:
+ if not tracking_only and (not manual or str(voice_context.get("request_id",""))==manual_latest_request) and (conversation.visible or (manual and manual_detached)) and conversation_room==room and conversation_class==class_id and conversation_student==actor:
   conversation_text.text=SpeechMath.display(line);conversation_scroll.set_deferred("scroll_vertical",0)
  elif not tracking_only and voice_room==room and voice_class==class_id and voice_student==actor and not speak:
   voice_hint.text=line;voice_hint.show()
@@ -2871,7 +2882,7 @@ func _request_reaction_audio(channel: String,serial: int,id: String,text: String
   _speech_completed.call_deferred(channel,serial,key,stream,"ok");return
  delivery=delivery.duplicate(true)
  delivery.segmented=true
- if timing.get("sentence_mode",false):
+ if timing.get("sentence_mode",false) or (not owner.is_empty() and speech_synth.prefetch_turns.has(owner)):
   delivery.sentence_mode=true;delivery.prefetch_turn=owner
  var result: String=speech_synth.request(channel,serial,id,text,key,priority,delivery)
  if result not in ["queued","duplicate","cached"]:
