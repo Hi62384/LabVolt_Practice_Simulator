@@ -47,7 +47,9 @@ func _start() -> bool:
  microphone.subscribe("meter_"+str(get_instance_id()),true)
  player=microphone.player;capture=microphone.capture
  running=microphone.is_active()
- if not running:note.text=str(microphone.diagnostic.reason);return false
+ if not running:
+  var reason:=str(microphone.diagnostic.reason)
+  _stop();note.text=reason;return false
  toggle.text="Stop microphone test";note.text="Local level test is on. Speech detection does not yet verify transcription."
  set_process(true);return true
 
@@ -57,7 +59,9 @@ func _process(_delta: float) -> void:
  meter.value=float(data.get("rms",0.0))
  speech_seen=speech_seen or bool(data.get("speech",false))
  if not microphone.is_active():_stop();note.text=str(data.get("reason","Microphone stopped."));return
- if cloud_kind.is_empty():note.text="Speech activity detected locally. Cloud transcription has not been tested." if data.get("speech",false) else "Listening locally. Speak normally; no audio is being sent."
+ if cloud_kind.is_empty():
+  note.text=str(data.get("reason","Listening locally."))+" No audio is being sent."
+  stages.text="Input frames: %d · PCM bytes: %d · Capture overrun: %d · Stage: %s"%[int(data.get("frames_received",0)),int(data.get("pcm_bytes",0)),int(data.get("discarded_frames",0)),str(data.get("stage","off"))]
  elif Time.get_ticks_msec()-test_started>=6000:_finish_cloud()
 
 func _packet(pcm: PackedByteArray,_data: Dictionary) -> void:
@@ -75,11 +79,15 @@ func _start_cloud(kind: String) -> void:
 
 func _finish_cloud() -> void:
  if cloud_kind.is_empty():return
+ if is_instance_valid(microphone):microphone.drain_pending()
  var kind:=cloud_kind;var samples:=test_audio.duplicate();var detected:=speech_seen
+ var capture_status: Dictionary=microphone.diagnostic.duplicate() if is_instance_valid(microphone) else {}
  var generation:=epoch
  cloud_kind="";test_audio.clear()
  _stop(false)
- if not detected or samples.size()<4800:stages.text="Capture finished, but speech was not detected. No audio was sent.";_enable_buttons();return
+ if not detected or samples.size()<4800:
+  stages.text=str(capture_status.get("reason","No input frames arrived."))+" No audio was sent." if int(capture_status.get("frames_received",0))==0 else "Audio frames arrived, but no sufficient speech was detected. Check hardware mute, input level and sensitivity. No audio was sent."
+  _enable_buttons();return
  stages.text="Capture: received · Speech detection: detected · Transcription: checking"
  var result: Dictionary=await game.host_openai.transcribe_wav(preload("res://scripts/campus/academics/teacher_ai.gd").wav_16k(samples))
  samples.clear()

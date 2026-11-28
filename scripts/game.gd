@@ -22,6 +22,7 @@ var inspection_views := {}
 var inspection_view_key := ""
 var inspection_views_loaded := false
 var hotbar: CanvasLayer
+var student_population_sync: Node
 var electronics_trade: Node
 var kit_world: Node3D
 var discarded_items: Node3D
@@ -271,6 +272,8 @@ func _ready() -> void:
 	device_charging.name="DeviceCharging";add_child(device_charging);device_charging.build(self)
 	health=preload("res://scripts/campus/health/service.gd").new()
 	health.name="Health";add_child(health);health.build(self)
+	for control in [hotbar.bar,health.bar,health.health_caption,ui.prompt,held_hint,held_item_name]:
+		control.add_to_group("subtitle_obstacle")
 	shop_room=preload("res://scripts/shop_room.gd").new();add_child(shop_room);shop_room.build_campus(self,campus)
 	circuit_studio=preload("res://scripts/campus/facilities/circuit_studio/mount_controller.gd").new()
 	circuit_studio.name="CircuitStudio"
@@ -288,6 +291,8 @@ func _ready() -> void:
 	lecture_classes.name="LectureClasses";add_child(lecture_classes);lecture_classes.build(self)
 	faculty=preload("res://scripts/campus/academics/faculty.gd").new()
 	faculty.name="Faculty";add_child(faculty);faculty.build(self)
+	student_population_sync=preload("res://scripts/campus/academics/student_population_sync.gd").new()
+	student_population_sync.name="StudentPopulationSync";add_child(student_population_sync);student_population_sync.configure(self)
 	classroom_projectiles=preload("res://scripts/campus/academics/classroom_projectiles.gd").new()
 	classroom_projectiles.name="ClassroomProjectiles";add_child(classroom_projectiles);classroom_projectiles.build(self)
 	item_throw=preload("res://scripts/campus/items/item_throw.gd").new()
@@ -1104,7 +1109,12 @@ func _physics_process(delta: float) -> void:
 		elif role=="table":
 			hint="%s: place board" % OS.get_keycode_string(player.keys.place_item) if dc_lab.held_board()>=0 else ""
 		elif role=="chair":
-			hint="%s - Sit" % key_name if player.seated==null else ""
+			var chair: Node=current_target.get_parent()
+			if player.seated!=null:hint=""
+			elif chair.occupant!=0:hint="Chair occupied"
+			elif chair.reserved_peer!=0:hint="Student is making room" if chair.reserved_peer==multiplayer.get_unique_id() else "Chair reserved"
+			elif not str(chair.npc_occupant).is_empty():hint="%s - Ask student to move"%key_name
+			else:hint="%s - Sit"%key_name
 		elif role=="display":
 			hint="Centre station: circuit experiments"
 		elif role=="drawer":
@@ -1543,6 +1553,7 @@ func _add_chair(pos: Vector3, facing := 0.0) -> void:
 	var chair := preload("res://scripts/rolling_chair.gd").new()
 	add_child(chair)
 	chair.position=pos
+	chair.seat_id="chair:%d:%d:%d"%[roundi(pos.x*100),roundi(pos.y*100),roundi(pos.z*100)]
 	chair.build(self)
 	chair.swivel.rotation.y=facing
 	chairs.append(chair)
@@ -1657,7 +1668,7 @@ func _claim_chair(peer: int,index: int) -> void:
 		return
 	var chair: CharacterBody3D=chairs[index]
 	var actor_position: Vector3 = player.global_position if peer==multiplayer.get_unique_id() else session.poses.get(peer,{}).get("position",Vector3.INF)
-	if chair.occupant!=0 or actor_position.distance_to(chair.global_position)>3:
+	if chair.occupant!=0 or (chair.reserved_peer!=0 and chair.reserved_peer!=peer) or actor_position.distance_to(chair.global_position)>3:
 		return
 	var dorm_bay := str(chair.get_meta("dorm_study_bay",""))
 	if not dorm_bay.is_empty() and not dorm_interactions.is_owner(dorm_interactions.authenticated_identity(peer),str(dorm_interactions.leases.get(dorm_bay,""))):return
@@ -1672,7 +1683,11 @@ func _claim_chair(peer: int,index: int) -> void:
 	for other in chairs:
 		if other.occupant==peer:
 			return
+	if not chair.npc_occupant.is_empty():
+		if is_instance_valid(lecture_classes):lecture_classes.classroom_students.seating.request_player(chair,peer)
+		return
 	chair.occupant=peer
+	chair.reserved_peer=0;chair.reservation_until=0
 	chair.turn_target=float(session.poses.get(peer,{}).get("yaw",0))
 	chair.previous_turn_target=chair.turn_target
 	if peer==multiplayer.get_unique_id():
@@ -1723,7 +1738,8 @@ func _send_chairs() -> void:
 		return
 	var states: Array=[]
 	for chair in chairs:
-		states.append({"position":chair.position,"yaw":chair.swivel.rotation.y,"velocity":chair.velocity,"spin":chair.spin,"spin_goal":chair.spin_goal,"occupant":chair.occupant})
+		states.append({"position":chair.position,"yaw":chair.swivel.rotation.y,"velocity":chair.velocity,"spin":chair.spin,"spin_goal":chair.spin_goal,"occupant":chair.occupant,
+			"npc":chair.npc_occupant,"npc_arrived":chair.npc_arrived,"vacating":chair.npc_vacating,"reserved_peer":chair.reserved_peer})
 	chair_packet_sequence+=1
 	for peer in session.connected_peers():
 		for offset in range(0,states.size(),4):_chair_states_chunk.rpc_id(peer,chair_packet_sequence,offset,states.slice(offset,offset+4))
@@ -1735,6 +1751,8 @@ func _chair_states(states: Array,offset: int=0) -> void:
 		var chair: CharacterBody3D=chairs[i]
 		var state: Dictionary=states[local_index]
 		chair.occupant=state.occupant
+		chair.npc_occupant=str(state.get("npc",""));chair.npc_arrived=bool(state.get("npc_arrived",false))
+		chair.npc_vacating=bool(state.get("vacating",false));chair.reserved_peer=int(state.get("reserved_peer",0))
 		chair.network_target=state.position
 		chair.network_yaw=state.yaw
 		chair.network_ready=true
@@ -1782,6 +1800,7 @@ func _chair_release() -> void:
 
 func _release_chair(peer: int) -> void:
 	for chair in chairs:
+		if chair.reserved_peer==peer:chair.reserved_peer=0;chair.reservation_until=0
 		if chair.occupant==peer:
 			chair.occupant=0
 			chair.drive=Vector2.ZERO

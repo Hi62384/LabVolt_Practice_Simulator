@@ -44,9 +44,9 @@ func _process(delta: float) -> void:
  var prefs: Dictionary=game.client_preferences.values if game.get("client_preferences")!=null else {}
  var mode:=str(prefs.get("microphone_mode","push_to_talk"))
  var permitted: bool=game.front.in_game and get_window().has_focus() and (game.player.enabled or on_call) and not game.player.chat_typing and not (focus is LineEdit or focus is TextEdit) and not game.front.screen.visible and (Input.mouse_mode==Input.MOUSE_MODE_CAPTURED or on_call)
- var active: bool=permitted and not bool(prefs.get("microphone_muted",false)) and mode!="muted" and (mode=="voice_activation" or game.player.down("voice"))
+ var active: bool=permitted and not bool(prefs.get("microphone_muted",false)) and mode!="muted" and (mode=="voice_activation" or (mode=="push_to_talk" and game.player.down("voice")))
  if active!=talking:
-  if talking and not active and permitted and not bool(prefs.get("microphone_muted",false)):
+  if talking and not active and permitted and mode=="push_to_talk" and not bool(prefs.get("microphone_muted",false)):
    microphone.finish_turn()
   talking=active
   microphone.subscribe("human_voice",active)
@@ -81,6 +81,7 @@ func _capture_audio() -> void:
 
 func _on_microphone_packet(packet: PackedByteArray, activity: Dictionary) -> void:
  packet_activity=activity
+ if packet.size()!=int(SAMPLE_RATE*PACKET_SECONDS)*2:return
  if not talking:return
  var prefs: Dictionary=game.client_preferences.values if game.get("client_preferences")!=null else {}
  if bool(prefs.get("microphone_muted",false)):return

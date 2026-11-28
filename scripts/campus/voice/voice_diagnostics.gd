@@ -14,7 +14,7 @@ func _refresh() -> void:
  if not is_instance_valid(game) or readout==null:return
  var microphone:=get_tree().root.get_node_or_null("MicrophoneCapture")
  var data:={"microphone":microphone.diagnostic if is_instance_valid(microphone) else {"active":false},"device":AudioServer.input_device,"output":AudioServer.output_device,
-  "echo_management":"Native acoustic echo cancellation is unavailable. Speaker protection gates open-mic NPC recognition during playback; headphones or push-to-talk allow interruption.",
+  "echo_management":"The game does not provide acoustic echo cancellation. Speaker protection gates open-mic NPC recognition during playback; headphones or push-to-talk allow interruption.",
   "speech_model":game.host_openai.tts_model,"recognition_model":game.host_openai.stt_model,
   "lifecycle":preload("res://scripts/campus/ai/openai_models.gd").lifecycle(game.host_openai.tts_model)}
  if is_instance_valid(game.faculty):

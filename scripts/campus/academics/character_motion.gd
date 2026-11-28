@@ -16,7 +16,7 @@ const APPEARANCE:={
 static func pitch(mood: String) -> float:
 	return float(APPEARANCE.get(mood,[0.,1.,1.])[2])
 
-static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed := .0,point := Vector3.INF,affect: Dictionary={},traits: Dictionary={}) -> void:
+static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed := .0,point := Vector3.INF,affect: Dictionary={},traits: Dictionary={},attention_point := Vector3.INF) -> void:
 	if not is_instance_valid(model):return
 	var rig:=_rig(model)
 	var appearance: Array=APPEARANCE.get(mood,[0.,1.,1.])
@@ -40,6 +40,15 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 		if pose=="turn_away":yaw=.55
 		elif mood in ["embarrassed","sad"]:yaw=-.14
 		elif anxiety>.5:yaw=sin(elapsed*1.7)*.055*anxiety
+		# Attention and emotion share one compositor. A seated person's pelvis
+		# stays on the chair while their head glances within anatomical limits.
+		if attention_point.is_finite() and head.is_inside_tree():
+			var toward: Vector3=model.global_basis.orthonormalized().inverse()*(attention_point-head.global_position)
+			if toward.length_squared()>.001:
+				yaw+=clampf(atan2(toward.x,toward.z),-1.05,1.05)
+				pitch_angle-=clampf(atan2(toward.y,Vector2(toward.x,toward.z).length()),-.38,.38)
+		yaw=clampf(yaw,-1.15,1.15)
+		pitch_angle=clampf(pitch_angle,-.55,.65)
 		head.rotation.x=lerpf(head.rotation.x,pitch_angle,blend)
 		head.rotation.y=lerp_angle(head.rotation.y,yaw,blend)
 		head.rotation.z=lerpf(head.rotation.z,sin(elapsed*1.1)*.025*anxiety,blend)

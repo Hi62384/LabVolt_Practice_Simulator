@@ -30,6 +30,7 @@ var cache_bytes:=0
 var subtitle_layer: CanvasLayer
 var speech_enabled:=true
 var subtitles_enabled:=true
+var subtitle_layout_clock:=0.
 
 func configure(speech: bool,captions: bool) -> void:
 	var disabling:=speech_enabled and not speech
@@ -326,6 +327,9 @@ func _mouth(anchor: Node3D) -> MeshInstance3D:
 
 func _process(delta: float) -> void:
 	var now:=Time.get_ticks_msec()
+	subtitle_layout_clock+=delta
+	if not subtitles.is_empty() and subtitle_layout_clock>=.1:
+		subtitle_layout_clock=0.;_layout_subtitles()
 	for channel in active.keys():
 		var state: Dictionary=active[channel]
 		var player: AudioStreamPlayer3D=state.get("player")
@@ -441,6 +445,14 @@ func _show_subtitle(channel: String,item: Dictionary,started: int,duration: int)
 	label.add_theme_color_override("font_color",Color("f3faf5"))
 	label.add_theme_color_override("font_shadow_color",Color("071923"))
 	label.add_theme_constant_override("shadow_outline_size",4)
+	label.add_theme_font_size_override("font_size",20)
+	label.add_theme_constant_override("line_spacing",4)
+	var background:=StyleBoxFlat.new()
+	background.bg_color=Color(.025,.05,.065,.88)
+	background.set_corner_radius_all(8)
+	background.content_margin_left=18.;background.content_margin_right=18.
+	background.content_margin_top=12.;background.content_margin_bottom=12.
+	label.add_theme_stylebox_override("normal",background)
 	label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	label.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
 	label.mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -449,14 +461,33 @@ func _show_subtitle(channel: String,item: Dictionary,started: int,duration: int)
 	_layout_subtitles()
 
 func _layout_subtitles() -> void:
+	var viewport:=get_viewport().get_visible_rect().size
+	var width:=minf(880.,maxf(160.,viewport.x-40.))
+	var left:=(viewport.x-width)*.5
+	var bottom:=viewport.y-24.
+	# Measure live HUD rectangles in viewport coordinates, including CanvasLayer
+	# transforms and user scale. No assumptions about hotbar height or position.
+	for value in get_tree().get_nodes_in_group("subtitle_obstacle"):
+		var control:=value as Control
+		if control==null or not control.is_visible_in_tree():continue
+		if control is Label and control.text.is_empty():continue
+		var rect: Rect2=control.get_global_transform_with_canvas()*Rect2(Vector2.ZERO,control.size)
+		if rect.end.x<=left or rect.position.x>=left+width or rect.end.y<viewport.y*.4:continue
+		bottom=minf(bottom,rect.position.y-12.)
+	var channels: Array=subtitles.keys()
+	channels.sort_custom(func(a,b):
+		var first: Dictionary=subtitles[a].item;var second: Dictionary=subtitles[b].item
+		return int(first.priority)>int(second.priority) if int(first.priority)!=int(second.priority) else int(first.accepted)>int(second.accepted))
 	var index:=0
-	for channel in subtitles:
+	for channel in channels:
 		var label: Label=subtitles[channel].label
-		label.visible=index<3
-		label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-		var half_width:=minf(420.,get_viewport().get_visible_rect().size.x*.43)
-		label.offset_left=-half_width;label.offset_right=half_width
-		label.offset_top=-150-index*82;label.offset_bottom=-78-index*82
+		label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		label.size=Vector2(width,0.)
+		var height:=maxf(52.,label.get_minimum_size().y)
+		label.position=Vector2(left,maxf(16.,bottom-height))
+		label.size.y=height
+		label.visible=index<3 and bottom-height>=16.
+		if label.visible:bottom-=height+8.
 		index+=1
 
 func _clear_subtitle(channel: String) -> void:

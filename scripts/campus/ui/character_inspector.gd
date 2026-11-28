@@ -9,12 +9,12 @@ signal action_requested(intent: String)
 const ThemeFactory = preload("res://scripts/ui/design_system/theme.gd")
 const PAGES := ["Overview", "Personality", "Life history", "Relationships", "Emotions", "Diagnostics"]
 const PAGE_FIELDS := {
-	"Overview": ["age", "role", "program", "activity", "mood", "willingness", "access_note", "background", "physical_description", "relationship", "generation", "voice"],
+	"Overview": ["age", "role", "program", "persistent_status", "activity", "mood", "willingness", "access_note", "background", "physical_description", "relationship", "generation", "voice"],
 	"Personality": ["personality_description", "speaking_description", "traits", "interests", "motivations", "values", "strengths", "weaknesses", "beliefs", "examples"],
 	"Life history": ["life_history", "personal_information", "life_records", "knowledge"],
 	"Relationships": ["willingness", "disengagement", "relationship", "reputation", "relationship_events"],
 	"Emotions": ["mood", "emotion_state_source", "emotions", "emotional_history"],
-	"Diagnostics": ["diagnostics", "persistence", "generation", "dossier_diagnostics"],
+	"Diagnostics": ["diagnostics", "persistence", "generation", "dossier_diagnostics", "population_diagnostics"],
 }
 const ACCENT := Color("94d4c4")
 const MUTED := Color("9bb4c5")
@@ -267,6 +267,8 @@ func _overview() -> void:
 	var age: Variant = _snapshot.get("age")
 	var program := str(_snapshot.get("program", ""))
 	_rows({"Age": str(age) if age != null else "Not shared", "Role / program": program if not program.is_empty() else str(_snapshot.get("role", "")), "Current activity": _snapshot.get("activity", ""), "Mood": _snapshot.get("mood", "Not observed"), "Conversation": _snapshot.get("willingness", "Not shared")})
+	if _snapshot.has("persistent_status"):
+		_rows({"Persistent student":str(_snapshot.persistent_status).replace("_"," ").capitalize()})
 	if not bool(_snapshot.get("details_access", _snapshot.get("private_access", false))):
 		_paragraph(str(_snapshot.get("access_note", "")), true)
 		return
@@ -341,6 +343,8 @@ func _diagnostics() -> void:
 	var trace: Dictionary = _snapshot.get("diagnostics", {})
 	var persistence: Dictionary = _snapshot.get("persistence", {})
 	_rows({"Persistence": persistence.get("persistence_state", "Not recorded"), "Last save": _timestamp(persistence.get("last_saved_at", 0)), "Save error": persistence.get("last_error", "Not recorded")})
+	if _snapshot.get("population_diagnostics") is Dictionary:
+		_section("Persistent student", _snapshot.population_diagnostics)
 	_section("Identity generation", _snapshot.get("generation", {}))
 	_section("Generation and dossier storage", _snapshot.get("dossier_diagnostics", {}))
 	if not bool(trace.get("available", false)):

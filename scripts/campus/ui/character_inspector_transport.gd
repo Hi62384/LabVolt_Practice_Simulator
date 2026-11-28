@@ -3,7 +3,7 @@ extends RefCounted
 const MAX_PACKET_BYTES := 196608
 const MIN_REQUEST_MS := 1000
 const STATIC_FIELDS := ["selected_id", "name", "role", "age", "program", "background", "physical_description", "personality_description", "speaking_description", "traits", "motivations", "values", "interests", "strengths", "weaknesses", "beliefs", "life_history", "personal_information", "voice", "knowledge", "examples", "generation", "life_records"]
-const DYNAMIC_FIELDS := ["available", "activity", "mood", "room", "phase", "emotions", "emotion_state_source", "emotional_history", "relationship", "reputation", "relationship_events", "disengagement", "willingness"]
+const DYNAMIC_FIELDS := ["available", "activity", "mood", "room", "phase", "emotions", "emotion_state_source", "emotional_history", "relationship", "reputation", "relationship_events", "disengagement", "willingness", "persistent_status"]
 var recent: Dictionary = {}
 
 func allow_request(peer: int, now: int, roster: Dictionary, serial: int, nonce: String) -> bool:
@@ -82,6 +82,7 @@ static func accept_packet(packet: Dictionary, nonce: String, serial: int, select
 	result.private_access = false
 	result.erase("diagnostics")
 	result.erase("persistence")
+	result.erase("population_diagnostics")
 	if bool(result.get("available", false)) and str(result.get("selected_id", "")) != selected:
 		return {}
 	return {"snapshot": result, "revision": revision}

@@ -102,7 +102,26 @@ func _run() -> void:
 			var key_caption := "Remove connected API key" if game.host_openai.configured() else "Connect API Key"
 			_check(is_instance_valid(_button(front.body,key_caption)), label + " OpenAI key control missing")
 			if not game.host_openai.configured():
-				_check(not is_instance_valid(_button(front.body,"Accept")), label + " showed Accept without an API key")
+				var local_controls: VBoxContainer=front.body.get_child(-1)
+				var accept_without_key:=_button(front.body,"Accept")
+				_check(is_instance_valid(accept_without_key) and accept_without_key.disabled,label+" must disable API setup acceptance without a connected key")
+				_check(game.host_openai.accept_setup(local_controls._read_draft(),"")==ERR_INVALID_PARAMETER,label+" accepted API setup without credentials")
+				var voices:=_button(front.body,"Character Voices…")
+				_check(is_instance_valid(voices) and not voices.disabled,label+" hid local character voices without a key")
+				var usage_before:=JSON.stringify(game.host_openai.model_usage)
+				if is_instance_valid(voices):
+					voices.pressed.emit();await process_frame
+					var voice_window: Window=local_controls.voice_studio
+					_check(is_instance_valid(voice_window) and voice_window.visible,label+" did not open Character Voices offline")
+					if is_instance_valid(voice_window):
+						var studios:=voice_window.find_children("*","Control",true,false).filter(func(node: Node):return node.get_script()==preload("res://scripts/campus/ui/character_voice_studio.gd"))
+						_check(studios.size()==1,label+" did not mount the voice editor")
+						if studios.size()==1:
+							var studio: Node=studios[0]
+							_check(studio.character_list.item_count>=preload("res://scripts/campus/academics/faculty_roster.gd").PEOPLE.size(),label+" failed to populate local faculty voices")
+							_check(studio.preview_button.disabled and studio.generate_button.disabled,label+" enabled paid voice operations without credentials")
+						voice_window.close_requested.emit();await process_frame
+				_check(JSON.stringify(game.host_openai.model_usage)==usage_before and game.host_openai._voice_requests.is_empty() and game.host_openai._http_requests.is_empty(),label+" made a provider request while browsing local voices")
 			_button(front.body,"Cancel").pressed.emit()
 			await process_frame
 			_check(front.page==("singleplayer" if offline else "host"), label + " OpenAI Cancel returned to the wrong screen")

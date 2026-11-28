@@ -1,4 +1,5 @@
 extends RefCounted
+signal social_record_changed(character: String, participant: String)
 ## Host-local social history. Storage retention is deliberately independent of
 ## prompt retrieval: old stories and significant incidents survive long chats.
 ## Quotes are observations of what someone said, never trusted game facts.
@@ -270,6 +271,7 @@ func remember(id: String,student: String,kind: String,now_unix: int) -> void:
 	if kind=="hazard":memory.reputation.lab_safety=maxf(0.,float(memory.reputation.lab_safety)-.1)
 	if kind!="conversation":_append_episode(memory,{"event":kind,"at":now_unix,"count":1,"description":"Observed %s involving %s and %s."%[kind,student,id],"character":id,"speaker":student,"resolved":false,"importance":.5,"event_id":"","strategy":"","emotions":{}})
 	relationships[key]=memory;memory_dirty=true
+	social_record_changed.emit(id,student)
 
 func _append_episode(memory: Dictionary,episode: Dictionary) -> bool:
 	var episodes: Array=memory.get_or_add("episodes",[])
@@ -334,6 +336,7 @@ func remember_event(person: Dictionary,identity: String,turn: Dictionary,questio
 	remember_dialogue_details(person,identity,question,details,now_unix)
 	_remember_belief_updates(person,identity,question,reply,details,kind,token,now_unix)
 	last_record={"event_id":token,"character":id,"speaker":identity,"recorded":true,"silent":reply.is_empty(),"event":kind}
+	social_record_changed.emit(id,identity)
 	return true
 
 ## Called only by the host's completed assessment, quiz and station workflows.
@@ -399,6 +402,7 @@ func complete_event(person: Dictionary,identity: String,event_id: String,reply: 
 		# conversational argument. Validate evidence against that stored input.
 		_remember_belief_updates(person,identity,str(exchange.student),reply,delivered_details,str(exchange.get("event","conversation")),event_id,int(exchange.at))
 		memory_dirty=true
+		social_record_changed.emit(str(person.get("id","")),identity)
 		return true
 	return false
 
@@ -856,3 +860,112 @@ func save_memory() -> Error:
 	if error==OK:memory_dirty=false;last_save_at=int(Time.get_unix_time_from_system())
 	last_memory_error=error
 	return error
+
+## Portable social records contain only this NPC/participant pair. They cannot
+## award grades, permissions, inventory or factual academic performance.
+func export_social_record(id: String,identity: String) -> Dictionary:
+	var key:=id+":"+identity
+	if not relationships.has(key):return {}
+	var memory:=relationship(id,identity)
+	memory.reputation=_neutral_reputation()
+	var dimensions:=social_context(memory)
+	dimensions.academic_confidence=.45
+	dimensions.disciplinary_reputation=0.
+	memory.dimensions=dimensions
+	memory.disruptions=0
+	var episodes:=[]
+	for episode in memory.get("episodes",[]):
+		if episode.get("source","")=="host_activity" or episode.has("activity"):continue
+		var copy: Dictionary=episode.duplicate(true)
+		copy.erase("activity")
+		if str(copy.get("event_id","")).is_empty():copy.event_id=JSON.stringify(copy,"",true).sha256_text().left(32)
+		episodes.append(copy)
+	memory.episodes=episodes.slice(-64)
+	var facts:={}
+	for subject in memory.get("facts",{}):
+		if facts.size()>=32:break
+		facts[subject]=memory.facts[subject].duplicate(true)
+		facts[subject].history=facts[subject].get("history",[]).slice(-4)
+	memory.facts=facts
+	var decision: Dictionary={}
+	if is_instance_valid(_bound_mind):decision=_bound_mind.disengagements.get(key,{}).duplicate(true)
+	else:decision=character_states.get("disengagements",{}).get(key,{}).duplicate(true)
+	return {"relationship":memory,"decision":decision}
+
+func import_social_record(id: String,identity: String,snapshot: Dictionary,replace_causal:=false) -> bool:
+	var key:=_key(id,identity)
+	if key.is_empty() or JSON.stringify(snapshot).to_utf8_buffer().size()>262144:return false
+	if not snapshot.get("relationship") is Dictionary or not snapshot.get("decision",{}) is Dictionary:return false
+	var checked:=_validate_relationships({key:snapshot.relationship})
+	if not checked.get("ok",false):return false
+	var decision: Dictionary=snapshot.get("decision",{}).duplicate(true)
+	if not _valid_character_states({"version":1,"moods":{},"disengagements":{key:decision} if not decision.is_empty() else {}}):return false
+	var incoming: Dictionary=checked.relationships[key]
+	incoming.reputation=_neutral_reputation()
+	incoming.dimensions.academic_confidence=.45
+	incoming.dimensions.disciplinary_reputation=0.
+	incoming.disruptions=0
+	incoming.episodes=incoming.get("episodes",[]).filter(func(episode):return episode.get("source","")!="host_activity" and not episode.has("activity"))
+	if relationships.has(key):
+		var current: Dictionary=relationships[key]
+		var merged:=incoming.duplicate(true) if replace_causal else current.duplicate(true)
+		# Never discard local academic observations because a social save arrived.
+		merged.reputation=current.get("reputation",_neutral_reputation()).duplicate(true)
+		merged.dimensions.academic_confidence=float(social_context(current).academic_confidence)
+		merged.dimensions.disciplinary_reputation=float(social_context(current).disciplinary_reputation)
+		merged.disruptions=int(current.get("disruptions",0))
+		var seen:={}
+		var episodes: Array=merged.get("episodes",[])
+		for episode in episodes:seen[str(episode.get("event_id",JSON.stringify(episode,"",true).sha256_text()))]=true
+		for episode in (current if replace_causal else incoming).get("episodes",[]):
+			var event:=str(episode.get("event_id",""))
+			if event.is_empty():event=JSON.stringify(episode,"",true).sha256_text()
+			if not seen.has(event) and episodes.size()<MAX_EPISODES:episodes.append(episode.duplicate(true));seen[event]=true
+		merged.episodes=episodes
+		var facts: Dictionary=merged.get("facts",{})
+		for subject in (current if replace_causal else incoming).get("facts",{}):
+			# A contradictory claim stays local until supported by a new event.
+			if not facts.has(subject) and facts.size()<MAX_FACTS:facts[subject]=(current if replace_causal else incoming).facts[subject].duplicate(true)
+		merged.facts=facts
+		incoming=merged
+		var previous_decision: Dictionary=_bound_mind.disengagements.get(key,{}) if is_instance_valid(_bound_mind) else character_states.get("disengagements",{}).get(key,{})
+		if not replace_causal and not previous_decision.is_empty():decision=previous_decision.duplicate(true)
+	relationships[key]=incoming
+	if not decision.is_empty():
+		if is_instance_valid(_bound_mind):_bound_mind.disengagements[key]=decision.duplicate(true)
+		character_states.get_or_add("version",1)
+		character_states.get_or_add("moods",{})
+		character_states.get_or_add("disengagements",{})[key]=decision.duplicate(true)
+	memory_dirty=true
+	return true
+
+func export_identity_canon(person: Dictionary) -> Dictionary:
+	var safe:={}
+	var records:=character_life_records(person)
+	for topic in records.keys().slice(-96):
+		var record: Dictionary=records[topic]
+		var copy:={}
+		for field in ["id","topic","detail","value","kind","provenance","at","chronology","links","entities","aliases"]:
+			if record.has(field):copy[field]=record[field].duplicate(true) if record[field] is Array or record[field] is Dictionary else record[field]
+		# Supporting correction dialogue stays on the device where it occurred.
+		copy.history=[]
+		safe[topic]=copy
+		if JSON.stringify(safe).to_utf8_buffer().size()>64000:safe.erase(topic);break
+	return safe
+
+func import_identity_canon(person: Dictionary,incoming: Dictionary) -> Dictionary:
+	var id:=str(person.get("id",""))
+	if id.is_empty() or incoming.size()>96 or JSON.stringify(incoming).to_utf8_buffer().size()>64000 or not Life.valid_snapshot({id:incoming}):return {"ok":false,"conflicts":[]}
+	var existing:=character_life_records(person)
+	var stored: Dictionary=biography_records.get_or_add(id,{})
+	var conflicts:=[]
+	var accepted:=0
+	for topic in incoming:
+		var match_topic:=Life.find_topic(existing,str(topic))
+		if not match_topic.is_empty():
+			if Life.normalized(str(existing[match_topic].value))!=Life.normalized(str(incoming[topic].value)):conflicts.append(str(topic))
+			continue
+		if stored.size()>=Life.MAX_RECORDS:break
+		stored[topic]=incoming[topic].duplicate(true);existing[topic]=stored[topic];accepted+=1
+	if accepted>0:memory_dirty=true
+	return {"ok":true,"accepted":accepted,"conflicts":conflicts}

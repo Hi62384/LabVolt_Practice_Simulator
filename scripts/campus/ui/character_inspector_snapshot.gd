@@ -5,6 +5,7 @@ const Affect = preload("res://scripts/campus/academics/character_affect.gd")
 const Profiles = preload("res://scripts/campus/academics/class_character_profile.gd")
 const Roster = preload("res://scripts/campus/academics/faculty_roster.gd")
 const DossierStore = preload("res://scripts/campus/academics/character_dossier_store.gd")
+const Programs=preload("res://scripts/campus/academics/academic_programs.gd")
 const VoiceProfiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const PRIVATE_CONTEXT_FIELDS := ["core", "character_core", "compact_core", "personality", "speaking_style", "character", "biography", "life_history", "life_sections", "relevant_life_history", "personal_facts", "personal_records", "established_facts", "dialogue_examples", "selected_examples", "examples", "relationship", "emotional_state", "beliefs", "knowledge_restrictions", "decision", "dossier", "relevant_biography", "identity", "context_layers"]
 
@@ -88,6 +89,10 @@ static func _capture_selected(faculty: Node, room: String, student: String, clas
 		if member.is_empty() or person.is_empty() or member.get("removed_from_class", false):
 			return {}
 	var result := {"available": true, "private_access": private_access and viewer_identity.is_empty(), "details_access": private_access, "selected_id": str(person.get("id", "")), "name": str(person.get("name", member.get("name", ""))), "role": str(person.get("role", "")), "activity": str(member.get("action", activity.get("phase", "freeplay"))), "mood": str(member.get("mood", "Not observed")), "room": room, "phase": str(activity.get("phase", ""))}
+	if not student.is_empty():
+		result.age=person.get("age",null)
+		result.program=str(person.get("program",""))
+		result.persistent_status=str(person.get("persistent_status",person.get("persistence_status","saved")))
 	if not private_access:
 		result.access_note = "Personal history and diagnostics are available to the host. Public character information is shown here."
 		return result
@@ -132,6 +137,8 @@ static func _capture_selected(faculty: Node, room: String, student: String, clas
 		# No trace, API measurements, save paths, or other host-only fields are
 		# even constructed for remote readers.
 		return result.duplicate(true)
+	if not student.is_empty():
+		result.population_diagnostics={"persistent_id":str(person.get("persistent_id",person.get("id",""))),"origin_population":str(person.get("origin_population","")),"eligible_courses":Programs.courses_for(str(person.get("program",""))),"previous_appearances":int(person.get("appearances",person.get("attendance",{}).get("count",0))),"identity_status":str(person.get("persistence_status","saved")),"newly_generated":bool(person.get("newly_generated",false))}
 	result.diagnostics = selected_diagnostics(diagnostics, id, identity, str(activity.get("phase", "")))
 	result.dossier_diagnostics = DossierStore.diagnostics(id)
 	var persistence: Dictionary = brain.diagnostics()

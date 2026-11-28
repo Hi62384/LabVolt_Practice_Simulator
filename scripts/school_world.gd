@@ -676,6 +676,8 @@ func build_campus_furniture() -> void:
 			preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_furniture_skin.gd").dress_desk(desk)
 			game._add_chair(school.room_bridge.point(seats[index]) if index<seats.size() else position+Vector3(0,-.895,-.9))
 			var chair: Node3D=game.chairs.back()
+			chair.seat_id=str(room.id)+":seat:"+str(index)
+			chair.set_meta("classroom_room",str(room.id))
 			chair.reparent(furniture)
 			preload("res://scripts/campus/presentation/decor/lecture_rooms/classroom_chair_skin.gd").dress(chair)
 		var bin := StaticBody3D.new();bin.position=layout.recycling(room);bin.set_meta("role","trash");bin.add_to_group("paper_recycling");bin.set_meta("label","Paper recycling");furniture.add_child(bin)

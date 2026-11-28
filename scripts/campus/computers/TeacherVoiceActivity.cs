@@ -9,7 +9,7 @@ public partial class TeacherVoiceActivity : RefCounted
     private const int PreRoll = Rate / 5;
     private const int SegmentSamples = Rate * 30;
     private const int MinimumSpeech = Rate / 8;
-    private const int SilenceSamples = Rate * 5 / 4;
+    private const int SilenceSamples = Rate * 2;
     private readonly Queue<short> preRoll = new();
     private readonly List<short> turn = new(SegmentSamples);
     private readonly MicrophoneCaptureProcessor processor = new();
@@ -70,6 +70,14 @@ public partial class TeacherVoiceActivity : RefCounted
             result["audio"] = Bytes(count); result["continued"] = false;
             result["turn_id"] = turnId; result["segment"] = segment;
             result["speech_seconds"] = (double)spokenSamples / Rate;
+        }
+        else
+        {
+            // End an onset that was only a brief click/cough as well. The router
+            // must release its listening/interrupt state without transcribing it.
+            result["audio"] = Array.Empty<byte>(); result["continued"] = false;
+            result["turn_id"] = turnId; result["segment"] = segment;
+            result["discarded"] = true;
         }
         turn.Clear(); preRoll.Clear(); onset = silence = spokenSamples = segment = 0; speaking = false;
         result["speaking"] = false; return result;

@@ -22,7 +22,7 @@ func wait_for(condition: Callable,seconds: float,message: String) -> bool:
 	check(false,message)
 	return false
 
-func inject_utterance(speech_packets: int=32,silence_packets: int=65) -> void:
+func inject_utterance(speech_packets: int=32,silence_packets: int=105) -> void:
 	var microphone: Node=game.faculty.shared_microphone
 	for index in speech_packets+silence_packets:
 		var voiced:=index<speech_packets
@@ -33,7 +33,7 @@ func inject_utterance(speech_packets: int=32,silence_packets: int=65) -> void:
 		microphone._emit_activity(microphone.activity.PushPcm(pcm,voiced))
 
 func run() -> void:
-	create_timer(45.).timeout.connect(func():push_error("Natural voice gameplay timed out");quit(1))
+	create_timer(70.).timeout.connect(func():push_error("Natural voice gameplay timed out");quit(1))
 	game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
 	for frame in 4:await process_frame
 	game.front.singleplayer_page();game.front._start_play(true)
@@ -92,6 +92,35 @@ func run() -> void:
 		inject_utterance()
 		await wait_for(func():return game.faculty.brain.recall(TEACHER,identity).size()>=2,10.,"Follow-up speech reaches the same character without reopening anything")
 		check(game.faculty.natural_voice.current.get("id","")==TEACHER,"Follow-up retains the ongoing character identity")
+		# A previous target may differ when a new onset chooses Mr Bro. Canceling
+		# the old target must not reset the VAD that owns this brand-new utterance.
+		game.faculty.natural_voice.current={"id":"bill_nye","room":ROOM,"class_id":"previous_target","student":""}
+		inject_utterance()
+		await wait_for(func():return game.faculty.brain.recall(TEACHER,identity).size()>=3,10.,"Switching target at speech onset preserves the complete new utterance")
+		await wait_for(func():return game.faculty.natural_voice.diagnostic.state=="response_generated",5.,"Voice diagnostics reach the generated response stage")
+		# PTT release flushes through the NPC consumer even while human voice-chat
+		# processing is disabled. No silence timeout or UI is required.
+		game.client_preferences.set_option("microphone_mode","push_to_talk")
+		var press:=InputEventKey.new();press.keycode=KEY_V;press.physical_keycode=KEY_V;press.pressed=true;Input.parse_input_event(press)
+		await process_frame
+		game.faculty.natural_voice._process(.25)
+		inject_utterance(32,0)
+		var release:=InputEventKey.new();release.keycode=KEY_V;release.physical_keycode=KEY_V;release.pressed=false;Input.parse_input_event(release)
+		await process_frame
+		game.faculty.natural_voice._process(.25)
+		await wait_for(func():return game.faculty.brain.recall(TEACHER,identity).size()>=4,10.,"Releasing the actual PTT key flushes one recorded NPC turn")
+		# Manual recording works while the inspector has released mouse capture
+		# and disabled first-person controls.
+		game.client_preferences.set_option("microphone_mode","manual")
+		game.faculty.open_conversation(ROOM)
+		game.faculty._toggle_recording()
+		check(game.faculty.recording and not game.player.enabled,"Manual recording starts with the interaction UI open")
+		inject_utterance(32,0)
+		check(game.faculty.record_samples.size()>=32*640,"Manual recording receives shared packets while first-person controls are disabled")
+		game.faculty._finish_recording()
+		await wait_for(func():return game.faculty.brain.recall(TEACHER,identity).size()>=5,10.,"Manual completed recording enters the same character memory pipeline")
+		game.faculty.close_conversation()
+		game.client_preferences.set_option("microphone_mode","voice_activation")
 	var remembered: int=game.faculty.brain.recall(TEACHER,identity).size()
 	inject_utterance(25,0)
 	check(not game.faculty.natural_voice.turn.is_empty(),"A fresh sustained microphone turn is active before a text-input interruption")

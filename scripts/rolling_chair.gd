@@ -4,6 +4,13 @@ const MAX_SWIVEL_SPEED := 9.0
 var roll_audio: AudioStreamPlayer3D
 var previous_position := Vector3.ZERO
 var occupant := 0
+var seat_id := ""
+var npc_occupant := ""
+var npc_class := ""
+var npc_arrived := false
+var npc_vacating := false
+var reserved_peer := 0
+var reservation_until := 0
 var fixed_seat := false
 var fixed_yaw := 0.0
 var drive := Vector2.ZERO
@@ -23,6 +30,19 @@ var wheels: Array[Node3D] = []
 var wheel_spin := 0.0
 var wheel_position_ready := false
 var idle_floor_check := 0.0
+
+func seat_state() -> String:
+	if occupant!=0:return "human"
+	if npc_vacating:return "vacating"
+	if not npc_occupant.is_empty():return "npc" if npc_arrived else "destination"
+	if reserved_peer!=0:return "reserved"
+	return "empty"
+
+func available_for_npc() -> bool:
+	return occupant==0 and npc_occupant.is_empty() and reserved_peer==0 and not npc_vacating
+
+func release_npc() -> void:
+	npc_occupant="";npc_class="";npc_arrived=false;npc_vacating=false
 
 func build(game: Node3D) -> void:
 	roll_audio=AudioStreamPlayer3D.new()
@@ -101,7 +121,7 @@ func _physics_process(delta: float) -> void:
 			roll_audio.stop()
 	if swivel==null:
 		return
-	var occupied := occupant!=0 or is_instance_valid(rider)
+	var occupied := occupant!=0 or is_instance_valid(rider) or (not npc_occupant.is_empty() and npc_arrived)
 	if rider_collision.disabled==occupied:
 		rider_collision.disabled=not occupied
 	var has_turn_input := false

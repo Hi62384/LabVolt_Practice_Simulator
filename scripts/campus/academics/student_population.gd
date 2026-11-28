@@ -5,7 +5,8 @@ const Profiles=preload("res://scripts/campus/academics/class_character_profile.g
 const Toon=preload("res://scripts/toon_character.gd")
 const Memory=preload("res://scripts/campus/academics/character_memory.gd")
 const Dossiers=preload("res://scripts/campus/academics/character_dossier_store.gd")
-const VERSION:=2
+const Programs=preload("res://scripts/campus/academics/academic_programs.gd")
+const VERSION:=3
 const LEGACY_COUNT:=12
 const INITIAL_COUNT:=12
 const MAX_RESIDENTS:=4096
@@ -27,6 +28,12 @@ var last_profile_cache_error:=OK
 var _host_profile:=""
 var _loaded_path:=""
 var _unsaved_profiles: Dictionary={}
+var requested_courses: Dictionary={}
+var contribution_sources: Dictionary={}
+var reconciliation_conflicts: Array=[]
+var index: Dictionary={}
+var _selection_serial:=0
+
 
 func set_host_profile(profile_id: String) -> Error:
 	if profile_id.is_empty() or profile_id.length()>128:
@@ -65,6 +72,9 @@ func set_host_profile(profile_id: String) -> Error:
 	_host_profile=profile_id
 	_loaded_path=""
 	people.clear()
+	index.clear()
+	requested_courses.clear()
+	contribution_sources.clear()
 	next_index=0
 	dirty=false
 	persistence_blocked=false
@@ -176,10 +186,12 @@ func load_population() -> bool:
 			var d: Dictionary=Dossiers.dossiers[id]
 			if d.get("identity",{}).get("role")=="student" and not people.has(id):
 				people[id]=Dossiers.project({"id":id,"role":"student","subjects":[],"lines":{}})
-				next_index=maxi(next_index,int(str(id).trim_prefix("campus_student_"))+1)
+				if _legacy_identity(str(id)):next_index=maxi(next_index,int(str(id).trim_prefix("campus_student_"))+1)
 				dirty=true
 	for id in people:
 		people[id]=Dossiers.project(people[id])
+		_stamp_identity(people[id])
+		index[id]=_index_entry(people[id])
 	if not Dossiers.host_identity.is_empty() and Dossiers.dirty: Dossiers.save()
 	ensure_size(maxi(INITIAL_COUNT,people.size()))
 	if dirty and not persistence_blocked:save_population()
@@ -191,25 +203,41 @@ func ensure_size(count: int) -> void:
 
 func reserve_identity() -> String:
 	if profile_blocked or persistence_blocked or people.size()>=MAX_RESIDENTS:return ""
-	while next_index<MAX_RESIDENTS*4:
-		var id:="campus_student_%02d"%next_index
-		next_index+=1
+	# 128 random bits are independent of names, device counters and host changes.
+	for _attempt in 8:
+		var id:="campus_student_"+Crypto.new().generate_random_bytes(16).hex_encode()
 		if people.has(id) or Dossiers.dossiers.has(id) or Dossiers.jobs.has(id):continue
+		next_index+=1
 		dirty=true
 		if save_population()!=OK:return ""
 		return id
 	return ""
 
+func generation_seed(id: String) -> Dictionary:
+	var course:=""
+	for candidate in requested_courses:
+		if int(requested_courses[candidate])>0:course=str(candidate);break
+	var program:=Programs.for_course(course,id.hash())
+	return {"identity":{"id":id,"role":"student","program":program}, "subjects":Programs.courses_for(program),
+		"design_specification":"Create a distinct adult campus student enrolled in %s. Their enrolled courses are %s. Keep this program and stable ID. Develop their complete coherent life, independent personality, speech, knowledge, appearance and permanent vocal characteristics. No official marks are generated."%[program,", ".join(Programs.courses_for(program))]}
+
 func import_generated(person: Dictionary) -> bool:
 	if profile_blocked or persistence_blocked:return false
 	var id:=str(person.get("id",""))
-	if not id.begins_with("campus_student_") or not id.trim_prefix("campus_student_").is_valid_int():return false
+	if not valid_identity(id):return false
 	var d:=Dossiers.get_dossier(id)
 	if d.get("generation",{}).get("status")!="complete" or d.get("identity",{}).get("role")!="student":return false
 	if not people.has(id) and people.size()>=MAX_RESIDENTS:return false
 	var previous: Dictionary=people.get(id,{}).duplicate(true)
 	people[id]=Dossiers.project(person)
-	next_index=maxi(next_index,int(id.trim_prefix("campus_student_"))+1)
+	# Refreshing a completed dossier must not discard attendance or ownership.
+	for key in ["origin_population","persistent_id","attendance","profile_lineage","newly_generated"]:
+		if previous.has(key):people[id][key]=previous[key].duplicate(true) if previous[key] is Dictionary or previous[key] is Array else previous[key]
+	_stamp_identity(people[id])
+	index[id]=_index_entry(people[id])
+	for course in Programs.courses_for(str(people[id].get("program",""))):
+		if requested_courses.has(course):requested_courses[course]=maxi(0,int(requested_courses[course])-1)
+	if _legacy_identity(id):next_index=maxi(next_index,int(id.trim_prefix("campus_student_"))+1)
 	dirty=true
 	if save_population()!=OK:
 		if previous.is_empty():people.erase(id)
@@ -231,29 +259,81 @@ func _legacy_indices() -> Array:
 	var learning_path:=Memory.profile_prefix(_host_profile)+".learning.cfg" if not _host_profile.is_empty() else "user://classmate_learning.cfg"
 	if records.load(learning_path)==OK:
 		for id in records.get_sections():
-			if id.begins_with("campus_student_") and id.trim_prefix("campus_student_").is_valid_int():
+			if id.begins_with("campus_student_") and _legacy_identity(id):
 				var index:=int(id.trim_prefix("campus_student_"))
 				if index<LEGACY_COUNT and index not in indices:indices.append(index)
 	return indices
 
-func available(excluded: Dictionary,count: int,seed_value: int) -> Array:
+func available(excluded: Dictionary,count: int,seed_value: int,course: String="",participants: Array=[]) -> Array:
 	if profile_blocked:return []
 	count=clampi(count,0,6)
-	var candidates:=people.keys().filter(func(id):return not excluded.has(id))
+	var candidates:=people.keys().filter(func(id):return not excluded.has(id) and Programs.eligible(people[id],course))
 	if candidates.size()<count:
 		ensure_size(people.size()+count-candidates.size())
-		candidates=people.keys().filter(func(id):return not excluded.has(id))
+		if not course.is_empty():requested_courses[course]=maxi(int(requested_courses.get(course,0)),count-candidates.size())
 	var rng:=RandomNumberGenerator.new()
 	rng.seed=seed_value
 	var result: Array=[]
+	_selection_serial+=1
 	while not candidates.is_empty() and result.size()<count:
-		var id: String=candidates.pop_at(rng.randi_range(0,candidates.size()-1))
-		result.append(Dossiers.project(people[id]))
+		var weights:=[]
+		var total:=0.
+		for id in candidates:
+			var person: Dictionary=people[id]
+			var attendance: Dictionary=person.get("attendance",{})
+			# Familiar faces recur without monopolising every class. No remote
+			# AI call, clock comparison or full biography is needed for selection.
+			var weight:=1.+minf(2.,float(attendance.get("count",0))*.15)
+			weight*=.65+float(person.get("traits",{}).get("academic_motivation",.5))*.7
+			if str(attendance.get("last_course",""))==course:weight*=.85
+			for identity in participants:
+				if str(identity).sha256_text() in attendance.get("familiar_players",[]):weight+=.35
+			total+=weight;weights.append(total)
+		var pick:=rng.randf()*total
+		var selected:=0
+		while selected<weights.size()-1 and pick>float(weights[selected]):selected+=1
+		var id: String=candidates.pop_at(selected)
+		result.append(profile_for(id))
+	# A slowly growing reserve introduces occasional new eligible students;
+	# existing biographies are never regenerated to satisfy this demand.
+	if not course.is_empty() and count>0 and people.size()<MAX_RESIDENTS and rng.randf()<.18:
+		requested_courses[course]=maxi(1,int(requested_courses.get(course,0)))
+		ensure_size(people.size()+1)
 	if dirty:save_population()
 	return result
 
+func record_attendance(id: String,course: String,activity_id: String,participants: Array=[]) -> void:
+	if not people.has(id) or course not in Programs.COURSES or activity_id.is_empty():return
+	var person: Dictionary=people[id]
+	var attendance: Dictionary=person.get_or_add("attendance",{"count":0,"events":[],"courses":{},"familiar_players":[]})
+	var event:=activity_id.sha256_text().left(32)
+	if event in attendance.get("events",[]):return
+	attendance.events=attendance.get("events",[])
+	attendance.events.append(event)
+	if attendance.events.size()>128:attendance.events.pop_front()
+	attendance.count=mini(1000000,int(attendance.get("count",0))+1)
+	attendance.last_course=course
+	attendance.courses=attendance.get("courses",{})
+	attendance.courses[course]=mini(1000000,int(attendance.courses.get(course,0))+1)
+	attendance.familiar_players=attendance.get("familiar_players",[])
+	for player in participants:
+		var token:=str(player).sha256_text()
+		if token not in attendance.familiar_players and attendance.familiar_players.size()<32:attendance.familiar_players.append(token)
+	person.newly_generated=false
+	index[id]=_index_entry(person)
+	dirty=true
+	save_population()
+
 func profile_for(id: String) -> Dictionary:
-	return Dossiers.project(people[id]) if people.has(id) else {}
+	if not people.has(id):return {}
+	_stamp_identity(people[id])
+	index[id]=_index_entry(people[id])
+	var person:=Dossiers.project(people[id])
+	_stamp_identity(person)
+	person.eligible_courses=Programs.courses_for(str(person.get("program","")))
+	person.appearances=int(person.get("attendance",{}).get("count",0))
+	person.persistence_status="blocked" if persistence_blocked else "saved"
+	return person
 
 func save_population() -> Error:
 	if profile_blocked:
@@ -338,16 +418,17 @@ func _read(source: String) -> Dictionary:
 	var parsed: Variant=json.data
 	if not parsed is Dictionary:return {}
 	var version: Variant=parsed.get("version",0)
-	if not (version is float or version is int) or not is_finite(float(version)) or float(version) not in [1.,float(VERSION)]:return {}
+	if not (version is float or version is int) or not is_finite(float(version)) or float(version) not in [1.,2.,float(VERSION)]:return {}
 	var roster: Variant=parsed.get("people")
 	if not roster is Dictionary or roster.size()>MAX_RESIDENTS:return {}
 	var last_index:=-1
 	for id in roster:
 		var suffix:=str(id).trim_prefix("campus_student_")
-		if not str(id).begins_with("campus_student_") or not suffix.is_valid_int():return {}
-		var index:=int(suffix)
-		if index<0 or index>MAX_RESIDENTS*4:return {}
+		if not valid_identity(str(id)):return {}
+		var index:=int(suffix) if _legacy_identity(str(id)) else posmod(str(id).hash(),MAX_RESIDENTS)
+		if _legacy_identity(str(id)) and (index<0 or index>MAX_RESIDENTS*4):return {}
 		var person: Variant=roster[id]
+		if person is Dictionary and not _valid_metadata(person):return {}
 		if not person is Dictionary or str(person.get("id",""))!=id or person.get("role","")!="student":return {}
 		if not person.get("traits") is Dictionary or not person.get("name") is String:return {}
 		if str(person.name).is_empty() or str(person.name).length()>80:return {}
@@ -366,7 +447,7 @@ func _read(source: String) -> Dictionary:
 			if not person.traits.has(key):person.traits[key]=defaults.traits[key]
 		if not person.get("appearance") is Dictionary:person.appearance=_appearance(index)
 		person.appearance=Toon.sanitize(person.appearance)
-		last_index=maxi(last_index,index)
+		if _legacy_identity(str(id)):last_index=maxi(last_index,index)
 	var following_value: Variant=parsed.get("next_index",0)
 	if not (following_value is float or following_value is int) or not is_finite(float(following_value)) or floorf(float(following_value))!=float(following_value):return {}
 	var following:=int(following_value)
@@ -401,3 +482,128 @@ static func _appearance(index: int) -> Dictionary:
 	config.glasses=Toon.GLASSES[rng.randi_range(0,Toon.GLASSES.size()-1)] if rng.randf()<.3 else "None"
 	config.freckles=rng.randf()<.25
 	return Toon.sanitize(config)
+
+static func valid_identity(id: String) -> bool:
+	if not id.begins_with("campus_student_") or id.length()>64:return false
+	var suffix:=id.trim_prefix("campus_student_")
+	if _legacy_identity(id):return int(suffix)>=0 and int(suffix)<=MAX_RESIDENTS*4
+	if suffix.length()!=32:return false
+	for character in suffix:
+		if character not in "0123456789abcdef":return false
+	return true
+
+func _stamp_identity(person: Dictionary) -> void:
+	var id:=str(person.get("id",""))
+	if not person.has("origin_population"):person.origin_population=_host_profile.sha256_text()
+	if not person.has("persistent_id"):
+		person.persistent_id="campus_student_"+(str(person.origin_population)+":"+id).sha256_text().left(32) if _legacy_identity(id) else id
+	if not person.has("attendance"):person.attendance={"count":0,"events":[],"courses":{},"familiar_players":[]}
+	if not person.has("newly_generated"):person.newly_generated=int(person.attendance.get("count",0))==0
+
+func _index_entry(person: Dictionary) -> Dictionary:
+	return {"id":str(person.get("persistent_id",person.id)),"local_id":str(person.id),"name":str(person.name),"program":str(person.get("program","")),"courses":Programs.courses_for(str(person.get("program",""))),"origin_population":str(person.get("origin_population","")),"revision":int(person.get("dossier_revision",1)),"appearances":int(person.get("attendance",{}).get("count",0))}
+
+func local_id(persistent_id: String) -> String:
+	if people.has(persistent_id):return persistent_id
+	for id in index:
+		if str(index[id].id)==persistent_id:return str(id)
+	return ""
+
+func manifest(offset:=0,limit:=32) -> Array:
+	var result:=[]
+	var ids:=people.keys()
+	ids.sort()
+	for id in ids.slice(maxi(0,offset),maxi(0,offset)+clampi(limit,1,32)):
+		_stamp_identity(people[id])
+		index[id]=_index_entry(people[id])
+		var entry: Dictionary=index[id].duplicate(true)
+		entry.erase("local_id")
+		result.append(entry)
+	return result
+
+func export_person(persistent_id: String) -> Dictionary:
+	var id:=local_id(persistent_id)
+	if id.is_empty():return {}
+	var person:=profile_for(id)
+	var dossier:=Dossiers.get_dossier(id)
+	if dossier.is_empty():return {}
+	# The identity dossier contains the person's fictional canon only. Host
+	# conversations, player grades and API account data are never population data.
+	dossier.identity.id=persistent_id
+	for field in ["generation","provenance"]:
+		dossier[field]={"status":"complete" if person.get("dossier_status")=="complete" else "needs_expansion","source":"contributed_identity"} if field=="generation" else {"source":"contributed_identity","history_kind":"fictional"}
+	return {"version":1,"id":persistent_id,"origin_population":str(person.origin_population),"revision":int(dossier.get("revision",1)),"dossier":dossier,"attendance":{"count":int(person.attendance.get("count",0)),"events":person.attendance.get("events",[]).duplicate(),"courses":person.attendance.get("courses",{}).duplicate(true)},"digest":_digest(dossier)}
+
+func import_person(payload: Dictionary,source_peer:=0) -> Dictionary:
+	if profile_blocked or persistence_blocked:return {"ok":false,"error":"Local population storage is unavailable."}
+	if JSON.stringify(payload).to_utf8_buffer().size()>300000:return {"ok":false,"error":"Profile exceeds size limit."}
+	var id:=str(payload.get("id",""))
+	var origin:=str(payload.get("origin_population",""))
+	if payload.get("version")!=1 or not valid_identity(id) or origin.length()!=64 or not payload.get("dossier") is Dictionary:return {"ok":false,"error":"Invalid population record."}
+	for character in origin:
+		if character not in "0123456789abcdef":return {"ok":false,"error":"Invalid origin."}
+	var incoming: Dictionary=payload.dossier.duplicate(true)
+	if incoming.get("identity",{}).get("id")!=id or incoming.get("identity",{}).get("role")!="student":return {"ok":false,"error":"Identity mismatch."}
+	if _digest(incoming)!=str(payload.get("digest","")):return {"ok":false,"error":"Profile digest mismatch."}
+	var existing:=local_id(id)
+	if existing.is_empty():existing=id
+	if not people.has(existing) and people.size()>=MAX_RESIDENTS:return {"ok":false,"error":"Local population is full."}
+	if people.has(existing) and str(people[existing].get("origin_population",""))!=origin:return {"ok":false,"error":"Conflicting origin; preserved established identity."}
+	incoming.identity.id=existing
+	var merged:=Dossiers.import_identity(incoming)
+	if not merged.get("ok",false):
+		if merged.get("conflict",false):
+			reconciliation_conflicts.append({"id":id,"error":str(merged.error)})
+			if reconciliation_conflicts.size()>64:reconciliation_conflicts.pop_front()
+		return merged
+	var seed: Dictionary=people.get(existing,{"id":existing,"role":"student","subjects":[],"lines":{}})
+	var person:=Dossiers.project(seed)
+	person.origin_population=origin;person.persistent_id=id;person.newly_generated=false
+	_stamp_identity(person)
+	var attendance: Variant=payload.get("attendance",{})
+	if attendance is Dictionary:
+		var events: Array=person.attendance.get("events",[])
+		var incoming_events: Variant=attendance.get("events",[])
+		if incoming_events is Array and incoming_events.size()<=128:
+			for event in incoming_events:
+				if event is String and event.length()==32 and event not in events:events.append(event)
+			while events.size()>128:events.pop_front()
+		person.attendance.events=events
+		person.attendance.count=maxi(int(person.attendance.get("count",0)),events.size())
+	people[existing]=person
+	index[existing]=_index_entry(person)
+	if source_peer>0:contribution_sources[id]=source_peer
+	dirty=true
+	var saved:=save_population()
+	return {"ok":saved==OK,"id":existing,"persistent_id":id,"error":"Could not save contributed identity." if saved!=OK else ""}
+
+static func _digest(value: Variant) -> String:
+	return JSON.stringify(JSON.parse_string(JSON.stringify(value)),"",true).sha256_text()
+
+static func _legacy_identity(id: String) -> bool:
+	var suffix:=id.trim_prefix("campus_student_")
+	return id.begins_with("campus_student_") and suffix.length()<32 and suffix.is_valid_int()
+
+static func _valid_metadata(person: Dictionary) -> bool:
+	if person.has("origin_population"):
+		if not person.origin_population is String or person.origin_population.length()!=64:return false
+		for character in person.origin_population:
+			if character not in "0123456789abcdef":return false
+	if person.has("persistent_id") and (not person.persistent_id is String or not valid_identity(person.persistent_id)):return false
+	if not person.has("attendance"):return true
+	if not person.attendance is Dictionary:return false
+	var attendance: Dictionary=person.attendance
+	for field in ["count"]:
+		var value: Variant=attendance.get(field,0)
+		if not (value is int or value is float) or not is_finite(float(value)) or float(value)<0. or float(value)>1000000.:return false
+	if not attendance.get("events",[]) is Array or attendance.get("events",[]).size()>128:return false
+	for event in attendance.get("events",[]):
+		if not event is String or event.length()!=32:return false
+	if not attendance.get("familiar_players",[]) is Array or attendance.get("familiar_players",[]).size()>32:return false
+	for player in attendance.get("familiar_players",[]):
+		if not player is String or player.length()!=64:return false
+	if not attendance.get("courses",{}) is Dictionary or attendance.get("courses",{}).size()>Programs.COURSES.size():return false
+	for course in attendance.get("courses",{}):
+		var value: Variant=attendance.courses[course]
+		if course not in Programs.COURSES or not (value is int or value is float) or not is_finite(float(value)) or float(value)<0. or float(value)>1000000.:return false
+	return true

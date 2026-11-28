@@ -561,7 +561,7 @@ func _build_portrait(parent: Control) -> void:
 	portrait_world=Node3D.new();viewport.add_child(portrait_world)
 	var environment:=WorldEnvironment.new();var settings:=Environment.new();settings.background_mode=Environment.BG_COLOR;settings.background_color=T.SURFACE;settings.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;settings.ambient_light_color=Color(.75,.87,.95);settings.ambient_light_energy=.75;environment.environment=settings;portrait_world.add_child(environment)
 	var light:=DirectionalLight3D.new();light.rotation_degrees=Vector3(-30,-35,0);light.light_energy=1.3;portrait_world.add_child(light)
-	var camera:=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=2.05;camera.position=Vector3(0,1.15,3.25);portrait_world.add_child(camera);camera.look_at(Vector3(0,.95,0));camera.current=true
+	var camera:=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=2.25;camera.position=Vector3(0,1.15,3.25);portrait_world.add_child(camera);camera.look_at(Vector3(0,.95,0));camera.current=true
 
 func _label(parent: Node,text: String,size: int,color: Color) -> Label:
 	var label:=Label.new();label.text=text;label.add_theme_font_size_override("font_size",size);label.add_theme_color_override("font_color",color);label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;parent.add_child(label);return label

@@ -506,14 +506,14 @@ func _audio_controls() -> void:
 	var devices:=Array(AudioServer.get_input_device_list())
 	if str(prefs.values.microphone_device) not in devices:devices.append(str(prefs.values.microphone_device))
 	_choice("Input device",devices,maxi(0,devices.find(prefs.values.microphone_device)),func(index):_preference(str(devices[index]),"microphone_device"))
-	var modes:=["push_to_talk","voice_activation","muted"]
-	_choice("Microphone mode",["Push-to-talk (hold your voice key)","Voice activation (open microphone)","Muted"],modes.find(prefs.values.microphone_mode),func(index):_preference(modes[index],"microphone_mode"))
+	var modes:=["push_to_talk","voice_activation","manual","muted"]
+	_choice("Microphone mode",["Push-to-talk (hold your voice key)","Voice activation (open microphone)","Manual (record in character interaction)","Muted"],modes.find(prefs.values.microphone_mode),func(index):_preference(modes[index],"microphone_mode"))
 	_toggle("Mute microphone",prefs.values.microphone_muted,_preference.bind("microphone_muted"))
 	_slider("Sensitivity",.5,2.,.05,prefs.values.teacher_mic_sensitivity,_preference.bind("teacher_mic_sensitivity"),"%.0f%%",100)
 	_toggle("Reduce steady background noise",prefs.values.microphone_noise_gate,_preference.bind("microphone_noise_gate"))
 	var echo_modes:=["speaker_protection","headphones"]
 	_choice("Listening setup",["Speakers · protect against playback echo","Headphones · allow interruption while speaking"],echo_modes.find(prefs.values.microphone_echo_mode),func(index):_preference(echo_modes[index],"microphone_echo_mode"))
-	var echo_note:=_label(body,"Acoustic echo cancellation is unavailable in this audio driver. With speakers, open-microphone NPC recognition pauses during speech; hold your voice key to interrupt. Headphones allow continuous listening.",14);echo_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var echo_note:=_label(body,"The game does not provide acoustic echo cancellation. With speakers, open-microphone NPC recognition pauses during speech; hold your voice key to interrupt. Headphones allow continuous listening.",14);echo_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	_label(body,"Character conversations",18)
 	_toggle("Allow NPCs to understand my microphone",prefs.values.teacher_automatic_conversation,_preference.bind("teacher_automatic_conversation"))
 	var privacy:=_label(body,"When enabled, approach and face an NPC, then speak. Relevant speech goes to the host's configured AI service. Private phone calls are excluded. NPC voices are AI-generated.",14);privacy.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART

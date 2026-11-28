@@ -93,13 +93,18 @@ static func project(profile: Dictionary) -> Dictionary:
 	var content_revision := int(d.get("revision",1))
 	if not _projection_cache.has(id) or int(_projection_cache[id].revision)!=content_revision:
 		_projection_cache[id]={"revision":content_revision,"profile":Dossier.project(profile,d)}
-	return _voice_scoped(_projection_cache[id].profile.duplicate(true))
+	var result: Dictionary=_projection_cache[id].profile.duplicate(true)
+	# Attendance and origin are runtime index metadata, not biography revisions.
+	for field in ["origin_population","persistent_id","attendance","newly_generated","enrollment"]:
+		if profile.has(field):result[field]=profile[field].duplicate(true) if profile[field] is Dictionary or profile[field] is Array else profile[field]
+	return _voice_scoped(result)
 
 static func _voice_scoped(profile: Dictionary) -> Dictionary:
 	# Generated IDs may recur in different host saves. Established faculty stay
 	# globally authored; the voice store scopes other identities to this owner.
 	profile.erase("voice_scope")
-	if not host_identity.is_empty():profile.voice_scope=host_identity.sha256_text()
+	if profile.get("role")=="student" and not str(profile.get("origin_population","")).is_empty():profile.voice_scope=str(profile.origin_population)
+	elif not host_identity.is_empty():profile.voice_scope=host_identity.sha256_text()
 	return profile
 
 static func get_dossier(id: String) -> Dictionary:
@@ -129,9 +134,10 @@ static func queue(profile: Dictionary, priority := 0) -> bool:
 	dirty = true
 	return true
 
-static func queue_student(id: String) -> bool:
+static func queue_student(id: String,seed: Dictionary={}) -> bool:
 	if blocked or jobs.has(id) or dossiers.has(id) or jobs.size() >= MAX_IDENTITIES: return false
 	jobs[id] = {"id": id, "kind": "student", "status": "queued", "priority": 1, "attempts": 0, "stage": "full", "draft": {}, "issues": [], "invalid_sections": [], "created_at": int(Time.get_unix_time_from_system()), "retry_at": 0, "requests": 0, "measurement": {}, "last_error": ""}
+	if not seed.is_empty():jobs[id].seed=seed.duplicate(true)
 	dirty = true
 	return true
 
@@ -306,3 +312,41 @@ static func _storage_bytes() -> int:
 	var bytes := file.get_length()
 	file.close()
 	return bytes
+
+static func import_identity(incoming: Dictionary) -> Dictionary:
+	if blocked or path.is_empty():return {"ok":false,"error":"Character storage is unavailable."}
+	var validation:=Dossier.validate(incoming,{},false)
+	if not validation.get("ok",false):return {"ok":false,"error":"Contributed dossier failed schema validation."}
+	var id:=str(incoming.identity.id)
+	if incoming.identity.get("role")!="student" or not id.begins_with("campus_student_"):return {"ok":false,"error":"Only student identities can be contributed."}
+	var previous: Dictionary=dossiers.get(id,{}).duplicate(true)
+	var merged:=incoming.duplicate(true)
+	# A revision number from a second device is not an authority claim. Preserve
+	# established facts and merge only identical or new nonconflicting sections.
+	if not previous.is_empty():
+		for key in ["id","name","role","age","program","appearance"]:
+			if JSON.stringify(JSON.parse_string(JSON.stringify(previous.identity.get(key))),"",true)!=JSON.stringify(JSON.parse_string(JSON.stringify(incoming.identity.get(key))),"",true):
+				return {"ok":false,"conflict":true,"error":"Conflicting %s; established identity retained."%key}
+		merged=previous.duplicate(true)
+		var sections:={}
+		for section in merged.life_history:sections[str(section.id)]=section
+		for section in incoming.life_history:
+			if sections.has(str(section.id)):
+				if str(sections[str(section.id)].get("text",""))!=str(section.get("text","")):
+					return {"ok":false,"conflict":true,"error":"Contradictory biography section retained for review."}
+			else:merged.life_history.append(section.duplicate(true))
+		merged.revision=int(previous.get("revision",1))+(1 if merged.life_history.size()!=previous.life_history.size() else 0)
+	# Strip noncanonical extensions from remote data, including telemetry.
+	var safe:={}
+	for key in ["version","revision","identity","life_history","personality","communication","traits","knowledge","voice","compact_core","trait_evidence","subjects","design_specification","trait_constraints","established_biography","generation","provenance"]:
+		if merged.has(key):safe[key]=merged[key]
+	safe.version=VERSION
+	dossiers[id]=safe
+	_projection_cache.erase(id)
+	dirty=true
+	var saved:=save()
+	if saved!=OK:
+		if previous.is_empty():dossiers.erase(id)
+		else:dossiers[id]=previous
+		return {"ok":false,"error":"Contributed dossier could not be saved."}
+	return {"ok":true,"id":id}

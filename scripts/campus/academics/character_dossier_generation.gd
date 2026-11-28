@@ -109,7 +109,7 @@ func _sync_population() -> void:
 	for _index in maxi(0, needed):
 		var id: String = population.reserve_identity()
 		if id.is_empty(): break
-		Store.queue_student(id)
+		Store.queue_student(id,population.generation_seed(id))
 	if Store.dirty: Store.save()
 
 func cancel() -> void:

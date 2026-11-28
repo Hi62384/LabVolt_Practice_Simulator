@@ -11,13 +11,16 @@ func _initialize() -> void:
 	_check(not exchange.allow_request(99, 12000, roster, 1, "selection_a"), "Unconnected peer cannot obtain inspection state")
 	_check(exchange.allow_request(2, 12000, roster, 2, "selection_a"), "Bounded later refresh should be admitted")
 	var snapshot := {"available": true, "private_access": true, "selected_id": "mr_bro", "name": "Mr Bro", "personality_description": "Stored description", "life_history": [{"title": "Stored life section", "text": "A fictional life section."}], "mood": "steady", "phase": "freeplay", "relationship": {"friendship": 0.6}, "diagnostics": {"speech": "HOST_PRIVATE_TRANSCRIPT"}, "persistence": {"path": "HOST_PRIVATE_PATH"}, "api_key": "CREDENTIAL", "generation": {"status": "ready", "raw_request": "PRIVATE_REQUEST"}, "life_records": {"hobby": {"detail": "A fictional hobby", "evidence": "PRIVATE_EVIDENCE"}}, "relationship_events": [{"description": "Your own event", "raw_answer": "PRIVATE_ANSWER"}]}
+	snapshot.persistent_status="saved"
+	snapshot.population_diagnostics={"origin_population":"PRIVATE_POPULATION_ORIGIN"}
 	var packet := Exchange.public_packet(snapshot, "", "selection_a", 1)
 	var serialized := JSON.stringify(packet)
-	for forbidden in ["HOST_PRIVATE_TRANSCRIPT", "HOST_PRIVATE_PATH", "CREDENTIAL", "PRIVATE_REQUEST", "PRIVATE_EVIDENCE", "PRIVATE_ANSWER"]:
+	for forbidden in ["HOST_PRIVATE_TRANSCRIPT", "HOST_PRIVATE_PATH", "CREDENTIAL", "PRIVATE_REQUEST", "PRIVATE_EVIDENCE", "PRIVATE_ANSWER", "PRIVATE_POPULATION_ORIGIN"]:
 		_check(not forbidden in serialized, "Public packet leaked " + forbidden)
 	_check(not packet.stable.is_empty(), "First packet must include identity")
 	var accepted := Exchange.accept_packet(packet, "selection_a", 1, "mr_bro", {}, "")
 	_check(accepted.get("snapshot", {}).get("relationship", {}).get("friendship") == 0.6, "Public packet must preserve actual relationship values")
+	_check(accepted.snapshot.get("persistent_status")=="saved", "Public student persistence status survives transport")
 	_check(not accepted.snapshot.private_access, "Transport cannot enable private host UI")
 	_check(Exchange.accept_packet(packet, "selection_b", 1, "mr_bro", {}, "").is_empty(), "Response from a closed selection must be rejected")
 	_check(Exchange.accept_packet(packet, "selection_a", 2, "mr_bro", {}, "").is_empty(), "Stale response serial must be rejected")

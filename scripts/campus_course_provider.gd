@@ -1,4 +1,5 @@
 extends RefCounted
+const Programs=preload("res://scripts/campus/academics/academic_programs.gd")
 const MathCourses=preload("res://scripts/campus_math_router.gd")
 const Base=preload("res://scripts/campus/courses/course_provider.gd")
 const Network=preload("res://scripts/ac_network.gd")
@@ -9,6 +10,8 @@ func grade(assignment: Dictionary,answers: Dictionary) -> Dictionary:
 func public_copy(assignment: Dictionary,marked := false) -> Dictionary:
 	return MathCourses.public_copy(assignment,marked) if assignment.get("course_id","") in MathCourses.PATHS else Base.public_copy(assignment,marked)
 func catalog() -> Array:return Base.catalog()+[Digital.catalog()]+MathCourses.catalog()
+func programs() -> Array:return Programs.catalog()
+func program_courses(program: String) -> Array:return Programs.courses_for(program)
 func weeks(course: String,kind: String) -> Array:
 	if course=="DGS266":return Digital.weeks(kind)
 	return MathCourses.weeks(course,kind) if course in MathCourses.PATHS else Base.weeks(course,kind)

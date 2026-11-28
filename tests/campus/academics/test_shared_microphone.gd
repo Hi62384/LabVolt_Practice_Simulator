@@ -11,6 +11,21 @@ func run() -> void:
   frames.append(Vector2(sample,sample))
  var result: Dictionary=processor.Process(frames,48000.,1.,false)
  assert(result.pcm.size()==640 and result.speech and result.rms>0.01)
+ # Sensitivity reaches the real processor. Quiet speech can use the higher
+ # setting; normal and loud voiced input must not require shouting.
+ var quiet:=PackedVector2Array()
+ var loud:=PackedVector2Array()
+ var noise:=PackedVector2Array()
+ var random:=RandomNumberGenerator.new();random.seed=5102
+ for i in 960:
+  var wave:=sin(float(i)*TAU*220.0/48000.0)
+  quiet.append(Vector2(wave,wave)*.005)
+  loud.append(Vector2(wave,wave)*.9)
+  noise.append(Vector2(random.randf_range(-.04,.04),random.randf_range(-.04,.04)))
+ assert(not Processor.new().Process(quiet,48000.,.5,false).speech)
+ assert(Processor.new().Process(quiet,48000.,2.,false).speech)
+ assert(Processor.new().Process(loud,48000.,1.,false).speech)
+ assert(not Processor.new().Process(noise,48000.,1.,false).speech,"Loud broadband noise is not automatically speech")
  var activity=Activity.new()
  var rollover:=0
  var final_count:=0
@@ -24,7 +39,7 @@ func run() -> void:
    assert(packet.continued,"A long question ended prematurely")
    rollover+=1;emitted_bytes+=packet.audio.size()
  var silence:=PackedByteArray();silence.resize(640)
- for i in 70:
+ for i in 110:
   var packet: Dictionary=activity.PushPcm(silence,false)
   if packet.has("audio"):
    assert(not packet.continued and packet.turn_id==stable_turn)

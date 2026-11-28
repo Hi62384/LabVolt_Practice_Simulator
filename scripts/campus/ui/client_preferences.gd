@@ -47,7 +47,7 @@ func load_settings(owner: Node) -> void:
 	values.ui_scale = clampf(values.ui_scale, 0.85, 1.25)
 	if not is_finite(values.teacher_mic_sensitivity):values.teacher_mic_sensitivity=1.0
 	values.teacher_mic_sensitivity=clampf(values.teacher_mic_sensitivity,.5,2.0)
-	if values.microphone_mode not in ["push_to_talk","voice_activation","muted"]:values.microphone_mode="push_to_talk"
+	if values.microphone_mode not in ["push_to_talk","voice_activation","manual","muted"]:values.microphone_mode="push_to_talk"
 	if values.microphone_echo_mode not in ["speaker_protection","headphones"]:values.microphone_echo_mode="speaker_protection"
 	for key in BUS_NAMES:
 		values[key] = clampf(values[key], 0.0, 1.0) if is_finite(values[key]) else DEFAULTS[key]
@@ -61,6 +61,7 @@ func save() -> Error:
 func set_option(key: String, value: Variant) -> void:
 	if not DEFAULTS.has(key) or typeof(value)!=typeof(DEFAULTS[key]):return
 	if value is float and not is_finite(value):value=DEFAULTS[key]
+	if values.get(key)==value:return
 	values[key] = value
 	apply(key)
 
@@ -76,11 +77,12 @@ func apply(key: String) -> void:
 		"microphone_mode", "microphone_muted", "microphone_device", "microphone_noise_gate", "microphone_echo_mode", "teacher_mic_sensitivity", "teacher_automatic_conversation":
 			var service:=game.get_tree().root.get_node_or_null("MicrophoneCapture")
 			if is_instance_valid(service):service.configure(values)
-			if key in ["microphone_device","microphone_mode","microphone_muted","teacher_automatic_conversation"]:
-				if is_instance_valid(game.get("faculty")):
-					game.faculty._cancel_recording()
-					game.faculty._stop_voice_conversation()
-				if (values.microphone_muted or values.microphone_mode=="muted") and is_instance_valid(game.get("voice_chat")):game.voice_chat._stop()
+			if is_instance_valid(game.get("faculty")):
+				# Mode or NPC-consent changes affect automatic recognition only.
+				# A separately requested manual recording survives unrelated changes.
+				if key=="microphone_device" or values.microphone_muted or values.microphone_mode=="muted":game.faculty._cancel_recording()
+				if key in ["microphone_device","microphone_mode","microphone_muted","teacher_automatic_conversation"]:game.faculty._stop_voice_conversation()
+			if (values.microphone_muted or values.microphone_mode=="muted") and is_instance_valid(game.get("voice_chat")):game.voice_chat._stop()
 		"output_device":
 			if values.output_device in AudioServer.get_output_device_list():AudioServer.output_device=values.output_device
 		"teacher_speech", "teacher_subtitles":

@@ -5,6 +5,7 @@ const Toon=preload("res://scripts/toon_character.gd")
 const Avatar=preload("res://scripts/avatar_model.gd")
 const Social=preload("res://scripts/campus/academics/classmate_social.gd")
 const Motion=preload("res://scripts/campus/academics/character_motion.gd")
+const SeatedPose=preload("res://scripts/campus/academics/student_seated_pose.gd")
 const Behavior=preload("res://scripts/campus/academics/character_behavior.gd")
 const Route=preload("res://scripts/campus/academics/classroom_teacher_route.gd")
 const Population=preload("res://scripts/campus/academics/student_population.gd")
@@ -24,6 +25,7 @@ var social_next_global:=0.
 var records_path:=RECORDS
 var learning_save_error:=OK
 var host_profile:=""
+var seating: Node
 
 static func profile_for(id: String) -> Dictionary:
 	if known_profiles.has(id):
@@ -33,13 +35,13 @@ static func profile_for(id: String) -> Dictionary:
 	# here. Evidence-based migration belongs to Population, never a UI lookup.
 	return {}
 
-func nearby_member(peer: int,room: String,class_id: String,id: String) -> Dictionary:
+func nearby_member(peer: int,room: String,class_id: String,id: String,max_range: float=3.8) -> Dictionary:
 	var activity: Dictionary=game.lecture_classes.classes.get(room,{})
 	if activity.get("id","")!=class_id or not game.lecture_classes._inside(peer,room):return {}
 	var member: Dictionary=activity.get("classmates",{}).get(id,{})
 	if member.is_empty() or member.get("removed_from_class",false) or member.get("leaving_class",false) or float(member.arrival)>game.lecture_classes._now():return {}
 	var point: Vector3=game.lecture_classes._position(peer)
-	if point.distance_to(member.position)>3.8:return {}
+	if not point.is_finite() or not is_finite(max_range) or point.distance_to(member.position)>clampf(max_range,0.0,7.0):return {}
 	return member
 
 func visible_member(room: String,class_id: String,id: String) -> Dictionary:
@@ -56,6 +58,10 @@ func dialogue(profile: Dictionary,course: String,stage: Dictionary,question: Str
 
 func configure(owner: Node) -> void:
 	game=owner
+	if not is_instance_valid(seating):
+		seating=preload("res://scripts/campus/academics/classroom_seating.gd").new()
+		seating.name="Seating";add_child(seating)
+	seating.configure(game,self)
 	known_profiles.clear()
 	learning.clear()
 	records.clear()
@@ -104,6 +110,7 @@ func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: fl
 	var seats: Array=room.get("seats",[])
 	var options:=seats.filter(func(seat: Vector3):
 		return not players.any(func(player: Vector3):return seat.distance_to(player)<1.1))
+	if is_instance_valid(game) and "chairs" in game:options=seating.available_points(room,players)
 	var rng:=RandomNumberGenerator.new()
 	rng.seed=hash(activity.id)
 	var practical: bool=activity.get("kind","")=="lab"
@@ -120,7 +127,7 @@ func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: fl
 		if str(other.get("id",""))==str(activity.id):continue
 		for id in other.get("classmates",{}):
 			if not bool(other.classmates[id].get("removed_from_class",false)):occupied[id]=true
-	for profile: Dictionary in population.available(occupied,count,hash(activity.id)):
+	for profile: Dictionary in population.available(occupied,count,hash(activity.id),str(activity.get("course","")),game.school.identities.values()):
 		known_profiles[profile.id]=profile.duplicate(true)
 		var slot:=_social_seat(profile,classmates,options,rng)
 		var seat: Vector3=options.pop_at(slot)
@@ -128,7 +135,21 @@ func start(activity: Dictionary,room: Dictionary,players: Array[Vector3],now: fl
 		classmates[profile.id]={"profile":profile,"seat":seat,"position":seat+Vector3(0,0,1.6),"arrival":arrival,
 			"seated":false,"standing":practical,"has_seat":seat in seats,"arrived":false,"walking":false,"action":"arriving","next":arrival+7.,"turns":0,
 			"academic_due":0.,"social_source":"","behavior_started":arrival}
+		if seating.assign(classmates[profile.id],str(activity.id)):classmates[profile.id].has_seat=true
+		population.record_attendance(str(profile.id),str(activity.get("course","")),str(activity.id))
 	activity.classmates=classmates
+
+func seat_request_reaction(activity: Dictionary,member: Dictionary,peer: int) -> void:
+	if not is_instance_valid(game) or game.host_openai.busy or not game.faculty.ai_busy.is_empty():return
+	var identity:=str(game.school.identities.get(peer,""))
+	if identity.is_empty():return
+	var room:=str(member.get("seat_relocation",{}).get("room",""))
+	var response: Dictionary=await game.faculty.generate_character_exchange(member.profile,identity,activity,"",{
+		"initiate":true,"intention":"The player has asked for your chair and you are making room. React briefly in your own personality and according to your relationship. The movement is already handled; you do not need to announce or narrate it.",
+		"observations":{"verified_seat_request":true},"_valid":func():return _activity_current(activity,str(activity.phase))})
+	if not _activity_current(activity,str(activity.phase)) or response.get("cancelled",false):return
+	var line:=str(response.get("line",""))
+	if not line.is_empty():game.faculty.present_student_speech(room,str(activity.id),str(member.profile.id),line,str(response.get("emotion","steady")),response.get("turn",{}).get("emotions",{}))
 
 func _social_seat(profile: Dictionary,classmates: Dictionary,options: Array,rng: RandomNumberGenerator) -> int:
 	var index:=rng.randi_range(0,options.size()-1)
@@ -153,6 +174,7 @@ func step(activity: Dictionary,now: float,delta: float,room := "") -> void:
 	for member in activity.get("classmates",{}).values():
 		var profile: Dictionary=member.profile
 		if now<float(member.arrival) or member.get("removed_from_class",false):continue
+		if seating!=null and seating.step(member,delta):continue
 		if member.has("walk") and _step_walk(activity,member,now,delta):continue
 		if member.has("gesture") and now>=float(member.gesture_until):member.erase("gesture")
 		if not member.get("arrived",member.seated):
@@ -330,12 +352,15 @@ func apply_discipline(room: String,activity: Dictionary,id: String,decision: Dic
 	if action=="move":
 		var best:=0.5
 		for seat: Vector3 in activity.get("room",{}).get("seats",[]):
+			var chair: Node3D=seating.chair_at(seat) if is_instance_valid(seating) else null
+			if is_instance_valid(seating) and (chair==null or not chair.available_for_npc()):continue
 			if activity.classmates.values().any(func(other):return other!=member and not other.get("removed_from_class",false) and ((other.seat as Vector3).distance_to(seat)<.7 or (other.get("walk",{}).get("target_seat",Vector3.INF) as Vector3).distance_to(seat)<.7)):continue
 			if game.session.roster.keys().any(func(peer):return game.lecture_classes._position(int(peer)).distance_to(seat)<.8):continue
 			var distance: float=member.position.distance_to(seat)
 			if distance>best:
 				best=distance
 				target=seat
+		if target.is_finite() and is_instance_valid(seating):return seating.move_student(member,activity,room,target)
 	else:
 		var raw: Variant=room_data.get("door")
 		if raw is Array and raw.size()==3:
@@ -751,7 +776,7 @@ func snapshot(activity: Dictionary,now: float) -> Array:
 		if now<float(member.arrival) or member.get("removed_from_class",false):continue
 		var affect: Dictionary=game.faculty.character_mind.context(member.profile,Time.get_ticks_msec()) if is_instance_valid(game) else {}
 		result.append({"id":member.profile.id,"name":member.profile.name,"position":member.position,
-			"walking":member.walking,"seated":member.seated,"action":member.action,"line":member.get("line",""),
+			"walking":member.walking,"seated":member.seated,"seat_id":str(member.get("seat_id","")),"seat_yaw":float(member.get("seat_yaw",PI)),"action":member.action,"line":member.get("line",""),
 			"look_at":member.get("look_at",Vector3.INF),"class_id":activity.id,"mood":affect.get("emotion",member.get("mood","steady")),"emotions":affect.get("emotions",{}),
 			"public_profile":_public_profile(member.profile),"appearance":member.profile.get("appearance",{}),
 			"behavior_elapsed":clampf(now-float(member.get("behavior_started",now)),0.,120.),
@@ -767,6 +792,8 @@ static func _public_profile(person: Dictionary) -> Dictionary:
 	for key in ["identifier","profile","characteristics","delivery"]:
 		if person.get("voice",{}).has(key):voice[key]=person.voice[key]
 	return {"id":str(person.id),"name":str(person.name),"role":"student","identity_scope":"public","style":str(person.get("style","")),
+		"age":clampi(int(person.get("age",18)),18,110),"program":str(person.get("program","")).left(160),
+		"persistent_status":str(person.get("persistence_status","saved")),
 		"talk":float(person.get("talk",.5)),"voice":voice,"traits":traits}
 
 func focus_on_player(class_id: String,actor: String) -> void:
@@ -793,6 +820,7 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 			config.name=member.name
 			if member.get("appearance",{}).is_empty():config=Population._appearance(index)
 			model=Toon.build(config)
+			SeatedPose.install(model)
 			model.set_meta("character_outfit",game.faculty._outfit_color(Color.html(str(config.top)))+" "+str(config.outfit))
 			model.rotation.y=PI
 			add_child(model)
@@ -827,10 +855,10 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 		model.global_position=model.global_position.move_toward(member.position,delta*2.2)
 		var target: Vector3=member.get("look_at",Vector3.INF)
 		if member.action=="returning to work":dialogue_focus.erase(key)
-		elif member.get("gesture","")!="point" and now<int(dialogue_focus.get(key,0)):target=game.player.global_position
+		elif member.get("gesture","")!="point" and now<int(dialogue_focus.get(key,0)):target=game.player.eyes.global_position
 		var direction:=target-model.global_position
-		var facing:=PI
-		if direction.is_finite() and Vector2(direction.x,direction.z).length_squared()>.01:
+		var facing:=float(member.get("seat_yaw",PI))
+		if not bool(member.seated) and direction.is_finite() and Vector2(direction.x,direction.z).length_squared()>.01:
 			facing=atan2(direction.x,direction.z)
 		model.rotation.y=lerp_angle(model.rotation.y,facing,1.-exp(-delta*9.))
 		Avatar.animate(model,member.walking,member.seated)
@@ -840,14 +868,13 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 			var gesture_phase:=float(member.get("gesture_elapsed",0.))
 			if str(member.get("gesture","")).is_empty():gesture_phase=float(member.get("behavior_elapsed",0.))
 			Motion.express(model,str(member.get("mood","steady")),delta,pose,gesture_phase,member.get("gesture_point",Vector3.INF),
-				member.get("emotions",{}),member.get("public_profile",{}).get("traits",{}))
+				member.get("emotions",{}),member.get("public_profile",{}).get("traits",{}),target)
 		_render_activity_items(model,str(member.action))
 		var label:=model.get_node_or_null("StudentName") as Label3D
 		if label!=null:
-			var line: String=member.get("line","")
-			if line.is_empty() and member.action in ["wiring circuit","checking instruments","reading meter","reading scope","placing breadboard","powering breadboard","setting logic inputs","checking circuit behavior","recorded measurement","discussing group work"]:
-				line=str(member.action).capitalize()
-			label.text=member.name+("\n"+line if not line.is_empty() else "")
+			label.text=str(member.name)
+			var head:=model.get_node_or_null("Body/Head") as Node3D
+			if head!=null:label.position.y=model.to_local(head.global_position).y+.37
 	for key in models.keys():
 		if seen.has(key):continue
 		models[key].queue_free()

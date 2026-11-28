@@ -49,3 +49,22 @@ static func acknowledgement(text: String) -> bool:
  var clean:=text.to_lower().strip_edges()
  for mark in [".",",","!","?","—","-"]:clean=clean.replace(mark,"")
  return clean in ["yeah","yes","yep","okay","ok","right","uh huh","uhhuh","mhm","mmhmm","mm hmm","i see","got it","sure"]
+
+static func rejection_reason(candidates: Array, eye: Vector3, forward: Vector3, current: String="") -> String:
+ if not eye.is_finite() or not forward.is_finite() or forward.length_squared()<.5:return "The player view is unavailable."
+ if candidates.is_empty():return "No NPC is available in this room."
+ var visible:=false
+ var in_range:=false
+ for candidate in candidates:
+  var point: Vector3=candidate.get("position",Vector3.INF)
+  if not point.is_finite() or not candidate.get("visible",false):continue
+  visible=true
+  var continued:=str(candidate.get("id",""))==current
+  var invited:=bool(candidate.get("invited",false))
+  if eye.distance_to(point)>(FOLLOWUP_RANGE if continued else (16.0 if invited else RANGE)):continue
+  in_range=true
+  var gaze:=forward.normalized().dot((point-eye).normalized())
+  if gaze>=(.1 if continued else (0.0 if invited else .62)):return "The intended listener is ambiguous, or you are facing another player."
+ if not visible:return "A wall or another object blocks the NPC's line of sight."
+ if not in_range:return "Move a little closer to the NPC."
+ return "Face the NPC you want to address."
