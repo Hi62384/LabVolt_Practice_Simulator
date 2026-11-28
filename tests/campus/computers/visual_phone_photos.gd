@@ -110,11 +110,30 @@ func run() -> void:
 		if browser.tabs.size()!=2 or not str(browser._browser().get_url()).contains("google.com"):fail("New tab did not open Google");return
 		if browser.holder.size.y<game.smartphones.panel.size.y*.55:fail("Browser page too short");return
 		var active_browser: Node=browser._browser()
-		active_browser.load_data_uri("<script>let ticks=0;setInterval(()=>document.title='tick:'+ ++ticks,50)</script>","text/html")
+		var video:=Marshalls.raw_to_base64(FileAccess.get_file_as_bytes("res://CampusOS-Test-Files/video/sample.webm"))
+		var html:="<video muted autoplay loop src='data:video/webm;base64,%s'></video><input type='file' accept='image/*' capture hidden><script>const v=document.querySelector('video');v.ontimeupdate=()=>{if(v.currentTime>0&&document.title==='')document.title='video-ready'};document.querySelector('input').onchange=e=>document.title='camera:'+e.target.files[0]?.type;</script>"%video
+		active_browser.load_data_uri(html,"text/html")
+		until=Time.get_ticks_msec()+8000
+		while active_browser.get_title()!="video-ready" and Time.get_ticks_msec()<until:await process_frame
+		if active_browser.get_title()!="video-ready":fail("Browser video did not start");return
+		active_browser.execute_javascript("document.querySelector('input').click();")
+		until=Time.get_ticks_msec()+5000
+		while not is_instance_valid(browser.upload_picker) and Time.get_ticks_msec()<until:await process_frame
+		if not is_instance_valid(browser.upload_picker):fail("Website Camera did not open the phone picker");return
+		browser.upload_picker.custom_action.emit(&"camera")
+		until=Time.get_ticks_msec()+6500
+		while active_browser.get_title()!="camera:image/jpeg" and Time.get_ticks_msec()<until:await process_frame
+		if active_browser.get_title()!="camera:image/jpeg":fail("A real phone camera photo did not reach the browser input");return
+		active_browser.execute_javascript("let ticks=0;window.phoneFixtureTimer=setInterval(()=>document.title='tick:'+ ++ticks,50)")
 		until=Time.get_ticks_msec()+3000
 		while not str(active_browser.get_title()).begins_with("tick:") and Time.get_ticks_msec()<until:await process_frame
 		if not str(active_browser.get_title()).begins_with("tick:"):fail("Browser timer fixture did not load");return
+		var phone_pixels: Vector2i=game.smartphones.phone_view.size
+		var browser_pixels: Vector2=browser.tabs[browser.active].surface.get_meta("cef_pixels",Vector2.ZERO)
 		game.smartphones.close()
+		await create_timer(.25).timeout
+		if game.smartphones.phone_view.size!=phone_pixels or browser.tabs[browser.active].surface.get_meta("cef_pixels",Vector2.ZERO)!=browser_pixels:
+			fail("Closing the phone resized the live browser");return
 		game.hotbar.active=-1
 		for frame in 3:await process_frame
 		if not active_browser.has_method("set_page_suspended") or not browser.device_suspended:fail("Unequipping did not suspend the browser");return
@@ -131,6 +150,10 @@ func run() -> void:
 		game.smartphones.open()
 		if not is_same(game.smartphones.browser_surface,browser) or not is_same(browser._browser(),active_browser):
 			fail("Reopening the phone replaced its browser session");return
+		active_browser.execute_javascript("clearInterval(window.phoneFixtureTimer);const stillPlaying=document.querySelector('video');document.title=stillPlaying&&!stillPlaying.paused&&stillPlaying.videoWidth>0?'video-preserved':'video-lost';")
+		until=Time.get_ticks_msec()+2500
+		while active_browser.get_title()!="video-preserved" and Time.get_ticks_msec()<until:await process_frame
+		if active_browser.get_title()!="video-preserved":fail("Reopened browser lost its playing video");return
 		await create_timer(.8).timeout
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.godot/phone-browser.png")
@@ -147,6 +170,8 @@ func run() -> void:
 	await physics_frame
 	var world_phone: Node3D=game.smartphones._placed_model(id)
 	if not is_instance_valid(world_phone) or not game.smartphones.selected().is_empty():fail("F did not place the phone");return
+	if world_phone.get_meta("phone_screen").global_position.y-world_phone.global_position.y<.02:
+		fail("The phone display is still below the decorative floor");return
 	if world_phone.get_meta("phone_screen").material_override.albedo_texture!=texture:fail("Placed phone did not mirror its current app");return
 	if test_browser:
 		var browser: Node=game.smartphones.browser_surface

@@ -2142,7 +2142,9 @@ func _discipline_instruction(room: String,class_id: String,id: String,action: St
 func _perform_discipline(room: String,class_id: String,id: String,action: String,target: Vector3) -> bool:
  var activity: Dictionary=game.lecture_classes.classes.get(room,{}) if multiplayer.is_server() else game.lecture_classes.public_classes.get(room,{})
  if str(activity.get("id",""))!=class_id or str(activity.get("teacher",""))!=id:return false
- if action=="put_away":game.smartphones.close();return true
+ if action=="put_away":
+  game.smartphones.show_put_away_warning(id)
+  return true
  if action not in ["move","remove"] or not target.is_finite():return false
  if action=="remove" and activity.get("phase","")=="assignment":return false
  if action=="move" and not game.campus.registry.room_contains(room,target):return false

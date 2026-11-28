@@ -13,6 +13,9 @@ const Widgets=preload("res://scripts/ui/design_system/widgets.gd")
 static var runtime: Node
 static var next_session_serial:=0
 var attachment_loader: Callable
+var attachment_catalog: Callable
+var attachment_camera: Callable
+var upload_picker: ConfirmationDialog
 var assistant_virtual_save: Callable
 var virtual_download_save: Callable
 var download_request: HTTPRequest
@@ -99,6 +102,7 @@ func _process(delta: float) -> void:
   _finish_context_menu({})
  _assistant_check_title()
  _check_page_download()
+ _check_page_upload()
  if not is_instance_valid(back) or not is_instance_valid(forward):return
  var browser: Variant=_browser()
  back.disabled=browser==null or not browser.has_previous_page()
@@ -138,6 +142,11 @@ func configure(kind: String,id: String,session_lease: String,items: Array) -> vo
 
 func close_session() -> void:
  _cancel_recording()
+ if is_instance_valid(upload_picker):upload_picker.queue_free()
+ upload_picker=null
+ attachment_catalog=Callable()
+ attachment_camera=Callable()
+ device_suspended=false
  if is_instance_valid(download_request):
   download_request.cancel_request()
   download_request.queue_free()
@@ -535,7 +544,12 @@ func _loaded(browser: Variant) -> void:
  for i in tabs.size():
   if tabs[i].browser!=browser:continue
   tabs[i].title=str(browser.get_title()) if not str(browser.get_title()).is_empty() else str(browser.get_url()).left(24)
-  browser.execute_javascript(_upload_script())
+  var upload_token: String=tabs[i].get("upload_token","")
+  if upload_token.is_empty():upload_token=Crypto.new().generate_random_bytes(12).hex_encode()
+  tabs[i].upload_token=upload_token
+  tabs[i].upload_document=int(tabs[i].get("upload_document",0))+1
+  tabs[i].erase("upload_ticket")
+  browser.execute_javascript(_upload_script(upload_token))
   if device_kind=="computer" and not tabs[i].native_download:
    var token: String=tabs[i].get("page_download",{}).get("token","")
    if token.is_empty():token=Crypto.new().generate_random_bytes(12).hex_encode()
@@ -1065,23 +1079,64 @@ func _element_row(parent: TreeItem,data: Variant) -> TreeItem:
  row.set_metadata(0,data.path)
  return row
 
-func _choose_attachment(browser: Variant=null) -> void:
+func _check_page_upload() -> void:
+ var browser: Variant=_browser()
+ if browser==null:return
+ var token: String=tabs[active].get("upload_token","")
+ if token.is_empty():return
+ var title:=str(browser.get_title())
+ var prefix:="__LVUP__"+token+"|"
+ if not title.begins_with(prefix):return
+ var fields:=title.trim_prefix(prefix).split("|",true,1)
+ browser.execute_javascript("window.__labvoltRestoreUploadTitle?.();")
+ if fields.size()!=2 or not fields[0].is_valid_int() or fields[0].length()>12:return
+ if fields[0]==tabs[active].get("upload_ticket",""):return
+ tabs[active].upload_ticket=fields[0]
+ var context:={"session":session_key,"url":str(browser.get_url()),"document":tabs[active].upload_document,"ticket":fields[0]}
+ if is_instance_valid(upload_picker):upload_picker.queue_free()
+ _choose_attachment(browser,context,fields[1]=="camera")
+
+func _valid_upload(browser: Variant,context: Dictionary) -> bool:
+ return is_instance_valid(browser) and browser==_browser() and (context.is_empty() or
+  (context.session==session_key and context.url==str(browser.get_url()) and context.document==tabs[active].get("upload_document",0)))
+
+func _choose_attachment(browser: Variant=null, context: Dictionary={}, prefer_camera := false) -> void:
  if not is_instance_valid(browser):browser=_browser()
+ var items: Array=attachment_catalog.call() if attachment_catalog.is_valid() else candidates.duplicate(true)
  var picker:=ConfirmationDialog.new();picker.title="Choose a phone photo" if device_kind=="phone" else "Choose a virtual file";picker.ok_button_text="Select";add_child(picker)
+ if not context.is_empty():upload_picker=picker
  var list:=ItemList.new();list.custom_minimum_size=Vector2(330,250);picker.add_child(list)
- for item in candidates:list.add_item("%s · %.1f KB"%[item.name,float(item.bytes)/1024.0])
+ for item in items:list.add_item("%s · %.1f KB"%[item.name,float(item.bytes)/1024.0])
+ if items.is_empty():
+  var label:=Label.new()
+  label.text="No photos on this phone." if device_kind=="phone" else "No files available."
+  list.add_child(label)
  picker.get_ok_button().disabled=true
+ if not context.is_empty() and attachment_camera.is_valid():
+  var camera:=picker.add_button("Take photo",prefer_camera,"camera")
+  if prefer_camera:camera.grab_focus.call_deferred()
+  picker.custom_action.connect(func(action: StringName):
+   if action!="camera" or not _valid_upload(browser,context):return
+   picker.hide()
+   picker.queue_free()
+   var photo: Dictionary=await attachment_camera.call()
+   if not is_instance_valid(self) or not _valid_upload(browser,context):return
+   if photo.has("error"):status.text=photo.error
+   elif not photo.is_empty():_supply_upload(browser,context,photo))
  list.item_selected.connect(func(_index):picker.get_ok_button().disabled=false)
  picker.confirmed.connect(func():
   var selected:=list.get_selected_items()
-  if not selected.is_empty():
-   selected_attachment=candidates[int(selected[0])].duplicate(true);_refresh()
-   if is_instance_valid(browser):_supply_upload(browser)
+  if not selected.is_empty() and _valid_upload(browser,context):
+   selected_attachment=items[int(selected[0])].duplicate(true);_refresh()
+   _supply_upload(browser,context)
   picker.queue_free())
  picker.canceled.connect(func():picker.queue_free());picker.popup_centered()
 
-func _supply_upload(browser: Variant) -> void:
- if browser!=_browser():return
+func _supply_upload(browser: Variant,context: Dictionary={},photo: Dictionary={}) -> void:
+ if not _valid_upload(browser,context):return
+ if not photo.is_empty():
+  selected_attachment=photo
+  _refresh()
  var data:=attachment_bytes()
  if data.is_empty():status.text="Selected attachment is unavailable.";return
  var name:=str(selected_attachment.get("name","attachment")).get_file()
@@ -1093,11 +1148,46 @@ func _supply_upload(browser: Variant) -> void:
  elif extension=="gif":mime="image/gif"
  elif extension=="txt":mime="text/plain"
  elif extension=="pdf":mime="application/pdf"
- browser.execute_javascript("window.__labvoltUpload("+JSON.stringify({"name":name,"mime":mime,"data":Marshalls.raw_to_base64(data)})+");")
+ browser.execute_javascript("window.__labvoltUpload?.("+JSON.stringify({"name":name,"mime":mime,"data":Marshalls.raw_to_base64(data),"ticket":context.get("ticket","")})+");")
  status.text="Attachment selected. Use the page's upload or submit control."
 
-func _upload_script() -> String:
- return """(function(){if(window.__labvoltUpload)return;let pending=null;function choose(input){pending=input;input.style.outline='2px solid #55cdaa';}document.addEventListener('click',function(e){let input=e.target;if(!(input instanceof HTMLInputElement)||input.type!=='file')return;e.preventDefault();e.stopImmediatePropagation();choose(input);},true);let oldClick=HTMLInputElement.prototype.click;HTMLInputElement.prototype.click=function(){if(this.type==='file'){choose(this);return;}return oldClick.call(this);};if(HTMLInputElement.prototype.showPicker){let oldPicker=HTMLInputElement.prototype.showPicker;HTMLInputElement.prototype.showPicker=function(){if(this.type==='file'){choose(this);return;}return oldPicker.call(this);};}window.__labvoltUpload=function(value){let input=pending||document.querySelector('input[type=file]');if(!input)return;let binary=atob(value.data),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);let transfer=new DataTransfer();transfer.items.add(new File([bytes],value.name,{type:value.mime}));input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));input.style.outline='';pending=null;};})();"""
+func _upload_script(token: String) -> String:
+ return """(function(){
+ if(window.__labvoltUpload)return;
+ const prefix='__LVUP__'+TOKEN+'|';
+ let pending=null, serial=0, previousTitle='';
+ function choose(input){
+   if(!document.title.startsWith(prefix))previousTitle=document.title;
+   pending={input,ticket:String(++serial)};
+   document.title=prefix+pending.ticket+'|'+(input.hasAttribute('capture')?'camera':'files');
+ }
+ window.__labvoltRestoreUploadTitle=function(){if(document.title.startsWith(prefix))document.title=previousTitle;};
+ document.addEventListener('click',function(e){
+   const input=e.target;
+   if(!(input instanceof HTMLInputElement)||input.type!=='file')return;
+   e.preventDefault();choose(input);
+ },true);
+ for(const method of ['click','showPicker']){
+   const original=HTMLInputElement.prototype[method];
+   if(original)HTMLInputElement.prototype[method]=function(){
+     if(this.type==='file'){choose(this);return;}
+     return original.call(this);
+   };
+ }
+ window.__labvoltUpload=function(value){
+   if(value.ticket&&(!pending||pending.ticket!==value.ticket))return;
+   const input=pending?.input||document.querySelector('input[type=file]');
+   if(!input)return;
+   const binary=atob(value.data), bytes=new Uint8Array(binary.length);
+   for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+   const transfer=new DataTransfer();
+   transfer.items.add(new File([bytes],value.name,{type:value.mime}));
+   input.files=transfer.files;
+   pending=null;
+   input.dispatchEvent(new Event('input',{bubbles:true,composed:true}));
+   input.dispatchEvent(new Event('change',{bubbles:true}));
+ };
+ })();""".replace("TOKEN",JSON.stringify(token))
 
 func _assistant_ask() -> void:
  _assistant_request_page(assistant_input.text.strip_edges(),PackedByteArray())

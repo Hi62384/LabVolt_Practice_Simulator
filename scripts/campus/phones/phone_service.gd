@@ -72,6 +72,8 @@ var performance: Node
 var frozen_overlay: CenterContainer
 var teacher_handoffs:={}
 var handed_phone_id:=""
+var put_away_notice: Label
+var put_away_notice_timer: Timer
 
 func build(owner: Node) -> void:
 	game=owner
@@ -81,6 +83,18 @@ func build(owner: Node) -> void:
 	comm=preload("res://scripts/campus/phones/phone_network.gd").new();comm.name="PhoneNetwork";add_child(comm);comm.build(game);comm.changed.connect(_communications_changed)
 	call_notice=Label.new();call_notice.position=Vector2(16,280);call_notice.add_theme_font_size_override("font_size",18);call_notice.add_theme_color_override("font_color",Color("a5e9d7"));call_notice.add_theme_constant_override("outline_size",5);layer.add_child(call_notice);call_notice.hide()
 	_build_phone_ui()
+	put_away_notice=Label.new()
+	put_away_notice.horizontal_alignment=HORIZONTAL_ALIGNMENT_CENTER
+	put_away_notice.add_theme_constant_override("outline_size",6)
+	put_away_notice.add_theme_color_override("font_color",Color("ffe0a3"))
+	put_away_notice.mouse_filter=Control.MOUSE_FILTER_IGNORE
+	layer.add_child(put_away_notice)
+	put_away_notice.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	put_away_notice.hide()
+	put_away_notice_timer=Timer.new()
+	put_away_notice_timer.one_shot=true
+	add_child(put_away_notice_timer)
+	put_away_notice_timer.timeout.connect(put_away_notice.hide)
 	performance=DevicePerformance.new()
 	add_child(performance)
 	performance.freeze_changed.connect(func(frozen: bool):frozen_overlay.visible=frozen)
@@ -355,10 +369,22 @@ func _placed_model(id: String) -> Node3D:
 
 func _phone_in_reach(id: String) -> bool:
 	if id.is_empty():return false
-	if selected()==id:return true
+	if id==handed_phone_id or _locally_in_custody(id) or _phone_record(id).is_empty():return false
 	var model:=_placed_model(id)
+	if not is_instance_valid(model):return true
 	var feet: Vector3=game.player.global_position
-	return is_instance_valid(model) and feet.distance_to(model.global_position)<=3.0 and not _phone_record(id).is_empty()
+	return feet.distance_to(model.global_position)<=3.0
+
+func show_put_away_warning(teacher: String) -> void:
+	if not is_ui_open():return
+	var faculty=preload("res://scripts/campus/academics/faculty_roster.gd")
+	put_away_notice.text="%s asked you to put your phone away."%str(faculty.entry(teacher).get("name","Your instructor"))
+	put_away_notice.reset_size()
+	put_away_notice.offset_left=-put_away_notice.size.x*.5
+	put_away_notice.offset_right=put_away_notice.size.x*.5
+	put_away_notice.offset_top=10
+	put_away_notice.show()
+	put_away_notice_timer.start(6.0)
 
 func _process(_delta: float) -> void:
 	var id:=selected()
@@ -374,9 +400,10 @@ func _process(_delta: float) -> void:
 		if not is_powered(browser_phone_id):
 			_close_browser()
 		else:
-			browser_active=game.front.in_game and (id==browser_phone_id or is_instance_valid(_placed_model(browser_phone_id)))
+			browser_active=game.front.in_game and browser_phone_id!=handed_phone_id and not _locally_in_custody(browser_phone_id) and (
+				id==browser_phone_id or is_instance_valid(_placed_model(browser_phone_id)) or (phone_overlay.visible and current_id==browser_phone_id))
 			browser_surface.set_device_suspended(not browser_active or (browser_phone_id==current_id and performance.frozen))
-			if browser_active and id==browser_phone_id:update_placed_speaker()
+			if browser_active:update_placed_speaker()
 	if phone_overlay.visible:
 		if screen_period>0.0:
 			screen_elapsed+=_delta
@@ -454,6 +481,7 @@ func _open_phone(id: String) -> void:
 
 func close(keep_browser := true) -> void:
 	performance.configure("",DevicePerformance.MAX)
+	put_away_notice.hide()
 	_leave_camera()
 	generation+=1
 	if not keep_browser or not game.front.in_game:
@@ -620,11 +648,12 @@ func _prune_teacher_handoffs() -> void:
 func _clear_handoff_local() -> void:
 	handed_phone_id=""
 
-func capture() -> void:
-	if capturing:return
-	var id:=selected();var dorm: Dictionary=game.electronics.profile.data.get("dorm",{})
+func capture(browser_phone := "") -> Dictionary:
+	if capturing:return {"error":"The camera is already taking a photo."}
+	var id:=selected() if browser_phone.is_empty() else browser_phone
+	var dorm: Dictionary=game.electronics.profile.data.get("dorm",{})
 	var phone: Dictionary=_phone_record(id)
-	if phone.is_empty() or not is_powered(id):return
+	if phone.is_empty() or not is_powered(id):return {"error":"The phone camera is unavailable."}
 	var owner: String=str(dorm.owner)
 	var capture_generation:=generation
 	capturing=true
@@ -648,7 +677,10 @@ func capture() -> void:
 	var image: Image=view.get_texture().get_image()
 	view.queue_free()
 	capturing=false
-	if capture_generation!=generation or selected()!=id or not game.front.in_game or str(game.electronics.profile.data.get("dorm",{}).get("owner",""))!=owner:return
+	if capture_generation!=generation or not game.front.in_game or str(game.electronics.profile.data.get("dorm",{}).get("owner",""))!=owner:
+		return {"error":"The camera session changed."}
+	if (selected()!=id if browser_phone.is_empty() else current_id!=id or not _current_phone_open()):
+		return {"error":"The phone is no longer in use."}
 	var jpeg_quality:=float(Configuration.CAMERA_JPEG[camera_quality]) if camera_quality>=0 else .88
 	var result:=Photos.capture(owner,id,image,_photo_storage(phone),jpeg_quality)
 	game.ui.log_message(str(result.get("error","Photo saved.")))
@@ -660,6 +692,7 @@ func capture() -> void:
 		flash_tween.tween_property(flash,"color:a",0.0,.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		flash_tween.tween_callback(flash.hide)
 		game.sfx.play("shutter")
+	return result
 
 func _switch(app: String) -> void:
 	if not is_instance_valid(panel) or not phone_overlay.visible:return
@@ -671,8 +704,8 @@ func _switch(app: String) -> void:
 	var phone: Dictionary=_phone_record(current_id)
 	if phone.is_empty():close();return
 	var resume_browser:=app=="Browser" and is_instance_valid(browser_surface) and browser_phone_id==current_id
-	if not resume_browser and is_instance_valid(browser_surface):
-		if browser_phone_id!=current_id:browser_bookmarks[browser_phone_id]=browser_surface.parked_tabs()
+	if is_instance_valid(browser_surface) and browser_phone_id!=current_id:
+		browser_bookmarks[browser_phone_id]=browser_surface.parked_tabs()
 		_close_browser()
 	_clear_app()
 	browser_host.hide()
@@ -715,11 +748,7 @@ func _finish_app(app: String, request: int, phone: Dictionary, resume_browser: b
 			app_scroll.hide()
 			browser_host.show()
 			return
-		var owner_id:=str(game.electronics.profile.data.get("dorm",{}).get("owner",""))
-		var photos:=Photos.list(owner_id,current_id)
-		var choices: Array=[]
-		if not photos.has("error"):
-			for photo in photos.photos:choices.append({"kind":"photo","name":str(photo.id)+".jpg","id":str(photo.id),"bytes":int(photo.bytes)})
+		var choices:=_browser_photos()
 		app_scroll.hide()
 		browser_host.show()
 		browser_surface=preload("res://scripts/campus/computers/browser_surface.gd").new()
@@ -736,6 +765,8 @@ func _finish_app(app: String, request: int, phone: Dictionary, resume_browser: b
 			browser_surface.restore_parked_tabs(browser_bookmarks[current_id])
 			browser_bookmarks.erase(current_id)
 		browser_surface.attachment_loader=_browser_photo_attachment
+		browser_surface.attachment_catalog=_browser_photos
+		browser_surface.attachment_camera=_browser_take_photo
 	else:_gallery(phone)
 
 func _clear_app() -> void:
@@ -795,8 +826,11 @@ func _update_phone_displays(held_id: String,now: int) -> void:
 			_paint_screen(screen,_handset_display(rendered_phone_id))
 	if interval>0 and not phone_overlay.visible and now>=view_refresh_at:
 		view_refresh_at=now+interval
-		var device_scale:=float(Configuration.phone_value(_phone_record(rendered_phone_id),"display",1.0))
-		phone_view.size=Vector2i((Vector2(128,224)*float(screens.phone_scale)*device_scale).round())
+		# Keep a live Chromium surface at its interactive size. Resizing it for
+		# the world preview changes the page layout and blanks the video texture.
+		if rendered_phone_id!=browser_phone_id:
+			var device_scale:=float(Configuration.phone_value(_phone_record(rendered_phone_id),"display",1.0))
+			phone_view.size=Vector2i((Vector2(128,224)*float(screens.phone_scale)*device_scale).round())
 		phone_clock.text=Time.get_time_string_from_system().left(5)
 		battery_label.update_charge(game.device_charging.percent("phone",rendered_phone_id))
 		phone_view.render_target_update_mode=SubViewport.UPDATE_ONCE
@@ -1002,6 +1036,25 @@ func _browser_photo_attachment(kind: String,id: String,lease: String,item: Dicti
 	if loaded.has("error"):return PackedByteArray()
 	var bytes: PackedByteArray=loaded.image.save_jpg_to_buffer(.88)
 	return bytes if bytes.size()<=browser_surface.MAX_ATTACHMENT_BYTES else PackedByteArray()
+
+func _browser_photos() -> Array:
+	var result: Array=[]
+	if not _current_phone_open():return result
+	var owner:=str(game.electronics.profile.data.get("dorm",{}).get("owner",""))
+	var photos:=Photos.list(owner,current_id)
+	if not photos.has("error"):
+		for photo in photos.photos:
+			result.append({"kind":"photo","name":str(photo.id)+".jpg","id":str(photo.id),"bytes":int(photo.bytes)})
+	return result
+
+func _browser_take_photo() -> Dictionary:
+	if not _current_phone_open() or current_app!="Browser":return {"error":"The phone camera is unavailable."}
+	if is_instance_valid(_placed_model(current_id)):return {"error":"Pick up the phone to use its camera."}
+	var captured:=await capture(current_id)
+	if captured.has("error"):return captured
+	for photo in _browser_photos():
+		if photo.id==str(captured.get("id","")):return photo
+	return {"error":"Could not attach the new photo."}
 
 func _communications_changed() -> void:
 	var state: Dictionary=comm.local_call

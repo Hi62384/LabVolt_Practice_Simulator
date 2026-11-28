@@ -77,51 +77,29 @@ func disconnect_target(key: String) -> void:
 		if not bank.is_empty():report_bank(id,bank)
 		_report_targets([key])
 
-func toggle(peer: int,key: String) -> void:
-	if not Inventory.valid_key(key) or not game.session.roster.has(peer):return
-	var point: Variant=position(peer,key)
-	var actor: Vector3=game.personal_placement._actor(peer)
-	if not point is Vector3 or actor.distance_to(point)>3.0:return
+func connect_output(peer: int,key: String,target: String) -> bool:
 	var bank:=battery(peer,key)
-	if bank.is_empty():return
-	var options: Dictionary=bank.configuration
-	var entry: Dictionary=connections.get_or_add(key,{"peer":peer,"socket":-1,"targets":[]})
-	if entry.socket>=0:
-		disconnect_bank(peer,key)
-		return
-	var max_ports: int=Config.value(Config.POWER_BANK,options,"hardware","ports",1)
-	var candidate := ""
-	var best := CABLE_REACH
-	if entry.targets.size()<max_ports and float(bank.charge_wh)>0.0:
-		for target in _nearby(peer,point,options):
-			var distance: float=point.distance_to(target.position)
-			if target_connected(target.key) or distance>=best:continue
-			var device:=_target_device(peer,target.key)
-			if device.is_empty() or device.socket>=0:continue
-			candidate=target.key
-			best=distance
-	if not candidate.is_empty():
-		entry.targets.append(candidate)
-		_notice(peer,"Power bank connected.")
-		report_bank(key,bank)
-		_report_targets([candidate])
-	elif not entry.targets.is_empty():
-		disconnect_bank(peer,key)
-	else:
-		connections.erase(key)
-		_notice(peer,"The power bank is empty." if float(bank.charge_wh)<=0.0 else "Place a compatible phone or laptop within cable reach.")
-
-func _nearby(peer: int,point: Vector3,options: Dictionary) -> Array:
-	var result := []
-	var connector: String=Config.value(Config.POWER_BANK,options,"hardware","connector","usb_c")
-	for entry in game.personal_placement.placed.values():
-		if connector!="laptop" and entry.peer==peer and str(entry.key).begins_with("phone:") and absf(entry.position.y-point.y)<.28:
-			result.append(entry)
-	if connector in ["usb_pd","laptop"]:
-		for entry in game.portable_laptops.placed.values():
-			if entry.peer==peer and absf(entry.position.y-point.y)<.28:
-				result.append({"key":"laptop:"+entry.station,"position":entry.position})
-	return result
+	var point: Variant=position(peer,key)
+	var target_point: Variant=target_position(peer,target)
+	if bank.is_empty() or not point is Vector3 or not target_point is Vector3:return false
+	var entry: Dictionary=connections.get(key,{"peer":peer,"socket":-1,"targets":[]})
+	var connector: String=Config.value(Config.POWER_BANK,bank.configuration,"hardware","connector","usb_c")
+	var ports: int=Config.value(Config.POWER_BANK,bank.configuration,"hardware","ports",1)
+	var compatible:=connector=="usb_pd" or (target.begins_with("phone:") and connector=="usb_c") or (target.begins_with("laptop:") and connector=="laptop")
+	if not compatible or point.distance_to(target_point)>CABLE_REACH or absf(point.y-target_point.y)>=.28:
+		_notice(peer,"Place a compatible phone or laptop within cable reach.")
+		return false
+	if entry.socket>=0 or entry.targets.size()>=ports or target_connected(target):return false
+	if float(bank.charge_wh)<=0.0:
+		_notice(peer,"The power bank is empty.")
+		return false
+	var device:=_target_device(peer,target)
+	if device.is_empty() or device.socket>=0:return false
+	entry.targets.append(target)
+	connections[key]=entry
+	report_bank(key,bank)
+	_report_targets([target])
+	return true
 
 func target_position(peer: int,key: String) -> Variant:
 	if key.begins_with("phone:"):return position(peer,key)

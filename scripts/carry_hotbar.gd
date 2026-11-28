@@ -85,6 +85,7 @@ func title(item: Dictionary) -> String:
 			var laptop: Dictionary=game.electronics.profile.data.get("dorm",{}).get("portable_laptops",{}).get(item.get("id",""),{})
 			return str(preload("res://scripts/campus/computers/laptop_inventory.gd").TIERS.get(laptop.get("tier",""),{}).get("name","Laptop"))
 		"ac_usb":return "Laptop USB cable"
+		"charging_cable":return "Charging cable"
 		"smartphone":
 			var phone: Dictionary=game.electronics.profile.data.get("dorm",{}).get("smartphones",{}).get(item.get("id",""),{})
 			if phone.has("configuration"):return "Custom smartphone"
@@ -468,6 +469,9 @@ func stow() -> bool:
 	return true
 func select_slot(index: int) -> void:
 	if switching or index<0 or index>=6:return
+	if is_instance_valid(game.device_charging) and game.device_charging.holding_cable():
+		game.device_charging.release_cable()
+		if slots[index].get("kind","")=="charging_cable" or slots[index].is_empty():return
 	switching=true
 	if not stow():switching=false;return
 	await get_tree().create_timer(.12).timeout
@@ -616,7 +620,7 @@ func manager(parent: Node) -> void:
 				slot.gui_input.connect(_item_menu.bind(slot,item,{"location":"packed","bag":back_id,"slot":index,"item":bag.items[index]},Callable()))
 
 func _drag_hotbar_slot(_position: Vector2, tile: Button, index: int) -> Variant:
-	if switching or slots[index].is_empty():return null
+	if switching or slots[index].is_empty() or slots[index].get("kind","")=="charging_cable":return null
 	var preview := Label.new()
 	preview.text=title(slots[index])
 	tile.set_drag_preview(preview)

@@ -7,15 +7,20 @@ const BankInventory = preload("res://scripts/campus/items/power_bank_inventory.g
 const PHONE_RUNTIME := {"basic":1200.0,"standard":1950.0,"premium":2900.0}
 const LAPTOP_RUNTIME := {"basic":900.0,"standard":1500.0,"premium":2300.0}
 const RECHARGE_TIME := {"basic":120.0,"standard":82.0,"premium":55.0}
+const WALL_REACH:=3.0
+const BANK_HELD_REACH:=1.75
 
 var game: Node
 var sockets: Array[Vector3] = []
 var held_cables: Dictionary={}
 var links: Dictionary={}
+var bank_links: Dictionary={}
+var bank_sources: Dictionary={}
 var cable_models: Dictionary={}
 var held_plug: Node3D
 var cable_material:=CableMesh.jacket_material(Color("24373d"))
-var next_cable_frame:=0
+var moving_cable_mesh:=CylinderMesh.new()
+var moving_cable_material:=ShaderMaterial.new()
 var ticks_until_save:=10
 var devices := {}
 var own_charge := {}
@@ -26,6 +31,12 @@ var banks := preload("res://scripts/campus/items/power_bank_charging.gd").new()
 
 func build(owner: Node) -> void:
 	game=owner
+	moving_cable_mesh.height=1.0
+	moving_cable_mesh.top_radius=.006
+	moving_cable_mesh.bottom_radius=.009
+	moving_cable_mesh.radial_segments=8
+	moving_cable_mesh.rings=14
+	moving_cable_material.shader=preload("res://scripts/campus/items/held_charging_cable.gdshader")
 	game.session.roster_changed.connect(_prune_cables)
 	held_plug=game.campus.box(game.camera,Vector3(.24,-.205,-.47),Vector3(.035,.024,.075),"4b6c76",false)
 	held_plug.rotation=Vector3(.25,.2,.2)
@@ -81,6 +92,13 @@ func _clear() -> void:
 	held_plug.hide()
 	held_cables.clear()
 	links.clear()
+	bank_links.clear()
+	bank_sources.clear()
+	for slot in cable_models.keys():
+		if slot is String:
+			cable_models[slot].queue_free()
+			cable_models.erase(slot)
+	_sync_hotbar()
 	for slot in sockets.size():_draw_cable(slot)
 	devices.clear()
 	own_charge.clear()
@@ -105,15 +123,21 @@ func _power_bank_request(key: String) -> void:
 	if multiplayer.is_server():_use_bank(multiplayer.get_remote_sender_id(),key)
 
 func _use_bank(peer: int,key: String) -> void:
-	for slot in links.keys():
-		if links[slot].key==key and links[slot].peer==peer:return
-	banks.toggle(peer,key)
+	for slot in bank_sources:
+		if bank_sources[slot].key==key and bank_sources[slot].peer==peer and not bank_links.has(slot):
+			_grab(peer,slot)
+			return
 
 func disconnect_placement(peer: int,key: String) -> void:
+	if str(held_cables.get(peer,"")).begins_with(key+"#"):held_cables.erase(peer)
+	for source in bank_links.keys():
+		var link: Dictionary=bank_links[source]
+		if link.peer==peer and (link.key==key or str(source).begins_with(key+"#")):bank_links.erase(source)
 	if BankInventory.valid_key(key):banks.disconnect_bank(peer,key)
 	elif key.begins_with("phone:") or key.begins_with("laptop:"):banks.disconnect_target(key)
 	for slot in links.keys():
 		if links[slot].peer==peer and links[slot].key==key:_unlink(slot)
+	_sync_cables()
 
 func publish_bank(key: String,level: int,mode: String) -> void:
 	_receive_bank(key,level,mode)
@@ -189,6 +213,11 @@ func interact(target: Object) -> bool:
 		if multiplayer.is_server():_grab(multiplayer.get_unique_id(),slot)
 		else:_charge_request.rpc_id(1,slot)
 		return true
+	if role=="bank_charger":
+		var slot:=str(target.get_meta("charger",""))
+		if multiplayer.is_server():_grab(multiplayer.get_unique_id(),slot)
+		else:_bank_lead_request.rpc_id(1,slot)
+		return true
 	if role=="charging_port":
 		var key:=str(target.get_meta("charge_key",""))
 		if multiplayer.is_server():_plug(multiplayer.get_unique_id(),key)
@@ -200,14 +229,15 @@ func port_hint(target: Object,key_name: String) -> String:
 	var peer:=multiplayer.get_unique_id()
 	var key: String=target.get_meta("charge_key","")
 	if int(target.get_meta("charge_owner",0))!=peer:return "Charging port"
-	for link in links.values():
+	for link in links.values()+bank_links.values():
 		if link.peer==peer and link.key==key:return "%s · Unplug charging cable"%key_name
 	return "%s · Plug in charging cable"%key_name if held_cables.has(peer) else "Charging port · Pick up a cable from the charger"
 
-func charger_hint(slot: int,key_name: String) -> String:
+func charger_hint(slot: Variant,key_name: String) -> String:
 	var peer:=multiplayer.get_unique_id()
-	if links.has(slot):return "%s · Disconnect cable"%key_name if links[slot].peer==peer else "Charger in use"
-	if held_cables.get(peer,-1)==slot:return "%s · Return cable"%key_name
+	var connected: Dictionary=bank_links if slot is String else links
+	if connected.has(slot):return "%s · Unplug charging cable"%key_name if connected[slot].peer==peer else "Charger in use"
+	if is_same(held_cables.get(peer),slot):return "%s · Return cable"%key_name
 	return "%s · Pick up charging cable"%key_name
 
 @rpc("any_peer","call_remote","reliable")
@@ -218,21 +248,49 @@ func _charge_request(slot: int) -> void:
 func _plug_request(key: String) -> void:
 	if multiplayer.is_server():_plug(multiplayer.get_remote_sender_id(),key)
 
-func _grab(peer: int,slot: int) -> void:
-	if slot not in range(sockets.size()) or not game.session.roster.has(peer):return
-	if game.personal_placement._actor(peer).distance_to(sockets[slot])>2.8:return
-	if links.has(slot):
-		if links[slot].peer==peer:_unlink(slot)
+func _grab(peer: int,slot: Variant) -> void:
+	var anchor:=source_position(slot)
+	if not anchor.is_finite() or not game.session.roster.has(peer) or game.personal_placement._actor(peer).distance_to(anchor)>2.8:return
+	if slot is String and int(bank_sources[slot].peer)!=peer:return
+	var connected: Dictionary=bank_links if slot is String else links
+	if connected.has(slot):
+		if connected[slot].peer==peer:
+			if slot is String:_unlink_bank(slot)
+			else:_unlink(slot)
 		else:game.discarded_items._notice(peer,"This charger is in use.")
 		return
-	if held_cables.get(peer,-1)==slot:
+	if is_same(held_cables.get(peer),slot):
 		held_cables.erase(peer)
 	elif slot not in held_cables.values():
+		if held_cables.has(peer):return
+		if peer==multiplayer.get_unique_id() and not game.hotbar.slots.has({}):
+			game.ui.log_message("Free a hotbar slot before picking up the cable.")
+			return
 		held_cables[peer]=slot
 		game.discarded_items._notice(peer,"Aim at your device's charging port to plug in the cable.")
 	else:
 		game.discarded_items._notice(peer,"Someone is holding this cable.")
 		return
+	_sync_cables()
+
+@rpc("any_peer","call_remote","reliable")
+func _bank_lead_request(slot: String) -> void:
+	if multiplayer.is_server() and slot.length()<=68:_grab(multiplayer.get_remote_sender_id(),slot)
+
+func holding_cable() -> bool:
+	return held_cables.has(multiplayer.get_unique_id())
+
+func release_cable() -> void:
+	if not holding_cable():return
+	if multiplayer.is_server():_release(multiplayer.get_unique_id())
+	else:_release_request.rpc_id(1)
+
+@rpc("any_peer","call_remote","reliable")
+func _release_request() -> void:
+	if multiplayer.is_server():_release(multiplayer.get_remote_sender_id())
+
+func _release(peer: int) -> void:
+	if not held_cables.erase(peer):return
 	_sync_cables()
 
 func _plug(peer: int,key: String) -> void:
@@ -243,7 +301,19 @@ func _plug(peer: int,key: String) -> void:
 		if links[slot].peer==peer and links[slot].key==key:
 			_unlink(slot)
 			return
-	var slot:=int(held_cables.get(peer,-1))
+	for source in bank_links.keys():
+		if bank_links[source].peer==peer and bank_links[source].key==key:
+			_unlink_bank(source)
+			return
+	var source: Variant=held_cables.get(peer,-1)
+	if source is String:
+		var record: Dictionary=bank_sources.get(source,{})
+		if int(record.get("peer",0))!=peer or not banks.connect_output(peer,str(record.key),key):return
+		held_cables.erase(peer)
+		bank_links[source]={"peer":peer,"key":key,"point":port.global_position}
+		_sync_cables()
+		return
+	var slot:=int(source)
 	if slot<0:return
 	var laptop:=key.begins_with("laptop:")
 	var id:=key.get_slice(":",1)
@@ -285,6 +355,12 @@ func _unlink(slot: int) -> void:
 	links.erase(slot)
 	_sync_cables()
 
+func _unlink_bank(source: String) -> void:
+	var target: String=bank_links[source].key
+	bank_links.erase(source)
+	banks.disconnect_target(target)
+	_sync_cables()
+
 func _prune_cables() -> void:
 	if not multiplayer.is_server():return
 	_save_charge()
@@ -292,40 +368,96 @@ func _prune_cables() -> void:
 		if not game.session.roster.has(peer):held_cables.erase(peer)
 	for slot in links.keys():
 		if not game.session.roster.has(links[slot].peer):_unlink(slot)
+	for slot in bank_links.keys():
+		if not game.session.roster.has(bank_links[slot].peer):_unlink_bank(slot)
 	_sync_cables()
 
 func _sync_cables() -> void:
-	_receive_cables(held_cables,links)
-	if game.session.online:_receive_cables.rpc(held_cables,links)
+	_receive_cables(held_cables,links,bank_links)
+	if game.session.online:_receive_cables.rpc(held_cables,links,bank_links)
 
 @rpc("authority","call_remote","reliable")
-func _receive_cables(holders: Dictionary,connections: Dictionary) -> void:
+func _receive_cables(holders: Dictionary,connections: Dictionary,outputs: Dictionary={}) -> void:
 	held_cables=holders
 	links=connections
-	held_plug.visible=held_cables.has(multiplayer.get_unique_id())
+	bank_links=outputs
+	held_plug.visible=holding_cable()
+	_sync_hotbar()
 	for slot in sockets.size():_draw_cable(slot)
+	for slot in bank_sources:_draw_cable(slot)
 
-func _draw_cable(slot: int) -> void:
+func _sync_hotbar() -> void:
+	var hotbar: Node=game.hotbar
+	if not is_instance_valid(hotbar):return
+	var item:={"kind":"charging_cable"}
+	var index: int=hotbar.slots.find(item)
+	if holding_cable():
+		if index<0:
+			index=hotbar.add_item(item)
+			if index<0:
+				release_cable.call_deferred()
+				return
+			hotbar.active=index
+	elif index>=0:
+		hotbar.slots[index]={}
+		if hotbar.active==index:hotbar.active=-1
+
+func refresh_bank_cables() -> void:
+	for slot in bank_sources:
+		if is_instance_valid(cable_models.get(slot)):cable_models[slot].free()
+		cable_models.erase(slot)
+	bank_sources.clear()
+	for id in game.personal_placement.placed:
+		var entry: Dictionary=game.personal_placement.placed[id]
+		if not BankInventory.valid_key(entry.key) or not game.personal_placement.models.has(id):continue
+		var model: Node3D=game.personal_placement.models[id]
+		var options: Dictionary=entry.get("configuration",{})
+		var count: int=Configuration.value(Configuration.POWER_BANK,options,"hardware","ports",1)
+		var size: Vector3=preload("res://scripts/campus/items/power_bank_model.gd").dimensions(options)
+		for port in count:
+			var slot: String="%s#%d"%[entry.key,port]
+			var point:=model.to_global(Vector3((float(port)-float(count-1)*.5)*.024,size.y*.62,-size.z*.5-.006))
+			bank_sources[slot]={"key":entry.key,"peer":entry.peer,"point":point,"outward":-model.global_basis.z.normalized()}
+			_draw_cable(slot)
+
+func source_position(slot: Variant) -> Vector3:
+	if slot is String:return bank_sources.get(slot,{}).get("point",Vector3.INF)
+	return sockets[slot]+Vector3(0,-.062,-.058) if slot is int and slot in range(sockets.size()) else Vector3.INF
+
+func tether() -> Dictionary:
+	if not holding_cable():return {}
+	var source: Variant=held_cables[multiplayer.get_unique_id()]
+	var anchor:=source_position(source)
+	if not anchor.is_finite():return {}
+	return {"anchor":anchor,"grip":_grip(),"reach":BANK_HELD_REACH if source is String else WALL_REACH}
+
+func _draw_cable(slot: Variant) -> void:
 	if is_instance_valid(cable_models.get(slot)):cable_models[slot].free()
-	var station: Node3D=game.campus.room_roots[Room].get_node("ChargingStations")
+	var station: Node3D=self if slot is String else game.campus.room_roots[Room].get_node("ChargingStations")
 	var cable:=MeshInstance3D.new()
 	cable_models[slot]=cable
 	cable.material_override=cable_material
 	cable.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	station.add_child(cable)
-	var socket:=sockets[slot]+Vector3(0,-.062,-.058)
+	var socket:=source_position(slot)
 	if slot in held_cables.values():
+		cable.mesh=moving_cable_mesh
+		cable.material_override=moving_cable_material.duplicate()
+		cable.custom_aabb=AABB(Vector3(-.25,-.75,-.25),Vector3(.5,1.5,.5))
 		_update_held_lead(slot)
 		return
-	if links.has(slot):
-		var end: Vector3=links[slot].point
-		var surface:=AABB(sockets[slot]+Vector3(-1.28,-.14,-1.03),Vector3(2.56,.032,1.25))
-		cable.mesh=CableMesh.held_geometry(socket,end,Basis.IDENTITY,true,.006,[surface])
+	var connected: Dictionary=bank_links if slot is String else links
+	if connected.has(slot):
+		var end: Vector3=connected[slot].point
+		var clearance: Array[AABB]=[]
+		if slot is int:clearance.append(AABB(sockets[slot]+Vector3(-1.28,-.14,-1.03),Vector3(2.56,.032,1.25)))
+		cable.mesh=CableMesh.held_geometry(socket,end,Basis.IDENTITY,true,.006,clearance)
 		_usb_end(cable,end,(end-socket).normalized(),false)
 		return
-	_usb_end(cable,socket,Vector3.BACK,true,slot)
+	var inward: Vector3=-bank_sources[slot].outward if slot is String else Vector3.BACK
+	_usb_end(cable,socket,inward,true,slot)
 
-func _usb_end(parent: Node3D,point: Vector3,direction: Vector3,parked: bool,slot := -1) -> void:
+func _usb_end(parent: Node3D,point: Vector3,direction: Vector3,parked: bool,slot: Variant=-1) -> void:
 	var plug:=Node3D.new()
 	parent.add_child(plug)
 	plug.position=point
@@ -337,32 +469,37 @@ func _usb_end(parent: Node3D,point: Vector3,direction: Vector3,parked: bool,slot
 	target.position.z=-.034
 	target.collision_layer=4
 	target.collision_mask=0
-	target.set_meta("role","device_charger")
+	target.set_meta("role","bank_charger" if slot is String else "device_charger")
 	target.set_meta("charger",slot)
 	plug.add_child(target)
 	var hit:=CollisionShape3D.new()
 	var shape:=BoxShape3D.new()
-	shape.size=Vector3(.10,.083,.11)
+	shape.size=Vector3(.024,.052,.06) if slot is String else Vector3(.10,.083,.11)
 	hit.shape=shape
 	target.add_child(hit)
 
 func _process(_delta: float) -> void:
 	if held_cables.is_empty() or not game.front.in_game:return
-	var now:=Time.get_ticks_msec()
-	if now<next_cable_frame:return
-	next_cable_frame=now+66
-	for slot: int in held_cables.values():_update_held_lead(slot)
+	for slot in held_cables.values():
+		if cable_models.has(slot):_update_held_lead(slot)
 
-func _update_held_lead(slot: int) -> void:
+func _grip() -> Vector3:
+	return held_plug.to_global(Vector3(0,0,.5))
+
+func _update_held_lead(slot: Variant) -> void:
 	var holder:=int(held_cables.find_key(slot))
 	var cable: MeshInstance3D=cable_models[slot]
 	var local:=holder==multiplayer.get_unique_id()
-	var grip: Vector3=held_plug.global_position if local else game.held_item_position(holder,game.personal_placement._actor(holder)+Vector3.UP)
-	var start:=sockets[slot]+Vector3(0,-.062,-.058)
-	if not grip.is_finite() or grip.distance_to(start)>3.5:
-		cable.mesh=null
-		return
-	cable.mesh=CableMesh.held_geometry(start,grip,game.camera.global_basis,true,.006)
+	var grip: Vector3=_grip() if local else game.held_item_position(holder,game.personal_placement._actor(holder)+Vector3.UP)
+	var start:=source_position(slot)
+	if not grip.is_finite() or not start.is_finite():return
+	var distance:=maxf(grip.distance_to(start),.001)
+	var direction: Vector3=(grip-start)/distance
+	if not direction.is_normalized():return
+	var rotation:=Basis(Quaternion(Vector3.UP,direction))
+	var basis:=rotation.scaled_local(Vector3(1,distance,1))
+	cable.global_transform=Transform3D(basis,(start+grip)*.5)
+	(cable.material_override as ShaderMaterial).set_shader_parameter("bend",basis.inverse()*Vector3.DOWN*minf(.10,distance*.14))
 
 func _on_bay(point: Vector3,slot: int) -> bool:
 	return absf(point.y-.81)<.14 and absf(point.x-sockets[slot].x)<1.2 and absf(point.z-(sockets[slot].z-.40))<.61
@@ -439,6 +576,12 @@ func _tick() -> void:
 		if record.charge<=0.0 and active and laptop:game.computers._power_off(record.id)
 		if record.reported!=roundi(record.charge*100.0) or was_connected!=(record.socket>=0):_report(key,record)
 	banks.tick()
+	var removed_output:=false
+	for source in bank_links.keys():
+		if not banks.target_connected(bank_links[source].key):
+			bank_links.erase(source)
+			removed_output=true
+	if removed_output:_sync_cables()
 	ticks_until_save-=1
 	if ticks_until_save<=0:
 		_save_charge()

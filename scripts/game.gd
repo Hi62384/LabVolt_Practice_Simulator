@@ -614,7 +614,8 @@ func _input(event: InputEvent) -> void:
 			return
 		if placement_action=="place":
 			get_viewport().set_input_as_handled()
-			_place_held_item()
+			if is_instance_valid(device_charging) and device_charging.holding_cable():device_charging.release_cable()
+			else:_place_held_item()
 			return
 		if is_instance_valid(player.seated) and event.physical_keycode == player.keys.jump:
 			_stand_from_chair()
@@ -887,7 +888,14 @@ func _get_target() -> StaticBody3D:
 	if not seat_id.is_empty() and is_instance_valid(collider) and collider.get_meta("role","")=="facility_seat" and collider.get_meta("station","")==seat_id:
 		query.exclude=[collider.get_rid()]
 		hit=get_world_3d().direct_space_state.intersect_ray(query)
-	return _resolve_invention_hit(hit.get("collider") as StaticBody3D)
+	var target:=_resolve_invention_hit(hit.get("collider") as StaticBody3D)
+	if is_instance_valid(target) and is_instance_valid(device_charging) and device_charging.holding_cable():
+		var port: Node3D=target.get_meta("charging_port") if target.has_meta("charging_port") else null
+		if port==null and target.get_meta("role","")=="portable_laptop":
+			var model: Node3D=portable_laptops.placed.get(str(target.get_meta("portable_id","")),{}).get("model")
+			if is_instance_valid(model) and model.has_meta("charging_port"):port=model.get_meta("charging_port")
+		if port is StaticBody3D and int(port.get_meta("charge_owner",0))==multiplayer.get_unique_id():return port
+	return target
 
 func _set_highlighted_target(target: StaticBody3D) -> void:
 	if is_instance_valid(target) and str(target.get_meta("role", "")) not in ["socket", "switch"]:
@@ -964,6 +972,8 @@ func _physics_process(delta: float) -> void:
 		held_hint.text="%s: place laptop on a flat surface" % OS.get_keycode_string(player.keys.place_item)
 	elif is_instance_valid(ac_laptops) and ac_laptops._held("cables")>=0:
 		held_hint.text="Click laptop USB, then DAQ Computer I/O  •  Return cable to cabinet"
+	elif is_instance_valid(device_charging) and device_charging.holding_cable():
+		held_hint.text="%s: attach at a charging port  •  %s: release cable"%[OS.get_keycode_string(player.keys.interact),OS.get_keycode_string(player.keys.place_item)]
 	elif is_instance_valid(smartphones) and not smartphones.selected().is_empty():
 		held_hint.text=("Left-click: photo  •  Right-click: open" if smartphones.is_powered(smartphones.selected()) else "Right-click: open phone")+"  •  %s: place"%OS.get_keycode_string(player.keys.place_item)
 	elif hotbar.active in range(hotbar.slots.size()) and hotbar.slots[hotbar.active].get("kind","")=="power_bank":
@@ -1068,6 +1078,8 @@ func _physics_process(delta: float) -> void:
 			hint=personal_placement.hint(current_target,key_name)
 		elif role=="device_charger":
 			hint=device_charging.charger_hint(int(current_target.get_meta("charger",-1)),key_name)
+		elif role=="bank_charger":
+			hint=device_charging.charger_hint(str(current_target.get_meta("charger","")),key_name)
 		elif role=="charging_port":
 			hint=device_charging.port_hint(current_target,key_name)
 		elif role=="public_computer_power" and current_target.has_meta("portable_id"):
@@ -1340,7 +1352,11 @@ static func _clip_cable_motion(motion: Vector3,pairs: Array,reach := 5.0) -> Vec
 	return result
 
 func _limit_cable_motion(motion: Vector3) -> Vector3:
-	return _clip_cable_motion(motion,_carried_cable_pairs())
+	var result:=_clip_cable_motion(motion,_carried_cable_pairs())
+	if is_instance_valid(device_charging):
+		var tether: Dictionary=device_charging.tether()
+		if not tether.is_empty():result=_clip_cable_motion(result,[[tether.grip,tether.anchor]],tether.reach)
+	return result
 
 func _render_carried() -> void:
 	if not is_instance_valid(carried_root):

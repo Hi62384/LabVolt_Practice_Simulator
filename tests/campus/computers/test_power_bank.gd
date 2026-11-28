@@ -46,11 +46,22 @@ func run() -> void:
 	charging._plug(1,key)
 	assert(charging.banks.connection_on_socket(0).is_empty())
 	var laptop_id: String="b".repeat(32)
-	game.portable_laptops.placed[laptop_id]={"peer":1,"tier":"basic","station":laptop_id,"position":room+Vector3(.45,0,0)}
+	var laptop_model:=Node3D.new()
+	game.add_child(laptop_model)
+	laptop_model.position=room+Vector3(.45,0,0)
+	game.portable_laptops.placed[laptop_id]={"peer":1,"tier":"basic","station":laptop_id,"position":laptop_model.position,"model":laptop_model}
+	charging.add_port(laptop_model,"laptop:"+laptop_id,1,Vector3.ZERO,Vector3(.04,.04,.05))
 	var laptop: Dictionary=charging._device(1,"laptop",laptop_id,"basic")
 	laptop.charge=.5
 	charging.toggle_bank(key)
+	assert(charging.holding_cable() and not charging.banks.target_connected("laptop:"+laptop_id))
+	assert(game.hotbar.slots[game.hotbar.active].get("kind")=="charging_cable")
+	charging.release_cable()
+	assert(not charging.holding_cable() and not game.hotbar.slots.has({"kind":"charging_cable"}))
+	charging.toggle_bank(key)
+	charging.interact(laptop_model.get_meta("charging_port"))
 	assert(charging.banks.target_connected("laptop:"+laptop_id))
+	assert(not charging.holding_cable() and charging.bank_links.size()==1)
 	_pulse(charging)
 	var used: float=fuller-float(profile.data.dorm.power_banks[key].charge_wh)
 	var received: float=(float(laptop.charge)-.5)*38.0

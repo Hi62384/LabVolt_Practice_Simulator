@@ -6,6 +6,9 @@ const Configuration=preload("res://scripts/campus/items/equipment_configuration.
 const Handset=preload("res://scripts/campus/phones/phone_handset.gd")
 const EquipmentFinish=preload("res://scripts/campus/items/equipment_finish.gd")
 const PowerModel=preload("res://scripts/campus/items/power_bank_model.gd")
+const PHONE_THICKNESS:=.012
+# The campus floor finish can sit up to 18 mm above its structural collider.
+const PHONE_FLOOR_FINISH:=.019
 var game: Node
 var placed: Dictionary={}
 var models: Dictionary={}
@@ -170,6 +173,7 @@ func _sync_models() -> void:
 		if not models.has(id):models[id]=_build_model(id,placed[id])
 	game.hotbar._sync_dorm_items()
 	game.smartphones.update_placed_speaker()
+	if is_instance_valid(game.device_charging):game.device_charging.refresh_bank_cables()
 
 func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 	var body:=StaticBody3D.new()
@@ -189,10 +193,12 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 	body.add_child(hit)
 	var key: String=entry.key
 	if key.begins_with("phone:"):
-		shape.size=Vector3(.110,.018,.200)
-		hit.position.y=.009
+		var floor_level:=roundf(float(entry.position.y)/5.0)*5.0
+		var clearance:=maxf(0.,floor_level+PHONE_FLOOR_FINISH-float(entry.position.y)) if absf(float(entry.position.y)-floor_level)<.05 else 0.
+		shape.size=Vector3(.110,PHONE_THICKNESS+.006,.200)
+		hit.position.y=clearance+shape.size.y*.5
 		var handset:=Node3D.new()
-		handset.position.y=.007
+		handset.position.y=clearance+PHONE_THICKNESS*.5+.001
 		handset.rotation.x=-PI/2
 		body.add_child(handset)
 		var screen:=Handset.build(handset)
@@ -200,7 +206,7 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 		if entry.peer==multiplayer.get_unique_id() and game.smartphones.is_powered(key.trim_prefix("phone:")):
 			game.smartphones._paint_screen(screen,game.smartphones._handset_display(key.trim_prefix("phone:")))
 		body.set_meta("phone_screen",screen)
-		game.device_charging.add_port(body,key,int(entry.peer),Vector3(0,.007,.100),Vector3(.050,.030,.035))
+		game.device_charging.add_port(body,key,int(entry.peer),Vector3(0,handset.position.y,.100),Vector3(.050,.030,.035))
 	elif key.begins_with("usb:"):
 		shape.size=Vector3(.16,.05,.08)
 		var usb: Node3D=game.computer_room_adapter._build_usb_visual(body,Vector3(-.04,.013,0))
@@ -210,7 +216,7 @@ func _build_model(id: String, entry: Dictionary) -> StaticBody3D:
 		shape.size=PowerModel.dimensions(options)
 		hit.position.y=shape.size.y*.5
 		body.set_meta("power_model",PowerModel.build(body,options,int(entry.get("charge_percent",0))))
-		game.device_charging.add_port(body,key,int(entry.peer),Vector3(0,shape.size.y*.62,-shape.size.z*.5-.006),Vector3(.050,.032,.035))
+		game.device_charging.add_port(body,key,int(entry.peer),Vector3(0,shape.size.y*.62,shape.size.z*.5+.006),Vector3(.050,.032,.035))
 	else:
 		if Dorm.is_notebook(key):
 			shape.size=preload("res://scripts/campus/items/notebook_model.gd").dimensions(entry.get("configuration",{}))

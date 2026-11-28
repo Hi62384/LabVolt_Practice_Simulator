@@ -80,6 +80,10 @@ func run() -> void:
 	phone._apply_classroom_open(999,true,id)
 	phone._apply_classroom_open(1,true,"f".repeat(32))
 	check(not game.faculty.discipline_records.has(record_key),"unauthenticated or unowned phone evidence is ignored")
+	phone._open_phone(id)
+	check(game.faculty._perform_discipline(ROOM,str(activity.id),str(activity.teacher),"put_away",Vector3.INF) and phone.is_ui_open() and phone.put_away_notice.visible,
+		"put-away instruction is visible without closing the phone")
+	phone.close()
 	phone._apply_classroom_open(1,true,id)
 	var record: Dictionary=game.faculty.discipline_records.get(record_key,{})
 	if not check(int(record.get("count",0))==1,"the actual visible phone reaches teacher discipline"):

@@ -54,11 +54,8 @@ func _run() -> void:
   if not await _wait_title(browser,"typed:key-test:true:hello world! É",5000):failures.append("Chromium typed an incorrect case, character or symbol: "+str(browser.get_title()))
  if loaded:
   for i in 10:await process_frame
-  surface.selected_attachment=surface.candidates[0].duplicate(true)
   browser.execute_javascript("document.querySelector('input[type=file]').click();")
-  for i in 10:await process_frame
-  surface._supply_upload(browser)
-  for i in 10:await process_frame
+  if not await _select_upload(surface):failures.append("Website file selection did not open the in-game picker")
   browser.execute_javascript("document.title='upload:'+document.querySelector('input[type=file]').files[0]?.name+':'+document.querySelector('input[type=file]').files[0]?.size;")
   var upload_deadline:=Time.get_ticks_msec()+5000
   while not str(browser.get_title()).begins_with("upload:") and Time.get_ticks_msec()<upload_deadline:await process_frame
@@ -127,10 +124,8 @@ func _run() -> void:
  else:
   for i in 20:await process_frame
   surface.attachment_loader=func(_kind,_id,_lease,_item):return PackedByteArray([1,2,3])
-  surface.selected_attachment=surface.candidates[0].duplicate(true)
   photo_browser.execute_javascript("document.querySelector('input').click();")
-  for i in 10:await process_frame
-  surface._supply_upload(photo_browser)
+  if not await _select_upload(surface):failures.append("Website photo selection did not open the in-game picker")
   photo_browser.execute_javascript("document.title='photo:'+document.querySelector('input').files[0]?.name+':'+document.querySelector('input').files[0]?.type;")
   if not await _wait_title(photo_browser,"photo:image.jpg:image/jpeg",5000):failures.append("Phone photo was not attached with an image MIME type")
  photo_browser.load_data_uri("<html><title>IFRAME</title><iframe style='position:absolute;left:0;top:0;border:0;width:200px;height:100px' srcdoc=\"<input type='file' style='position:absolute;left:0;top:0;width:180px;height:80px'>\"></iframe></html>","text/html")
@@ -150,6 +145,17 @@ func _run() -> void:
   phone_browser.load_url(base+"/private")
   if not await _wait_title(phone_browser,"SIGNED_OUT",8000):failures.append("A new device inherited the previous device's login cookie")
  _finish(surface)
+
+func _select_upload(surface: Control) -> bool:
+ var deadline:=Time.get_ticks_msec()+5000
+ while not is_instance_valid(surface.upload_picker) and Time.get_ticks_msec()<deadline:await process_frame
+ if not is_instance_valid(surface.upload_picker):return false
+ var list:=surface.upload_picker.find_children("*","ItemList",true,false)[0] as ItemList
+ if list.item_count<1:return false
+ list.select(0)
+ surface.upload_picker.confirmed.emit()
+ await create_timer(.2).timeout
+ return true
 
 func _check_context_inspector(surface: Control,browser: Variant) -> void:
  var click:=InputEventMouseButton.new()

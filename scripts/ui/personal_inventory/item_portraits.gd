@@ -48,7 +48,7 @@ func _draw(kind: String, color_index: int, type: String) -> String:
 			return '<path d="M25 48h78" stroke="#a8b7b9" stroke-width="10"/><path d="M24 29h13v38H24zm-9 6h9v26h-9zm76-6h13v38H91zm13 6h9v26h-9z" fill="#263a43" stroke="#80969a" stroke-width="3"/>'
 		"ac_laptop", "portable_laptop":
 			return '<path d="M25 24h78v48H25z" fill="#738d98"/><path d="M30 29h68v37H30z" fill="#1c3d4c"/><path d="M21 72h86l8 8H13z" fill="#a5b8bb"/>'
-		"ac_usb":
+		"ac_usb", "charging_cable":
 			return '<path d="M22 53C8 19 96 17 101 48S29 78 28 54s72-27 73 5" fill="none" stroke="#859ba2" stroke-width="6"/><path d="M20 49h12v10H20zm77 7h12v10H97z" fill="#dce3de"/>'
 		"power_bank":
 			return '<g transform="rotate(-16 64 48)"><rect x="33" y="25" width="65" height="52" rx="9" fill="#283d4a"/><rect x="33" y="20" width="65" height="49" rx="9" fill="#69838c"/><path d="M47 30h35" stroke="#9ebec2" stroke-width="3"/><path d="M52 54h26" stroke="#88f7ca" stroke-width="5" stroke-dasharray="4 3"/><path d="M61 72h10" stroke="#101a22" stroke-width="4" stroke-linecap="round"/></g>'
