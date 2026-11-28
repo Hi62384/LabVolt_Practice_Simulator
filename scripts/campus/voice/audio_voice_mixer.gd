@@ -69,20 +69,52 @@ static func configure_spatial(player: AudioStreamPlayer3D,delivery: Dictionary={
 		"shout":player.unit_size=8.;player.max_distance=40.
 		_:player.unit_size=4.;player.max_distance=18.
 
-static func update_occlusion(player: AudioStreamPlayer3D,anchor: Node3D,listener: Camera3D,base_db: float) -> void:
-	if not is_instance_valid(player) or not is_instance_valid(anchor) or not is_instance_valid(listener):return
-	if player.global_position.distance_squared_to(listener.global_position)<.25:return
+static func is_occluded(source: Vector3,anchor: Node3D,listener: Camera3D) -> bool:
+	if not is_instance_valid(anchor) or not is_instance_valid(listener) or not anchor.is_inside_tree():return true
+	if source.distance_squared_to(listener.global_position)<.25:return false
 	var space:=anchor.get_world_3d().direct_space_state
-	if space==null:return
-	var query:=PhysicsRayQueryParameters3D.create(player.global_position,listener.global_position,1)
+	if space==null:return false
+	var query:=PhysicsRayQueryParameters3D.create(source,listener.global_position,1)
 	var excluded: Array[RID]=[]
 	for origin in [anchor,listener]:
 		var node: Node=origin
 		while node!=null:
 			if node is CollisionObject3D:excluded.append(node.get_rid())
 			node=node.get_parent()
+	for collider in anchor.find_children("*","CollisionObject3D",true,false):excluded.append(collider.get_rid())
 	query.exclude=excluded
-	var obstructed:=not space.intersect_ray(query).is_empty()
+	return not space.intersect_ray(query).is_empty()
+
+static func update_occlusion(player: AudioStreamPlayer3D,anchor: Node3D,listener: Camera3D,base_db: float) -> void:
+	if not is_instance_valid(player) or not is_instance_valid(anchor) or not is_instance_valid(listener):return
+	var obstructed:=is_occluded(player.global_position,anchor,listener)
 	# This is wall occlusion only. Distance is handled once by Player3D.
 	player.volume_db=base_db+(-12. if obstructed else 0.)
 	player.attenuation_filter_cutoff_hz=1400. if obstructed else 7000.
+
+
+# Estimated listener gain using the configured inverse-distance source and bus
+# routing. Do not apply this gain to playback: Godot already does that.
+static func distance_db(distance: float,unit_size: float,max_distance: float,max_db: float) -> float:
+	if max_distance>0. and distance>=max_distance:return -INF
+	var gain:=minf(max_db,linear_to_db(maxf(.001,unit_size)/maxf(.001,distance)))
+	if max_distance>0.:gain+=linear_to_db(maxf(.00001,1.-distance/max_distance))
+	return gain
+
+static func bus_gain_db(bus_name: String) -> float:
+	var gain:=0.
+	var seen: Dictionary={}
+	var index:=AudioServer.get_bus_index(bus_name)
+	while index>=0 and not seen.has(index):
+		seen[index]=true
+		if AudioServer.is_bus_mute(index):return -INF
+		gain+=AudioServer.get_bus_volume_db(index)
+		if index==0:break
+		index=AudioServer.get_bus_index(AudioServer.get_bus_send(index))
+	return gain
+
+static func perceived_db(player: AudioStreamPlayer3D,listener: Camera3D,level: float) -> float:
+	if not is_instance_valid(player) or not is_instance_valid(listener) or not player.playing or player.stream_paused:return -INF
+	if level<=.00001:return -INF
+	var distance:=player.global_position.distance_to(listener.global_position)
+	return linear_to_db(level)+player.volume_db+distance_db(distance,player.unit_size,player.max_distance,player.max_db)+bus_gain_db(player.bus)

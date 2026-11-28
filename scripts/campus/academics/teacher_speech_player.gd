@@ -32,6 +32,9 @@ var subtitle_layer: CanvasLayer
 var speech_enabled:=true
 var subtitles_enabled:=true
 var subtitle_layout_clock:=0.
+var subtitle_winner:=""
+const SUBTITLE_MIN_DB:=-55.
+const SUBTITLE_SWITCH_DB:=3.
 
 func configure(speech: bool,captions: bool) -> void:
 	var disabling:=speech_enabled and not speech
@@ -170,7 +173,7 @@ func clear_session() -> void:
 	for source in [active,queued,awaiting,suspended,subtitles,presentations]:
 		for channel in source.keys():channels[channel]=true
 	for channel in channels:cancel(channel)
-	last_serial.clear();cancel_revisions.clear();cancelled_serials.clear();cached.clear();cache_order.clear();cache_bytes=0
+	last_serial.clear();cancel_revisions.clear();cancelled_serials.clear();cached.clear();cache_order.clear();cache_bytes=0;subtitle_winner=""
 
 func pause_for_interruption(channel: String) -> bool:
 	if not active.has(channel) and not presentations.has(channel):return false
@@ -290,8 +293,9 @@ func _start(channel: String,item: Dictionary) -> void:
 	anchor.add_child(player)
 	var head:=anchor.find_child("Head",true,false) as Node3D
 	if is_instance_valid(head):player.global_position=head.global_position
+	Mixer.update_occlusion(player,anchor,get_viewport().get_camera_3d(),player.volume_db)
 	var mouth:=_mouth(anchor)
-	active[channel]={"serial":item.serial,"priority":item.priority,"teacher":item.teacher,"player":player,"mouth":mouth,"item":item,"base_db":player.volume_db,"occlusion_clock":0.0}
+	active[channel]={"serial":item.serial,"priority":item.priority,"teacher":item.teacher,"player":player,"mouth":mouth,"item":item,"base_db":linear_to_db(clampf(gain,.0001,2.)),"occlusion_clock":0.0}
 	duration=int(ceil(stream.get_length()*1000./float(item.pitch)))
 	var offset_seconds:=clampf(float(item.get("resume_seconds",0.)),0.,maxf(0.,stream.get_length()-.001))
 	presentations[channel].until=now+duration-int(offset_seconds*1000./float(item.pitch))+750
@@ -468,8 +472,9 @@ static func _pcm_level(stream: AudioStreamWAV,seconds: float) -> float:
 	var index:=int(maxf(0.,seconds)*stream.mix_rate)*channels*2
 	if index<0 or index+1>=data.size():return 0.
 	var peak:=0.
-	for sample in 16:
-		var at:=index+sample*channels*2
+	var stride:=maxi(1,int(stream.mix_rate*.02/64.))
+	for sample in 64:
+		var at:=index+sample*stride*channels*2
 		if at+1>=data.size():break
 		peak=maxf(peak,absf(float(data.decode_s16(at))/32768.))
 	return peak
@@ -549,6 +554,7 @@ func _caption_current(channel: String) -> void:
 	subtitles[channel].label.text=str(item.teacher)+": "+str(subtitles[channel].pages[page])
 
 func _layout_subtitles() -> void:
+	if not is_inside_tree():return
 	var viewport:=get_viewport().get_visible_rect().size
 	var width:=minf(880.,maxf(160.,viewport.x-40.))
 	var left:=(viewport.x-width)*.5
@@ -569,32 +575,74 @@ func _layout_subtitles() -> void:
 			if top>region.x:clear.append(Vector2(region.x,top))
 			if bottom<region.y:clear.append(Vector2(bottom,region.y))
 		regions=clear
-	var channels: Array=subtitles.keys()
-	channels.sort_custom(func(a,b):
-		var first: Dictionary=subtitles[a].item;var second: Dictionary=subtitles[b].item
-		return int(first.priority)>int(second.priority) if int(first.priority)!=int(second.priority) else int(first.accepted)>int(second.accepted))
-	var index:=0
-	for channel in channels:
+	var camera:=get_viewport().get_camera_3d()
+	var scores: Dictionary={}
+	var fallbacks: Dictionary={}
+	for channel in subtitles:
+		var label: Label=subtitles[channel].label
+		label.hide()
+		if is_instance_valid(camera):
+			var score:=_subtitle_score(channel,camera)
+			if active.has(channel):scores[channel]=score
+			else:fallbacks[channel]=score
+	for value in get_tree().get_nodes_in_group("world_subtitles_suppressed"):
+		if value is Control and value.is_visible_in_tree():return
+	subtitle_winner=choose_subtitle(scores,subtitle_winner)
+	if subtitle_winner.is_empty():subtitle_winner=choose_subtitle(fallbacks,"")
+	if subtitle_winner.is_empty() or not subtitles.has(subtitle_winner):return
+	for channel in [subtitle_winner]:
 		var label: Label=subtitles[channel].label
 		label.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		label.size=Vector2(width,0.)
 		var height:=maxf(52.,label.get_minimum_size().y)
 		label.size.y=height
 		label.visible=false
-		if index<3:
-			# Prefer the lowest free area. A central interaction prompt must not
-			# drag captions above it when there is room underneath it.
-			for slot in range(regions.size()-1,-1,-1):
-				var region: Vector2=regions[slot]
-				if region.y-region.x<height:continue
-				label.position=Vector2(left,region.y-height)
-				label.visible=true
-				regions[slot]=Vector2(region.x,region.y-height-8.)
-				break
-		index+=1
+		# Prefer the lowest unobstructed region and never overlap controls.
+		for slot in range(regions.size()-1,-1,-1):
+			var region: Vector2=regions[slot]
+			if region.y-region.x<height:continue
+			label.position=Vector2(left,region.y-height)
+			label.visible=true
+			break
+
+# A louder challenger needs a modest advantage to avoid flicker; an
+# inaudible incumbent is never retained. Selection never alters page clocks.
+static func choose_subtitle(scores: Dictionary,previous: String) -> String:
+	var winner:=""
+	var best: float=SUBTITLE_MIN_DB
+	for channel in scores:
+		var score:=float(scores[channel])
+		if is_finite(score) and score>=best:
+			winner=str(channel);best=score
+	var old:=float(scores.get(previous,-INF))
+	if not winner.is_empty() and not previous.is_empty() and is_finite(old) and old>=SUBTITLE_MIN_DB and best-old<SUBTITLE_SWITCH_DB:return previous
+	return winner
+
+func _subtitle_score(channel: String,camera: Camera3D) -> float:
+	var subtitle: Dictionary=subtitles[channel]
+	var item: Dictionary=subtitle.item
+	var anchor: Node3D=item.anchor
+	if not is_instance_valid(anchor) or not anchor.is_visible_in_tree():return -INF
+	if active.has(channel) and int(active[channel].serial)==int(item.serial):
+		var state: Dictionary=active[channel]
+		var player: AudioStreamPlayer3D=state.player
+		if not is_instance_valid(player) or not player.playing or player.stream_paused:return -INF
+		# Track the actual waveform, with a short release through natural gaps.
+		var peak:=_pcm_level(player.stream,player.get_playback_position())
+		var envelope:=maxf(peak,float(state.get("caption_envelope",0.))*.58)
+		state.caption_envelope=envelope
+		return Mixer.perceived_db(player,camera,envelope)
+	# Nearby text-only fallback when synthesis is disabled or unavailable.
+	# Never compete with audible speech or travel through walls.
+	if bool(item.get("expect_audio",false)) or (speech_enabled and item.stream!=null):return -INF
+	var distance:=anchor.global_position.distance_to(camera.global_position)
+	if distance>6. or Mixer.is_occluded(anchor.global_position+Vector3.UP*1.4,anchor,camera):return -INF
+	return SUBTITLE_MIN_DB+.1
 
 func _clear_subtitle(channel: String) -> void:
 	if not subtitles.has(channel):return
 	var label: Label=subtitles[channel].label
-	if is_instance_valid(label):label.queue_free()
-	subtitles.erase(channel);_layout_subtitles()
+	if is_instance_valid(label):label.hide();label.queue_free()
+	subtitles.erase(channel)
+	if subtitle_winner==channel:subtitle_winner=""
+	_layout_subtitles()

@@ -63,7 +63,7 @@ func capture(game: Node,speech: Node,name: String,expected: String) -> void:
 	for obstacle: Control in [game.hotbar.bar,game.health.bar,game.held_hint,game.ui.prompt]:
 		if obstacle.is_visible_in_tree():check(not caption.get_global_rect().intersects(obstacle.get_global_rect()),"Caption clears HUD "+name)
 	var second: Label=speech.subtitles["render-other"].label
-	check(not second.visible or not caption.get_global_rect().intersects(second.get_global_rect()),"Simultaneous captions never overlap")
+	check(not second.visible,"Only the audible winning speaker is captioned")
 	await RenderingServer.frame_post_draw
 	var image:=root.get_texture().get_image()
 	check(image!=null and not image.is_empty() and image.save_png(output.path_join(name+".png"))==OK,"Saved actual native framebuffer "+name)
