@@ -1384,7 +1384,7 @@ func _toggle_recording() -> void:
   _cancel_recording();conversation_text.text=reason;return
  record_button.text="Stop and send recording"
  conversation_text.text="Recording this question. Stopping sends it to the host's AI service."
- if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Listening…",180000)
+ if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Listening…",180000,true)
 
 func _manual_capture_packet(pcm: PackedByteArray,_activity: Dictionary) -> void:
  if not recording:return
@@ -1392,9 +1392,9 @@ func _manual_capture_packet(pcm: PackedByteArray,_activity: Dictionary) -> void:
  if game.client_preferences.values.get("microphone_muted",false):_cancel_recording();return
  if record_samples.size()+pcm.size()>5760000:_finish_recording.call_deferred();return
  record_samples.append_array(pcm)
- if not manual_mic_signal and float(_activity.get("peak",0.0))>=.003:
+ if not manual_mic_signal and preload("res://scripts/campus/voice/npc_voice_router.gd").usable_input(_activity):
   manual_mic_signal=true
-  if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Hearing…",180000)
+  if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Hearing…",180000,true)
 
 func _record_step() -> void:
  if recording and (not conversation.visible or game.client_preferences.values.get("microphone_muted",false)):_cancel_recording()
@@ -1421,9 +1421,15 @@ func _finish_recording() -> void:
  if not _require_selected_conversation():return
  if samples.size()<4800:
   conversation_text.text=str(capture_status.get("reason","Microphone capture did not receive audio.")) if int(capture_status.get("frames_received",0))==0 else "The recording was too short. Record at least a short sentence before sending."
+  if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Speech not recognized: recording too short",5000,true)
+  return
+ var signal_stats: Dictionary=shared_microphone.processor.InspectPcm16(samples)
+ if not signal_stats.get("has_signal",false):
+  conversation_text.text="No usable microphone signal. Check input level and hardware mute."
+  if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Speech not recognized: no usable signal",5000,true)
   return
  conversation_text.text="Listening to your question…"
- if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Transcribing…",30000)
+ if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Transcribing…",30000,true)
  _send_voice_question(conversation_room,TeacherAI.wav_16k(samples),conversation_student,conversation_class,str(conversation.get_meta("selected_character_id","")))
 
 func _send_voice_question(room: String,wav: PackedByteArray,student: String,class_id: String,expected_teacher: String="") -> void:
@@ -3067,8 +3073,8 @@ func _report_voice_stage(peer: int,context: Dictionary,stage: String,message: St
 @rpc("authority","call_remote","reliable")
 func _manual_hearing_status(nonce: String,request_id: String,stage: String,message: String) -> void:
  if nonce!=manual_conversation_nonce or request_id!=manual_latest_request or not _selected_conversation_current(false) or not is_instance_valid(natural_voice):return
- if stage=="transcription_received":natural_voice.show_hearing(_manual_debug_target(),"Heard: "+message.left(500),10000)
- elif stage=="transcription_failed":natural_voice.show_hearing(_manual_debug_target(),"Not recognized: "+message.left(120),6000)
+ if stage=="transcription_received":natural_voice.show_hearing(_manual_debug_target(),"Heard: "+message.left(500),10000,true)
+ elif stage=="transcription_failed":natural_voice.show_hearing(_manual_debug_target(),"Speech not recognized: "+message.left(120),6000,true)
 
 func _voice_context_valid(peer: int,context: Dictionary) -> bool:
  if context.get("mode")=="manual":return _manual_context_current(peer,context)
