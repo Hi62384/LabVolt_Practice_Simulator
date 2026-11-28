@@ -74,7 +74,7 @@ static func build(person: Dictionary,model: String,priority: int,mood: String="s
 		if float(values[feeling])>=.14:feelings.append("%s %.1f"%[feeling,float(values[feeling])])
 	feelings.sort()
 	var instructions:="PERMANENT SPEAKER: "+str(identity.design_description)+" Preserve age, accent, resonance and timbre through every phrase. "
-	instructions+="USUAL SPEAKING STYLE: "+str(person.get("style",identity.mannerisms))+". Articulation: "+str(identity.articulation)+". Mannerisms: "+str(identity.mannerisms)+". These are tendencies, not an unchanging emotion. "
+	instructions+="USUAL SPEAKING STYLE: "+str(person.get("style",identity.mannerisms)).left(1000)+". Articulation: "+str(identity.articulation)+". Mannerisms: "+str(identity.mannerisms)+". These are tendencies, not an unchanging emotion. "
 	instructions+="CURRENT MOOD: "+mood+". Emotional mixture: "+", ".join(feelings)+". Vocal energy %.2f, intensity %.2f, conversational pace %.2f. "%[energy,intensity,pace]
 	instructions+=_emotional_direction(values,anger,sorrow,fatigue,restraint,expressiveness)
 	instructions+=" CHARACTER EXPRESSION: "+str(identity.emotional_tendencies)+" "

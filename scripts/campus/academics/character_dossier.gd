@@ -2,6 +2,7 @@ extends RefCounted
 ## Persistent authored/generated identity. Actual gameplay remains in CharacterMemory.
 ## All construction, validation and retrieval is local and independent of transport.
 const Traits = preload("res://scripts/campus/academics/character_traits.gd")
+const VocalDesign = preload("res://scripts/campus/academics/character_voice_design.gd")
 const VERSION := 1
 const MAX_BYTES := 262144
 const MIN_LIFE_CHARS := 3600
@@ -45,13 +46,12 @@ static func migrate(profile: Dictionary) -> Dictionary:
 	var description := str(profile.get("personality_description", profile.get("worldview", profile.get("style", ""))))
 	var speech := str(profile.get("speaking_description", profile.get("style", "")))
 	var identity := {"id": str(profile.get("id", "")), "name": str(profile.get("name", "")), "age": int(profile.get("age", 18)), "role": str(profile.get("role", "student")), "program": str(profile.get("program", "")), "background": str(profile.get("background", "")), "physical_description": str(profile.get("physical_description", "Appearance is defined by the saved character model.")), "appearance": profile.get("appearance", {}).duplicate(true)}
-	var voices := ["coral", "echo", "nova", "fable", "ash", "onyx", "sage", "shimmer", "alloy", "verse", "ballad", "cedar", "marin"]
-	var voice_id: String = voices[posmod(int(profile.get("voice_slot", 0)), voices.size())]
+	var voice := VocalDesign.dossier_seed(profile)
 	var dossier := {"version": VERSION, "revision": 1, "identity": identity, "life_history": sections,
 		"personality": {"description": description, "motivations": [str(profile.get("ambition", ""))], "values": [str(profile.get("values", ""))], "interests": [str(profile.get("interest", ""))], "strengths": profile.get("strengths", []), "weaknesses": profile.get("weaknesses", []), "beliefs": profile.get("beliefs", []).duplicate(true), "habits": [str(profile.get("habits", ""))]},
 		"communication": {"description": speech, "examples": examples}, "traits": profile.get("traits", {}).duplicate(true),
 		"knowledge": {"education": str(profile.get("education", "")), "expertise": profile.get("subjects", []).duplicate(), "ignorance": [], "domains": profile.get("knowledge_domains", {}).duplicate(true)},
-		"voice": {"identifier": voice_id, "profile": "Permanent voice of " + str(identity.name), "characteristics": speech, "delivery": "Mood changes delivery, never the underlying vocal identity."},
+		"voice": voice,
 		"compact_core": str(identity.name) + ", " + str(identity.role) + ". " + description + " Speaking manner: " + speech + " Personal priority: " + str(profile.get("ambition", "")),
 		"subjects": profile.get("subjects",[]).duplicate(), "design_specification": str(profile.get("design_specification", description)), "trait_constraints": profile.get("trait_constraints", {}).duplicate(true),
 		"established_biography": biography.duplicate(true),
@@ -66,7 +66,7 @@ static func project(profile: Dictionary, dossier: Dictionary, include_dossier :=
 	if dossier.is_empty(): return profile.duplicate(true)
 	var result := {}
 	for key in profile:
-		if key in ["dossier","behavior_examples","traits","beliefs","goals","biography"]: continue
+		if key in ["dossier","behavior_examples","traits","beliefs","goals","biography","voice_slot"]: continue
 		result[key] = profile[key].duplicate(true) if profile[key] is Dictionary or profile[key] is Array else profile[key]
 	var identity: Dictionary = dossier.get("identity", {})
 	for key in ["id", "name", "age", "role", "program", "background", "physical_description", "appearance"]:
@@ -189,7 +189,13 @@ static func validate(candidate: Variant, seed: Dictionary = {}, complete := true
 	for field in ["identifier", "profile", "characteristics", "delivery"]:
 		if not _string(d.voice.get(field), 1, 2800): errors.append("voice: missing " + field)
 	if d.voice.get("identifier","") not in ["coral","echo","nova","fable","ash","onyx","sage","shimmer","alloy","verse","ballad","cedar","marin"]: errors.append("voice: unsupported permanent voice identifier")
-	if seed.get("voice", {}).has("identifier") and d.voice.get("identifier") != seed.voice.identifier: errors.append("voice: changed permanent voice identifier")
+	if seed.get("voice", {}).has("identifier") and d.voice.get("identifier") != seed.voice.identifier: errors.append("voice: changed established preset suggestion")
+	# Structured acoustic fields are optional for older saved dossiers.
+	if d.voice.has("presentation") and d.voice.presentation not in ["masculine","feminine","androgynous"]: errors.append("voice: invalid presentation")
+	if d.voice.has("perceived_age") and not _number(d.voice.perceived_age,18.,110.): errors.append("voice: adult perceived age required")
+	if d.voice.has("normal_pace") and not _number(d.voice.normal_pace,.65,1.3): errors.append("voice: invalid normal pace")
+	for field in ["pitch_range","resonance","timbre","texture","accent","articulation"]:
+		if d.voice.has(field) and not _string(d.voice[field],1,220): errors.append("voice: invalid "+field)
 	for field in ["expertise","ignorance"]:
 		if d.knowledge.get(field) is Array:
 			for entry in d.knowledge[field]:

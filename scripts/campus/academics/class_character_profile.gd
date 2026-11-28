@@ -29,7 +29,7 @@ static func teacher(id: String) -> Dictionary:
 		"strictness":_baseline(style,"difficulty"),"talk":_baseline(style,"talkativeness"),
 		"focus":_baseline(style,"focus"),"teaching":_baseline(style,"teaching"),
 		"description":str(style.get("description","")),
-		"interest":INTERESTS[seed_value%INTERESTS.size()],"voice_slot":_voice_slot(id,seed_value)}
+		"interest":INTERESTS[seed_value%INTERESTS.size()]}
 	profile.merge(Personas.teacher(id),true)
 	profile.traits=Traits.expand(profile.traits,profile.talk,profile.traits.reasoning,profile.focus,
 		lerpf(float(profile.traits.demonstrations),float(profile.teaching),.45),profile.strictness)
@@ -65,7 +65,7 @@ static func classroom(id: String) -> Dictionary:
 static func student(index: int) -> Dictionary:
 	var id := "campus_student_%02d" % maxi(0,index)
 	if Dossiers.dossiers.has(id):
-		return Dossiers.project({"id":id,"role":"student","voice_slot":posmod(id.hash(),32749),"subjects":[],"lines":{}})
+		return Dossiers.project({"id":id,"role":"student","subjects":[],"lines":{}})
 	# These are historic deterministic identities for migration/tests only. The
 	# population never calls this factory to fill a new campus or empty seats.
 	if index not in range(12): return {}
@@ -87,7 +87,7 @@ static func legacy_student(index: int) -> Dictionary:
 	var interest: String=INTERESTS[seed_value%INTERESTS.size()]
 	var profile:={"id":"campus_student_%02d"%index,"name":FIRST[index%FIRST.size()]+" "+LAST[(index*7+3)%LAST.size()],
 		"role":"student","interest":interest,"curiosity":curiosity,"confidence":confidence,
-		"talk":talk,"focus":focus,"knowledge":knowledge,"voice_slot":seed_value,
+		"talk":talk,"focus":focus,"knowledge":knowledge,
 		"style":"Quiet in groups and talkative about "+interest if talk<.42 else ("Joins discussions easily and talks through ideas" if confidence>.6 else "Sociable at first, hesitates when challenged")}
 	profile.merge(Personas.student(profile,rng),true)
 	profile.traits.merge({"energy":energy,"warmth":warmth},true)
@@ -115,10 +115,6 @@ static func legacy_student(index: int) -> Dictionary:
 	profile.merge(Worldview.student(profile),true)
 	profile.goals=[{"goal":profile.ambition,"priority":.85,"horizon":"term"},{"goal":"improve in "+str(profile.program),"priority":profile.traits.academic_motivation,"horizon":"class"},{"goal":"spend time with trusted friends","priority":profile.traits.sociability,"horizon":"today"},{"goal":"make time for "+str(profile.interest),"priority":.7,"horizon":"today"}]
 	return profile
-
-static func _voice_slot(id: String,seed_value: int) -> int:
-	var index:=Roster.PEOPLE.keys().find(id)
-	return index if index>=0 else seed_value
 
 static func speech(person: Dictionary,model: String,priority: int,emotion := "steady",affect: Dictionary={},intent := "",context: Dictionary={}) -> Dictionary:
 	return VoiceDelivery.build(person,model,priority,emotion,affect,intent,context)

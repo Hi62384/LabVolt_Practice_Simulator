@@ -5,6 +5,7 @@ const PATH := "res://assets/campus/faculty/voice_profiles.json"
 const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
 const Models=preload("res://scripts/campus/ai/openai_models.gd")
 const DESIGNS_PATH := "res://assets/campus/faculty/character_voice_designs.json"
+const Design=preload("res://scripts/campus/academics/character_voice_design.gd")
 const SCHEMA_VERSION := 1
 const MAX_IDENTITIES := 8192
 const PROMPT_VOICE_LIMIT := 100
@@ -31,7 +32,8 @@ static func identity(person: Dictionary) -> Dictionary:
 	if id.is_empty() or id.length()>128 or _load()!=OK:return {}
 	if _state.identities.has(id):return _state.identities[id].duplicate(true)
 	var designed:=designs()
-	var value: Dictionary=designed[id].duplicate(true) if designed.has(id) else _student_identity(person)
+	if Roster.PEOPLE.has(id) and not designed.has(id):last_error=ERR_INVALID_DATA;return {}
+	var value: Dictionary=designed[id].duplicate(true) if designed.has(id) else Design.draft(person)
 	if value.is_empty():return {}
 	if _state.identities.size()>=MAX_IDENTITIES:last_error=ERR_OUT_OF_MEMORY;return {}
 	_state.identities[id]=value
@@ -212,34 +214,11 @@ static func _save() -> Error:
 	last_error=error
 	return error
 
-static func _student_identity(person: Dictionary) -> Dictionary:
+# Read-only display; inspection never allocates a voice.
+static func peek(person: Dictionary) -> Dictionary:
 	var id:=str(person.get("id",""))
-	if id.is_empty():return {}
-	var traits: Dictionary=person.get("traits",{})
-	var intended: Dictionary=person.get("vocal_identity",{})
-	var presentation:=str(intended.get("presentation",person.get("vocal_presentation","androgynous")))
-	if presentation not in ["masculine","feminine","androgynous"]:presentation="androgynous"
-	var age:=maxi(18,int(person.get("age",22)))
-	var warm:=_number(traits,"warmth",.5)
-	var pace:=clampf(.85+_number(traits,"speaking_pace",.5)*.28,.8,1.18)
-	var voice: String="sage" if presentation=="feminine" and warm>.6 else "coral" if presentation=="feminine" else "cedar" if presentation=="masculine" and pace<1. else "ash" if presentation=="masculine" else "alloy" if pace<.98 else "verse"
-	var pitch:=str(intended.get("pitch_range","middle register with a natural conversational range"))
-	var accent:=str(intended.get("accent",person.get("accent","plain North American English")))
-	var timber:="rounded and warm" if warm>.6 else "clear and dry"
-	var profile:={"character_id":id,"provider":"openai","voice_type":"preset","permanent_voice_id":voice,
-		"compatible_model_families":["gpt-live-1.1","gpt-realtime-2.1","gpt-realtime-2.1-mini","gpt-4o-mini-tts"],
-		"perceived_age":age,"vocal_presentation":presentation,"pitch_range":pitch,"resonance":"balanced and unforced",
-		"timbre":timber,"texture":"light natural breath and grain","accent":accent,"normal_pace":pace,
-		"normal_projection":"normal","articulation":"clear conversational diction","mannerisms":str(person.get("style","plain-spoken")),
-		"emotional_tendencies":"Use this person's expressiveness and restraint; shyness changes hesitation, not basic audibility.",
-		"profile_version":1,"audition_status":"not_auditioned","approval_status":"provisional_preset","voice_design_status":"matched_persistent_pool","allocation":"student"}
-	profile.design_description="An original fictional adult voice, age about %d, %s vocal presentation. %s, %s timbre, balanced resonance, %s. The same speaker must remain recognizable through every mood. Do not imitate anyone. No permanent emotional state is part of this identity."%[age,presentation,pitch,timber,accent]
-	profile.provisional_notice="Persistently matched shared preset. Dedicated faculty voices are allocated before additional student voices."
-	return profile
-
-static func _number(source: Dictionary,key: String,fallback: float) -> float:
-	var value: Variant=source.get(key,fallback)
-	return clampf(float(value),0.,1.) if (value is float or value is int) and is_finite(float(value)) else fallback
+	if id.is_empty() or _load()!=OK:return {}
+	return _state.identities[id].duplicate(true) if _state.identities.has(id) else Design.draft(person)
 
 static func _parse(text: String) -> Variant:
 	var parser:=JSON.new()

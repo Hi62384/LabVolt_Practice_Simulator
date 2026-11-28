@@ -175,7 +175,7 @@ func load_population() -> bool:
 		for id in Dossiers.dossiers:
 			var d: Dictionary=Dossiers.dossiers[id]
 			if d.get("identity",{}).get("role")=="student" and not people.has(id):
-				people[id]=Dossiers.project({"id":id,"role":"student","voice_slot":posmod(str(id).hash(),32749),"subjects":[],"lines":{}})
+				people[id]=Dossiers.project({"id":id,"role":"student","subjects":[],"lines":{}})
 				next_index=maxi(next_index,int(str(id).trim_prefix("campus_student_"))+1)
 				dirty=true
 	for id in people:
