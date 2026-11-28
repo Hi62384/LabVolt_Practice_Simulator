@@ -311,11 +311,23 @@ func _character_request(instructions: String,context: Dictionary,dialogue: Strin
 			input=JSON.stringify(request)
 	if input.length()>MAX_CHARACTER_INPUT_CHARS or instructions.length()>MAX_CHARACTER_INSTRUCTION_CHARS:
 		return {"ok":false,"error":"Character context exceeds its bounded budget.","context_chars":input.length(),"instruction_chars":instructions.length(),"reduced_fields":reduced}
-	var result:=await _request_text(input,model,output,reasoning_effort,true,metadata,timeout,instructions)
+	var effort:=reasoning_effort
+	if str(metadata.get("complexity",""))=="social" and reasoning_mode!="pro":
+		effort=conversational_effort(model,effort)
+	var result:=await _request_text(input,model,output,effort,true,metadata,timeout,instructions)
+	result.requested_reasoning_effort=effort
 	result.context_chars=input.length()
 	result.instruction_chars=instructions.length()
 	result.reduced_fields=reduced
 	return result
+
+static func conversational_effort(choice: String,selected: String) -> String:
+	# Do not silently change model or raise the selected effort. Choose only
+	# supported values, keeping the full selected effort for complex tasks.
+	if selected in ["","none","minimal","low"]:return selected
+	for candidate: String in ["minimal","low","none"]:
+		if candidate in Models.efforts(choice):return candidate
+	return selected
 
 func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}

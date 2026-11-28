@@ -78,6 +78,13 @@ static func project(profile: Dictionary, dossier: Dictionary, include_dossier :=
 	result.dossier_status = str(dossier.get("generation",{}).get("status","needs_expansion"))
 	result.dossier_revision = int(dossier.get("revision",1))
 	result.traits = dossier.get("traits", result.get("traits", {})).duplicate(true)
+	# Authored faculty constraints are still authoritative after a dossier was
+	# generated or loaded from an older save. Do not rewrite the saved history.
+	var constraints: Dictionary=profile.get("trait_constraints",{})
+	for trait: String in constraints:
+		var bounds: Variant=constraints[trait]
+		if bounds is Array and bounds.size()==2 and result.traits.has(trait):
+			result.traits[trait]=clampf(float(result.traits[trait]),float(bounds[0]),float(bounds[1]))
 	result.personality_description = str(personality.get("description", ""))
 	result.speaking_description = str(communication.get("description", ""))
 	result.style = result.speaking_description

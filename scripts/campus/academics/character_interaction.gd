@@ -3,6 +3,7 @@ extends RefCounted
 ## speech and memory. The host appraises and validates before delivery/commit.
 ## The model proposes language and bounded intentions, never changes game state.
 const Mind = preload("res://scripts/campus/academics/character_mind.gd")
+const Personas = preload("res://scripts/campus/academics/character_personas.gd")
 const Behavior = preload("res://scripts/campus/academics/character_behavior.gd")
 const Knowledge = preload("res://scripts/campus/academics/character_knowledge.gd")
 const TeacherAI = preload("res://scripts/campus/academics/teacher_ai.gd")
@@ -40,6 +41,11 @@ func context(person: Dictionary, identity: String, activity: Dictionary, questio
 	if contextual.dossier.is_empty():contextual.dossier=person.get("dossier",{})
 	var selected := Dossier.retrieve(contextual,question,data.get("prior_turns",[]),str(data.emotional_state.emotion),data.get("relationship",{}),7500 if complex else 4600)
 	data.character_core=selected.core
+	# Authored personality is not disposable generated prose. New and existing
+	# dossiers supply personal experiences, not permission to homogenize faculty.
+	var faculty_id:=str(person.get("id",""))
+	if person.get("role","")=="teacher" and Personas.DESIGN.has(faculty_id):
+		data.authored_identity={"personality":str(Personas.DESIGN[faculty_id]),"speech_style":str(Personas.SPEECH.get(faculty_id,""))}
 	# Stable motives and local activity are available BEFORE the first joint request.
 	data.identity_drivers={"worldview":str(person.get("worldview","")).left(420),"values":str(person.get("values","")).left(420),"ambition":str(person.get("ambition","")).left(300),"interests":str(person.get("interest","")).left(240),"manner":str(person.get("style","")).left(450)}
 	data.conversation_orientation=Behavior.conversation_orientation(person,data.get("relationship",{}),extra.get("observations",{}),str(activity.get("phase","freeplay")))
@@ -552,7 +558,26 @@ func _provider_context(data: Dictionary,prepared: Dictionary={},purpose: String=
 func _request_metadata(prepared: Dictionary,purpose: String) -> Dictionary:
 	var extra: Dictionary=prepared.get("extra",{})
 	var origin:=str(extra.get("request_origin","teaching" if extra.get("official_communication",false) else "background" if extra.get("initiate",false) else "player"))
-	return {"subsystem":"npc_conversation","request_purpose":purpose,"origin":origin,"correlation_id":str(prepared.get("event_id","")),"request_type":"feature","_valid":func():return _current(prepared)}
+	return {"subsystem":"npc_conversation","request_purpose":purpose,"origin":origin,"correlation_id":str(prepared.get("event_id","")),"request_type":"feature","complexity":_request_complexity(prepared,purpose),"_valid":func():return _current(prepared)}
+
+static func _request_complexity(prepared: Dictionary,purpose: String) -> String:
+	# Never use the conversational fast path for assessed or specialist work,
+	# biography consistency checks, physical actions, or factual questions.
+	if purpose!="character_turn":return "full"
+	var extra: Dictionary=prepared.get("extra",{})
+	var phase:=str(prepared.get("activity",{}).get("phase",""))
+	if phase=="assignment" or extra.get("official_communication",false) or extra.get("wants_visual",false) or not extra.get("executed_action",{}).is_empty():return "full"
+	var question:=str(prepared.get("question","")).strip_edges()
+	if question.length()>180 or question.is_empty():return "full"
+	var domain:=str(prepared.get("initial_domain",""))
+	if domain not in ["conversation","casual","everyday"]:return "full"
+	var kind:=str(prepared.get("turn",{}).get("interpretation",{}).get("question_kind",""))
+	if not kind.is_empty() and kind not in ["casual","opinion"]:return "full"
+	# Short greetings, social reactions and opinions do not require the
+	# selected model's highest reasoning budget. Unknown requests stay full.
+	var text:=question.to_lower()
+	if RegEx.create_from_string("(?i)\\b(?:explain|calculate|solve|prove|derive|why|how|what|when|where|which|who|should|can|could|would|is|are|does|do|did|help|tell|show|compare|measure)\\b|[0-9=+*/%?]").search(text)!=null:return "full"
+	return "social"
 
 func _moderate(client: Node,text: String,prepared: Dictionary,purpose: String) -> Dictionary:
 	if client.has_method("moderate_context"):return await client.moderate_context(text,_request_metadata(prepared,purpose))
