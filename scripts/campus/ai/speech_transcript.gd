@@ -4,6 +4,8 @@ extends RefCounted
 const SMALL:={"zero":0,"oh":0,"one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eight":8,"nine":9,"ten":10,"eleven":11,"twelve":12,"thirteen":13,"fourteen":14,"fifteen":15,"sixteen":16,"seventeen":17,"eighteen":18,"nineteen":19}
 const TENS:={"twenty":20,"thirty":30,"forty":40,"fifty":50,"sixty":60,"seventy":70,"eighty":80,"ninety":90}
 const SCALES:={"thousand":1000,"million":1000000,"billion":1000000000}
+const SI_PREFIXES:={"Y":"yotta","Z":"zetta","E":"exa","P":"peta","T":"tera","G":"giga","M":"mega","k":"kilo","K":"kilo","h":"hecto","da":"deca","d":"deci","c":"centi","m":"milli","µ":"micro","μ":"micro","u":"micro","n":"nano","p":"pico","f":"femto","a":"atto","z":"zepto","y":"yocto"}
+const SI_UNITS:={"V":"volt","A":"ampere","W":"watt","F":"farad","H":"henry","Hz":"hertz","Ω":"ohm","ohm":"ohm","S":"siemens","J":"joule","N":"newton","Pa":"pascal","m":"meter","s":"second","g":"gram"}
 const CONTRACTIONS:={"can't":"cannot","can not":"cannot","won't":"will not","don't":"do not","doesn't":"does not","didn't":"did not","isn't":"is not","aren't":"are not","wasn't":"was not","weren't":"were not","haven't":"have not","hasn't":"has not","hadn't":"had not","couldn't":"could not","wouldn't":"would not","shouldn't":"should not","mustn't":"must not","i'm":"i am","you're":"you are","we're":"we are","they're":"they are","i've":"i have","you've":"you have","we've":"we have","they've":"they have","i'll":"i will","you'll":"you will","we'll":"we will","they'll":"they will","let's":"let us","it's":"it is","that's":"that is","there's":"there is"}
 const UNITS:={"v":"volt","volt":"volt","volts":"volt","a":"ampere","amp":"ampere","amps":"ampere","ampere":"ampere","amperes":"ampere","w":"watt","watt":"watt","watts":"watt","ohm":"ohm","ohms":"ohm","Ω":"ohm","hz":"hertz","hertz":"hertz","f":"farad","farad":"farad","farads":"farad","h":"henry","henry":"henry","henries":"henry","pound":"pound","pounds":"pound","lb":"pound","lbs":"pound","kg":"kilogram","kilogram":"kilogram","kilograms":"kilogram","cm":"centimeter","centimeter":"centimeter","centimeters":"centimeter","mm":"millimeter","millimeter":"millimeter","millimeters":"millimeter","mv":"millivolt","millivolt":"millivolt","millivolts":"millivolt","ma":"milliampere","milliamp":"milliampere","milliamps":"milliampere","milliampere":"milliampere","milliamperes":"milliampere","kv":"kilovolt","kilovolt":"kilovolt","kilovolts":"kilovolt","kohm":"kiloohm","kiloohm":"kiloohm","kiloohms":"kiloohm","microfarad":"microfarad","microfarads":"microfarad","megavolt":"megavolt","megavolts":"megavolt","megaampere":"megaampere","megaamperes":"megaampere","megohm":"megaohm","megohms":"megaohm","megaohm":"megaohm","megaohms":"megaohm","percent":"percent","percentage":"percent"}
 
@@ -15,9 +17,9 @@ static func matches(expected: String,actual: String) -> bool:
 static func canonical(value: String) -> String:
 	if value.length()>24000:return "oversized:"+value.sha256_text()
 	value=value.replace("’","'").replace("‘","'").replace("−","-")
-	# Preserve SI prefix case before lowercasing (mA and MA differ by 10^9).
-	for pair: Array in [["MA","megaampere"],["MV","megavolt"],["MΩ","megaohm"],["kΩ","kiloohm"],["µF","microfarad"],["μF","microfarad"],["uF","microfarad"],["Ω","ohm"]]:
-		value=RegEx.create_from_string("(?<![A-Za-z])"+str(pair[0])+"(?![A-Za-z])").sub(value," "+str(pair[1])+" ",true)
+	# Unit symbols are case-sensitive: mW/MW, mF/MF and mHz/MHz must
+	# never become equal just because surrounding speech is case-insensitive.
+	value=_expand_si(value).replace("Ω"," ohm ")
 	value=value.to_lower()
 	for key: String in CONTRACTIONS:value=RegEx.create_from_string("\\b"+key+"\\b").sub(value,CONTRACTIONS[key],true)
 	for pair: Array in [["dr.","doctor"],["mr.","mister"],["mrs.","missus"],["ms.","ms"],["a.c.","ac"],["d.c.","dc"]]:value=value.replace(str(pair[0]),str(pair[1]))
@@ -25,6 +27,8 @@ static func canonical(value: String) -> String:
 	value=value.replace("="," equals ").replace("+"," plus ").replace("×"," times ").replace("*"," times ").replace("/"," divided by ").replace("%"," percent ").replace("^"," to the power of ")
 	value=RegEx.create_from_string("\\b(equal to|is equal to)\\b").sub(value,"equals",true)
 	value=RegEx.create_from_string("\\b(multiplied by)\\b").sub(value,"times",true)
+	for pair: Array in [["(?:open|left) parenthes(?:is|es)","("],["(?:close|right) parenthes(?:is|es)",")"],["(?:open|left) (?:square )?bracket","["],["(?:close|right) (?:square )?bracket","]"]]:
+		value=RegEx.create_from_string("\\b"+str(pair[0])+"\\b").sub(value,str(pair[1]),true)
 	# Remove thousands separators only within valid grouped numeric tokens.
 	var groups:=RegEx.create_from_string("\\b[0-9]{1,3}(?:,[0-9]{3})+(?:\\.[0-9]+)?\\b").search_all(value)
 	for index in range(groups.size()-1,-1,-1):
@@ -32,20 +36,56 @@ static func canonical(value: String) -> String:
 		value=value.substr(0,item.get_start())+item.get_string().replace(",","")+value.substr(item.get_end())
 	value=RegEx.create_from_string("(?<=[a-z])-(?=[a-z])").sub(value," ",true)
 	var tokens: Array[String]=[]
-	var token_pattern:=RegEx.create_from_string("[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+|[\\p{L}]+(?:'[\\p{L}]+)?|[-<>]|[^\\p{L}0-9\\s.,!?;:\"()\\[\\]{}]")
+	var token_pattern:=RegEx.create_from_string("[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+|[\\p{L}]+(?:'[\\p{L}]+)?|[-<>()\\[\\]{}]|[^\\p{L}0-9\\s.,!?;:\"()\\[\\]{}]")
 	for found in token_pattern.search_all(value):tokens.append(found.get_string())
+	# Prose parentheses are punctuation; mathematical grouping changes the
+	# calculation. Preserve it for operators and numeric/interval groups.
+	var math_grouping:=tokens.any(func(token):return token in ["plus","minus","times","divided","equals","power","<",">"])
+	if not math_grouping:
+		for group in RegEx.create_from_string("[\\(\\[]([^()\\[\\]]+)[\\)\\]]").search_all(value):
+			var inner:=str(group.get_string(1)).strip_edges()
+			if RegEx.create_from_string("^[0-9.,\\s-]+$").search(inner)!=null:math_grouping=true;break
 	var result: Array[String]=[]
 	var cursor:=0
 	while cursor<tokens.size():
 		var parsed:=_number_at(tokens,cursor)
 		if not parsed.is_empty():
 			result.append(str(parsed.value));cursor=int(parsed.next)
-			if cursor<tokens.size() and UNITS.has(tokens[cursor]):result.append("unit:"+str(UNITS[tokens[cursor]]));cursor+=1
+			if cursor<tokens.size():
+				var unit:=_unit(tokens[cursor])
+				if not unit.is_empty():result.append("unit:"+unit);cursor+=1
 			continue
 		var token:=tokens[cursor]
+		if token in ["(",")"] and not math_grouping:cursor+=1;continue
 		if token=="negative" or token=="minus" or token=="-":token="minus"
 		result.append(token);cursor+=1
 	return " ".join(result)
+
+static func _expand_si(value: String) -> String:
+	var number_words:=SMALL.keys()+TENS.keys()+["hundred","thousand","million","billion"]
+	var amount:="(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+|(?i:"+"|".join(number_words)+"))"
+	# A preceding quantity keeps ordinary words such as 'am' and 'as' intact.
+	var pattern:=RegEx.create_from_string("(?<![\\p{L}])("+amount+")\\s*(da|[YZEPTGMkKhdcmµμunpfazy])?(Hz|ohm|Pa|[VAWFHΩSJNmsg])(?![\\p{L}])")
+	var found:=pattern.search_all(value)
+	for index in range(found.size()-1,-1,-1):
+		var item: RegExMatch=found[index]
+		var prefix:=str(SI_PREFIXES.get(item.get_string(2),""))
+		var unit:=str(SI_UNITS[item.get_string(3)])
+		value=value.substr(0,item.get_start())+item.get_string(1)+" "+prefix+unit+value.substr(item.get_end())
+	return value
+
+static func _unit(token: String) -> String:
+	if token in ["h","hour","hours"]:return "hour"
+	if UNITS.has(token):return str(UNITS[token])
+	for name: String in SI_UNITS.values():
+		if token==name or token==name+"s":return name
+	for prefix: String in SI_PREFIXES.values():
+		if not token.begins_with(prefix):continue
+		var suffix:=token.trim_prefix(prefix)
+		if UNITS.has(suffix):return prefix+str(UNITS[suffix])
+		for name: String in SI_UNITS.values():
+			if suffix==name or suffix==name+"s":return prefix+name
+	return ""
 
 static func _number_at(tokens: Array[String],start: int) -> Dictionary:
 	var cursor:=start

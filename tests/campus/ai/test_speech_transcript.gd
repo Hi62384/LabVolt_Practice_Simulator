@@ -14,6 +14,13 @@ func _initialize() -> void:
 		["12 / 3 = 4.","Twelve divided by three equals four."],
 		["The load is 20 mA.","The load is twenty milliamps."],
 		["This is 3.3 kΩ.","This is three point three kiloohms."],
+		["Use 5 mW and 2 MW.","Use five milliwatts and two megawatts."],
+		["Use 4.7 µF and 10 nH.","Use four point seven microfarads and ten nanohenries."],
+		["The frequency is 5 MHz.","The frequency is five megahertz."],
+		["Use 5 H.","Use five henries."],
+		["2 * (3 + 4) = 14.","Two times open parenthesis three plus four close parenthesis equals fourteen."],
+		["Ask Mr. Bro (our teacher).","Ask Mister Bro, our teacher."],
+		["I am here as a student.","I am here as a student."],
 		["The signal is DC.","The signal is D C."]
 	]:
 		if not Transcript.matches(pair[0],pair[1]):failures.append("Equivalent: "+str(pair)+" => "+Transcript.canonical(pair[0])+" / "+Transcript.canonical(pair[1]))
@@ -23,6 +30,14 @@ func _initialize() -> void:
 		["Do not touch the terminal.","Do touch the terminal."],
 		["Use 3 mA.","Use three megaamperes."],
 		["Use 3 MA.","Use three milliamperes."],
+		["Use 5 mW.","Use 5 MW."],
+		["Use 5 mW.","Use five MW."],
+		["Use 5 mF.","Use 5 MF."],
+		["Use 5 mHz.","Use 5 MHz."],
+		["The value is 5 H.","The value is 5 h."],
+		["2 * (3 + 4) = 14.","2 * 3 + 4 = 14."],
+		["x * (y + z).","x * y + z."],
+		["The interval is [1, 2].","The interval is (1, 2)."],
 		["The answer is 2 + 3.","The answer is two times three."],
 		["My record is 315 pounds.","My record is three hundred fifty pounds."],
 		["The value is 12.05.","The value is twelve point five."],
