@@ -75,6 +75,7 @@ static func set_host_profile(identity: String) -> Error:
 	return OK
 
 static func ensure(profile: Dictionary) -> Dictionary:
+	if profile.get("identity_scope", "") == "public": return {}
 	var id := str(profile.get("id", ""))
 	if id.is_empty(): return {}
 	if not dossiers.has(id):
@@ -84,6 +85,7 @@ static func ensure(profile: Dictionary) -> Dictionary:
 	return dossiers[id].duplicate(true)
 
 static func project(profile: Dictionary) -> Dictionary:
+	if profile.get("identity_scope", "") == "public": return profile.duplicate(true)
 	var id := str(profile.get("id",""))
 	if not dossiers.has(id): ensure(profile)
 	if not dossiers.has(id): return profile.duplicate(true)
@@ -109,7 +111,7 @@ static func preserve_biography(id: String, biography: Dictionary) -> void:
 		d.revision = int(d.get("revision",1))+1
 
 static func queue(profile: Dictionary, priority := 0) -> bool:
-	if blocked: return false
+	if blocked or profile.get("identity_scope", "") == "public": return false
 	var d := ensure(profile)
 	var id := str(profile.get("id", ""))
 	if id.is_empty() or d.get("generation", {}).get("status") == "complete": return false
@@ -149,6 +151,7 @@ static func publish(candidate: Dictionary, seed: Dictionary = {}, telemetry: Dic
 	var d := {}
 	for field in ["identity", "life_history", "personality", "communication", "traits", "knowledge", "voice", "compact_core", "trait_evidence"]:
 		d[field] = candidate[field].duplicate(true) if candidate[field] is Dictionary or candidate[field] is Array else candidate[field]
+	if not seed.get("identity",{}).get("appearance",{}).is_empty(): d.identity.appearance=seed.identity.appearance.duplicate(true)
 	d.version = VERSION
 	d.revision = int(previous.get("revision",0))+1
 	d.subjects = seed.get("subjects",[]).duplicate()
@@ -242,8 +245,41 @@ static func _read(source: String) -> Dictionary:
 			if not (value is int or value is float) or not is_finite(float(value)) or float(value) < 0. or float(value) > 1.: return {}
 	for id in parsed.jobs:
 		var job: Variant = parsed.jobs[id]
+		if not id is String or id.is_empty() or id.length()>64: return {}
 		if not job is Dictionary or job.get("id") != id or job.get("status") not in ["queued", "running", "retry", "failed", "complete"] or not job.get("draft", {}) is Dictionary: return {}
+		if job.get("kind") not in ["expand","student","teacher"] or job.get("stage") not in ["full","repair","publish"]: return {}
+		for key in ["attempts","requests","request_attempts","cancelled_requests","interrupted_requests","canon_repairs"]:
+			if not _whole(job.get(key,0),0,1000000): return {}
+		if not _whole(job.get("priority",0),0,100): return {}
+		for key in ["created_at","started_at","retry_at","completed_at","elapsed_ms"]:
+			if not _whole(job.get(key,0),0,9000000000000): return {}
+		for key in ["issues","invalid_sections"]:
+			if not job.get(key,[]) is Array: return {}
+			for entry in job.get(key,[]):
+				if not entry is String or entry.length()>2500: return {}
+		if not job.get("measurement",{}) is Dictionary or not job.get("last_error","") is String: return {}
+		if job.has("canon_fingerprint") and not _digest(job.canon_fingerprint): return {}
+		if not job.get("canon_hashes",{}) is Dictionary or job.get("canon_hashes",{}).size()>2048: return {}
+		for topic in job.get("canon_hashes",{}):
+			if not topic is String or topic.length()>96 or not _digest(job.canon_hashes[topic]): return {}
+		if job.has("canon_fingerprint") and job.canon_fingerprint != JSON.stringify(job.get("canon_hashes",{}),"",true).sha256_text(): return {}
+		if job.has("canon_example_ids"):
+			if not job.canon_example_ids is Array or job.canon_example_ids.size()>120: return {}
+			for example in job.canon_example_ids:
+				if not example is String or example.length()>1800: return {}
+		if job.has("canon_communication_description") and not job.canon_communication_description is bool: return {}
+		if JSON.stringify(job.get("draft",{})).to_utf8_buffer().size()>Dossier.MAX_BYTES: return {}
+		if job.has("seed") and (not job.seed is Dictionary or not job.seed.get("identity") is Dictionary or job.seed.identity.get("id")!=id): return {}
 	return parsed
+
+static func _digest(value: Variant) -> bool:
+	if not value is String or value.length()!=64: return false
+	for character in value:
+		if character not in "0123456789abcdef": return false
+	return true
+
+static func _whole(value: Variant, minimum: int, maximum: int) -> bool:
+	return (value is float or value is int) and is_finite(float(value)) and float(value)>=minimum and float(value)<=maximum and floorf(float(value))==float(value)
 
 static func diagnostics(id := "") -> Dictionary:
 	var pending := 0

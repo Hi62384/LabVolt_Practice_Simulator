@@ -1,6 +1,7 @@
 extends SceneTree
 ## The real classroom controller must not publish a previous host's roster
 ## when selecting a new namespace fails, or write learning while unbound.
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
 const Students=preload("res://scripts/campus/academics/classroom_students.gd")
 const Memory=preload("res://scripts/campus/academics/character_memory.gd")
 var failures: Array[String]=[]
@@ -27,8 +28,10 @@ func run() -> void:
 	var students:=Students.new();game.add_child(students)
 	students.configure(game)
 	check(students.host_profile==game.school.local_identity and not students.population.profile_blocked,"Initial host population selection succeeds")
+	Legacy.seed(students.population,24)
 	students.population.people.campus_student_14.biography.host_private_fact="Only the alpha campus knows this story."
 	students.population.dirty=true
+	Legacy.sync(students.population)
 	check(students.population.save_population()==OK,"Known alpha profile is saved")
 	students.record_practice("campus_student_14","ELM253",true,1)
 	check(students.learning_save_error==OK,"Known alpha learning is saved")
@@ -52,7 +55,7 @@ func run() -> void:
 	game.school.local_identity="population-binding-beta"
 	students.configure(game)
 	check(not students.population.profile_blocked and students.host_profile==game.school.local_identity,"A valid new host can recover after the failed selection")
-	check(not Students.profile_for("campus_student_14").biography.has("host_private_fact") and students.learning.is_empty(),"The new host inherits no alpha profile or learning")
+	check(not Students.profile_for("campus_student_14").get("biography",{}).has("host_private_fact") and students.learning.is_empty(),"The new host inherits no alpha profile or learning")
 	game.school.local_identity="population-binding-alpha"
 	students.configure(game)
 	check(Students.profile_for("campus_student_14").biography.get("host_private_fact","")=="Only the alpha campus knows this story.","Returning to alpha restores its correct identity")
@@ -68,7 +71,7 @@ func run() -> void:
 	var broken_backup_hash:=FileAccess.get_sha256(broken_path+".bak")
 	game.school.local_identity=broken_profile
 	students.configure(game)
-	check(not students.population.profile_blocked and not Students.profile_for("campus_student_14").is_empty(),"Corrupt current-host files still allow an explicitly unsaved session roster")
+	check(not students.population.profile_blocked and Students.profile_for("campus_student_14").is_empty(),"Corrupt current-host files do not invent an unsaved replacement identity")
 	var diagnostics: Dictionary=students.debug_snapshot().get("population_persistence",{})
 	check(diagnostics.get("persistence_state","")=="blocked_unsaved" and diagnostics.get("last_load_error",OK)==ERR_FILE_CORRUPT and diagnostics.get("unsaved_data",false),"Controller diagnostics report actual population corruption and unsaved state")
 	check(FileAccess.get_sha256(broken_path)==broken_hash and FileAccess.get_sha256(broken_path+".bak")==broken_backup_hash,"Controller configuration preserves both corrupt files unchanged")

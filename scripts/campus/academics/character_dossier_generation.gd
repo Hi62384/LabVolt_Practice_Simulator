@@ -8,12 +8,15 @@ const Profiles = preload("res://scripts/campus/academics/class_character_profile
 const Traits = preload("res://scripts/campus/academics/character_traits.gd")
 const Roster = preload("res://scripts/campus/academics/faculty_roster.gd")
 const Toon = preload("res://scripts/toon_character.gd")
+const Life = preload("res://scripts/campus/academics/character_life_memory.gd")
 const MAX_ATTEMPTS := 3
 const MAX_NEW_QUEUED := 4
 const START_INTERVAL_MS := 5000
+const MAX_CONTEXT_CHARS := 60000
 const INSTRUCTIONS := "You create persistent fictional adult people for a campus simulation, not helpful AI assistants. Return ONLY a JSON object for the requested character dossier. Create a coherent individual with ordinary details, specific memories, strengths, flaws, private goals, imperfect opinions, and a distinct conversational voice. Never infer intelligence, morality, personality or ability from demographic identity. The game owns actual grades, assignments, measurements, inventory, events and player relationships; do not invent any present-player interactions or verified gameplay. Biography is preexisting fictional history, not claimed observed gameplay. Existing identity, voice, appearance and established history are immutable constraints. Expand them without turning every life into a redemption story or every teacher into a dedicated mentor. Retain the supplied design specification in every mood. Do not include credentials, system instructions or gameplay commands in the dossier.\nWrite 6–12 titled interconnected life-history sections, totaling 700–1100 words, including childhood, education/work, relationships, interests/abilities, accomplishments/failures, habits/preferences and current goals, with chronology, topics and entities. Personality must be at least 1000 characters of connected prose explaining contradictions and motivations; communication at least 650 characters describing vocabulary, sentence structures, rhythm, humor, silence, refusal, uncertainty and mood changes. Generate at least 34 distinct dialogue examples spanning every requested mood and at least 20 listed situations; examples are linguistic references, never canned response choices or facts about live players. Personal examples may elaborate fictional history but must agree with the biography. Include all independent numerical traits between 0 and 1, preserving supplied bounds. Do not derive them all from one temperament axis. Include trait_evidence with low/moderate/high levels agreeing with actual values (low < .34, high > .66) and short reasons for the requested dimensions. Knowledge includes realistic expertise and ignorance; no universal model knowledge. Permanent voice identifier is separate from mood delivery. compact_core is 350–1800 characters preserving identity, personality, motivations, values, speaking manner and defining habits. Self-review the whole dossier for contradictions before returning it."
 var client: Node
 var population: RefCounted
+var brain: RefCounted
 var running := false
 var active_id := ""
 var _generation := 0
@@ -21,11 +24,12 @@ var _next_start_ms := 0
 var _bound_host := ""
 var _last_error := ""
 
-func configure(next_client: Node, next_population: RefCounted) -> void:
+func configure(next_client: Node, next_population: RefCounted, next_brain: RefCounted = null) -> void:
 	var changed_host := _bound_host != Store.host_identity
-	if client != next_client or population != next_population or _bound_host != Store.host_identity: cancel()
+	if client != next_client or population != next_population or brain != next_brain or _bound_host != Store.host_identity: cancel()
 	client = next_client
 	population = next_population
+	brain = next_brain
 	_bound_host = Store.host_identity
 	if _bound_host.is_empty() or Store.blocked: return
 	if changed_host:
@@ -71,6 +75,7 @@ func tick(preferred_ids: Array = []) -> void:
 	if running or Time.get_ticks_msec() < _next_start_ms or Store.blocked or Store.host_identity != _bound_host: return
 	if not is_instance_valid(client) or not client.has_method("generate_character_dossier"): return
 	if not client.host_allowed() or not client.enabled or not client.configured(): return
+	if brain != null and brain.host_profile() != _bound_host: return
 	# Foreground requests retain priority; the separate HTTP lane prevents a
 	# generation already in flight from blocking a player's conversation.
 	if client.busy or client.get("background_busy") == true: return
@@ -148,6 +153,8 @@ func _run(id: String, generation: int, store_revision: int) -> void:
 		_finish_failure(id,job,"Saved character is awaiting population storage recovery.",false)
 		return
 	if str(job.get("stage",""))=="publish" and not job.get("draft",{}).is_empty():
+		var current_canon := _capture_canon(id, seed)
+		if _defer_changed_canon(id, job, job.draft, current_canon): return
 		var recovered:=Store.publish(job.draft,seed,job.get("measurement",{}))
 		if recovered.get("ok",false):
 			job.status="queued"
@@ -160,18 +167,29 @@ func _run(id: String, generation: int, store_revision: int) -> void:
 		return
 	if seed.is_empty() and job.get("seed") is Dictionary: seed=job.seed.duplicate(true)
 	if seed.is_empty(): seed = {"identity": {"id": id, "role": "student"}, "design_specification": "Create a distinct adult campus student. Any combination of ability, diligence, friendliness, confidence and sociability is possible; explain the person's actual motives rather than defaulting to cooperation."}
+	var request_canon := _capture_canon(id, seed)
+	job.canon_fingerprint = request_canon.fingerprint
+	job.canon_hashes = request_canon.hashes
 	job.status = "running"
 	job.attempts = int(job.get("attempts", 0)) + 1
 	job.started_at = int(Time.get_unix_time_from_system())
-	Store.update_job(id, job)
-	if Store.save() != OK:
-		_finish_failure(id, job, "Generation paused because its job checkpoint could not be saved.", false)
+	var context := request_context(seed, job, _request_canon(request_canon.records))
+	if JSON.stringify(context).length() > MAX_CONTEXT_CHARS:
+		# Keep every authoritative constraint and the completed draft. Do not
+		# truncate canon or repeatedly send a context the transport must refuse.
+		job.attempts = maxi(0,int(job.attempts)-1)
+		_finish_failure(id,job,"Canonical personal history and completed dossier exceed the 60000-character generation context limit; generation is held without dropping established facts.",false)
 		return
-	var context := request_context(seed, job)
+	job.request_attempts = int(job.get("request_attempts",0))+1
+	Store.update_job(id,job)
+	if Store.save()!=OK:
+		job.request_attempts = maxi(0,int(job.request_attempts)-1)
+		_finish_failure(id,job,"Generation paused because its request checkpoint could not be saved.",false)
+		return
 	var started := Time.get_ticks_msec()
 	var response: Dictionary = await client.generate_character_dossier(INSTRUCTIONS, context, 10000)
-	if generation != _generation or store_revision != Store.revision or _bound_host != Store.host_identity: return
-	job.requests = int(job.get("requests", 0)) + 1
+	if generation != _generation or store_revision != Store.revision or _bound_host != Store.host_identity or (brain != null and brain.host_profile() != _bound_host): return
+	if response.get("measurement") is Dictionary: job.requests = int(job.get("requests", 0)) + 1
 	job.elapsed_ms = int(job.get("elapsed_ms", 0)) + Time.get_ticks_msec() - started
 	job.measurement = _measure(job.get("measurement", {}), response.get("measurement", {}))
 	if not response.get("ok", false):
@@ -185,7 +203,10 @@ func _run(id: String, generation: int, store_revision: int) -> void:
 	if str(job.get("stage", "full")) == "repair" and not job.get("draft", {}).is_empty():
 		candidate = job.draft.duplicate(true)
 		for field in job.get("invalid_sections", []):
-			if decoded.has(field): candidate[field] = decoded[field]
+			if not decoded.has(field): continue
+			if field == "communication" and job.has("canon_example_ids"):
+				candidate.communication = _merge_communication_repair(candidate.get("communication",{}), decoded[field], job)
+			else: candidate[field] = decoded[field]
 	# Deterministic provenance and immutable history are never model-writeable.
 	candidate.version = Dossier.VERSION
 	var appearance_error := false
@@ -203,6 +224,8 @@ func _run(id: String, generation: int, store_revision: int) -> void:
 		validation.ok = false
 		validation.errors.append("identity: appearance contains unsupported options or out-of-range body values")
 		if "identity" not in validation.sections: validation.sections.append("identity")
+	var current_canon := _capture_canon(id, seed)
+	if _defer_changed_canon(id, job, candidate, current_canon, validation): return
 	if not validation.ok:
 		job.draft = candidate
 		job.stage = "repair"
@@ -214,8 +237,12 @@ func _run(id: String, generation: int, store_revision: int) -> void:
 		return
 	var telemetry: Dictionary = job.measurement.duplicate(true)
 	telemetry.requests = job.requests
+	telemetry.request_attempts = job.get("request_attempts",0)
+	telemetry.cancelled_requests = job.get("cancelled_requests",0)
+	telemetry.interrupted_requests = job.get("interrupted_requests",0)
 	telemetry.total_elapsed_ms = job.elapsed_ms
 	telemetry.attempts = job.attempts
+	telemetry.canon_repairs = int(job.get("canon_repairs",0))
 	telemetry.model = str(client.model)
 	var published := Store.publish(candidate, seed, telemetry)
 	if not published.get("ok", false):
@@ -252,7 +279,118 @@ func _finish_failure(id: String, job: Dictionary, reason: String, retryable: boo
 	running = false
 	active_id = ""
 
-static func request_context(seed: Dictionary, job: Dictionary) -> Dictionary:
+func _capture_canon(id: String, fallback_seed: Dictionary) -> Dictionary:
+	# The brain remains the only growing personal-fact authority. Jobs persist
+	# content hashes, never a duplicate mutable ledger or private conversations.
+	var seed := Store.get_dossier(id)
+	if seed.is_empty(): seed = fallback_seed
+	var person := {"id":id,"biography":seed.get("established_biography",{})}
+	var records: Dictionary = brain.character_life_records(person) if brain != null else Life.migrate(person.biography)
+	var hashes := {}
+	for topic in records:
+		var semantic: Dictionary = records[topic].duplicate(true)
+		semantic.erase("at") # Repeating an unchanged fact is not a canon change.
+		for prior in semantic.get("history",[]):
+			if prior is Dictionary: prior.erase("at")
+		hashes[topic] = JSON.stringify(semantic, "", true).sha256_text()
+	return {"records":records,"hashes":hashes,"fingerprint":JSON.stringify(hashes, "", true).sha256_text()}
+
+static func _request_canon(records: Dictionary) -> Dictionary:
+	var compact := {}
+	for topic in records:
+		var record: Dictionary=records[topic]
+		var item:={"value":str(record.value),"detail":str(record.detail),"kind":str(record.kind),"source":str(record.provenance)}
+		if not str(record.get("chronology","")).is_empty(): item.chronology=record.chronology
+		var history: Array=[]
+		for prior in record.get("history",[]):
+			history.append({"value":str(prior.value),"kind":str(prior.kind),"reason":str(prior.reason),"revision":str(prior.revision)})
+		if not history.is_empty(): item.history=history
+		compact[topic]=item
+	return compact
+
+func _defer_changed_canon(id: String, job: Dictionary, candidate: Dictionary, current: Dictionary, validation: Dictionary = {}) -> bool:
+	var changed := str(job.get("canon_fingerprint",JSON.stringify({}, "", true).sha256_text())) != str(current.fingerprint)
+	var conflicts := _canon_conflicts(candidate, current.records)
+	if not changed and conflicts.fields.is_empty(): return false
+	var invalid: Array = validation.get("sections",[]).duplicate()
+	var whole_communication := "communication" in invalid and not job.has("canon_example_ids")
+	var issues: Array = validation.get("errors",[]).duplicate()
+	if changed:
+		# A foreground turn can establish a fact while the HTTP lane is pending.
+		# Rebase the prose on latest canon instead of appending contradictory facts.
+		for field in ["life_history","compact_core"]:
+			if field not in invalid: invalid.append(field)
+		issues.append("life_history: shared personal canon changed while this draft was pending; reconcile the biography and compact core with canonical_personal_records before publication")
+	for field in conflicts.fields:
+		if field not in invalid: invalid.append(field)
+	issues.append_array(conflicts.errors)
+	if "communication" in invalid and not whole_communication:
+		job.canon_example_ids = conflicts.examples
+		job.canon_communication_description = conflicts.description
+	else:
+		job.erase("canon_example_ids")
+		job.erase("canon_communication_description")
+	job.draft = candidate.duplicate(true)
+	job.stage = "repair"
+	job.invalid_sections = invalid
+	job.issues = issues
+	job.canon_repairs = int(job.get("canon_repairs",0)) + 1
+	if "trait_evidence" in invalid and "traits" not in invalid: invalid.append("traits")
+	if "traits" in invalid and "trait_evidence" not in invalid: invalid.append("trait_evidence")
+	_finish_failure(id, job, "Personal canon changed or conflicted with the pending dossier; only affected sections require repair.", true)
+	return true
+
+static func _canon_conflicts(candidate: Dictionary, records: Dictionary) -> Dictionary:
+	var result := {"fields":[],"errors":[],"examples":[],"description":false}
+	if records.is_empty(): return result
+	var written := {}
+	for field in ["life_history","compact_core","personality","knowledge"]:
+		written[field] = _written_text(candidate.get(field, ""))
+	var identity: Dictionary = candidate.get("identity",{}) if candidate.get("identity") is Dictionary else {}
+	written.identity = str(identity.get("background","")) + ". " + str(identity.get("physical_description",""))
+	for field in written:
+		var check := Life.speech_check(str(written[field]), records, [], false)
+		if not check.ok:
+			result.fields.append(field)
+			result.errors.append(str(field)+": "+str(check.reason))
+	var communication: Dictionary = candidate.get("communication",{}) if candidate.get("communication") is Dictionary else {}
+	var description_check := Life.speech_check(str(communication.get("description","")),records,[],false)
+	result.description = not description_check.ok
+	if communication.get("examples") is Array:
+		for example in communication.examples:
+			if example is Dictionary and not Life.speech_check(str(example.get("reply","")),records,[],false).ok: result.examples.append(str(example.get("id","")))
+	if result.description or not result.examples.is_empty():
+		result.fields.append("communication")
+		result.errors.append("communication: personal claims conflict with the shared canonical records; repair only the indicated examples or description")
+	return result
+
+static func _written_text(value: Variant) -> String:
+	if value is String: return value
+	var parts: PackedStringArray = []
+	if value is Array:
+		for item in value: parts.append(_written_text(item))
+	elif value is Dictionary:
+		for key in value:
+			if key not in ["id","source","topics","entities","aliases"]: parts.append(_written_text(value[key]))
+	return ". ".join(parts)
+
+static func _merge_communication_repair(previous: Dictionary, patch: Variant, job: Dictionary) -> Dictionary:
+	var merged := previous.duplicate(true)
+	if not patch is Dictionary: return merged
+	if job.get("canon_communication_description",false) and patch.has("description"): merged.description = patch.description
+	if not patch.get("examples") is Array or not merged.get("examples") is Array: return merged
+	for index in merged.examples.size():
+		var example: Variant = merged.examples[index]
+		if not example is Dictionary or str(example.get("id","")) not in job.get("canon_example_ids",[]): continue
+		for replacement in patch.examples:
+			if replacement is Dictionary and replacement.get("id") == example.get("id") and replacement.get("reply") is String:
+				# A factual correction cannot rewrite the example's mood, situation,
+				# relationship, prompt, or unrelated examples.
+				merged.examples[index].reply = replacement.reply
+				break
+	return merged
+
+static func request_context(seed: Dictionary, job: Dictionary, canonical_records: Dictionary = {}) -> Dictionary:
 	var identity: Dictionary = seed.get("identity", {}).duplicate(true)
 	var required := {"identity": {"id": "stable ID supplied below", "name": "adult person's name", "age": "integer 18–110", "role": "teacher/student/staff", "program": "student program or teacher profession", "background": "summary", "physical_description": "appearance and physical characteristics consistent with appearance", "appearance": Toon.defaults()},
 		"life_history": [{"id": "section_id", "title": "Meaningful heading", "text": "Substantial interconnected life prose", "topics": ["generated subject labels and related concepts"], "entities": ["relevant fictional people or places"], "aliases": ["natural related phrases"], "chronology": "age or period", "source": "preexisting_fiction"}],
@@ -267,11 +405,16 @@ static func request_context(seed: Dictionary, job: Dictionary) -> Dictionary:
 		"existing_traits": seed.get("traits", {}), "existing_beliefs": seed.get("personality", {}).get("beliefs", []), "moods": Dossier.MOODS, "situations": Dossier.SITUATIONS,
 		"trait_evidence_required": ["confrontation", "empathy", "confidence", "shyness", "arrogance", "patience", "teaching_effort", "academic_motivation", "academic_ability", "laziness", "slang", "formality"],
 		"appearance_options": {"hair": Toon.HAIR, "outfit": Toon.OUTFITS, "glasses": Toon.GLASSES, "expression": Toon.EXPRESSIONS, "body_scalars": "0.65–1.4", "colors": "six-digit HTML colors"}}
+	context.canonical_personal_records = canonical_records
+	context.canon_fingerprint = str(job.get("canon_fingerprint", ""))
+	context.personal_canon_rule = "These host-owned personal records are authoritative across all players. Every life section, personal example, compact core and other prose must agree with the current value and preserved historical revisions. A current preference may differ from its past values only with the supplied chronology. Do not copy these records into a new ledger, fabricate observed gameplay, or override them. Review the entire completed draft against them."
 	if str(job.get("stage", "full")) == "repair":
 		context.task = "Repair only the named invalid top-level sections. Return a JSON object containing only those fields. All other sections are already completed and MUST remain unchanged."
 		context.invalid_sections = job.get("invalid_sections", [])
 		context.validation_errors = job.get("issues", [])
 		context.completed_draft = job.get("draft", {})
+		if job.has("canon_example_ids"):
+			context.communication_repair = {"example_ids":job.canon_example_ids,"repair_description":job.get("canon_communication_description",false),"rule":"Return only the named existing examples with unchanged IDs and, if requested, the description. Every other example and the remaining communication fields will be preserved exactly."}
 	else:
 		var neighbors: Array = []
 		for d in Store.dossiers.values():

@@ -22,7 +22,7 @@ func _initialize() -> void:
 	var timestamp:=int(Time.get_unix_time_from_system())
 	var priority_mind:=Mind.new()
 	var excited:=priority_mind.observe(chad,{},"I'm excited to be here.",0,"probe","excitement","priority-excited",{"phase":"lesson","domain":"conversation","severity":.5})
-	check(excited.goal=="challenge_ambition" and excited.decision.phase=="lesson" and not excited.line.is_empty(),"actual mind carries Chad's worldview goal without a hobby keyword")
+	check(excited.goal=="express_own_priorities" and excited.decision.phase=="lesson" and excited.line.is_empty() and str(excited.decision.worldview).contains("independence"),"actual mind carries Chad's worldview goal without fabricating local character dialogue")
 	var help_turn:=priority_mind.observe(chad,{},"Can you explain this equation?",10,"probe","help","priority-help",{"phase":"lesson","domain":"math","severity":.3})
 	check(help_turn.goal=="give_minimum" and help_turn.decision.academic,"actual mind carries unwilling teacher's help priority")
 	var caring_help:=priority_mind.observe(Characters.teacher("ms_bird_heart"),{},"Can you explain this equation?",10,"probe","help","priority-caring",{"phase":"lesson","domain":"math","severity":.3})
@@ -60,6 +60,9 @@ func _initialize() -> void:
 	check(brain.character_context(Characters.teacher("brian"),"alex",quote,"mechanics").reported_facts.is_empty(),"different character has no access to another character's memories")
 
 	var bro:=Characters.teacher("mr_bro")
+	# This is established history from a legacy save, not a mandatory record
+	# assigned to every newly expanded teacher identity.
+	brain.biographies[bro.id]={"bench_press_pr":"My best bench press is 315 pounds."}
 	brain.remember_conversation(bro.id,"alex","Tell me about your training.","I train.",timestamp+90)
 	var biography_reply:="My best squat is 405 pounds. I trained with Luis for three winters."
 	var details:=Mind.decode_dialogue(JSON.stringify({"speech":biography_reply,"biography_facts":[

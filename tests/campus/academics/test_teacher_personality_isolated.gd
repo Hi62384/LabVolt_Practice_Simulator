@@ -20,7 +20,8 @@ func _initialize() -> void:
   assert(is_equal_approx(float(data[id].teaching),float(person.traits.teaching_effort)))
   assert(is_equal_approx(float(data[id].difficulty),float(person.traits.strictness)))
   for intent in ["chat","help","question","apology","greeting","hazard"]:
-   assert(not Dialogue.respond(id,intent,{"course":"ETY155"},0).is_empty(),str(id)+":"+intent)
+   var line:=Dialogue.respond(id,intent,{"course":"ETY155"},0)
+   assert(line.contains("Power is off") if intent=="hazard" else line.is_empty(),str(id)+":"+intent)
   voices[person.style]=true
  assert(voices.size()==21)
  assert(Roster.PEOPLE.ms_lunch.courses.is_empty())
@@ -38,7 +39,7 @@ func _initialize() -> void:
  var help:="Can you explain the equation?"
  assert(Behavior.priorities(chad,help,{},"lesson").goal=="give_minimum")
  assert(Behavior.priorities(bird,help,{},"lesson").goal=="coach")
- assert(Behavior.priorities(jeff,"Tell me about your garage",{},"freeplay").goal=="share_personal_project")
+ assert(Behavior.priorities(jeff,"Tell me about your garage",{},"freeplay","steady",{"topic":"personal_interest"}).goal=="pursue_interest")
  assert(data.jeff.difficulty>.9)
  # A teacher cannot build disciplinary or relationship evidence from an event
  # they did not perceive, even though the same personality would react if heard.

@@ -74,7 +74,7 @@ func board_stroke(peer: int,room: String,now: float) -> void:
  var state: Dictionary=rooms[room]
  state.board_strokes=int(state.board_strokes)+1
  if int(state.board_strokes)==1 or int(state.board_strokes)==12:
-  _react_to_board(room,state,now,"I can see your first step. Keep going." if int(state.board_strokes)==1 else "Talk us through what you have on the board so far.")
+  _react_to_board(room,state,now,"The selected student has made the first visible stroke on the board." if int(state.board_strokes)==1 else "The selected student has added several visible strokes to the board.")
 
 func _react_to_board(room: String,state: Dictionary,now: float,comment: String) -> bool:
  if now<float(state.board_feedback_at):return false
@@ -239,7 +239,7 @@ func perform(peer: int,room: String,class_id: String,event_id: String,op: String
       break
     if not team.is_empty() and now>=float(state.group_notice_at.get(team,0.0)):
      state.group_notice_at[team]=now+8.0
-     state.group_prompts[team]="A teammate added an explanation. Check it against the question together before you submit."
+     state.group_prompts[team]="A teammate added an explanation."
    return explained
  return "invalid"
 
@@ -474,7 +474,7 @@ func tick(now: float) -> void:
   if state.round.mode=="quiz" and not state.round.closed and now>=float(state.open_at):
    _classmate_quiz(room,state,activity,now)
   if state.round.mode=="group" and now>=float(state.open_at)+7.0 and now<state.round.deadline and not state.round.closed:
-   if _classmate_group(state,activity,now):publish(room,now)
+   if _classmate_group(room,state,activity,now):publish(room,now)
   if now>=state.round.deadline and not state.round.closed:
    if state.round.submissions.is_empty():
     lifecycle.advance(state.round.event_id,"timed_out")
@@ -521,7 +521,6 @@ func tick(now: float) -> void:
   elif not state.round.closed:
    var changed:=false
    if state.round.mode=="group" and now>=float(state.open_at)+12.0:
-    var traits: Dictionary=Dialogue.personalities().get(str(activity.get("teacher","")),{})
     for team in state.shared.group_labels:
      var members:=0;var notes:=0;var answers:=0;var hints:=0;var retries:=0;var revisions:=0
      for member in state.shared.groups:
@@ -537,15 +536,13 @@ func tick(now: float) -> void:
      var fingerprint: String="%d:%d:%d:%d:%d"%[notes,answers,hints,retries,revisions]
      if str(state.group_status.get(team,""))==fingerprint or now<float(state.group_notice_at.get(team,0.0)):continue
      state.group_status[team]=fingerprint;state.group_notice_at[team]=now+6.0
-     if notes==0 and answers==0:state.group_prompts[team]="Start with one known value or assumption, then ask a teammate to check it." if float(traits.get("teaching",.5))>=.65 else "Put a first method in your team notes before time runs out."
-     elif revisions>0:state.group_prompts[team]="A teammate marked the proposal for revision. Compare the method with the question before submitting."
-     elif retries>0 or hints>0:state.group_prompts[team]="Use the hint or retry to check your method together; do not just repeat the same answer."
-     elif notes>0 and answers==0:state.group_prompts[team]="You have a starting note. Have a teammate explain or check the next step before submitting."
-     else:state.group_prompts[team]="You have a submitted answer. Compare your team's reasoning while the round remains open."
+     if notes==0 and answers==0:state.group_prompts[team]="No team notes or submissions yet."
+     elif revisions>0:state.group_prompts[team]="A teammate marked the proposal for revision."
+     elif retries>0 or hints>0:state.group_prompts[team]="A hint or retry has been used during this round."
+     elif notes>0 and answers==0:state.group_prompts[team]="Team notes have been started; no answers submitted yet."
+     else:state.group_prompts[team]="One or more team members have submitted an answer."
    if state.round.mode=="board" and not state.hands.selected.is_empty() and not state.board_idle_prompted and now>=float(state.board_called_at)+10.0 and int(state.board_strokes)==int(state.board_strokes_at_call) and state.shared.entries.size()==int(state.board_notes_at_call):
-    var personality: Dictionary=Dialogue.personalities().get(str(activity.get("teacher","")),{})
-    var focus:=clampf(float(personality.get("focus",.5)),0.0,1.0)
-    var comment: String="Start with the quantities you know. Then choose an equation." if focus>=.7 else ("We need your first step on the board." if focus<.3 else "Take your time. Show us the first step.")
+    var comment: String="The selected student has been at the board for ten seconds without adding a visible stroke or a shared note."
     if _react_to_board(room,state,now,comment):state.board_idle_prompted=true
    if state.round.mode=="duel" and not state.duel_locked and now>=float(state.duel_lock_at):
     for member in state.hands.hands:
@@ -634,29 +631,50 @@ func _classmate_quiz(room: String,state: Dictionary,activity: Dictionary,now: fl
    state.series.teams[identity]="A" if posmod(hash(identity),2)==0 else "B"
    game.lecture_classes.classroom_students.record_practice(identity,activity.course,round.submissions[identity].get("correct",false),activity.week,activity,str(round.event_id),"quiz")
 
-func _classmate_group(state: Dictionary,activity: Dictionary,now: float) -> bool:
+func _classmate_group(room: String,state: Dictionary,activity: Dictionary,now: float) -> bool:
+ var client: Node=game.get("host_openai")
+ var faculty: Node=game.get("faculty")
+ if not is_instance_valid(client) or not is_instance_valid(faculty) or not faculty.has_method("generate_character_exchange"):return false
+ if client.busy or not client.ready_for_class() or state.get("npc_group_pending",false) or now<float(state.get("npc_group_next",0.)):return false
  var shared: RefCounted=state.shared
+ var attempted: Dictionary=state.get_or_add("npc_group_attempted",{})
  for identity in shared.members:
+  if attempted.has(identity) or shared.entries.any(func(entry):return entry.author==identity):continue
   var actor: Dictionary=activity.get("classmates",{}).get(identity,{})
-  if actor.is_empty():continue
+  if actor.is_empty() or not actor.seated or actor.get("removed_from_class",false) or actor.get("leaving_class",false):continue
+  if not state.round.present.has(identity) or not shared.present.has(identity):continue
   var team: String=shared.groups[identity]
-  var has_partner: bool=state.round.present.keys().any(func(member):return shared.groups.get(member)==team)
-  if not has_partner or not actor.seated:continue
-  var profile: Dictionary=actor.profile
-  var suggestion: String
-  match shared.task_kind:
-   "circuit":
-    suggestion="Let's mark the known readings and their units before choosing a circuit equation."
-   "math":
-    suggestion="We could substitute the result back into the original expression to check it."
-   _:
-    suggestion="Let's compare the assumptions we used. Which detail in the question supports them?"
-  if float(profile.confidence)<.4:suggestion="Could we write down what the question gives us first? That would help me follow."
-  if shared.contribute(identity,suggestion,profile.name)!="accepted":continue
-  actor.action="discussing group work"
-  actor.next=maxf(float(actor.get("next",0.)),now+5.0)
+  if not state.round.present.keys().any(func(member):return member!=identity and shared.groups.get(member)==team):continue
+  attempted[identity]=true
+  state.npc_group_pending=true;state.npc_group_next=now+18.0
+  _generate_group_contribution(room,state,activity,actor,str(identity))
   return true
  return false
+
+func _generate_group_contribution(room: String,state: Dictionary,activity: Dictionary,actor: Dictionary,identity: String) -> void:
+ var event_id:=str(state.round.event_id)
+ var class_id:=str(activity.id)
+ var now: float=game.lecture_classes._now()
+ var shared: RefCounted=state.shared
+ var released: Dictionary=state.round.snapshot(identity,now)
+ var result: Dictionary=await game.faculty.generate_character_exchange(actor.profile,"group:"+event_id.sha256_text().left(24)+":"+str(shared.groups[identity]),activity,"",{
+  "initiate":true,"defer_record":true,"intention":"You are participating in this practice group. Decide whether to contribute a short note in your own words, based on your knowledge, interest and the team's visible work. The note must be a complete thought of at most 160 characters. You may stay silent. Do not claim a correct result or a performed measurement without evidence.",
+  "teaching_step":{"task":shared.task(identity),"question":released.get("question",{}),"team_notes":shared.view(identity)},
+  "observations":{"current_activity":"group practice"},
+  "_valid":func():return _group_contribution_current(room,state,activity,actor,identity,event_id,class_id)})
+ state.npc_group_pending=false
+ if result.is_empty() or result.get("cancelled",false):return
+ var line:=str(result.get("line",""))
+ var accepted:=false
+ if _group_contribution_current(room,state,activity,actor,identity,event_id,class_id) and line.length()<=SharedWork.MAX_TEXT and not line.is_empty():
+  accepted=shared.contribute(identity,line,str(actor.profile.name))=="accepted"
+ if accepted:
+  actor.action="discussing group work";actor.next=maxf(float(actor.get("next",0.)),game.lecture_classes._now()+5.0)
+  publish(room,game.lecture_classes._now())
+ game.faculty.character_interaction.record(result,accepted)
+
+func _group_contribution_current(room: String,state: Dictionary,activity: Dictionary,actor: Dictionary,identity: String,event_id: String,class_id: String) -> bool:
+ return rooms.has(room) and rooms[room]==state and str(state.round.event_id)==event_id and not state.round.closed and str(activity.id)==class_id and activity.phase=="lesson" and activity.get("classmates",{}).get(identity,{})==actor and state.round.present.has(identity) and state.shared.present.has(identity) and actor.get("seated",false) and not actor.get("removed_from_class",false) and not actor.get("leaving_class",false)
 
 func sync_roster(room: String,now: float) -> void:
  if not multiplayer.is_server() or not rooms.has(room):return

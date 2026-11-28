@@ -60,6 +60,9 @@ static func migrate(profile: Dictionary) -> Dictionary:
 	return dossier
 
 static func project(profile: Dictionary, dossier: Dictionary, include_dossier := false) -> Dictionary:
+	# A remote public identity is already the complete authorized view. Never
+	# enrich it from this device's private dossier with a coincidentally equal ID.
+	if profile.get("identity_scope", "") == "public": return profile.duplicate(true)
 	if dossier.is_empty(): return profile.duplicate(true)
 	var result := {}
 	for key in profile:
@@ -121,7 +124,7 @@ static func validate(candidate: Variant, seed: Dictionary = {}, complete := true
 	var fixed: Dictionary = seed.get("identity", {})
 	for key in ["id", "name", "age", "role", "program"]:
 		if fixed.has(key) and not str(fixed[key]).is_empty() and identity.get(key) != fixed[key]: errors.append("identity: changed established " + key)
-	if not fixed.get("appearance", {}).is_empty() and identity.get("appearance") != fixed.appearance: errors.append("identity: changed established appearance")
+	if not fixed.get("appearance", {}).is_empty() and not _same_json_data(identity.get("appearance"), fixed.appearance): errors.append("identity: changed established appearance")
 	for key in Traits.required_keys():
 		if not _number(d.traits.get(key), 0., 1.): errors.append("traits: missing or invalid " + key)
 	for key in d.traits:
@@ -213,6 +216,12 @@ static func _validation_result(errors: Array) -> Dictionary:
 		var field := str(error).get_slice(":", 0)
 		if field not in sections: sections.append(field)
 	return {"ok": errors.is_empty(), "errors": errors, "sections": sections}
+
+static func _same_json_data(left: Variant, right: Variant) -> bool:
+	# JSON numbers round-trip as floats. Dictionary equality can otherwise
+	# reject an unchanged authored appearance solely because 1 became 1.0.
+	if left == right: return true
+	return JSON.parse_string(JSON.stringify(left)) == JSON.parse_string(JSON.stringify(right))
 
 static func _string(value: Variant, minimum: int, maximum: int) -> bool:
 	return value is String and value.strip_edges().length() >= minimum and value.length() <= maximum

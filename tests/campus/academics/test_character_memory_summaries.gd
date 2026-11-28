@@ -16,8 +16,12 @@ class Probe extends Node:
 	func ready_for_class() -> bool:return true
 	func moderate(_text: String) -> Dictionary:return {"ok":true,"flagged":false}
 	func interpret_character(_instructions: String,context: Dictionary,_question: String) -> Dictionary:
+		# Assessed work deliberately retains its separate classification boundary.
 		interpreted_context=context.duplicate(true)
-		return {"ok":true,"text":JSON.stringify({"event":"chat","tone":"neutral","severity":0.,"meaning":"The speaker asks how the character is feeling.","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]})}
+		return {"ok":true,"text":JSON.stringify({"event":"chat","tone":"neutral","severity":0.,"meaning":"The speaker asks how the character is feeling.","domain":"conversation","question_kind":"casual","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]})}
+	func respond_character(_instructions: String,context: Dictionary,_question: String,_visual:=false) -> Dictionary:
+		interpreted_context=context.duplicate(true)
+		return {"ok":true,"text":JSON.stringify({"speech":"I am thinking about the demonstration.","interpretation":{"event":"chat","tone":"neutral","severity":0.,"meaning":"The speaker asks how the character is feeling.","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]},"behavior":{"mode":"engage","intention":"Respond to an ordinary greeting."},"biography_facts":[],"memories":[]})}
 
 func check(ok: bool,message: String) -> void:
 	checks+=1
@@ -28,7 +32,7 @@ func _initialize() -> void:call_deferred("run")
 func run() -> void:
 	var brain:=Brain.new();brain.memory_path=PATH
 	var teacher:=Profiles.teacher("bill_nye")
-	var person:=Profiles.student(0)
+	var person:=Profiles.legacy_student(0) # Explicit historical fixture; no AI quality claim.
 	var timestamp:=int(Time.get_unix_time_from_system())
 	var stories:=[
 		{"text":"I restored a shortwave radio with my aunt in her garage.","domain":"mechanics"},

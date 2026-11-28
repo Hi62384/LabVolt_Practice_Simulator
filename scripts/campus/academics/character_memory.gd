@@ -42,6 +42,7 @@ var _bound_mind: RefCounted
 var _host_profile:=""
 var _unsaved_profiles: Dictionary={}
 var last_profile_cache_error:=OK
+var loaded_memory_version:=MEMORY_VERSION
 
 static func profile_prefix(profile_id: String) -> String:
 	return "user://character_memory/"+profile_id.sha256_text()
@@ -93,7 +94,7 @@ func set_host_profile(profile_id: String) -> Error:
 	else:_unsaved_profiles.erase(_host_profile)
 	memory_path=selected;_host_profile=profile_id
 	relationships.clear();conversations.clear();biographies.clear();biography_records.clear();character_states.clear();processed_events.clear();belief_revisions.clear()
-	memory_dirty=false;memory_blocked=false;last_memory_error=OK;last_save_at=0
+	memory_dirty=false;memory_blocked=false;last_memory_error=OK;last_save_at=0;loaded_memory_version=MEMORY_VERSION
 	last_record.clear();last_retrieval.clear();last_belief_update.clear()
 	if is_instance_valid(_bound_mind):_bound_mind.import_state({})
 	if _unsaved_profiles.has(profile_id):
@@ -104,7 +105,7 @@ func set_host_profile(profile_id: String) -> Error:
 func _cache_unsaved_profile(incoming_profile: String) -> Error:
 	var state:={"relationships":relationships,"conversations":conversations,"biographies":biographies,"biography_records":biography_records,"character_states":character_states,
 		"processed_events":processed_events,"belief_revisions":belief_revisions,"memory_dirty":memory_dirty,"memory_blocked":memory_blocked,
-		"last_memory_error":last_memory_error,"last_save_at":last_save_at,"last_record":last_record,"last_retrieval":last_retrieval,"last_belief_update":last_belief_update}
+		"last_memory_error":last_memory_error,"last_save_at":last_save_at,"last_record":last_record,"last_retrieval":last_retrieval,"last_belief_update":last_belief_update,"loaded_memory_version":loaded_memory_version}
 	var bytes:=JSON.stringify(state).to_utf8_buffer().size()
 	var count:=0
 	var total:=bytes
@@ -125,6 +126,7 @@ func _restore_cached_profile(state: Dictionary) -> void:
 	biography_records=state.get("biography_records",{})
 	character_states=state.character_states;processed_events=state.processed_events;belief_revisions=state.belief_revisions
 	memory_dirty=state.memory_dirty;memory_blocked=state.memory_blocked;last_memory_error=state.last_memory_error;last_save_at=state.last_save_at
+	loaded_memory_version=int(state.get("loaded_memory_version",MEMORY_VERSION))
 	last_record=state.last_record;last_retrieval=state.last_retrieval;last_belief_update=state.last_belief_update
 	if is_instance_valid(_bound_mind):_bound_mind.import_state(character_states)
 
@@ -318,7 +320,7 @@ func remember_event(person: Dictionary,identity: String,turn: Dictionary,questio
 			"resolved":kind=="apology" and bool(interpretation.get("sincere",true)) and not bool(turn.get("closed",false)),
 			"importance":clampf(float(interpretation.get("importance",.8 if kind in ["insult","hazard","manipulation"] else .5)),0.,1.),
 			"event_id":token,"strategy":reaction,"emotions":turn.get("emotions",{}).duplicate(true),"source":"host_event" if verified_observation else "observed_dialogue"})
-	turns.append({"student":question,"teacher":reply,"at":now_unix,"event_id":token,"event":kind})
+	turns.append({"student":question,"teacher":reply,"at":now_unix,"event_id":token,"event":kind,"delivery_complete":bool(turn.get("delivery_complete",not reply.is_empty()))})
 	relationships[key]=memory;conversations[key]=turns
 	if not token.is_empty():receipts.append(token);processed_events[key]=receipts
 	memory_dirty=true;last_memory_error=ERR_FILE_CORRUPT if memory_blocked else OK
@@ -382,12 +384,13 @@ func complete_event(person: Dictionary,identity: String,event_id: String,reply: 
 	for index in range(turns.size()-1,-1,-1):
 		if str(turns[index].get("event_id",""))!=event_id:continue
 		var exchange: Dictionary=turns[index]
-		if not str(exchange.teacher).is_empty():return str(exchange.teacher)==reply
+		if bool(exchange.get("delivery_complete",false)) or not str(exchange.teacher).is_empty():return str(exchange.teacher)==reply
 		exchange.teacher=reply
+		exchange.delivery_complete=true
 		var episodes: Array=relationships[key].get("episodes",[])
 		for episode in episodes:
 			if str(episode.get("event_id",""))!=event_id:continue
-			episode.description=str(episode.get("description","")).trim_suffix(" No verbal response.")+" Reply: "+reply
+			episode.description=str(episode.get("description","")).trim_suffix(" No verbal response.")+(" Reply: "+reply if not reply.is_empty() else " No verbal response.")
 			episode.description=episode.description.left(4000)
 		var delivered_details:=details.duplicate(true)
 		delivered_details.speech=reply
@@ -628,6 +631,7 @@ func diagnostics() -> Dictionary:
 
 func load_memory() -> bool:
 	if memory_dirty:return false
+	loaded_memory_version=MEMORY_VERSION
 	relationships={};conversations={};biographies={};biography_records={};character_states={};processed_events={};belief_revisions={};memory_dirty=false;memory_blocked=false
 	last_record.clear();last_retrieval.clear();last_belief_update.clear()
 	var primary_exists:=FileAccess.file_exists(memory_path)
@@ -636,6 +640,7 @@ func load_memory() -> bool:
 	var recovered:=false
 	if not loaded.ok:loaded=_read_memory(memory_path+".bak");recovered=loaded.ok
 	if loaded.ok:
+		loaded_memory_version=int(loaded.get("source_version",MEMORY_VERSION))
 		relationships=loaded.relationships;conversations=loaded.get("conversations",{});biographies=loaded.get("biographies",{})
 		biography_records=loaded.get("biography_records",{})
 		character_states=loaded.get("character_states",{});processed_events=loaded.get("processed_events",{})
@@ -747,7 +752,10 @@ func _read_memory(path: String) -> Dictionary:
 	if not value is Dictionary or not value.has("relationships"):return {"ok":false}
 	if not _whole(value.get("version"),MEMORY_VERSION):return {"ok":false}
 	var version:=int(value.version)
-	if version==1 and value.size()==2:return _migrate_reputation(_validate_relationships(value.relationships),version)
+	if version==1 and value.size()==2:
+		var legacy:=_migrate_reputation(_validate_relationships(value.relationships),version)
+		legacy.source_version=version
+		return legacy
 	if version not in [2,3,4,5,6,7,MEMORY_VERSION]:return {"ok":false}
 	if version<5 and value.size()!=(4 if version==4 else 3):return {"ok":false}
 	if version==5 and value.size()!=6:return {"ok":false}
@@ -761,10 +769,11 @@ func _read_memory(path: String) -> Dictionary:
 		for exchange in turns[key]:
 			if not exchange is Dictionary or not exchange.get("student") is String or not exchange.get("teacher") is String:return {"ok":false}
 			for field in exchange:
-				if field not in ["student","teacher","at","event_id","event"]:return {"ok":false}
+				if field not in ["student","teacher","at","event_id","event","delivery_complete"]:return {"ok":false}
 			if exchange.student.length()>8000 or exchange.teacher.length()>8000:return {"ok":false}
 			if exchange.has("at") and not _whole(exchange.at,100000000000):return {"ok":false}
 			if exchange.has("event_id") and (not exchange.event_id is String or exchange.event_id.length()>128):return {"ok":false}
+			if exchange.has("delivery_complete") and not exchange.delivery_complete is bool:return {"ok":false}
 	validated.conversations=turns
 	if version>=4:
 		var lives: Variant=value.get("biographies")
@@ -795,6 +804,7 @@ func _read_memory(path: String) -> Dictionary:
 	if version>=8:
 		if not Life.valid_snapshot(value.get("biography_records")):return {"ok":false}
 		validated.biography_records=value.biography_records
+	validated.source_version=version
 	return _migrate_reputation(validated,version)
 
 func _valid_character_states(source: Dictionary) -> bool:
@@ -816,6 +826,9 @@ func _valid_character_states(source: Dictionary) -> bool:
 		for field in ["strategy","disengagement","event"]:
 			if not decision.get(field) is String or decision[field].length()>64:return false
 		if not decision.get("quiet") is bool or not _whole(decision.get("hostile_count"),100000000) or not _whole(decision.get("turns"),100000000):return false
+		if decision.has("since") and not _whole(decision.since,100000000000):return false
+		if decision.has("event_id") and (not decision.event_id is String or decision.event_id.length()>128):return false
+		if decision.has("decision_committed") and not decision.decision_committed is bool:return false
 	return true
 
 func save_memory() -> Error:

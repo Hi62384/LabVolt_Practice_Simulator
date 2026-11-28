@@ -18,6 +18,9 @@ const WORD_FAMILIES := {
 }
 static var words := RegEx.create_from_string("[\\p{L}\\p{N}]+")
 static var numbers := RegEx.create_from_string("[0-9]+(?:[.,][0-9]+)?")
+static var written_numbers := RegEx.create_from_string("(?i)\\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|trillion)\\b")
+static var negation := RegEx.create_from_string("(?i)\\b(?:not|never|no|cannot|can't|isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|haven't|hasn't)\\b")
+static var clause_boundaries := RegEx.create_from_string("(?i)[!?;\\n]+|\\.(?:\\s+|$)|\\b(?:and|but|while|whereas)\\s+(?=(?:my|your|his|her|their|i|we|they|the)\\b)")
 static var _indexes: Dictionary = {}
 const MAX_INDEXES := 16
 
@@ -52,7 +55,45 @@ static func canonical(topic: String) -> String:
 	return ".".join(tokens)
 
 static func normalized(value: String) -> String:
-	return " ".join(terms(value))
+	# Search normalization deliberately removes filler and expands concepts.
+	# Canonical values cannot do that: "not vegetarian" and "vegetarian" are
+	# different facts, and changing either requires an explained revision.
+	var result: PackedStringArray = []
+	for matched in words.search_all(value.to_lower().replace("’", "'")):
+		result.append(matched.get_string())
+	return " ".join(result)
+
+static func _quantities(value: String) -> Array[String]:
+	var result: Array[String] = []
+	for matched in numbers.search_all(value):
+		if matched.get_string() not in result:result.append(matched.get_string())
+	return result
+
+static func _value_grounding(value: String, detail: String) -> Dictionary:
+	var expected := _quantities(value)
+	var spoken := _quantities(detail)
+	if not spoken.is_empty() and expected.any(func(quantity):return quantity not in spoken) and written_numbers.search(detail)==null:
+		return {"ok":false,"review":false,"reason":"The canonical quantity must occur in the quoted spoken detail."}
+	var plain_value := normalized(value)
+	if plain_value.is_empty():return {"ok":false,"review":false,"reason":"The canonical value must contain meaningful text."}
+	var mentions: Array[String] = []
+	for clause in clause_boundaries.sub(detail, "\n", true).split("\n", false):
+		if (" " + plain_value + " ") in (" " + normalized(clause) + " "):mentions.append(clause)
+	var literal := not mentions.is_empty()
+	var value_negative := negation.search(value.replace("’", "'")) != null
+	# An unrelated "not bad" in the next sentence does not negate the value.
+	# Conflicting positive/negative assertions in the quote still need review.
+	var same_polarity := mentions.all(func(clause):return (negation.search(clause.replace("’", "'")) != null)==value_negative)
+	# A semantic paraphrase (including a spelled-out quantity) may be valid,
+	# but a local topic or token match is not proof of what the speaker asserted.
+	return {"ok":true,"review":not literal or not same_polarity,"reason":""}
+
+static func _subjects(topic: String) -> Array[String]:
+	var result: Array[String] = []
+	for term in terms(topic):
+		if term not in ["record","train","prefer","personal","history","current","value"]:result.append(term)
+	result.sort()
+	return result
 
 static func valid_topic(topic: String) -> bool:
 	if topic.length() < 3 or topic.length() > 96:return false
@@ -154,6 +195,8 @@ static func validate(proposal: Variant, speech: String, records: Dictionary) -> 
 		if forbidden in lower:return {"ok":false,"reason":"A fictional biography cannot establish a player action, measurement or academic outcome."}
 	var value := str(proposal.get("value",detail)).strip_edges()
 	if value.is_empty() or value.length()>500:return {"ok":false,"reason":"Invalid canonical value."}
+	var grounding := _value_grounding(value,detail)
+	if not grounding.ok:return grounding
 	var old_topic := find_topic(records,topic)
 	var previous: Dictionary = records.get(old_topic,{})
 	var revision := str(proposal.get("revision",""))
@@ -169,7 +212,7 @@ static func validate(proposal: Variant, speech: String, records: Dictionary) -> 
 			if link is String and records.has(link):links.append(link)
 	var entities:=_bounded_strings(proposal.get("entities",[]),12,80)
 	var aliases:=_bounded_strings(proposal.get("aliases",[]),8,80)
-	return {"ok":true,"record":{"id":old_topic if not old_topic.is_empty() else topic,"topic":old_topic if not old_topic.is_empty() else topic,
+	return {"ok":true,"review":grounding.review,"record":{"id":old_topic if not old_topic.is_empty() else topic,"topic":old_topic if not old_topic.is_empty() else topic,
 		"detail":detail,"value":value,"kind":str(previous.get("kind",kind)),"provenance":provenance,"at":int(Time.get_unix_time_from_system()),
 		"chronology":str(proposal.get("chronology","")).left(180),"links":links,"entities":entities,"aliases":aliases,"history":previous.get("history",[]).duplicate(true)},"previous":previous,"reason":reason,"revision":revision}
 
@@ -192,31 +235,70 @@ static func apply(records: Dictionary, checked: Dictionary) -> void:
 ## semantic consistency review instead of pretending local NLP proves truth.
 static func speech_check(speech: String, records: Dictionary, proposals: Array, personal := false) -> Dictionary:
 	var review := false
-	var lower := speech.to_lower().replace("’","'")
-	var spoken_terms := terms(speech)
-	var proposed_topics: Array[String] = []
+	var clauses: Array = []
+	for clause in clause_boundaries.sub(speech, "\n", true).split("\n", false):
+		clauses.append({"text":clause,"terms":terms(clause),"quantities":_quantities(clause)})
+	var proposed: Dictionary = {}
+	var covered_quantities: Array[String] = []
 	for proposal in proposals:
-		if proposal is Dictionary:proposed_topics.append(canonical(str(proposal.get("topic",""))))
+		if not proposal is Dictionary:return {"ok":false,"review":false,"reason":"Invalid personal history proposal."}
+		var candidate: Dictionary = proposal.duplicate(true)
+		var topic := str(candidate.get("topic",""))
+		var established := find_topic(records,topic)
+		if established.is_empty():
+			var subjects := _subjects(topic)
+			if not subjects.is_empty():
+				for existing in records:
+					if _subjects(str(existing))==subjects:established=str(existing);break
+		if not established.is_empty():candidate.topic=established
+		var checked := validate(candidate,speech,records)
+		if not checked.ok:return {"ok":false,"review":false,"reason":checked.reason}
+		review = review or bool(checked.get("review",false))
+		if not established.is_empty():proposed[established]=checked
+		for quantity in _quantities(str(checked.record.detail)):
+			if quantity not in covered_quantities:covered_quantities.append(quantity)
 	for record in records.values():
 		var title := terms(str(record.topic))
-		var subjects := title.filter(func(term):return term not in ["record","train","prefer","personal","history","current","value"])
-		var shared := 0
-		for term in title:
-			if term in spoken_terms:shared += 1
-		if shared==0:continue
-		if not subjects.is_empty() and not subjects.any(func(term):return term in spoken_terms):continue
-		var old_numbers: Array[String] = []
-		for number in numbers.search_all(str(record.value)):old_numbers.append(number.get_string())
-		var new_numbers: Array[String] = []
-		for number in numbers.search_all(speech):new_numbers.append(number.get_string())
-		if not old_numbers.is_empty() and not new_numbers.is_empty() and canonical(str(record.topic)) not in proposed_topics:
-			if not old_numbers.any(func(n):return n in new_numbers):
-				return {"ok":false,"review":false,"reason":"Spoken quantities conflict with a relevant established personal fact, including when no memory update was proposed."}
-		if ["never ","i haven't ","i have not ","i didn't ","i don't ","no longer ","i used to "].any(func(s):return s in lower):review=true
-	if personal and proposals.is_empty() and not numbers.search_all(speech).is_empty():
-		# Recalling an existing value is fine; an unrecorded new one is not.
-		var recalled := records.values().any(func(r):return not numbers.search_all(str(r.value)).is_empty() and numbers.search_all(str(r.value)).all(func(n):return n.get_string() in speech))
-		if not recalled:return {"ok":false,"review":false,"reason":"New numerical personal information must be proposed for persistent memory."}
+		var subjects := _subjects(str(record.topic))
+		var old_numbers := _quantities(str(record.value))
+		var allowed := old_numbers.duplicate()
+		var update: Dictionary = proposed.get(str(record.id),{})
+		if not update.is_empty():
+			# Structural validation already required a spoken reason before a
+			# changed current value or historical correction could reach here.
+			for quantity in _quantities(str(update.record.value)):
+				if quantity not in allowed:allowed.append(quantity)
+		for clause in clauses:
+			if not title.any(func(term):return term in clause.terms):continue
+			if not subjects.is_empty() and not subjects.any(func(term):return term in clause.terms):continue
+			var spoken: Array = clause.quantities
+			if not old_numbers.is_empty() and written_numbers.search(str(clause.text))!=null:review=true
+			if not old_numbers.is_empty() and not spoken.is_empty():
+				if not allowed.any(func(quantity):return quantity in spoken):
+					return {"ok":false,"review":false,"reason":"Spoken quantities conflict with the established or explicitly revised personal value."}
+				# Mentioning the old number somewhere in a mixed assertion cannot
+				# legitimize another, contradictory number for the same subject.
+				if spoken.any(func(quantity):return quantity not in allowed):review=true
+			if ["never ","i haven't ","i have not ","i didn't ","i don't ","no longer ","i used to "].any(func(s):return s in str(clause.text).to_lower()):review=true
+	if personal and not _quantities(speech).is_empty():
+		var known: Array[String] = []
+		for record in records.values():
+			var content := str(record.value)+" "+str(record.detail)+" "+str(record.get("chronology",""))
+			for prior in record.get("history",[]):
+				if prior is Dictionary:content+=" "+str(prior.get("value",""))+" "+str(prior.get("detail",""))+" "+str(prior.get("reason",""))
+			for quantity in _quantities(content):
+				if quantity not in known:known.append(quantity)
+		var spoken := _quantities(speech)
+		var unknown: Array = spoken.filter(func(quantity):return quantity not in known and quantity not in covered_quantities)
+		if not unknown.is_empty():
+			if proposals.is_empty() and not spoken.any(func(quantity):return quantity in known):
+				return {"ok":false,"review":false,"reason":"New numerical personal information must be proposed for persistent memory."}
+			review=true
+	elif personal and proposals.is_empty() and written_numbers.search(speech)!=null:
+		# A model must not bypass quantity checks by spelling an unrecorded or
+		# conflicting number in words. Ambiguous wording is reviewed, not parsed
+		# as if a small local grammar could establish the complete life claim.
+		review=true
 	return {"ok":true,"review":review,"reason":""}
 
 static func valid_snapshot(source: Variant) -> bool:

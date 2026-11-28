@@ -19,8 +19,10 @@ class BiographyProvider extends Node:
 	func moderate(_text: String) -> Dictionary:return {"ok":true,"flagged":false}
 	func interpret_character(_instructions: String,_context: Dictionary,_question: String) -> Dictionary:
 		return {"ok":true,"text":JSON.stringify({"event":"chat","tone":"friendly","severity":0.,"meaning":"The speaker asks about a past training partner.","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]})}
-	func respond_character(_instructions: String,_context: Dictionary,_question: String,_visual:=false) -> Dictionary:
-		return {"ok":true,"text":JSON.stringify({"speech":BIO_DETAIL,"biography":{"topic":BIO_TOPIC,"detail":BIO_DETAIL}})}
+	func respond_character(_instructions: String,context: Dictionary,_question: String,_visual:=false) -> Dictionary:
+		return {"ok":true,"text":JSON.stringify({"speech":BIO_DETAIL,"biography":{"topic":BIO_TOPIC,"detail":BIO_DETAIL},
+			"interpretation":{"event":"chat","tone":"friendly","severity":0.,"meaning":"The speaker asks about a past training partner.","domain":"conversation","question_kind":"personal_experience","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]},
+			"delivery":{"emotion":str(context.get("emotional_state",{}).get("emotion","steady")),"knowledge_mode":"personal_conversation"}})}
 
 func _initialize() -> void:call_deferred("run")
 
@@ -70,11 +72,16 @@ func write_phase() -> void:
 	var faculty: Node=game.faculty
 	var identity:=str(game.school.local_identity)
 	var students: Node=game.lecture_classes.classroom_students
-	students.population.ensure_size(31)
+	preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd").seed(students.population,31)
 	var custom_id:="campus_student_30"
 	students.population.people[custom_id].name="Iris Restart Fixture"
 	students.population.people[custom_id].traits.patience=.317
 	students.population.dirty=true
+	preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd").sync(students.population)
+	# The fixture began as historical profiles. Resolve their authoritative
+	# dossier projection in this process, exactly as a loaded population does,
+	# before comparing the complete runtime roster across the process boundary.
+	for id in students.population.people:students.population.people[id]=students.population.profile_for(id)
 	var student: Dictionary=students.population.profile_for(custom_id)
 	var scene:={"phase":"freeplay","course":"","title":"Synthetic restart fixture"}
 	var tokens:={}
@@ -102,8 +109,11 @@ func write_phase() -> void:
 	game.host_openai=original_client
 	check(biography.get("source","")=="ai" and biography.get("line","")==BIO_DETAIL,"Fixture biography passes the real structured generation and validation path")
 	check(not faculty.brain.character_biography(Profiles.teacher("mr_bro")).has(BIO_TOPIC),"Undelivered generated biography is not canonized")
-	faculty.conversation_room="restart_fixture";faculty.conversation_student="";faculty.conversation.show()
-	faculty._dialogue_reply("restart_fixture","mr_bro",str(biography.get("line","")))
+	game.school.mode="Freeplay"
+	faculty.current["ac_lab"]="mr_bro"
+	faculty.open_conversation("ac_lab")
+	check(faculty._selected_conversation_current(),"The actual conversation UI selects the current office-hours teacher")
+	faculty._dialogue_reply("ac_lab","mr_bro",str(biography.get("line","")))
 	check(faculty.conversation_text.text==BIO_DETAIL,"The actual conversation UI receives the whole biography sentence")
 	check(faculty.character_interaction.record(biography,true),"Delivery records the previously deferred event")
 	check(faculty.brain.character_biography(Profiles.teacher("mr_bro")).get(BIO_TOPIC,"")==BIO_DETAIL,"Delivered specific biography becomes canon")
@@ -113,7 +123,7 @@ func write_phase() -> void:
 	var brain: RefCounted=faculty.brain
 	var snapshot:={"kind":"synthetic native process restart fixture; offline and authored provider output","writer_pid":OS.get_process_id(),
 		"host_profile":identity,"selected_character":str(game.characters.selected),"saved_at":int(Time.get_unix_time_from_system()),
-		"relationships":brain.relationships,"conversations":brain.conversations,"biographies":brain.biographies,
+		"relationships":brain.relationships,"conversations":brain.conversations,"biographies":brain.biographies,"biography_records":brain.biography_records,
 		"processed_events":brain.processed_events,"belief_revisions":brain.belief_revisions,"mind":faculty.character_mind.export_state(),
 		"population":students.population.people,"next_index":students.population.next_index,"custom_student":custom_id}
 	var file:=FileAccess.open(evidence_path,FileAccess.WRITE)
@@ -131,7 +141,7 @@ func read_phase() -> void:
 	var identity:=str(game.school.local_identity)
 	check(OS.get_process_id()!=int(expected.writer_pid),"Reader is a different native operating-system process")
 	check(identity==str(expected.host_profile) and str(game.characters.selected)==str(expected.selected_character),"Restart reselects the same actual host/character identity without injection")
-	for field in ["relationships","conversations","biographies","processed_events","belief_revisions"]:
+	for field in ["relationships","conversations","biographies","biography_records","processed_events","belief_revisions"]:
 		check(same(brain.get(field),expected[field]),"Complete persisted %s survives the actual Main restart"%field)
 	check(same(students.population.people,expected.population) and students.population.next_index==int(expected.next_index),"Every saved roster profile and allocator index survives process restart")
 	var student: Dictionary=students.population.profile_for(expected.custom_student)

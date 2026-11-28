@@ -44,6 +44,7 @@ func run() -> void:
 		animation.pause()
 		if CASES[index].get("speech",false) or CASES[index].get("stopped",false):
 			speech.accept(str(index),"Probe",1,"A voiced fixture exercises the real speech mouth.",1,model,audio)
+			_campus_materials(model)
 			if CASES[index].get("stopped",false):speech.cancel(str(index))
 	for frame in 10:
 		for index in models.size():
@@ -75,7 +76,15 @@ func _panel(index: int,state: Dictionary) -> void:
 	var fill:=DirectionalLight3D.new();fill.rotation_degrees=Vector3(-10,155,0);fill.light_energy=.2;world.add_child(fill)
 	var appearance:=Toon.defaults();appearance.hair="Crop";appearance.expression=state.get("expression","Smile");appearance.glasses=state.get("glasses","None")
 	var model:=Toon.build(appearance);world.add_child(model);models.append(model)
+	_campus_materials(model)
 	var camera:=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=.58;camera.position=Vector3(0,1.56,3.8);world.add_child(camera);camera.look_at(Vector3(0,1.54,0));camera.current=true
+
+func _campus_materials(model: Node3D) -> void:
+	# Match the real campus graphics policy, including the filter that exposed
+	# UV-less procedural surfaces as black in the compatibility renderer.
+	for mesh: MeshInstance3D in model.find_children("*","MeshInstance3D",true,false):
+		if mesh.material_override is StandardMaterial3D:
+			mesh.material_override.texture_filter=BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 
 func _label(text: String,at: Vector2,size: int) -> void:
 	var label:=Label.new();label.text=text;label.position=at;label.add_theme_font_size_override("font_size",size);label.add_theme_color_override("font_color",Color("ecf4ff"));root.add_child(label)

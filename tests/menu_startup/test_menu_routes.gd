@@ -162,7 +162,7 @@ func _run() -> void:
 				_check(front.page==("singleplayer" if offline else "host"), label + " OpenAI Accept returned to the wrong screen")
 		var play := _button(front.body, "Play")
 		if not offline and Session.relay_endpoint().is_empty():
-			_usable(_button(front.body, "Relay account Â· Not connected"), viewport_rect, "Relay account setup")
+			_usable(_button(front.body, "Relay account · Not connected"), viewport_rect, "Relay account setup")
 			_check(is_instance_valid(play) and play.disabled, "Hosting must require a relay account")
 			front.home()
 			continue

@@ -101,6 +101,14 @@ func run()->void:
 	await process_frame
 	check(preload("res://scripts/campus/academics/faculty_roster.gd").has(str(custom.id)),"complete custom teacher published")
 	check(Store.get_dossier(str(custom.id)).get("subjects",[])==["MTH147"],"teacher course retained authoritatively")
+	var checkpoint: Dictionary={"version":Store.VERSION,"dossiers":Store.dossiers,"jobs":Store.jobs.duplicate(true)}
+	var job_id: String=checkpoint.jobs.keys()[0]
+	checkpoint.jobs[job_id].attempts={"damaged":true}
+	var invalid_path:="user://dossier-malformed-job-%d.json"%Time.get_ticks_usec()
+	var invalid_file:=FileAccess.open(invalid_path,FileAccess.WRITE)
+	invalid_file.store_string(JSON.stringify(checkpoint));invalid_file.close()
+	check(Store._read(invalid_path).is_empty(),"malformed job counters rejected before integer conversion")
+	DirAccess.remove_absolute(invalid_path)
 	print("DOSSIER_GENERATION PASS (synthetic transport contract, not live AI quality)" if failures.is_empty() else "DOSSIER_GENERATION FAIL "+str(failures))
 	client.queue_free()
 	quit(0 if failures.is_empty() else 1)

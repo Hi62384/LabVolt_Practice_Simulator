@@ -22,6 +22,13 @@ func run() -> void:
 			var config:=Toon.defaults();config.glasses=glasses;config.expression="Grin"
 			config.eye_height=proportions;config.eye_size=proportions;config.pupil_size=proportions
 			var model:=Toon.build(config);root.add_child(model)
+			for mesh: MeshInstance3D in model.find_children("*","MeshInstance3D",true,false):
+				if not mesh.mesh is ArrayMesh:continue
+				var arrays:=mesh.mesh.surface_get_arrays(0)
+				var uv_valid: bool=arrays[Mesh.ARRAY_TEX_UV]!=null and arrays[Mesh.ARRAY_TEX_UV].size()==arrays[Mesh.ARRAY_VERTEX].size()
+				if uv_valid:
+					for uv: Vector2 in arrays[Mesh.ARRAY_TEX_UV]:uv_valid=uv_valid and uv.is_finite() and uv.x>=0. and uv.x<=1. and uv.y>=0. and uv.y<=1.
+				check(uv_valid,"Procedural character surfaces retain complete UVs under campus anisotropic filtering: "+str(mesh.name))
 			var head:=model.get_node("Body/Head") as Node3D
 			var left:=head.get_node("EyeL") as Node3D
 			var right:=head.get_node("EyeR") as Node3D
@@ -60,6 +67,8 @@ func run() -> void:
 				check(left.scale.is_equal_approx(right.scale) and left.get_node("Blink").scale.is_equal_approx(right.get_node("Blink").scale),"Blink and expression compose without drift")
 			Motion.express(model,"sad",1.,"",0.)
 			var mouth:=speech._mouth(model)
+			var mouth_arrays:=mouth.mesh.surface_get_arrays(0)
+			check(mouth_arrays[Mesh.ARRAY_TEX_UV]!=null and mouth_arrays[Mesh.ARRAY_TEX_UV].size()==mouth_arrays[Mesh.ARRAY_VERTEX].size(),"Speech aperture supports the same campus material filtering as the face")
 			Face.speech_level(mouth,.2,1.)
 			check(mouth.visible and not head.get_node("NeutralMouth").visible,"Speaking has one visible mouth surface")
 			check(not Face.parts(head,"teeth")[0].is_visible_in_tree(),"Teeth cannot protrude above a speaking mouth")

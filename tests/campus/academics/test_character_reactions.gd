@@ -7,8 +7,13 @@ const Brain=preload("res://scripts/campus/academics/teacher_brain.gd")
 const Affect=preload("res://scripts/campus/academics/character_affect.gd")
 const Motion=preload("res://scripts/campus/academics/character_motion.gd")
 const Behavior=preload("res://scripts/campus/academics/character_behavior.gd")
+const Store=preload("res://scripts/campus/academics/character_dossier_store.gd")
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
 
 func _initialize() -> void:
+	var population:=Legacy.Population.new()
+	Legacy.bind(population,"user://reaction_legacy_population.json")
+	Legacy.seed(population,12)
 	var people: Array=Roster.PEOPLE.keys().map(func(id):return Characters.teacher(id))
 	for index in [0,2,4,7,9,11]:people.append(Characters.student(index))
 	var faculty_greetings: Dictionary={}
@@ -24,11 +29,11 @@ func _initialize() -> void:
 		assert(person.traits.size()>=75,id)
 		assert(person.traits.values().all(func(value):return is_finite(value) and value>=0. and value<=1.),id)
 		assert("300 characters" not in Mind.instructions(person,"steady"),id)
-		assert(str(person.get("worldview","")) in Mind.instructions(person,"steady"),id)
+		assert(str(person.get("worldview","")) in str(Store.get_dossier(id).compact_core),id)
 		assert(not str(person.ambition).is_empty(),id)
 		if person.role=="teacher":
 			biographies[person.biography.personal_story]=true
-			assert(not Behavior.classroom_line(person,"practice").is_empty(),id)
+			assert(Behavior.classroom_line(person,"practice").is_empty(),"Classroom intentions require generated speech: "+id)
 			var lesson:=Behavior.priorities(person,"I'm stuck. Can you explain the equation?",{},"lesson")
 			assert(lesson.academic,id)
 			faculty_lessons[lesson.goal]=true
@@ -36,10 +41,12 @@ func _initialize() -> void:
 			var stable:=Characters.student(int(id.trim_prefix("campus_student_")))
 			assert(stable.biography==person.biography and stable.traits==person.traits,id)
 		var greeting:=mind.observe(person,{},"Hi",0,"alex")
-		assert(not str(greeting.line).is_empty(),id)
-		if person.role=="teacher":faculty_greetings[greeting.line]=true
-		assert(not str(mind.observe(person,{},"Tell me a joke",50,"alex").line).is_empty(),id)
-		assert(not str(mind.observe(person,{},"You're amazing",80,"alex").line).is_empty(),id)
+		assert(str(greeting.line).is_empty() and not str(greeting.reason).is_empty(),id)
+		if person.role=="teacher":faculty_greetings[person.speaking_description]=true
+		var joke:=mind.observe(person,{},"Tell me a joke",50,"alex")
+		var praise:=mind.observe(person,{},"You're amazing",80,"alex")
+		assert(joke.line.is_empty() and joke.event=="joke" and not joke.strategy.is_empty(),id)
+		assert(praise.line.is_empty() and praise.event=="compliment" and not praise.strategy.is_empty(),id)
 		assert(not mind.observe(person,{},"I don't think that follows from your example.",90,"alex","disagreement").closed,id)
 		assert(not mind.observe(person,{},"That explanation was hard to follow.",95,"alex","criticism").closed,id)
 		var first:=mind.observe(person,{},"You're an idiot.",100,"alex")
@@ -68,14 +75,14 @@ func _initialize() -> void:
 	var help:="Can you explain the equation? This class is hard."
 	assert(Behavior.priorities(chad,help,{},"lesson").goal=="give_minimum")
 	assert(Behavior.priorities(bird,help,{},"lesson").goal=="coach")
-	assert(Behavior.classroom_line(bird,"practice")!=Behavior.classroom_line(chad,"practice"))
+	assert(bird.speaking_description!=chad.speaking_description and bird.traits.teaching_effort>chad.traits.teaching_effort)
 	assert(Behavior.priorities(bird,help,{},"assignment").goal=="protect_assessment")
 	var student:=Characters.student(0)
 	student.traits.merge({"attention_span":.1,"impulsiveness":.95,"study_habits":.1,"organization":.1},true)
 	assert(Behavior.student_activity(student,{"id":"test","phase":"lesson"},{"action":"listening","turns":1},"bored")=="distracted")
-	assert(Behavior.priorities(chad,"How do you escape the matrix?",{},"lesson").goal=="pursue_interest")
-	assert(Behavior.priorities(chad,"How do you escape the matrix?",{"resentment":6},"lesson").goal=="return_to_activity")
-	assert("315 pounds" in Behavior.fallback(bro,Behavior.priorities(bro,"What's your bench press record?",{},"lesson"),"What's your bench press record?",""))
+	assert(Behavior.priorities(chad,"How do you escape the matrix?",{},"lesson","steady",{"topic":"personal_interest"}).goal=="pursue_interest")
+	assert(Behavior.priorities(chad,"How do you escape the matrix?",{"resentment":6},"lesson","steady",{"topic":"personal_interest"}).goal=="return_to_activity")
+	assert(Behavior.fallback(bro,Behavior.priorities(bro,"What's your bench press record?",{},"lesson"),"What's your bench press record?","").is_empty(),"A new personal record must be generated and validated, never hardcoded")
 	assert(Mind.new().emotion(stanley,0)=="tired")
 	var affected:=Affect.baseline(stanley.traits)
 	assert(affected.size()==16)

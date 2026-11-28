@@ -741,7 +741,7 @@ static func _public_profile(person: Dictionary) -> Dictionary:
 	var voice: Dictionary={}
 	for key in ["identifier","profile","characteristics","delivery"]:
 		if person.get("voice",{}).has(key):voice[key]=person.voice[key]
-	return {"id":str(person.id),"name":str(person.name),"role":"student","style":str(person.get("style","")),
+	return {"id":str(person.id),"name":str(person.name),"role":"student","identity_scope":"public","style":str(person.get("style","")),
 		"talk":float(person.get("talk",.5)),"voice_slot":int(person.get("voice_slot",0)),"voice":voice,"traits":traits}
 
 func focus_on_player(class_id: String,actor: String) -> void:
@@ -754,7 +754,11 @@ func render(room: String,public: Dictionary,delta: float) -> void:
 	for member in public.get(room,{}).get("classmates",[]):
 		if not multiplayer.is_server() and member.get("public_profile") is Dictionary:
 			var presented: Dictionary=member.public_profile
-			if str(presented.get("id",""))==str(member.id):known_profiles[member.id]=presented.duplicate(true)
+			if str(presented.get("id",""))==str(member.id):
+				known_profiles[member.id]=presented.duplicate(true)
+				# Older hosts may omit the marker. Receiving an authenticated public
+				# snapshot still cannot authorize hydration from local private saves.
+				known_profiles[member.id].identity_scope="public"
 		var key:=str(member.class_id)+":"+str(member.id)
 		seen[key]=true
 		var model: Node3D=models.get(key)

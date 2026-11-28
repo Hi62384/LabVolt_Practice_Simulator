@@ -39,14 +39,17 @@ static func begin_speech(head: Node3D) -> MeshInstance3D:
 	if mouth==null:
 		mouth=MeshInstance3D.new();mouth.name="SpeechMouth"
 		var vertices:=PackedVector3Array()
+		var uvs:=PackedVector2Array()
 		for sector in 20:
 			var a:=TAU*float(sector)/20.
 			var b:=TAU*float(sector+1)/20.
 			vertices.append(Vector3.ZERO)
+			uvs.append(Vector2(.5,.5))
 			for angle in [b,a]:
 				var x: float=cos(angle)*.044
 				vertices.append(Vector3(x,sin(angle)*.020,-absf(x)*.14))
-		var arrays: Array=[];arrays.resize(Mesh.ARRAY_MAX);arrays[Mesh.ARRAY_VERTEX]=vertices
+				uvs.append(Vector2(.5+cos(angle)*.5,.5+sin(angle)*.5))
+		var arrays: Array=[];arrays.resize(Mesh.ARRAY_MAX);arrays[Mesh.ARRAY_VERTEX]=vertices;arrays[Mesh.ARRAY_TEX_UV]=uvs
 		var mesh:=ArrayMesh.new();mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES,arrays);mouth.mesh=mesh
 		var material:=StandardMaterial3D.new();material.albedo_color=Color("352423")
 		material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED

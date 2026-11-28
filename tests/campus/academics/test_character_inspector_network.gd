@@ -33,15 +33,32 @@ class ClassState extends Node:
 class FrontState extends RefCounted:
 	var in_game := true
 
+class BusyProvider extends Node:
+	var busy := true
+	var enabled := false
+
+class TransportBarrier extends Node:
+	var received := 0
+	@rpc("any_peer", "call_remote", "reliable")
+	func ping(serial: int) -> void:
+		if multiplayer.is_server():
+			pong.rpc_id(multiplayer.get_remote_sender_id(), serial)
+	@rpc("authority", "call_remote", "reliable")
+	func pong(serial: int) -> void:
+		if multiplayer.get_remote_sender_id() == 1:
+			received = serial
+
 class GameState extends Node:
 	var school := SchoolState.new()
 	var session := SessionState.new()
 	var lecture_classes := ClassState.new()
 	var front := FrontState.new()
+	var host_openai := BusyProvider.new()
 	func _init() -> void:
 		add_child(school)
 		add_child(session)
 		add_child(lecture_classes)
+		add_child(host_openai)
 	func release_mouse() -> void:
 		pass
 	func capture() -> void:
@@ -81,7 +98,16 @@ func _surface(name_value: String, api: MultiplayerAPI, identity: String) -> Dict
 	faculty._build_conversation_ui()
 	faculty.speech_player = SpeechState.new()
 	faculty.add_child(faculty.speech_player)
-	return {"branch": branch, "game": game, "faculty": faculty}
+	var barrier := TransportBarrier.new()
+	barrier.name = "TransportBarrier"
+	branch.add_child(barrier)
+	return {"branch": branch, "game": game, "faculty": faculty, "barrier": barrier}
+
+func _flush_remote(client: Dictionary, serial: int) -> void:
+	# All three nodes use ENet's same reliable channel. The acknowledged ping
+	# proves the earlier production faculty RPCs were processed by the host.
+	client.barrier.ping.rpc_id(1, serial)
+	await _wait_for(func(): return client.barrier.received == serial, "reliable request barrier")
 
 func _run() -> void:
 	var server_peer := ENetMultiplayerPeer.new()
@@ -133,9 +159,44 @@ func _run() -> void:
 		client.faculty.conversation.set_meta("selected_character_id", "student_fixture")
 		_check(not client.faculty._selected_conversation_current(), "A departed student's class cannot receive a queued message")
 		client.faculty.conversation_student = ""
-		client.faculty.conversation_class = ""
+		client.faculty.conversation_class = "inspection_class"
 		client.faculty.conversation.set_meta("selected_character_id", "mr_bro")
 		client.game.lecture_classes.public_classes[ROOM].teacher = "mr_bro"
+		# The client still sees the selected teacher while the host has already
+		# rotated the classroom. These calls exercise production outbound methods
+		# and production RPC handlers, not a locally called queue substitute.
+		var samples := PackedByteArray()
+		samples.resize(32000)
+		var wav: PackedByteArray = Faculty.TeacherAI.wav_16k(samples)
+		server.game.lecture_classes.classes[ROOM].teacher = "chad"
+		client.faculty.conversation_input.text = "Transit teacher mismatch"
+		client.faculty._submit_question()
+		client.faculty._send_voice_question(ROOM, wav, "", "inspection_class", "mr_bro")
+		client.faculty._ask.rpc_id(1, ROOM, "hand_phone", "", "mr_bro", "inspection_class")
+		client.faculty._send_lesson_feedback.rpc_id(1, ROOM, "ready", "mr_bro", "inspection_class")
+		await _flush_remote(client, 1)
+		_check(server.faculty.questions.is_empty() and server.faculty.ai_busy.is_empty() and server.faculty.last_dialogue.is_empty() and server.faculty.lesson_feedback.is_empty(), "Host rejects typed, microphone, action and lesson feedback requests after teacher rotation in transit")
+		server.game.lecture_classes.classes[ROOM].teacher = "mr_bro"
+		client.faculty.conversation_input.text = "Authenticated current target"
+		client.faculty._submit_question()
+		client.faculty._send_voice_question(ROOM, wav, "", "inspection_class", "mr_bro")
+		await _flush_remote(client, 2)
+		_check(server.faculty.questions.size() == 2 and server.faculty.questions.all(func(entry): return entry.teacher == "mr_bro" and entry.class == "inspection_class" and entry.peer == guest), "Valid typed and microphone requests retain the exact selected teacher, class and authenticated peer")
+		_check(server.faculty.questions.any(func(entry): return entry.content is PackedByteArray) and server.faculty.questions.any(func(entry): return entry.content is String), "Real RPC transport preserves both supported input channels")
+		server.game.lecture_classes.classes[ROOM].id = "rotated_class"
+		client.faculty.conversation_input.text = "Transit class mismatch"
+		client.faculty._submit_question()
+		client.faculty._send_voice_question(ROOM, wav, "", "inspection_class", "mr_bro")
+		client.faculty._ask_question.rpc_id(1, ROOM, "Missing target", "", "")
+		client.faculty._ask_speech.rpc_id(1, ROOM, wav, "", "")
+		await _flush_remote(client, 3)
+		_check(server.faculty.questions.size() == 2, "Host rejects changed-class and empty-target requests before adding work")
+		server.game.host_openai.busy = false
+		server.faculty._next_question()
+		server.faculty._next_question()
+		_check(server.faculty.questions.is_empty() and server.faculty.ai_busy.is_empty(), "Queued typed and microphone requests are rejected again if the captured class changes before processing")
+		server.game.lecture_classes.classes[ROOM].id = "inspection_class"
+		server.game.host_openai.busy = true
 		var initial_time := int(client.faculty.conversation.get_meta("inspection_received", 0))
 		server.game.lecture_classes.position = Vector3(0, 0, 20)
 		if await _wait_for(func(): return int(client.faculty.conversation.get_meta("inspection_received", 0)) > initial_time, "range-checked dynamic refresh"):
@@ -148,7 +209,7 @@ func _run() -> void:
 	client.branch.queue_free()
 	await process_frame
 	if failures.is_empty():
-		print("CHARACTER_INSPECTOR_NETWORK PASS — real ENet, production RPCs, authenticated guest history, no model call, range refresh")
+		print("CHARACTER_INSPECTOR_NETWORK PASS — real ENet, production RPCs, authenticated guest history, selected-target transit guards, text/mic queue validation, range refresh, no model call")
 	quit(0 if failures.is_empty() else 1)
 
 func _check(value: bool, message: String) -> void:

@@ -19,6 +19,12 @@ import uuid
 
 
 DEFAULT_TESTS = [
+    "test_character_dossier_pipeline", "test_character_life_ledger",
+    "test_character_relationship_decisions", "test_character_group_intent", "test_character_silent_dispatch",
+    "test_character_request_timing", "test_character_request_accounting",
+    "test_character_inspector", "test_character_inspector_transport",
+    "test_character_inspector_network", "test_teacher_numeric_disposition",
+    "test_character_facial_compositor",
     "test_character_interaction_pipeline", "test_character_evolution_pipeline",
     "test_character_worldviews", "test_character_reactions", "test_character_beliefs",
     "test_character_memory_v5", "test_character_memory_migration",

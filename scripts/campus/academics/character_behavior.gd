@@ -47,7 +47,7 @@ static func priorities(person: Dictionary,question: String,relationship: Diction
 		result.goal = "express_own_priorities"
 		result.energy = "dismissive" if strained < 3. else "confrontational"
 		result.reason = "Interpret the conversation through your own values and ambitions. Your personal opinions do not need to be useful advice."
-	elif float(traits.teaching_effort) < .3 and person.role == "teacher":
+	elif float(traits.teaching_effort) < .3 and person.role == "teacher" and (float(traits.energy)+float(traits.get("sociability",.5)))*.5 < .4:
 		result.goal = "protect_own_time"
 		result.energy = "tired" if float(traits.energy) < .3 else "distracted"
 	elif float(traits.demonstrations) > .92:
@@ -86,7 +86,7 @@ static func reaction(person: Dictionary,event: String,relationship: Dictionary,e
 			strategy = "challenge_reasoning" if repetition % 3 != 1 else "sarcastic_counter"
 			reason = "Pride and confidence make you challenge the claim instead of placating the speaker. Repeated jabs deserve a sharper counter, not a shared shutdown line."
 			pose = "argue" if repetition > 1 else "shrug"
-		elif float(t.teaching_effort) < .3 and person.role == "teacher":
+		elif float(t.teaching_effort) < .3 and person.role == "teacher" and (float(t.energy)+float(t.get("sociability",.5)))*.5 < .4:
 			strategy = "ignore" if repetition % 3 != 1 else "dismiss_and_work"
 			reason = "Your own time matters more than winning this argument; the insult can still affect your opinion."
 			disengagement = "return_to_work"

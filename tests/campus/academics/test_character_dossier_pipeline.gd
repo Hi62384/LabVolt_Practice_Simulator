@@ -18,6 +18,7 @@ class Provider extends Node:
 	var moderation_calls:=0
 	var interpretations:=0
 	var contexts: Array=[]
+	var reviews: Array=[]
 	func ready_for_class() -> bool:return available
 	func moderate(_text: String) -> Dictionary:
 		moderation_calls+=1
@@ -31,7 +32,7 @@ class Provider extends Node:
 	func interpret_character(_rules: String,_context: Dictionary,_question: String) -> Dictionary:
 		interpretations+=1
 		await get_tree().process_frame
-		return {"ok":true,"text":JSON.stringify({"consistent":true,"reason":"Existing fixture detail."}),"measurement":{"usage":{"input":220,"output":30},"latency_ms":2}}
+		return {"ok":true,"text":JSON.stringify(reviews.pop_front() if not reviews.is_empty() else {"consistent":true,"reason":"Existing fixture detail."}),"measurement":{"usage":{"input":220,"output":30},"latency_ms":2}}
 
 func check(value: bool,label: String) -> void:
 	checks+=1
@@ -64,6 +65,20 @@ func run() -> void:
 	check(interaction.record(result) and brain.recall(person.id,"player-one").size()==1,"retried recording is idempotent")
 	check(interaction.diagnostics[-1].usage.input==1234 and interaction.diagnostics[-1].usage.output==177,"telemetry retains provider-reported fixture counts exactly")
 	check(interaction.diagnostics[-1].request_count==3,"request count includes moderation without inventing token measurements")
+	var quiet:=utterance("")
+	quiet.behavior={"mode":"disengage","intention":"Continue working without speaking."}
+	quiet.nonverbal=["turn_away"]
+	client.responses=[quiet]
+	prepared=await interaction.prepare(client,person,"quiet-player",activity,"",{"initiate":true,"intention":"Decide whether to start a conversation."})
+	result=await interaction.generate(client,prepared)
+	check(result.source=="intentional_silence" and result.silent and result.line.is_empty() and result.nonverbal==["turn_away"],"an initiated turn can choose a separate nonverbal action without fabricated speech")
+	interaction.record(result)
+	check(mind.disengagement(person.id,"quiet-player").disengagement=="withdraw","a generated silent decision commits without a second emotional appraisal")
+	var pending:=mind.observe(person,brain.relationship(person.id,"delayed-player"),"Hello",Time.get_ticks_msec(),"delayed-player","chat","delayed-perception")
+	brain.remember_event(person,"delayed-player",pending,"Hello","",int(Time.get_unix_time_from_system()),"delayed-perception")
+	check(brain.complete_event(person,"delayed-player","delayed-perception",""),"a heard event may complete with intentional silence")
+	var sealed:=JSON.stringify(brain.relationship(person.id,"delayed-player"))
+	check(brain.complete_event(person,"delayed-player","delayed-perception","") and JSON.stringify(brain.relationship(person.id,"delayed-player"))==sealed,"replayed silent completion cannot append duplicate episode text or updates")
 	var first:="My best bench press is 287 pounds."
 	client.responses=[utterance(first,"biography",[{"topic":"training.bench_press_record","detail":first,"value":"287 pounds","kind":"current","chronology":"last winter"}])]
 	prepared=await interaction.prepare(client,person,"player-one",activity,"How much can you bench?")
@@ -82,6 +97,29 @@ func run() -> void:
 	check(client.model_calls==calls_before+2,"contradiction repair is bounded to one additional generation")
 	interaction.record(result)
 	check(not JSON.stringify(brain.character_biography(person)).contains("325"),"rejected speech never becomes saved history")
+	var denial:="I have never lifted weights."
+	client.responses=[utterance(denial,"biography",[{"topic":"training.experience","detail":denial,"value":"never lifted","kind":"historical"}]),utterance("Bench press, 287 pounds.","biography")]
+	client.reviews=[{"consistent":false,"reason":"The spoken denial contradicts the supplied training history."}]
+	var reviews_before:=client.interpretations
+	prepared=await interaction.prepare(client,person,"player-one",activity,"Have you trained before?")
+	result=await interaction.generate(client,prepared)
+	check(result.source=="ai" and result.line!=denial and client.interpretations==reviews_before+1,"a contradictory denial with a new valid-looking record receives deeper review and repair")
+	check(Interaction._dossier_conflict_possible("My bench record is 400 pounds.",[{"text":"His bench record is 315 pounds. He also enjoys cycling."}],[{"topic":"bench.record"}]),"quantities already established in generated life prose are checked before a new ledger proposal")
+	check(not Interaction._dossier_conflict_possible("My squat record is 400 pounds.",[{"text":"His bench record is 315 pounds."}],[{"topic":"squat.record"}]),"unrelated narrative quantities do not require an extra validation request")
+	var invented:="You got 72 on the test."
+	client.responses=[utterance(invented,"academic"),utterance(invented,"academic")]
+	client.reviews=[{"consistent":false,"reason":"There is no verified test result."},{"consistent":false,"reason":"There is no verified test result."}]
+	prepared=await interaction.prepare(client,person,"grade-player",activity,"How did my test go?")
+	result=await interaction.generate(client,prepared)
+	check(result.source=="technical_unavailable" and result.line.is_empty(),"unsupported spoken academic outcome is rejected even without a memory or grade update")
+	check(Interaction._needs_gameplay_review("You called me useless in yesterday's lab.") and Interaction._needs_gameplay_review("You mocked me last class."),"generic past-event scope covers paraphrased accusations without exact question checks")
+	var late_fact:="I learned the glockenspiel at college."
+	var delivery_guard:={"valid":true}
+	client.responses=[utterance(late_fact,"biography",[{"topic":"music.training","detail":late_fact,"value":"glockenspiel","kind":"historical"}])]
+	prepared=await interaction.prepare(client,person,"late-player",activity,"What instrument did you study?",{"_valid":func():return delivery_guard.valid})
+	result=await interaction.generate(client,prepared)
+	delivery_guard.valid=false
+	check(not interaction.record(result,true) and not brain.character_biography(person).has("music.training"),"a guard invalidated after generation still prevents unheard personal facts at commit")
 	var squat:="My best squat is 391 pounds."
 	var independent:={"topic":"training.squat_record","detail":squat,"value":"391 pounds","kind":"current"}
 	check(Life.speech_check(squat,brain.character_life_records(person),[independent],true).ok,"shared generic topic does not confuse different personal records")
@@ -98,7 +136,7 @@ func run() -> void:
 	Life.apply(stored,checked)
 	check(stored["food.favorite"].history.size()==1 and stored["food.favorite"].history[0].value=="noodles","old preferences remain in chronological history")
 	check(Knowledge.assess(person,activity,"What's your training history?",{"question_kind":"biography","domain":"fitness"}).allowed,"own biography is independent of specialist knowledge gates")
-	var hostile:=Profiles.teacher("brian");hostile.traits.grudge_holding=.95
+	var hostile:=Profiles.teacher("brian")
 	for index in 3:
 		var interpreted:={"event":"insult","tone":"hostile","severity":.9,"behavior":{"mode":"permanent_silence","intention":"End this repeatedly hostile relationship"}}
 		mind.observe(hostile,{},"You are useless.",Time.get_ticks_msec(),"hostile-player","insult","hostility-"+str(index),interpreted)

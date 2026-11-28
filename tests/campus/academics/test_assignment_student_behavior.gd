@@ -1,6 +1,7 @@
 extends SceneTree
 ## Real issued assessment, local idle decisions, and controlled delayed social
 ## generation. Provider replies here are fixtures, not live model evidence.
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
 const Students=preload("res://scripts/campus/academics/classroom_students.gd")
 const Motion=preload("res://scripts/campus/academics/character_motion.gd")
 const Pipeline=preload("res://scripts/campus/academics/character_interaction.gd")
@@ -28,18 +29,22 @@ class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
 	func moderate(_input: String) -> Dictionary:return {"ok":true,"flagged":false}
 	func interpret_character(_instructions: String,_context: Dictionary,_dialogue: String) -> Dictionary:
 		return {"ok":true,"text":JSON.stringify({"event":"chat","tone":"neutral","severity":0.,"meaning":"A nearby classmate shares a brief unrelated social remark.","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]})}
+	func reply(context: Dictionary,speech: String,biography: Variant=null)->Dictionary:
+		return {"ok":true,"text":JSON.stringify({"speech":speech,"biography":biography,
+			"interpretation":{"event":"chat","tone":"neutral","severity":0.,"meaning":"A nearby classmate shares a brief unrelated social remark.","domain":"conversation","question_kind":"casual","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]},
+			"delivery":{"emotion":str(context.get("emotional_state",{}).get("emotion","steady")),"knowledge_mode":"personal_conversation"}})}
 	func respond_character(instructions: String,context: Dictionary,dialogue: String,_visual:=false) -> Dictionary:
 		requests.append({"instructions":instructions,"context":context.duplicate(true),"dialogue":dialogue})
-		if context.character.role=="teacher":return {"ok":true,"text":JSON.stringify({"speech":"Please work independently on your own paper.","biography":null})}
+		if context.character.role=="teacher":return reply(context,"Please work independently on your own paper.")
 		if dialogue.is_empty():
 			var speech:=openings[mini(opening_count,openings.size()-1)]
 			opening_count+=1
-			return {"ok":true,"text":JSON.stringify({"speech":speech,"biography":null})}
+			return reply(context,speech)
 		if str(context.character.id)==hold_character:
 			hold_character="";held=true;busy=true
 			await released
 			held=false;busy=false
-		return {"ok":true,"text":JSON.stringify({"speech":biography_detail,"biography":{"topic":biography_topic,"detail":biography_detail}})}
+		return reply(context,biography_detail,{"topic":biography_topic,"detail":biography_detail})
 
 func _initialize() -> void:call_deferred("run")
 
@@ -91,6 +96,7 @@ func run() -> void:
 	var client:=FixtureClient.new();game.add_child(client);game.host_openai=client
 	var classes: Node=game.lecture_classes
 	var students: Node=classes.classroom_students
+	Legacy.seed(students.population,24) # Explicit historical identities; no offline AI-generation claim.
 	var faculty: Node=game.faculty
 	game.player.global_position=classes.signs[ROOM].desk
 	check(classes._start(ROOM,{"kind":"lab","course_id":"ELM253","week":1,"difficulty":0})=="","Actual lab classroom starts")
@@ -103,6 +109,10 @@ func run() -> void:
 	var tired:=prepared_actor(students,15,point+Vector3(0,0,-4.),now,"tired")
 	var phone:=prepared_actor(students,16,point+Vector3(1.2,0,0),now,"phone")
 	activity.classmates={focused.profile.id:focused,tired.profile.id:tired,phone.profile.id:phone}
+	# Store the controlled independent traits in the same authority used by
+	# every subsequent local decision, rather than editing a stale projection.
+	for member in activity.classmates.values():students.population.people[member.profile.id]=member.profile.duplicate(true)
+	Legacy.sync(students.population)
 	for member in activity.classmates.values():faculty.character_mind.moods.erase(member.profile.id)
 	activity.phase="lesson";activity.deadline=now+300.
 	check(classes._begin_assignment(ROOM,activity),"Real generated assessment is issued")
@@ -149,6 +159,8 @@ func run() -> void:
 		member.profile.traits.merge({"focus":.2,"talkativeness":1.,"attention_span":.3,"study_habits":0.,"organization":0.,"academic_motivation":0.,"independence":0.,"misbehavior":0.,"initiative":1.,"sociability":1.,"playfulness":1.,"mischievousness":1.,"risk_taking":1.},true)
 		faculty.character_mind.moods.erase(member.profile.id)
 		member.next=now+180.
+		students.population.people[member.profile.id]=member.profile.duplicate(true)
+	Legacy.sync(students.population)
 	activity.social_next=0.;activity.last_social_at=-1000.;students.social_next_global=0.
 	for tick in 100:
 		students.step(activity,now+181.+float(tick)*10.,.1,ROOM)
@@ -213,16 +225,17 @@ func run() -> void:
 		game.school.local_identity=profile_id
 		check(not activity.has("classmate_reply") and not faculty.brain.character_biography(listener.profile).has(client.biography_topic),"A profile change prevents delayed speech and canonical detail from crossing ownership")
 
-	# Familiar study partners still use only a safe social recovery line while
-	# the provider is offline; the lesson fallback must not offer to share work.
+	# An unavailable provider produces no fabricated social dialogue, even
+	# for familiar study partners during an assessment.
 	client.online=false
 	var history: Dictionary=faculty.brain.relationship(speaker.profile.id,listener.profile.id).duplicate(true)
 	var reverse: Dictionary=faculty.brain.relationship(listener.profile.id,speaker.profile.id).duplicate(true)
 	history.familiarity=4;history.study_sessions=4;reverse.study_sessions=4
 	generated=client.requests.size()
+	speaker.erase("line");listener.erase("line")
 	activity.social_pending=true
 	await students._start_social_exchange(activity,speaker,listener,history,reverse,ROOM)
-	check(str(speaker.get("line",""))==str(speaker.profile.lines.greeting) and Pipeline.assessment_output_safe(str(speaker.get("line",""))),"Offline assessment initiation avoids the familiar partner's lesson-help fallback")
+	check(str(speaker.get("line","")).is_empty() and not activity.has("classmate_reply"),"Offline assessment initiation produces no invented character dialogue")
 	if activity.has("classmate_reply"):
 		var delayed: Dictionary=activity.classmate_reply
 		check(Pipeline.assessment_output_safe(str(delayed.line)),"Offline classmate response is safe for individual assessment work")

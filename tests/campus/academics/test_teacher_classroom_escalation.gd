@@ -1,6 +1,9 @@
 extends SceneTree
 const Brain=preload("res://scripts/campus/academics/teacher_brain.gd")
 const Dialogue=preload("res://scripts/campus/academics/teacher_dialogue.gd")
+const Profiles=preload("res://scripts/campus/academics/class_character_profile.gd")
+const Mind=preload("res://scripts/campus/academics/character_mind.gd")
+const Behavior=preload("res://scripts/campus/academics/character_behavior.gd")
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
 	var strict=Brain.new()
@@ -18,7 +21,12 @@ func run() -> void:
 	var calm_text: String=Dialogue.respond("mr_stone","class_message",{"phase":"lesson","level":"calm"},0)
 	var firm_text: String=Dialogue.respond("mr_stone","class_message",{"phase":"lesson","level":"firm"},0)
 	var assessment_text: String=Dialogue.respond("mr_stone","class_message",{"phase":"assignment","level":"firm"},0)
-	if calm_text==firm_text or not firm_text.contains("Stop") or not assessment_text.contains("assessment"):
-		push_error("Firm classroom response did not reflect phase");quit(1);return
+	if not calm_text.is_empty() or not firm_text.is_empty() or not assessment_text.is_empty():
+		push_error("Legacy event handlers fabricated ordinary character speech");quit(1);return
+	var person:=Profiles.teacher("mr_stone")
+	var mild:=Mind.new().observe(person,{},"A student interrupts the class.",0,"learner","disruption","mild",{"phase":"lesson","severity":.2})
+	var loud:=Mind.new().observe(person,{},"A student repeatedly interrupts the class.",0,"learner","disruption","loud",{"phase":"lesson","severity":.95})
+	assert(float(loud.emotions.irritation)>float(mild.emotions.irritation),"Host perception intensity reaches actual character affect")
+	assert(Behavior.priorities(person,"Which answer is right?",{},"assignment").goal=="protect_assessment","Assessment integrity remains independent of ordinary dialogue generation")
 	print("TEACHER_CLASSROOM_ESCALATION PASS")
 	quit(0)

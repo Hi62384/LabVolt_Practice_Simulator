@@ -95,7 +95,10 @@ func _initialize() -> void:
 	var parsed:=Mind.decode_dialogue(JSON.stringify({"speech":position,"belief_updates":[update]}))
 	check(parsed.belief_updates==[update],"dialogue decoding retains explicit belief proposals")
 	check(Mind.decode_dialogue(JSON.stringify({"speech":"I heard you.","belief_updates":"invalid"})).belief_updates=="invalid","malformed proposals remain visible for upstream rejection")
-	check("Active beliefs" in Mind.instructions(effective_person,"steady"),"character instructions explicitly prefer saved current positions")
+	var context_owner:=preload("res://scripts/campus/academics/character_interaction.gd").new()
+	context_owner.bind(Mind.new(),brain)
+	var supplied:=context_owner.context(nye,"new_listener",{},"What is education for?")
+	check(supplied.beliefs[0].position==withheld and supplied.has("character_core"),"actual generated-response context carries the saved current position alongside canonical identity")
 
 	check(Beliefs.valid_snapshot(brain.belief_revisions),"complete belief histories pass strict persistence validation")
 	var damaged:=brain.belief_revisions.duplicate(true)

@@ -8,7 +8,7 @@ class FakeGame extends Node:
  var faculty: Node
 class FakeFaculty extends Node:
  var calls: Array=[]
- func present_class_reaction(room: String,teacher: String,message: String) -> void:calls.append([room,teacher,message])
+ func present_class_intention(room: String,teacher: String,intention: String,_observation: Dictionary={},_priority:=2) -> void:calls.append([room,teacher,intention])
 class FakeService extends Node:
  var rooms: Dictionary={}
  func tick(_now: float) -> void:pass
@@ -16,10 +16,11 @@ class FakeService extends Node:
  func publish(_room: String,_now: float) -> void:pass
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
- if Dialogue.surprise_comment({"talkativeness":.4,"focus":.2},"ETY155",0)!="" or Dialogue.surprise_comment({"talkativeness":.9,"focus":.9},"ETY155",0)!="":push_error("Focused teachers received tangents");quit(1);return
- var lines: Dictionary={}
- for i in 3:lines[Dialogue.surprise_comment({"talkativeness":.9,"focus":.2},"ETY155",i)]=true
- if lines.size()!=3:push_error("Surprise wording has no variation");quit(1);return
+ if Dialogue.surprise_intention({"talkativeness":.4,"focus":.2},"ETY155")!="" or Dialogue.surprise_intention({"talkativeness":.9,"focus":.9},"ETY155")!="":push_error("Focused teachers received tangents");quit(1);return
+ var intention:=Dialogue.surprise_intention({"talkativeness":.9,"focus":.2},"ETY155")
+ if not intention.contains("ETY155") or not intention.contains("own interests") or not intention.contains("do not invent"):
+  push_error("Surprise intention lacks current-course, identity or gameplay-truth constraints");quit(1);return
+ for i in 3:assert(Dialogue.surprise_comment({"talkativeness":.9,"focus":.2},"ETY155",i).is_empty(),"Legacy variant indices must not select canned dialogue")
  var game=FakeGame.new();root.add_child(game)
  var classes=FakeClasses.new();game.add_child(classes)
  var faculty=FakeFaculty.new();game.add_child(faculty)
@@ -36,6 +37,7 @@ func run() -> void:
  owner.attempted[class_id]={"count":1,"tries":0,"next":INF,"recent":[],"recent_modes":[]}
  owner.step(100.0);owner.step(101.0)
  if not owner.surprise_shown.has(class_id) or faculty.calls.size()!=1:push_error("Surprise was absent or repeated");quit(1);return
+ assert(faculty.calls[0][0]=="ety155_lecture" and faculty.calls[0][1]=="mr_apple" and str(faculty.calls[0][2]).contains("ETY155"),"The actual scheduler routes the intention to the correct character and class")
  classes.classes.ety155_lecture.phase="assignment"
  owner.step(102.0)
  if faculty.calls.size()!=1:push_error("Surprise continued into assessment");quit(1);return

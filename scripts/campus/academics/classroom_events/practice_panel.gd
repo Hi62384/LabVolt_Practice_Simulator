@@ -144,7 +144,7 @@ func update_state(state: Dictionary) -> void:
   decline_button.disabled=not bool(state.get("can_submit",false)) or bool(state.get("declined",false))
  if is_instance_valid(hint_label):
   hint_label.visible=state.has("hint")
-  hint_label.text="Teacher hint · "+str(state.get("hint","")).left(220)
+  hint_label.text="Practice hint · "+str(state.get("hint","")).left(220)
  seconds_left=maxf(0.0,float(state.get("seconds_left",0.0)))
  if state.get("submitted",false):submission_accepted=true;submission_pending=false
  if state.has("result"):submission_pending=false
@@ -195,7 +195,7 @@ func update_state(state: Dictionary) -> void:
  if state.get("mode","")=="group" and state.has("team_progress"):
   var team_progress: Dictionary=state.team_progress
   status_label.text+="\nTeam %s · %d present · %d notes · %d explanations · %d submitted"%[str(shared.get("group","A")),int(team_progress.members),int(team_progress.notes),int(team_progress.explanations),int(team_progress.submitted)]
- if state.get("mode","")=="group" and not str(state.get("team_prompt","")).is_empty():status_label.text+="\nTeacher to your team: "+str(state.team_prompt).left(180)
+ if state.get("mode","")=="group" and not str(state.get("team_prompt","")).is_empty():status_label.text+="\nTeam status: "+str(state.team_prompt).left(180)
  if state.get("mode","")=="group" and state.has("group_result"):
   var group_result: Dictionary=state.group_result
   status_label.text+="  Group %s: %d correct of %d answers (%d members)."%[str(group_result.team),int(group_result.correct),int(group_result.answered),int(group_result.members)]

@@ -1,6 +1,7 @@
 extends SceneTree
 ## Run with isolated Godot user data. Check the bytes on disk as well as the
 ## playable fallback: a successful-looking class must not erase a saved campus.
+const Legacy=preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd")
 const Population=preload("res://scripts/campus/academics/student_population.gd")
 const Memory=preload("res://scripts/campus/academics/character_memory.gd")
 const PRIMARY_DAMAGE:="{interrupted campus write"
@@ -59,16 +60,17 @@ func _unchanged_damage(path: String) -> void:
 
 func _saved_roster(destination: String) -> RefCounted:
 	var roster:=Population.new()
-	roster.path=destination
+	Legacy.bind(roster,destination)
 	check(not roster.load_population(),"a missing campus keeps the existing new-campus return value")
-	check(roster.people.size()==24 and FileAccess.file_exists(destination),"a genuinely missing campus still creates and persists 24 people")
-	roster.ensure_size(30)
+	check(roster.people.is_empty() and FileAccess.file_exists(destination),"a fresh campus persists an empty reserve without synthesizing people")
+	Legacy.seed(roster,30)
 	var person: Dictionary=roster.people[SPECIAL_ID]
 	person.name="Avery Saved-Identity"
 	person.biography.saved_detail="I repaired a hand-built radio with my aunt."
 	person.traits.confidence=.91;person.traits.shyness=.87
 	person.appearance.hair="Bun";person.appearance.top="375a86"
 	roster.dirty=true
+	Legacy.sync(roster)
 	check(roster.save_population()==OK and roster.save_population()==OK,"custom identities are saved in primary and backup")
 	return roster
 
@@ -84,16 +86,16 @@ func _missing_and_double_corruption() -> void:
 	_saved_roster(destination)
 	_damage(destination)
 	var fallback:=Population.new()
-	fallback.path=destination
+	Legacy.bind(fallback,destination)
 	check(not fallback.load_population(),"two damaged copies are not reported as a loaded save")
 	check(fallback.persistence_blocked and not fallback.profile_blocked,"save damage does not prohibit a session roster")
 	check(fallback.last_load_error==ERR_FILE_CORRUPT and fallback.last_save_error==ERR_FILE_CORRUPT,"damage is reported explicitly for loading and persistence")
-	check(fallback.people.size()==24 and fallback.available({},6,42).size()==6,"damaged save has a usable temporary campus")
+	check(fallback.people.size()==30 and fallback.available({},6,42).size()==6,"damaged population reuses separately persisted valid identities")
 	check(fallback.save_population()==ERR_FILE_CORRUPT,"temporary fallback cannot replace damaged save")
 	_unchanged_damage(destination)
 	fallback.people.campus_student_00.name="Session identity remains"
 	fallback.people.campus_student_00.biography.session_detail="Remember this during the current session."
-	fallback.ensure_size(31)
+	Legacy.seed(fallback,31)
 	check(not fallback.load_population(),"repeated load does not pretend unsaved fallback is durable")
 	check(fallback.people.size()==31 and fallback.profile_for("campus_student_00").name=="Session identity remains","repeated load preserves session roster and its generated IDs")
 	check(fallback.profile_for("campus_student_00").biography.session_detail=="Remember this during the current session.","repeated load retains session history")
@@ -103,7 +105,7 @@ func _missing_and_double_corruption() -> void:
 	var lone_backup:=_path("only-bad-backup")
 	_write(lone_backup+".bak",BACKUP_DAMAGE)
 	var blocked:=Population.new()
-	blocked.path=lone_backup
+	Legacy.bind(blocked,lone_backup)
 	check(not blocked.load_population() and blocked.persistence_blocked,"a damaged backup without a primary is not a missing campus")
 	check(not FileAccess.file_exists(lone_backup) and FileAccess.get_file_as_string(lone_backup+".bak")==BACKUP_DAMAGE,"fallback does not create a new primary over a damaged-only backup")
 
@@ -130,7 +132,7 @@ func _backup_recovery_preserves_evidence() -> void:
 	var valid_backup:=FileAccess.get_file_as_bytes(destination+".bak")
 	_write(destination,PRIMARY_DAMAGE)
 	var recovered:=Population.new()
-	recovered.path=destination
+	Legacy.bind(recovered,destination)
 	check(recovered.load_population() and recovered.recovered_backup,"a valid backup recovers the saved campus")
 	check(not recovered.persistence_blocked and recovered.last_save_error==OK and not recovered.dirty,"recovered roster safely repairs the primary")
 	_identity_intact(recovered,"backup restores saved person")
@@ -139,7 +141,7 @@ func _backup_recovery_preserves_evidence() -> void:
 	check(archive in recovered.diagnostics().preserved_corrupt_paths,"recovery reports where damaged evidence was retained")
 	check(FileAccess.get_file_as_bytes(destination+".bak")==valid_backup,"recovery never overwrites the valid backup with corrupt data")
 	var restarted:=Population.new()
-	restarted.path=destination
+	Legacy.bind(restarted,destination)
 	check(restarted.load_population() and not restarted.recovered_backup,"repaired primary loads normally on restart")
 	_identity_intact(restarted,"restart preserves recovered identities")
 	_write(destination+".bak",BACKUP_DAMAGE)
@@ -154,17 +156,22 @@ func _host_switching_retains_unsaved_identities() -> void:
 	var a_path:=Memory.profile_prefix(host_a)+".population.json"
 	_damage(a_path)
 	var roster:=Population.new()
-	check(roster.set_host_profile(host_a)==OK and not roster.load_population(),"damaged scoped profile selects a temporary campus")
+	check(roster.set_host_profile(host_a)==OK and not roster.load_population(),"damaged scoped profile selects an empty blocked campus")
+	check(roster.people.is_empty(),"corruption without any valid identity source creates no generic people")
+	Legacy.seed(roster,24)
 	roster.people.campus_student_00.name="Only host A knows this name"
 	roster.people.campus_student_00.biography.private_detail="Only host A heard this story."
 	roster.people.campus_student_00.appearance.hair="Bun"
-	roster.ensure_size(29)
+	Legacy.seed(roster,29)
+	Legacy.sync(roster)
 	check(roster.set_host_profile(host_b)==OK,"another host can play while host A's damaged save stays blocked")
 	roster.load_population()
+	Legacy.seed(roster,24)
 	check(not roster.profile_for("campus_student_00").biography.has("private_detail") and roster.profile_for("campus_student_00").name!="Only host A knows this name","host B does not inherit host A's temporary identity or history")
 	check(roster.diagnostics().cached_unsaved_profiles==1 and not roster.diagnostics().profile_cache_durable,"inactive session state is explicitly temporary and cached by owner")
 	roster.people.campus_student_00.biography.host_b_detail="A different host's history."
 	roster.dirty=true
+	Legacy.sync(roster)
 	check(roster.set_host_profile(host_a)==OK and not roster.load_population(),"returning to damaged host restores its unsaved roster")
 	check(roster.people.size()==29 and roster.profile_for("campus_student_00").name=="Only host A knows this name","host switch retains temporary identities and expanded roster")
 	check(roster.profile_for("campus_student_00").biography.get("private_detail","")=="Only host A heard this story." and not roster.profile_for("campus_student_00").biography.has("host_b_detail"),"host switch retains only the correct private history")
@@ -195,7 +202,9 @@ func _bounded_cache_never_evicts_unsaved_people() -> void:
 	for index in Population.MAX_CACHED_PROFILES+1:
 		check(roster.set_host_profile(hosts[index])==OK,"cache admits a bounded outgoing roster %d"%index)
 		roster.load_population()
+		Legacy.seed(roster,24)
 		roster.people.campus_student_00.name="Unsaved host %d"%index
+		Legacy.sync(roster)
 	check(roster.set_host_profile(hosts.back())==ERR_OUT_OF_MEMORY,"full cache refuses a switch instead of evicting unsaved identities")
 	check(roster.people.campus_student_00.name=="Unsaved host %d"%Population.MAX_CACHED_PROFILES and roster.profile_blocked,"failed switch retains current roster and fails closed")
 	check(roster.diagnostics().cached_unsaved_profiles==Population.MAX_CACHED_PROFILES,"unsaved roster cache has a fixed maximum")
@@ -244,7 +253,7 @@ func _schema_corruption() -> void:
 		var destination:=_path("schema-%d"%checks)
 		_write(destination,content)
 		var roster:=Population.new()
-		roster.path=destination
+		Legacy.bind(roster,destination)
 		check(not roster.load_population() and roster.persistence_blocked,"invalid metadata is corruption, without type-conversion runtime errors")
 		check(FileAccess.get_file_as_string(destination)==content,"invalid metadata remains recoverable on disk")
 

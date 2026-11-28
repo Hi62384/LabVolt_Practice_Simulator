@@ -49,30 +49,3 @@ static func assessment_intro(_personality: Dictionary,_course: String) -> String
 static func respond(_id: String,intent: String,_context: Dictionary,_variant: int) -> String:
  # Safety-critical official instructions must not wait for a model request.
  return "Power is off after a circuit fault. Check the connections before trying again." if intent=="hazard" else ""
-
-static func _guidance(context: Dictionary) -> String:
- var course:=str(context.get("course","")).to_upper()
- var phase:=str(context.get("phase",""))
- if phase=="assignment":return "For the assessment, explain your reasoning and check your work against the task instructions. I can discuss the method without giving you the answer."
- if context.get("round_mode","")=="physical":
-  var state: Dictionary=context.get("physical_state",{})
-  if state.get("fault",false):return "The station has tripped. Switch off power and inspect the setup before trying another measurement."
-  if state.get("changed",false):return "The station has a valid measured change. Keep your prediction separate until the result is revealed, then compare the two values."
-  return "Make one permitted station change, observe the live meter, and record whether you expect the RMS value to rise, fall, or stay close."
- if context.get("round_mode","")=="group":
-  var progress: Dictionary=context.get("team_progress",{})
-  if progress.is_empty():return "Use your own team's notes to compare methods. You can still submit your own answer."
-  if int(progress.get("notes",0))==0:return "Start your team's notes with a known value or assumption. Ask a teammate to check it against the question."
-  if int(progress.get("submitted",0))==0:return "Your team has a starting note. Have someone explain or challenge its next step, then submit your own answer."
-  return "Your team has an answer in. Compare the method with the question and make your own submission before time expires."
- if context.get("round_mode","")=="board":return "Write the known quantities on the board, explain the next step, and ask the class to check your reasoning."
- var topic:=str(context.get("title","")).strip_edges().left(64)
- var prefix:="For %s, "%topic if not topic.is_empty() else ""
- match course:
-  "ETY155":return prefix+"identify the supply rails, component values, and polarity before you power the circuit. Then measure one node at a time."
-  "ELM253":return prefix+"trace the complete current path with power isolated. Check the meter connection and range before taking a reading."
-  "DGS266":return prefix+"write the truth table first, then simplify the logic expression and test each input combination."
-  "MTH147","MTH255":return prefix+"write the known values and the required result, choose the relevant formula, and check units after calculating."
-  _:
-   if phase=="lesson":return prefix+"compare your next step with the example on the board and ask about the point where they differ."
- return "Tell me which course and step you are working on so I can give a more specific hint."

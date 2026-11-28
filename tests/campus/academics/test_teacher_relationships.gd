@@ -32,7 +32,7 @@ func _initialize() -> void:
 	for hour in range(1,49):migrated.remember("jeff",first,"conversation",100000+hour*3600)
 	ok=ok and migrated.relationship("jeff",first).disruptions==0 and migrated.relationship("jeff",first).positive==1
 	var text:=Dialogue.respond("mr_stone","help",{"relationship":restored.relationship("mr_stone",first)},0)
-	ok=ok and text.contains("appreciate") and not str(restored.relationships).contains("private contents")
+	ok=ok and text.is_empty() and restored.relationship("mr_stone",first).positive==4 and not str(restored.relationships).contains("private contents")
 	var backup_seed=Brain.new()
 	backup_seed.remember("bill_nye",first,"help",300000)
 	ok=ok and backup_seed.save_memory()==OK

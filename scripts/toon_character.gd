@@ -79,7 +79,12 @@ static func form(parent: Node3D,rows: Array,mat: Material,label: String) -> Mesh
 				var slope: float=((after.y-before.y)*radial.x*radial.x+(after.z-before.z)*radial.z*radial.z)/maxf(after.x-before.x,.001)
 				var normal := Vector3(radial.x,-slope,radial.z).normalized()
 				if radial.length_squared()<.01:normal=Vector3.DOWN if row_index==0 else Vector3.UP
-				st.set_normal(normal);st.add_vertex(v)
+				# The campus graphics settings enable anisotropic material filtering.
+				# An explicit UV stream is required even for plain-color materials:
+				# missing UV attributes render these surfaces black in compatibility.
+				var u: float=(float(i)+(1.0 if index in [2,3] else 0.0))/32.0
+				var v_coord: float=inverse_lerp(rows[0].x,rows[-1].x,v.y)
+				st.set_uv(Vector2(u,v_coord));st.set_normal(normal);st.add_vertex(v)
 	var node := MeshInstance3D.new();node.name=label;node.mesh=st.commit();node.material_override=mat;node.set_meta("toon_part",label);parent.add_child(node);return node
 static func _torso_width_at(y: float,c: Dictionary) -> float:
 	# Keep the waist and shoulder controls independent while blending the ribcage between them.

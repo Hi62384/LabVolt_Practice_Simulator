@@ -48,7 +48,7 @@ static func for_peer(faculty: Node, peer: int, room: String, student: String, cl
 		return {}
 	var activity: Dictionary = faculty._ai_activity(room)
 	if student.is_empty():
-		if str(activity.get("teacher", "")) != selected:
+		if str(activity.get("teacher", "")) != selected or (not class_id.is_empty() and str(activity.get("id", "")) != class_id):
 			return {}
 		var origin: Vector3 = faculty._teacher_position(room)
 		var position: Vector3 = game.lecture_classes._position(peer)
@@ -67,7 +67,7 @@ static func _capture_selected(faculty: Node, room: String, student: String, clas
 	var private_access := can_inspect_private(faculty)
 	if student.is_empty():
 		var teacher_id := str(activity.get("teacher", ""))
-		if not Roster.has(teacher_id) or (not selected.is_empty() and selected != teacher_id):
+		if not Roster.has(teacher_id) or (not selected.is_empty() and selected != teacher_id) or (not class_id.is_empty() and str(activity.get("id", "")) != class_id):
 			return {}
 		if private_access:
 			person = Profiles.teacher(teacher_id)
@@ -151,6 +151,9 @@ static func selected_diagnostics(traces: Array, character: String, speaker: Stri
 	if trace.is_empty():
 		return {"available": false}
 	var result := {"available": true, "source": str(trace.get("source", "")), "fallback_reason": str(trace.get("fallback_reason", "")), "delivered": bool(trace.get("delivered", false)), "memory_recorded": trace.get("memory_recorded", null), "duration_ms": trace.get("duration_ms", null), "retrieval_ms": trace.get("retrieval_ms", null), "request_count": trace.get("request_count", null), "usage": trace.get("usage", {}).duplicate(true), "strategy": str(trace.get("strategy", "")), "assessment_redacted": phase == "assignment"}
+	result.timing = {}
+	for field in ["input_kind", "host_to_text_ms", "queue_wait_ms", "transcription_ms", "host_to_audio_ready_ms", "host_to_playback_started_ms"]:
+		if trace.get("timing", {}).has(field):result.timing[field] = trace.timing[field]
 	if phase == "assignment":
 		return result
 	result.reason = str(trace.get("reason", ""))

@@ -16,6 +16,12 @@ func run() -> void:
 	check(float(bro.traits.slang)>.8 and float(bro.traits.arrogance)>.5,"Bro intended identity")
 	check(not bro.biography.has("bench_press_pr"),"fresh Bro must not receive hardcoded bench record")
 	check(bro.dossier_status=="needs_expansion","legacy data must not masquerade as AI completion")
+	var public_view:={"id":"mr_bro","name":"Public classmate","role":"student","identity_scope":"public","traits":{"energy":.6}}
+	check(Store.project(public_view)==public_view,"remote public view cannot acquire same-ID private teacher dossier")
+	check(Dossier.project(public_view,Store.get_dossier("mr_bro"))==public_view,"direct projection respects public identity scope")
+	public_view.id="campus_student_public_only"
+	check(Store.ensure(public_view).is_empty() and Store.project(public_view)==public_view and Store.get_dossier(public_view.id).is_empty(),"public snapshots do not create incomplete private dossiers")
+	check(not Store.queue(public_view) and not Store.jobs.has(public_view.id),"public snapshots cannot enqueue private character generation")
 	check(Profiles.teacher("chad").traits.empathy<.3,"Chad preserves dismissiveness")
 	check(Profiles.teacher("stanley").traits.teaching_effort<.15,"Stanley preserves disengagement")
 	var person:=bro.duplicate(true)

@@ -124,22 +124,24 @@ func run() -> void:
  var members: Array=[]
  for i in 8:members.append("student_%d"%i)
  assert(eight.begin("group",members))
- var a:=0;var b:=0
+ # The existing classroom groups seven or more people into four teams.
+ # Check all teams and use an actual same-team voter for the privacy probe.
+ var team_counts:={}
  for member in members:
-  if eight.view(member).group=="A":a+=1
-  else:b+=1
- assert(a==4 and b==4)
+  var team: String=eight.view(member).group
+  team_counts[team]=int(team_counts.get(team,0))+1
+ assert(team_counts=={"A":2,"B":2,"C":2,"D":2})
  assert(eight.contribute("student_0","A team note")=="accepted")
- assert(eight.vote("student_2",true)=="accepted")
+ assert(eight.vote("student_4",true)=="accepted")
  assert(eight.vote("student_0",false)=="accepted")
- assert(eight.view("student_2").agree==1 and eight.view("student_2").disagree==1)
+ assert(eight.view("student_4").agree==1 and eight.view("student_4").disagree==1)
  assert(eight.view("student_1").proposal.is_empty() and eight.view("student_1").agree==0)
- assert(eight.vote("student_0",true)=="accepted" and eight.view("student_2").agree==2)
- assert(eight.view("student_2").entries.size()==1)
+ assert(eight.vote("student_0",true)=="accepted" and eight.view("student_4").agree==2)
+ assert(eight.view("student_4").entries.size()==1)
  assert(eight.view("student_1").entries.is_empty())
  assert(eight.view("observer").entries.is_empty())
  eight.finish()
- assert(eight.vote("student_2",false)=="denied")
+ assert(eight.vote("student_4",false)=="denied")
  assert(service.start("room",170.0,[],"group"))
  id=service.rooms.room.round.event_id
  assert(not service.view(1,"room",171.0).has("group_result"))
@@ -161,9 +163,9 @@ func run() -> void:
  var reactions: Array[String]=[]
  service.board_progress.connect(func(_room: String,_teacher: String,comment: String):reactions.append(comment))
  service.board_stroke(called_peer,"room",225.0)
- assert(reactions.size()==1 and reactions[0].contains("first step"))
+ assert(reactions.size()==1 and reactions[0].contains("first visible stroke"))
  for i in 11:service.board_stroke(called_peer,"room",232.0)
- assert(reactions.size()==2 and reactions[1].contains("Talk us through"))
+ assert(reactions.size()==2 and reactions[1].contains("several visible strokes"))
  game.lecture_classes.classes.room.phase="assignment"
  service.tick(233.0)
  assert(not service.call_disruptive_student(called_peer,"room","mr_stone",233.0))

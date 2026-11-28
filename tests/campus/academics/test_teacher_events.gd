@@ -35,7 +35,7 @@ func run():
  assert(Dialogue.message_intent("Hi, Mr Stone")=="greeting")
  assert(Dialogue.message_intent("Which topic is next?")=="question")
  assert(Dialogue.message_intent("This is a shipment")=="chat")
- assert(Dialogue.respond("mr_stone","help",{},0)!=Dialogue.respond("mr_stone","apology",{},0))
+ assert(Dialogue.respond("mr_stone","help",{},0).is_empty() and Dialogue.respond("mr_stone","apology",{},0).is_empty(),"Ordinary event intents require the character pipeline, not scripted speech")
  var game=load("res://scenes/Main.tscn").instantiate();root.add_child(game)
  for i in 4:await process_frame
  game.front.singleplayer_page();game.front._start_play(true)

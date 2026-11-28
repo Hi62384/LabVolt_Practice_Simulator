@@ -70,6 +70,9 @@ func run() -> void:
 	var file:=FileAccess.open(legacy.memory_path,FileAccess.READ)
 	var old: Dictionary=JSON.parse_string(file.get_as_text());file.close()
 	old.version=6;old.relationships["mr_stone:legacy-student"].reputation.reliability=0.;old.relationships["mr_stone:legacy-student"].reputation.lab_safety=0.
+	# Version 6 never contained the version 8 life-record field. Keep this a
+	# real historical schema instead of merely relabelling a current snapshot.
+	old.erase("biography_records")
 	file=FileAccess.open(legacy.memory_path,FileAccess.WRITE);file.store_string(JSON.stringify(old));file.close()
 	var migrated:=Brain.new();migrated.memory_path=legacy.memory_path
 	check(migrated.load_memory() and migrated.memory_dirty,"Previous reputation schema is migrated and marked for durable upgrade")
@@ -86,6 +89,7 @@ func run() -> void:
 	check(game.front.in_game and game.faculty._sync_character_profile(),"Real Singleplayer opens an isolated active host profile")
 	var classes: Node=game.lecture_classes
 	var students: Node=classes.classroom_students
+	preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd").seed(students.population,24)
 	game.player.global_position=classes.signs.ac_lab.desk
 	check(classes._start("ac_lab",{"kind":"lab","course_id":"ELM253","week":1,"difficulty":0})=="","A real AC class opens")
 	var activity: Dictionary=classes.classes.ac_lab

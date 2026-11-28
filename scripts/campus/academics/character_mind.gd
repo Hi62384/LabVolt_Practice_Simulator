@@ -130,14 +130,19 @@ func observe(person: Dictionary,relationship: Dictionary,question: String,now: i
 	var compulsory := bool(semantics.get("official_communication",false)) or event=="hazard"
 	var proposed: Dictionary = semantics.get("behavior",{})
 	var mode := str(proposed.get("mode",""))
-	if old_mode=="permanent" and not compulsory:
+	var reconsider := old_mode=="permanent" and not compulsory and not hostile and mode=="reengage" and bool(semantics.get("reconsideration_allowed",false))
+	if reconsider:
+		reaction.disengagement="";reaction.closed=false;reaction.quiet=false
+		reaction.strategy="reconsider_relationship";reaction.pose="think"
+		reaction.reason="The character chooses to reconsider after new, verified relationship experiences. The old conflict remains part of their history."
+	elif old_mode=="permanent" and not compulsory:
 		reaction.disengagement="permanent";reaction.closed=true;reaction.quiet=true
 		reaction.strategy="ignore";reaction.pose="turn_away"
 		reaction.reason="A persistent relationship decision to stop optional conversation remains in force."
 	elif mode=="permanent_silence" and not compulsory:
 		var social: Dictionary = relationship.get("dimensions",{})
 		var grounded := repeated>=3 or float(social.get("resentment",0.0))>=.65
-		if grounded and float(traits.get("grudge_holding",.5))>=.55:
+		if grounded and float(traits.get("grudges",.5))>=.55:
 			reaction.disengagement="permanent";reaction.closed=true;reaction.quiet=true
 			reaction.strategy="ignore";reaction.pose="turn_away"
 			reaction.reason=str(proposed.get("intention","End optional conversation after persistent conflict.")).left(300)
@@ -163,7 +168,10 @@ func observe(person: Dictionary,relationship: Dictionary,question: String,now: i
 	if not result.has("quiet"):result.quiet=false
 	result.hostile_count=repeated
 	result.turns=int(previous.get("turns",0))+1
-	disengagements[pair]={"strategy":result.get("strategy","respond"),"disengagement":"permanent" if old_mode=="permanent" else result.get("disengagement",""),"quiet":result.quiet,"hostile_count":repeated,"turns":result.turns,"event":event}
+	result.reopen_requested=reconsider
+	disengagements[pair]={"strategy":result.get("strategy","respond"),"disengagement":"permanent" if old_mode=="permanent" else result.get("disengagement",""),"quiet":result.quiet,"hostile_count":repeated,"turns":result.turns,"event":event,"event_id":event_id,"decision_committed":false}
+	if old_mode=="permanent":disengagements[pair].since=int(previous.get("since",0))
+	elif result.get("disengagement","")=="permanent":disengagements[pair].since=int(Time.get_unix_time_from_system())
 	if not event_id.is_empty():
 		if _event_cache.size()>=MAX_CACHED_EVENTS:_event_cache.erase(_event_cache.keys()[0])
 		_event_cache[receipt]=result.duplicate(true)
@@ -175,6 +183,34 @@ static func _fallback(_person: Dictionary,_event: String,_reaction: Dictionary,_
 
 func disengagement(person_id: String, listener: String) -> Dictionary:
 	return disengagements.get(person_id+":"+listener,{}).duplicate(true)
+
+func reconsideration_evidence(person: Dictionary,listener: String,relationship: Dictionary) -> Array:
+	var boundary:=disengagement(str(person.id),listener)
+	if boundary.get("disengagement","")!="permanent" or int(boundary.get("since",0))<=0:return []
+	if float(person.traits.get("forgiveness",.35))<.55:return []
+	var evidence: Array=[]
+	var seen: Dictionary={}
+	for episode in relationship.get("episodes",[]):
+		if episode.get("source","")!="host_activity" or not episode.get("activity",{}).get("correct",false) or int(episode.get("at",0))<=int(boundary.since):continue
+		var id:=str(episode.get("event_id",""))
+		if id.is_empty() or seen.has(id):continue
+		seen[id]=true
+		evidence.append({"event_id":id,"source":"verified_host_activity","description":episode.get("description",""),"at":episode.at})
+	# Eligibility only makes a deliberate model decision possible. Neither time,
+	# an apology nor the verified successes themselves clear the social boundary.
+	return evidence.slice(-4) if evidence.size()>=3 else []
+
+func commit_delivery(person: Dictionary,listener: String,turn: Dictionary,spoken: bool) -> void:
+	var pair:=str(person.id)+":"+listener
+	var current: Dictionary=disengagements.get(pair,{})
+	if current.is_empty() or str(current.get("event_id",""))!=str(turn.get("event_id","")) or current.get("decision_committed",false):return
+	if spoken and turn.get("reopen_requested",false):
+		current.disengagement="";current.quiet=false;current.erase("since")
+		current.strategy="reconsider_relationship"
+	elif str(turn.get("pending_silence","")) in ["silence","disengage"]:
+		current.quiet=true;current.strategy="ignore"
+		if turn.pending_silence=="disengage" and current.get("disengagement","")!="permanent":current.disengagement="withdraw"
+	current.decision_committed=true
 
 static func intent(question: String) -> String:
 	var text:=question.to_lower().replace("’","'").strip_edges().rstrip("?!.,")
@@ -193,7 +229,7 @@ static func intent(question: String) -> String:
 	return "chat"
 
 static func dialogue_rules() -> String:
-	return " Return JSON: {speech, interpretation, behavior, delivery, biography_facts, memories, belief_updates}. speech is only audible words, never action narration; empty for intentional silence. interpretation describes the speaker's meaning. behavior={intention,mode,action}, mode engage/silence/disengage/permanent_silence; action is a supported proposal, not performed. delivery={emotion,knowledge_mode}; emotion follows the current affect and the interpreted incident, retaining this person's vocal identity. biography_facts is normally []; new fictional personal assertions use {topic,detail,value,kind,chronology,links}, where detail is a verbatim span of speech and kind historical/current/preference/opinion. Use expandable subjects, related record IDs and time context. Reuse established values across different wording. Historical events stay fixed; a changed current value needs revision:update and a spoken reason; a genuine correction needs revision:correction and a spoken explanation. Preserve earlier versions. memories is at most four {subject,quote,domain} exact quotes from the current speaker; these are reports, never verified facts. belief_updates is normally []; revisions use existing {id,position,reason,evidence,conviction_change} under the supplied revision policy. Evidence must be a new verbatim input quote and position must occur in speech. Never invent player conduct, grades, measurements, completed actions, assessment answers or campus events. Saved beliefs override older examples. Proposed personal records must cover new biographical assertions actually spoken, including numbers."
+	return " Return JSON: {speech, interpretation, behavior, delivery, nonverbal, biography_facts, memories, belief_updates}. speech is only audible words, never action narration; empty for intentional silence. interpretation describes the speaker's meaning. behavior={intention,mode,action}, mode engage/silence/disengage/permanent_silence; reengage is possible only when host reconsideration_evidence is supplied, and is your choice. action is a supported proposal, not performed. nonverbal is up to three of nod/wave/shrug/turn_away/think/defensive; the host performs supported behavior separately. delivery={emotion,knowledge_mode}; emotion follows current affect and the interpreted incident, retaining vocal identity. biography_facts is normally []; new fictional assertions use {topic,detail,value,kind,chronology,links,entities,aliases}, where detail is a verbatim span of speech and kind historical/current/preference/opinion. Canonical value must agree with the actual spoken detail. Use expandable subjects, related record IDs and time context. Reuse established values across different wording. Historical events stay fixed; a changed current value needs revision:update and a spoken reason; a correction needs revision:correction and a spoken explanation. Preserve earlier versions. memories is at most four {subject,quote,domain} exact quotes from the current speaker; these are reports, never verified facts. belief_updates is normally []; revisions use existing {id,position,reason,evidence,conviction_change} under the supplied policy. Evidence must be a new verbatim input quote and position must occur in speech. Never invent player conduct, grades, measurements, completed actions, assessment answers or campus events. Saved beliefs override older examples. Proposals must cover new biographical assertions actually spoken, including numbers."
 
 static func decode_dialogue(text: String) -> Dictionary:
 	var clean:=text.strip_edges()

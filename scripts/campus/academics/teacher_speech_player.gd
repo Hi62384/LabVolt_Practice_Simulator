@@ -1,5 +1,6 @@
 extends Node
 ## Consumes host-ordered teacher speech events. Only a real supplied stream plays.
+signal playback_started(room: String, serial: int, at_ms: int)
 const MAX_QUEUED:=6
 const Speech=preload("res://scripts/campus/academics/character_speech.gd")
 const Face=preload("res://scripts/campus/academics/character_face.gd")
@@ -122,6 +123,7 @@ func _start(room: String,item: Dictionary) -> void:
 	if subtitles.has(room):subtitles[room].until=presentations[room].until
 	player.finished.connect(func():_finished(room,int(item.serial)))
 	player.play()
+	playback_started.emit(room, int(item.serial), Time.get_ticks_msec())
 
 func deliver_stream(room: String,serial: int,stream: AudioStreamWAV) -> bool:
 	if not speech_enabled or not valid_stream(stream) or serial!=int(last_serial.get(room,0)) or not awaiting.has(room):return false

@@ -19,6 +19,7 @@ func run() -> void:
 	game.client_preferences.values.teacher_speech=false
 	var classes: Node=game.lecture_classes
 	var students: Node=classes.classroom_students
+	preload("res://tests/campus/academics/dossier/legacy_population_fixture.gd").seed(students.population,24)
 	var room:="ety155_lecture"
 	game.player.global_position=classes.signs[room].desk
 	check(classes._start(room,{"kind":"lecture","course_id":"ETY155","week":1,"difficulty":1})=="","start lecture with actual furniture collision")
