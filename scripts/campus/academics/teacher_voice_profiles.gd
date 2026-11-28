@@ -294,7 +294,7 @@ static func capacity(person: Dictionary={}) -> Dictionary:
 	if _load()!=OK:return {"available":false,"remaining":0,"error":"Voice storage is unavailable."}
 	var known:=0
 	for item: Dictionary in _state.allocations.values():
-		if item.get("type")=="prompt":known+=1
+		if item.get("type")=="prompt" and not item.get("foreign_account",false):known+=1
 	var reserved:=0
 	for id: String in Roster.PEOPLE:
 		# An abandoned allocation still consumes quota, but doesn't satisfy a
@@ -411,6 +411,54 @@ static func peek(person: Dictionary) -> Dictionary:
 	if person.get("identity_scope","")=="public" or legacy_conflict(person):return {}
 	var key:=_key(id,scope_for(person))
 	return _state.identities[key].duplicate(true) if _state.identities.has(key) else Design.draft(person)
+
+static func portable_profile(person: Dictionary) -> Dictionary:
+	# Only the permanent fictional voice travels. Auditions, quotas, request
+	# journals and account availability remain on the device that owns them.
+	var profile:=peek(person)
+	if profile.is_empty():return {}
+	var result: Dictionary={}
+	for key: String in ["character_id","provider","voice_type","permanent_voice_id","compatible_model_families","perceived_age","vocal_presentation","pitch_range","resonance","timbre","texture","accent","normal_pace","normal_projection","articulation","mannerisms","emotional_tendencies","profile_version","approval_status","voice_design_status","allocation","design_description","preferred_model","voice_scope"]:
+		if profile.has(key):result[key]=profile[key]
+	result.audition_status="not_auditioned_on_this_device"
+	return result.duplicate(true)
+
+static func accept_portable_profile(person: Dictionary,record: Dictionary) -> Error:
+	var id:=str(person.get("id",""))
+	if id.is_empty() or id.length()>128 or Roster.has(id) or record.size()>32 or JSON.stringify(record).to_utf8_buffer().size()>16000:return ERR_INVALID_DATA
+	if _load()!=OK:return last_error
+	# Apply a field allowlist, even to a host-validated public character record.
+	var incoming: Dictionary={}
+	for field: String in ["character_id","provider","voice_type","permanent_voice_id","compatible_model_families","perceived_age","vocal_presentation","pitch_range","resonance","timbre","texture","accent","normal_pace","normal_projection","articulation","mannerisms","emotional_tendencies","profile_version","approval_status","voice_design_status","allocation","design_description","preferred_model"]:
+		if record.has(field):incoming[field]=record[field]
+	incoming.voice_scope=scope_for(person)
+	incoming.audition_status="not_auditioned_on_this_device"
+	if not _valid_identity(incoming,id) or incoming.get("approval_status") not in ["provisional_preset","approved"]:return ERR_INVALID_DATA
+	var preferred:=str(incoming.get("preferred_model",""))
+	var voice: Variant=str(incoming.permanent_voice_id) if incoming.voice_type=="preset" else {"id":str(incoming.permanent_voice_id)}
+	if incoming.voice_type=="preset" and voice not in Models.LIVE_VOICES+Models.speech_voices("gpt-4o-mini-tts"):return ERR_INVALID_DATA
+	if not preferred.is_empty():
+		# A retired model is still historical identity data. Preserve that pin;
+		# resolve() reports its lifecycle without silently changing the speaker.
+		if not Models.supports(preferred,"tts"):return ERR_INVALID_DATA
+		var capabilities:=Models.voice_capabilities(preferred)
+		if incoming.voice_type=="preset" and voice not in capabilities.presets:return ERR_INVALID_DATA
+		if incoming.voice_type=="prompt" and not capabilities.prompt_voices:return ERR_INVALID_DATA
+		if incoming.voice_type=="audio_sample" and not capabilities.recording_voices:return ERR_INVALID_DATA
+	var key:=_key(id,scope_for(person))
+	if _state.identities.has(key):
+		var current: Dictionary=_state.identities[key]
+		return OK if current.get("permanent_voice_id")==incoming.permanent_voice_id and current.get("voice_type")==incoming.voice_type else ERR_ALREADY_EXISTS
+	if _state.identities.size()>=MAX_IDENTITIES:return ERR_OUT_OF_MEMORY
+	var previous:=_state.duplicate(true)
+	if incoming.voice_type!="preset":
+		var allocation: Dictionary=_state.allocations.get(incoming.permanent_voice_id,{})
+		if not allocation.is_empty() and str(allocation.get("storage_key",allocation.get("character_id","")))!=key:return ERR_ALREADY_EXISTS
+		if allocation.is_empty():
+			_state.allocations[incoming.permanent_voice_id]={"character_id":id,"storage_key":key,"type":incoming.voice_type,"foreign_account":true}
+		incoming.account_availability="unverified_portable_voice"
+	_state.identities[key]=incoming
+	return _commit(previous)
 
 static func _parse(text: String) -> Variant:
 	var parser:=JSON.new()

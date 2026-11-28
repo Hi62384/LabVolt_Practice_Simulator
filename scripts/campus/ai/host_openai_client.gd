@@ -157,7 +157,7 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	if not host_allowed() or (key.is_empty() and not configured()) or (not key.is_empty() and not _valid_key(key)):
 		return ERR_INVALID_PARAMETER
 	var choices: Dictionary=draft.get("modalities",{})
-	for purpose in ["image","image_generation","stt","tts","live"]:
+	for purpose in ["image","image_generation","stt","tts"]:
 		var id:=str(choices.get(purpose,""))
 		if not id.is_empty() and not Models.available_for(id,purpose):
 			var previous_selection: String={"image":image_model,"image_generation":image_generation_model,"stt":stt_model,"tts":tts_model,"live":live_model}.get(purpose,"")
@@ -185,7 +185,7 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	stt_enabled=bool(draft.get("stt_enabled",stt_enabled)) and not stt_model.is_empty()
 	tts_enabled=bool(draft.get("tts_enabled",tts_enabled)) and not tts_model.is_empty()
 	live_model=str(choices.get("live",live_model))
-	live_enabled=bool(draft.get("live_enabled",live_enabled)) and not live_model.is_empty()
+	live_enabled=false # Retired setting cannot enable continuous microphone sessions.
 	var error:=configure(str(draft.model),int(draft.output),str(draft.get("effort","")),true)
 	if error!=OK:
 		image_model=previous[0];stt_model=previous[1];tts_model=previous[2];stt_enabled=previous[3];tts_enabled=previous[4]
@@ -396,32 +396,10 @@ func create_prompt_voice(voice_name: String,prompt: String,script_hint: String="
 	# already have allocated a voice and another POST would consume more capacity.
 	return await _call(HTTPClient.METHOD_POST,"/audio/voices",payload,false,draft,90.0,"voice_creation")
 
-func create_live_conversation(context: Dictionary,voice: Variant,delivery: Dictionary={}) -> Dictionary:
-	if not live_enabled or not enabled or not Models.available_for(live_model,"live"):
-		return {"ok":false,"error":"Enable GPT-Live conversations in the host's OpenAI settings.","retryable":false}
-	var choice:=str(delivery.get("model",live_model))
-	if choice.is_empty():choice=live_model
-	if not Models.available_for(choice,"live"):
-		return {"ok":false,"error":"This character's approved model does not support Live conversations. Explicitly choose a compatible model in Character Voices.","retryable":false}
-	var access:=_voice_access({},true)
-	if not access.ok:return access
-	var count:=0
-	for item: Node in _voice_requests.values():
-		if is_instance_valid(item) and not item._render_only and item.state not in ["closing","closed"]:count+=1
-	if count>=3:return {"ok":false,"error":"All active conversation slots are occupied.","retryable":true,"retry_after_ms":1000}
-	var session:=VoiceSession.new()
-	add_child(session)
-	var id:=str(delivery.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
-	var background:=str(context.get("summary",""))
-	var instructions:=str(delivery.get("instructions",""))+"\nCharacter and game context: "+background
-	var result:=session.begin(choice,voice,str(delivery.get("voice_type","preset")),str(access.key),instructions,context.get("history",[]),"",_test_voice_base,id,int(context.get("sample_rate",24000)))
-	if not result.ok:session.queue_free();return result
-	_voice_requests[id]=session
-	session.closed.connect(func(summary: Dictionary):
-		_voice_requests.erase(id)
-		_record_request(str(summary.model),"live",{"usage":summary.usage,"model":summary.model},bool(summary.usage_confirmed),int(summary.elapsed_ms),{}, {},float(summary.usage.get("seconds",0)))
-		session.queue_free())
-	return {"ok":true,"session":session,"request_id":id}
+func create_live_conversation(_context: Dictionary,_voice: Variant,_delivery: Dictionary={}) -> Dictionary:
+	# Old scene/scripts cannot reactivate microphone streaming by toggling a
+	# stale preference. GPT-Live remains supported through speak() exclusively.
+	return {"ok":false,"error":"Native Live conversations were retired. Use recorded speech recognition and the normal character dialogue pipeline.","code":"native_live_retired","retryable":false}
 
 func cancel_speech_request(id: String) -> void:
 	if id.is_empty():return
@@ -460,7 +438,7 @@ func voice_diagnostics() -> Dictionary:
 		if is_instance_valid(session):active.append(session.diagnostics())
 	var queued:={}
 	for lane in _lane_waiting:queued[lane]=_lane_waiting[lane].size()
-	return {"active":active,"request_lanes":_lane_active.duplicate(),"queued":queued,"tts_model":tts_model,"stt_model":stt_model,"live_model":live_model,"lifecycle":Models.lifecycle(tts_model)}
+	return {"active":active,"request_lanes":_lane_active.duplicate(),"queued":queued,"tts_model":tts_model,"stt_model":stt_model,"speech_only":true,"microphone_streaming":false,"lifecycle":Models.lifecycle(tts_model)}
 
 func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	var choice:=str(draft.get("modalities",{}).get("image_generation",image_generation_model))
@@ -670,7 +648,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	var response: Dictionary=raw if not raw.ok else _read_response(HTTPRequest.RESULT_SUCCESS,int(raw.code),raw.body,path,request_model)
 	if speech and path=="/chat/completions" and response.get("ok",false):
 		if not VoiceSession.transcript_matches(str(draft.get("expected_spoken_text","")),str(response.get("transcript",""))):
-			response.erase("stream");response.ok=false;response.error="Generated speech did not match the validated dialogue. No mismatched audio was played.";response.code="speech_transcript_mismatch"
+			response.erase("stream");response.ok=false;response.error="Generated speech did not match the validated dialogue. No mismatched audio was played.";response.code="speech_transcript_mismatch";response.retryable=true
 		else:response.transcript_verified=true;response.text=str(draft.expected_spoken_text)
 	if raw.ok:
 		response.status=int(raw.code)
@@ -879,7 +857,7 @@ func _load() -> void:
 	stt_enabled=bool(config.get_value("openai","stt_enabled",enabled))
 	tts_enabled=bool(config.get_value("openai","tts_enabled",false))
 	live_model=str(config.get_value("openai","live_model","gpt-live-1.1"))
-	live_enabled=bool(config.get_value("openai","live_enabled",false))
+	live_enabled=false # Migrate the retired native-conversation toggle off.
 	usage_profile=_clean_profile(str(config.get_value("openai","usage_profile","")))
 	reasoning_mode=str(config.get_value("openai","reasoning_mode","standard"))
 	if not _mode_allowed(model,reasoning_mode):reasoning_mode="standard"
@@ -907,8 +885,6 @@ func _save() -> Error:
 	config.set_value("openai","tts_model",tts_model)
 	config.set_value("openai","stt_enabled",stt_enabled)
 	config.set_value("openai","tts_enabled",tts_enabled)
-	config.set_value("openai","live_model",live_model)
-	config.set_value("openai","live_enabled",live_enabled)
 	config.set_value("openai","usage_profile",usage_profile)
 	config.set_value("openai","reasoning_mode",reasoning_mode)
 	config.set_value("openai","image_reasoning_mode",image_reasoning_mode)

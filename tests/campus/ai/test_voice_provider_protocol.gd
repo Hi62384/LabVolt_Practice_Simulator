@@ -21,7 +21,7 @@ func _run() -> void:
 	client=Client.new();client._environment_key_disconnected=true;root.add_child(client)
 	client.set_session_key("sk-fixture-12345678901234567890")
 	client.configure("gpt-5.4-mini",64,"",true)
-	client.tts_enabled=true;client.stt_enabled=true;client.live_enabled=true
+	client.tts_enabled=true;client.stt_enabled=true;client.live_enabled=false
 	var port:=OS.get_environment("LABVOLT_VOICE_FIXTURE_PORT")
 	if port.is_empty():port="28823"
 	check(client.set_local_test_endpoint("http://127.0.0.1:"+port+"/v1"),"loopback HTTP fixture accepted")
@@ -64,10 +64,12 @@ func _run() -> void:
 	var live: Dictionary=await client.speak("Keep the same adult voice.",{"tts_enabled":true,"modalities":{"tts":"gpt-live-1.1"}},{"id":"voice_fixture"},{"voice_type":"prompt"})
 	check(live.get("ok",false) and live.get("usage_confirmed",false),"Live renders verified prompt voice and finalizes usage")
 	check(float(live.get("measurement",{}).get("usage",{}).get("seconds",0))==4.,"cumulative Live usage is counted once")
-	var created: Dictionary=client.create_live_conversation({"summary":"You are an original adult circuit teacher.","history":[]},"ash")
-	check(created.get("ok",false),"guarded Live client delegation session starts")
-	if created.get("ok",false):await _test_live_conversation(created.session)
-	check(not client.create_live_conversation({},"ash",{"model":"gpt-realtime-2.1-mini"}).get("ok",true),"Live never substitutes a character's approved non-Live model")
+	var retired: Dictionary=client.create_live_conversation({},"ash")
+	check(not retired.get("ok",true) and retired.get("code")=="native_live_retired","native Live conversation cannot be reactivated")
+	var speech_only:=Session.new()
+	check(not speech_only.begin("gpt-live-1.1","ash","preset","sk-fixture-12345678901234567890","",[],"").get("ok",true),"transport refuses sessions without a supplied speech line")
+	check(not speech_only.append_audio(PackedByteArray([1,2])),"speech transport never accepts player microphone audio")
+	speech_only.free()
 	var measured:=Usage.usage_from({"usage":{"input_tokens":100,"output_tokens":40,"input_token_details":{"text_tokens":100,"audio_tokens":0,"cached_tokens":0},"output_token_details":{"text_tokens":10,"audio_tokens":30}}})
 	check(measured.get("audio_output")==30 and measured.get("text_output")==10,"Realtime audio usage separated from text tokens")
 	check(Pricing.audio_cost(Pricing.pricing("gpt-realtime-2.1-mini","tts"),measured)==684000,"Realtime modality prices computed from actual token split")
@@ -91,31 +93,3 @@ func _run_text() -> void:
 
 func _run_key_switch_speech(index: int) -> void:
 	credential_results.append(await client.speak("Concurrent credential switch "+str(index)+".",{},"ash",{"request_id":"key_switch_"+str(index)}))
-
-func _test_live_conversation(session: Node) -> void:
-	var audio: Array=[]
-	var delegated: Array=[]
-	var terminal: Array=[]
-	var validated_line:="Voltage is the difference in electric potential. "+"电压是两点之间的电势差。".repeat(45)
-	session.audio_received.connect(func(pcm: PackedByteArray):audio.append(pcm))
-	session.closed.connect(func(summary: Dictionary):terminal.append(summary))
-	session.delegation_requested.connect(func(id: String,history: Array):
-		delegated.append(id)
-		var words:=""
-		for item in history:
-			if item.get("role")=="user":words+=str(item.get("text",""))
-		check(words=="What is voltage?","delegation uses accumulated transcript, not nonexistent utterance field")
-		check(session.apply_delivery("Keep the same adult speaker and shape each phrase to the current emotion. ".repeat(24),id),"complete expressive delivery is refreshed through bounded Live instruction appends")
-		check(session.submit_delegation(id,validated_line),"long multilingual authoritative dialogue is staged within each append token cap"))
-	while session.state!="ready":await process_frame
-	await create_timer(.1).timeout
-	check(audio.is_empty(),"spontaneous independent model speech stays inaudible")
-	var pcm:=PackedByteArray();pcm.resize(4800)
-	session.append_audio(pcm)
-	while audio.is_empty():await process_frame
-	check(delegated.size()==1,"duplicate delegation event executes once")
-	session.interrupt()
-	check(not session.submit_delegation("delegation_fixture","Stale response."),"late delegated result rejected after interruption")
-	session.close_session()
-	while terminal.is_empty():await process_frame
-	check(terminal[0].usage_confirmed,"Live graceful close observed")

@@ -9,7 +9,7 @@ const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
 const Models=preload("res://scripts/campus/ai/openai_models.gd")
 const Toon=preload("res://scripts/toon_character.gd")
 const Dossiers=preload("res://scripts/campus/academics/character_dossier_store.gd")
-const BASE_AUDITION_MODELS:=["gpt-live-1.1","gpt-live-1","gpt-realtime-2.1-mini","gpt-realtime-2.1","gpt-audio-1.5"]
+const BASE_AUDITION_MODELS:=["gpt-live-1.1","gpt-realtime-2.1-mini","gpt-realtime-2.1","gpt-audio-1.5","gpt-4o-mini-tts","tts-1","tts-1-hd","gpt-live-1"]
 const EMOTIONS:=["normal","happy","excited","amused","irritated","angry","extremely angry","sad","tired","disappointed","dismissive","embarrassed","bored","confused"]
 var service: Node
 var draft: Dictionary={}
@@ -17,6 +17,10 @@ var people: Dictionary={}
 var selected_id:="mr_bro"
 var character_list: ItemList
 var search: LineEdit
+var roster_filter: OptionButton
+var advanced_toggle: CheckButton
+var advanced_box: VBoxContainer
+var detail_scroll: ScrollContainer
 var name_label: Label
 var identity_label: Label
 var lifecycle_label: Label
@@ -67,15 +71,14 @@ var legacy_separate: Button
 
 func configure(client: Node,settings: Dictionary={}) -> void:
 	service=client;draft=settings.duplicate(true);studio_owner=Dossiers.host_identity
-	if service.has_method("_account_cache_id"):studio_account=service._account_cache_id(str(draft.get("key","")))
+	if is_instance_valid(service) and service.has_method("_account_cache_id"):studio_account=service._account_cache_id(str(draft.get("key","")))
 	add_theme_constant_override("separation",12)
-	if not service.host_allowed():_label(self,"Only the host can configure character voices.",16,T.ERROR);return
 	_label(self,"Character Voices",24,T.INK)
-	_label(self,"Original fictional adult voices. Creation from a description is free; auditions use paid speech sessions. Generate candidates, listen to the same words across three moods, then explicitly approve the speaker and model.",14,T.MUTED)
+	_label(self,"A permanent voice for every character. Browse locally, design a candidate, listen in different moods, then approve. Auditions use paid speech requests; opening this menu makes none.",14,T.MUTED)
 	for id: String in Roster.all_people():people[id]=People.teacher(id)
 	# The active host roster may provide persisted students. No private player
 	# profile or microphone data is shown in this developer-facing interface.
-	var game:=service.get_parent()
+	var game:=service.get_parent() if is_instance_valid(service) else null
 	if is_instance_valid(game) and game.get("lecture_classes")!=null:
 		var students: Variant=game.lecture_classes.get("classroom_students")
 		if students!=null and students.get("population")!=null:
@@ -83,24 +86,31 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 			if population is Dictionary:
 				for id: String in population:
 					if population[id] is Dictionary:people[id]=students.population.profile_for(id)
-	var split:=HBoxContainer.new();split.add_theme_constant_override("separation",16);add_child(split)
-	var left:=VBoxContainer.new();left.custom_minimum_size=Vector2(190,520);split.add_child(left)
-	search=LineEdit.new();search.placeholder_text="Find a character";left.add_child(search)
+	var split:=HBoxContainer.new();split.size_flags_vertical=Control.SIZE_EXPAND_FILL;split.add_theme_constant_override("separation",16);add_child(split)
+	var left_panel:=PanelContainer.new();left_panel.custom_minimum_size=Vector2(230,260);left_panel.add_theme_stylebox_override("panel",T.surface(T.SURFACE,T.BORDER,12));split.add_child(left_panel)
+	var left:=VBoxContainer.new();left.add_theme_constant_override("separation",10);left_panel.add_child(left)
+	search=LineEdit.new();search.placeholder_text="Find a character";search.custom_minimum_size.y=40;left.add_child(search)
+	roster_filter=OptionButton.new();roster_filter.add_item("Everyone");roster_filter.add_item("Faculty");roster_filter.add_item("Students");left.add_child(roster_filter)
+	roster_filter.item_selected.connect(func(_index: int):_fill_list())
 	search.text_changed.connect(func(_value: String):_fill_list())
-	character_list=ItemList.new();character_list.size_flags_vertical=Control.SIZE_EXPAND_FILL;character_list.custom_minimum_size.y=300;left.add_child(character_list)
+	character_list=ItemList.new();character_list.size_flags_vertical=Control.SIZE_EXPAND_FILL;character_list.custom_minimum_size.y=160;character_list.fixed_column_width=206;character_list.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS;character_list.add_theme_stylebox_override("panel",T.surface(T.SURFACE,T.SURFACE,2));character_list.add_theme_stylebox_override("selected",T.surface(T.RAISED,T.ACCENT,6));left.add_child(character_list)
+	character_list.add_theme_stylebox_override("selected_focus",T.surface(T.RAISED,T.ACCENT,6))
 	character_list.item_selected.connect(func(index: int):_select(str(character_list.get_item_metadata(index))))
 	overview=_label(left,"",12,T.MUTED)
 	next_candidate_button=_button(left,"Next candidate",_next_candidate)
-	var scroll:=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.custom_minimum_size=Vector2(380,520);split.add_child(scroll)
-	var details:=VBoxContainer.new();details.size_flags_horizontal=Control.SIZE_EXPAND_FILL;details.add_theme_constant_override("separation",12);scroll.add_child(details)
+	var right_panel:=PanelContainer.new();right_panel.size_flags_horizontal=Control.SIZE_EXPAND_FILL;right_panel.add_theme_stylebox_override("panel",T.surface(T.SURFACE,T.BORDER,14));split.add_child(right_panel)
+	detail_scroll=ScrollContainer.new();detail_scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;detail_scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL;detail_scroll.size_flags_vertical=Control.SIZE_EXPAND_FILL;detail_scroll.custom_minimum_size=Vector2(380,260);right_panel.add_child(detail_scroll)
+	var details:=VBoxContainer.new();details.size_flags_horizontal=Control.SIZE_EXPAND_FILL;details.add_theme_constant_override("separation",12);detail_scroll.add_child(details)
 	var header:=HBoxContainer.new();header.add_theme_constant_override("separation",14);details.add_child(header)
 	_build_portrait(header)
 	var identity_box:=VBoxContainer.new();identity_box.size_flags_horizontal=Control.SIZE_EXPAND_FILL;header.add_child(identity_box)
 	name_label=_label(identity_box,"",21,T.INK)
 	identity_label=_label(identity_box,"",14,T.MUTED)
-	_label(details,"Voice design",16,T.ACCENT)
+	_label(details,"1 · Permanent voice design",16,T.ACCENT)
 	design=TextEdit.new();design.custom_minimum_size.y=118;design.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY;details.add_child(design)
 	design.tooltip_text="The original stable voice design. Current emotions are controlled separately below. Editing this text only affects the next generated candidate."
+	generate_button=_button(details,"Generate original voice candidate",_generate)
+	_label(details,"2 · Audition the voice",16,T.ACCENT)
 	var model_row:=HBoxContainer.new();details.add_child(model_row);_label(model_row,"Audition model",15,T.INK)
 	voice_model=OptionButton.new();voice_model.size_flags_horizontal=Control.SIZE_EXPAND_FILL;model_row.add_child(voice_model)
 	voice_model.item_selected.connect(func(_index: int):fit.set_pressed_no_signal(false);_refresh())
@@ -120,12 +130,16 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	audition_label=_label(details,"",13,T.MUTED)
 	fit=CheckBox.new();fit.text="I listened and this voice fits the character";details.add_child(fit)
 	fit.toggled.connect(func(_value: bool):_refresh())
+	_label(details,"3 · Approve and save",16,T.ACCENT)
 	var approval_actions:=HFlowContainer.new();details.add_child(approval_actions)
 	approve_button=_button(approval_actions,"Approve voice and model",_approve)
 	discard_button=_button(approval_actions,"Discard candidate",_discard)
-	_label(details,"Custom voice allocation",16,T.ACCENT)
-	capacity_label=_label(details,"",13,T.MUTED)
-	var capacity_row:=HBoxContainer.new();details.add_child(capacity_row);_label(capacity_row,"Voices created elsewhere",14,T.INK)
+	advanced_toggle=CheckButton.new();advanced_toggle.text="Advanced · batch generation, recovery and allocation";details.add_child(advanced_toggle)
+	advanced_box=VBoxContainer.new();advanced_box.add_theme_constant_override("separation",10);advanced_box.visible=false;details.add_child(advanced_box)
+	advanced_toggle.toggled.connect(func(open: bool):advanced_box.visible=open)
+	_label(advanced_box,"Custom voice allocation",16,T.ACCENT)
+	capacity_label=_label(advanced_box,"",13,T.MUTED)
+	var capacity_row:=HBoxContainer.new();advanced_box.add_child(capacity_row);_label(capacity_row,"Voices created elsewhere",14,T.INK)
 	external_count=SpinBox.new();external_count.min_value=0;external_count.max_value=100;external_count.step=1;external_count.custom_minimum_size.x=100;capacity_row.add_child(external_count)
 	external_count.value_changed.connect(func(value: float):
 		if not _context_current():
@@ -135,16 +149,15 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 			var error:=Voices.set_external_voice_count(int(value))
 			if error!=OK:status.text="Could not save voice capacity: "+error_string(error)
 			_refresh())
-	generate_button=_button(details,"Generate original voice candidate",_generate)
-	batch_button=_button(details,"Generate missing faculty voices",_confirm_batch)
-	batch_stop_button=_button(details,"Stop batch after current creation",func():batch_stop=true;_refresh())
-	legacy_box=VBoxContainer.new();details.add_child(legacy_box)
+	batch_button=_button(advanced_box,"Generate missing faculty voices",_confirm_batch)
+	batch_stop_button=_button(advanced_box,"Stop batch after current creation",func():batch_stop=true;_refresh())
+	legacy_box=VBoxContainer.new();advanced_box.add_child(legacy_box)
 	_label(legacy_box,"An older, unscoped voice exists for this generated ID. Choose whether it belongs to this saved campus. Nothing is reassigned automatically.",13,T.ACCENT)
 	legacy_adopt=_button(legacy_box,"Adopt existing saved voice…",func():_confirm_legacy(true))
 	legacy_separate=_button(legacy_box,"Keep separate; initialize this campus voice…",func():_confirm_legacy(false))
-	recover_toggle=CheckButton.new();recover_toggle.text="Recover / import saved voice";details.add_child(recover_toggle)
+	recover_toggle=CheckButton.new();recover_toggle.text="Recover / import saved voice";advanced_box.add_child(recover_toggle)
 	recover_toggle.toggled.connect(func(_value: bool):_refresh())
-	recovery_box=VBoxContainer.new();details.add_child(recovery_box)
+	recovery_box=VBoxContainer.new();advanced_box.add_child(recovery_box)
 	_label(recovery_box,"Recover or import an existing custom voice",16,T.ACCENT)
 	recovery_note=_label(recovery_box,"",13,T.MUTED)
 	_button(recovery_box,"Open OpenAI dashboard",func():OS.shell_open("https://platform.openai.com/"))
@@ -155,6 +168,10 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	clear_pending_button=_button(recovery_box,"Confirm no voice was created…",_confirm_clear_pending)
 	status=_label(details,"",14,T.ACCENT)
 	audio=AudioStreamPlayer.new();add_child(audio);audio.finished.connect(_heard)
+	# Long IDs and translated labels must not force the window off screen.
+	for control: Node in find_children("*","Button",true,false):
+		if control is Button:control.clip_text=true
+		if control is OptionButton:control.fit_to_longest_item=false
 	_fill_list();_select(selected_id)
 
 func _context_current() -> bool:
@@ -173,16 +190,19 @@ func _fill_list() -> void:
 	for id: String in ids:
 		var person: Dictionary=people[id]
 		var state:=Voices.custom_status(person)
-		if Roster.has(id):totals[state]=int(totals.get(state,0))+1
+		if roster_filter.selected==1 and not Roster.has(id):continue
+		if roster_filter.selected==2 and Roster.has(id):continue
 		var name:=str(person.get("name",id))
 		if not query.is_empty() and not name.to_lower().contains(query) and not id.contains(query):continue
+		totals[state]=int(totals.get(state,0))+1
 		var suffix: String={"approved":"Custom approved","candidate":"Ready to audition","creating":"Creating","reconcile":"Recover ID","legacy":"Resolve old voice","missing":"Preset","storage_error":"Storage blocked"}.get(state,state)
 		character_list.add_item(name+" · "+suffix)
 		var index:=character_list.item_count-1
 		character_list.set_item_metadata(index,id)
 		character_list.set_item_tooltip(index,name+" — "+suffix)
 		if id==selected_id:character_list.select(index)
-	overview.text="Faculty · %d approved · %d candidates · %d unresolved\n%d missing custom voices"%[totals.get("approved",0),totals.get("candidate",0),int(totals.get("reconcile",0))+int(totals.get("legacy",0))+int(totals.get("creating",0)),totals.get("missing",0)]
+	character_list.ensure_current_is_visible.call_deferred()
+	overview.text="%d characters · %d custom approved\n%d candidates · %d unresolved\n%d using a preset"%[character_list.item_count,totals.get("approved",0),totals.get("candidate",0),int(totals.get("reconcile",0))+int(totals.get("legacy",0))+int(totals.get("creating",0)),totals.get("missing",0)]
 
 func _next_candidate() -> void:
 	if busy or batch_active or audio.playing or not _context_current():return
@@ -196,10 +216,12 @@ func _next_candidate() -> void:
 			search.clear();_select(id);_fill_list();return
 
 func _select(id: String) -> void:
-	if not people.has(id) or not _context_current():return
+	if not people.has(id) or not is_inside_tree():return
 	if batch_active or (busy and preview_request_id.is_empty()):_fill_list();return
 	_stop()
 	selected_id=id
+	for index in character_list.item_count:
+		if str(character_list.get_item_metadata(index))==id:character_list.select(index);character_list.ensure_current_is_visible.call_deferred();break
 	fit.set_pressed_no_signal(false)
 	recover_fit.set_pressed_no_signal(false)
 	recover_id.clear()
@@ -216,9 +238,9 @@ func _select(id: String) -> void:
 	else:
 		var proposed:=Voices.creation_design(person) if pending.is_empty() else shown
 		design.text=str(proposed.get("design_description",shown.design_description))
-	var preferred:=str(identity.get("preferred_model",draft.get("modalities",{}).get("tts",service.tts_model)))
+	var preferred:=str(identity.get("preferred_model",draft.get("modalities",{}).get("tts",_default_model())))
 	if use_candidate.button_pressed:preferred="gpt-live-1.1" if pending.get("voice_type")=="prompt" else "gpt-realtime-2.1-mini"
-	_rebuild_models(shown,preferred)
+	_rebuild_models(shown if not shown.is_empty() else Voices.Design.draft(person),preferred)
 	if is_instance_valid(portrait_model):portrait_model.queue_free()
 	var appearance: Dictionary=Roster.config(id) if Roster.has(id) else person.get("appearance",Toon.defaults())
 	portrait_model=Toon.build(appearance);portrait_world.add_child(portrait_model)
@@ -233,7 +255,7 @@ func _model() -> String:
 
 func _rebuild_models(profile: Dictionary,preferred: String) -> void:
 	var choices: Array=BASE_AUDITION_MODELS.duplicate()
-	var configured:=str(draft.get("modalities",{}).get("tts",service.tts_model))
+	var configured:=str(draft.get("modalities",{}).get("tts",_default_model()))
 	for model in [preferred,configured,str(profile.get("preferred_model",""))]:
 		if not model.is_empty() and model not in choices:choices.append(model)
 	voice_model.clear()
@@ -262,11 +284,6 @@ func _switch_candidate() -> void:
 
 func _refresh() -> void:
 	if _refreshing or not is_inside_tree() or not is_instance_valid(status) or not people.has(selected_id):return
-	if not _context_current():
-		status.text="Host profile or API credential changed. Reopen Character Voices to manage the current account."
-		external_count.editable=false
-		for control in [preview_button,core_button,approve_button,generate_button,batch_button,recover_button,clear_pending_button,legacy_adopt,legacy_separate,discard_button,next_candidate_button]:control.disabled=true
-		return
 	_refreshing=true
 	var person: Dictionary=people[selected_id]
 	var scope:=_scope()
@@ -276,13 +293,14 @@ func _refresh() -> void:
 	var active:=Voices.peek(person)
 	var legacy:=Voices.legacy_conflict(person)
 	var current:=_context_current()
-	var locked:=busy or batch_active or audio.playing or not core_queue.is_empty()
-	var valid:=not profile.is_empty() and not legacy and current
+	var locked:=busy or batch_active or audio.playing or not core_queue.is_empty() or not current
+	var online:=_can_request()
+	var valid:=not profile.is_empty() and not legacy
 	var selected_model:=_model()
 	var resolved:=Voices.resolve(person,selected_model,profile) if valid else {"ok":false,"error":"No usable saved voice."}
-	var lifecycle: Dictionary=service.model_status(selected_model,"tts",draft) if service.has_method("model_status") else Models.lifecycle(selected_model)
+	var lifecycle: Dictionary=service.model_status(selected_model,"tts",draft) if is_instance_valid(service) and service.has_method("model_status") else Models.lifecycle(selected_model)
 	if valid:
-		identity_label.text="%s · intended age %s\n%s\n%s · %s\nVoice: %s\n%s"%[str(profile.vocal_presentation).capitalize(),str(profile.perceived_age),str(profile.pitch_range),str(profile.timbre),str(profile.accent),str(profile.permanent_voice_id),str(profile.approval_status).replace("_"," ").capitalize()]
+		identity_label.text="%s · intended age %d\n%s\n%s · %s\nVoice: %s\n%s"%[str(profile.vocal_presentation).capitalize(),int(profile.perceived_age),str(profile.pitch_range),str(profile.timbre),str(profile.accent),str(profile.permanent_voice_id),str(profile.approval_status).replace("_"," ").capitalize()]
 		if profile.voice_type!="preset":identity_label.text+="\nAcoustic fit is judged by listening, not inferred from the prompt."
 		if not str(active.get("preferred_model","")).is_empty():identity_label.text+="\nGameplay model pinned to "+str(active.preferred_model)
 		if use_candidate.button_pressed and not pending.is_empty():identity_label.text+="\nGameplay retains the existing voice until approval."
@@ -305,7 +323,7 @@ func _refresh() -> void:
 	design.editable=not locked and valid and pending.is_empty() and journal.is_empty()
 	sentence.editable=not locked and valid
 	var text_valid:=not sentence.text.strip_edges().is_empty() and sentence.text.strip_edges().length()<=1200
-	preview_button.disabled=locked or not bool(resolved.get("ok",false)) or not text_valid
+	preview_button.disabled=locked or not online or not bool(resolved.get("ok",false)) or not text_valid
 	core_button.disabled=preview_button.disabled
 	stop_button.disabled=not audio.playing and preview_request_id.is_empty() and core_queue.is_empty()
 	fit.disabled=locked or completed!=3 or not valid
@@ -314,10 +332,10 @@ func _refresh() -> void:
 	capacity_label.text="%d known + %d elsewhere + %d unresolved · %d/%d slots remain. %d reserved for established faculty.\n%s"%[capacity.get("known",0),capacity.get("external",0),capacity.get("unresolved",0),capacity.get("remaining",0),capacity.get("limit",100),capacity.get("faculty_reserved",0),str(capacity.get("note",""))]
 	external_count.value=int(capacity.get("external",0))
 	external_count.editable=not locked and current
-	generate_button.disabled=locked or not valid or not pending.is_empty() or not journal.is_empty() or not bool(capacity.get("available",false))
+	generate_button.disabled=locked or not online or not valid or not pending.is_empty() or not journal.is_empty() or not bool(capacity.get("available",false))
 	var missing:=Voices.missing_faculty(people).size()
 	batch_button.text="Generate missing faculty voices (%d)"%missing
-	batch_button.disabled=locked or not current or missing==0 or int(capacity.get("remaining",0))==0
+	batch_button.disabled=locked or not online or not current or missing==0 or int(capacity.get("remaining",0))==0
 	batch_stop_button.visible=batch_active
 	batch_stop_button.disabled=batch_stop
 	legacy_box.visible=legacy
@@ -335,7 +353,18 @@ func _refresh() -> void:
 	recover_button.disabled=not recover_id.editable
 	clear_pending_button.visible=not journal.is_empty()
 	clear_pending_button.disabled=locked or not current or bool(journal.get("in_flight",false))
+	if not current:
+		status.text="Browse saved character information here. Only the current host can edit voices. Reopen this menu if the host profile or account changed."
+	elif not online:
+		status.text="Saved characters and voices are available offline. Connect the host's OpenAI account to generate or audition a voice."
 	_refreshing=false
+
+func _default_model() -> String:
+	return str(service.tts_model) if is_instance_valid(service) else "gpt-live-1.1"
+
+func _can_request() -> bool:
+	if not _context_current():return false
+	return not str(draft.get("key","")).is_empty() or not service.has_method("configured") or bool(service.configured())
 
 func _confirm(title_text: String,message: String,action: Callable) -> void:
 	var dialog:=ConfirmationDialog.new()
@@ -346,7 +375,7 @@ func _confirm(title_text: String,message: String,action: Callable) -> void:
 	dialog.popup_centered(Vector2i(480,180))
 
 func _preview() -> void:
-	if busy or batch_active or not _context_current():return
+	if busy or batch_active or not _can_request():return
 	_stop()
 	await _start_preview(str(emotion.get_selected_metadata()))
 
@@ -368,6 +397,7 @@ func _preview_next() -> void:
 	await _start_preview(mood)
 
 func _start_preview(mood: String) -> void:
+	if not _can_request():core_queue.clear();_refresh();return
 	var text:=sentence.text.strip_edges()
 	var profile:=_voice()
 	if text.is_empty() or text.length()>1200 or profile.is_empty():core_queue.clear();status.text="Select a usable voice and a 1–1,200 character script.";_refresh();return
@@ -419,7 +449,7 @@ func _stop() -> void:
 	if is_instance_valid(status):_refresh()
 
 func _generate() -> void:
-	if busy or batch_active or not _context_current():return
+	if busy or batch_active or not _can_request():return
 	_stop()
 	var id:=selected_id
 	var person: Dictionary=people[id]
@@ -446,7 +476,7 @@ func _confirm_batch() -> void:
 	_confirm("Generate missing faculty voices","Create up to %d original voice candidates sequentially, skipping saved custom voices, candidates and unresolved requests. Prompt creation is free; auditions are separate paid requests. No gameplay voice changes until you approve it. Stop after the current creation at any time."%count,_generate_missing_faculty)
 
 func _generate_missing_faculty() -> void:
-	if busy or batch_active or not _context_current():return
+	if busy or batch_active or not _can_request():return
 	_stop();batch_active=true;batch_stop=false
 	fit.set_pressed_no_signal(false)
 	var ids:=Voices.missing_faculty(people)
@@ -490,7 +520,7 @@ func _discard() -> void:
 	var error:=Voices.discard_candidate(selected_id,_scope())
 	use_candidate.set_pressed_no_signal(false);fit.set_pressed_no_signal(false)
 	var active:=Voices.peek(people[selected_id])
-	if not active.is_empty():design.text=str(active.design_description);_rebuild_models(active,str(active.get("preferred_model",service.tts_model)))
+	if not active.is_empty():design.text=str(active.design_description);_rebuild_models(active,str(active.get("preferred_model",_default_model())))
 	status.text="Candidate removed from this audition. Its remote voice is retained and still counts toward allocation." if error==OK else "Could not discard the candidate: "+error_string(error)
 	_fill_list();_refresh()
 
@@ -531,13 +561,18 @@ func _build_portrait(parent: Control) -> void:
 	portrait_world=Node3D.new();viewport.add_child(portrait_world)
 	var environment:=WorldEnvironment.new();var settings:=Environment.new();settings.background_mode=Environment.BG_COLOR;settings.background_color=T.SURFACE;settings.ambient_light_source=Environment.AMBIENT_SOURCE_COLOR;settings.ambient_light_color=Color(.75,.87,.95);settings.ambient_light_energy=.75;environment.environment=settings;portrait_world.add_child(environment)
 	var light:=DirectionalLight3D.new();light.rotation_degrees=Vector3(-30,-35,0);light.light_energy=1.3;portrait_world.add_child(light)
-	var camera:=Camera3D.new();camera.position=Vector3(0,1.35,3.25);portrait_world.add_child(camera);camera.look_at(Vector3(0,1.1,0));camera.current=true
+	var camera:=Camera3D.new();camera.projection=Camera3D.PROJECTION_ORTHOGONAL;camera.size=2.05;camera.position=Vector3(0,1.15,3.25);portrait_world.add_child(camera);camera.look_at(Vector3(0,.95,0));camera.current=true
 
 func _label(parent: Node,text: String,size: int,color: Color) -> Label:
 	var label:=Label.new();label.text=text;label.add_theme_font_size_override("font_size",size);label.add_theme_color_override("font_color",color);label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;label.size_flags_horizontal=Control.SIZE_EXPAND_FILL;parent.add_child(label);return label
 
 func _button(parent: Node,text: String,callback: Callable) -> Button:
-	var button:=Button.new();button.text=text;button.custom_minimum_size.y=40;button.pressed.connect(callback);parent.add_child(button);return button
+	var button:=Button.new();button.text=text;button.custom_minimum_size.y=40;button.pressed.connect(callback)
+	# FlowContainer relies on minimum width. clip_text alone otherwise makes
+	# every action collapse to a narrow, unlabelled pill.
+	if parent is FlowContainer:button.custom_minimum_size.x=clampf(button.get_theme_font("font").get_string_size(text,HORIZONTAL_ALIGNMENT_LEFT,-1,button.get_theme_font_size("font_size")).x+32.,76.,300.)
+	button.add_theme_stylebox_override("normal",T.surface(T.RAISED,T.BORDER,10));button.add_theme_stylebox_override("hover",T.surface(T.RAISED.lightened(.1),T.ACCENT,10));button.add_theme_stylebox_override("disabled",T.surface(T.SURFACE,T.BORDER.darkened(.3),10))
+	parent.add_child(button);return button
 
 func _exit_tree() -> void:
 	batch_stop=true
