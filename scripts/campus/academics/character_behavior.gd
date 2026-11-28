@@ -7,12 +7,56 @@ const Knowledge=preload("res://scripts/campus/academics/character_knowledge.gd")
 static func mentions(text: String, terms: Array) -> bool:
 	return terms.any(func(term):return str(term) in text)
 
+# Local characterization before the joint model turn. These are decision
+# biases, never canned speech or mandatory emotional reactions.
+static func conversation_orientation(person: Dictionary,relationship: Dictionary,observations: Dictionary,phase: String) -> Dictionary:
+	var t: Dictionary=person.get("traits",{})
+	var bond: Dictionary=relationship.get("dimensions",relationship)
+	var familiarity:=float(bond.get("familiarity",relationship.get("familiarity",0.)))
+	var warmth:=float(t.get("warmth",.5))
+	var social:=float(t.get("sociability",.5))
+	var pride:=float(t.get("arrogance",.5))
+	var shyness:=float(t.get("shyness",.5))
+	var occupation:=str(observations.get("current_activity","")).to_lower()
+	var busy:=phase=="assignment" or occupation in ["sleeping","studying","working","writing","reading","doing assignment","listening"]
+	var drivers: Array[String]=[]
+	if pride>.72 and float(t.get("independence",.5))>.65:drivers.append("Judge choices by your own convictions and agency. Get animated about aligned ambitions; reject conventional wisdom when it conflicts. Do not become a balanced adviser.")
+	if float(t.get("selfishness",.5))>.7 or float(t.get("patience",.5))<.3:drivers.append("Your own priorities matter more than entertaining strangers; blunt indifference or a quick dismissal can be natural.")
+	if shyness>.65 and familiarity<2.:drivers.append("A stranger can feel awkward; pauses, a hesitant fragment or a nonverbal acknowledgment may be more natural than a polished answer.")
+	if warmth>.7 and float(t.get("empathy",.5))>.7:drivers.append("You may genuinely care when the relationship and subject warrant it, rather than offering obligatory reassurance.")
+	if float(t.get("humor",.5))>.75:drivers.append("Enjoy playful timing and irreverence when it fits, not a joke pasted onto every answer.")
+	if social<.35 or float(t.get("talkativeness",.5))<.3:drivers.append("Prefer minimal engagement; a word, look or silence is valid.")
+	if busy:drivers.append("Weigh the interruption against the actual activity. Do not abandon concentration or sleep for every optional conversation.")
+	if drivers.is_empty():drivers.append("Judge whether this topic is interesting or worth acknowledging according to your own values and relationship.")
+	return {"priorities":drivers.slice(0,4),"activity":occupation.left(100),"engagement":snappedf(clampf((social+float(t.get("talkativeness",.5))+warmth*.5)/2.5-(.25 if busy else 0.),0.,1.),.05),"brevity":snappedf(1.-float(t.get("talkativeness",.5)),.05)}
+
+static func social_appraisal(person: Dictionary,relationship: Dictionary,semantics: Dictionary) -> Dictionary:
+	if bool(semantics.get("official_communication",false)) or str(semantics.get("phase",""))=="assignment":return {}
+	if str(semantics.get("question_kind","")) not in ["casual","opinion","biography","personal_experience"]:return {}
+	var t: Dictionary=person.get("traits",{})
+	var relevance:=clampf(float(semantics.get("personal_relevance",.5)),0.,1.)
+	var unfamiliar:=clampf(1.-float(relationship.get("familiarity",0.))/3.,0.,1.)
+	var social:=float(t.get("sociability",.5))
+	var shyness:=float(t.get("shyness",.5))
+	var warmth:=float(t.get("warmth",.5))
+	var patience:=float(t.get("patience",.5))
+	var interest:=clampf(relevance*.55+social*.25+patience*.2,0.,1.)
+	var comfort:=clampf(.55+warmth*.2-shyness*unfamiliar*.45,0.,1.)
+	var pose:=""
+	if comfort<.32 and str(semantics.get("tone","")) in ["mixed","vulnerable","neutral"]:pose="awkward_stare"
+	elif interest<.3:pose="shrug"
+	return {"interest":snappedf(interest,.05),"comfort":snappedf(comfort,.05),"pose":pose,
+		"priority":"engage" if interest>.7 else "brief_acknowledgment" if interest<.35 else "ordinary"}
+
 static func priorities(person: Dictionary,question: String,relationship: Dictionary,phase: String,emotion := "steady",interpretation: Dictionary={}) -> Dictionary:
 	var text := question.to_lower()
 	var traits: Dictionary = person.traits
 	var domain := str(interpretation.get("domain", Knowledge.domain_of(text)))
 	var academic := bool(interpretation.get("academic", false)) or domain in ["math","electronics","programming","science"] and ("?" in text or text.begins_with("explain"))
-	academic = academic or mentions(text,["help me","homework","assignment","class is hard","class is difficult","solve","lesson","show your work","first step"])
+	var kind:=str(interpretation.get("question_kind",""))
+	if kind in ["casual","opinion","personal_experience","biography"]:academic=false
+	elif kind=="academic":academic=true
+	elif kind.is_empty():academic=academic or mentions(text,["help me","homework","assignment","class is hard","class is difficult","solve","lesson","show your work","first step"])
 	var strained := float(relationship.get("resentment",0)) - .35 * float(relationship.get("positive",0))
 	var event := str(interpretation.get("event",""))
 	var result := {"goal":"socialize", "energy":"steady", "academic":academic, "worldview":person.get("worldview",person.get("values","")), "phase":phase}
@@ -45,8 +89,8 @@ static func priorities(person: Dictionary,question: String,relationship: Diction
 	# Values are active even when a favourite-topic keyword is absent.
 	if float(traits.arrogance) > .78 and float(traits.independence) > .7:
 		result.goal = "express_own_priorities"
-		result.energy = "dismissive" if strained < 3. else "confrontational"
-		result.reason = "Interpret the conversation through your own values and ambitions. Your personal opinions do not need to be useful advice."
+		result.energy = ("animated" if event in ["initiative","success","excitement"] else "dismissive") if strained < 3. else "confrontational"
+		result.reason = "Judge the idea by your convictions, not by what a responsible adviser would recommend. Enthusiasm for aligned ambition and contempt for opposing priorities can coexist; never force a slogan."
 	elif float(traits.teaching_effort) < .3 and person.role == "teacher" and (float(traits.energy)+float(traits.get("sociability",.5)))*.5 < .4:
 		result.goal = "protect_own_time"
 		result.energy = "tired" if float(traits.energy) < .3 else "distracted"
@@ -146,6 +190,15 @@ static func reaction(person: Dictionary,event: String,relationship: Dictionary,e
 	elif event in ["initiative","success"]:
 		strategy = "respect_initiative" if float(t.ambition) > .75 else "share_satisfaction"
 		reason = "Notice the action according to what you value, rather than offering generic encouragement."
+	elif event in ["greeting","chat","conversation"]:
+		var orientation:=conversation_orientation(person,relationship,{},phase)
+		if float(t.get("shyness",.5))>.65 and float(relationship.get("familiarity",0.))<2.:
+			strategy="awkward_acknowledgment";pose="nod"
+		elif float(orientation.engagement)<.3:
+			strategy="minimal_acknowledgment";pose="shrug"
+		elif float(t.get("arrogance",.5))>.72:
+			strategy="express_own_view"
+		reason="Choose whether the remark actually merits interest, indifference, an opinion, a fragment or a gesture according to this person."
 	elif event in ["excitement","disappointment","opinion"]:
 		strategy = "question_assumption" if float(t.arrogance) > .7 else "share_own_view"
 		reason = "The speaker's enthusiasm or disappointment does not require you to share their opinion."

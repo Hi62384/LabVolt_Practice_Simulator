@@ -18,6 +18,8 @@ const PACKET_RATE:=60.0
 const PACKET_BURST:=12.0
 var remotes:={}
 var badge: Label
+var mic_meter: TextureProgressBar
+var mic_meter_level:=0.0
 var refresh:=0.0
 var call_players:={}
 var call_last:={}
@@ -33,7 +35,10 @@ func build(owner_game: Node) -> void:
  microphone.packet_ready.connect(_on_microphone_packet)
  var layer:=CanvasLayer.new();layer.layer=33;add_child(layer)
  var badge_row:=HBoxContainer.new();badge_row.position=Vector2(16,244);layer.add_child(badge_row)
- var mic_icon:=TextureRect.new();mic_icon.texture=MIC_ICON;mic_icon.custom_minimum_size=Vector2(22,22);mic_icon.expand_mode=TextureRect.EXPAND_IGNORE_SIZE;mic_icon.stretch_mode=TextureRect.STRETCH_KEEP_ASPECT_CENTERED;badge_row.add_child(mic_icon)
+ var meter:=TextureProgressBar.new();meter.texture_under=MIC_ICON;meter.texture_progress=MIC_ICON
+ meter.tint_under=Color(.34,.42,.43);meter.tint_progress=Color.WHITE;meter.max_value=1.;meter.step=0.
+ meter.fill_mode=TextureProgressBar.FILL_BOTTOM_TO_TOP;meter.mouse_filter=Control.MOUSE_FILTER_IGNORE
+ mic_meter=meter;badge_row.add_child(meter)
  badge=Label.new();badge.text="MIC";badge.add_theme_font_size_override("font_size",16);badge.add_theme_color_override("font_color",Color("9cebd0"));badge.add_theme_color_override("font_outline_color",Color("102a33"));badge.add_theme_constant_override("outline_size",5);badge_row.hide();badge_row.add_child(badge)
  game.session.roster_changed.connect(_prune)
  game.session.leaving.connect(_stop)
@@ -55,6 +60,7 @@ func _process(delta: float) -> void:
   microphone.subscribe("human_voice",active)
   capture=microphone.capture;mic=microphone.player
  badge.get_parent().visible=talking
+ _update_mic_meter(delta,prefs)
  _sync_call_state()
  if talking:
   sensitivity_refresh-=delta
@@ -77,6 +83,23 @@ func _process(delta: float) -> void:
    icon=Sprite3D.new();icon.name="VoiceIndicator";icon.texture=MIC_ICON;icon.pixel_size=.0035;icon.billboard=BaseMaterial3D.BILLBOARD_ENABLED;icon.position.y=2.30;avatar.add_child(icon)
   var proximity_last:=int(remotes.get(peer,{}).get("last",0))
   icon.visible=Time.get_ticks_msec()-maxi(proximity_last,int(call_last.get(peer,0)))<350
+
+static func meter_fill(rms: float) -> float:
+ # A 45 dB speech range keeps soft input visible without saturating normal speech.
+ if not is_finite(rms) or rms<=0.:return 0.
+ return clampf((linear_to_db(maxf(rms,.00001))+60.)/45.,0.,1.)
+
+func _update_mic_meter(delta: float,prefs: Dictionary) -> void:
+ if not is_instance_valid(mic_meter) or not is_instance_valid(microphone):return
+ var fresh: bool=talking and microphone.is_active() and int(microphone.diagnostic.get("frames_received",0))>0 and Time.get_ticks_msec()-int(microphone.diagnostic.get("last_frame_ms",-1000))<250
+ var level:=meter_fill(float(microphone.diagnostic.get("rms",0.))) if fresh else 0.
+ mic_meter_level=move_toward(mic_meter_level,level,delta*(12. if level>mic_meter_level else 4.)) if talking else 0.
+ mic_meter.value=mic_meter_level
+ if talking:
+  if not microphone.is_active():badge.text="MIC · UNAVAILABLE"
+  elif not fresh or level<=0.:badge.text="MIC · NO SIGNAL"
+  elif not bool(prefs.get("teacher_automatic_conversation",false)):badge.text="MIC · NPC OFF"
+  else:badge.text="MIC"
 
 func _capture_audio() -> void:
  # Capture is drained exclusively by MicrophoneCapture, including settings and NPC users.
@@ -208,6 +231,8 @@ func _position_speaker(peer: int,speaker: AudioStreamPlayer3D) -> void:
 
 func _stop() -> void:
  talking=false
+ mic_meter_level=0.
+ if is_instance_valid(mic_meter):mic_meter.value=0.
  sensitivity_refresh=0.0
  var peer:=multiplayer.multiplayer_peer
  if peer!=null and peer.get_connection_status()==MultiplayerPeer.CONNECTION_CONNECTED and multiplayer.is_server():

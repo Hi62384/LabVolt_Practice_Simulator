@@ -56,6 +56,8 @@ var verification_error := ""
 var _lane_active: Dictionary={}
 var _lane_waiting: Dictionary={}
 var _voice_requests: Dictionary={}
+var _idle_voices: Dictionary={}
+const MAX_IDLE_VOICES:=3
 var _cancelled_requests: Dictionary={}
 var _http_requests: Dictionary={}
 var _access_failures: Dictionary={}
@@ -88,6 +90,7 @@ func set_session_key(value: String) -> bool:
 	cancel_background_generation()
 	_session_key=clean
 	_connection_epoch+=1
+	_clear_voice_pool()
 	for session: Node in _voice_requests.values():
 		if is_instance_valid(session):session.cancel()
 	return true
@@ -105,6 +108,7 @@ func clear_session_key() -> void:
 		_session_key=""
 		_verified_signature=""
 		_connection_epoch+=1
+		_clear_voice_pool()
 		for session: Node in _voice_requests.values():
 			if is_instance_valid(session):session.cancel()
 
@@ -307,11 +311,23 @@ func _character_request(instructions: String,context: Dictionary,dialogue: Strin
 			input=JSON.stringify(request)
 	if input.length()>MAX_CHARACTER_INPUT_CHARS or instructions.length()>MAX_CHARACTER_INSTRUCTION_CHARS:
 		return {"ok":false,"error":"Character context exceeds its bounded budget.","context_chars":input.length(),"instruction_chars":instructions.length(),"reduced_fields":reduced}
-	var result:=await _request_text(input,model,output,reasoning_effort,true,metadata,timeout,instructions)
+	var effort:=reasoning_effort
+	if str(metadata.get("complexity",""))=="social" and reasoning_mode!="pro":
+		effort=conversational_effort(model,effort)
+	var result:=await _request_text(input,model,output,effort,true,metadata,timeout,instructions)
+	result.requested_reasoning_effort=effort
 	result.context_chars=input.length()
 	result.instruction_chars=instructions.length()
 	result.reduced_fields=reduced
 	return result
+
+static func conversational_effort(choice: String,selected: String) -> String:
+	# Do not silently change model or raise the selected effort. Choose only
+	# supported values, keeping the full selected effort for complex tasks.
+	if selected in ["","none","minimal","low"]:return selected
+	for candidate: String in ["minimal","low","none"]:
+		if candidate in Models.efforts(choice):return candidate
+	return selected
 
 func respond_with_image(prompt: String,jpeg: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if prompt.strip_edges().is_empty() or prompt.length()>MAX_INPUT_CHARS or jpeg.size()<4 or jpeg.size()>262144 or jpeg[0]!=255 or jpeg[1]!=216:return {"ok":false,"error":"The image or question is too large."}
@@ -361,21 +377,65 @@ func speak(text: String,draft: Dictionary={},voice: Variant="alloy",delivery: Di
 	result.request_id=context.request_id
 	return result
 
+func _clear_voice_pool() -> void:
+	for session: Node in _idle_voices.values():
+		if is_instance_valid(session):session.close_session("pool cleared");session.queue_free()
+	_idle_voices.clear()
+
+func _take_idle_voice(pool_key: String) -> Node:
+	for key in _idle_voices.keys():
+		var candidate: Node=_idle_voices[key]
+		if not is_instance_valid(candidate) or not candidate.can_reuse():
+			_idle_voices.erase(key)
+			if is_instance_valid(candidate):candidate.queue_free()
+	var session: Node=_idle_voices.get(pool_key)
+	_idle_voices.erase(pool_key)
+	return session
+
+func _keep_idle_voice(pool_key: String,session: Node) -> void:
+	if _idle_voices.has(pool_key):
+		var previous: Node=_idle_voices[pool_key]
+		if is_instance_valid(previous):previous.close_session("pool replaced");previous.queue_free()
+		_idle_voices.erase(pool_key)
+	while _idle_voices.size()>=MAX_IDLE_VOICES:
+		var oldest: Variant=_idle_voices.keys()[0]
+		var victim: Node=_idle_voices[oldest]
+		_idle_voices.erase(oldest)
+		if is_instance_valid(victim):victim.close_session("pool limit");victim.queue_free()
+	_idle_voices[pool_key]=session
+
 func _render_voice(text: String,choice: String,voice: Variant,voice_type: String,delivery: Dictionary,draft: Dictionary,needs_enabled: bool) -> Dictionary:
 	var access:=_voice_access(draft,needs_enabled)
 	if not access.ok:return access
 	var id:=str(draft.request_id)
 	var queued_at:=Time.get_ticks_msec()
-	if not await _acquire_lane("speech",id,_request_guard(draft)):return _queue_error(id)
-	var session:=VoiceSession.new()
+	if not await _acquire_lane("speech",id,_request_guard(draft),_request_priority(draft)):return _queue_error(id)
+	var pool_key:=JSON.stringify([choice,voice_type,voice,_account_cache_id(str(access.key)),_test_voice_base,_connection_epoch]).sha256_text()
+	var use_pool:=Models.verified_family(choice) in Models.REALTIME and voice_type=="preset"
+	var session: VoiceSession=_take_idle_voice(pool_key) as VoiceSession if use_pool else null
+	var reused:=is_instance_valid(session)
+	if not reused:
+		session=VoiceSession.new()
+		session.reusable=use_pool
+		add_child(session)
 	# Explicit settings auditions work while the singleplayer menu is paused.
-	if not needs_enabled:session.process_mode=Node.PROCESS_MODE_ALWAYS
-	add_child(session)
+	session.process_mode=Node.PROCESS_MODE_INHERIT if needs_enabled else Node.PROCESS_MODE_ALWAYS
 	_voice_requests[id]=session
 	var results: Array=[]
-	session.speech_completed.connect(func(value: Dictionary):results.append(value))
+	var completion:=func(value: Dictionary):results.append(value)
+	session.speech_completed.connect(completion)
+	var chunk_callback: Callable=delivery.get("_pcm_ready",Callable())
+	session.early_stream=bool(delivery.get("early_stream",false)) and chunk_callback.is_valid() and use_pool
+	var pcm_callback:=func(offset: int,pcm: PackedByteArray):
+		if not _cancelled_requests.has(id) and not _guard_cancelled(_request_guard(draft)) and chunk_callback.is_valid():chunk_callback.call(offset,pcm)
+	var timing_callback: Callable=delivery.get("_timing_ready",Callable())
+	var checkpoint_callback:=func(offset: int,chars: int,total: int):
+		if not _cancelled_requests.has(id) and not _guard_cancelled(_request_guard(draft)) and timing_callback.is_valid():timing_callback.call(offset,chars,total)
+	if session.early_stream:
+		session.verified_pcm.connect(pcm_callback)
+		session.transcript_checkpoint.connect(checkpoint_callback)
 	var started:=Time.get_ticks_msec()
-	var begun:=session.begin(choice,voice,voice_type,str(access.key),str(delivery.get("instructions","")),[],text,_test_voice_base,id)
+	var begun: Dictionary=session.reuse(text,str(delivery.get("instructions","")),id) if reused else session.begin(choice,voice,voice_type,str(access.key),str(delivery.get("instructions","")),[],text,_test_voice_base,id)
 	if not begun.ok:
 		_voice_requests.erase(id);_release_lane("speech");session.queue_free()
 		return begun
@@ -395,7 +455,7 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	elif result.get("ok",false):_access_failures.erase(availability_key)
 	# Allow the Live terminal usage event to drain before releasing the transport.
 	# No client audio can become audible after cancellation, even if close is slow.
-	if is_instance_valid(session) and session.state!="closed":
+	if is_instance_valid(session) and session.state not in ["closed","idle"]:
 		session.close_session()
 		while is_instance_valid(session) and session.state!="closed":await get_tree().process_frame
 	# Cancel can arrive during graceful close, after speech_completed. A studio
@@ -418,7 +478,14 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	result.measurement=_record_request(choice,"tts",metadata,bool(result.get("ok",false)),Time.get_ticks_msec()-started,draft,{},seconds,text.length())
 	result.erase("_api_metadata")
 	_voice_requests.erase(id);_cancelled_requests.erase(id);_release_lane("speech")
-	if is_instance_valid(session):session.queue_free()
+	if is_instance_valid(session):
+		session.speech_completed.disconnect(completion)
+		if session.verified_pcm.is_connected(pcm_callback):session.verified_pcm.disconnect(pcm_callback)
+		if session.transcript_checkpoint.is_connected(checkpoint_callback):session.transcript_checkpoint.disconnect(checkpoint_callback)
+		if use_pool and result.get("ok",false) and session.can_reuse() and epoch==_connection_epoch:
+			session.process_mode=Node.PROCESS_MODE_ALWAYS
+			_keep_idle_voice(pool_key,session)
+		else:session.close_session("render complete");session.queue_free()
 	return result
 
 func create_prompt_voice(voice_name: String,prompt: String,script_hint: String="",draft: Dictionary={}) -> Dictionary:
@@ -474,7 +541,7 @@ func voice_diagnostics() -> Dictionary:
 		if is_instance_valid(session):active.append(session.diagnostics())
 	var queued:={}
 	for lane in _lane_waiting:queued[lane]=_lane_waiting[lane].size()
-	return {"active":active,"request_lanes":_lane_active.duplicate(),"queued":queued,"tts_model":tts_model,"stt_model":stt_model,"speech_only":true,"microphone_streaming":false,"lifecycle":Models.lifecycle(tts_model)}
+	return {"active":active,"idle_pool_size":_idle_voices.size(),"idle_pool_limit":MAX_IDLE_VOICES,"request_lanes":_lane_active.duplicate(),"queued":queued,"tts_model":tts_model,"stt_model":stt_model,"speech_only":true,"microphone_streaming":false,"lifecycle":Models.lifecycle(tts_model)}
 
 func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	var choice:=str(draft.get("modalities",{}).get("image_generation",image_generation_model))
@@ -555,7 +622,7 @@ func transcribe_wav(wav: PackedByteArray,draft: Dictionary={}) -> Dictionary:
 	if not draft.has("subsystem"):draft.subsystem="npc_microphone" if production else "microphone_test"
 	if not draft.has("request_purpose"):draft.request_purpose="transcription"
 	var queued_at:=Time.get_ticks_msec()
-	if not await _acquire_lane("transcription",id,_request_guard(draft)):return _queue_error(id)
+	if not await _acquire_lane("transcription",id,_request_guard(draft),4):return _queue_error(id)
 	var now:=Time.get_ticks_msec()
 	_begin_request_diagnostics(draft,id,choice,"stt",queued_at)
 	if Models.verified_family(choice) in Models.STREAMING_STT:
@@ -636,6 +703,7 @@ func set_local_test_endpoint(value: String) -> bool:
 
 func set_local_test_voice_endpoint(value: String) -> bool:
 	if not OS.has_feature("editor") or RegEx.create_from_string("^ws://127\\.0\\.0\\.1:[0-9]{2,5}/v1$").search(value)==null:return false
+	_clear_voice_pool()
 	_test_voice_base=value
 	return true
 
@@ -646,18 +714,27 @@ static func _request_guard(draft: Dictionary) -> Callable:
 static func _guard_cancelled(guard: Callable) -> bool:
 	return not guard.is_null() and (not guard.is_valid() or not bool(guard.call()))
 
-func _acquire_lane(lane: String,id: String,guard: Callable=Callable()) -> bool:
+static func _request_priority(draft: Dictionary) -> int:
+	return 4 if str(draft.get("origin",""))=="player" else 2 if str(draft.get("origin",""))=="teaching" else 0
+
+func _acquire_lane(lane: String,id: String,guard: Callable=Callable(),priority: int=0) -> bool:
 	var queue: Array=_lane_waiting.get_or_add(lane,[])
 	if queue.size()>=MAX_WAITERS:return false
 	var epoch:=_connection_epoch
-	var ticket:={"id":id,"created":Time.get_ticks_msec()}
+	var ticket:={"id":id,"created":Time.get_ticks_msec(),"priority":clampi(priority,0,4)}
 	queue.append(ticket)
 	while is_inside_tree():
 		if epoch!=_connection_epoch or _guard_cancelled(guard):_cancelled_requests[id]=true
 		if _cancelled_requests.has(id) or Time.get_ticks_msec()-int(ticket.created)>30000:
 			queue.erase(ticket);return false
-		if queue[0]==ticket and int(_lane_active.get(lane,0))<int(LANE_LIMITS.get(lane,1)):
-			queue.pop_front()
+		var best: Dictionary=queue[0]
+		var now:=Time.get_ticks_msec()
+		for waiting: Dictionary in queue:
+			var score:=float(waiting.priority)+float(now-int(waiting.created))/3000.
+			var best_score:=float(best.priority)+float(now-int(best.created))/3000.
+			if score>best_score:best=waiting
+		if best==ticket and int(_lane_active.get(lane,0))<int(LANE_LIMITS.get(lane,1)):
+			queue.erase(ticket)
 			_lane_active[lane]=int(_lane_active.get(lane,0))+1
 			busy=int(_lane_active.get("text",0))>0
 			speech_busy=int(_lane_active.get("speech",0))>0
@@ -739,7 +816,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 	draft.request_id=id
 	if not draft.has("request_type"):draft.request_type="feature" if needs_enabled else "test"
 	var queued_at:=Time.get_ticks_msec()
-	if not await _acquire_lane(lane,id,_request_guard(draft)):return _queue_error(id)
+	if not await _acquire_lane(lane,id,_request_guard(draft),_request_priority(draft)):return _queue_error(id)
 	var started:=Time.get_ticks_msec()
 	_begin_request_diagnostics(draft,id,request_model,purpose if not purpose.is_empty() else lane,queued_at)
 	var headers:=PackedStringArray(["Authorization: Bearer "+str(access.key),"Content-Type: application/json"])
@@ -980,7 +1057,18 @@ func _record_request(id: String,purpose: String,response: Dictionary,success: bo
 	return entry
 
 func request_diagnostics() -> Dictionary:
-	return {"active":active_requests.values().duplicate(true),"recent_requests":request_journal.slice(-40),"session_requests":session_requests,"session_usage":session_usage.duplicate(),"usage_note":"Provider tokens remain unknown when not reported; monetary values are local estimates, not invoices.","lanes":voice_diagnostics()}
+	var groups: Dictionary={}
+	for entry in request_journal:
+		var category:=str(entry.get("subsystem","unknown"))
+		var counts: Dictionary=groups.get_or_add(category,{"requests":0,"successful":0,"canceled":0,"provider_usage_reported":0,"local_estimate_only":0,"usage_unreported":0})
+		counts.requests+=1
+		if entry.get("success",false):counts.successful+=1
+		if entry.get("canceled",false):counts.canceled+=1
+		match str(entry.get("usage_source","unreported")):
+			"provider":counts.provider_usage_reported+=1
+			"local_duration_or_characters":counts.local_estimate_only+=1
+			_:counts.usage_unreported+=1
+	return {"active":active_requests.values().duplicate(true),"recent_requests":request_journal.slice(-40),"recent_subsystem_counts":groups,"recent_window_requests":request_journal.size(),"session_requests":session_requests,"session_usage":session_usage.duplicate(),"usage_note":"Provider tokens remain unknown when not reported; monetary values are local estimates, not invoices. Subsystem counts cover only the bounded recent journal.","lanes":voice_diagnostics()}
 
 func comparison_question(question: String,choice: String,effort: String,mode: String,limit: int,draft: Dictionary) -> Dictionary:
 	if not Models.available_for(choice,"text") or not _mode_allowed(choice,mode) or limit not in range(16,2049):
@@ -1052,6 +1140,7 @@ func _save() -> Error:
 
 func _exit_tree() -> void:
 	_connection_epoch+=1
+	_clear_voice_pool()
 	for request: HTTPRequest in _http_requests.values():
 		if is_instance_valid(request):request.cancel_request()
 	for session: Node in _voice_requests.values():

@@ -21,7 +21,11 @@ func _refresh() -> void:
  if is_instance_valid(game.faculty):
   data.conversation=game.faculty.natural_voice.diagnostic
   data.synthesis=game.faculty.speech_synth.diagnostics()
-  data.playback={"channels":game.faculty.speech_player.active.keys(),"queued":game.faculty.speech_player.queued.keys(),"suspended":game.faculty.speech_player.suspended.keys(),"pending_network":game.faculty.pending_voice.size()}
+  data.playback={"channels":game.faculty.speech_player.active.keys(),"queued":game.faculty.speech_player.queued.keys(),"suspended":game.faculty.speech_player.suspended.keys(),"pending_network":game.faculty.pending_voice.size(),"recent_streams":game.faculty.speech_player.recent_streaming_diagnostics}
+  var live: Dictionary={}
+  for key in game.faculty.speech_player.live_buffers:live[key]=game.faculty.speech_player.live_buffers[key].diagnostics()
+  data.playback.live_buffers=live
+  data.playback.note="Audio submission and generator consumption are estimates of output timing, not microphone measurements of audible speech."
   var character:=str(game.faculty.natural_voice.current.get("id",""))
   if not character.is_empty():
    var person: Dictionary=preload("res://scripts/campus/academics/class_character_profile.gd").teacher(character) if preload("res://scripts/campus/academics/faculty_roster.gd").has(character) else preload("res://scripts/campus/academics/classroom_students.gd").profile_for(character)

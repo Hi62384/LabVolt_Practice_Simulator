@@ -36,6 +36,7 @@ var _next_refresh := 0.0
 var _signature := ""
 
 func _init() -> void:
+	add_to_group("world_subtitles_suppressed")
 	theme = ThemeFactory.create()
 	# This reader shares space with a composer. Keep controls comfortably sized
 	# without the store theme's much larger padding forcing a 720px minimum.

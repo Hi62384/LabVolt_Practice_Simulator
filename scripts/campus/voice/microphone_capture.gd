@@ -128,7 +128,7 @@ func _stop_device(flush: bool) -> void:
  if is_instance_valid(player):player.stop()
  if capture != null:capture.clear_buffer()
  pending.clear();processor.Reset();activity.Reset()
- diagnostic.active=false;diagnostic.rms=0.0;diagnostic.speech=false
+ diagnostic.active=false;diagnostic.rms=0.0;diagnostic.peak=0.0;diagnostic.speech=false;diagnostic.last_frame_ms=-1
  state_changed.emit()
 
 func drain_pending() -> void:

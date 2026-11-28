@@ -21,6 +21,10 @@ var interrupt_key_held:=false
 var hearing_label: Label3D
 var hearing_anchor: WeakRef
 var hearing_until:=0
+var hearing_target: Dictionary={}
+var hearing_manual:=false
+var hearing_visible:=false
+var hearing_visibility_at:=0
 var diagnostic: Dictionary={"target":"","reason":"NPC recognition is disabled.","state":"off","last_error":"","segments":0}
 
 func build(owner: Node, owner_faculty: Node) -> void:
@@ -100,7 +104,7 @@ func _process(delta: float) -> void:
   if cancelled and (not current.is_empty() or not turn.is_empty()):cancel_current()
   return
  if not current.is_empty() and not faculty.voice_target_valid(multiplayer.get_unique_id(),current):cancel_current()
- if current.is_empty():diagnostic.state="ready"
+ if current.is_empty() and turn.is_empty():diagnostic.state="ready"
 
 func _choose() -> Dictionary:
  var eye: Vector3=game.player.eyes.global_position
@@ -146,7 +150,7 @@ func _speech_started(turn_id: int) -> void:
 func _packet(_pcm: PackedByteArray, activity: Dictionary) -> void:
  if turn.is_empty() or not _permitted():return
  if activity.get("speech",false):turn.speech_ms=int(turn.speech_ms)+20
- if not turn.get("hearing",false) and (activity.get("speech",false) or float(activity.get("peak",0.0))>=.003):
+ if not turn.get("hearing",false) and usable_input(activity):
   turn.hearing=true
   show_hearing(current,"Hearing…",180000)
  if int(turn.speech_ms)>=400 and not turn.interrupted and game.client_preferences.values.get("npc_interruptions",true):
@@ -154,6 +158,10 @@ func _packet(_pcm: PackedByteArray, activity: Dictionary) -> void:
   faculty.pause_voice_target(current)
   if multiplayer.is_server():_interrupt_host(multiplayer.get_unique_id(),str(turn.token))
   elif game.session.online:_interrupt.rpc_id(1,str(turn.token))
+
+static func usable_input(activity: Dictionary) -> bool:
+ # RMS plus peak rejects isolated clicks and mere PTT activation.
+ return bool(activity.get("speech",false)) or (float(activity.get("rms",0.))>=.0015 and float(activity.get("peak",0.))>=.003)
 
 func _speech_segment(pcm: PackedByteArray, final: bool, turn_id: int, index: int) -> void:
  if turn.is_empty() or int(turn.id)!=turn_id:return
@@ -173,6 +181,8 @@ func _speech_segment(pcm: PackedByteArray, final: bool, turn_id: int, index: int
  if not faculty.voice_target_valid(multiplayer.get_unique_id(),completed.target):cancel_current();return
  var wav:=TeacherAI.wav_16k(completed.audio)
  diagnostic.state="transcribing";diagnostic.recorded_bytes=completed.audio.size();diagnostic.recording_completed_ms=Time.get_ticks_msec()
+ diagnostic.capture_duration_ms=int(diagnostic.recording_completed_ms)-int(completed.started)
+ diagnostic.pcm_duration_ms=float(completed.audio.size())/32.
  show_hearing(completed.target,"Transcribing…",30000)
  if multiplayer.is_server():_deliver(multiplayer.get_unique_id(),str(completed.token),wav)
  elif game.session.online:_send_recording(str(completed.token),wav)
@@ -183,7 +193,7 @@ func _finish_without_submission(token: String,reason: String) -> void:
  remote_turns.erase(multiplayer.get_unique_id())
  if not current.is_empty():faculty.resume_voice_target(current)
  diagnostic.state="ready";diagnostic.reason=reason
- if not current.is_empty():show_hearing(current,"No speech detected",4000)
+ if not current.is_empty():show_hearing(current,"Speech not recognized: "+reason.left(120),5000)
 
 func _send_recording(token: String,wav: PackedByteArray) -> void:
  _upload_begin.rpc_id(1,token,wav.size())
@@ -201,7 +211,7 @@ func _show_target() -> void:
  if is_instance_valid(faculty.voice_hint):faculty.voice_hint.text="Speaking with "+str(current.get("name",""));faculty.voice_hint.show()
 
 func cancel_current(reset_segment: bool=true) -> void:
- if not current.is_empty():clear_hearing()
+ if not hearing_manual:clear_hearing()
  var token:=str(remote_turns.get(multiplayer.get_unique_id(),{}).get("token",turn.get("token","")))
  if not current.is_empty():faculty.resume_voice_target(current)
  if multiplayer.is_server():_cancel_host(multiplayer.get_unique_id(),token)
@@ -315,23 +325,26 @@ func _receive_stage(token: String,stage: String,message: String) -> void:
  elif stage=="transcription_received":
   show_hearing(current,"Heard: "+message.left(500),10000)
  elif stage=="transcription_failed" or stage=="response_failed":
-  show_hearing(current,message.left(160) if not message.is_empty() else "Voice request failed",6000)
+  var prefix: String="Speech not recognized" if stage=="transcription_failed" else "Response unavailable"
+  show_hearing(current,prefix+(": "+message.left(140) if not message.is_empty() else ""),6000)
   if not message.is_empty():_error(message.left(500))
  elif not message.is_empty():_error(message.left(500))
 
 # Local-only debug overlay: never broadcast another player's transcript.
-func show_hearing(target: Dictionary,message: String,duration_ms: int=5000) -> void:
+func show_hearing(target: Dictionary,message: String,duration_ms: int=5000,manual: bool=false) -> void:
  if target.is_empty() or not is_instance_valid(faculty):return
  var anchor: Node3D=faculty._voice_model(target)
  if not is_instance_valid(anchor):return
  if not is_instance_valid(hearing_label):
   hearing_label=Label3D.new();hearing_label.name="LocalHearingDebug"
   hearing_label.billboard=BaseMaterial3D.BILLBOARD_ENABLED
-  hearing_label.font_size=32;hearing_label.outline_size=8;hearing_label.pixel_size=.003
+  hearing_label.font_size=36;hearing_label.outline_size=10;hearing_label.pixel_size=.004
+  hearing_label.no_depth_test=true
   hearing_label.modulate=Color("b5f0d7");hearing_label.outline_modulate=Color("10222b")
   hearing_label.width=550;hearing_label.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
   faculty.add_child(hearing_label)
  hearing_anchor=weakref(anchor)
+ hearing_target=target.duplicate();hearing_manual=manual;hearing_visibility_at=0
  hearing_until=Time.get_ticks_msec()+clampi(duration_ms,1000,180000)
  hearing_label.text=message.left(500)
  _step_hearing()
@@ -339,14 +352,18 @@ func show_hearing(target: Dictionary,message: String,duration_ms: int=5000) -> v
 func _step_hearing() -> void:
  if not is_instance_valid(hearing_label):return
  var anchor: Node3D=hearing_anchor.get_ref() as Node3D if hearing_anchor!=null else null
- if not is_instance_valid(anchor) or not is_instance_valid(game) or not game.front.in_game or Time.get_ticks_msec()>=hearing_until:
+ var now:=Time.get_ticks_msec()
+ if not is_instance_valid(anchor) or not is_instance_valid(game) or not game.front.in_game or now>=hearing_until or faculty._voice_model(hearing_target)!=anchor:
   clear_hearing();return
- hearing_label.global_position=faculty._voice_head(anchor)+Vector3.UP*.45
- hearing_label.visible=anchor.is_visible_in_tree() and game.player.global_position.distance_to(anchor.global_position)<18.
+ hearing_label.global_position=faculty._voice_head(anchor)+Vector3.UP*.55
+ if now>=hearing_visibility_at:
+  hearing_visibility_at=now+200
+  hearing_visible=faculty._voice_visible(multiplayer.get_unique_id(),anchor)
+ hearing_label.visible=hearing_visible and anchor.is_visible_in_tree() and game.player.global_position.distance_to(anchor.global_position)<18.
 
 func clear_hearing() -> void:
  if is_instance_valid(hearing_label):hearing_label.hide()
- hearing_anchor=null;hearing_until=0
+ hearing_anchor=null;hearing_until=0;hearing_target.clear();hearing_manual=false;hearing_visible=false;hearing_visibility_at=0
 
 func _error(message: String) -> void:
  diagnostic.last_error=message

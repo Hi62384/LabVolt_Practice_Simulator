@@ -2,6 +2,8 @@ extends Node
 ## Bounded host speech scheduler. Provider failures never change vocal identity.
 ## The legacy process path is isolated behind explicit selection/test adapters.
 signal completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String)
+signal pcm_ready(room: String,serial: int,offset: int,pcm: PackedByteArray)
+signal timing_ready(room: String,serial: int,offset: int,chars: int,total: int)
 signal segment_completed(room: String,serial: int,key: String,stream: AudioStreamWAV,status: String,index: int,total: int,text: String)
 const Profiles=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
@@ -261,6 +263,9 @@ func _run_cloud(job: Dictionary) -> void:
 	job.delivery.request_id=str(job.request_id)+( "-retry-"+str(job.delivery.retry_count) if int(job.attempts)>1 else "")
 	var voice: Variant=job.delivery.get("voice","alloy")
 	job.delivery._audio_ready=_cloud_audio_ready.bind(job)
+	if bool(job.delivery.get("early_stream",false)):
+		job.delivery._pcm_ready=_cloud_pcm_ready.bind(job)
+		job.delivery._timing_ready=_cloud_timing_ready.bind(job)
 	var result: Dictionary=await _take_prefetched(job,0,str(job.text),job.delivery)
 	if result.is_empty():result=await provider.speak(str(job.text),{},voice,job.delivery)
 	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id):return
@@ -275,7 +280,7 @@ func _run_cloud(job: Dictionary) -> void:
 		_complete_cloud(job,stream,"ok")
 	else:
 		var reason:=str(result.get("error","speech unavailable"))
-		var retryable:=_safe_to_retry(result)
+		var retryable:=_safe_to_retry(result) and not bool(job.get("published_pcm",false))
 		if retryable and int(job.attempts)<MAX_ATTEMPTS and Time.get_ticks_msec()-int(job.created)<CLOUD_TIMEOUT_MS and cloud_keys.has(job.key):
 			var retry_after:=clampi(int(result.get("retry_after_ms",0)),0,15000)
 			job.ready_at=Time.get_ticks_msec()+maxi(retry_after,500*(1<<int(job.attempts)))
@@ -290,6 +295,19 @@ static func _safe_to_retry(result: Dictionary) -> bool:
 	# Retry only explicit rejection before generation, never an unknown outcome.
 	if bool(result.get("canceled",false)):return false
 	return int(result.get("status",0))==429 or str(result.get("code","")) in ["429","rate_limit_exceeded","queue_full"] or str(result.get("error","")).to_lower()=="busy"
+
+func _cloud_pcm_ready(offset: int,pcm: PackedByteArray,job: Dictionary) -> void:
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or bool(job.get("delivered",false)):return
+	job.published_pcm=true
+	for listener: Dictionary in cloud_keys.get(job.key,[]):
+		if offset==0:listener.live_started=true
+		# Duplicates arriving after byte zero receive the complete cached WAV.
+		if bool(listener.get("live_started",false)):pcm_ready.emit(str(listener.room),int(listener.serial),offset,pcm)
+
+func _cloud_timing_ready(offset: int,chars: int,total: int,job: Dictionary) -> void:
+	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or bool(job.get("delivered",false)):return
+	for listener: Dictionary in cloud_keys.get(job.key,[]):
+		if bool(listener.get("live_started",false)):timing_ready.emit(str(listener.room),int(listener.serial),offset,chars,total)
 
 func _cloud_audio_ready(result: Dictionary,job: Dictionary) -> void:
 	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or bool(job.get("delivered",false)):return

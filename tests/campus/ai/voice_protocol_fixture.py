@@ -11,7 +11,7 @@ from aiohttp import web
 PCM = b"".join(struct.pack("<h", round(5000 * math.sin(i * .07))) for i in range(4800))
 ENCODED = base64.b64encode(PCM).decode()
 USAGE = {"input_tokens":100,"output_tokens":40,"input_token_details":{"text_tokens":100,"audio_tokens":0,"cached_tokens":0},"output_token_details":{"text_tokens":10,"audio_tokens":30}}
-COUNTS = {"create":0,"active":0,"peak":0,"transcriptions":0,"renders":0}
+COUNTS = {"create":0,"active":0,"peak":0,"transcriptions":0,"renders":0,"realtime_connections":0}
 
 async def transcription_ws(request):
     ws=web.WebSocketResponse()
@@ -61,6 +61,7 @@ async def voice_ws(request):
     delegated=False
     dialogue_blocks={}
     if not live:
+        COUNTS["realtime_connections"]+=1
         assert request.query["model"]=="gpt-realtime-2.1-mini"
         await ws.send_json({"type":"session.created","session":{"id":"rt_fixture"}})
     try:
@@ -95,11 +96,17 @@ async def voice_ws(request):
                 assert session["output_modalities"]==["audio"]
                 assert session["tools"]==[]
                 await ws.send_json({"type":"session.updated","session":{"id":"rt_fixture"}})
-            elif kind=="conversation.item.create":
-                text=event["item"]["content"][0]["text"]
             elif kind=="response.create":
-                assert not live and text
+                assert not live
+                response=event["response"]
+                assert response["conversation"]=="none"
+                assert len(response["input"])==1
+                text=response["input"][0]["content"][0]["text"]
+                assert text and response["output_modalities"]==["audio"]
+                assert response["metadata"]["request_id"]
                 COUNTS["renders"]+=1
+                response_id="fixture-"+str(COUNTS["renders"])
+                await ws.send_json({"type":"response.created","response":{"id":response_id,"metadata":response["metadata"]}})
                 if "Rate limit" in text:
                     await ws.send_json({"type":"error","error":{"code":"rate_limit_exceeded","message":"private fixture secret"}})
                     continue
@@ -108,10 +115,17 @@ async def voice_ws(request):
                 if ws.closed:continue
                 spoken="Incorrect answer." if "Mismatch" in text else text
                 encoded=base64.b64encode(bytes(len(PCM))).decode() if "Silent audio" in text else ENCODED
-                await ws.send_json({"type":"response.output_audio.delta","delta":encoded})
+                await ws.send_json({"type":"response.output_audio.delta","response_id":"stale-response","delta":ENCODED})
+                if text.startswith("Streaming fixture"):
+                    await ws.send_json({"type":"response.output_audio.delta","response_id":response_id,"delta":base64.b64encode(PCM[:4800]).decode()})
+                    await ws.send_json({"type":"response.output_audio_transcript.delta","response_id":response_id,"delta":"Streaming fixture"})
+                    await asyncio.sleep(.2)
+                    await ws.send_json({"type":"response.output_audio.delta","response_id":response_id,"delta":base64.b64encode(PCM[4800:]).decode()})
+                else:
+                    await ws.send_json({"type":"response.output_audio.delta","response_id":response_id,"delta":encoded})
                 if "Missing transcript" not in text:
-                    await ws.send_json({"type":"response.output_audio_transcript.done","transcript":spoken})
-                await ws.send_json({"type":"response.done","response":{"status":"completed","usage":USAGE}})
+                    await ws.send_json({"type":"response.output_audio_transcript.done","response_id":response_id,"transcript":spoken})
+                await ws.send_json({"type":"response.done","response":{"id":response_id,"status":"completed","usage":USAGE}})
             elif kind=="session.input_audio.append":
                 assert live and started
                 pcm=base64.b64decode(event["audio"])

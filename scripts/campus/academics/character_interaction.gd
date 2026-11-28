@@ -3,6 +3,7 @@ extends RefCounted
 ## speech and memory. The host appraises and validates before delivery/commit.
 ## The model proposes language and bounded intentions, never changes game state.
 const Mind = preload("res://scripts/campus/academics/character_mind.gd")
+const Personas = preload("res://scripts/campus/academics/character_personas.gd")
 const Behavior = preload("res://scripts/campus/academics/character_behavior.gd")
 const Knowledge = preload("res://scripts/campus/academics/character_knowledge.gd")
 const TeacherAI = preload("res://scripts/campus/academics/teacher_ai.gd")
@@ -22,7 +23,7 @@ var sequence := 0
 var session_id := Crypto.new().generate_random_bytes(8).hex_encode()
 var diagnostics: Array[Dictionary] = []
 var _pending_audio_measurements: Dictionary={}
-const JOINT_RULES := " Interpret this interaction and generate the same character's response in ONE JSON object. interpretation={event,tone,severity,meaning,topic,domain,difficulty,question_kind,assessment_request,requested_action,memories,sincere,constructive,topic_changed,important,current_information}. Include event, tone, severity, meaning (one short clause), domain, question_kind and assessment_request; omit other fields when their default or empty value suffices. event is greeting/insult/apology/compliment/joke/criticism/disagreement/initiative/banter/sarcasm/teasing/manipulation/challenge/help/excitement/disappointment/chat/study/collaboration/competition. tone is friendly/neutral/hostile/playful/sarcastic/vulnerable/mixed; severity and difficulty are 0..1. question_kind is personal_experience/biography/opinion/casual/factual/academic/current_information. Distinguish personal questions from outside expertise, criticism from abuse, banter from hostility, and words from verified events. assessment_request is social/rules/clarification/solution. requested_action must occur in available_actions. Preserve assessment privacy. A person may choose silence, but a permanent refusal needs an established serious conflict. The host validates your proposed reaction; do not assert that any physical action has already occurred. Write speech consistent with the current mood and perceived incident. The host determines vocal emotion; do not predict a separate emotion label. Include delivery.knowledge_mode (personal_conversation/explain/uncertain/tentative_estimate/use_resource/use_tool), especially for uncertain or restricted factual questions."
+const JOINT_RULES := " Interpret this interaction and generate the same character's response in ONE JSON object. interpretation={event,tone,severity,meaning,topic,domain,difficulty,question_kind,assessment_request,requested_action,memories,sincere,constructive,topic_changed,important,current_information,personal_relevance}. personal_relevance is an optional 0..1 estimate of how strongly the subject matters to THIS person's identity, beliefs and interests; it is not a moral judgement of the speaker. A personal disclosure is ordinary social information unless the words indicate a problem. Include event, tone, severity, meaning (one short clause), domain, question_kind and assessment_request; omit other fields when their default or empty value suffices. event is greeting/insult/apology/compliment/joke/criticism/disagreement/initiative/banter/sarcasm/teasing/manipulation/challenge/help/excitement/disappointment/chat/study/collaboration/competition. tone is friendly/neutral/hostile/playful/sarcastic/vulnerable/mixed; severity and difficulty are 0..1. question_kind is personal_experience/biography/opinion/casual/factual/academic/current_information. Distinguish personal questions from outside expertise, criticism from abuse, banter from hostility, and words from verified events. assessment_request is social/rules/clarification/solution. requested_action must occur in available_actions. Preserve assessment privacy. A person may choose silence, but a permanent refusal needs an established serious conflict. The host validates your proposed reaction; do not assert that any physical action has already occurred. Write speech consistent with the current mood and perceived incident. The host determines vocal emotion; do not predict a separate emotion label. Include delivery.knowledge_mode (personal_conversation/explain/uncertain/tentative_estimate/use_resource/use_tool), especially for uncertain or restricted factual questions."
 
 func bind(next_mind: RefCounted, next_brain: RefCounted) -> void:
 	mind = next_mind
@@ -40,12 +41,20 @@ func context(person: Dictionary, identity: String, activity: Dictionary, questio
 	if contextual.dossier.is_empty():contextual.dossier=person.get("dossier",{})
 	var selected := Dossier.retrieve(contextual,question,data.get("prior_turns",[]),str(data.emotional_state.emotion),data.get("relationship",{}),7500 if complex else 4600)
 	data.character_core=selected.core
+	# Authored personality is not disposable generated prose. New and existing
+	# dossiers supply personal experiences, not permission to homogenize faculty.
+	var faculty_id:=str(person.get("id",""))
+	if person.get("role","")=="teacher" and Personas.DESIGN.has(faculty_id):
+		data.authored_identity={"personality":str(Personas.DESIGN[faculty_id]),"speech_style":str(Personas.SPEECH.get(faculty_id,""))}
+	# Stable motives and local activity are available BEFORE the first joint request.
+	data.identity_drivers={"worldview":str(person.get("worldview","")).left(420),"values":str(person.get("values","")).left(420),"ambition":str(person.get("ambition","")).left(300),"interests":str(person.get("interest","")).left(240),"manner":str(person.get("style","")).left(450)}
+	data.conversation_orientation=Behavior.conversation_orientation(person,data.get("relationship",{}),extra.get("observations",{}),str(activity.get("phase","freeplay")))
 	data.life_history=selected.life_history
 	data.dialogue_examples=selected.examples
 	data.erase("biography") # canonical personal_records already contain these facts
 	data.conversation_willingness=mind.disengagement(str(person.id),identity)
 	data.temperament={}
-	for key in ["anger_sensitivity","empathy","forgiveness","grudges","confrontation","arrogance","patience","teaching_effort","focus","talkativeness"]:
+	for key in ["anger_sensitivity","empathy","forgiveness","grudges","confrontation","arrogance","patience","teaching_effort","focus","talkativeness","sociability","shyness","warmth","confidence","ambition","independence","selfishness","humor"]:
 		data.temperament[key]=snappedf(float(person.get("traits",{}).get(key,.5)),.01)
 	# Never pass the full activity: it can contain private tasks, solutions and grades.
 	data.activity = {"phase": str(activity.get("phase", "freeplay")), "course": str(activity.get("course", "")), "title": str(activity.get("title", "")), "week": int(activity.get("week", 0))}
@@ -335,6 +344,8 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 		# Only validated exact input quotes may become speaker facts.
 		turn.details.memories = prepared.turn.interpretation.get("memories", [])
 		result.nonverbal=_validated_nonverbal(details)
+		if not result.nonverbal.is_empty() and not extra.get("official_communication",false) and not bool(extra.get("executed_action",{}).get("accepted",false)):
+			turn.pose=str(result.nonverbal[0])
 		result.delivery=details.get("delivery",{})
 		if wants_visual: result.plan = visual_details
 		return result
@@ -476,7 +487,7 @@ func _respond_turn(client: Node,instructions: String,data: Dictionary,prepared: 
 	var sentence_ready: Variant=prepared.extra.get("_sentence_ready")
 	var discard: Variant=prepared.extra.get("_discard_prefetch")
 	if discard is Callable and discard.is_valid():discard.call(str(prepared.event_id))
-	if not visual and prepared.activity.get("phase","")!="assignment" and ((preview is Callable and preview.is_valid()) or (sentence_ready is Callable and sentence_ready.is_valid())):
+	if prepared.activity.get("phase","")!="assignment" and ((preview is Callable and preview.is_valid()) or (sentence_ready is Callable and sentence_ready.is_valid())):
 		state={"buffer":"","candidate":"","started":false,"done":false,"preview_open":true,"preview_text":"","preview_at":-1000,"sentences":0}
 		prepared.stream_moderation=state
 		payload._request_metadata._text_progress=_streamed_speech_delta.bind(client,prepared,state)
@@ -498,7 +509,7 @@ func _streamed_speech_delta(delta: String,client: Node,prepared: Dictionary,stat
 	# No world dialogue, memory, grade or audible speech is committed here.
 	var preview: Variant=prepared.extra.get("_preview")
 	var now:=Time.get_ticks_msec()
-	if not complete_field and speech!=str(state.preview_text) and now-int(state.preview_at)>=35 and not TeacherAI.safe_reply(speech).is_empty():
+	if speech!=str(state.preview_text) and (complete_field or now-int(state.preview_at)>=35) and not TeacherAI.safe_reply(speech).is_empty():
 		state.preview_at=now;state.preview_text=speech
 		if preview is Callable and preview.is_valid():preview.call(speech)
 	var sentence_ready: Variant=prepared.extra.get("_sentence_ready")
@@ -549,7 +560,26 @@ func _provider_context(data: Dictionary,prepared: Dictionary={},purpose: String=
 func _request_metadata(prepared: Dictionary,purpose: String) -> Dictionary:
 	var extra: Dictionary=prepared.get("extra",{})
 	var origin:=str(extra.get("request_origin","teaching" if extra.get("official_communication",false) else "background" if extra.get("initiate",false) else "player"))
-	return {"subsystem":"npc_conversation","request_purpose":purpose,"origin":origin,"correlation_id":str(prepared.get("event_id","")),"request_type":"feature","_valid":func():return _current(prepared)}
+	return {"subsystem":"npc_conversation","request_purpose":purpose,"origin":origin,"correlation_id":str(prepared.get("event_id","")),"request_type":"feature","complexity":_request_complexity(prepared,purpose),"_valid":func():return _current(prepared)}
+
+static func _request_complexity(prepared: Dictionary,purpose: String) -> String:
+	# Never use the conversational fast path for assessed or specialist work,
+	# biography consistency checks, physical actions, or factual questions.
+	if purpose!="character_turn":return "full"
+	var extra: Dictionary=prepared.get("extra",{})
+	var phase:=str(prepared.get("activity",{}).get("phase",""))
+	if phase=="assignment" or extra.get("official_communication",false) or extra.get("wants_visual",false) or not extra.get("executed_action",{}).is_empty():return "full"
+	var question:=str(prepared.get("question","")).strip_edges()
+	if question.length()>180 or question.is_empty():return "full"
+	var domain:=str(prepared.get("initial_domain",""))
+	if domain not in ["conversation","casual","everyday"]:return "full"
+	var kind:=str(prepared.get("turn",{}).get("interpretation",{}).get("question_kind",""))
+	if not kind.is_empty() and kind not in ["casual","opinion"]:return "full"
+	# Short greetings, social reactions and opinions do not require the
+	# selected model's highest reasoning budget. Unknown requests stay full.
+	var text:=question.to_lower()
+	if RegEx.create_from_string("(?i)\\b(?:explain|calculate|solve|prove|derive|why|how|what|when|where|which|who|should|can|could|would|is|are|does|do|did|help|tell|show|compare|measure)\\b|[0-9=+*/%?]").search(text)!=null:return "full"
+	return "social"
 
 func _moderate(client: Node,text: String,prepared: Dictionary,purpose: String) -> Dictionary:
 	if client.has_method("moderate_context"):return await client.moderate_context(text,_request_metadata(prepared,purpose))
@@ -667,7 +697,7 @@ static func _validated_nonverbal(details: Dictionary) -> Array:
 	var result: Array=[]
 	for proposal in details.get("nonverbal",[]):
 		var action:=str(proposal.get("action","")) if proposal is Dictionary else str(proposal)
-		if action in ["nod","wave","shrug","turn_away","think","defensive"] and action not in result:result.append(action)
+		if action in ["nod","wave","shrug","turn_away","think","defensive","shake_head","confused","awkward_stare","laugh"] and action not in result:result.append(action)
 	return result
 
 func _cancel_result(result: Dictionary,prepared: Dictionary) -> Dictionary:
@@ -708,6 +738,8 @@ static func decode_interpretation(text: String, question: String) -> Dictionary:
 	if result.requested_action not in ACTIONS: result.requested_action = ""
 	var kind := str(value.get("question_kind","factual"))
 	result.question_kind=kind if kind in ["personal_experience","biography","opinion","casual","factual","academic","current_information"] else "factual"
+	var relevance: Variant=value.get("personal_relevance",.5)
+	result.personal_relevance=clampf(float(relevance),0.,1.) if (relevance is float or relevance is int) and is_finite(float(relevance)) else .5
 	for field in ["sincere", "constructive", "topic_changed", "important", "current_information"]:
 		result[field] = bool(value[field]) if value.get(field) is bool else field == "sincere" and result.event == "apology"
 	if value.get("memories") is Array:

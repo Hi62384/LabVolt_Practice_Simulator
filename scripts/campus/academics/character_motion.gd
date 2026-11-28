@@ -4,7 +4,7 @@ extends RefCounted
 ## expressions own the eye parent and head, and the mouth compositor owns audio.
 ## Unsupported imported rigs degrade to declared parts, without geometry guesses.
 const Face=preload("res://scripts/campus/academics/character_face.gd")
-const POSES:=["raise_hand","point","wave","nod","phone","write","sleep","whisper","argue","think","celebrate","shrug","turn_away","defensive"]
+const POSES:=["raise_hand","point","wave","nod","phone","write","sleep","whisper","argue","think","celebrate","shrug","turn_away","defensive","shake_head","confused","awkward_stare","laugh"]
 const APPEARANCE:={
 	"angry":[.18,.63,.97],"irritated":[.13,.74,.97],"frustrated":[.15,.7,.96],
 	"stressed":[.13,.95,1.03],"anxious":[.14,1.18,1.04],"embarrassed":[.24,.8,.96],
@@ -37,12 +37,15 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 		if pose=="phone":pitch_angle=.38
 		if pose=="sleep":pitch_angle=.48
 		var yaw:=0.
-		if pose=="turn_away":yaw=.55
+		if pose=="laugh":pitch_angle+=sin(elapsed*TAU*3.)*.075
+		if pose=="confused":pitch_angle-=.085
+		if pose=="turn_away":yaw=.75
+		elif pose=="shake_head":yaw=sin(elapsed*TAU*1.55)*.28*exp(-elapsed*.35)
 		elif mood in ["embarrassed","sad"]:yaw=-.14
 		elif anxiety>.5:yaw=sin(elapsed*1.7)*.055*anxiety
 		# Attention and emotion share one compositor. A seated person's pelvis
 		# stays on the chair while their head glances within anatomical limits.
-		if attention_point.is_finite() and head.is_inside_tree():
+		if pose!="turn_away" and attention_point.is_finite() and head.is_inside_tree():
 			var toward: Vector3=model.global_basis.orthonormalized().inverse()*(attention_point-head.global_position)
 			if toward.length_squared()>.001:
 				yaw+=clampf(atan2(toward.x,toward.z),-1.05,1.05)
@@ -51,10 +54,16 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 		pitch_angle=clampf(pitch_angle,-.55,.65)
 		head.rotation.x=lerpf(head.rotation.x,pitch_angle,blend)
 		head.rotation.y=lerp_angle(head.rotation.y,yaw,blend)
-		head.rotation.z=lerpf(head.rotation.z,sin(elapsed*1.1)*.025*anxiety,blend)
+		var tilt:=sin(elapsed*1.1)*.025*anxiety
+		if pose=="confused":tilt+=.13
+		elif pose=="awkward_stare":tilt-=.045
+		head.rotation.z=lerpf(head.rotation.z,tilt,blend)
 		var openness:=float(appearance[1])
 		if pose=="sleep":openness=.08
 		elif pose=="phone":openness=minf(openness,.88)
+		elif pose=="awkward_stare":openness=maxf(openness,1.18)
+		elif pose=="confused":openness=maxf(openness,1.04)
+		elif pose=="laugh":openness=minf(openness,.55)
 		for entry in rig.eyes:
 			var eye: Node3D=entry.node
 			if not is_instance_valid(eye):continue
@@ -68,6 +77,8 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 			var side:=float(entry.side)
 			var slant:=side*(anger*.5-anxiety*.27-sadness*.4)*amplitude
 			var lift:=anxiety*.013+sadness*.006-anger*.018
+			if pose=="confused":lift+=.014 if side>0 else .004
+			elif pose=="awkward_stare":lift+=.009
 			var a: Vector3=entry.a
 			var b: Vector3=entry.b
 			# Rotate both endpoints around the same authored brow anchor. A shear
@@ -92,12 +103,14 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 			a.y=lerpf(a.y,float(rig.mouth_center)+curve*pow(a.x/radius,2.),mouth_strength)
 			b.y=lerpf(b.y,float(rig.mouth_center)+curve*pow(b.x/radius,2.),mouth_strength)
 			_pose_link(segment,entry,a,b,blend)
+		if pose=="laugh":curve=maxf(curve,.032);mouth_strength=maxf(mouth_strength,.8)
 		Face.expression(head,curve,mouth_strength)
 	var body: Node3D=rig.body
 	if is_instance_valid(body):
 		var lean:=(tired*.1+anxiety*.045-anger*.035-(confidence-.5)*.04)*amplitude
 		if pose=="sleep":lean=.18
 		if pose=="argue":lean=-.045
+		if pose=="laugh":lean+=.045+sin(elapsed*TAU*3.)*.025
 		body.rotation.x=lerpf(body.rotation.x,lean,blend)
 		body.rotation.z=lerpf(body.rotation.z,sin(elapsed*2.4)*.018*anxiety,blend)
 	for side in [-1,1]:
@@ -130,6 +143,9 @@ static func express(model: Node3D,mood: String,delta: float,pose := "",elapsed :
 			"celebrate":goal+=Vector3(-.45+beat,0.,side*2.2)
 			"shrug":goal+=Vector3(-.5,side*.2,side*.85)
 			"defensive":goal+=Vector3(-1.2,-side*.18,-side*.9)
+			"confused":
+				if side>0:goal+=Vector3(-.65,.2,.4)
+			"laugh":goal+=Vector3(-.55+beat,side*.1,side*.23)
 			_:
 				goal+=Vector3(-anger*.13+anxiety*beat*.5,0.,side*(anger*.12+joy*.045))
 		arm.rotation=arm.rotation.lerp(goal,blend)

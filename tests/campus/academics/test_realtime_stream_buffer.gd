@@ -1,0 +1,43 @@
+extends SceneTree
+const Buffer=preload("res://scripts/campus/voice/realtime_speech_buffer.gd")
+const Session=preload("res://scripts/campus/ai/openai_voice_session.gd")
+func _initialize() -> void:
+	call_deferred("_run")
+func _run() -> void:
+	var buffer:=Buffer.new()
+	var pcm:=PackedByteArray();pcm.resize(12000)
+	for index in 6000:pcm.encode_s16(index*2,3000)
+	assert(not buffer.append(2,pcm))
+	assert(not buffer.append(0,PackedByteArray([1])))
+	assert(buffer.append(0,pcm.slice(0,6000)))
+	assert(not buffer.ready())
+	assert(not buffer.append(0,pcm))
+	assert(buffer.append(6000,pcm.slice(6000)))
+	assert(buffer.ready())
+	assert(Buffer.recovery_frames(0)==3600)
+	assert(Buffer.recovery_frames(10000)==12000)
+	assert(buffer.add_checkpoint(6000,12,24))
+	assert(not buffer.add_checkpoint(3000,18,24))
+	assert(not buffer.add_checkpoint(9000,11,24))
+	assert(not buffer.add_checkpoint(9000,18,25))
+	assert(buffer.add_checkpoint(12000,24,24))
+	assert(buffer.level()==0.,"Unsubmitted samples must not animate the mouth")
+	assert(Session.prefix_matches("Streaming fixture delivers early audio.","Streaming fixture"))
+	assert(not Session.prefix_matches("Streaming fixture delivers early audio.","A changed first line"))
+	assert(not Session.prefix_matches("Streaming fixture delivers early audio.","Streaming fixt"))
+	assert(Session.matched_prefix_chars("Streaming fixture delivers early audio.","Streaming fixture deli")==17)
+	assert(not Session.prefix_matches("Streaming fixture delivers early audio.","Streaming fixture failed"))
+	var anchor:=Node3D.new();root.add_child(anchor)
+	var player:=AudioStreamPlayer3D.new();player.stream=buffer.create_stream();anchor.add_child(player)
+	player.play()
+	for attempt in 20:
+		await process_frame
+		buffer.pump(player)
+		if buffer.sent_frames>0:break
+	assert(buffer.sent_frames>0,"PCM was submitted to the actual native Godot generator")
+	assert(buffer.diagnostics().received_bytes==12000)
+	buffer.finished=true
+	assert(not buffer.append(12000,pcm),"Finalized audio cannot be extended")
+	player.stop();anchor.queue_free()
+	print("REALTIME_STREAM_BUFFER PASS")
+	quit(0)

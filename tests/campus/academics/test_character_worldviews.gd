@@ -39,6 +39,22 @@ func _run() -> void:
 	var stone:=Profiles.teacher("mr_stone")
 	var bro:=Profiles.teacher("mr_bro")
 	var stanley:=Profiles.teacher("stanley")
+	var chad_orientation:=Behavior.conversation_orientation(chad,{},{},"freeplay")
+	var bird_orientation:=Behavior.conversation_orientation(bird,{},{},"freeplay")
+	var tired_orientation:=Behavior.conversation_orientation(stanley,{},{"current_activity":"sleeping"},"freeplay")
+	assert(chad_orientation.priorities!=bird_orientation.priorities,"Initial model request distinguishes different personalities")
+	var social_person:=chad.duplicate(true)
+	social_person.traits.sociability=.95;social_person.traits.patience=.95;social_person.traits.shyness=.05
+	var reserved_person:=chad.duplicate(true)
+	reserved_person.traits.sociability=.05;reserved_person.traits.patience=.05;reserved_person.traits.shyness=.95;reserved_person.traits.warmth=.05
+	var neutral:={"question_kind":"casual","tone":"neutral","personal_relevance":.5,"phase":"freeplay"}
+	var engaged:=Behavior.social_appraisal(social_person,{},neutral)
+	var reserved:=Behavior.social_appraisal(reserved_person,{},neutral)
+	assert(float(engaged.interest)>float(reserved.interest) and reserved.pose=="awkward_stare")
+	neutral.phase="assignment"
+	assert(Behavior.social_appraisal(reserved_person,{},neutral).is_empty(),"Social appraisal cannot bypass assessment")
+	assert(tired_orientation.engagement<=Behavior.conversation_orientation(stanley,{},{},"freeplay").engagement,"Current activity affects willingness to engage")
+	assert(not Behavior.priorities(chad,"Help me decide what to do with my career.",{},"lesson","steady",{"question_kind":"opinion","domain":"conversation","event":"initiative"}).academic,"Personal opinions are not academic help merely because the speaker says help")
 	for question in ["I'm excited to be here.","I love college.","Should I drop out?","I don't care about becoming rich."]:
 		var decision:=Behavior.priorities(chad,question,{},"lesson")
 		assert(decision.goal=="express_own_priorities",question)
@@ -160,6 +176,10 @@ func _run() -> void:
 	assert(absf(left_hand.global_position.x-right_hand.global_position.x)<.35,"The phone pose holds the hands together in front of the body")
 	Motion.express(model,"steady",1.,"",3.)
 	assert(eye.scale.distance_to(original_scale)<.0001,"Restored expression preserves authored proportions")
+	Motion.express(model,"steady",1.,"shake_head",.15)
+	assert(absf(rig.head.rotation.y)>.08,"A nonverbal disagreement actually turns the head")
+	Motion.express(model,"steady",1.,"confused",.3)
+	assert(rig.head.rotation.z>.08,"Confusion tilts the head")
 	for pose in Motion.POSES:Motion.express(model,"steady",.1,pose,1.)
 	model.queue_free()
 	print("CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 migrated stable students; slow affect; semantic knowledge; actual rig transforms (not visual quality or live AI evidence)")
