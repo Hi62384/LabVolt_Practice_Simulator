@@ -93,8 +93,10 @@ func _run() -> void:
 	var heard:=Voices.auditions_for(Voices.candidate(next_id),panel._model(),panel.sentence.text)
 	check(Voices.AUDITION_MOODS.all(func(mood: String):return heard.has(mood)),"Three-core audition sequence records all moods on the same model and script")
 	check(panel.approve_button.disabled,"Batch audition never substitutes for human approval")
-	check(host.requests[0].text==host.requests[1].text and host.requests[1].voice==host.requests[2].voice,"Emotion comparisons use the same words and stable voice")
-	check(host.requests[1].delivery.instructions!=host.requests[2].delivery.instructions,"Emotion comparisons change model performance instructions")
+	# Compare the completed normal/sad/angry sequence, not canceled auditions.
+	var comparisons:=host.requests.slice(-3)
+	check(comparisons.size()==3 and comparisons[0].text==comparisons[1].text and comparisons[1].text==comparisons[2].text and comparisons[0].voice==comparisons[1].voice and comparisons[1].voice==comparisons[2].voice,"Emotion comparisons use the same words and stable voice")
+	check(comparisons.size()==3 and comparisons[0].delivery.instructions!=comparisons[1].delivery.instructions and comparisons[1].delivery.instructions!=comparisons[2].delivery.instructions,"Emotion comparisons change model performance instructions")
 	panel.queue_free();host.queue_free();await process_frame
 	var path:=Voices.store_path
 	for suffix: String in ["",".bak",".tmp"]:

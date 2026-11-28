@@ -288,7 +288,6 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 		var valid: bool = not candidate.is_empty() and (phase != "assignment" or assessment_output_safe(candidate))
 		var belief_error := _validate_belief_updates(person, str(prepared.question), candidate, details, str(turn.get("event", "chat")))
 		var biography_error := _validate_biography(person, candidate, details)
-		_resolve_delivery(prepared,details)
 		var delivery_error := _validate_delivery(prepared,candidate,details)
 		if not belief_error.is_empty():
 			valid = false
