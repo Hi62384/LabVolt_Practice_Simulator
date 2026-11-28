@@ -121,6 +121,28 @@ static func creation_design(person: Dictionary) -> Dictionary:
 		if not proposed.is_empty():return proposed
 	return current
 
+# Personalized Realtime preset candidates allocate no custom provider voice.
+# A candidate has its own version even when it shares the active base voice.
+static func stage_preset(person: Dictionary,base_voice: String,description: String) -> Error:
+	var current:=identity(person)
+	if current.is_empty():return last_error if last_error!=OK else ERR_INVALID_DATA
+	var key:=_key(str(person.id),scope_for(person))
+	var prompt:=description.strip_edges()
+	if prompt.length()<40 or prompt.length()>MAX_PROMPT_CHARS or not Models.voice_compatible("gpt-realtime-2.1-mini",base_voice,"preset"):return ERR_INVALID_PARAMETER
+	if _state.candidates.has(key) or _state.pending_creations.has(key):return ERR_ALREADY_EXISTS
+	var next:=Design.draft(person)
+	if next.is_empty():next=current.duplicate(true)
+	var scope:=scope_for(person)
+	if not scope.is_empty():next.voice_scope=scope
+	next.voice_type="preset";next.permanent_voice_id=base_voice;next.profile_version=int(current.profile_version)+1
+	next.compatible_model_families=["gpt-realtime-2.1-mini","gpt-realtime-2.1","gpt-live-1.1","gpt-live-1","gpt-audio-1.5","gpt-4o-mini-tts"]
+	next.design_description=prompt;next.approval_status="candidate";next.audition_status="not_auditioned"
+	next.voice_design_status="personalized_preset_candidate";next.creation_source="personalized_preset"
+	for field in ["preferred_model","auditions","audition_runs","approved_at","approved_script_hash","provisional_notice"]:next.erase(field)
+	var prior:=_state.duplicate(true)
+	_state.candidates[key]=next
+	return _commit(prior)
+
 static func stage_candidate(person: Dictionary,created: Dictionary) -> Error:
 	var current:=identity(person)
 	if current.is_empty():return last_error if last_error!=OK else ERR_INVALID_DATA
@@ -217,12 +239,12 @@ static func auditions_for(profile: Dictionary,model: String,script: String) -> D
 	var record: Dictionary=runs.get(_audition_key(model,script),{})
 	return record.get("moods",{}).duplicate(true)
 
-static func record_audition(character_id: String,voice_id: String,mood: String,model: String="",script: String="",scope: String="") -> Error:
+static func record_audition(character_id: String,voice_id: String,mood: String,model: String="",script: String="",scope: String="",expected_version: int=0) -> Error:
 	if _load()!=OK:return last_error
 	var key:=_key(character_id,scope)
 	var target: Dictionary=_state.candidates.get(key,{})
-	if str(target.get("permanent_voice_id",""))!=voice_id:target=_state.identities.get(key,{})
-	if target.is_empty() or str(target.permanent_voice_id)!=voice_id:return ERR_DOES_NOT_EXIST
+	if str(target.get("permanent_voice_id",""))!=voice_id or (expected_version>0 and int(target.get("profile_version",0))!=expected_version):target=_state.identities.get(key,{})
+	if target.is_empty() or str(target.permanent_voice_id)!=voice_id or (expected_version>0 and int(target.profile_version)!=expected_version):return ERR_DOES_NOT_EXIST
 	var voice: Variant=voice_id if target.voice_type=="preset" else {"id":voice_id}
 	if not Models.voice_compatible(model,voice,str(target.voice_type)) or script.strip_edges().is_empty() or script.length()>1200 or mood not in AUDITION_ALLOWED:return ERR_INVALID_PARAMETER
 	var prior:=_state.duplicate(true)
@@ -238,14 +260,14 @@ static func record_audition(character_id: String,voice_id: String,mood: String,m
 	if target.approval_status!="approved":target.audition_status="preview_played"
 	return _commit(prior)
 
-static func approve(character_id: String,voice_id: String,fit_confirmed: bool,model: String="",script: String="",scope: String="") -> Error:
+static func approve(character_id: String,voice_id: String,fit_confirmed: bool,model: String="",script: String="",scope: String="",expected_version: int=0) -> Error:
 	if _load()!=OK:return last_error
 	var key:=_key(character_id,scope)
 	var next: Dictionary=_state.candidates.get(key,{})
-	var pending:=str(next.get("permanent_voice_id",""))==voice_id
+	var pending:=str(next.get("permanent_voice_id",""))==voice_id and (expected_version<=0 or int(next.get("profile_version",0))==expected_version)
 	if not pending:next=_state.identities.get(key,{})
 	next=next.duplicate(true)
-	if next.is_empty() or str(next.permanent_voice_id)!=voice_id:return ERR_DOES_NOT_EXIST
+	if next.is_empty() or str(next.permanent_voice_id)!=voice_id or (expected_version>0 and int(next.profile_version)!=expected_version):return ERR_DOES_NOT_EXIST
 	var heard:=auditions_for(next,model,script)
 	if not fit_confirmed or script.strip_edges().is_empty() or not AUDITION_MOODS.all(func(mood: String):return heard.has(mood)):return ERR_UNAUTHORIZED
 	var voice: Variant=voice_id if next.voice_type=="preset" else {"id":voice_id}

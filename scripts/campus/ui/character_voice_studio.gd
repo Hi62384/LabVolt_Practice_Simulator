@@ -10,7 +10,7 @@ const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
 const Models=preload("res://scripts/campus/ai/openai_models.gd")
 const Toon=preload("res://scripts/toon_character.gd")
 const Dossiers=preload("res://scripts/campus/academics/character_dossier_store.gd")
-const BASE_AUDITION_MODELS:=["gpt-live-1.1","gpt-realtime-2.1-mini","gpt-realtime-2.1","gpt-audio-1.5","gpt-4o-mini-tts","tts-1","tts-1-hd","gpt-live-1"]
+const BASE_AUDITION_MODELS:=["gpt-realtime-2.1-mini","gpt-live-1.1","gpt-realtime-2.1","gpt-audio-1.5","gpt-4o-mini-tts","tts-1","tts-1-hd","gpt-live-1"]
 const EMOTIONS:=["normal","happy","excited","amused","irritated","angry","extremely angry","sad","tired","disappointed","dismissive","embarrassed","bored","confused"]
 var service: Node
 var draft: Dictionary={}
@@ -40,6 +40,9 @@ var use_candidate: CheckButton
 var fit: CheckBox
 var preview_button: Button
 var generate_button: Button
+var preset_voice: OptionButton
+var preset_button: Button
+var regenerate_preset_button: Button
 var approve_button: Button
 var discard_button: Button
 var stop_button: Button
@@ -103,14 +106,23 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	identity_label=_label(identity_box,"",14,T.MUTED)
 	_label(details,"1 · Permanent voice design",16,T.ACCENT)
 	design=TextEdit.new();design.custom_minimum_size.y=118;design.wrap_mode=TextEdit.LINE_WRAPPING_BOUNDARY;details.add_child(design)
-	design.tooltip_text="The original stable voice design. Current emotions are controlled separately below. Editing this text only affects the next generated candidate."
-	generate_button=_button(details,"Generate original voice candidate",_generate)
+	design.tooltip_text="Edit the stable vocal characteristics: perceived age, register, accent, timbre, rhythm, articulation, breathiness, emphasis and mannerisms. Current emotions are controlled separately. Changes affect only a staged candidate."
+	_label(details,"Personalized preset · recommended (Realtime Mini)",14,T.ACCENT)
+	var preset_row:=HBoxContainer.new();details.add_child(preset_row);_label(preset_row,"Base voice",14,T.INK)
+	preset_voice=OptionButton.new();preset_voice.size_flags_horizontal=Control.SIZE_EXPAND_FILL;preset_row.add_child(preset_voice)
+	for base: String in ["alloy","ash","ballad","coral","echo","sage","shimmer","verse","marin","cedar"]:
+		preset_voice.add_item(base.capitalize());preset_voice.set_item_metadata(preset_voice.item_count-1,base)
+		if not Models.voice_compatible("gpt-realtime-2.1-mini",base,"preset"):preset_voice.set_item_disabled(preset_voice.item_count-1,true)
+	_label(details,"A shared provider voice with individual vocal instructions. No custom voice creation charge or new provider resource.",12,T.MUTED)
+	var preset_actions:=HFlowContainer.new();details.add_child(preset_actions)
+	regenerate_preset_button=_button(preset_actions,"Suggest profile from character",_suggest_preset)
+	preset_button=_button(preset_actions,"Stage personalized preset",_stage_preset)
 	_label(details,"2 · Audition the voice",16,T.ACCENT)
 	var model_row:=HBoxContainer.new();details.add_child(model_row);_label(model_row,"Audition model",15,T.INK)
 	voice_model=OptionButton.new();voice_model.size_flags_horizontal=Control.SIZE_EXPAND_FILL;model_row.add_child(voice_model)
 	voice_model.item_selected.connect(func(_index: int):fit.set_pressed_no_signal(false);_refresh())
 	lifecycle_label=_label(details,"",13,T.MUTED)
-	use_candidate=CheckButton.new();use_candidate.text="Audition pending custom candidate";details.add_child(use_candidate)
+	use_candidate=CheckButton.new();use_candidate.text="Audition pending candidate";details.add_child(use_candidate)
 	use_candidate.toggled.connect(func(_value: bool):_switch_candidate())
 	var emotional_row:=HBoxContainer.new();details.add_child(emotional_row);_label(emotional_row,"Delivery",15,T.INK)
 	emotion=OptionButton.new();emotion.size_flags_horizontal=Control.SIZE_EXPAND_FILL;emotional_row.add_child(emotion)
@@ -132,6 +144,8 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	advanced_toggle=CheckButton.new();advanced_toggle.text="Advanced · batch generation, recovery and allocation";details.add_child(advanced_toggle)
 	advanced_box=VBoxContainer.new();advanced_box.add_theme_constant_override("separation",10);advanced_box.visible=false;details.add_child(advanced_box)
 	advanced_toggle.toggled.connect(func(open: bool):advanced_box.visible=open)
+	_label(advanced_box,"Optional custom provider voices",16,T.ACCENT)
+	generate_button=_button(advanced_box,"Generate original custom voice",_generate)
 	_label(advanced_box,"Custom voice allocation",16,T.ACCENT)
 	capacity_label=_label(advanced_box,"",13,T.MUTED)
 	var capacity_row:=HBoxContainer.new();advanced_box.add_child(capacity_row);_label(capacity_row,"Voices created elsewhere",14,T.INK)
@@ -278,13 +292,38 @@ func _select(id: String) -> void:
 	else:
 		var proposed:=Voices.creation_design(person) if pending.is_empty() else shown
 		design.text=str(proposed.get("design_description",shown.design_description))
-	var preferred:=str(identity.get("preferred_model",draft.get("modalities",{}).get("tts",_default_model())))
+	var proposed_preset:=shown if shown.get("voice_type","")=="preset" else Voices.Design.draft(person)
+	_select_base_voice(str(proposed_preset.get("permanent_voice_id","alloy")))
+	var preferred:=str(identity.get("preferred_model","gpt-realtime-2.1-mini" if identity.get("voice_type","")=="preset" else draft.get("modalities",{}).get("tts",_default_model())))
 	if use_candidate.button_pressed:preferred="gpt-live-1.1" if pending.get("voice_type")=="prompt" else "gpt-realtime-2.1-mini"
 	_rebuild_models(shown if not shown.is_empty() else Voices.Design.draft(person),preferred)
 	if is_instance_valid(portrait_model):portrait_model.queue_free()
 	var appearance: Dictionary=Roster.config(id) if Roster.has(id) else person.get("appearance",Toon.defaults())
 	portrait_model=Toon.build(appearance);portrait_world.add_child(portrait_model)
 	_refresh()
+
+func _select_base_voice(base: String) -> void:
+	for index in preset_voice.item_count:
+		if str(preset_voice.get_item_metadata(index))==base and not preset_voice.is_item_disabled(index):
+			preset_voice.select(index)
+			return
+
+func _suggest_preset() -> void:
+	if not _context_current() or busy or batch_active or not Voices.candidate(selected_id,_scope()).is_empty():return
+	var proposed:=Voices.Design.draft(people.get(selected_id,{}))
+	if proposed.is_empty():return
+	design.text=str(proposed.design_description)
+	_select_base_voice(str(proposed.permanent_voice_id))
+	status.text="Suggested from the saved character's vocal descriptions and personality. Edit the instructions or base voice, then stage for audition."
+
+func _stage_preset() -> void:
+	if not _context_current() or busy or batch_active or audio.playing or preset_voice.selected<0:return
+	var error:=Voices.stage_preset(people[selected_id],str(preset_voice.get_selected_metadata()),design.text)
+	if error!=OK:
+		status.text="Could not stage the preset: "+error_string(error)+" (use 40–2,000 characters and a supported base voice)."
+		return
+	_select(selected_id)
+	status.text="Preset candidate saved locally. Audition the same sentence in three core moods and approve to use it in gameplay. Your active voice is unchanged."
 
 func _voice() -> Dictionary:
 	if profile_unavailable:return {}
@@ -342,7 +381,8 @@ func _refresh() -> void:
 	var lifecycle: Dictionary=service.model_status(selected_model,"tts",draft) if is_instance_valid(service) and service.has_method("model_status") else Models.lifecycle(selected_model)
 	if valid:
 		identity_label.text="%s · intended age %d\n%s\n%s · %s\nVoice: %s\n%s"%[str(profile.vocal_presentation).capitalize(),int(profile.perceived_age),str(profile.pitch_range),str(profile.timbre),str(profile.accent),str(profile.permanent_voice_id),str(profile.approval_status).replace("_"," ").capitalize()]
-		if profile.voice_type!="preset":identity_label.text+="\nAcoustic fit is judged by listening, not inferred from the prompt."
+		if profile.voice_type!="preset":identity_label.text+="\nCustom provider voice; acoustic fit requires listening."
+		else:identity_label.text+="\nPersonalized shared preset; acoustic uniqueness is not guaranteed."
 		if not str(active.get("preferred_model","")).is_empty():identity_label.text+="\nGameplay model pinned to "+str(active.preferred_model)
 		if use_candidate.button_pressed and not pending.is_empty():identity_label.text+="\nGameplay retains the existing voice until approval."
 	else:identity_label.text="Voice unavailable — no speaker was silently reassigned."
@@ -362,6 +402,9 @@ func _refresh() -> void:
 	voice_model.disabled=locked or not valid
 	emotion.disabled=locked or not valid
 	design.editable=not locked and valid and pending.is_empty() and journal.is_empty()
+	preset_voice.disabled=not design.editable
+	preset_button.disabled=not design.editable
+	regenerate_preset_button.disabled=not design.editable
 	sentence.editable=not locked and valid
 	var text_valid:=not sentence.text.strip_edges().is_empty() and sentence.text.strip_edges().length()<=1200
 	preview_button.disabled=locked or not online or not bool(resolved.get("ok",false)) or not text_valid
@@ -403,7 +446,7 @@ func _refresh() -> void:
 	_refreshing=false
 
 func _default_model() -> String:
-	return str(service.tts_model) if is_instance_valid(service) else "gpt-live-1.1"
+	return str(service.tts_model) if is_instance_valid(service) else "gpt-realtime-2.1-mini"
 
 func _can_request() -> bool:
 	if not _context_current():return false
@@ -460,7 +503,7 @@ func _start_preview(mood: String) -> void:
 	preview_draft.modalities.tts=model
 	preview_draft.tts_enabled=true
 	preview_draft.request_type="test"
-	var metadata:={"character_id":character_id,"scope":scope,"voice_id":str(profile.permanent_voice_id),"mood":mood,"model":model,"script":text}
+	var metadata:={"character_id":character_id,"scope":scope,"voice_id":str(profile.permanent_voice_id),"profile_version":int(profile.profile_version),"mood":mood,"model":model,"script":text}
 	var playback:={"started":false}
 	var started_at:=Time.get_ticks_msec()
 	# Play the verified waveform before the provider finishes usage accounting.
@@ -496,7 +539,7 @@ func _heard() -> void:
 	if not _context_current():playing.clear();core_queue.clear();_refresh();return
 	var completed:=playing.duplicate()
 	playing.clear()
-	var error:=Voices.record_audition(str(completed.character_id),str(completed.voice_id),str(completed.mood),str(completed.model),str(completed.script),str(completed.scope))
+	var error:=Voices.record_audition(str(completed.character_id),str(completed.voice_id),str(completed.mood),str(completed.model),str(completed.script),str(completed.scope),int(completed.profile_version))
 	status.text="Audition played. Confirm the character fit after listening." if error==OK else "The audition played, but its record could not be saved."
 	if error!=OK:core_queue.clear()
 	_refresh()
@@ -570,7 +613,7 @@ func _approve() -> void:
 	if busy or batch_active or audio.playing or not _context_current():return
 	var profile:=_voice()
 	if profile.is_empty():return
-	var error:=Voices.approve(selected_id,str(profile.permanent_voice_id),fit.button_pressed,_model(),sentence.text,_scope())
+	var error:=Voices.approve(selected_id,str(profile.permanent_voice_id),fit.button_pressed,_model(),sentence.text,_scope(),int(profile.profile_version))
 	if error!=OK:status.text="Voice approval could not be saved: "+error_string(error);return
 	use_candidate.set_pressed_no_signal(false)
 	fit.set_pressed_no_signal(false)
