@@ -2,6 +2,7 @@ extends RefCounted
 ## Authority-only callers validate proximity/session before accepting a packet.
 ## Assembly is per utterance, bounded, duplicate-safe and independent of arrival order.
 const CHUNK_BYTES:=12000
+const MAX_SEGMENTS:=preload("res://scripts/campus/academics/character_speech.gd").MAX_SEGMENTS
 const MAX_BYTES:=16_000_000
 const MAX_BUFFERED_BYTES:=48_000_000
 const MAX_TRANSFERS:=8
@@ -24,7 +25,7 @@ func push(channel: String,serial: int,total: int,offset: int,rate: int,stereo: b
 	var segment_total:=int(metadata.get("segment_total",1))
 	var segment_index:=int(metadata.get("segment_index",0))
 	var segment_text:=str(metadata.get("segment_text",""))
-	if segment_total not in [1,2] or segment_index<0 or segment_index>=segment_total or (segment_total>1 and (segment_text.is_empty() or segment_text.length()>1600)):return {"ok":false,"error":"invalid segment"}
+	if segment_total<1 or segment_total>MAX_SEGMENTS or segment_index<0 or segment_index>=segment_total or (segment_total>1 and (segment_text.is_empty() or segment_text.length()>1600)):return {"ok":false,"error":"invalid segment"}
 	var key:=utterance_key(channel,serial)
 	if segment_total>1:key+=":part:"+str(segment_index)
 	var expected_hash:=str(metadata.get("sha256",""))

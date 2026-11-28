@@ -337,6 +337,7 @@ func speak(text: String,draft: Dictionary={},voice: Variant="alloy",delivery: Di
 	context.request_id=str(delivery.get("request_id",Crypto.new().generate_random_bytes(12).hex_encode()))
 	context.retry_count=maxi(0,int(delivery.get("retry_count",context.get("retry_count",0))))
 	context.correlation_id=str(delivery.get("correlation_id",context.get("correlation_id","")))
+	if delivery.get("_valid") is Callable:context._valid=delivery._valid
 	if draft.is_empty():context.request_type="feature"
 	if not context.has("subsystem"):context.subsystem="npc_speech" if draft.is_empty() else "voice_preview"
 	if not context.has("request_purpose"):context.request_purpose="speech_segment" if "-part-" in context.request_id else "character_speech" if draft.is_empty() else "voice_audition"
@@ -380,14 +381,15 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 		return begun
 	_begin_request_diagnostics(draft,id,choice,"tts",queued_at)
 	var epoch:=_connection_epoch
+	var guard:=_request_guard(draft)
 	while results.is_empty() and is_instance_valid(session):
-		if _cancelled_requests.has(id) or epoch!=_connection_epoch:session.cancel()
+		if _cancelled_requests.has(id) or epoch!=_connection_epoch or _guard_cancelled(guard):session.cancel()
 		await get_tree().process_frame
 	var result: Dictionary=results[0] if not results.is_empty() else {"ok":false,"error":"The voice session ended.","retryable":true}
 	# Verified audio is usable before Live's final accounting event arrives.
 	# The transport still drains and records usage exactly once below.
 	var ready_callback: Callable=delivery.get("_audio_ready",Callable())
-	if bool(result.get("ok",false)) and not _cancelled_requests.has(id) and epoch==_connection_epoch and ready_callback.is_valid():ready_callback.call(result)
+	if bool(result.get("ok",false)) and not _cancelled_requests.has(id) and epoch==_connection_epoch and not _guard_cancelled(guard) and ready_callback.is_valid():ready_callback.call(result)
 	var availability_key:=_account_cache_id(str(access.key))+":"+choice
 	if str(result.get("code","")) in ["model_not_found","permission_denied","insufficient_permissions"] and voice_type=="preset":_access_failures[availability_key]=str(result.code)
 	elif result.get("ok",false):_access_failures.erase(availability_key)
@@ -398,7 +400,7 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 		while is_instance_valid(session) and session.state!="closed":await get_tree().process_frame
 	# Cancel can arrive during graceful close, after speech_completed. A studio
 	# preview or caller without the early callback must not resurrect that audio.
-	if _cancelled_requests.has(id) or epoch!=_connection_epoch:
+	if _cancelled_requests.has(id) or epoch!=_connection_epoch or _guard_cancelled(guard):
 		result.erase("stream");result.ok=false;result.canceled=true;result.retryable=false;result.error="Speech canceled."
 	var metadata: Dictionary=result.get("_api_metadata",{})
 	var seconds: float=-1.0

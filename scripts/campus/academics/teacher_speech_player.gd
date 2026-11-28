@@ -10,6 +10,7 @@ const Face=preload("res://scripts/campus/academics/character_face.gd")
 const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
 const MAX_QUEUED:=24
 const MAX_TEXT:=Speech.MAX_TEXT
+const MAX_SEGMENTS:=Speech.MAX_SEGMENTS
 const MAX_CACHED:=32
 const MAX_CACHE_BYTES:=64_000_000
 const MAX_WAV_BYTES:=16_000_000
@@ -308,7 +309,7 @@ func _start(channel: String,item: Dictionary) -> void:
 		playback_started.emit(channel,int(item.serial),Time.get_ticks_msec())
 
 func deliver_segment(channel: String,serial: int,stream: AudioStreamWAV,index: int,total: int,text: String) -> bool:
-	if not valid_stream(stream) or not has_pending(channel,serial) or total!=2 or index<0 or index>=total or text.is_empty() or text.length()>MAX_TEXT:return false
+	if not valid_stream(stream) or not has_pending(channel,serial) or total<2 or total>MAX_SEGMENTS or index<0 or index>=total or text.is_empty() or text.length()>MAX_TEXT:return false
 	var item: Dictionary=awaiting[channel].items[serial]
 	if not is_instance_valid(item.anchor) or bool(item.get("segments_closed",false)):return false
 	if not speech_enabled and not bool(item.options.get("authoritative_audio",false)):return false
@@ -339,10 +340,21 @@ func _advance_segment(channel: String,item: Dictionary) -> bool:
 	item.stream=segment.get("stream")
 	item.expect_audio=segment.is_empty() and not bool(item.get("segments_closed",false))
 	# If synthesis failed mid-utterance, retain only the unspoken tail as text.
-	var consumed:=str(item.segments.get(0,{}).get("text","")).length()
-	item.text=str(segment.get("text",str(item.full_text).substr(consumed).strip_edges()))
+	item.text=str(segment.get("text",_remaining_text(item,next)))
+	if segment.is_empty() and bool(item.get("segments_closed",false)):item.segment_count=next+1
 	_start(channel,item)
 	return true
+
+static func _remaining_text(item: Dictionary,index: int) -> String:
+	var full:=str(item.get("full_text",item.get("text","")))
+	var cursor:=0
+	for part in index:
+		var words:=str(item.get("segments",{}).get(part,{}).get("text",""))
+		if words.is_empty():break
+		var found:=full.find(words,cursor)
+		if found<0:break
+		cursor=found+words.length()
+	return full.substr(cursor).strip_edges()
 
 func deliver_stream(channel: String,serial: int,stream: AudioStreamWAV) -> bool:
 	if not valid_stream(stream) or not has_pending(channel,serial):return false
@@ -361,8 +373,7 @@ func fail_stream(channel: String,serial: int,_reason: String="unavailable") -> b
 	if int(item.get("segment_count",0))>0:
 		item.segments_closed=true;item.segment_failure=true
 		if item.stream==null:
-			var consumed:=str(item.segments.get(0,{}).get("text","")).length() if int(item.segment_index)>0 else 0
-			item.text=str(item.full_text).substr(consumed).strip_edges()
+			item.text=_remaining_text(item,int(item.segment_index))
 			# This caption includes every remaining word; don't show it twice.
 			item.segment_count=int(item.segment_index)+1
 	_erase_pending(channel,serial)

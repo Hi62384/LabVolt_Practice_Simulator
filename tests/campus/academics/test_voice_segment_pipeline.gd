@@ -104,6 +104,46 @@ func run() -> void:
 	while synth.cloud_active.has(draining_id):await process_frame
 	var another:=Synth.new();assert(another.instance_id!=synth.instance_id);another.free()
 
+	# Direct streamed speech renders sentences during text generation. The
+	# authoritative response adopts exact matching audio, not a new request.
+	var lines: Array[String]=["First sentence.","Second sentence.","Third sentence."]
+	var whole:=" ".join(lines)
+	var delivery:={"ok":true,"voice":"ash","model":"gpt-live-1.1","instructions":"Read the exact supplied words.","sentence_mode":true,"prefetch_turn":"fixture-turn","segmented":true}
+	var before_prefetch:=provider.calls.size()
+	var before_segments:=segments.size()
+	var current:={"valid":true}
+	provider.drain=true
+	for index in lines.size():synth.prefetch_sentence("fixture-turn",index,lines[index],delivery,func():return current.valid)
+	while provider.calls.size()<before_prefetch+2:await process_frame
+	assert(provider.calls.size()==before_prefetch+2,"The first two completed text sentences start rendering before final text admission.")
+	assert(player.accept("direct","Teacher",1,whole,2,anchor,null,1.,{"expect_audio":true}))
+	assert(synth.request("direct",1,"teacher",whole,"direct-three",2,delivery)=="queued")
+	while segments.size()<before_segments+2:await process_frame
+	assert(player.active.direct.item.text==lines[0],"Playback starts from the first prefetched sentence.")
+	provider.drain=false
+	while synth.cloud_keys.has("direct-three"):await process_frame
+	assert(provider.calls.size()==before_prefetch+3 and synth.prefetch_hits==3,"All three matching sentences are adopted without a second paid rendering.")
+	assert(player.active.direct.item.segments.size()==3)
+	for index in lines.size():
+		assert(player.active.direct.item.text==lines[index])
+		player._finished("direct",1)
+	assert(finishes.back()==["direct",1,true],"One utterance completes after every sentence in order.")
+	var before_cached:=provider.calls.size()
+	var cache_delivery:=delivery.duplicate(true);cache_delivery.prefetch_turn="repeat-turn"
+	assert(player.accept("repeat-direct","Teacher",1,whole,2,anchor,null,1.,{"expect_audio":true}))
+	assert(synth.request("repeat-direct",1,"teacher",whole,"repeat-direct",2,cache_delivery)=="queued")
+	while synth.cloud_keys.has("repeat-direct"):await process_frame
+	assert(provider.calls.size()==before_cached and synth.part_cache_hits>=3,"Exact repeated sentence audio is reused without provider usage.")
+	for index in lines.size():player._finished("repeat-direct",1)
+	provider.hold_audio=true
+	synth.prefetch_sentence("canceled-turn",0,"Unaccepted draft.",delivery,func():return current.valid)
+	while synth.prefetch_running.is_empty():await process_frame
+	var canceled_prefetch: String=synth.prefetch_running.keys()[0]
+	current.valid=false;synth._pump_prefetch()
+	assert(canceled_prefetch in provider.canceled and not synth.prefetch_turns.has("canceled-turn"),"Invalidated dialogue cancels its speculative render.")
+	provider.hold_audio=false
+	await create_timer(.05).timeout
+
 	# Independent assemblies prevent concurrent part packets from mixing.
 	var transfer:=Transfer.new()
 	var bytes:=PackedByteArray();bytes.resize(24000);bytes.fill(10)

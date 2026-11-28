@@ -1869,6 +1869,7 @@ func _answer_classmate_inner(entry: Dictionary) -> void:
  extra._valid=func():return _character_context_current(epoch,captured_activity) and str(game.school.identities.get(peer,""))==identity and not students.nearby_member(peer,room,class_id,actor,hearing_range).is_empty() and _voice_context_valid(peer,voice_context)
  if voice_context.get("mode")=="manual":
   extra._preview=func(words: String):_context_question_status(peer,room,actor,"Reply (verifying…)\n\n"+words,voice_context)
+ _enable_sentence_prefetch(extra,peer,room)
  var prepared:=await character_interaction.prepare(client,person,identity,activity,question,extra)
  var still_present: bool=not prepared.get("cancelled",false) and bool(extra._valid.call())
  if not still_present:
@@ -2062,6 +2063,7 @@ func _answer_question_inner(peer: int,room: String,id: String,class_id: String,q
  extra._valid=func():return _character_context_current(epoch,captured_activity) and game.lecture_classes._inside(peer,room) and str(game.school.identities.get(peer,""))==identity and _voice_context_valid(peer,voice_context)
  if voice_context.get("mode")=="manual":
   extra._preview=func(words: String):_context_question_status(peer,room,id,"Reply (verifying…)\n\n"+words,voice_context)
+ _enable_sentence_prefetch(extra,peer,room)
  var client: Node=game.host_openai
  var prepared:=await character_interaction.prepare(client,person,identity,activity,question,extra)
  var current_class:=_ai_activity(room)
@@ -2662,6 +2664,25 @@ func _next_speech(room: String) -> int:
  speech_serial[room]=serial
  return serial
 
+# Only addressed player conversations use speculative sentence rendering.
+# Background NPCs and assessed/visual dialogue retain their existing path.
+func _enable_sentence_prefetch(extra: Dictionary,peer: int,room: String) -> void:
+ if not is_instance_valid(speech_synth) or not _uses_class_voice():return
+ if peer==multiplayer.get_unique_id() and not game.client_preferences.values.get("teacher_speech",true) and _voice_recipients(room).is_empty():return
+ extra._sentence_ready=_prefetch_character_sentence
+ extra._discard_prefetch=speech_synth.discard_prefetch
+
+func _prefetch_character_sentence(event_id: String,index: int,text: String,prepared: Dictionary) -> void:
+ if not _uses_class_voice() or not is_instance_valid(speech_synth):return
+ var guard: Variant=prepared.get("extra",{}).get("_valid")
+ if not guard is Callable or not guard.is_valid() or not bool(guard.call()):return
+ var emotional: Dictionary=prepared.get("context",{}).get("emotional_state",{})
+ var turn: Dictionary=prepared.get("turn",{})
+ var mood:=str(turn.get("emotion",emotional.get("emotion","steady")))
+ var affect: Dictionary=turn.get("emotions",emotional.get("emotions",{}))
+ var delivery:=Characters.speech(prepared.person,str(game.host_openai.tts_model),3,mood,affect)
+ if delivery.get("ok",false):speech_synth.prefetch_sentence(event_id,index,text,delivery,guard)
+
 func _mark_character_response_ready(result: Dictionary) -> void:
  var prepared: Dictionary=result.get("prepared",{})
  if prepared.get("extra",{}).get("_timing") is Dictionary:
@@ -2671,7 +2692,7 @@ func _track_character_audio(room: String,serial: int,event_id: String,timing: Di
  if not multiplayer.is_server() or event_id.is_empty() or not timing.has("host_received_ms"):return
  var key:=room+":"+str(serial)
  if not speech_turn_timings.has(key) and speech_turn_timings.size()>=128:speech_turn_timings.erase(speech_turn_timings.keys()[0])
- speech_turn_timings[key]={"event_id":event_id,"host_received_ms":int(timing.host_received_ms)}
+ speech_turn_timings[key]={"event_id":event_id,"host_received_ms":int(timing.host_received_ms),"sentence_mode":str(timing.get("input_kind","")) in ["typed","text","audio","microphone"]}
 
 func _character_audio_ready(room: String,serial: int) -> void:
  _note_character_audio(room,serial,"audio_ready",Time.get_ticks_msec())
@@ -2839,14 +2860,23 @@ static func _voice_key(channel: String,serial: int) -> String:
  return channel+"|"+str(serial)
 
 func _request_reaction_audio(channel: String,serial: int,id: String,text: String,key: String,priority: int,delivery: Dictionary) -> void:
+ var timing: Dictionary=speech_turn_timings.get(channel+":"+str(serial),{})
+ var owner:=str(timing.get("event_id",""))
  if not bool(delivery.get("ok",false)):
+  speech_synth.discard_prefetch(owner)
   _speech_completed(channel,serial,key,null,str(delivery.get("error","incompatible_voice")));return
  var stream: AudioStreamWAV=speech_player.stream_for(key)
- if stream!=null:_speech_completed.call_deferred(channel,serial,key,stream,"ok");return
+ if stream!=null:
+  speech_synth.discard_prefetch(owner)
+  _speech_completed.call_deferred(channel,serial,key,stream,"ok");return
  delivery=delivery.duplicate(true)
  delivery.segmented=true
+ if timing.get("sentence_mode",false):
+  delivery.sentence_mode=true;delivery.prefetch_turn=owner
  var result: String=speech_synth.request(channel,serial,id,text,key,priority,delivery)
- if result not in ["queued","duplicate","cached"]:_speech_completed(channel,serial,key,null,result)
+ if result not in ["queued","duplicate","cached"]:
+  speech_synth.discard_prefetch(owner)
+  _speech_completed(channel,serial,key,null,result)
 
 func _new_speech_route(channel: String,serial: int,room: String,actor: String,peers: Array,anchor: Node3D,class_id: String="",private_peer: int=0,max_range: float=0.) -> Dictionary:
  var route:={"peers":peers.duplicate(),"room":room,"actor":actor,"class_id":class_id,"phase":str(_ai_activity(room).get("phase","")) if not class_id.is_empty() else "","epoch":character_epoch,"created":Time.get_ticks_msec(),
@@ -2928,7 +2958,7 @@ func _speech_completed(channel: String,serial: int,key: String,stream: AudioStre
  for peer in available:_send_voice_clip_to(int(peer),channel,serial,stream,route)
 
 func _speech_segment_completed(channel: String,serial: int,key: String,stream: AudioStreamWAV,status: String,index: int,total: int,text: String) -> void:
- if not is_instance_valid(speech_player) or total!=2 or index<0 or index>=total:return
+ if not is_instance_valid(speech_player) or total<2 or total>SpeechPlayer.MAX_SEGMENTS or index<0 or index>=total:return
  var token:=_voice_key(channel,serial)
  var route: Dictionary=speech_routes.get(token,{})
  if route.is_empty():return

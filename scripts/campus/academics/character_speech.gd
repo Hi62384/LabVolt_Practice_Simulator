@@ -35,7 +35,7 @@ static func sentence_parts(text: String, complete_field: bool=true) -> Array[Str
 			if token in ["mr.","mrs.","ms.","dr.","prof.","st.","vs.","etc.","e.g.","i.e.","a.m.","p.m.","a.c.","d.c."] or (token.length()==2 and token[0].to_lower()!=token[0].to_upper()):
 				i=end;continue
 			# Do not divide a dotted initialism, e.g. U.S. or Ph.D.
-			if token.count(".")>1 and not token.ends_with("..."):
+			if token.count(".")>1 and not token.ends_with("...") and RegEx.create_from_string("^[a-z.]+$").search(token)!=null:
 				i=end;continue
 		var sentence:=clean.substr(start,end-start).strip_edges()
 		if not sentence.is_empty():parts.append(sentence)

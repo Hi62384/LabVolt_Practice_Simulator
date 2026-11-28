@@ -421,13 +421,13 @@ static func _biography_proposals(details: Dictionary) -> Array:
 # Decode only the leading speech field. A partial escape or UTF-16
 # surrogate pair stays buffered until complete. Never show JSON metadata.
 static func speech_progress(raw: String) -> Dictionary:
-	var tail:=raw.strip_edges()
+	var tail:=raw.strip_edges(true,false)
 	if not tail.begins_with("{"):return {}
-	tail=tail.substr(1).strip_edges()
+	tail=tail.substr(1).strip_edges(true,false)
 	if not tail.begins_with("\"speech\""):return {}
-	tail=tail.substr(8).strip_edges()
+	tail=tail.substr(8).strip_edges(true,false)
 	if not tail.begins_with(":"):return {}
-	tail=tail.substr(1).strip_edges()
+	tail=tail.substr(1).strip_edges(true,false)
 	if not tail.begins_with("\""):return {}
 	var cursor:=1
 	var safe_end:=1
