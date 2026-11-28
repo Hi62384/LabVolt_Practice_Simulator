@@ -88,12 +88,18 @@ static func project(profile: Dictionary) -> Dictionary:
 	if profile.get("identity_scope", "") == "public": return profile.duplicate(true)
 	var id := str(profile.get("id",""))
 	if not dossiers.has(id): ensure(profile)
-	if not dossiers.has(id): return profile.duplicate(true)
+	if not dossiers.has(id): return _voice_scoped(profile.duplicate(true))
 	var d: Dictionary = dossiers[id]
 	var content_revision := int(d.get("revision",1))
 	if not _projection_cache.has(id) or int(_projection_cache[id].revision)!=content_revision:
 		_projection_cache[id]={"revision":content_revision,"profile":Dossier.project(profile,d)}
-	return _projection_cache[id].profile.duplicate(true)
+	return _voice_scoped(_projection_cache[id].profile.duplicate(true))
+
+static func _voice_scoped(profile: Dictionary) -> Dictionary:
+	# Generated IDs may recur in different host saves. Established faculty stay
+	# globally authored; the voice store scopes other identities to this owner.
+	if not host_identity.is_empty():profile.voice_scope=host_identity.sha256_text()
+	return profile
 
 static func get_dossier(id: String) -> Dictionary:
 	return dossiers.get(id, {}).duplicate(true)

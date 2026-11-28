@@ -366,7 +366,7 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 		await get_tree().process_frame
 	var result: Dictionary=results[0] if not results.is_empty() else {"ok":false,"error":"The voice session ended.","retryable":true}
 	var availability_key:=_account_cache_id(str(access.key))+":"+choice
-	if str(result.get("code","")) in ["model_not_found","permission_denied","insufficient_permissions"]:_access_failures[availability_key]=str(result.code)
+	if str(result.get("code","")) in ["model_not_found","permission_denied","insufficient_permissions"] and voice_type=="preset":_access_failures[availability_key]=str(result.code)
 	elif result.get("ok",false):_access_failures.erase(availability_key)
 	# Allow the Live terminal usage event to drain before releasing the transport.
 	# No client audio can become audible after cancellation, even if close is slow.
@@ -439,12 +439,15 @@ func _voice_access(draft: Dictionary,needs_enabled: bool) -> Dictionary:
 	if not _valid_key(key):return {"ok":false,"error":"Invalid OpenAI API key format.","retryable":false}
 	return {"ok":true,"key":key}
 
-func model_status(id: String,purpose: String) -> Dictionary:
+func model_status(id: String,purpose: String,draft: Dictionary={}) -> Dictionary:
 	var result:=Models.lifecycle(id).duplicate(true)
 	result.compatible=Models.supports(id,purpose)
-	var account:=_account_cache_id()
+	var account:=_account_cache_id(str(draft.get("key","")))
 	var catalog_current:=_model_cache_key==account
-	result.account_availability="unavailable" if _access_failures.has(account+":"+id) else "available" if catalog_current and id in _model_cache else "unavailable" if catalog_current else "unknown"
+	result.account_listed=catalog_current and id in _model_cache
+	result.catalog_known=catalog_current
+	result.access_failure=_access_failures.has(account+":"+id)
+	result.account_availability="unavailable" if result.access_failure else "available" if result.account_listed else "unavailable" if catalog_current else "unknown"
 	return result
 
 func _account_cache_id(key: String="") -> String:
@@ -674,7 +677,7 @@ func _call(method: HTTPClient.Method,path: String,payload: Dictionary,needs_enab
 		response.retryable=int(raw.code)==429 or int(raw.code)>=500
 		response.retry_after_ms=int(raw.retry_after_ms) if response.retryable else 0
 		var availability_key:=_account_cache_id(str(access.key))+":"+request_model
-		if int(raw.code) in [403,404]:_access_failures[availability_key]=int(raw.code)
+		if int(raw.code) in [403,404] and path!="/audio/voices" and not (speech and (payload.get("voice") is Dictionary or payload.get("audio",{}).get("voice") is Dictionary)):_access_failures[availability_key]=int(raw.code)
 		elif response.get("ok",false):_access_failures.erase(availability_key)
 	if path=="/audio/voices" and not response.get("ok",false):
 		response.retryable=false

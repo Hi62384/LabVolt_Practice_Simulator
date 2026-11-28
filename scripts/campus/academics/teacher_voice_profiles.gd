@@ -11,6 +11,8 @@ const MAX_IDENTITIES := 8192
 const PROMPT_VOICE_LIMIT := 100
 const MAX_STORE_BYTES := 16777216
 const AUDITION_MOODS := ["normal","sad","angry"]
+const MAX_AUDITION_RUNS:=8
+const MAX_PROMPT_CHARS:=2000
 static var store_path := "user://character_voices.json"
 static var _loaded_path := ""
 static var _state: Dictionary={}
@@ -27,24 +29,65 @@ static func designs() -> Dictionary:
 			_designs=parsed.voices.duplicate(true)
 	return _designs.duplicate(true)
 
+static func scope_for(person: Dictionary) -> String:
+	var scope:=str(person.get("voice_scope",""))
+	return scope if not Roster.PEOPLE.has(str(person.get("id",""))) and scope.length()==64 and scope.is_valid_hex_number(false) else ""
+
+static func _key(id: String,scope: String="") -> String:
+	return id if scope.is_empty() or Roster.PEOPLE.has(id) else scope+":"+id
+
+static func legacy_conflict(person: Dictionary) -> bool:
+	if _load()!=OK:return false
+	var id:=str(person.get("id",""))
+	var key:=_key(id,scope_for(person))
+	return key!=id and not _state.identities.has(key) and _state.identities.has(id)
+
 static func identity(person: Dictionary) -> Dictionary:
 	var id:=str(person.get("id",""))
-	if id.is_empty() or id.length()>128 or _load()!=OK:return {}
-	if _state.identities.has(id):return _state.identities[id].duplicate(true)
+	if id.is_empty() or id.length()>128 or person.get("identity_scope","")=="public" or _load()!=OK:return {}
+	var key:=_key(id,scope_for(person))
+	if _state.identities.has(key):return _state.identities[key].duplicate(true)
+	# An old unscoped generated ID might belong to a different saved campus.
+	# Do not silently adopt or replace it without an explicit host decision.
+	if legacy_conflict(person):return {}
+	return _initialize_identity(person)
+
+static func _initialize_identity(person: Dictionary) -> Dictionary:
+	var id:=str(person.get("id",""))
+	var scope:=scope_for(person)
+	var key:=_key(id,scope)
+	if _state.identities.has(key):return _state.identities[key].duplicate(true)
 	var designed:=designs()
 	if Roster.PEOPLE.has(id) and not designed.has(id):last_error=ERR_INVALID_DATA;return {}
 	var value: Dictionary=designed[id].duplicate(true) if designed.has(id) else Design.draft(person)
-	if value.is_empty():return {}
-	if _state.identities.size()>=MAX_IDENTITIES:last_error=ERR_OUT_OF_MEMORY;return {}
-	_state.identities[id]=value
-	if _save()!=OK:
-		_state.identities.erase(id)
-		return {}
+	if value.is_empty() or _state.identities.size()>=MAX_IDENTITIES:return {}
+	if not scope.is_empty():value.voice_scope=scope
+	var prior:=_state.duplicate(true)
+	_state.identities[key]=value
+	if _commit(prior)!=OK:return {}
 	return value.duplicate(true)
+
+static func resolve_legacy(person: Dictionary,adopt: bool,confirmed: bool) -> Error:
+	if not confirmed or not legacy_conflict(person):return ERR_UNAUTHORIZED
+	var id:=str(person.id)
+	var scope:=scope_for(person)
+	var key:=_key(id,scope)
+	if _generation_claims.has(id) or _generation_claims.has(key):return ERR_BUSY
+	if not adopt:return OK if not _initialize_identity(person).is_empty() else ERR_CANT_CREATE
+	var prior:=_state.duplicate(true)
+	for section: String in ["identities","candidates","pending_creations"]:
+		if _state[section].has(id):
+			var item: Dictionary=_state[section][id]
+			item.voice_scope=scope
+			_state[section][key]=item
+			_state[section].erase(id)
+	for allocation: Dictionary in _state.allocations.values():
+		if str(allocation.get("storage_key",allocation.get("character_id","")))==id:allocation.storage_key=key
+	return _commit(prior)
 
 static func resolve(person: Dictionary,model: String,override: Dictionary={}) -> Dictionary:
 	var profile:=identity(person) if override.is_empty() else override.duplicate(true)
-	if profile.is_empty():return {"ok":false,"error":"The saved character voice could not be loaded. It has not been replaced.","character_id":str(person.get("id",""))}
+	if profile.is_empty():return {"ok":false,"error":"An older voice belongs to an unscoped character ID. Resolve it explicitly in Character Voices." if legacy_conflict(person) else "The saved character voice could not be loaded. It has not been replaced.","character_id":str(person.get("id",""))}
 	var configured_model:=model
 	if override.is_empty() and not str(profile.get("preferred_model","")).is_empty():model=str(profile.preferred_model)
 	var voice: Variant=str(profile.permanent_voice_id) if profile.voice_type=="preset" else {"id":str(profile.permanent_voice_id)}
@@ -57,100 +100,197 @@ static func resolve(person: Dictionary,model: String,override: Dictionary={}) ->
 		result.ok=false;result.error="%s does not support this character's %s voice. Select a compatible model or explicitly approve a new voice."%[model,str(profile.voice_type)]
 	return result
 
-static func candidate(character_id: String) -> Dictionary:
+static func candidate(character_id: String,scope: String="") -> Dictionary:
 	if _load()!=OK:return {}
-	return _state.candidates.get(character_id,{}).duplicate(true)
+	return _state.candidates.get(_key(character_id,scope),{}).duplicate(true)
+
+static func pending_creation(character_id: String,scope: String="") -> Dictionary:
+	if _load()!=OK:return {}
+	var key:=_key(character_id,scope)
+	var result: Dictionary=_state.pending_creations.get(key,{}).duplicate(true)
+	if not result.is_empty():result.in_flight=_generation_claims.has(key)
+	return result
 
 static func stage_candidate(person: Dictionary,created: Dictionary) -> Error:
 	var current:=identity(person)
 	if current.is_empty():return last_error if last_error!=OK else ERR_INVALID_DATA
+	var key:=_key(str(person.id),scope_for(person))
 	var id:=str(created.get("id",""))
 	var voice_type:=str(created.get("type","prompt"))
-	if not id.begins_with("voice_") or id.length()>200 or voice_type not in ["prompt","audio_sample"]:return ERR_INVALID_PARAMETER
-	if not candidate(str(person.id)).is_empty():return ERR_ALREADY_EXISTS
-	if _state.allocations.has(id) and str(_state.allocations[id].get("character_id",""))!=str(person.id):return ERR_ALREADY_EXISTS
+	if not id.begins_with("voice_") or id.length()>128 or not Models.valid_id(id) or voice_type not in ["prompt","audio_sample"]:return ERR_INVALID_PARAMETER
+	if _state.candidates.has(key) or id==str(current.permanent_voice_id):return ERR_ALREADY_EXISTS
+	var allocation: Dictionary=_state.allocations.get(id,{})
+	if not allocation.is_empty() and (str(allocation.get("storage_key",allocation.get("character_id","")))!=key or str(allocation.get("type",""))!=voice_type):return ERR_ALREADY_EXISTS
+	if allocation.is_empty() and _state.allocations.size()>=MAX_IDENTITIES:return ERR_OUT_OF_MEMORY
 	var next:=current.duplicate(true)
 	next.permanent_voice_id=id;next.voice_type=voice_type;next.profile_version=int(current.profile_version)+1
-	next.compatible_model_families=["gpt-live-1.1"] if voice_type=="prompt" else ["gpt-realtime-2.1","gpt-realtime-2.1-mini","gpt-4o-mini-tts"]
-	next.approval_status="candidate";next.audition_status="not_auditioned";next.voice_design_status="generated_candidate"
-	next.erase("preferred_model");next.erase("auditions");next.erase("approved_at")
-	next.erase("provisional_notice")
+	next.compatible_model_families=["gpt-live-1.1","gpt-live-1"] if voice_type=="prompt" else ["gpt-live-1.1","gpt-live-1","gpt-realtime-2.1","gpt-realtime-2.1-mini","gpt-audio-1.5","gpt-4o-mini-tts"]
+	next.approval_status="candidate";next.audition_status="not_auditioned";next.voice_design_status="generated_candidate" if not created.get("imported",false) else "imported_candidate"
+	for field in ["preferred_model","auditions","audition_runs","approved_at","approved_script_hash","provisional_notice"]:
+		next.erase(field)
 	var described:=str(created.get("prompt",current.design_description)).strip_edges()
-	if not described.is_empty():next.design_description=described.left(4000)
-	_state.candidates[str(person.id)]=next
-	_state.allocations[id]={"character_id":str(person.id),"type":voice_type,"created_at":int(Time.get_unix_time_from_system())}
-	return _save()
+	if not described.is_empty():next.design_description=described.left(MAX_PROMPT_CHARS)
+	var prior:=_state.duplicate(true)
+	_state.candidates[key]=next
+	if allocation.is_empty():
+		_state.allocations[id]={"character_id":str(person.id),"storage_key":key,"type":voice_type,"created_at":int(Time.get_unix_time_from_system())}
+	_state.pending_creations.erase(key)
+	return _commit(prior)
 
 static func generate_candidate(service: Node,person: Dictionary,prompt: String,script_hint: String="",draft: Dictionary={}) -> Dictionary:
 	var id:=str(person.get("id",""))
+	var key:=_key(id,scope_for(person))
 	if not is_instance_valid(service) or not service.has_method("create_prompt_voice") or not service.host_allowed():return {"ok":false,"error":"Only the configured host can create a voice."}
-	if identity(person).is_empty():return {"ok":false,"error":"The character voice could not be saved."}
-	if _generation_claims.has(id) or not candidate(id).is_empty():return {"ok":false,"error":"This character already has a pending voice candidate."}
+	if identity(person).is_empty():return {"ok":false,"error":"The character voice could not be saved. Resolve any legacy or storage issue first."}
+	if _generation_claims.has(key) or _state.candidates.has(key):return {"ok":false,"error":"This character already has a pending voice candidate."}
+	if _state.pending_creations.has(key):return {"ok":false,"error":"A previous creation is unresolved. Check the provider dashboard and recover its ID before trying again."}
 	if not bool(capacity(person).available):return {"ok":false,"error":"No known prompt-voice capacity remains after faculty reservations."}
 	var text:=prompt.strip_edges()
-	if text.length()<40 or text.length()>4000:return {"ok":false,"error":"Use a voice design between 40 and 4,000 characters."}
-	_generation_claims[id]=true
-	# Persist the successful result here, outside the UI object's lifetime.
-	var result: Dictionary=await service.create_prompt_voice(str(person.get("name",id)),text,script_hint.left(2000),draft)
-	_generation_claims.erase(id)
-	if not bool(result.get("ok",false)):return result
+	var hint:=script_hint.strip_edges()
+	if text.length()<40 or text.length()>MAX_PROMPT_CHARS:return {"ok":false,"error":"Use a voice design between 40 and 2,000 characters."}
+	if not hint.is_empty() and (hint.length()<20 or hint.length()>2000):return {"ok":false,"error":"Use a representative script of 20–2,000 characters or leave it blank."}
+	# Journal the operation BEFORE the POST. Even a process crash or lost reply
+	# cannot cause a second allocation on the next launch.
+	var ticket:=Crypto.new().generate_random_bytes(8).hex_encode()
+	var name:="LabVolt original "+id.left(128)+" "+ticket
+	var prior:=_state.duplicate(true)
+	_state.pending_creations[key]={"character_id":id,"voice_scope":scope_for(person),"name":name,"prompt":text,"created_at":int(Time.get_unix_time_from_system())}
+	if _commit(prior)!=OK:return {"ok":false,"error":"Could not save the creation journal. No provider request was made."}
+	_generation_claims[key]=ticket
+	var result: Dictionary=await service.create_prompt_voice(name,text,hint,draft)
+	_generation_claims.erase(key)
+	if not bool(result.get("ok",false)):
+		# A definite rejection may be retried explicitly. An ambiguous provider
+		# outcome stays journaled until the host reconciles it.
+		if not bool(result.get("creation_uncertain",false)):
+			var before:=_state.duplicate(true)
+			_state.pending_creations.erase(key)
+			if _commit(before)!=OK:result.error="Creation failed and its journal could not be cleared. Reconcile it before retrying."
+		else:result.error=str(result.get("error","Creation could not be confirmed."))+" Check the voice dashboard for "+name+"."
+		return result
 	result.prompt=text
 	var error:=stage_candidate(person,result)
-	if error!=OK:return {"ok":false,"error":"The provider created voice %s, but saving the candidate failed (%s). Keep this ID; do not generate a duplicate."%[str(result.get("id","")),error_string(error)],"created_voice_id":str(result.get("id",""))}
-	return {"ok":true,"id":str(result.id),"candidate":candidate(id)}
+	if error!=OK:return {"ok":false,"creation_uncertain":true,"error":"The provider created voice %s, but saving the candidate failed (%s). Keep this ID; do not generate a duplicate."%[str(result.get("id","")),error_string(error)],"created_voice_id":str(result.get("id",""))}
+	return {"ok":true,"id":str(result.id),"candidate":candidate(id,scope_for(person))}
 
-static func record_audition(character_id: String,voice_id: String,mood: String) -> Error:
+static func recover_candidate(person: Dictionary,voice_id: String,voice_type: String,prompt: String,confirmed: bool) -> Error:
+	if not confirmed:return ERR_UNAUTHORIZED
 	if _load()!=OK:return last_error
-	var target: Dictionary=_state.candidates.get(character_id,_state.identities.get(character_id,{}))
+	var key:=_key(str(person.get("id","")),scope_for(person))
+	if _generation_claims.has(key):return ERR_BUSY
+	var journal: Dictionary=_state.pending_creations.get(key,{})
+	var description:=str(journal.get("prompt",prompt)).strip_edges()
+	if description.length()<40 or description.length()>MAX_PROMPT_CHARS:return ERR_INVALID_PARAMETER
+	return stage_candidate(person,{"id":voice_id.strip_edges(),"type":voice_type,"prompt":description,"imported":true})
+
+static func clear_unconfirmed_creation(character_id: String,scope: String,confirmed_no_voice: bool) -> Error:
+	if not confirmed_no_voice:return ERR_UNAUTHORIZED
+	if _load()!=OK:return last_error
+	var key:=_key(character_id,scope)
+	if _generation_claims.has(key):return ERR_BUSY
+	if not _state.pending_creations.has(key):return ERR_DOES_NOT_EXIST
+	var prior:=_state.duplicate(true)
+	_state.pending_creations.erase(key)
+	return _commit(prior)
+
+static func _audition_key(model: String,script: String) -> String:
+	return model+":"+script.strip_edges().sha256_text()
+
+static func auditions_for(profile: Dictionary,model: String,script: String) -> Dictionary:
+	var runs: Dictionary=profile.get("audition_runs",{})
+	var record: Dictionary=runs.get(_audition_key(model,script),{})
+	return record.get("moods",{}).duplicate(true)
+
+static func record_audition(character_id: String,voice_id: String,mood: String,model: String="",script: String="",scope: String="") -> Error:
+	if _load()!=OK:return last_error
+	var key:=_key(character_id,scope)
+	var target: Dictionary=_state.candidates.get(key,{})
+	if str(target.get("permanent_voice_id",""))!=voice_id:target=_state.identities.get(key,{})
 	if target.is_empty() or str(target.permanent_voice_id)!=voice_id:return ERR_DOES_NOT_EXIST
-	# This is called only after a user-started preview actually finishes playback.
+	var voice: Variant=voice_id if target.voice_type=="preset" else {"id":voice_id}
+	if not Models.voice_compatible(model,voice,str(target.voice_type)) or script.strip_edges().is_empty() or script.length()>1200 or mood.is_empty() or mood.length()>32:return ERR_INVALID_PARAMETER
+	var prior:=_state.duplicate(true)
+	var runs: Dictionary=target.get("audition_runs",{})
+	var run_key:=_audition_key(model,script)
+	if not runs.has(run_key) and runs.size()>=MAX_AUDITION_RUNS:runs.erase(runs.keys()[0])
+	var run: Dictionary=runs.get_or_add(run_key,{"model":model,"script_hash":script.strip_edges().sha256_text(),"moods":{}})
+	run.moods[mood]=int(Time.get_unix_time_from_system())
+	target.audition_runs=runs
 	var heard: Dictionary=target.get("auditions",{})
-	heard[mood.left(32)]=int(Time.get_unix_time_from_system())
-	target.auditions=heard;target.audition_status="preview_played"
-	return _save()
+	heard[mood]=int(Time.get_unix_time_from_system())
+	target.auditions=heard
+	if target.approval_status!="approved":target.audition_status="preview_played"
+	return _commit(prior)
 
-static func approve(character_id: String,voice_id: String,fit_confirmed: bool,model: String="") -> Error:
+static func approve(character_id: String,voice_id: String,fit_confirmed: bool,model: String="",script: String="",scope: String="") -> Error:
 	if _load()!=OK:return last_error
-	var next: Dictionary=_state.candidates.get(character_id,_state.identities.get(character_id,{})).duplicate(true)
+	var key:=_key(character_id,scope)
+	var next: Dictionary=_state.candidates.get(key,{})
+	var pending:=str(next.get("permanent_voice_id",""))==voice_id
+	if not pending:next=_state.identities.get(key,{})
+	next=next.duplicate(true)
 	if next.is_empty() or str(next.permanent_voice_id)!=voice_id:return ERR_DOES_NOT_EXIST
-	if not fit_confirmed or not AUDITION_MOODS.all(func(mood: String):return next.get("auditions",{}).has(mood)):return ERR_UNAUTHORIZED
-	if not model.is_empty():
-		var voice: Variant=str(next.permanent_voice_id) if next.voice_type=="preset" else {"id":str(next.permanent_voice_id)}
-		if not Models.voice_compatible(model,voice,str(next.voice_type)) or Models.lifecycle(model).get("status","")=="retired":return ERR_INVALID_PARAMETER
-		next.preferred_model=model
+	var heard:=auditions_for(next,model,script)
+	if not fit_confirmed or script.strip_edges().is_empty() or not AUDITION_MOODS.all(func(mood: String):return heard.has(mood)):return ERR_UNAUTHORIZED
+	var voice: Variant=voice_id if next.voice_type=="preset" else {"id":voice_id}
+	if not Models.voice_compatible(model,voice,str(next.voice_type)):return ERR_INVALID_PARAMETER
+	var prior:=_state.duplicate(true)
+	next.preferred_model=model
 	next.approval_status="approved";next.audition_status="host_approved_after_listening"
+	next.approved_script_hash=script.strip_edges().sha256_text()
 	next.approved_at=int(Time.get_unix_time_from_system())
-	_state.identities[character_id]=next
-	_state.candidates.erase(character_id)
-	return _save()
+	_state.identities[key]=next
+	if pending:_state.candidates.erase(key)
+	return _commit(prior)
 
-static func discard_candidate(character_id: String) -> Error:
+static func discard_candidate(character_id: String,scope: String="") -> Error:
 	if _load()!=OK:return last_error
-	# The remote voice is never deleted automatically, and still counts toward
-	# known organization usage. An abandoned audition cannot free provider quota.
-	_state.candidates.erase(character_id)
-	return _save()
+	var prior:=_state.duplicate(true)
+	# Discarding an audition never deletes a remote voice or frees quota.
+	_state.candidates.erase(_key(character_id,scope))
+	return _commit(prior)
 
 static func set_external_voice_count(count: int) -> Error:
 	if _load()!=OK:return last_error
+	var prior:=_state.duplicate(true)
 	_state.external_prompt_voices=clampi(count,0,PROMPT_VOICE_LIMIT)
-	return _save()
+	return _commit(prior)
+
+static func custom_status(person: Dictionary) -> String:
+	if _load()!=OK:return "storage_error"
+	if legacy_conflict(person):return "legacy"
+	var key:=_key(str(person.get("id","")),scope_for(person))
+	if _state.pending_creations.has(key):return "creating" if _generation_claims.has(key) else "reconcile"
+	if _state.candidates.has(key):return "candidate"
+	var active: Dictionary=_state.identities.get(key,{})
+	if active.get("voice_type","preset")!="preset" and active.get("approval_status","")=="approved":return "approved"
+	return "missing"
+
+static func missing_faculty(people: Dictionary) -> Array[String]:
+	var missing: Array[String]=[]
+	for id: String in Roster.PEOPLE:
+		if people.has(id) and custom_status(people[id])=="missing":missing.append(id)
+	for id: String in Roster.GENERATED:
+		if people.has(id) and custom_status(people[id])=="missing":missing.append(id)
+	return missing
 
 static func capacity(person: Dictionary={}) -> Dictionary:
 	if _load()!=OK:return {"available":false,"remaining":0,"error":"Voice storage is unavailable."}
 	var known:=0
-	var faculty_assigned: Dictionary={}
-	for id: String in _state.allocations:
-		var item: Dictionary=_state.allocations[id]
+	for item: Dictionary in _state.allocations.values():
 		if item.get("type")=="prompt":known+=1
-		if Roster.PEOPLE.has(str(item.get("character_id",""))):faculty_assigned[str(item.character_id)]=true
-	var reserved:=maxi(0,Roster.PEOPLE.size()-faculty_assigned.size())
+	var reserved:=0
+	for id: String in Roster.PEOPLE:
+		# An abandoned allocation still consumes quota, but doesn't satisfy a
+		# faculty reservation. A pending or approved candidate does.
+		if custom_status({"id":id})=="missing":reserved+=1
 	var external:=int(_state.get("external_prompt_voices",0))
-	var remaining:=maxi(0,PROMPT_VOICE_LIMIT-known-external-_generation_claims.size())
+	var unresolved:=_state.pending_creations.size()
+	var remaining:=maxi(0,PROMPT_VOICE_LIMIT-known-external-unresolved)
 	var faculty:=Roster.PEOPLE.has(str(person.get("id","")))
 	return {"available":remaining>0 and (faculty or remaining>reserved),"remaining":remaining,"known":known,
-		"external":external,"in_flight":_generation_claims.size(),"faculty_reserved":reserved,"limit":PROMPT_VOICE_LIMIT,
-		"verified_organization_count":false,"note":"Known local allocations plus the external count you enter. The provider enforces the actual organization limit."}
+		"external":external,"in_flight":_generation_claims.size(),"unresolved":unresolved,"faculty_reserved":reserved,"limit":PROMPT_VOICE_LIMIT,
+		"verified_organization_count":false,"note":"Known allocations, unresolved requests and your external count. Actual organization quota is enforced by OpenAI; do not double-count recovered IDs."}
 
 static func reset_cache() -> void:
 	_loaded_path="";_state.clear();last_error=OK
@@ -158,7 +298,7 @@ static func reset_cache() -> void:
 static func _load() -> Error:
 	if _loaded_path==store_path:return last_error
 	_loaded_path=store_path
-	_state={"version":SCHEMA_VERSION,"identities":{},"candidates":{},"allocations":{},"external_prompt_voices":0}
+	_state={"version":SCHEMA_VERSION,"identities":{},"candidates":{},"allocations":{},"pending_creations":{},"external_prompt_voices":0}
 	last_error=OK
 	if not FileAccess.file_exists(store_path) and not FileAccess.file_exists(store_path+".bak"):return OK
 	for path: String in [store_path,store_path+".bak"]:
@@ -167,7 +307,9 @@ static func _load() -> Error:
 		if file==null or file.get_length()>MAX_STORE_BYTES:continue
 		var data: Variant=_parse(file.get_as_text());file.close()
 		if not _valid_store(data):continue
-		_state=data;return OK
+		_state=data
+		_state.get_or_add("pending_creations",{})
+		return OK
 	last_error=ERR_FILE_CORRUPT
 	return last_error
 
@@ -175,11 +317,21 @@ static func _valid_store(value: Variant) -> bool:
 	if not value is Dictionary or value.get("version")!=SCHEMA_VERSION:return false
 	for section: String in ["identities","candidates","allocations"]:
 		if not value.get(section) is Dictionary or value[section].size()>MAX_IDENTITIES:return false
+	var pending: Variant=value.get("pending_creations",{})
+	if not pending is Dictionary or pending.size()>PROMPT_VOICE_LIMIT:return false
+	for key: String in pending:
+		var item: Variant=pending[key]
+		if not item is Dictionary or not item.get("character_id") is String or not item.get("name") is String or not item.get("prompt") is String:return false
+		if key!=_key(str(item.character_id),str(item.get("voice_scope",""))) or item.name.length()>256 or item.prompt.length()>MAX_PROMPT_CHARS:return false
 	for section: String in ["identities","candidates"]:
-		for id: String in value[section]:
-			if not _valid_identity(value[section][id],id):return false
+		for key: String in value[section]:
+			var profile: Variant=value[section][key]
+			if not profile is Dictionary:return false
+			var id:=str(profile.get("character_id",""))
+			if key!=_key(id,str(profile.get("voice_scope",""))) or not _valid_identity(profile,id):return false
 	for id: String in value.allocations:
-		if not value.allocations[id] is Dictionary or not id.begins_with("voice_"):return false
+		if not value.allocations[id] is Dictionary or not id.begins_with("voice_") or not Models.valid_id(id):return false
+		if value.allocations[id].get("type") not in ["prompt","audio_sample"]:return false
 	var external: Variant=value.get("external_prompt_voices",0)
 	return (external is float or external is int) and is_finite(float(external)) and float(external)>=0 and float(external)<=PROMPT_VOICE_LIMIT
 
@@ -188,10 +340,19 @@ static func _valid_identity(value: Variant,id: String) -> bool:
 	for key: String in ["provider","voice_type","permanent_voice_id","design_description","vocal_presentation","pitch_range","resonance","timbre","texture","accent","articulation","mannerisms","emotional_tendencies","approval_status","audition_status"]:
 		if not value.get(key) is String or str(value[key]).is_empty() or str(value[key]).length()>4000:return false
 	if value.provider!="openai" or value.voice_type not in ["preset","prompt","audio_sample"]:return false
-	if value.voice_type!="preset" and not str(value.permanent_voice_id).begins_with("voice_"):return false
+	if value.voice_type!="preset" and (not str(value.permanent_voice_id).begins_with("voice_") or not Models.valid_id(str(value.permanent_voice_id)) or str(value.permanent_voice_id).length()>128):return false
+	var runs: Variant=value.get("audition_runs",{})
+	if not runs is Dictionary or runs.size()>MAX_AUDITION_RUNS:return false
+	for run in runs.values():
+		if not run is Dictionary or not run.get("moods") is Dictionary or run.moods.size()>32:return false
 	for key: String in ["profile_version","perceived_age","normal_pace"]:
 		if not (value.get(key) is float or value.get(key) is int) or not is_finite(float(value[key])):return false
 	return int(value.profile_version)>0 and float(value.perceived_age)>=18. and float(value.normal_pace)>=.5 and float(value.normal_pace)<=1.5
+
+static func _commit(prior: Dictionary) -> Error:
+	var error:=_save()
+	if error!=OK:_state=prior
+	return error
 
 static func _save() -> Error:
 	if last_error!=OK:return last_error
@@ -218,7 +379,9 @@ static func _save() -> Error:
 static func peek(person: Dictionary) -> Dictionary:
 	var id:=str(person.get("id",""))
 	if id.is_empty() or _load()!=OK:return {}
-	return _state.identities[id].duplicate(true) if _state.identities.has(id) else Design.draft(person)
+	if person.get("identity_scope","")=="public" or legacy_conflict(person):return {}
+	var key:=_key(id,scope_for(person))
+	return _state.identities[key].duplicate(true) if _state.identities.has(key) else Design.draft(person)
 
 static func _parse(text: String) -> Variant:
 	var parser:=JSON.new()
