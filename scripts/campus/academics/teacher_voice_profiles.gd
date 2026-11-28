@@ -61,10 +61,9 @@ static func _initialize_identity(person: Dictionary) -> Dictionary:
 	if Roster.PEOPLE.has(id) and not designed.has(id):last_error=ERR_INVALID_DATA;return {}
 	var value: Dictionary=designed[id].duplicate(true) if designed.has(id) else Design.draft(person)
 	if value.is_empty() or _state.identities.size()>=MAX_IDENTITIES:return {}
-	if value.get("voice_type","")=="preset" and Models.voice_compatible("gpt-realtime-2.1-mini",str(value.get("permanent_voice_id","")),"preset"):
-		# New profiles default to the efficient renderer. Existing saved identities,
-		# including explicitly approved custom voices, are never migrated silently.
-		value.preferred_model="gpt-realtime-2.1-mini"
+	# Unapproved presets follow the host's explicitly selected renderer.
+	# The host default and new studio auditions use Realtime Mini; only an
+	# explicitly approved voice audition pins a model to an identity.
 	if not scope.is_empty():value.voice_scope=scope
 	var prior:=_state.duplicate(true)
 	_state.identities[key]=value

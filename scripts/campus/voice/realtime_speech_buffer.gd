@@ -77,4 +77,6 @@ func progress(estimated_seconds: float) -> float:
 	return clampf(float(played_frames)/RATE/maxf(.1,duration),0.,.9999)
 
 func diagnostics() -> Dictionary:
-	return {"received_bytes":pcm.size(),"frames_submitted":sent_frames,"estimated_frames_consumed":played_frames,"initial_buffer_target_ms":float(initial_frames)*1000./RATE,"first_packet_to_submission_ms":playback_at-received_at if playback_at>=0 and received_at>=0 else -1,"max_packet_gap_ms":max_packet_gap_ms,"generator_skip_count":underruns,"estimated_output_latency_ms":AudioServer.get_output_latency()*1000.,"generation_complete":finished}
+	var audio_seconds:=float(pcm.size())/(RATE*2)
+	var packet_span_ms:=last_packet_at-received_at if received_at>=0 and last_packet_at>received_at else -1
+	return {"received_audio_seconds":audio_seconds,"first_to_last_packet_ms":packet_span_ms,"received_audio_seconds_per_second":audio_seconds*1000./packet_span_ms if packet_span_ms>0 else null,"received_bytes":pcm.size(),"frames_submitted":sent_frames,"estimated_frames_consumed":played_frames,"initial_buffer_target_ms":float(initial_frames)*1000./RATE,"first_packet_to_submission_ms":playback_at-received_at if playback_at>=0 and received_at>=0 else -1,"max_packet_gap_ms":max_packet_gap_ms,"generator_skip_count":underruns,"estimated_output_latency_ms":AudioServer.get_output_latency()*1000.,"generation_complete":finished}

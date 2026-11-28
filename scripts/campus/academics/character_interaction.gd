@@ -41,7 +41,7 @@ func context(person: Dictionary, identity: String, activity: Dictionary, questio
 	var selected := Dossier.retrieve(contextual,question,data.get("prior_turns",[]),str(data.emotional_state.emotion),data.get("relationship",{}),7500 if complex else 4600)
 	data.character_core=selected.core
 	# Stable motives and local activity are available BEFORE the first joint request.
-	data.identity_drivers={"values":str(person.get("values","")).left(420),"ambition":str(person.get("ambition","")).left(300),"interests":str(person.get("interest","")).left(240),"manner":str(person.get("style","")).left(450)}
+	data.identity_drivers={"worldview":str(person.get("worldview","")).left(420),"values":str(person.get("values","")).left(420),"ambition":str(person.get("ambition","")).left(300),"interests":str(person.get("interest","")).left(240),"manner":str(person.get("style","")).left(450)}
 	data.conversation_orientation=Behavior.conversation_orientation(person,data.get("relationship",{}),extra.get("observations",{}),str(activity.get("phase","freeplay")))
 	data.life_history=selected.life_history
 	data.dialogue_examples=selected.examples

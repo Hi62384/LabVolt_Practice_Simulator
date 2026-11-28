@@ -50,7 +50,7 @@ func _run() -> void:
 	var previous:=Voices.identity(People.teacher("mr_bro"))
 	panel._suggest_preset()
 	panel._select_base_voice(str(previous.permanent_voice_id))
-	panel.design.text=str(previous.design_description)+" Maintain an unforced rhythm."
+	panel.design.text=str(previous.design_description).left(1950)+" Maintain an unforced rhythm."
 	panel._stage_preset()
 	var preset:=Voices.candidate("mr_bro")
 	check(preset.get("voice_type","")=="preset" and preset.get("profile_version",0)>previous.profile_version,"Personalized preset has a distinct version without provider creation")

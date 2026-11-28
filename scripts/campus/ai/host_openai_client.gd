@@ -1030,7 +1030,18 @@ func _record_request(id: String,purpose: String,response: Dictionary,success: bo
 	return entry
 
 func request_diagnostics() -> Dictionary:
-	return {"active":active_requests.values().duplicate(true),"recent_requests":request_journal.slice(-40),"session_requests":session_requests,"session_usage":session_usage.duplicate(),"usage_note":"Provider tokens remain unknown when not reported; monetary values are local estimates, not invoices.","lanes":voice_diagnostics()}
+	var groups: Dictionary={}
+	for entry in request_journal:
+		var category:=str(entry.get("subsystem","unknown"))
+		var counts: Dictionary=groups.get_or_add(category,{"requests":0,"successful":0,"canceled":0,"provider_usage_reported":0,"local_estimate_only":0,"usage_unreported":0})
+		counts.requests+=1
+		if entry.get("success",false):counts.successful+=1
+		if entry.get("canceled",false):counts.canceled+=1
+		match str(entry.get("usage_source","unreported")):
+			"provider":counts.provider_usage_reported+=1
+			"local_duration_or_characters":counts.local_estimate_only+=1
+			_:counts.usage_unreported+=1
+	return {"active":active_requests.values().duplicate(true),"recent_requests":request_journal.slice(-40),"recent_subsystem_counts":groups,"recent_window_requests":request_journal.size(),"session_requests":session_requests,"session_usage":session_usage.duplicate(),"usage_note":"Provider tokens remain unknown when not reported; monetary values are local estimates, not invoices. Subsystem counts cover only the bounded recent journal.","lanes":voice_diagnostics()}
 
 func comparison_question(question: String,choice: String,effort: String,mode: String,limit: int,draft: Dictionary) -> Dictionary:
 	if not Models.available_for(choice,"text") or not _mode_allowed(choice,mode) or limit not in range(16,2049):

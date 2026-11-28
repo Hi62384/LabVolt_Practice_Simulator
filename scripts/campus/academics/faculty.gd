@@ -3287,9 +3287,13 @@ func present_student_speech(room: String,class_id: String,actor: String,line: St
  var delivery:=Characters.speech(person,game.host_openai.tts_model,priority,mood,affect)
  var activity:=_ai_activity(room)
  if priority==0 and activity.get("phase","") in ["lesson","assignment"]:delivery.projection="whisper"
- var provider:=_uses_class_voice() and bool(delivery.get("ok",false))
- var peers:=_near_voice_recipients(room,model.global_position,5.0 if delivery.get("projection","")=="whisper" else 12.0)
- _student_speech(room,class_id,actor,line,mood,affect,priority,serial,provider,delivery.get("projection","normal"))
+ var radius:=5.0 if delivery.get("projection","")=="whisper" else 12.0
+ var peers:=_near_voice_recipients(room,model.global_position,radius)
+ var local_nearby: bool=game.player.global_position.distance_to(model.global_position)<=radius and game.campus.registry.locate(game.player.global_position)==room
+ var local_audible: bool=local_nearby and bool(game.client_preferences.values.teacher_speech)
+ if not local_nearby and peers.is_empty():return
+ var provider:=_uses_class_voice() and bool(delivery.get("ok",false)) and (local_audible or not peers.is_empty())
+ if local_nearby:_student_speech(room,class_id,actor,line,mood,affect,priority,serial,provider,delivery.get("projection","normal"))
  for peer in peers:_student_speech.rpc_id(peer,room,class_id,actor,line,mood,affect,priority,serial,provider,delivery.get("projection","normal"))
  if provider:
   speech_routes[_voice_key(channel,serial)]=_new_speech_route(channel,serial,room,actor,peers,model,class_id,0,5.0 if delivery.get("projection","")=="whisper" else 12.0)
@@ -3323,11 +3327,12 @@ func _present_ambient_speech(target: Dictionary,line: String,mood: String,affect
  var serial:=_next_speech(channel)
  var model:=_voice_model(target)
  var peers:=_near_voice_recipients(str(target.room),model.global_position,12.0)
- var local_audible: bool=bool(game.client_preferences.values.teacher_speech) and game.player.global_position.distance_to(model.global_position)<=12.0 and game.campus.registry.locate(game.player.global_position)==str(target.room)
- if not local_audible and peers.is_empty():return
+ var local_nearby: bool=game.player.global_position.distance_to(model.global_position)<=12.0 and game.campus.registry.locate(game.player.global_position)==str(target.room)
+ var local_audible: bool=local_nearby and bool(game.client_preferences.values.teacher_speech)
+ if not local_nearby and peers.is_empty():return
  var delivery:=Characters.speech(Characters.teacher(str(target.id)),game.host_openai.tts_model,3,mood,affect)
- var provider:=_uses_class_voice() and bool(delivery.get("ok",false))
- if local_audible:_ambient_speech(target,line,mood,affect,serial,provider)
+ var provider:=_uses_class_voice() and bool(delivery.get("ok",false)) and (local_audible or not peers.is_empty())
+ if local_nearby:_ambient_speech(target,line,mood,affect,serial,provider)
  for peer in peers:_ambient_speech.rpc_id(peer,target,line,mood,affect,serial,provider)
  if provider:
   speech_routes[_voice_key(channel,serial)]=_new_speech_route(channel,serial,str(target.room),str(target.id),peers,model,str(target.get("class_id","")),0,12.0)
