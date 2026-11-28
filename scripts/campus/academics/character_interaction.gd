@@ -40,12 +40,15 @@ func context(person: Dictionary, identity: String, activity: Dictionary, questio
 	if contextual.dossier.is_empty():contextual.dossier=person.get("dossier",{})
 	var selected := Dossier.retrieve(contextual,question,data.get("prior_turns",[]),str(data.emotional_state.emotion),data.get("relationship",{}),7500 if complex else 4600)
 	data.character_core=selected.core
+	# Stable motives and local activity are available BEFORE the first joint request.
+	data.identity_drivers={"values":str(person.get("values","")).left(420),"ambition":str(person.get("ambition","")).left(300),"interests":str(person.get("interest","")).left(240),"manner":str(person.get("style","")).left(450)}
+	data.conversation_orientation=Behavior.conversation_orientation(person,data.get("relationship",{}),extra.get("observations",{}),str(activity.get("phase","freeplay")))
 	data.life_history=selected.life_history
 	data.dialogue_examples=selected.examples
 	data.erase("biography") # canonical personal_records already contain these facts
 	data.conversation_willingness=mind.disengagement(str(person.id),identity)
 	data.temperament={}
-	for key in ["anger_sensitivity","empathy","forgiveness","grudges","confrontation","arrogance","patience","teaching_effort","focus","talkativeness"]:
+	for key in ["anger_sensitivity","empathy","forgiveness","grudges","confrontation","arrogance","patience","teaching_effort","focus","talkativeness","sociability","shyness","warmth","confidence","ambition","independence","selfishness","humor"]:
 		data.temperament[key]=snappedf(float(person.get("traits",{}).get(key,.5)),.01)
 	# Never pass the full activity: it can contain private tasks, solutions and grades.
 	data.activity = {"phase": str(activity.get("phase", "freeplay")), "course": str(activity.get("course", "")), "title": str(activity.get("title", "")), "week": int(activity.get("week", 0))}
