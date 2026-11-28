@@ -98,6 +98,7 @@ static func project(profile: Dictionary) -> Dictionary:
 static func _voice_scoped(profile: Dictionary) -> Dictionary:
 	# Generated IDs may recur in different host saves. Established faculty stay
 	# globally authored; the voice store scopes other identities to this owner.
+	profile.erase("voice_scope")
 	if not host_identity.is_empty():profile.voice_scope=host_identity.sha256_text()
 	return profile
 

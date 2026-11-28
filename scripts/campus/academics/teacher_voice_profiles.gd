@@ -12,6 +12,7 @@ const PROMPT_VOICE_LIMIT := 100
 const MAX_STORE_BYTES := 16777216
 const AUDITION_MOODS := ["normal","sad","angry"]
 const MAX_AUDITION_RUNS:=8
+const AUDITION_ALLOWED:=["normal","happy","excited","amused","irritated","angry","extremely angry","sad","tired","disappointed","dismissive","embarrassed","bored","confused"]
 const MAX_PROMPT_CHARS:=2000
 static var store_path := "user://character_voices.json"
 static var _loaded_path := ""
@@ -111,6 +112,16 @@ static func pending_creation(character_id: String,scope: String="") -> Dictionar
 	if not result.is_empty():result.in_flight=_generation_claims.has(key)
 	return result
 
+static func creation_design(person: Dictionary) -> Dictionary:
+	var current:=peek(person)
+	if current.is_empty():return {}
+	# An upgraded dossier can design a new candidate without mutating the saved
+	# provisional speaker. Existing approved voices always retain their design.
+	if not Roster.PEOPLE.has(str(person.get("id",""))) and current.get("approval_status")=="provisional_preset" and person.get("dossier_status","")=="complete":
+		var proposed:=Design.draft(person)
+		if not proposed.is_empty():return proposed
+	return current
+
 static func stage_candidate(person: Dictionary,created: Dictionary) -> Error:
 	var current:=identity(person)
 	if current.is_empty():return last_error if last_error!=OK else ERR_INVALID_DATA
@@ -122,7 +133,10 @@ static func stage_candidate(person: Dictionary,created: Dictionary) -> Error:
 	var allocation: Dictionary=_state.allocations.get(id,{})
 	if not allocation.is_empty() and (str(allocation.get("storage_key",allocation.get("character_id","")))!=key or str(allocation.get("type",""))!=voice_type):return ERR_ALREADY_EXISTS
 	if allocation.is_empty() and _state.allocations.size()>=MAX_IDENTITIES:return ERR_OUT_OF_MEMORY
-	var next:=current.duplicate(true)
+	var next:=creation_design(person)
+	if next.is_empty():next=current.duplicate(true)
+	var scope:=scope_for(person)
+	if not scope.is_empty():next.voice_scope=scope
 	next.permanent_voice_id=id;next.voice_type=voice_type;next.profile_version=int(current.profile_version)+1
 	next.compatible_model_families=["gpt-live-1.1","gpt-live-1"] if voice_type=="prompt" else ["gpt-live-1.1","gpt-live-1","gpt-realtime-2.1","gpt-realtime-2.1-mini","gpt-audio-1.5","gpt-4o-mini-tts"]
 	next.approval_status="candidate";next.audition_status="not_auditioned";next.voice_design_status="generated_candidate" if not created.get("imported",false) else "imported_candidate"
@@ -130,6 +144,9 @@ static func stage_candidate(person: Dictionary,created: Dictionary) -> Error:
 		next.erase(field)
 	var described:=str(created.get("prompt",current.design_description)).strip_edges()
 	if not described.is_empty():next.design_description=described.left(MAX_PROMPT_CHARS)
+	# The acoustic prompt is the intended design; numeric/text fields are not
+	# measurements of the created audio. Never claim that synthesis confirmed them.
+	next.creation_source="existing_provider_resource" if created.get("imported",false) else "original_description"
 	var prior:=_state.duplicate(true)
 	_state.candidates[key]=next
 	if allocation.is_empty():
@@ -208,7 +225,7 @@ static func record_audition(character_id: String,voice_id: String,mood: String,m
 	if str(target.get("permanent_voice_id",""))!=voice_id:target=_state.identities.get(key,{})
 	if target.is_empty() or str(target.permanent_voice_id)!=voice_id:return ERR_DOES_NOT_EXIST
 	var voice: Variant=voice_id if target.voice_type=="preset" else {"id":voice_id}
-	if not Models.voice_compatible(model,voice,str(target.voice_type)) or script.strip_edges().is_empty() or script.length()>1200 or mood.is_empty() or mood.length()>32:return ERR_INVALID_PARAMETER
+	if not Models.voice_compatible(model,voice,str(target.voice_type)) or script.strip_edges().is_empty() or script.length()>1200 or mood not in AUDITION_ALLOWED:return ERR_INVALID_PARAMETER
 	var prior:=_state.duplicate(true)
 	var runs: Dictionary=target.get("audition_runs",{})
 	var run_key:=_audition_key(model,script)
@@ -300,16 +317,17 @@ static func _load() -> Error:
 	_loaded_path=store_path
 	_state={"version":SCHEMA_VERSION,"identities":{},"candidates":{},"allocations":{},"pending_creations":{},"external_prompt_voices":0}
 	last_error=OK
-	if not FileAccess.file_exists(store_path) and not FileAccess.file_exists(store_path+".bak"):return OK
-	for path: String in [store_path,store_path+".bak"]:
-		if not FileAccess.file_exists(path):continue
-		var file:=FileAccess.open(path,FileAccess.READ)
-		if file==null or file.get_length()>MAX_STORE_BYTES:continue
-		var data: Variant=_parse(file.get_as_text());file.close()
-		if not _valid_store(data):continue
-		_state=data
-		_state.get_or_add("pending_creations",{})
-		return OK
+	if not FileAccess.file_exists(store_path) and not FileAccess.file_exists(store_path+".bak") and not FileAccess.file_exists(store_path+".tmp"):return OK
+	# A backup may precede a successful remote allocation or approval. Never
+	# silently revert to it: doing so could allocate again or change a speaker.
+	if FileAccess.file_exists(store_path):
+		var file:=FileAccess.open(store_path,FileAccess.READ)
+		if file!=null and file.get_length()<=MAX_STORE_BYTES:
+			var data: Variant=_parse(file.get_as_text());file.close()
+			if _valid_store(data):
+				_state=data
+				_state.get_or_add("pending_creations",{})
+				return OK
 	last_error=ERR_FILE_CORRUPT
 	return last_error
 
@@ -317,18 +335,25 @@ static func _valid_store(value: Variant) -> bool:
 	if not value is Dictionary or value.get("version")!=SCHEMA_VERSION:return false
 	for section: String in ["identities","candidates","allocations"]:
 		if not value.get(section) is Dictionary or value[section].size()>MAX_IDENTITIES:return false
+	var allocated: Dictionary={}
 	var pending: Variant=value.get("pending_creations",{})
 	if not pending is Dictionary or pending.size()>PROMPT_VOICE_LIMIT:return false
 	for key: String in pending:
 		var item: Variant=pending[key]
 		if not item is Dictionary or not item.get("character_id") is String or not item.get("name") is String or not item.get("prompt") is String:return false
-		if key!=_key(str(item.character_id),str(item.get("voice_scope",""))) or item.name.length()>256 or item.prompt.length()>MAX_PROMPT_CHARS:return false
+		if key!=_key(str(item.character_id),str(item.get("voice_scope",""))) or not value.identities.has(key) or value.candidates.has(key) or item.name.length()>256 or item.prompt.length()>MAX_PROMPT_CHARS:return false
 	for section: String in ["identities","candidates"]:
 		for key: String in value[section]:
 			var profile: Variant=value[section][key]
 			if not profile is Dictionary:return false
 			var id:=str(profile.get("character_id",""))
 			if key!=_key(id,str(profile.get("voice_scope",""))) or not _valid_identity(profile,id):return false
+			if profile.voice_type!="preset":
+				var voice_id:=str(profile.permanent_voice_id)
+				if allocated.has(voice_id):return false
+				var allocation: Variant=value.allocations.get(voice_id)
+				if not allocation is Dictionary or str(allocation.get("storage_key",allocation.get("character_id","")))!=key or allocation.get("type")!=profile.voice_type:return false
+				allocated[voice_id]=true
 	for id: String in value.allocations:
 		if not value.allocations[id] is Dictionary or not id.begins_with("voice_") or not Models.valid_id(id):return false
 		if value.allocations[id].get("type") not in ["prompt","audio_sample"]:return false
@@ -341,6 +366,10 @@ static func _valid_identity(value: Variant,id: String) -> bool:
 		if not value.get(key) is String or str(value[key]).is_empty() or str(value[key]).length()>4000:return false
 	if value.provider!="openai" or value.voice_type not in ["preset","prompt","audio_sample"]:return false
 	if value.voice_type!="preset" and (not str(value.permanent_voice_id).begins_with("voice_") or not Models.valid_id(str(value.permanent_voice_id)) or str(value.permanent_voice_id).length()>128):return false
+	var heard: Variant=value.get("auditions",{})
+	if not heard is Dictionary or heard.size()>32:return false
+	var scope:=str(value.get("voice_scope",""))
+	if not scope.is_empty() and (scope.length()!=64 or not scope.is_valid_hex_number(false)):return false
 	var runs: Variant=value.get("audition_runs",{})
 	if not runs is Dictionary or runs.size()>MAX_AUDITION_RUNS:return false
 	for run in runs.values():
@@ -356,6 +385,7 @@ static func _commit(prior: Dictionary) -> Error:
 
 static func _save() -> Error:
 	if last_error!=OK:return last_error
+	if not _valid_store(_state):last_error=ERR_INVALID_DATA;return last_error
 	var text:=JSON.stringify(_state,"\t")
 	if text.to_utf8_buffer().size()>MAX_STORE_BYTES:last_error=ERR_OUT_OF_MEMORY;return last_error
 	var parent:=ProjectSettings.globalize_path(store_path).get_base_dir()

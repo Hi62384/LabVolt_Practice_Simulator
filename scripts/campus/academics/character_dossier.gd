@@ -66,7 +66,7 @@ static func project(profile: Dictionary, dossier: Dictionary, include_dossier :=
 	if dossier.is_empty(): return profile.duplicate(true)
 	var result := {}
 	for key in profile:
-		if key in ["dossier","behavior_examples","traits","beliefs","goals","biography","voice_slot"]: continue
+		if key in ["dossier","behavior_examples","traits","beliefs","goals","biography","voice_slot","voice_scope"]: continue
 		result[key] = profile[key].duplicate(true) if profile[key] is Dictionary or profile[key] is Array else profile[key]
 	var identity: Dictionary = dossier.get("identity", {})
 	for key in ["id", "name", "age", "role", "program", "background", "physical_description", "appearance"]:
@@ -92,6 +92,10 @@ static func project(profile: Dictionary, dossier: Dictionary, include_dossier :=
 	result.education = str(knowledge.get("education", ""))
 	result.knowledge_domains = knowledge.get("domains", {}).duplicate(true)
 	result.voice = dossier.get("voice", {}).duplicate(true)
+	# Existing faculty have an authored acoustic design independent of legacy
+	# modulo suggestions or any generated dossier prose. Actual approved IDs
+	# remain in the separate voice store and never enter the dossier.
+	if VocalDesign.authored().has(str(result.get("id",""))):result.voice=VocalDesign.dossier_seed(result)
 	result.subjects = dossier.get("subjects",profile.get("subjects",[])).duplicate()
 	result.behavior_examples = []
 	# Examples live only in the dossier and are retrieved for real requests.

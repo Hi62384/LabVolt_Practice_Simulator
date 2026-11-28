@@ -43,6 +43,9 @@ var preview_ticket:=0
 var playing: Dictionary={}
 var _refreshing:=false
 var studio_owner:=""
+var studio_account:=""
+var next_candidate_button: Button
+var recover_toggle: CheckButton
 var preview_request_id:=""
 var core_queue: Array[String]=[]
 var batch_active:=false
@@ -64,6 +67,7 @@ var legacy_separate: Button
 
 func configure(client: Node,settings: Dictionary={}) -> void:
 	service=client;draft=settings.duplicate(true);studio_owner=Dossiers.host_identity
+	if service.has_method("_account_cache_id"):studio_account=service._account_cache_id(str(draft.get("key","")))
 	add_theme_constant_override("separation",12)
 	if not service.host_allowed():_label(self,"Only the host can configure character voices.",16,T.ERROR);return
 	_label(self,"Character Voices",24,T.INK)
@@ -86,6 +90,7 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	character_list=ItemList.new();character_list.size_flags_vertical=Control.SIZE_EXPAND_FILL;character_list.custom_minimum_size.y=300;left.add_child(character_list)
 	character_list.item_selected.connect(func(index: int):_select(str(character_list.get_item_metadata(index))))
 	overview=_label(left,"",12,T.MUTED)
+	next_candidate_button=_button(left,"Next candidate",_next_candidate)
 	var scroll:=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;scroll.size_flags_horizontal=Control.SIZE_EXPAND_FILL;scroll.custom_minimum_size=Vector2(380,520);split.add_child(scroll)
 	var details:=VBoxContainer.new();details.size_flags_horizontal=Control.SIZE_EXPAND_FILL;details.add_theme_constant_override("separation",12);scroll.add_child(details)
 	var header:=HBoxContainer.new();header.add_theme_constant_override("separation",14);details.add_child(header)
@@ -134,6 +139,8 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	_label(legacy_box,"An older, unscoped voice exists for this generated ID. Choose whether it belongs to this saved campus. Nothing is reassigned automatically.",13,T.ACCENT)
 	legacy_adopt=_button(legacy_box,"Adopt existing saved voice…",func():_confirm_legacy(true))
 	legacy_separate=_button(legacy_box,"Keep separate; initialize this campus voice…",func():_confirm_legacy(false))
+	recover_toggle=CheckButton.new();recover_toggle.text="Recover / import saved voice";details.add_child(recover_toggle)
+	recover_toggle.toggled.connect(func(_value: bool):_refresh())
 	recovery_box=VBoxContainer.new();details.add_child(recovery_box)
 	_label(recovery_box,"Recover or import an existing custom voice",16,T.ACCENT)
 	recovery_note=_label(recovery_box,"",13,T.MUTED)
@@ -148,7 +155,8 @@ func configure(client: Node,settings: Dictionary={}) -> void:
 	_fill_list();_select(selected_id)
 
 func _context_current() -> bool:
-	return is_inside_tree() and is_instance_valid(service) and service.host_allowed() and Dossiers.host_identity==studio_owner
+	if not is_inside_tree() or not is_instance_valid(service) or not service.host_allowed() or Dossiers.host_identity!=studio_owner:return false
+	return not service.has_method("_account_cache_id") or str(service._account_cache_id(str(draft.get("key",""))))==studio_account
 
 func _scope(id: String="") -> String:
 	return Voices.scope_for(people.get(selected_id if id.is_empty() else id,{}))
@@ -173,6 +181,17 @@ func _fill_list() -> void:
 		if id==selected_id:character_list.select(index)
 	overview.text="Faculty · %d approved · %d candidates · %d unresolved\n%d missing custom voices"%[totals.get("approved",0),totals.get("candidate",0),int(totals.get("reconcile",0))+int(totals.get("legacy",0))+int(totals.get("creating",0)),totals.get("missing",0)]
 
+func _next_candidate() -> void:
+	if busy or batch_active or audio.playing or not _context_current():return
+	var ids: Array=Roster.all_people().keys()
+	for id in people:
+		if id not in ids:ids.append(id)
+	var start:=ids.find(selected_id)
+	for offset in range(1,ids.size()+1):
+		var id:=str(ids[posmod(start+offset,ids.size())])
+		if people.has(id) and Voices.custom_status(people[id])=="candidate":
+			search.clear();_select(id);_fill_list();return
+
 func _select(id: String) -> void:
 	if not people.has(id) or not _context_current():return
 	if batch_active or (busy and preview_request_id.is_empty()):_fill_list();return
@@ -191,7 +210,9 @@ func _select(id: String) -> void:
 	if shown.is_empty():
 		design.text=str(Voices.Design.draft(person).get("design_description",""))
 		status.text="Resolve the saved voice before generating or playing another." if Voices.legacy_conflict(person) else "Voice storage is unavailable. No replacement voice was selected."
-	else:design.text=str(shown.design_description)
+	else:
+		var proposed:=Voices.creation_design(person) if pending.is_empty() else shown
+		design.text=str(proposed.get("design_description",shown.design_description))
 	var preferred:=str(identity.get("preferred_model",draft.get("modalities",{}).get("tts",service.tts_model)))
 	if use_candidate.button_pressed:preferred="gpt-live-1.1" if pending.get("voice_type")=="prompt" else "gpt-realtime-2.1-mini"
 	_rebuild_models(shown,preferred)
@@ -231,12 +252,17 @@ func _switch_candidate() -> void:
 	fit.set_pressed_no_signal(false)
 	var profile:=_voice()
 	if not profile.is_empty():
-		design.text=str(profile.design_description)
+		var proposed:=profile if use_candidate.button_pressed else Voices.creation_design(people[selected_id])
+		design.text=str(proposed.get("design_description",profile.design_description))
 		_rebuild_models(profile,str(profile.get("preferred_model",_model())))
 	_refresh()
 
 func _refresh() -> void:
-	if _refreshing or not is_instance_valid(status) or not people.has(selected_id):return
+	if _refreshing or not is_inside_tree() or not is_instance_valid(status) or not people.has(selected_id):return
+	if not _context_current():
+		status.text="Host profile or API credential changed. Reopen Character Voices to manage the current account."
+		for control in [preview_button,core_button,approve_button,generate_button,batch_button,recover_button,clear_pending_button,legacy_adopt,legacy_separate,discard_button,next_candidate_button]:control.disabled=true
+		return
 	_refreshing=true
 	var person: Dictionary=people[selected_id]
 	var scope:=_scope()
@@ -252,7 +278,8 @@ func _refresh() -> void:
 	var resolved:=Voices.resolve(person,selected_model,profile) if valid else {"ok":false,"error":"No usable saved voice."}
 	var lifecycle: Dictionary=service.model_status(selected_model,"tts",draft) if service.has_method("model_status") else Models.lifecycle(selected_model)
 	if valid:
-		identity_label.text="%s · perceived age %s\n%s\n%s · %s\nVoice: %s\n%s"%[str(profile.vocal_presentation).capitalize(),str(profile.perceived_age),str(profile.pitch_range),str(profile.timbre),str(profile.accent),str(profile.permanent_voice_id),str(profile.approval_status).replace("_"," ").capitalize()]
+		identity_label.text="%s · intended age %s\n%s\n%s · %s\nVoice: %s\n%s"%[str(profile.vocal_presentation).capitalize(),str(profile.perceived_age),str(profile.pitch_range),str(profile.timbre),str(profile.accent),str(profile.permanent_voice_id),str(profile.approval_status).replace("_"," ").capitalize()]
+		if profile.voice_type!="preset":identity_label.text+="\nAcoustic fit is judged by listening, not inferred from the prompt."
 		if not str(active.get("preferred_model","")).is_empty():identity_label.text+="\nGameplay model pinned to "+str(active.preferred_model)
 		if use_candidate.button_pressed and not pending.is_empty():identity_label.text+="\nGameplay retains the existing voice until approval."
 	else:identity_label.text="Voice unavailable — no speaker was silently reassigned."
@@ -292,7 +319,11 @@ func _refresh() -> void:
 	legacy_box.visible=legacy
 	legacy_adopt.disabled=locked or not current
 	legacy_separate.disabled=legacy_adopt.disabled
-	recovery_box.visible=valid and pending.is_empty()
+	recover_toggle.visible=valid and pending.is_empty()
+	recover_toggle.disabled=locked or not journal.is_empty()
+	if not journal.is_empty():recover_toggle.set_pressed_no_signal(true)
+	recovery_box.visible=recover_toggle.visible and recover_toggle.button_pressed
+	next_candidate_button.disabled=locked or not current or not people.values().any(func(p: Dictionary):return Voices.custom_status(p)=="candidate")
 	recovery_note.text="Previous request: "+str(journal.get("name",""))+". Find this resource in the provider dashboard. Do not generate another until reconciled." if not journal.is_empty() else "Import a saved voice from your own project. Prompt voices require GPT-Live. Recording-based voices require the speaker's authorized consent. Import does not approve a voice or verify provider access."
 	recover_id.editable=not locked and valid and not journal.get("in_flight",false)
 	recover_type.disabled=not recover_id.editable
@@ -365,6 +396,7 @@ func _start_preview(mood: String) -> void:
 
 func _heard() -> void:
 	if playing.is_empty():return
+	if not _context_current():playing.clear();core_queue.clear();_refresh();return
 	var completed:=playing.duplicate()
 	playing.clear()
 	var error:=Voices.record_audition(str(completed.character_id),str(completed.voice_id),str(completed.mood),str(completed.model),str(completed.script),str(completed.scope))
@@ -393,6 +425,7 @@ func _generate() -> void:
 	var result:=await Voices.generate_candidate(service,person,prompt,hint,draft)
 	if not is_inside_tree():return
 	busy=false
+	if not _context_current():_refresh();return
 	if not bool(result.get("ok",false)):status.text=str(result.get("error","Voice creation failed."));_fill_list();_refresh();return
 	_fill_list()
 	if _context_current() and id==selected_id:
@@ -424,7 +457,8 @@ func _generate_missing_faculty() -> void:
 			failure="No safe capacity or saved identity for "+str(person.get("name",id))+".";break
 		status.text="Generating %s · %d/%d saved"%[str(person.get("name",id)),created,ids.size()]
 		_refresh()
-		var result:=await Voices.generate_candidate(service,person,str(identity.design_description),"",draft)
+		var proposed:=Voices.creation_design(person)
+		var result:=await Voices.generate_candidate(service,person,str(proposed.get("design_description",identity.design_description)),"",draft)
 		if not is_inside_tree():return
 		if not bool(result.get("ok",false)):failure=str(result.get("error","Creation failed."));break
 		created+=1
@@ -503,4 +537,7 @@ func _button(parent: Node,text: String,callback: Callable) -> Button:
 
 func _exit_tree() -> void:
 	batch_stop=true
-	_stop()
+	preview_ticket+=1;playing.clear();core_queue.clear()
+	if not preview_request_id.is_empty() and is_instance_valid(service) and service.has_method("cancel_speech_request"):service.cancel_speech_request(preview_request_id)
+	preview_request_id=""
+	if is_instance_valid(audio):audio.stop()

@@ -3,6 +3,7 @@ const Voices=preload("res://scripts/campus/academics/teacher_voice_profiles.gd")
 const People=preload("res://scripts/campus/academics/class_character_profile.gd")
 const Delivery=preload("res://scripts/campus/academics/character_voice_delivery.gd")
 const Roster=preload("res://scripts/campus/academics/faculty_roster.gd")
+const SCRIPT:="I thought we had this figured out. Let us look at it again."
 var failures: Array[String]=[]
 
 func check(condition: bool,message: String) -> void:
@@ -48,9 +49,11 @@ func _initialize() -> void:
 	check(Voices.stage_candidate(bro,{"id":"voice_test_bro","type":"prompt","prompt":bro_voice.design_description})==OK,"New custom voice stages successfully")
 	check(Voices.identity(bro).permanent_voice_id==bro_voice.permanent_voice_id,"Generating a preview never replaces the permanent voice")
 	check(Voices.approve("mr_bro","voice_test_bro",true)==ERR_UNAUTHORIZED,"Unheard custom voices cannot be approved")
-	for mood: String in ["normal","sad","angry"]:check(Voices.record_audition("mr_bro","voice_test_bro",mood)==OK,"Record completed preview "+mood)
-	check(Voices.approve("mr_bro","voice_test_bro",false)==ERR_UNAUTHORIZED,"Auditions alone do not assert character quality")
-	check(Voices.approve("mr_bro","voice_test_bro",true,"gpt-live-1.1")==OK,"Explicit host assessment approves the auditioned voice and compatible model")
+	for mood: String in ["normal","sad","angry"]:check(Voices.record_audition("mr_bro","voice_test_bro",mood,"gpt-live-1.1",SCRIPT)==OK,"Record completed preview "+mood)
+	check(Voices.approve("mr_bro","voice_test_bro",true,"gpt-live-1",SCRIPT)==ERR_UNAUTHORIZED,"Auditions cannot approve a different model")
+	check(Voices.approve("mr_bro","voice_test_bro",true,"gpt-live-1.1",SCRIPT+" More words.")==ERR_UNAUTHORIZED,"Auditions cannot approve a different script")
+	check(Voices.approve("mr_bro","voice_test_bro",false,"gpt-live-1.1",SCRIPT)==ERR_UNAUTHORIZED,"Auditions alone do not assert character quality")
+	check(Voices.approve("mr_bro","voice_test_bro",true,"gpt-live-1.1",SCRIPT)==OK,"Explicit host assessment approves the auditioned voice and compatible model")
 	Voices.reset_cache()
 	var permanent:=People.speech(bro,"gpt-live-1.1",2,"sad",{"sadness":.8})
 	check(permanent.get("voice")=={"id":"voice_test_bro"} and int(permanent.profile_version)==2,"Approved custom voice survives a fresh store load")

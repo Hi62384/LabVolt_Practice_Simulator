@@ -51,13 +51,20 @@ static func draft(person: Dictionary) -> Dictionary:
 	if dossier is Dictionary and dossier.get("voice") is Dictionary:vocal=dossier.voice.duplicate(true)
 	if person.get("voice") is Dictionary:vocal.merge(person.voice,true)
 	if person.get("vocal_identity") is Dictionary:vocal.merge(person.vocal_identity,true)
-	var presentation:=str(vocal.get("presentation",person.get("vocal_presentation","androgynous"))).to_lower()
-	if presentation not in ["masculine","feminine","androgynous"]:presentation="androgynous"
+	var description_words:=" "+str(vocal.get("profile","")).to_lower()+" "+str(vocal.get("characteristics","")).to_lower()+" "
+	# Only explicitly supplied acoustic descriptions inform legacy migration;
+	# never derive voice presentation from names, appearance, or demographics.
+	var described_presentation:="androgynous"
+	if "feminine" in description_words or " female " in description_words:described_presentation="feminine"
+	elif "masculine" in description_words or " male " in description_words:described_presentation="masculine"
+	var presentation:=str(vocal.get("presentation",person.get("vocal_presentation",described_presentation))).to_lower()
+	if presentation not in ["masculine","feminine","androgynous"]:presentation=described_presentation
 	var age:=int(_number(vocal.get("perceived_age",person.get("age",22)),22.,18.,110.))
 	var warmth:=_number(traits.get("warmth"),.5,0.,1.)
 	var speaking:=_number(traits.get("speaking_pace"),.5,0.,1.)
 	var pace:=_number(vocal.get("normal_pace"),.85+speaking*.28,.65,1.3)
-	var pitch:=_text(vocal.get("pitch_range"),"middle register with natural conversational variation",180)
+	var default_pitch:="low or low-middle register" if "low register" in description_words or "deep voice" in description_words or "bass-baritone" in description_words else "upper-middle register" if "high register" in description_words or "higher pitch" in description_words else "middle register with natural conversational variation"
+	var pitch:=_text(vocal.get("pitch_range"),default_pitch,180)
 	var pitch_value:=.35 if "low" in pitch.to_lower() or "deep" in pitch.to_lower() else .68 if "upper" in pitch.to_lower() or "high" in pitch.to_lower() else .5
 	var accent:=_text(vocal.get("accent",person.get("accent")),"natural North American English",180)
 	var timbre:=_text(vocal.get("timbre"),"rounded and warm" if warmth>.6 else "clear and dry",180)

@@ -61,6 +61,13 @@ func _run() -> void:
 	var approved:=People.speech(People.teacher("mr_bro"),"gpt-realtime-2.1-mini",2)
 	check(approved.model=="gpt-live-1.1" and approved.voice=={"id":"voice_studio_test_1"},"Approval routes gameplay to the exact approved voice and model")
 	check(Voices.candidate("mr_bro").is_empty(),"Approved candidate is no longer shown as pending")
+	await panel._generate_missing_faculty()
+	check(host.creations==21,"One explicit batch creates all twenty other missing faculty")
+	check(Voices.missing_faculty(panel.people).is_empty(),"Batch is resumable and skips approved or pending faculty")
+	await panel._generate_missing_faculty()
+	check(host.creations==21,"Repeated batch never creates duplicate provider allocations")
+	panel._next_candidate()
+	check(panel.selected_id!="mr_bro" and panel.use_candidate.button_pressed,"Next candidate advances to an unapproved teacher")
 	check(host.requests[0].text==host.requests[1].text and host.requests[1].voice==host.requests[2].voice,"Emotion comparisons use the same words and stable voice")
 	check(host.requests[1].delivery.instructions!=host.requests[2].delivery.instructions,"Emotion comparisons change model performance instructions")
 	panel.queue_free();host.queue_free();await process_frame
