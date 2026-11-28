@@ -27,6 +27,7 @@ class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
 	func _ready() -> void:pass
 	func ready_for_class() -> bool:return online
 	func moderate(_input: String) -> Dictionary:return {"ok":true,"flagged":false}
+	func moderate_context(input: String,_metadata: Dictionary) -> Dictionary:return await moderate(input)
 	func interpret_character(_instructions: String,_context: Dictionary,_dialogue: String) -> Dictionary:
 		return {"ok":true,"text":JSON.stringify({"event":"chat","tone":"neutral","severity":0.,"meaning":"A nearby classmate shares a brief unrelated social remark.","domain":"conversation","difficulty":0.,"assessment_request":"social","requested_action":"","memories":[]})}
 	func reply(context: Dictionary,speech: String,biography: Variant=null)->Dictionary:
@@ -169,6 +170,9 @@ func run() -> void:
 		students.population.people[member.profile.id]=member.profile.duplicate(true)
 	Legacy.sync(students.population)
 	activity.social_next=0.;activity.last_social_at=-1000.;students.social_next_global=0.
+	# Independent simulated episodes share a wall-clock minute in this test;
+	# the scheduler's real rolling budget is verified separately.
+	students.background_turns.clear()
 	for tick in 100:
 		students.step(activity,now+181.+float(tick)*10.,.1,ROOM)
 		if activity.has("classmate_reply"):break
@@ -199,6 +203,7 @@ func run() -> void:
 	# Cancel while response generation is held, after the opening was heard.
 	client.biography_topic="fixture_cancelled_project";client.biography_detail="I restored a brass lantern with my aunt."
 	client.hold_character=listener.profile.id
+	students.background_turns.clear()
 	var before_heard: int=faculty.brain.recall(listener.profile.id,speaker.profile.id).size()
 	activity.social_pending=true
 	students._start_social_exchange(activity,speaker,listener,faculty.brain.relationship(speaker.profile.id,listener.profile.id),faculty.brain.relationship(listener.profile.id,speaker.profile.id),ROOM)
@@ -211,6 +216,7 @@ func run() -> void:
 	# Cancel a generated reply during its presentation delay as a separate race.
 	activity.phase="assignment"
 	client.biography_topic="fixture_unshown_project";client.biography_detail="I painted a wooden birdhouse with my brother."
+	students.background_turns.clear()
 	activity.social_pending=true
 	await students._start_social_exchange(activity,speaker,listener,faculty.brain.relationship(speaker.profile.id,listener.profile.id),faculty.brain.relationship(listener.profile.id,speaker.profile.id),ROOM)
 	check(activity.has("classmate_reply"),"A generated reply waits for its actual presentation time")
@@ -224,6 +230,7 @@ func run() -> void:
 
 	activity.phase="assignment"
 	client.biography_topic="fixture_wrong_host_project";client.biography_detail="I carved a wooden chess piece with my cousin."
+	students.background_turns.clear()
 	activity.social_pending=true
 	await students._start_social_exchange(activity,speaker,listener,faculty.brain.relationship(speaker.profile.id,listener.profile.id),faculty.brain.relationship(listener.profile.id,speaker.profile.id),ROOM)
 	check(activity.has("classmate_reply"),"Another reply is prepared under the original host profile")

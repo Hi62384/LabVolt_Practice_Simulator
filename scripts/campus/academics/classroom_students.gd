@@ -14,6 +14,9 @@ const Discipline=preload("res://scripts/campus/academics/classroom_discipline.gd
 const Memory=preload("res://scripts/campus/academics/character_memory.gd")
 const DossierStore=preload("res://scripts/campus/academics/character_dossier_store.gd")
 const MAX_PER_CLASS:=6
+const BACKGROUND_WINDOW_MS:=60000
+const MAX_BACKGROUND_TURNS:=4
+const BACKGROUND_AUDIENCE_RANGE:=16.0
 const RECORDS:="user://classmate_learning.cfg"
 static var known_profiles: Dictionary={}
 var game: Node
@@ -27,6 +30,7 @@ var records_path:=RECORDS
 var learning_save_error:=OK
 var host_profile:=""
 var seating: Node
+var background_turns: Array[int]=[]
 
 static func profile_for(id: String) -> Dictionary:
 	if known_profiles.has(id):
@@ -69,6 +73,7 @@ func configure(owner: Node) -> void:
 	host_profile=""
 	records_path=""
 	learning_save_error=OK
+	background_turns.clear()
 	if not multiplayer.is_server():return
 	if not is_instance_valid(game):
 		population.profile_blocked=true
@@ -164,10 +169,11 @@ func seat_request_reaction(activity: Dictionary,member: Dictionary,peer: int) ->
 	var identity:=str(game.school.identities.get(peer,""))
 	if identity.is_empty():return
 	var room:=str(member.get("seat_relocation",{}).get("room",""))
+	var phase:=str(activity.phase)
 	var response: Dictionary=await game.faculty.generate_character_exchange(member.profile,identity,activity,"",{
 		"initiate":true,"intention":"The player has asked for your chair and you are making room. React briefly in your own personality and according to your relationship. The movement is already handled; you do not need to announce or narrate it.",
-		"observations":{"verified_seat_request":true},"_valid":func():return _activity_current(activity,str(activity.phase))})
-	if not _activity_current(activity,str(activity.phase)) or response.get("cancelled",false):return
+		"observations":{"verified_seat_request":true},"_valid":func():return _activity_current(activity,phase) and str(game.school.identities.get(peer,""))==identity})
+	if not _activity_current(activity,phase) or response.get("cancelled",false):return
 	var line:=str(response.get("line",""))
 	if not line.is_empty():game.faculty.present_student_speech(room,str(activity.id),str(member.profile.id),line,str(response.get("emotion","steady")),response.get("turn",{}).get("emotions",{}))
 
@@ -262,7 +268,7 @@ func _greet_nearby_player(activity: Dictionary,room: String,now: float) -> void:
 		var candidate: Dictionary={}
 		var best:=0.55
 		for member in activity.classmates.values():
-			if not member.get("arrived",false) or member.has("line") or member.has("walk") or member.get("using_bench",false):continue
+			if not member.get("arrived",false) or member.has("line") or member.has("walk") or member.get("using_bench",false) or member.get("removed_from_class",false) or member.get("leaving_class",false):continue
 			var distance: float=member.position.distance_to(position)
 			if distance>2.6:continue
 			var bond: Dictionary=game.faculty.brain.relationship(member.profile.id,identity)
@@ -272,6 +278,7 @@ func _greet_nearby_player(activity: Dictionary,room: String,now: float) -> void:
 			candidate=member
 			best=score
 		if candidate.is_empty():continue
+		if not _reserve_background_turn(room,activity):return
 		var profile: Dictionary=candidate.profile
 		var connection: Dictionary=game.faculty.brain.relationship(profile.id,identity)
 		greeted[identity]=true
@@ -285,7 +292,8 @@ func _start_player_greeting(activity: Dictionary,member: Dictionary,peer: int,id
 	var phase:=str(activity.phase)
 	var response: Dictionary=await game.faculty.generate_character_exchange(member.profile,identity,activity,"",{
 		"initiate":true,"intention":"Recognize this nearby person and decide whether to greet, reconnect, tease, or raise an unresolved issue from real memory.",
-		"observations":{"interlocutor_visible":true,"phase":phase}})
+		"observations":{"interlocutor_visible":true,"phase":phase},
+		"_valid":func():return _background_current(room,activity,phase) and not member.get("removed_from_class",false) and str(game.school.identities.get(peer,""))==identity})
 	activity.social_pending=false
 	if not _activity_current(activity,phase) or str(game.school.identities.get(peer,""))!=identity:return
 	if not game.lecture_classes._inside(peer,room) or game.lecture_classes._position(peer).distance_to(member.position)>3.8:return
@@ -472,6 +480,7 @@ func _observe_student_behavior(room: String,activity: Dictionary,member: Diction
 	member.last_discipline={"action":decision.action,"reason":decision.reason,"executed":applied and decision.action not in ["move","remove"],"pending":applied and decision.action in ["move","remove"]}
 	if decision.action in ["ignore","look"] or activity.get("discipline_pending",false):return
 	if game.host_openai.busy or not game.faculty.ai_busy.is_empty():return
+	if not _reserve_background_turn(room,activity):return
 	activity.discipline_pending=true
 	_student_discipline_line(room,activity,member,teacher,decision,applied,event_id,turn)
 
@@ -479,7 +488,8 @@ func _student_discipline_line(room: String,activity: Dictionary,member: Dictiona
 	var phase:=str(activity.phase)
 	var response: Dictionary=await game.faculty.generate_character_exchange(teacher,str(member.profile.id),activity,"",{
 		"initiate":true,"existing_event_id":event_id,"existing_turn":turn,"interlocutor":_social_identity(member.profile),"intention":"Address the behavior you actually observed using your own standards and temperament. Describe only a consequence that was executed. For movement in progress, give directions without claiming the student already arrived. If the action failed, give a verbal warning instead.",
-		"discipline":{"kind":decision.kind,"action":decision.action,"reason":decision.reason,"executed":applied and decision.action not in ["move","remove"],"pending":applied and decision.action in ["move","remove"],"event_already_recorded":true}})
+		"discipline":{"kind":decision.kind,"action":decision.action,"reason":decision.reason,"executed":applied and decision.action not in ["move","remove"],"pending":applied and decision.action in ["move","remove"],"event_already_recorded":true},
+		"_valid":func():return _background_current(room,activity,phase)})
 	activity.discipline_pending=false
 	if not _activity_current(activity,phase):return
 	var line:=str(response.get("line",""))
@@ -550,6 +560,8 @@ func _step_walk(activity: Dictionary,member: Dictionary,now: float,delta: float)
 
 func _before_class(activity: Dictionary,now: float,room: String="") -> void:
 	if not is_instance_valid(game):return
+	if room.is_empty():room=_activity_room(activity)
+	if not _has_player_audience(room,activity):return
 	if now<social_next_global:return
 	if activity.get("social_pending",false) or activity.has("classmate_reply") or now<float(activity.get("social_next",0.)) or float(activity.get("deadline",INF))-now<6.:return
 	if game.host_openai.busy or not game.faculty.ai_busy.is_empty() or not game.faculty.questions.is_empty():return
@@ -569,6 +581,7 @@ func _before_class(activity: Dictionary,now: float,room: String="") -> void:
 	if selected.is_empty():return
 	var speaker: Dictionary=selected[0]
 	var listener: Dictionary=selected[1]
+	if not _reserve_background_turn(room,activity):return
 	pairs[Social.pair_key(speaker.profile.id,listener.profile.id)+":"+str(activity.phase)]=true
 	activity.social_next=now+interval
 	activity.last_social_at=now
@@ -582,8 +595,9 @@ func _start_social_exchange(activity: Dictionary,speaker: Dictionary,listener: D
 	var purpose:=Social.intention(speaker.profile,listener.profile,history,reverse,phase,str(speaker.action))
 	var opening: Dictionary=await game.faculty.generate_character_exchange(speaker.profile,str(listener.profile.id),activity,"",{
 		"initiate":true,"defer_record":true,"intention":purpose.purpose,"interlocutor":_social_identity(listener.profile),"topic":topic,
-		"observations":{"interlocutor_visible":true,"phase":phase}})
-	if not _social_delivery_current(opening,activity,phase) or speaker.get("removed_from_class",false) or listener.get("removed_from_class",false):
+		"observations":{"interlocutor_visible":true,"phase":phase},
+		"_valid":func():return _background_current(room,activity,phase) and not speaker.get("removed_from_class",false) and not listener.get("removed_from_class",false)})
+	if not _social_delivery_current(opening,activity,phase) or not _background_current(room,activity,phase) or speaker.get("removed_from_class",false) or listener.get("removed_from_class",false):
 		activity.social_pending=false
 		return
 	var line:=str(opening.get("line",""))
@@ -608,9 +622,14 @@ func _start_social_exchange(activity: Dictionary,speaker: Dictionary,listener: D
 	if not room.is_empty():_observe_student_behavior(room,activity,speaker,now)
 	# The opening was heard now. Record that perception before generating a
 	# delayed reply; a cancelled reply cannot erase the real incoming event.
+	if not _reserve_background_turn(room,activity):
+		activity.social_pending=false
+		_hear_social_reply(activity,listener,speaker,line)
+		return
 	var response: Dictionary=await game.faculty.generate_character_exchange(listener.profile,str(speaker.profile.id),activity,line,{
 		"record_incoming":true,"defer_record":true,
-		"interlocutor":_social_identity(speaker.profile),"topic":topic,"observations":{"interlocutor_visible":true,"phase":phase}})
+		"interlocutor":_social_identity(speaker.profile),"topic":topic,"observations":{"interlocutor_visible":true,"phase":phase},
+		"_valid":func():return _background_current(room,activity,phase) and not speaker.get("removed_from_class",false) and not listener.get("removed_from_class",false)})
 	activity.social_pending=false
 	if not _social_delivery_current(response,activity,phase) or speaker.get("removed_from_class",false) or listener.get("removed_from_class",false):return
 	activity.classmate_reply={"speaker":speaker.profile.id,"listener":listener.profile.id,"line":str(response.get("line","")),
@@ -621,7 +640,7 @@ func _start_social_exchange(activity: Dictionary,speaker: Dictionary,listener: D
 func _show_preclass_reply(activity: Dictionary,now: float) -> void:
 	var reply: Dictionary=activity.get("classmate_reply",{})
 	if reply.is_empty():return
-	if activity.phase!=reply.get("phase","arrival"):
+	if activity.phase!=reply.get("phase","arrival") or not _has_player_audience(str(reply.get("room","")),activity):
 		activity.erase("classmate_reply");return
 	var response: Dictionary=reply.get("result",{})
 	# Ownership/canon guards invalidate queued speech immediately, even while
@@ -676,9 +695,43 @@ func _hear_social_reply(activity: Dictionary,listener: Dictionary,speaker: Dicti
 	activity.social_pending=false
 
 func _activity_current(activity: Dictionary,phase: String) -> bool:
+	if not is_instance_valid(game) or game.is_queued_for_deletion() or not is_instance_valid(game.lecture_classes):return false
 	for current in game.lecture_classes.classes.values():
 		if str(current.get("id",""))==str(activity.get("id","")):return str(current.get("phase",""))==phase
 	return false
+
+func _has_player_audience(room: String,activity: Dictionary) -> bool:
+	if room.is_empty():room=_activity_room(activity)
+	if room.is_empty() or not is_instance_valid(game) or game.is_queued_for_deletion():return false
+	if not is_instance_valid(game.session) or not is_instance_valid(game.school) or not is_instance_valid(game.lecture_classes):return false
+	for peer in game.session.roster:
+		if str(game.school.identities.get(peer,"")).is_empty() or not game.lecture_classes._inside(int(peer),room):continue
+		var point: Vector3=game.lecture_classes._position(int(peer))
+		if not point.is_finite():continue
+		for member in activity.get("classmates",{}).values():
+			if member.get("removed_from_class",false) or member.get("leaving_class",false) or not member.get("arrived",false):continue
+			var position: Vector3=member.get("position",Vector3.INF)
+			if position.is_finite() and position.distance_squared_to(point)<=BACKGROUND_AUDIENCE_RANGE*BACKGROUND_AUDIENCE_RANGE:return true
+	return false
+
+func _activity_room(activity: Dictionary) -> String:
+	if not is_instance_valid(game) or not is_instance_valid(game.lecture_classes):return ""
+	for room in game.lecture_classes.classes:
+		if str(game.lecture_classes.classes[room].get("id",""))==str(activity.get("id","")):return str(room)
+	return ""
+
+func _background_current(room: String,activity: Dictionary,phase: String) -> bool:
+	return _activity_current(activity,phase) and _has_player_audience(room,activity)
+
+func _reserve_background_turn(room: String,activity: Dictionary,now_ms:=Time.get_ticks_msec()) -> bool:
+	# Movement, studying, seating and local mood still progress with no audience.
+	# Optional speech has one campus-wide budget; player questions bypass it.
+	if not _has_player_audience(room,activity) or not is_instance_valid(game.faculty) or not game.faculty.questions.is_empty() or not game.faculty.ai_busy.is_empty():return false
+	if is_instance_valid(game.host_openai) and game.host_openai.busy:return false
+	while not background_turns.is_empty() and now_ms-background_turns[0]>=BACKGROUND_WINDOW_MS:background_turns.pop_front()
+	if background_turns.size()>=MAX_BACKGROUND_TURNS:return false
+	background_turns.append(now_ms)
+	return true
 
 static func _social_identity(person: Dictionary) -> Dictionary:
 	return {"id":str(person.id),"name":str(person.name),"interest":str(person.get("interest","")),"program":str(person.get("program",""))}
@@ -704,7 +757,7 @@ func debug_snapshot() -> Dictionary:
 					"academic_due":member.get("academic_due",0.),"submitted":member.get("submitted",false)})
 			classes[room]=members
 	return {"population":population.people.size(),"population_save_error":population.last_save_error,"population_blocked":population.profile_blocked,"population_persistence":population.diagnostics(),"learning_save_error":learning_save_error,
-		"recovered_population_backup":population.recovered_backup,"classes":classes}
+		"recovered_population_backup":population.recovered_backup,"background_turns_last_minute":background_turns.size(),"background_turn_limit":MAX_BACKGROUND_TURNS,"classes":classes}
 
 func record_quiz_rivals(activity: Dictionary,scores: Dictionary) -> void:
 	var classmates: Dictionary=activity.get("classmates",{})

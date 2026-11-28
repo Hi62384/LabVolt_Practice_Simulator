@@ -22,6 +22,9 @@ class Game extends Node:
 	var lecture_classes:=Classes.new()
 class TestStudents extends Students:
 	func _observe_student_behavior(_room: String,_activity: Dictionary,_member: Dictionary,_now: float) -> void:pass
+	# This fixture isolates playback ordering; audience/budgets have their own
+	# scheduler test with real local/remote player position checks.
+	func _has_player_audience(_room: String,_activity: Dictionary) -> bool:return true
 func _initialize() -> void:call_deferred("run")
 func run() -> void:
 	var game:=Game.new();root.add_child(game);game.add_child(game.faculty);game.add_child(game.lecture_classes)

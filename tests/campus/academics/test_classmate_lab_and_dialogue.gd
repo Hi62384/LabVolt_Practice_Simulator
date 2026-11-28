@@ -14,6 +14,7 @@ class FixtureClient extends "res://scripts/campus/ai/host_openai_client.gd":
 	func ready_for_class()->bool:return true
 	func configured()->bool:return true
 	func moderate(_text: String)->Dictionary:return {"ok":true,"flagged":false}
+	func moderate_context(input: String,_metadata: Dictionary)->Dictionary:return await moderate(input)
 	func respond_character(_instructions: String,context: Dictionary,question: String,_visual:=false)->Dictionary:
 		requests.append({"context":context.duplicate(true),"question":question})
 		var index:=requests.size()-1
@@ -73,9 +74,9 @@ func run() -> void:
 	var target: StaticBody3D
 	for child in model.get_children():
 		if child.get_meta("role","")=="classroom_student":target=child
+	game.school.identities[1]="0123456789abcdef0123456789abcdef0123456789abcdef"
 	assert(is_instance_valid(target) and faculty.interact(target))
 	assert(faculty.conversation_name.text==member.profile.name)
-	game.school.identities[1]="0123456789abcdef0123456789abcdef0123456789abcdef"
 	faculty.conversation_input.text="What is your hobby?"
 	faculty._submit_question()
 	assert(not faculty.conversation_text.text.is_empty())
@@ -332,6 +333,8 @@ func run() -> void:
 		"title":"Circuit methods","deadline":now+300.,"classmates":{intro_profile.id:speaker,partner.id:listener}},true)
 	classes.classes[lecture_room]=preclass
 	classmates.social_next_global=0.
+	classmates.background_turns.clear()
+	game.player.global_position=origin+Vector3(.5,0.,0.)
 	classmates._before_class(preclass,now)
 	while bool(preclass.get("social_pending",false)):await process_frame
 	assert(not str(speaker.get("line","")).is_empty() and not listener.has("line"))
@@ -344,6 +347,9 @@ func run() -> void:
 	classmates._before_class(preclass,now+25.)
 	assert(not preclass.has("classmate_reply"))
 	for meeting in range(4):
+		# These are separate meetings compressed into one real minute. The
+		# rolling generation ceiling has its own scheduler regression.
+		classmates.background_turns.clear()
 		speaker.erase("line")
 		listener.erase("line")
 		preclass.erase("social_pairs")
@@ -371,6 +377,7 @@ func run() -> void:
 	speaker.erase("line")
 	preclass.erase("classmate_reply")
 	preclass.player_greeting_next=0.
+	classmates.background_turns.clear()
 	preclass.deadline=now+300.
 	classmates._greet_nearby_player(preclass,lecture_room,now+150.)
 	while bool(preclass.get("social_pending",false)):await process_frame
