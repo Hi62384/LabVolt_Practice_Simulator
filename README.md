@@ -56,6 +56,16 @@ Click a portrait to select a character. Create Character or Open Character Edito
 
 Profiles, exported appearances, selected profile, and grades are stored in Godot's local per-user application data, separate from the project. A second simultaneous instance of the same profile is assigned a guest identity to avoid shared grading ownership. Character appearance changes during a session do not change that session's grading identity.
 
+## Persistent campus characters
+
+Teachers and NPC students share a host-owned character identity across text, microphone conversations, classroom behavior, appearance, memories and voice. Aim at a nearby NPC and press **E** to open their Overview, Personality, Life history, Relationships, Emotions and authorized Diagnostics pages. Inspecting a character does not start a conversation or request an AI response.
+
+Configure and verify the host's connection in **OpenAI Settings** to develop full biographies and generate new students in the background. Each complete dossier is validated and saved once; returning people keep their histories, voice, relationships and academic progress. The class uses its ready population immediately and retains the zero-to-six additional-student capacity. Existing teachers and saved students remain available while their dossiers are expanded. A fresh offline host has no newly generated students until generation succeeds.
+
+Characters can establish plausible fictional personal details and remember them across speakers and restarts. Actual game events, equipment readings and grades remain host-controlled. Intentional silence produces no spoken line; service failures appear as technical status. Permanent relationship-specific disengagement survives an apology or restart unless the character deliberately reconsiders after meaningful new experiences.
+
+The [implementation and verification report](docs/verification/character-dossiers/README.md) documents generation, migrations, retrieval, native facial repairs, multiplayer privacy and regression evidence. Live model naturalness, actual token averages and live voice latency require configured-model acceptance; the local fixture results do not establish those qualities.
+
 ## Campus and electronics
 
 Open **Campus · Courses & Map** for Freeplay, Open Lab and formal course activities, the room directory, floor maps and saved course progress. ELM253 and ETY155 have lecture and laboratory work with separate marks. MTH147 and MTH255 are lecture-only mathematics courses in the existing classroom, with structured equation, graph, geometry and data widgets. Calculator and formula-reference access follow the host’s assessment policy; guided practice permits learning tools and never changes official averages. The host starts shared activities; room slips identify your destination and assigned bench. The lift connects the floors. Facilities include a gym and food counters with persistent purchases and activity rewards.

@@ -1,0 +1,69 @@
+{
+  "kind": "executed production geometry and speech tests; native images are render probes, not full-game acceptance",
+  "tests": [
+    {
+      "script": "tests/campus/academics/test_character_facial_compositor.gd",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.8477991290001228,
+      "log": "test_character_facial_compositor.log",
+      "image": null
+    },
+    {
+      "script": "tests/campus/academics/test_teacher_speech_player.gd",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.45252892400003475,
+      "log": "test_teacher_speech_player.log",
+      "image": null
+    },
+    {
+      "script": "tests/campus/academics/render_character_faces.gd",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 4.250538957000572,
+      "log": "facial-before.log",
+      "image": "facial-before.png"
+    },
+    {
+      "script": "tests/campus/academics/render_character_faces.gd",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 3.877669084000445,
+      "log": "facial-after.log",
+      "image": "facial-after.png"
+    }
+  ],
+  "sources": {
+    "after": {
+      "tests/campus/academics/render_character_faces.gd": "9c3544f7672af0e52d5835b8203058a325abb07ec01d36ee5864a54acb666723",
+      "scripts/campus/academics/teacher_speech_player.gd": "239defc2e6870c3d957f22b77a4742ce242ddeea16b2b1ef15f1b2d8f23aa0a1",
+      "scripts/campus/academics/character_face.gd": "3459bc1cb2cf31fbc9a34d8ecfc7f3c5769a9787b2cee20245c167bb48025126",
+      "scripts/campus/academics/character_speech.gd": "64b30ffd9fd213d7458bc5b76115ee668553451c167de18b1e6c1a8aa0de55b9",
+      "scripts/campus/academics/character_motion.gd": "dd3d61c35d5684ffe8477a8dabdc4ca9ab16d8ebf59ba4cc16b09d065116b655",
+      "scripts/toon_character.gd": "dc3785dccd2b72390180a39807fbe5af9c250be1d5e33bb29f4578512157420d",
+      "scripts/avatar_cosmetics/body_deformation/rig_adapter.gd": "1abf91392df434f9d7c4f8a114b2493a92fe2af89973b83730464ed36980fdea",
+      "scripts/avatar_cosmetics/body_deformation/mesh_envelope.gd": "91e6cec4a84844292ee92c0a9d5823a4095913ac13a6a6f7e351885b300bbeb2",
+      "scripts/avatar_cosmetics/body_deformation/mesh_warp.gd": "b6a3171d0bbec25df2676764a31536da70314b9ede26f4433592f6a86fcda2ee",
+      "scripts/avatar_cosmetics/body_deformation/body_fit.gd": "57e99daa4ca10edbcdd6f68623839666c84423ecc832df5617d6500d2b84c300",
+      "scripts/avatar_cosmetics/core/avatar_core.gd": "fa996401ac4c8a5b7508223139b218299337574d6c66c55d0af69dae22366a26",
+      "tests/campus/academics/test_teacher_speech_player.gd": "3eb6ed54311f2100d1e6bac84da964294f155ea2f706d22bd6d88d37c1c6cbee",
+      "tests/campus/academics/test_character_facial_compositor.gd": "98d6aac09df462653cd6374bf74e6ba7323a36b51b5fb10e7653998447cf7f0a",
+      "scripts/avatar_cosmetics/faces_hair/faces_hair_provider.gd": "0df9f5f00175df73dd0e3371d2d3de50997f080aa716e349c50f7bdd417a8ce3"
+    },
+    "before": {
+      "tests/campus/academics/render_character_faces.gd": "9c3544f7672af0e52d5835b8203058a325abb07ec01d36ee5864a54acb666723",
+      "scripts/campus/academics/teacher_speech_player.gd": "08d298ee1ef56056f4cc8b3b04da07846bb770cd4a53177094871b5e1d23b51c",
+      "scripts/campus/academics/character_speech.gd": "64b30ffd9fd213d7458bc5b76115ee668553451c167de18b1e6c1a8aa0de55b9",
+      "scripts/campus/academics/character_motion.gd": "354ba399f0fe2b50adfa79035f2e150e087a71592746fd569be19e4ccacf46be",
+      "scripts/toon_character.gd": "4e25bd77bd0142271eff30258c28b201471cd431a003b13ecc58368b8f4c5c22",
+      "scripts/avatar_cosmetics/body_deformation/rig_adapter.gd": "1abf91392df434f9d7c4f8a114b2493a92fe2af89973b83730464ed36980fdea",
+      "scripts/avatar_cosmetics/body_deformation/mesh_envelope.gd": "91e6cec4a84844292ee92c0a9d5823a4095913ac13a6a6f7e351885b300bbeb2",
+      "scripts/avatar_cosmetics/body_deformation/mesh_warp.gd": "b6a3171d0bbec25df2676764a31536da70314b9ede26f4433592f6a86fcda2ee",
+      "scripts/avatar_cosmetics/body_deformation/body_fit.gd": "57e99daa4ca10edbcdd6f68623839666c84423ecc832df5617d6500d2b84c300",
+      "scripts/avatar_cosmetics/core/avatar_core.gd": "fa996401ac4c8a5b7508223139b218299337574d6c66c55d0af69dae22366a26"
+    }
+  },
+  "baseline_ref": "7ec6c95241fca70e724783d6234dc3f445a6630c",
+  "passed": true
+}

@@ -1,0 +1,18 @@
+{
+  "repository": "/workspace/scratch/8adb8ec1f445/labvolt-startup-baseline",
+  "relay": "actual relay/worker.mjs through local Wrangler and DurableObject",
+  "headless": false,
+  "relay_ready": true,
+  "pass_found": true,
+  "expected_pass": "IN_GAME_FACES PASS",
+  "unexpected_errors": [],
+  "known_environment_errors": [
+    "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+    "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+    "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+  ],
+  "exit_code": 0,
+  "game_seconds": 31.84160612300002,
+  "passed": true,
+  "total_seconds": 37.8760160099996
+}

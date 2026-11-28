@@ -1,0 +1,9 @@
+{
+  "command": "dotnet build CollegeSimulator.csproj --no-restore",
+  "runtime": "Godot 4.5.1 Mono / .NET 8",
+  "exit_code": 0,
+  "warnings": 0,
+  "errors": 0,
+  "reported_elapsed": "00:00:02.83",
+  "source": "Executed compiler output; no C# changes in subsequent GDScript-only integration fix"
+}

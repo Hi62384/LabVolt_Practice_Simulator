@@ -1,0 +1,292 @@
+{
+  "kind": "Combined verified cases from two real ENet runs; fixed classmate case replaces the failed earlier attempt",
+  "passed": true,
+  "cases": [
+    {
+      "case": "facing",
+      "script": "tests/campus/academics/test_teacher_facing_network.gd",
+      "issue": "",
+      "interrupted": false,
+      "seconds": 36.98,
+      "peers": [
+        {
+          "expected_pass": "FACING_HOST PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "FACING_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "host",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/facing/host.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/facing/host-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/academics/test_teacher_facing_network.gd",
+            "--",
+            "host"
+          ],
+          "passed": true
+        },
+        {
+          "expected_pass": "FACING_CLIENT PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "FACING_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "client",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/facing/client.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/facing/client-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/academics/test_teacher_facing_network.gd",
+            "--",
+            "client"
+          ],
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "source_run": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d",
+      "evidence_logs": {
+        "host": "network/facing/host.log",
+        "client": "network/facing/client.log"
+      }
+    },
+    {
+      "case": "classmate",
+      "script": "tests/campus/academics/test_classmate_network.gd",
+      "issue": "",
+      "interrupted": false,
+      "seconds": 29.93,
+      "peers": [
+        {
+          "expected_pass": "CLASSMATE_HOST PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "CLASSMATE_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "host",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T012503Z-f9121a69/classmate/host.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T012503Z-f9121a69/classmate/host-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/academics/test_classmate_network.gd",
+            "--",
+            "host"
+          ],
+          "passed": true
+        },
+        {
+          "expected_pass": "CLASSMATE_CLIENT PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "CLASSMATE_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "client",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T012503Z-f9121a69/classmate/client.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T012503Z-f9121a69/classmate/client-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/academics/test_classmate_network.gd",
+            "--",
+            "client"
+          ],
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "source_run": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T012503Z-f9121a69",
+      "evidence_logs": {
+        "host": "network/classmate/host.log",
+        "client": "network/classmate/client.log"
+      }
+    },
+    {
+      "case": "phone",
+      "script": "tests/campus/computers/test_phone_network.gd",
+      "issue": "",
+      "interrupted": false,
+      "seconds": 32.73,
+      "peers": [
+        {
+          "expected_pass": "PHONE_HOST PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "PHONE_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "host",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/phone/host.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/phone/host-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/computers/test_phone_network.gd",
+            "--",
+            "host",
+            "26364"
+          ],
+          "passed": true
+        },
+        {
+          "expected_pass": "PHONE_CLIENT PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "PHONE_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "client",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/phone/client.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/phone/client-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/computers/test_phone_network.gd",
+            "--",
+            "client",
+            "26364"
+          ],
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "source_run": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d",
+      "evidence_logs": {
+        "host": "network/phone/host.log",
+        "client": "network/phone/client.log"
+      }
+    },
+    {
+      "case": "human_discipline",
+      "script": "tests/campus/academics/test_human_discipline_network.gd",
+      "issue": "",
+      "interrupted": false,
+      "seconds": 32.02,
+      "peers": [
+        {
+          "expected_pass": "HUMAN_DISCIPLINE_HOST PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "HUMAN_DISCIPLINE_HOST PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "host",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/human_discipline/host.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/human_discipline/host-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/academics/test_human_discipline_network.gd",
+            "--",
+            "host"
+          ],
+          "passed": true
+        },
+        {
+          "expected_pass": "HUMAN_DISCIPLINE_CLIENT PASS",
+          "pass_found": true,
+          "pass_markers": [
+            "HUMAN_DISCIPLINE_CLIENT PASS"
+          ],
+          "unexpected_errors": [],
+          "allowed_environment_errors": [
+            "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+            "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+            "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+          ],
+          "role": "client",
+          "exit_code": 0,
+          "log": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/human_discipline/client.log",
+          "profile": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d/human_discipline/client-profile",
+          "command": [
+            "/workspace/scratch/8adb8ec1f445/runtime/Godot_v4.5.1-stable_mono_linux_x86_64/Godot_v4.5.1-stable_mono_linux.x86_64",
+            "--headless",
+            "--path",
+            "/workspace/scratch/8adb8ec1f445/LabVolt_Practice_Simulator",
+            "--script",
+            "res://tests/campus/academics/test_human_discipline_network.gd",
+            "--",
+            "client"
+          ],
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "source_run": "/workspace/scratch/8adb8ec1f445/final-reviewed-network/network-20261128T011701Z-20e9987d",
+      "evidence_logs": {
+        "host": "network/human_discipline/host.log",
+        "client": "network/human_discipline/client.log"
+      }
+    }
+  ]
+}

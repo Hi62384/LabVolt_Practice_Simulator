@@ -21,6 +21,11 @@ class OfflineClient:
  func ready_for_class() -> bool:return enabled
  func configured() -> bool:return enabled
  func moderate(_text: String)->Dictionary:return {"ok":true,"flagged":false}
+ func interpret_character(_instructions: String,_context: Dictionary,question: String)->Dictionary:
+  # The conservative past-event guard reviews "how you reached your answer".
+  # These authored inputs are explanation requests, not claimed grades/actions.
+  var consistent:=question in ["Explain how you reached your answer.","Walk the class through your method.","Which assumption did you start with?"]
+  return {"ok":true,"text":JSON.stringify({"consistent":consistent,"reason":"The fixture requests an explanation and asserts no completed gameplay action or grade."})}
  func respond_character(_instructions: String,context: Dictionary,_question: String,_visual:=false)->Dictionary:
   var lines:=["Explain how you reached your answer.","Walk the class through your method.","Which assumption did you start with?"]
   var line: String=lines[requests%lines.size()]

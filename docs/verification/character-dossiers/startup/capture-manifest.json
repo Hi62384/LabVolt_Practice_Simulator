@@ -1,0 +1,90 @@
+{
+  "source": "Actual Godot 4.5.1 Mono with production local Worker relay; no live AI credentials",
+  "recorded_utc": "2026-11-28T01:35:26.854349+00:00",
+  "baseline_commit": "7ec6c95241fca70e724783d6234dc3f445a6630c",
+  "current": "Frozen dev/character-dossiers-20261127 working tree after d55cd873841e4c5dc299d58075766f07e2bcba48",
+  "production_source_manifest": "../regressions/source-manifest.json",
+  "all_final_native_images_visually_inspected": true,
+  "artifacts": [
+    {
+      "file": "baseline-headless/menu-routes.log",
+      "bytes": 606,
+      "sha256": "c67c7bfe8e568349f1a5fc704b55e5e91cef8280b1b6d5eaee8ca5c3581d269e"
+    },
+    {
+      "file": "baseline-headless/result.json",
+      "bytes": 724,
+      "sha256": "55a496a177defecc0c52ebfad1fdcbbef4fb5b74c8e89d5b8ae13cd142709f22"
+    },
+    {
+      "file": "current-headless/menu-routes.log",
+      "bytes": 606,
+      "sha256": "c67c7bfe8e568349f1a5fc704b55e5e91cef8280b1b6d5eaee8ca5c3581d269e"
+    },
+    {
+      "file": "current-headless/result.json",
+      "bytes": 762,
+      "sha256": "dfcf360e8526e6ae1ac592ba5a948d1664dc5b729800f8dfcd496e0945b87419"
+    },
+    {
+      "file": "baseline-native/host-gameplay.png",
+      "bytes": 615764,
+      "sha256": "4d3a8b66d28e5fed0cab31b000f4acdc00bf227bef8bf081deb6879d801a0d71"
+    },
+    {
+      "file": "baseline-native/menu-routes.log",
+      "bytes": 2412,
+      "sha256": "460a771d501b5f801d65ca6089080b29e4620a602be8632bcbbcf4b0373da0f0"
+    },
+    {
+      "file": "baseline-native/native-gameplay.json",
+      "bytes": 470,
+      "sha256": "ee8f336fc798826a827ea2ba0ea8b78ac33bb5ff45b4d896600573f2da6c0ac9"
+    },
+    {
+      "file": "baseline-native/result.json",
+      "bytes": 771,
+      "sha256": "87afc7327d1d18eb031d2c5c910b28872d1c3c87db4f2678163b46576287aa69"
+    },
+    {
+      "file": "baseline-native/singleplayer-gameplay.png",
+      "bytes": 607298,
+      "sha256": "f6a9a2a076891238e5f21c31aeee27158a68ac376772fdc524df16a755dba6fb"
+    },
+    {
+      "file": "baseline-native/startup-menu.png",
+      "bytes": 648384,
+      "sha256": "e14efdc0d17d91c3123d5d51c4570f82add038da4a68a8d72ed4ba4316f367cb"
+    },
+    {
+      "file": "current-native/host-gameplay.png",
+      "bytes": 614421,
+      "sha256": "07f168551638d02e62553fc72d00904af601d866f5fa87da48271780819f571b"
+    },
+    {
+      "file": "current-native/menu-routes.log",
+      "bytes": 2412,
+      "sha256": "460a771d501b5f801d65ca6089080b29e4620a602be8632bcbbcf4b0373da0f0"
+    },
+    {
+      "file": "current-native/native-gameplay.json",
+      "bytes": 470,
+      "sha256": "ee8f336fc798826a827ea2ba0ea8b78ac33bb5ff45b4d896600573f2da6c0ac9"
+    },
+    {
+      "file": "current-native/result.json",
+      "bytes": 773,
+      "sha256": "f2476dac0c6c42f178ead79aef2f29f8662553aae332b1e145b48298c4ca605e"
+    },
+    {
+      "file": "current-native/singleplayer-gameplay.png",
+      "bytes": 607295,
+      "sha256": "9c3924abb03cdfe5c766b9fc36ceec337abeb0224942d380f22f784fb2138e8f"
+    },
+    {
+      "file": "current-native/startup-menu.png",
+      "bytes": 648384,
+      "sha256": "e14efdc0d17d91c3123d5d51c4570f82add038da4a68a8d72ed4ba4316f367cb"
+    }
+  ]
+}

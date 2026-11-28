@@ -642,7 +642,8 @@ func _classmate_group(room: String,state: Dictionary,activity: Dictionary,now: f
   if attempted.has(identity) or shared.entries.any(func(entry):return entry.author==identity):continue
   var actor: Dictionary=activity.get("classmates",{}).get(identity,{})
   if actor.is_empty() or not actor.seated or actor.get("removed_from_class",false) or actor.get("leaving_class",false):continue
-  if not state.round.present.has(identity) or not shared.present.has(identity):continue
+  # NPC helpers belong to shared work, not the graded human participant list.
+  if not shared.present.has(identity):continue
   var team: String=shared.groups[identity]
   if not state.round.present.keys().any(func(member):return member!=identity and shared.groups.get(member)==team):continue
   attempted[identity]=true
@@ -674,7 +675,7 @@ func _generate_group_contribution(room: String,state: Dictionary,activity: Dicti
  game.faculty.character_interaction.record(result,accepted)
 
 func _group_contribution_current(room: String,state: Dictionary,activity: Dictionary,actor: Dictionary,identity: String,event_id: String,class_id: String) -> bool:
- return rooms.has(room) and rooms[room]==state and str(state.round.event_id)==event_id and not state.round.closed and str(activity.id)==class_id and activity.phase=="lesson" and activity.get("classmates",{}).get(identity,{})==actor and state.round.present.has(identity) and state.shared.present.has(identity) and actor.get("seated",false) and not actor.get("removed_from_class",false) and not actor.get("leaving_class",false)
+ return rooms.has(room) and rooms[room]==state and str(state.round.event_id)==event_id and not state.round.closed and str(activity.id)==class_id and activity.phase=="lesson" and activity.get("classmates",{}).get(identity,{})==actor and state.shared.present.has(identity) and actor.get("seated",false) and not actor.get("removed_from_class",false) and not actor.get("leaving_class",false)
 
 func sync_roster(room: String,now: float) -> void:
  if not multiplayer.is_server() or not rooms.has(room):return

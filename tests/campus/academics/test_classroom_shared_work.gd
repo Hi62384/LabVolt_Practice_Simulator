@@ -177,7 +177,7 @@ func run() -> void:
  service.tick(244.0)
  assert(not service.rooms.room.hands.selected.is_empty())
  service.tick(254.0)
- assert(reactions.size()==3 and (reactions[2].contains("first step") or reactions[2].contains("quantities")))
+ assert(reactions.size()==3 and reactions[2].contains("ten seconds without adding a visible stroke or a shared note"))
  service.tick(255.0)
  assert(reactions.size()==3)
  print("CLASSROOM_SHARED_WORK PASS")

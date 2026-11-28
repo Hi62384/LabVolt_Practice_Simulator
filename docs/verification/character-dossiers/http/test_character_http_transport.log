@@ -1,0 +1,10 @@
+ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension
+   at: parse_gdextension_file (core/extension/gdextension_library_loader.cpp:360)
+ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.
+   at: open_library (core/extension/gdextension.cpp:738)
+ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'.
+   at: load_extensions (core/extension/gdextension_manager.cpp:321)
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+
+CHARACTER_HTTP_EVIDENCE {"assessment_text_requests":2,"checks":59,"coordinated_budget":1400.0,"failures":[],"fixture_reported_routine_tokens":{"cached":64,"input":101,"output":37,"reasoning":8},"long_speech_chars":1239,"reduced_context_chars":23205,"repair_budget":1400.0,"retained_turns":20,"routine_http_turn_ms":102,"routine_text_requests":1,"routine_total_requests":3,"source":"real loopback HTTP with authored provider responses; not live AI","visual_speech_chars":1199}
+CHARACTER_HTTP_TRANSPORT PASS checks=59 (loopback fixture, not live AI)

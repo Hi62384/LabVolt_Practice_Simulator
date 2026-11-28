@@ -1,0 +1,32 @@
+{
+  "kind": "two native processes; actual Main and Singleplayer; synthetic data",
+  "passed": true,
+  "distinct_processes": true,
+  "same_disposable_user_data": true,
+  "results": [
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 13.61,
+      "markers": [
+        "CHARACTER_PROCESS_RESTART PASS phase=write pid=5 checks=45"
+      ],
+      "phase": "write",
+      "pid": 5
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 12.08,
+      "markers": [
+        "CHARACTER_PROCESS_RESTART PASS phase=read pid=25 checks=93"
+      ],
+      "phase": "read",
+      "pid": 25
+    }
+  ]
+}

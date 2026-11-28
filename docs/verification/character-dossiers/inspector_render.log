@@ -1,0 +1,15 @@
+ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension
+   at: parse_gdextension_file (core/extension/gdextension_library_loader.cpp:360)
+ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.
+   at: open_library (core/extension/gdextension.cpp:738)
+ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'.
+   at: load_extensions (core/extension/gdextension_manager.cpp:321)
+Godot Engine v4.5.1.stable.mono.official.f62fdbde1 - https://godotengine.org
+WARNING: Could not set V-Sync mode, as changing V-Sync mode is not supported by the graphics driver.
+     at: set_use_vsync (platform/linuxbsd/x11/gl_manager_x11.cpp:364)
+OpenGL API 4.5 (Core Profile) Mesa 25.0.7-2+deb13u1 - Compatibility - Using Device: Mesa - llvmpipe (LLVM 19.1.7, 256 bits)
+
+INSPECTOR_RENDER Overview size=(1100.0, 684.0) minimum=(370.0, 568.0)
+INSPECTOR_RENDER Personality size=(1100.0, 684.0) minimum=(444.0, 568.0)
+INSPECTOR_RENDER Diagnostics size=(1100.0, 684.0) minimum=(370.0, 568.0)
+INSPECTOR_RENDER compact size=(764.0, 568.0) minimum=(370.0, 568.0) adapter=llvmpipe (LLVM 19.1.7, 256 bits)

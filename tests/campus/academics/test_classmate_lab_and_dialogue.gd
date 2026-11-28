@@ -233,8 +233,8 @@ func run() -> void:
 	assert(events.start(lecture_room,now,[],"group"))
 	var group: Dictionary=events.rooms[lecture_room]
 	var human: String=game.school.identities[1]
-	assert(events._classmate_group(group,lecture,now+8.))
-	assert(not events._classmate_group(group,lecture,now+9.))
+	assert(events._classmate_group(lecture_room,group,lecture,now+8.))
+	assert(not events._classmate_group(lecture_room,group,lecture,now+9.))
 	var shared: Dictionary=group.shared.view(human)
 	assert(shared.entries.size()==1 and shared.entries[0].name==partner.name and shared.can_explain)
 	assert(group.shared.view("outsider").entries.is_empty())

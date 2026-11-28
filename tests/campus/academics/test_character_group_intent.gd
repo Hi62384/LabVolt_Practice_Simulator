@@ -26,7 +26,9 @@ class Faculty extends Node:
 class Practice extends RefCounted:
 	var event_id:="group-fixture"
 	var closed:=false
-	var present: Dictionary={"a_npc":true,"b_npc":true,"c_peer":true,"d_peer":true}
+	# Real solo-human group rounds add an NPC to shared work only. The helper
+	# does not become a graded participant merely by contributing a note.
+	var present: Dictionary={"c_peer":true}
 	var answer_key:="PRIVATE_RESULT"
 	func snapshot(_identity: String,_now: float) -> Dictionary:return {"question":{"prompt":"Compare the quantities and explain your reasoning.","options":[]}}
 class Game extends Node:
@@ -40,6 +42,9 @@ func check(value: bool,label: String) -> void:
 	checks+=1
 	if not value:failures.append(label);push_error(label)
 func _initialize() -> void:call_deferred("run")
+func shared_fixture() -> RefCounted:
+	var shared:=Shared.new();shared.begin("group",["c_peer"]);shared.add_member("a_npc")
+	return shared
 func run() -> void:
 	var game:=Game.new();root.add_child(game)
 	game.host_openai=Client.new();game.add_child(game.host_openai)
@@ -48,9 +53,10 @@ func run() -> void:
 	var service:=ServiceProbe.new();root.add_child(service);service.configure(game)
 	var actor:={"profile":{"id":"a_npc","name":"Fixture Student"},"seated":true,"next":0.0}
 	var activity:={"id":"class-fixture","phase":"lesson","classmates":{"a_npc":actor}}
-	var shared:=Shared.new();shared.begin("group",["a_npc","b_npc","c_peer","d_peer"])
+	var shared:=shared_fixture()
 	var state:={"round":Practice.new(),"shared":shared}
 	service.rooms.room=state
+	check(not state.round.present.has("a_npc") and shared.present.has("a_npc"),"an NPC helper participates in shared work without becoming a graded human participant")
 	check(service._classmate_group("room",state,activity,10.0),"a meaningful group contribution starts one bounded generation")
 	check(not service._classmate_group("room",state,activity,10.1) and game.faculty.calls==1,"pending work never launches a duplicate per-frame request")
 	await process_frame;await process_frame
@@ -58,7 +64,7 @@ func run() -> void:
 	check(game.faculty.character_interaction.deliveries==[true] and actor.action=="discussing group work","actual note publication controls delivered memory and local behavior")
 	check(not "PRIVATE_RESULT" in JSON.stringify(game.faculty.captured.teaching_step),"only released practice information reaches the request")
 	check(not service._classmate_group("room",state,activity,40.0) and game.faculty.calls==1,"completed contributions are never generated again")
-	shared=Shared.new();shared.begin("group",["a_npc","b_npc","c_peer","d_peer"])
+	shared=shared_fixture()
 	state={"round":Practice.new(),"shared":shared};service.rooms.room=state
 	game.host_openai.online=false
 	check(not service._classmate_group("room",state,activity,50.0) and shared.entries.is_empty(),"offline group work does not fabricate a generic personality note")
@@ -71,7 +77,7 @@ func run() -> void:
 	for interruption in ["leaving","absent","replaced"]:
 		actor={"profile":{"id":"a_npc","name":"Fixture Student"},"seated":true,"next":0.0}
 		activity.classmates={"a_npc":actor}
-		shared=Shared.new();shared.begin("group",["a_npc","b_npc","c_peer","d_peer"])
+		shared=shared_fixture()
 		state={"round":Practice.new(),"shared":shared};service.rooms.room=state
 		check(service._classmate_group("room",state,activity,80.0),"start pending contribution before "+interruption)
 		if interruption=="leaving":
@@ -79,7 +85,7 @@ func run() -> void:
 			# reaches the exit and removed_from_class becomes true.
 			actor.leaving_class=true;actor.seated=false;actor.walking=true;actor.action="leaving class"
 		elif interruption=="absent":
-			state.round.present.erase("a_npc");shared.set_present("a_npc",false)
+			shared.set_present("a_npc",false)
 		else:
 			activity.classmates["a_npc"]={"profile":{"id":"a_npc","name":"Different actor"},"seated":true,"next":0.0}
 		await process_frame;await process_frame

@@ -1,0 +1,112 @@
+{
+  "runtime": "Godot 4.5.1 Mono",
+  "isolated_user_data": true,
+  "live_API_key_available": false,
+  "results": [
+    {
+      "test": "test_assignment_npc_discipline.gd",
+      "result": "PASS",
+      "evidence": [
+        "ASSIGNMENT_NPC_DISCIPLINE PASS checks=25 failures=0"
+      ]
+    },
+    {
+      "test": "test_assignment_student_behavior.gd",
+      "result": "PASS",
+      "evidence": [
+        "ASSIGNMENT_STUDENT_BEHAVIOR PASS checks=561 failures=0 actions={ \"campus_student_14\": { \"working\": true, \"studying\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_15\": { \"working\": true, \"sleeping\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_16\": { \"working\": true, \"using phone\": true, \"handed in work\": true, \"waiting quietly\": true, \"distracted\": true } }"
+      ]
+    },
+    {
+      "test": "test_character_academic_memory.gd",
+      "result": "PASS",
+      "evidence": [
+        "CHARACTER_ACADEMIC_MEMORY PASS checks=43 source=actual_main_grader_and_station"
+      ]
+    },
+    {
+      "test": "test_character_prior_learning.gd",
+      "result": "PASS",
+      "evidence": [
+        "CHARACTER_PRIOR_LEARNING PASS checks=69 source=persisted_host_outcomes_to_real_prepare student=campus_student_00"
+      ]
+    },
+    {
+      "test": "test_character_public_affect.gd",
+      "result": "PASS",
+      "evidence": [
+        "CHARACTER_PUBLIC_AFFECT PASS: actual public profile, 600 recovery frames, private traits absent, full-profile behavior preserved"
+      ]
+    },
+    {
+      "test": "test_dossier_canon_race.gd",
+      "result": "PASS",
+      "evidence": [
+        "DOSSIER_CANON_RACE PASS checks=40 synthetic_provider_actual_brain"
+      ]
+    },
+    {
+      "test": "test_dossier_generation.gd",
+      "result": "PASS",
+      "evidence": [
+        "DOSSIER_GENERATION PASS (synthetic transport contract, not live AI quality)"
+      ]
+    },
+    {
+      "test": "test_dossier_performance.gd",
+      "result": "PASS",
+      "evidence": [
+        "DOSSIER_PERFORMANCE {\"actual_tokens\":\"unavailable_without_live_API\",\"baseline\":{\"student_profile_usec\":65.768,\"teacher_profile_usec\":61.57},\"baseline_commit\":\"7ec6c95241fca70e724783d6234dc3f445a6630c\",\"full_dossier_bytes\":21617,\"iterations\":500,\"lightweight_profile_bytes\":9175,\"retrieval_usec\":3030.42,\"selected_context_chars\":3659,\"student_profile_usec\":25.342,\"synthetic_fixture_not_live_ai\":true,\"teacher_profile_usec\":36.028}"
+      ]
+    },
+    {
+      "test": "test_dossier_schema.gd",
+      "result": "PASS",
+      "evidence": [
+        "DOSSIER_SCHEMA PASS"
+      ]
+    },
+    {
+      "test": "test_live_character_acceptance.gd",
+      "result": "SKIP",
+      "evidence": [
+        "LIVE_CHARACTER_ACCEPTANCE SKIP: OPENAI_API_KEY is unavailable; no live conversations ran."
+      ]
+    },
+    {
+      "test": "test_student_discipline_routes.gd",
+      "result": "PASS",
+      "evidence": [
+        "STUDENT_DISCIPLINE_ROUTES PASS"
+      ]
+    },
+    {
+      "test": "test_student_population_and_discipline.gd",
+      "result": "PASS",
+      "evidence": [
+        "STUDENT_POPULATION_AND_DISCIPLINE PASS (30 profiles, 1 assessment reactions)"
+      ]
+    },
+    {
+      "test": "test_student_population_binding.gd",
+      "result": "PASS",
+      "evidence": [
+        "STUDENT_POPULATION_BINDING PASS checks=17 failures=0"
+      ]
+    },
+    {
+      "test": "test_student_population_corruption.gd",
+      "result": "PASS",
+      "evidence": [
+        "STUDENT_POPULATION_CORRUPTION PASS (208 checks): damaged bytes preserved, backup recovery, session identity, host isolation, bounded cache"
+      ]
+    },
+    {
+      "test": "test_student_world_integration.gd",
+      "result": "PASS",
+      "evidence": [
+        "STUDENT_WORLD_INTEGRATION PASS"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1003 @@
+{
+  "recorded_utc": "2026-11-28T01:35:26.854349+00:00",
+  "base_checkpoint": "d55cd873841e4c5dc299d58075766f07e2bcba48",
+  "branch": "dev/character-dossiers-20261127",
+  "working_tree_after_checkpoint": true,
+  "suite_count": 58,
+  "passed_count": 58,
+  "default_count": 45,
+  "additional_count": 13,
+  "skipped_count": 0,
+  "live_api_verified": false,
+  "source_manifest": "source-manifest.json",
+  "selection": "Latest successful targeted retakes replace earlier affected cases; unaffected final-gate passes are retained. Failed intermediate runs are not represented as passes.",
+  "results": [
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.16,
+      "markers": [
+        "CHARACTER_DOSSIER_PIPELINE PASS checks=39 source=synthetic provider contract; no live language-quality or token-performance claim"
+      ],
+      "test": "test_character_dossier_pipeline",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_dossier_pipeline.log",
+      "log_written_utc": "2026-11-28T01:31:01.988659+00:00",
+      "suite_group": "default",
+      "log_sha256": "24eee90864a1bdc71747748ff1dfcda0830e74ffa87db53929fb494f3f240221",
+      "test_sha256": "025129443374892b89b4dbbf1f3bacbb4667608883a8ba62da3c5bc490d7a36f"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.63,
+      "markers": [
+        "CHARACTER_LIFE_LEDGER PASS checks=9 records=2001 indexed_lookup_average_ms=0.37336 serialized_bytes=426810 provider_requests=0"
+      ],
+      "test": "test_character_life_ledger",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_life_ledger.log",
+      "log_written_utc": "2026-11-28T01:31:02.623045+00:00",
+      "suite_group": "default",
+      "log_sha256": "1d1a751b4dd29a4b9b4c033e0c601dec924d8476621d3261e025baa17577ce16",
+      "test_sha256": "0314a585b2428b2e7f7909a159a3f7912060de93df49d3c253b7cc79218cd061"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.52,
+      "markers": [
+        "CHARACTER_RELATIONSHIP_DECISIONS PASS checks=11 source=host state and decision fixtures, not live AI"
+      ],
+      "test": "test_character_relationship_decisions",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_relationship_decisions.log",
+      "log_written_utc": "2026-11-28T01:31:03.147619+00:00",
+      "suite_group": "default",
+      "log_sha256": "f0705f0161d0518ee729cb29de981accadeef1b0c513e76194eeebfa14a87fb9",
+      "test_sha256": "ca839bd191dea1a0ef2952afc959c13434a19f5ea55e57ef62df8eb4cf1972d3"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.62,
+      "markers": [
+        "CHARACTER_GROUP_INTENT PASS checks=18 source=explicit scheduling fixture, not live AI"
+      ],
+      "test": "test_character_group_intent",
+      "verification_run": "character-final-integration-fixes",
+      "log": "test_character_group_intent.log",
+      "log_written_utc": "2026-11-28T01:30:07.677299+00:00",
+      "suite_group": "default",
+      "log_sha256": "8ebae2b77f85d75b58168b7e8ee4f38a6a3fec3bb80ebc2d09e9943e036dd7ac",
+      "test_sha256": "2a7d56775bc3e6041690662510af742633384ac1f49bd4d00c3ed5c5660741fa"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 11.9,
+      "markers": [
+        "CHARACTER_SILENT_DISPATCH PASS checks=20 failures=0 (authored provider; real Main/action dispatch)"
+      ],
+      "test": "test_character_silent_dispatch",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_character_silent_dispatch.log",
+      "log_written_utc": "2026-11-28T01:27:49.578767+00:00",
+      "suite_group": "default",
+      "log_sha256": "b5831e3a785d9c2340dddfb6365830037839fcb3ae6b387ac229eda9a928031b",
+      "test_sha256": "be14736a55824a24cffa1b24b3f39d09c919eaaeea425a0e90a762eaf803cda8"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.67,
+      "markers": [
+        "CHARACTER_REQUEST_TIMING PASS checks=19 measured={\"microphone\":{\"host_to_text_ms\":130.0,\"input_kind\":\"microphone\",\"queue_wait_ms\":0.0,\"transcription_ms\":123.0},\"speech\":{\"host_to_audio_ready_ms\":130.0,\"host_to_playback_started_ms\":130.0},\"typed_queue_ms\":85} source=authored transcript; real scheduling and playback signal, no live API or audio-device claim"
+      ],
+      "test": "test_character_request_timing",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_request_timing.log",
+      "log_written_utc": "2026-11-28T01:31:04.817461+00:00",
+      "suite_group": "default",
+      "log_sha256": "ad130050b2994239243370812499d587b7d0efb480939419d58f04d8e33dc88b",
+      "test_sha256": "c021f2acff313640ca2e97624639354165666851573c241ede1528c877b9cf1a"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.62,
+      "markers": [
+        "CHARACTER_REQUEST_ACCOUNTING PASS"
+      ],
+      "test": "test_character_request_accounting",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_request_accounting.log",
+      "log_written_utc": "2026-11-28T01:31:05.436522+00:00",
+      "suite_group": "default",
+      "log_sha256": "e4efa276f83a1fda8db27a48c889b97af1a53d0f024065dd6a9631982255114f",
+      "test_sha256": "631d504199c3982e75057e66ae65cb2c81bdd87cfa602bfe463547e8e270e700"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.81,
+      "markers": [
+        "CHARACTER_INSPECTOR PASS \u2014 authority, privacy, read-only state, real UI navigation and accurate telemetry"
+      ],
+      "test": "test_character_inspector",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_inspector.log",
+      "log_written_utc": "2026-11-28T01:31:06.243633+00:00",
+      "suite_group": "default",
+      "log_sha256": "94b49b780c053c5595f9145ae0eb97e4ef3c3ee6458062baea2ca6481cff4c50",
+      "test_sha256": "2ed9e4dbb90b02cc873dff56730f147a2a13332f3cb92f664c66ad4d15a97a7f"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.34,
+      "markers": [
+        "CHARACTER_INSPECTOR_TRANSPORT PASS \u2014 bounded read packets, rate limits, static caching, replay/selection guards, privacy"
+      ],
+      "test": "test_character_inspector_transport",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_inspector_transport.log",
+      "log_written_utc": "2026-11-28T01:31:06.584873+00:00",
+      "suite_group": "default",
+      "log_sha256": "8fd6cf5eb5f9411b2ba45f39ea6d81158f8ee7f14dd73ada58ae6ba898646da1",
+      "test_sha256": "d815aa72134fc27192bc3b8b3fbeaa5041c04d61278bd51dcd68d5a94732fa58"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 3.97,
+      "markers": [
+        "CHARACTER_INSPECTOR_NETWORK PASS \u2014 real ENet, production RPCs, authenticated guest history, selected-target transit guards, text/mic queue validation, range refresh, no model call"
+      ],
+      "test": "test_character_inspector_network",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_inspector_network.log",
+      "log_written_utc": "2026-11-28T01:31:10.560327+00:00",
+      "suite_group": "default",
+      "log_sha256": "1913bc2888a8aa513e73f546de3176bc301bfc29089d3cd43e139dc2b130147c",
+      "test_sha256": "2cec59da6a4fc7784451aa31112686df28ffb34be3cf1ec3a9036061f3b94bfa",
+      "provider": "real local ENet, no live AI provider"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.36,
+      "markers": [
+        "TEACHER_NUMERIC_DISPOSITION PASS \u2014 independent traits, description invariance, attention, escalation, hearing authority"
+      ],
+      "test": "test_teacher_numeric_disposition",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_teacher_numeric_disposition.log",
+      "log_written_utc": "2026-11-28T01:31:10.917089+00:00",
+      "suite_group": "default",
+      "log_sha256": "4f54ce1636c3889c0ead71371899540606476c0556938a01191591ea65a9c5ad",
+      "test_sha256": "f4a7519721054a7413423b9f66d68bd6605c30855ce9a6c66379669d118e274e"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.71,
+      "markers": [
+        "CHARACTER_FACIAL_COMPOSITOR PASS checks=4878 failures=0"
+      ],
+      "test": "test_character_facial_compositor",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_character_facial_compositor.log",
+      "log_written_utc": "2026-11-28T01:24:40.665548+00:00",
+      "suite_group": "default",
+      "log_sha256": "e4a85978910ea3a73c0f07eed54a4299ed9ff6ec2ac8eee16b3081d12db2a547",
+      "test_sha256": "98d6aac09df462653cd6374bf74e6ba7323a36b51b5fb10e7653998447cf7f0a"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.71,
+      "markers": [
+        "CHARACTER_PIPELINE PASS checks=45 failures=0 (deterministic fixture, not live AI)"
+      ],
+      "test": "test_character_interaction_pipeline",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_interaction_pipeline.log",
+      "log_written_utc": "2026-11-28T01:31:11.628019+00:00",
+      "suite_group": "default",
+      "log_sha256": "1150add48422e97bd7532467c173aa388e44caef433f75f01edcd04ad9b7843a",
+      "test_sha256": "16373f58580750089e247490fa7de81bd6b84e8f6e08c5006ed25759a2aa5097"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.99,
+      "markers": [
+        "CHARACTER_EVOLUTION_PIPELINE PASS checks=36 (deterministic provider; not live AI)"
+      ],
+      "test": "test_character_evolution_pipeline",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_evolution_pipeline.log",
+      "log_written_utc": "2026-11-28T01:31:12.619372+00:00",
+      "suite_group": "default",
+      "log_sha256": "4f8954d6414ccfc70b6310bb1c8f347fedd5175aa9e794990a1828fc8a82cc85",
+      "test_sha256": "07f1d8f21871e4b4c03f0c7c9c865fc54841f28ed69c1e5b8334ca69413c5d6b"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.71,
+      "markers": [
+        "CHARACTER_WORLDVIEWS PASS: 21 teachers; multi-turn diverse conflict; 80 migrated stable students; slow affect; semantic knowledge; actual rig transforms (not visual quality or live AI evidence)"
+      ],
+      "test": "test_character_worldviews",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_worldviews.log",
+      "log_written_utc": "2026-11-28T01:31:13.328621+00:00",
+      "suite_group": "default",
+      "log_sha256": "a70f9c6f5f13c0447e81a900e2414ab04b14239d53b59488ee4a17e83a960e16",
+      "test_sha256": "21efc58edfd53810052be21bfa5dd32aeca618a180414a0f69ba37884496ac37"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.62,
+      "markers": [
+        "CHARACTER_REACTIONS PASS"
+      ],
+      "test": "test_character_reactions",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_reactions.log",
+      "log_written_utc": "2026-11-28T01:31:13.950011+00:00",
+      "suite_group": "default",
+      "log_sha256": "bb73b838f5a186bb248a994be753e8b3ebb4d8122636f5ed7782a99b8acd3603",
+      "test_sha256": "0b19795edbc2a7836dedc6b6f51929ebc7eab5850ff6aea3b280679e97877934"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.81,
+      "markers": [
+        "CHARACTER_BELIEFS PASS checks=56 source=deterministic_host_validation"
+      ],
+      "test": "test_character_beliefs",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_beliefs.log",
+      "log_written_utc": "2026-11-28T01:31:14.757324+00:00",
+      "suite_group": "default",
+      "log_sha256": "bc833d894c4ffebc30063476130aad6ed20021afa4bfea6a481426ecd913a62c",
+      "test_sha256": "8042c39212b35b7d8b4ba67a002295da5777ffe1868c9037253f8ff9f527552e"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.82,
+      "markers": [
+        "CHARACTER_MEMORY_V5 PASS checks=107"
+      ],
+      "test": "test_character_memory_v5",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_memory_v5.log",
+      "log_written_utc": "2026-11-28T01:31:15.576239+00:00",
+      "suite_group": "default",
+      "log_sha256": "2dab74f5c0c46e96caef57b39c32b51c801f7758b03a7a0264472cfc7cd1b944",
+      "test_sha256": "c6d534f5eb7b9e211c1659d0394891ef7039ed12dba7320aac43060e074e170b"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.53,
+      "markers": [
+        "CHARACTER_MEMORY_MIGRATION PASS versions=1,2,3,4,5 profile_isolation=true affect_only_switch=true"
+      ],
+      "test": "test_character_memory_migration",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_memory_migration.log",
+      "log_written_utc": "2026-11-28T01:31:16.104739+00:00",
+      "suite_group": "default",
+      "log_sha256": "6cda06a955380c74e14f15fa3455bbd52d9b1aba73cf2fb41c93ecbe8e26f682",
+      "test_sha256": "170a5f3ebb7a2477275e1b44d2fc98b4f53a0e37bae2da87625af4ee423a08dc"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.63,
+      "markers": [
+        "CHARACTER_MEMORY_RESILIENCE PASS checks=54"
+      ],
+      "test": "test_character_memory_resilience",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_memory_resilience.log",
+      "log_written_utc": "2026-11-28T01:31:16.731602+00:00",
+      "suite_group": "default",
+      "log_sha256": "0a54d79fc9ac00fc7e0017ab20d645c4bd06cec6f0aec00b1868af9539dd9fe6",
+      "test_sha256": "f0c3d7b2b99cdd11a32c01f63b108c7dd6dee19349f9244853c81f9f49a4e439"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.72,
+      "markers": [
+        "CHARACTER_PUBLIC_AFFECT PASS: actual public profile, 600 recovery frames, private traits absent, full-profile behavior preserved"
+      ],
+      "test": "test_character_public_affect",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_public_affect.log",
+      "log_written_utc": "2026-11-28T01:31:17.450473+00:00",
+      "suite_group": "default",
+      "log_sha256": "6517f8a7fe7c927b23ef10bce4e1eb06fe61d3b27eda345d41caf64592d97fdc",
+      "test_sha256": "c4ebcf709ac8f65c1ba2a2f2edf06a3d8330bd95d4a38609dcfa9de5f1f31d02"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.92,
+      "markers": [
+        "CHARACTER_MEMORY_SUMMARIES PASS checks=35"
+      ],
+      "test": "test_character_memory_summaries",
+      "verification_run": "character-final-integration-fixes",
+      "log": "test_character_memory_summaries.log",
+      "log_written_utc": "2026-11-28T01:30:04.607343+00:00",
+      "suite_group": "default",
+      "log_sha256": "8d9c8a4146cea6e582ad1776a646a883c63b514ed6075735f062ff1fb871f7f8",
+      "test_sha256": "3cff478ca08c19f0169786d625cca551c8b2546814eb931ed72010eba1533469"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.71,
+      "markers": [
+        "CHARACTER_PRIOR_LEARNING PASS checks=69 source=persisted_host_outcomes_to_real_prepare student=campus_student_00"
+      ],
+      "test": "test_character_prior_learning",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_prior_learning.log",
+      "log_written_utc": "2026-11-28T01:31:18.160865+00:00",
+      "suite_group": "default",
+      "log_sha256": "a9bf2bafe35498ae04ec7ac2326d9924618b57c44275fcfb6d5d08982e30e245",
+      "test_sha256": "1fd7d194993e1e4121e13ecbfd1c2918124ca5386855a255793ac65d7abd123a"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 3.13,
+      "markers": [
+        "STUDENT_POPULATION_CORRUPTION PASS (208 checks): damaged bytes preserved, backup recovery, session identity, host isolation, bounded cache"
+      ],
+      "test": "test_student_population_corruption",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_student_population_corruption.log",
+      "log_written_utc": "2026-11-28T01:31:21.290395+00:00",
+      "suite_group": "default",
+      "log_sha256": "f7d9359e9fa20c67ebf9fa4a31b1ba2bde403f8a53d4a6f2b4280a741586bb80",
+      "test_sha256": "81b2b32d7c55a1ddf303cf533a236e427acd3a39d1fc7959063faed4781fd8c5"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.9,
+      "markers": [
+        "STUDENT_POPULATION_BINDING PASS checks=17 failures=0"
+      ],
+      "test": "test_student_population_binding",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_student_population_binding.log",
+      "log_written_utc": "2026-11-28T01:31:22.192207+00:00",
+      "suite_group": "default",
+      "log_sha256": "072a7ec5d999f4eb73d6f54f1208e120ac4fad3597dd75688239d14b2e431f94",
+      "test_sha256": "19a42366fff7d9464d0cfebf0b72c39f0e6332367abe1fc0356948d7eb338ba0"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.19,
+      "markers": [
+        "STUDENT_POPULATION_AND_DISCIPLINE PASS (30 profiles, 1 assessment reactions)"
+      ],
+      "test": "test_student_population_and_discipline",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_student_population_and_discipline.log",
+      "log_written_utc": "2026-11-28T01:31:23.380499+00:00",
+      "suite_group": "default",
+      "log_sha256": "8e72396c95e4747be29e75654a64c38e042797858ccefb13aebd95733f852aca",
+      "test_sha256": "24c428d5338541a29036d312b06f75d81291317ebd73ac93ff20e48cf6b967d6"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 11.99,
+      "markers": [
+        "STUDENT_DISCIPLINE_ROUTES PASS"
+      ],
+      "test": "test_student_discipline_routes",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_student_discipline_routes.log",
+      "log_written_utc": "2026-11-28T01:31:35.372563+00:00",
+      "suite_group": "default",
+      "log_sha256": "8853e3745c2635e89869f49c2d7a4887578ae887705cbf10a83ce552675340dc",
+      "test_sha256": "de6a49b9d628d37f1484d1176352324257386b7ea68324d5d3cd8c668fe992ff"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 12.03,
+      "markers": [
+        "CHARACTER_ACADEMIC_MEMORY PASS checks=43 source=actual_main_grader_and_station"
+      ],
+      "test": "test_character_academic_memory",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_academic_memory.log",
+      "log_written_utc": "2026-11-28T01:31:47.406748+00:00",
+      "suite_group": "default",
+      "log_sha256": "d230cdf82c2cde592a94bde458343fb998a350f8b62a675e1097f888dff0f732",
+      "test_sha256": "7b564807af6dc0229fc2347eeabdc9c304582a9166b8e0f1cdf4a33db27a3716"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 12.09,
+      "markers": [
+        "CHARACTER_HUMAN_ACADEMIC_MEMORY PASS checks=55 source=actual_singleplayer_submit_and_host_grader"
+      ],
+      "test": "test_character_human_academic_memory",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_human_academic_memory.log",
+      "log_written_utc": "2026-11-28T01:31:59.500112+00:00",
+      "suite_group": "default",
+      "log_sha256": "1f9167c771c02007feccc954417ce83691e4c4dee92f9f32a37e8ac0d9a93c07",
+      "test_sha256": "fed6fafe169f9257edb75fcb58e249f071b9718a058c93a590473d417e77d9f3"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 13.02,
+      "markers": [
+        "ASSIGNMENT_STUDENT_BEHAVIOR PASS checks=558 failures=0 actions={ \"campus_student_14\": { \"working\": true, \"handed in work\": true, \"studying\": true }, \"campus_student_15\": { \"working\": true, \"sleeping\": true, \"handed in work\": true, \"waiting quietly\": true }, \"campus_student_16\": { \"working\": true, \"using phone\": true, \"handed in work\": true, \"distracted\": true, \"waiting quietly\": true } }"
+      ],
+      "test": "test_assignment_student_behavior",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_assignment_student_behavior.log",
+      "log_written_utc": "2026-11-28T01:32:12.516008+00:00",
+      "suite_group": "default",
+      "log_sha256": "e8077e7c8665eb3b9434451a20fce1653aaf4c0a0c26afd28cb73e72d7d95764",
+      "test_sha256": "3542e837f19212052fb50325b1a835be547947385bfdc040aed12b6309345289"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 12.54,
+      "markers": [
+        "ASSIGNMENT_NPC_DISCIPLINE PASS checks=25 failures=0"
+      ],
+      "test": "test_assignment_npc_discipline",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_assignment_npc_discipline.log",
+      "log_written_utc": "2026-11-28T01:32:25.056388+00:00",
+      "suite_group": "default",
+      "log_sha256": "507f130dcaf9d68ec5ea8348d5f294f04ccdf9963f880ed5b2e4978a7c674045",
+      "test_sha256": "0a6a9fefb690eab6a2ee7aadc4757f12c84192b059c7527a8d6fc10361569d46"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 12.08,
+      "markers": [
+        "FACULTY_SPECIALIZED_PATHS PASS checks=48 failures=0 (local provider fixture, not live AI)"
+      ],
+      "test": "test_faculty_specialized_paths",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_faculty_specialized_paths.log",
+      "log_written_utc": "2026-11-28T01:32:37.137996+00:00",
+      "suite_group": "default",
+      "log_sha256": "2b43e0f40fe3dc2b3ce1875156017c5e3fe949dfe87411dc0b2084b6f3c2ad04",
+      "test_sha256": "d982d4851d43dba50a6c0790f9ae287e5fcb39fa7a40579eeab9631985858fd4"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 13.11,
+      "markers": [
+        "CHARACTER_GAMEPLAY_OVERHAUL PASS checks=583 failures=0 teachers=21 students=6 (offline, not live AI)"
+      ],
+      "test": "test_character_gameplay_overhaul",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_character_gameplay_overhaul.log",
+      "log_written_utc": "2026-11-28T01:32:50.252500+00:00",
+      "suite_group": "default",
+      "log_sha256": "fef55b1be47cb22c7f1879d39faee6eff8f930eadc257cd1cb4e29b86a54378d",
+      "test_sha256": "f3b3f4edc4a3ae301887d5367c1dce72f4ec06fd8afc57eaf942e204b967b910"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 11.62,
+      "markers": [
+        "STUDENT_WORLD_INTEGRATION PASS"
+      ],
+      "test": "test_student_world_integration",
+      "verification_run": "character-final-confirmed-regressions",
+      "log": "test_student_world_integration.log",
+      "log_written_utc": "2026-11-28T01:33:01.869386+00:00",
+      "suite_group": "default",
+      "log_sha256": "be7fe77e6be6f2dc4f2da8102a0e7906ac48e7e25416211f9695ac3a2c8e80cd",
+      "test_sha256": "f1e51940356fad7de99d9180b40bf8c26884dc7019e5960da55ce060b0adc5de"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 15.52,
+      "markers": [
+        "CLASSMATE_CONVERSATION_AND_LIVE_LABS PASS (actual solvers/gameplay; synthetic character provider, no live AI or voice)"
+      ],
+      "test": "test_classmate_lab_and_dialogue",
+      "verification_run": "character-final-integration-fixes",
+      "log": "test_classmate_lab_and_dialogue.log",
+      "log_written_utc": "2026-11-28T01:30:23.196852+00:00",
+      "suite_group": "default",
+      "log_sha256": "8729f8d656d08327cd57bc15dcbee83cbafd56607cc81d37d3ad4fa5991e8028",
+      "test_sha256": "b490b1e986bd86c78bd24732c679f2dfe037b54cd7b6a83886faccf72f772be4"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.34,
+      "markers": [
+        "TEACHER_SPEECH_PLAYER PASS"
+      ],
+      "test": "test_teacher_speech_player",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_speech_player.log",
+      "log_written_utc": "2026-11-28T01:26:47.556951+00:00",
+      "suite_group": "default",
+      "log_sha256": "caa6d7cac3b60a077fd697828f8c87dc81626b35ca347c15b4c491f94e2a62e6",
+      "test_sha256": "3eb6ed54311f2100d1e6bac84da964294f155ea2f706d22bd6d88d37c1c6cbee"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.63,
+      "markers": [
+        "TEACHER_SPEECH_SYNTH PASS (adapter only; no real voice)"
+      ],
+      "test": "test_teacher_speech_synth",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_speech_synth.log",
+      "log_written_utc": "2026-11-28T01:26:48.184277+00:00",
+      "suite_group": "default",
+      "log_sha256": "ac2c8f03214830a99b6385a4064cf89a2ed3f06b0066cd32f2398a032f0d3538",
+      "test_sha256": "53febccb90e840c20c0532d7817093eac530476e84958bb4e6904b8f7da04bad"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.96,
+      "markers": [
+        "TEACHER_SPEECH_LONG_DELIVERY PASS (native WAV, captions and player; adapter launch, no live voice)"
+      ],
+      "test": "test_teacher_speech_long_delivery",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_speech_long_delivery.log",
+      "log_written_utc": "2026-11-28T01:26:49.145263+00:00",
+      "suite_group": "default",
+      "log_sha256": "aa88d662aafe4a2373adf52431a5c4be2bdc9ddeb7e2c528f36ae65ac54803d0",
+      "test_sha256": "ed219e7e914cb31a55fb1ec88769f211fe94f7f61b6478dc22cdaf16db934c84"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 11.14,
+      "markers": [
+        "TEACHER_SPEECH_INTEGRATION PASS (fixture audio; no teacher voice asset)"
+      ],
+      "test": "test_teacher_speech_integration",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_speech_integration.log",
+      "log_written_utc": "2026-11-28T01:27:00.290997+00:00",
+      "suite_group": "default",
+      "log_sha256": "1f3b3c85d167bd573fb1daf4b53c0d983f3272ae77c8bd9ab717417c1939518a",
+      "test_sha256": "f016423d90c46cefa333e8daaeec710a1909f95a203c85e83efce9d9e23920d3"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.34,
+      "markers": [
+        "TEACHER_VOICE_STALE PASS"
+      ],
+      "test": "test_teacher_voice_stale",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_voice_stale.log",
+      "log_written_utc": "2026-11-28T01:27:00.630119+00:00",
+      "suite_group": "default",
+      "log_sha256": "bb7bdfaed46ab574df9c03fa771059c09d5cbabf1d5915649237eefc5a579c0b",
+      "test_sha256": "ad122a4c84ac4d8ee5bc6621631dd7a6c49825091c0d444baea0bd71b91dc805"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.55,
+      "markers": [
+        "TEACHER_CLASS_CALL_PROMPT PASS (local provider fixture; no live AI or voice)"
+      ],
+      "test": "test_teacher_class_call_prompt",
+      "verification_run": "character-final-integration-fixes",
+      "log": "test_teacher_class_call_prompt.log",
+      "log_written_utc": "2026-11-28T01:30:06.157865+00:00",
+      "suite_group": "default",
+      "log_sha256": "e39237f0df3fa10ca331ea8ca540a6ca63ffb9ebbb766d11fb4041e82910b372",
+      "test_sha256": "f00ecce5eaa8ad9fb63dc686cb6f712450165aab767f2e08f0049ae9e50eb0a2"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 11.85,
+      "markers": [
+        "PASS perceived hazard reactions, class messages, cooldown and per-student memory"
+      ],
+      "test": "test_teacher_events",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_events.log",
+      "log_written_utc": "2026-11-28T01:27:13.976148+00:00",
+      "suite_group": "default",
+      "log_sha256": "8b9891d815567990e64b1474bf32774b681da59c71afeddfbce8146ef48e9e55",
+      "test_sha256": "79a965d110e6fb2b2c91582861fc5aace1c8c4bf1310f872668dfa1560f79f7d"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.53,
+      "markers": [
+        "TEACHER_RELATIONSHIPS PASS"
+      ],
+      "test": "test_teacher_relationships",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_relationships.log",
+      "log_written_utc": "2026-11-28T01:27:14.505843+00:00",
+      "suite_group": "default",
+      "log_sha256": "155139b6de7de7c4a7cc9a240da4997ff28f90c696b266322570b4060f1f6651",
+      "test_sha256": "407dccc7d94223acaf4af2d759586a0d8203551a7084295a0e2c70691bef98a6"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 11.62,
+      "markers": [
+        "PASS authoritative teacher profiles, intention routing, safety instructions and passive character inspection"
+      ],
+      "test": "test_teacher_dialogue",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_teacher_dialogue.log",
+      "log_written_utc": "2026-11-28T01:27:26.125395+00:00",
+      "suite_group": "default",
+      "log_sha256": "e1b62552857dded18abf1b68c55467186066058a0c34f53b96cb935150a697fc",
+      "test_sha256": "64ea3947e6251bbd0e0e16e9b6572dd06a54cd558db61936c45a64f9345a17ad"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 11.56,
+      "markers": [
+        "PASS faculty roster, eligibility and lab rotation lock"
+      ],
+      "test": "test_faculty",
+      "verification_run": "character-final-default-regressions",
+      "log": "test_faculty.log",
+      "log_written_utc": "2026-11-28T01:27:37.682716+00:00",
+      "suite_group": "default",
+      "log_sha256": "6b176f91edc6c758cc7384b415a465ecf10919d4ae0aba906153342a8ffb7ec7",
+      "test_sha256": "16f780e5ae4e796033b961effb98958c82d1eb3fca65a2c79b6e5d4cbb8b0091"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.18,
+      "markers": [
+        "CLASSROOM_DEMONSTRATION PASS"
+      ],
+      "test": "test_classroom_demonstration",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_classroom_demonstration.log",
+      "log_written_utc": "2026-11-28T01:31:07.825883+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "dc4de83d2479db9bdeb839324986ab2c7c5400ad0a3fbd2d1195d60aba7cfa42",
+      "test_sha256": "27470de5cb58729465edfb6642243807da7b361c6dc05be3569814b992c28dc5"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.25,
+      "markers": [
+        "CLASSROOM_DIRECTOR_FIXTURE PASS"
+      ],
+      "test": "test_classroom_director_fixture",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_classroom_director_fixture.log",
+      "log_written_utc": "2026-11-28T01:31:09.989359+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "1fe8d7af49c733bc352c226c4fde8679f26665fa6c11c2a5ac09bcf31dab1189",
+      "test_sha256": "7e3f1bb3143efb36d24dae88b31571f3769bff0cc8e5cb22a63d88be7b6f4d55"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.11,
+      "markers": [
+        "CLASSROOM_MULTIROUND_QUIZ PASS"
+      ],
+      "test": "test_classroom_multiround_quiz",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_classroom_multiround_quiz.log",
+      "log_written_utc": "2026-11-28T01:31:08.935077+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "5bf2ab0e58acff1db4cb9f0e008068d5bbdb4eb4b7ef1b8134272c8a47ce7f66",
+      "test_sha256": "4708f950d33bb7eef61d5ffe610261939f9a8c5282f345571b2e297d57d83802"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.35,
+      "markers": [
+        "CLASSROOM_PARTICIPATION_FIXTURE PASS"
+      ],
+      "test": "test_classroom_participation_fixture",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_classroom_participation_fixture.log",
+      "log_written_utc": "2026-11-28T01:31:10.343583+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "4f40e946d92d70d95d9ee3bc3ae975fd650b978865c74d8fe0537f39b7c80ab3",
+      "test_sha256": "0656338f5e1544b66af5e576996941df8efbed4f897a9563aa9a4fe945b1a5de"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.81,
+      "markers": [
+        "CLASSROOM_PRACTICE_PANEL_FIXTURE PASS"
+      ],
+      "test": "test_classroom_practice_panel_fixture",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_classroom_practice_panel_fixture.log",
+      "log_written_utc": "2026-11-28T01:31:09.742119+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "c8aba1597e63ebac9538cbbcc4cd9a32a8a61139a9fc6bac6e3e25f863b82004",
+      "test_sha256": "77f806ec545255b6d2bf722f1ca16ad7567acec7a928f0d68242b1bf2bea833a"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.1,
+      "markers": [
+        "CLASSROOM_SHARED_WORK PASS"
+      ],
+      "test": "test_classroom_shared_work",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_classroom_shared_work.log",
+      "log_written_utc": "2026-11-28T01:31:06.648955+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "4858f35b0e9e3c208ea46aa344226e28c16fd999c53675343337d9558d2479b7",
+      "test_sha256": "e6c64fc86642d9ab6ca1918f745fb1937d5ac32d1ccb85b0595e478de97a3273"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.63,
+      "markers": [
+        "PROJECTILE_TEACHER_REACTION PASS"
+      ],
+      "test": "test_projectile_teacher_reaction",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_projectile_teacher_reaction.log",
+      "log_written_utc": "2026-11-28T01:31:03.861185+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "512d37fb72d6837cdc8a748d8efad6a0225f107885b530c54751ef2ecc627399",
+      "test_sha256": "447d8097aadd5e2e60c91d7deafb51b6e5c2053e87a233d00b9f9fc08691b727"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.52,
+      "markers": [
+        "TEACHER_APOLOGY PASS"
+      ],
+      "test": "test_teacher_apology",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_teacher_apology.log",
+      "log_written_utc": "2026-11-28T01:31:05.547993+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "c6cb9bfd763acda6dfaf5c9ca996d892f6a03e65ec1cbff87745b80e169e6988",
+      "test_sha256": "b049bb64ff8a70bf735b61a07c8d0a2418f3fa3283b7132f130591016778d301"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.63,
+      "markers": [
+        "TEACHER_CLASSROOM_ESCALATION PASS"
+      ],
+      "test": "test_teacher_classroom_escalation",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_teacher_classroom_escalation.log",
+      "log_written_utc": "2026-11-28T01:31:02.706296+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "94fa42c42ea09c8f55fd037357f2100119e4a1ea5946012297ab6c49ac5bef43",
+      "test_sha256": "a633e74ab242119f6a1974874f457d52e3813b65309bafc2b11d1ab67948fdee"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.53,
+      "markers": [
+        "TEACHER_HEARING_CONTEXT PASS"
+      ],
+      "test": "test_teacher_hearing_context",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_teacher_hearing_context.log",
+      "log_written_utc": "2026-11-28T01:31:03.232720+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "b0dbed9ca9746ef96e9cb58d51445be153f914b2996d787366b22ac72aab5f5c",
+      "test_sha256": "e3d3587505a71aca2956f59b44469c42b57fe12a1f833a737ae4fd0f466dfb82"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.53,
+      "markers": [
+        "TEACHER_PERSONALITY_ISOLATED PASS: authoritative classroom profiles, contrasting teaching choices and perception-gated consequences"
+      ],
+      "test": "test_teacher_personality_isolated",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_teacher_personality_isolated.log",
+      "log_written_utc": "2026-11-28T01:31:05.023285+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "9c7f055f5b6815f59b9a569338d2199512ed7daa42425db3daa34592df826414",
+      "test_sha256": "1ab728d44442f36c7fdcefa6f9f62c75195722c4063494773c21330b0304d2a6"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 0.63,
+      "markers": [
+        "TEACHER_SOLUTION_CHALLENGE PASS"
+      ],
+      "test": "test_teacher_solution_challenge",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_teacher_solution_challenge.log",
+      "log_written_utc": "2026-11-28T01:31:04.495272+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "9337b15dc1c4cb5ced2c913eb37f30f948859720fa3383ebaead2db532424339",
+      "test_sha256": "d15cbcad3fbad22770251bcb2813e30f9ffda7eb84d5d006c46ca4a1e4a73fe6"
+    },
+    {
+      "exit_code": 0,
+      "passed": true,
+      "skipped": false,
+      "stopped_for": "",
+      "seconds": 1.25,
+      "markers": [
+        "TEACHER_SURPRISE PASS"
+      ],
+      "test": "test_teacher_surprise",
+      "verification_run": "character-final-confirmed-extra",
+      "log": "test_teacher_surprise.log",
+      "log_written_utc": "2026-11-28T01:31:02.078408+00:00",
+      "suite_group": "additional classroom and teacher coverage",
+      "log_sha256": "323ca5cec47560af27ed003d769102e0a8f648eab93b470d69c0b503f79dc6cd",
+      "test_sha256": "b77f906ebf1e25b29fbc1270851424614dbb286e9ba434a73e6cef76ac77e632"
+    }
+  ]
+}
