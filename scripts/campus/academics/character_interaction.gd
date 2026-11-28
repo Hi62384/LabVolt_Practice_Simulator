@@ -20,7 +20,7 @@ var sequence := 0
 var session_id := Crypto.new().generate_random_bytes(8).hex_encode()
 var diagnostics: Array[Dictionary] = []
 var _pending_audio_measurements: Dictionary={}
-const JOINT_RULES := " Interpret this interaction and generate the same character's response in ONE JSON object. interpretation={event,tone,severity,meaning,topic,domain,difficulty,question_kind,assessment_request,requested_action,memories,sincere,constructive,topic_changed,important,current_information}. Include event, tone, severity, meaning (one short clause), domain, question_kind and assessment_request; omit other fields when their default or empty value suffices. event is greeting/insult/apology/compliment/joke/criticism/disagreement/initiative/banter/sarcasm/teasing/manipulation/challenge/help/excitement/disappointment/chat/study/collaboration/competition. tone is friendly/neutral/hostile/playful/sarcastic/vulnerable/mixed; severity and difficulty are 0..1. question_kind is personal_experience/biography/opinion/casual/factual/academic/current_information. Distinguish personal questions from outside expertise, criticism from abuse, banter from hostility, and words from verified events. assessment_request is social/rules/clarification/solution. requested_action must occur in available_actions. Preserve assessment privacy. A person may choose silence, but a permanent refusal needs an established serious conflict. The host validates your proposed reaction; do not assert that any physical action has already occurred. Express current mood plus the bounded effect of this interaction, and include delivery.emotion and delivery.knowledge_mode (personal_conversation/explain/uncertain/tentative_estimate/use_resource/use_tool)."
+const JOINT_RULES := " Interpret this interaction and generate the same character's response in ONE JSON object. interpretation={event,tone,severity,meaning,topic,domain,difficulty,question_kind,assessment_request,requested_action,memories,sincere,constructive,topic_changed,important,current_information}. Include event, tone, severity, meaning (one short clause), domain, question_kind and assessment_request; omit other fields when their default or empty value suffices. event is greeting/insult/apology/compliment/joke/criticism/disagreement/initiative/banter/sarcasm/teasing/manipulation/challenge/help/excitement/disappointment/chat/study/collaboration/competition. tone is friendly/neutral/hostile/playful/sarcastic/vulnerable/mixed; severity and difficulty are 0..1. question_kind is personal_experience/biography/opinion/casual/factual/academic/current_information. Distinguish personal questions from outside expertise, criticism from abuse, banter from hostility, and words from verified events. assessment_request is social/rules/clarification/solution. requested_action must occur in available_actions. Preserve assessment privacy. A person may choose silence, but a permanent refusal needs an established serious conflict. The host validates your proposed reaction; do not assert that any physical action has already occurred. Write speech consistent with the current mood and perceived incident. The host determines vocal emotion; do not predict a separate emotion label. Include delivery.knowledge_mode (personal_conversation/explain/uncertain/tentative_estimate/use_resource/use_tool), especially for uncertain or restricted factual questions."
 
 func bind(next_mind: RefCounted, next_brain: RefCounted) -> void:
 	mind = next_mind
@@ -288,6 +288,7 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 		var valid: bool = not candidate.is_empty() and (phase != "assignment" or assessment_output_safe(candidate))
 		var belief_error := _validate_belief_updates(person, str(prepared.question), candidate, details, str(turn.get("event", "chat")))
 		var biography_error := _validate_biography(person, candidate, details)
+		_resolve_delivery(prepared,details)
 		var delivery_error := _validate_delivery(prepared,candidate,details)
 		if not belief_error.is_empty():
 			valid = false
@@ -295,7 +296,10 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 		if not biography_error.is_empty():
 			valid = false
 			result.fallback_reason = "biography_update_invalid"
-		if not delivery_error.is_empty():valid=false;result.fallback_reason="delivery_conflicts_with_host"
+		if not delivery_error.is_empty():
+			valid=false
+			result.fallback_reason="knowledge_or_speech_validation_failed"
+			result.validation_detail=delivery_error
 		if valid:
 			var consistency := Life.speech_check(candidate,brain.character_life_records(person),_biography_proposals(details),str(turn.interpretation.get("question_kind","")) in ["personal_experience","biography"])
 			if not consistency.ok:
@@ -313,7 +317,7 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 			instructions += " Your previous response failed validation. Return complete in-character JSON with a fresh, complete speech response. Keep to the supplied social and knowledge restrictions."
 			if not belief_error.is_empty(): instructions += " Belief revision was rejected: " + belief_error + ". Preserve the effective saved position and use an empty belief_updates array unless the supplied revision policy permits a grounded change."
 			if not biography_error.is_empty(): instructions += " Biography update was rejected: " + biography_error + ". Keep established facts unchanged. Return biography:null and biography_facts:[] when you have no new grounded detail to save."
-			if not delivery_error.is_empty():instructions += " Delivery rejected: "+delivery_error+". Use the final host decision, emotion and knowledge mode."
+			if not delivery_error.is_empty():instructions += " Speech rejected: "+delivery_error+". Respect the supplied knowledge_restrictions, avoid unsupported expertise, and write only the audible words. The host applies vocal emotion locally."
 			continue
 		var checked: Dictionary = await _checked_output(client,candidate,prepared)
 		if not _current(prepared):
@@ -334,6 +338,7 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 		if wants_visual: result.plan = visual_details
 		return result
 	result.technical_status="Character response unavailable. "+str(result.fallback_reason).replace("_"," ")
+	if result.fallback_reason=="knowledge_or_speech_validation_failed":result.technical_status="Character response unavailable: "+str(result.get("validation_detail","The spoken answer could not be validated."))
 	return result
 
 func record(result: Dictionary, delivered := true) -> bool:
@@ -512,20 +517,30 @@ static func _usage(prepared: Dictionary) -> Dictionary:
 			if usage.has(key):actual[key]=int(actual.get(key,0))+int(usage[key])
 	return actual
 
-static func _validate_delivery(prepared: Dictionary,speech: String,details: Dictionary) -> String:
-	if not details.get("delivery") is Dictionary:return "Missing vocal/emotional delivery information."
-	var delivery: Dictionary=details.delivery
-	var final: String=str(prepared.turn.get("emotion","steady"))
-	var proposed: String=str(delivery.get("emotion",""))
-	var groups := {"steady":"neutral","neutral":"neutral","confident":"neutral","patient":"neutral","interested":"neutral",
-		"happy":"positive","amused":"positive","excited":"positive","angry":"hostile","irritated":"hostile","frustrated":"hostile",
-		"sad":"low","disappointed":"low","bored":"low","tired":"low","anxious":"anxious","stressed":"anxious","embarrassed":"anxious"}
-	if not groups.has(proposed):return "Unknown delivery emotion."
-	if final!="steady" and groups.get(final,final)!=groups[proposed]:return "Spoken delivery must reflect the host's current "+final+" emotion."
+const DELIVERY_MODES := ["personal_conversation","explain","uncertain","tentative_estimate","use_resource","use_tool"]
+
+static func _resolve_delivery(prepared: Dictionary,details: Dictionary) -> void:
+	# The first combined generation occurs BEFORE the host appraises the incident.
+	# A guessed emotion label is therefore neither authoritative nor required.
+	# Vocal performance consumes the same host affect as gestures and body state.
+	var supplied: Variant=details.get("delivery",{})
+	var delivery: Dictionary=supplied.duplicate(true) if supplied is Dictionary else {}
+	delivery.emotion=str(prepared.turn.get("emotion","steady"))
 	var knowledge: Dictionary=prepared.turn.get("knowledge",{})
 	var mode:=str(delivery.get("knowledge_mode",""))
-	if mode not in ["personal_conversation","explain","uncertain","tentative_estimate","use_resource","use_tool"]:return "Missing knowledge mode."
-	if not knowledge.get("allowed",true) and mode in ["explain","personal_conversation"]:return "This external factual request exceeds the character's knowledge."
+	if mode not in DELIVERY_MODES and knowledge.get("allowed",true):
+		var host_mode:=str(knowledge.get("mode","personal_conversation"))
+		delivery.knowledge_mode=host_mode if host_mode in DELIVERY_MODES else "personal_conversation"
+	# Do not relabel an unauthorized factual answer as uncertainty: restricted
+	# knowledge still requires an explicit permissible mode and valid words.
+	details.delivery=delivery
+
+static func _validate_delivery(prepared: Dictionary,speech: String,details: Dictionary) -> String:
+	_resolve_delivery(prepared,details)
+	var knowledge: Dictionary=prepared.turn.get("knowledge",{})
+	var mode:=str(details.delivery.get("knowledge_mode",""))
+	if mode not in DELIVERY_MODES:return "The answer did not specify how the character handles this restricted subject."
+	if not knowledge.get("allowed",true) and mode in ["explain","personal_conversation"]:return "This factual request exceeds the character's established knowledge."
 	if str(prepared.activity.get("phase",""))=="assignment" and not assessment_output_safe(speech):return "Assessment content cannot be disclosed."
 	if RegEx.create_from_string("(?i)^(?:\\*|\\[|\\(|he |she |they )(?:looks?|turns?|walks?|nods?|sighs?|smiles?)").search(speech)!=null:
 		return "Stage directions belong in nonverbal actions, never speech."

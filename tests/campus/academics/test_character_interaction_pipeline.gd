@@ -23,6 +23,7 @@ class FixtureClient extends Node:
 	var moderation_count:=0
 	var after_interpret: Callable
 	var stream_fixture:=false
+	var delivery_override: Variant=null
 	func ready_for_class() -> bool:return enabled
 	func moderate(text: String) -> Dictionary:
 		moderation_count+=1
@@ -42,6 +43,8 @@ class FixtureClient extends Node:
 		var emotion:=str(context.get("emotional_state",{}).get("emotion","steady"))
 		if not context.has("decision") and interpretation.get("event","")=="insult":emotion="irritated"
 		reply.delivery={"emotion":emotion,"knowledge_mode":str(context.get("knowledge_restrictions",{}).get("mode","personal_conversation"))}
+		if delivery_override is Dictionary:reply.delivery=delivery_override.duplicate(true)
+		elif delivery_override is String and delivery_override=="omit":reply.erase("delivery")
 		if stream_fixture:
 			var progress: Variant=context.get("_request_metadata",{}).get("_text_progress")
 			if progress is Callable and progress.is_valid():
@@ -197,6 +200,31 @@ func _run() -> void:
 	check(Pipeline.leading_speech("{\"speech\":\"half")==null,"An incomplete string is never displayed")
 	check(Pipeline.leading_speech("{ \"speech\" : \"He said \\\"hello\\\".\", \"delivery\":")== 'He said "hello".',"Streaming parser preserves escaped speech without exposing metadata")
 	check(Pipeline.leading_speech("{\"interpretation\":{\"speech\":\"nested\"}}")==null,"A nested speech key cannot become a preview")
+
+	# Models can predict a different mood from the deterministic host, or omit
+	# optional delivery metadata on a normal question. Neither warrants retrying.
+	client.interpretation={"event":"chat","tone":"neutral","severity":0.0,"meaning":"Ordinary conversation.","domain":"conversation","question_kind":"casual","difficulty":0.0,"assessment_request":"social","requested_action":"","memories":[]}
+	client.delivery_override={"emotion":"unrecognized provider emotion","knowledge_mode":"personal_conversation"}
+	client.replies.assign(["That's fine."])
+	var before_mood:=client.generation_count
+	var mood_turn:=await pipeline.prepare(client,repeat_person,"mood-repair-student",activity,"Is that fine?")
+	mood_turn.turn.emotion="irritated"
+	var mood_reply:=await pipeline.generate(client,mood_turn)
+	check(mood_reply.source=="ai" and mood_reply.line=="That's fine." and mood_reply.delivery.get("emotion")=="irritated" and client.generation_count==before_mood+1,"Host repairs incompatible vocal emotion without another paid text generation")
+	client.delivery_override="omit"
+	client.replies.assign(["Sure."])
+	var before_omit:=client.generation_count
+	var omitted_turn:=await pipeline.prepare(client,repeat_person,"missing-delivery-student",activity,"Can we talk?")
+	var omitted_reply:=await pipeline.generate(client,omitted_turn)
+	check(omitted_reply.source=="ai" and omitted_reply.delivery.get("emotion")==omitted_turn.turn.emotion and client.generation_count==before_omit+1,"Missing optional delivery metadata is filled for allowed ordinary dialogue")
+	client.delivery_override=null
+	var restricted:={"turn":{"emotion":"sad","knowledge":{"allowed":false,"mode":"uncertain"}},"activity":{"phase":"freeplay"}}
+	var unsafe_details:={"delivery":{"emotion":"happy","knowledge_mode":"explain"}}
+	check(not Pipeline._validate_delivery(restricted,"Here is a definitive specialist answer.",unsafe_details).is_empty(),"Local vocal repair does not override restricted knowledge")
+	check(not Pipeline._validate_delivery(restricted,"Here is a definitive specialist answer.",{}).is_empty(),"Missing restricted-subject knowledge mode remains invalid")
+	var safe_details:={"delivery":{"knowledge_mode":"uncertain"}}
+	check(Pipeline._validate_delivery(restricted,"I don't know enough about that.",safe_details).is_empty() and safe_details.delivery.emotion=="sad","A valid restricted-subject response receives host emotion")
+	check(not Pipeline._validate_delivery({"turn":{"knowledge":{"allowed":true}},"activity":{"phase":"assignment"}},"The answer is 12 volts.",{}).is_empty(),"Host vocal repair cannot bypass assessment protection")
 
 	var long_line:="A complete thought about the experiment. ".repeat(25).strip_edges()
 	check(Speech.complete(long_line)==long_line and long_line.length()>350,"Long complete response is preserved beyond old limit")
