@@ -26,6 +26,9 @@ func _run() -> void:
 	host.host_openai.usage_tracker.rows={"fixture":{"model":"gpt-6.2-astra","profile":profile,"requests":4}}
 	settings._open_picker("Text model","text")
 	await process_frame
+	assert(not settings.picker_models.has("gpt-4.1-mini"))
+	settings.show_advanced.button_pressed=true
+	settings._refresh_picker()
 	for effort in [0,3,5,6,7]:
 		settings.preview_effort.select(effort)
 		settings._refresh_picker()

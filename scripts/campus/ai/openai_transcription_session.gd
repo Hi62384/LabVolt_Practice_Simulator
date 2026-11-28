@@ -71,7 +71,7 @@ func poll() -> void:
 		state="configuring"
 		if not _send({"type":"session.update","session":configuration(model)}):_finish(_error("Could not configure streaming transcription.",true));return
 	var count:=0
-	while socket.get_available_packet_count()>0 and count<64 and state!="closed":
+	while state!="closed" and socket!=null and socket.get_available_packet_count()>0 and count<64:
 		count+=1
 		var packet:=socket.get_packet()
 		if packet.size()>MAX_PACKET_BYTES:_finish(_error("The transcription event was too large."));return
@@ -104,7 +104,8 @@ func receive_event(event: Dictionary) -> void:
 	var kind:=str(event.get("type",""))
 	match kind:
 		"error":
-			var code:=str(event.get("error",{}).get("code",""))
+			var detail: Variant=event.get("error",{})
+			var code:=str(detail.get("code","")) if detail is Dictionary else ""
 			_finish(_error("The transcription service rejected the request.",code in ["rate_limit_exceeded","server_error","service_unavailable"]));return
 		"session.updated":
 			if state=="configuring" and not _configured:
@@ -118,6 +119,7 @@ func receive_event(event: Dictionary) -> void:
 			if _pending.has(item):
 				var pending: Dictionary=_pending[item]
 				partial=str(pending.get("delta",""))
+				if not partial.is_empty() and first_delta_ms<0:first_delta_ms=Time.get_ticks_msec()-started_at
 				if pending.has("final"):_accept_final(pending.final)
 			_pending.clear()
 		"conversation.item.input_audio_transcription.delta","conversation.item.input_audio_transcription.completed","conversation.item.input_audio_transcription.failed":

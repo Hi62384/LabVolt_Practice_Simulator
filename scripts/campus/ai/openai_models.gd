@@ -238,6 +238,18 @@ static func display_name(id: String) -> String:
 static func available_for(id: String,purpose: String) -> bool:
 	return supports(id,purpose) and lifecycle(id).status!="retired"
 
+# Conservative documented options with bounded PNG decoding.
+static func image_generation_options(id: String) -> Dictionary:
+	if not supports(id,"image_generation"):return {}
+	var qualities:=["low","medium","high","auto"]
+	if verified_family(id) in ["gpt-image-2.5-flare","gpt-image-2.5-sunburst","gpt-image-2.6-flare","gpt-image-2.6-sunburst"]:qualities.append_array(["xhigh","max"])
+	return {"sizes":["1024x1024","1536x1024","1024x1536"],"qualities":qualities,"formats":["png"]}
+
+static func valid_image_generation_options(id: String, options: Dictionary) -> bool:
+	var choices:=image_generation_options(id)
+	if choices.is_empty():return false
+	return str(options.get("size","1024x1024")) in choices.sizes and str(options.get("quality","low")) in choices.qualities and str(options.get("output_format","png")) in choices.formats
+
 static func metadata(id: String,purpose: String) -> Dictionary:
 	var base:=verified_family(id)
 	var limits: Array=LIMITS.get(base,[0,0])
@@ -247,7 +259,7 @@ static func metadata(id: String,purpose: String) -> Dictionary:
 		"endpoint":route if supports(id,purpose) else "","efforts":efforts(id),"default_effort":DEFAULT_EFFORT.get(base,""),
 		"modes":modes,"context":limits[0],"output":limits[1],"vision":supports(id,"image"),
 		"source_url":DIRECTORY+"/"+base if not base.is_empty() else DIRECTORY,"verified_at":AUDIO_VERIFIED_AT,
-		"voice":voice_capabilities(id)}
+		"voice":voice_capabilities(id),"image_generation":image_generation_options(id)}
 
 static func has_pro_mode(id: String) -> bool:
 	return verified_family(id) in ["gpt-6.2-astra","gpt-6.2-sol","gpt-6.1-sol","gpt-6.1-terra","gpt-6-astra","gpt-6-sol","gpt-6-luna","gpt-5.6-sol","gpt-5.6-terra","gpt-5.6-luna"]

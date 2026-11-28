@@ -73,6 +73,8 @@ var effort_row: HBoxContainer
 var accept: Button
 var ai_test: Button
 var test_panel: Window
+var image_size: OptionButton
+var image_quality: OptionButton
 var image_effort: OptionButton
 var image_model_efforts: Dictionary={}
 var model_efforts: Dictionary={}
@@ -115,6 +117,8 @@ func build(owner: Node, notice: Callable, done: Callable) -> void:
 	actual_image_mode=_openai_choice(options,"Reasoning mode",["standard","pro"],"standard")
 	actual_image_mode.item_selected.connect(func(_index):saved_image_modes[chosen.image]=actual_image_mode.get_selected_metadata())
 	_model_button("Image generation","image_generation")
+	image_size=_openai_choice(options,"Image resolution",["1024x1024","1536x1024","1024x1536"],service.image_generation_options.size)
+	image_quality=_openai_choice(options,"Image quality",["low","medium","high","auto","xhigh","max"],service.image_generation_options.quality)
 	tts_enabled=_voice_switch("Text-to-speech",service.tts_enabled)
 	_model_button("Voice model","tts")
 	voice_notices.tts=_label("",13,T.ACCENT,options,true)
@@ -235,6 +239,15 @@ func _set_models(ids: Array, preferred: String) -> void:
 	_refresh_picker()
 
 func _model_changed() -> void:
+	var generation:=Models.image_generation_options(str(chosen.get("image_generation","")))
+	var old_quality: Variant=image_quality.get_selected_metadata()
+	image_quality.clear()
+	var qualities: Array=generation.get("qualities",["low"])
+	for quality in qualities:
+		image_quality.add_item(str(quality));image_quality.set_item_metadata(image_quality.item_count-1,quality)
+	image_quality.select(maxi(0,qualities.find(old_quality)))
+	image_size.get_parent().visible=not generation.is_empty()
+	image_quality.get_parent().visible=not generation.is_empty()
 	var id:=_selected_model()
 	_update_effort(effort,id,model_efforts)
 	_update_effort(image_effort,str(chosen.get("image","")),image_model_efforts)
@@ -257,6 +270,9 @@ func _model_changed() -> void:
 			voice_notices[purpose].text=message
 		entry.disabled=fetching_models or (purpose=="tts" and not tts_enabled.button_pressed) or (purpose=="stt" and not stt_enabled.button_pressed) or (purpose=="live" and not live_enabled.button_pressed)
 	var unavailable:=id not in model_ids or not Models.available_for(id,"text") or fetching_models
+	for purpose in ["image","image_generation"]:
+		var selected:=str(chosen.get(purpose,""))
+		if not selected.is_empty() and (not Models.available_for(selected,purpose) or (account_models_known and selected not in model_ids)):unavailable=true
 	for purpose in ["tts","stt","live"]:
 		var active: bool={"tts":tts_enabled.button_pressed,"stt":stt_enabled.button_pressed,"live":live_enabled.button_pressed}[purpose]
 		if active and (not Models.available_for(str(chosen.get(purpose,"")),purpose) or (account_models_known and chosen.get(purpose) not in model_ids)):unavailable=true
@@ -284,6 +300,7 @@ func _selected_model() -> String:
 func _read_draft() -> Dictionary:
 	return {"key":draft_key,"model":_selected_model(),"output":output.get_selected_metadata(),"effort":effort.get_selected_metadata(),
 		"image_effort":image_effort.get_selected_metadata(),"mode":actual_mode.get_selected_metadata(),"image_mode":actual_image_mode.get_selected_metadata(),
+		"image_generation_options":{"size":image_size.get_selected_metadata(),"quality":image_quality.get_selected_metadata(),"output_format":"png"},
 		"usage_profile":usage_name.text,"modalities":chosen.duplicate(),"tts_enabled":tts_enabled.button_pressed,"stt_enabled":stt_enabled.button_pressed,"live_enabled":live_enabled.button_pressed}
 
 func _model_button(title: String,purpose: String) -> Button:

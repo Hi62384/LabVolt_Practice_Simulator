@@ -23,6 +23,7 @@ var enabled := false
 var model := DEFAULT_MODEL
 var image_model := ""
 var image_generation_model := ""
+var image_generation_options: Dictionary={"size":"1024x1024","quality":"low","output_format":"png"}
 var stt_model := TRANSCRIPTION_MODEL
 var tts_model := SPEECH_MODEL
 var stt_enabled := false
@@ -167,13 +168,18 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	var selected_mode:=str(draft.get("mode","standard"))
 	var selected_image_mode:=str(draft.get("image_mode","standard"))
 	if not _mode_allowed(str(draft.model),selected_mode) or not _mode_allowed(next_image,selected_image_mode):return ERR_INVALID_PARAMETER
-	var previous: Array=[image_model,stt_model,tts_model,stt_enabled,tts_enabled,image_generation_model,image_reasoning_effort,reasoning_mode,image_reasoning_mode,usage_profile,live_model,live_enabled]
+	var next_generation:=str(choices.get("image_generation",image_generation_model))
+	var generation_options: Variant=draft.get("image_generation_options",image_generation_options)
+	if not generation_options is Dictionary:return ERR_INVALID_PARAMETER
+	if not next_generation.is_empty() and not Models.valid_image_generation_options(next_generation,generation_options):return ERR_INVALID_PARAMETER
+	var previous: Array=[image_model,stt_model,tts_model,stt_enabled,tts_enabled,image_generation_model,image_reasoning_effort,reasoning_mode,image_reasoning_mode,usage_profile,live_model,live_enabled,image_generation_options.duplicate()]
 	reasoning_mode=selected_mode
 	image_reasoning_mode=selected_image_mode
 	usage_profile=_clean_profile(str(draft.get("usage_profile",usage_profile)))
 	image_model=next_image
 	image_reasoning_effort=next_image_effort
-	image_generation_model=str(choices.get("image_generation",image_generation_model))
+	image_generation_model=next_generation
+	image_generation_options={"size":str(generation_options.get("size","1024x1024")),"quality":str(generation_options.get("quality","low")),"output_format":"png"}
 	stt_model=str(choices.get("stt",stt_model))
 	tts_model=str(choices.get("tts",tts_model))
 	stt_enabled=bool(draft.get("stt_enabled",stt_enabled)) and not stt_model.is_empty()
@@ -184,6 +190,7 @@ func accept_setup(draft: Dictionary, signature: String) -> Error:
 	if error!=OK:
 		image_model=previous[0];stt_model=previous[1];tts_model=previous[2];stt_enabled=previous[3];tts_enabled=previous[4]
 		image_generation_model=previous[5]
+		image_generation_options=previous[12]
 		image_reasoning_effort=previous[6]
 		reasoning_mode=previous[7];image_reasoning_mode=previous[8];usage_profile=previous[9]
 		live_model=previous[10];live_enabled=previous[11]
@@ -459,7 +466,9 @@ func generate_image(prompt: String, draft: Dictionary={}) -> Dictionary:
 	prompt=prompt.strip_edges()
 	if prompt.is_empty() or prompt.length()>MAX_INPUT_CHARS:
 		return {"ok":false,"error":"Enter an image prompt of up to %d characters."%MAX_INPUT_CHARS}
-	var payload:={"model":choice,"prompt":prompt,"size":"1024x1024","output_format":"png","quality":"low","n":1}
+	var options: Variant=draft.get("image_generation_options",image_generation_options)
+	if not options is Dictionary or not Models.valid_image_generation_options(choice,options):return {"ok":false,"error":"Choose image dimensions and quality supported by the selected model."}
+	var payload:={"model":choice,"prompt":prompt,"size":str(options.get("size","1024x1024")),"output_format":"png","quality":str(options.get("quality","low")),"n":1}
 	return await _call(HTTPClient.METHOD_POST,"/images/generations",payload,draft.is_empty(),draft)
 
 func _request_text(input: Variant, choice: String, output: int, effort: String, needs_enabled: bool, draft := {}, timeout := 180.0,trusted_instructions := "") -> Dictionary:
@@ -754,7 +763,7 @@ func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 			return {"ok":false,"error":"OpenAI returned an unreadable image."}
 		var width:=int(png[18])*256+int(png[19])
 		var height:=int(png[22])*256+int(png[23])
-		if png[16]!=0 or png[17]!=0 or png[20]!=0 or png[21]!=0 or width<1 or width>1024 or height<1 or height>1024:
+		if png[16]!=0 or png[17]!=0 or png[20]!=0 or png[21]!=0 or width<1 or width>1536 or height<1 or height>1536 or width*height>1536*1024:
 			return {"ok":false,"error":"The generated image exceeded the preview dimensions."}
 		var image:=Image.new()
 		if image.load_png_from_buffer(png)!=OK:return {"ok":false,"error":"OpenAI returned an unreadable image."}
@@ -763,10 +772,11 @@ func _decode_body(path: String, parsed: Dictionary) -> Dictionary:
 		var results: Array=parsed.get("results",[])
 		return {"ok":true,"flagged":bool(results[0].get("flagged",false)),"categories":results[0].get("categories",{})} if not results.is_empty() and results[0] is Dictionary else {"ok":false,"error":"OpenAI returned no moderation result."}
 	if path=="/chat/completions":
-		var choices: Array=parsed.get("choices",[])
-		if choices.is_empty():return {"ok":false,"error":"OpenAI returned no text."}
+		var choices: Variant=parsed.get("choices",[])
+		if not choices is Array or choices.is_empty() or not choices[0] is Dictionary:return {"ok":false,"error":"OpenAI returned no text."}
 		if choices[0].get("finish_reason","")=="length":return {"ok":false,"error":"The response reached the output token limit."}
-		var message: Dictionary=choices[0].get("message",{})
+		var message: Variant=choices[0].get("message",{})
+		if not message is Dictionary:return {"ok":false,"error":"OpenAI returned an unreadable completion."}
 		if message.get("audio") is Dictionary:
 			var audio: Dictionary=message.audio
 			var encoded:=str(audio.get("data",""))
@@ -858,6 +868,9 @@ func _load() -> void:
 	image_model=str(config.get_value("openai","image_model",""))
 	image_reasoning_effort=Models.normalize_effort(image_model,str(config.get_value("openai","image_reasoning_effort","")))
 	image_generation_model=str(config.get_value("openai","image_generation_model",""))
+	var stored_generation: Variant=config.get_value("openai","image_generation_options",{})
+	if stored_generation is Dictionary and Models.valid_image_generation_options(image_generation_model,stored_generation):
+		image_generation_options={"size":str(stored_generation.get("size","1024x1024")),"quality":str(stored_generation.get("quality","low")),"output_format":"png"}
 	stt_model=str(config.get_value("openai","stt_model",TRANSCRIPTION_MODEL))
 	tts_model=str(config.get_value("openai","tts_model",SPEECH_MODEL))
 	stt_enabled=bool(config.get_value("openai","stt_enabled",enabled))
@@ -886,6 +899,7 @@ func _save() -> Error:
 	config.set_value("openai","image_model",image_model)
 	config.set_value("openai","image_reasoning_effort",image_reasoning_effort)
 	config.set_value("openai","image_generation_model",image_generation_model)
+	config.set_value("openai","image_generation_options",image_generation_options)
 	config.set_value("openai","stt_model",stt_model)
 	config.set_value("openai","tts_model",tts_model)
 	config.set_value("openai","stt_enabled",stt_enabled)
