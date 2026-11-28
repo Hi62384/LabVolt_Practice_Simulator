@@ -308,7 +308,7 @@ func _reader_request(generation: int,id: int,page: int,action: Dictionary) -> vo
 func _build_reader() -> void:
 	if is_instance_valid(calculator_widget):
 		calculator_state=calculator_widget.display.text
-		calc_saved={"angle_mode":calculator_widget.angle_mode,"answer":calculator_widget.answer,"memory":calculator_widget.memory,"result":calculator_widget.result.text}
+		calc_saved={"answer_source":calculator_widget.answer_source,"answer":calculator_widget.answer,"memory":calculator_widget.memory,"result":calculator_widget.result.text}
 		var entry=calculator_widget.display
 		if calculator_widget.equation_enabled:
 			calc_saved.equation_caret=entry.caret_state()
@@ -451,13 +451,15 @@ func _build_reader() -> void:
 		if not calc_saved.is_empty():
 			calculator_widget.answer=calc_saved.answer
 			calculator_widget.memory=calc_saved.memory
-			calculator_widget._set_angle_mode(calc_saved.angle_mode)
+			calculator_widget.memory_label.visible=calculator_widget.memory!=0
 			calculator_widget.pending_number=calc_saved.get("pending_number",0.0)
 			calculator_widget.pending_operator=calc_saved.get("pending_operator","")
 			calculator_widget.replace_number=calc_saved.get("replace_number",calculator_state.is_empty())
 			if calculator_widget.equation_enabled:
 				entry.restore_caret(calc_saved.get("equation_caret",{}))
 				if calc_saved.get("result_visible",false):calculator_widget._display_calculation({"text":calc_saved.result})
+				calculator_widget.answer_source=calc_saved.get("answer_source","0")
+				calculator_widget._refresh_isolation()
 			else:
 				calculator_widget.result.text=calc_saved.result
 				entry.caret_column=clampi(int(calc_saved.get("caret",calculator_state.length())),0,calculator_state.length())

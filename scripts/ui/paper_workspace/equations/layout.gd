@@ -32,6 +32,12 @@ static func draw(canvas: CanvasItem, plan: Dictionary, origin: Vector2, font: Fo
 	for command in plan.get("commands", []):
 		if command.kind == "line": canvas.draw_line(origin + command.a, origin + command.b, color, command.width, true)
 		elif command.kind == "text": canvas.draw_string(font, origin + command.pos, command.text, HORIZONTAL_ALIGNMENT_LEFT, -1, command.font_size, color)
+		elif command.kind == "polyline": canvas.draw_polyline(_translated_points(command.points,origin),color,command.width,true)
+
+static func _translated_points(points: PackedVector2Array, offset: Vector2) -> PackedVector2Array:
+	var translated := points.duplicate()
+	for index in translated.size(): translated[index] += offset
+	return translated
 
 static func _text(value: String, font: Font, size: int) -> Dictionary:
 	var ascent := font.get_ascent(size)
@@ -44,6 +50,7 @@ static func _shift(commands: Array, offset: Vector2) -> Array:
 	for command in commands:
 		var copy: Dictionary = command.duplicate()
 		if copy.kind == "line": copy.a += offset; copy.b += offset
+		elif copy.kind == "polyline": copy.points = _translated_points(copy.points,offset)
 		else: copy.pos += offset
 		result.append(copy)
 	return result
@@ -61,21 +68,27 @@ static func _row(parts: Array, gap: float = 0.0) -> Dictionary:
 		x += part.size.x + gap
 	return {"size":Vector2(maxf(1.0,x - gap),baseline + descent), "baseline":baseline, "commands":commands}
 
-static func _radical(argument: Dictionary, font: Font, size: int, index: Dictionary = {}) -> Dictionary:
-	var root := _text("√", font, size)
-	var clearance := maxf(2.0, float(size)*0.12)
-	var stroke := maxf(1.25, float(size)*0.055)
-	var body_y := clearance + stroke
-	var root_y := maxf(0.0, body_y + argument.baseline - root.baseline)
+static func _radical(argument: Dictionary, size: int, index: Dictionary = {}) -> Dictionary:
+	var stroke := maxf(1.35, float(size)*0.065)
+	var bar_y := 0.5*stroke+1.0
+	var body_y := bar_y + stroke + 2.0
 	var index_width := 0.0 if index.is_empty() else float(index.size.x)
-	var body_x := index_width + float(root.size.x)
-	var commands := _shift(root.commands, Vector2(index_width,root_y))
-	commands.append_array(_shift(argument.commands, Vector2(body_x + 2.0,body_y)))
-	commands.append({"kind":"line", "a":Vector2(body_x,clearance), "b":Vector2(body_x + argument.size.x + 4.0,clearance), "width":stroke})
-	if not index.is_empty(): commands.append_array(index.commands)
-	var height := maxf(root_y+root.size.y,body_y+argument.size.y)
-	if not index.is_empty(): height = maxf(height,index.size.y)
-	return {"size":Vector2(body_x+argument.size.x+4.0,height), "baseline":body_y+argument.baseline, "commands":commands}
+	var hook_width := float(size)*0.58
+	var hook_x := index_width+stroke
+	var body_x := hook_x+hook_width+2.0
+	var bottom := body_y+float(argument.size.y)-stroke
+	var end_x := body_x+float(argument.size.x)+2.0
+	var path := PackedVector2Array([
+		Vector2(hook_x,lerpf(bar_y,bottom,.64)),
+		Vector2(hook_x+hook_width*.20,lerpf(bar_y,bottom,.58)),
+		Vector2(hook_x+hook_width*.47,bottom),
+		Vector2(body_x-2.0,bar_y),
+		Vector2(end_x,bar_y)])
+	var commands: Array = [] if index.is_empty() else index.commands.duplicate()
+	commands.append({"kind":"polyline","points":path,"width":stroke})
+	commands.append_array(_shift(argument.commands, Vector2(body_x,body_y)))
+	var height := maxf(body_y+float(argument.size.y),float(index.get("size",Vector2.ZERO).y))
+	return {"size":Vector2(end_x+stroke,height), "baseline":body_y+argument.baseline, "commands":commands}
 
 static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dictionary:
 	if depth > Parser.MAX_DEPTH: return _text("?", font, size)
@@ -93,12 +106,13 @@ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dict
 		return _text(str(names.get(node.text, node.text)), font, size)
 	if op == "function":
 		var argument := _layout(node.child, font, size, depth+1)
-		if node.name == "sqrt": return _radical(argument,font,size)
+		if node.name == "sqrt": return _radical(argument,size)
 		var function_name: String = str(node.name)
 		return _row([_text(function_name + "(",font,size),argument,_text(")",font,size)])
 	if op == "matrix": return _matrix(node.rows, font, size, depth+1)
 	if op == "group": return _row([_text("(",font,size), _layout(node.child,font,size,depth+1), _text(")",font,size)])
 	if op == "prefix": return _row([_text(node.sign,font,size), _layout(node.child,font,size,depth+1)])
+	if op == "degree": return _row([_layout(node.child,font,size,depth+1),_text("°",font,size)])
 	var left_node: Dictionary = node.left
 	if op in ["/", "^", "_"] and left_node.op == "group": left_node = left_node.child
 	var left := _layout(left_node,font,size,depth+1)
@@ -107,7 +121,7 @@ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dict
 	var script_size := maxi(MIN_SCRIPT_SIZE, int(round(float(size)*0.70)))
 	if op == "ⁿ√":
 		if right_node.op == "group": right_node = right_node.child
-		return _radical(left,font,size,_layout(right_node,font,script_size,depth+1))
+		return _radical(left,size,_layout(right_node,font,script_size,depth+1))
 	if op in ["^", "_"]:
 		var right := _layout(right_node,font,script_size,depth+1)
 		var rise := maxf(0.0, right.size.y * 0.40) if op == "^" else 0.0
@@ -128,7 +142,7 @@ static func _layout(node: Dictionary, font: Font, size: int, depth: int) -> Dict
 		commands.append({"kind":"line", "a":Vector2(pad*0.35,rule_y), "b":Vector2(width-pad*0.35,rule_y), "width":maxf(1.25,float(size)*0.065)})
 		commands.append_array(_shift(right.commands,Vector2((width-right.size.x)*0.5,denominator_y)))
 		return {"size":Vector2(width,denominator_y+right.size.y), "baseline":rule_y, "commands":commands}
-	var symbol: String = "" if bool(node.get("implicit",false)) else str({"*":" × ","+":" + ","-":" − ","=":" = ",",":", "}.get(op," ? "))
+	var symbol: String = "" if bool(node.get("implicit",false)) else str({"*":" × ","+":" + ","-":" − ","=":" = ",",":", ","∠":" ∠ "}.get(op," ? "))
 	return _row([left,_text(symbol,font,size),right]) if not symbol.is_empty() else _row([left,right],maxf(2.0,float(size)*0.12))
 
 static func _matrix(rows: Array, font: Font, size: int, depth: int) -> Dictionary:

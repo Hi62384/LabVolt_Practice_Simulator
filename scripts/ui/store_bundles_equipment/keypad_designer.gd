@@ -1,14 +1,22 @@
 extends VBoxContainer
 
-signal design_changed(slots: Array, hardware: Dictionary)
+signal design_changed(slots: Array, hardware: Dictionary, colors: Dictionary)
 
 const Catalog=preload("res://scripts/campus/items/calculator_layout.gd")
 const Tokens=preload("res://scripts/ui/design_system/tokens.gd")
 const Widgets=preload("res://scripts/ui/design_system/widgets.gd")
 const TINTS := ["39596c","1a6472","79434e","515278","254b65","254b65","254b65","335b59","315568","55466c","61564b","3c5362"]
+const SWATCHES := {"Ivory":"eae3ce","Coral":"ed827a","Amber":"f4ba64","Mint":"64d6ad","Sky":"75bff5","Lilac":"b699f1"}
 
 var slots: Array=[]
 var hardware: Dictionary={}
+var key_colors: Dictionary={}
+var color_selection: Dictionary={}
+var color_tools: PanelContainer
+var color_count: Label
+var color_picker: ColorPickerButton
+var apply_color: Button
+var reset_color: Button
 var undo_steps: Array[Dictionary]=[]
 var redo_steps: Array[Dictionary]=[]
 var selected_slot := -1
@@ -26,9 +34,10 @@ var details_title: Label
 var details_text: Label
 var open_sections: Dictionary={}
 
-func build(layout: Array, features: Dictionary) -> void:
-	slots=layout.duplicate()
+func build(layout: Array, features: Dictionary, colors := {}) -> void:
+	slots=Catalog.updated_keys(layout)
 	hardware=features.duplicate()
+	key_colors=colors.duplicate()
 	add_theme_constant_override("separation",12)
 	var columns:=HBoxContainer.new()
 	columns.size_flags_vertical=Control.SIZE_EXPAND_FILL
@@ -63,6 +72,16 @@ func build(layout: Array, features: Dictionary) -> void:
 	for button in [undo_button,redo_button,remove_button,_button("Clear",clear_keypad),_button("Defaults",restore_default)]:
 		_compact(button)
 		tools.add_child(button)
+	var color_mode:=_button("Key colors",func():
+		color_tools.visible=not color_tools.visible
+		color_selection.clear()
+		if color_tools.visible and selected_slot>=0 and not slots[selected_slot].is_empty():
+			color_selection[slots[selected_slot]]=true
+		_render_keys())
+	color_mode.toggle_mode=true
+	_compact(color_mode)
+	tools.add_child(color_mode)
+	_build_color_tools(installed)
 	grid=GridContainer.new()
 	grid.add_theme_constant_override("h_separation",5)
 	grid.add_theme_constant_override("v_separation",5)
@@ -138,32 +157,101 @@ func _clear_children(parent: Node) -> void:
 		child.queue_free()
 
 func _render() -> void:
+	_render_keys()
+	_render_palette()
+
+func _build_color_tools(parent: Control) -> void:
+	color_tools=PanelContainer.new()
+	color_tools.add_theme_stylebox_override("panel",Tokens.surface(Color("163849"),Color("396577"),6))
+	parent.add_child(color_tools)
+	color_tools.hide()
+	var rows:=VBoxContainer.new()
+	rows.add_theme_constant_override("separation",3)
+	color_tools.add_child(rows)
+	var selection_tools:=HFlowContainer.new()
+	rows.add_child(selection_tools)
+	color_count=Widgets.text("Select keys to color","MutedLabel")
+	selection_tools.add_child(color_count)
+	for option in ["All keys","Clear selection"]:
+		var action:=_button(option,func():
+			color_selection.clear()
+			if option=="All keys":
+				for key in slots:
+					if not key.is_empty():color_selection[key]=true
+			_render_keys())
+		_compact(action)
+		selection_tools.add_child(action)
+	var swatches:=HFlowContainer.new()
+	rows.add_child(swatches)
+	for name in SWATCHES:
+		var swatch:=_button(" ",func():color_picker.color=Color(SWATCHES[name]))
+		swatch.accessibility_name=name
+		swatch.tooltip_text=name
+		swatch.custom_minimum_size=Vector2(23,23)
+		for state in ["normal","hover","pressed"]:
+			var tint:=Color(SWATCHES[name])
+			var style:=Tokens.surface(tint if state=="normal" else tint.lightened(.2),Color("b7d1df"),0)
+			style.set_corner_radius_all(5)
+			swatch.add_theme_stylebox_override(state,style)
+		swatches.add_child(swatch)
+	color_picker=ColorPickerButton.new()
+	color_picker.color=Color("64d6ad")
+	color_picker.edit_alpha=false
+	color_picker.custom_minimum_size=Vector2(30,23)
+	color_picker.tooltip_text="Choose a custom color"
+	color_picker.accessibility_name=color_picker.tooltip_text
+	swatches.add_child(color_picker)
+	apply_color=_button("Apply color",func():_color_keys(color_picker.color.to_html(false)))
+	reset_color=_button("Restore default colors",func():_color_keys(""))
+	for action in [apply_color,reset_color]:
+		_compact(action)
+		swatches.add_child(action)
+
+func _color_keys(hex: String) -> void:
+	if color_selection.is_empty():return
+	_remember()
+	for symbol in color_selection:
+		if hex.is_empty():key_colors.erase(symbol)
+		else:key_colors[symbol]=hex
+	_publish("Default colors restored." if hex.is_empty() else "Color applied.")
+
+func _render_keys() -> void:
 	_clear_children(grid)
 	grid.columns=Catalog.design_columns(slots)
 	counter.text="%d / %d installed"%[slots.size()-slots.count(""),slots.size()]
 	undo_button.disabled=undo_steps.is_empty()
 	redo_button.disabled=redo_steps.is_empty()
-	remove_button.disabled=selected_slot<0 or slots[selected_slot].is_empty()
+	remove_button.disabled=color_tools.visible or selected_slot<0 or slots[selected_slot].is_empty()
+	color_count.text="Select keys to color" if color_selection.is_empty() else "%d selected"%color_selection.size()
+	apply_color.disabled=color_selection.is_empty()
+	reset_color.disabled=color_selection.is_empty()
 	for index in slots.size():
 		var symbol: String=slots[index]
-		var key:=_tile(symbol,"",index==selected_slot)
+		var painting:=color_tools.visible
+		var selected:=color_selection.has(symbol) if painting else index==selected_slot
+		var key:=_tile(symbol,"",selected,false,key_colors.get(symbol,""))
 		key.custom_minimum_size=Vector2(28,26)
 		key.accessibility_name="Empty position %d"%(index+1) if symbol.is_empty() else "%s, position %d"%[Catalog.catalog(symbol).name,index+1]
 		key.pressed.connect(_select_slot.bind(index))
-		key.set_drag_forwarding(_source.bind(key,symbol,index),_allow_drop.bind(index),_drop.bind(index))
+		if painting:
+			key.toggle_mode=true
+			key.set_pressed_no_signal(selected)
+			key.disabled=symbol.is_empty()
+		else:
+			key.set_drag_forwarding(_source.bind(key,symbol,index),_allow_drop.bind(index),_drop.bind(index))
 		if not symbol.is_empty():_wire_details(key,symbol)
 		grid.add_child(key)
-	_render_palette()
 
-func _tile(symbol: String, foot: String, selected := false, locked := false) -> Button:
+func _tile(symbol: String, foot: String, selected := false, locked := false, custom_hex := "") -> Button:
 	var tile:=Button.new()
-	tile.text=symbol
+	tile.text=Catalog.caption(symbol)
 	tile.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	tile.custom_minimum_size=Vector2(46,32)
 	tile.add_theme_font_size_override("font_size",16)
 	var data:=Catalog.catalog(symbol)
 	var tint:=Color("1b3848") if symbol.is_empty() else Color(TINTS[data.category])
-	if symbol=="=":tint=Color("16665e")
+	if symbol=="RUN":tint=Color("16665e")
+	if not custom_hex.is_empty():tint=Color(custom_hex)
 	if locked:tint=tint.darkened(.58)
 	var skin:=Tokens.surface(tint,Color("8ee5d3") if selected else tint.lightened(.17),0)
 	skin.set_corner_radius_all(5)
@@ -176,6 +264,11 @@ func _tile(symbol: String, foot: String, selected := false, locked := false) -> 
 	tile.add_theme_stylebox_override("normal",skin)
 	tile.add_theme_stylebox_override("hover",hover)
 	tile.add_theme_stylebox_override("pressed",hover)
+	tile.add_theme_stylebox_override("hover_pressed",hover)
+	if not custom_hex.is_empty():
+		var ink:=Color("12252f") if tint.get_luminance()>.38 else Color("ffffff")
+		for state in ["font_color","font_hover_color","font_focus_color","font_pressed_color"]:
+			tile.add_theme_color_override(state,ink)
 	if not foot.is_empty():tile.custom_minimum_size.y=29
 	return tile
 
@@ -240,15 +333,22 @@ func _wire_details(button: Button,symbol: String) -> void:
 func _requirement(symbol: String) -> String:
 	var requirement: String=Catalog.catalog(symbol).requires
 	if requirement.is_empty():return ""
-	return "\nRequires "+("3D graphing" if symbol in ["y","z"] else Catalog.CAPABILITIES[requirement])+"."
+	return "\nRequires "+Catalog.CAPABILITIES[requirement]+"."
 
 func _inspect(symbol: String) -> void:
 	var data:=Catalog.catalog(symbol)
 	if data.is_empty():return
-	details_title.text="%s  ·  %s  ·  $%d"%[symbol,data.name,data.price]
+	details_title.text="%s  ·  %s  ·  $%d"%[Catalog.caption(symbol),data.name,data.price]
 	details_text.text="%s\nExample: %s%s"%[data.description,data.example,_requirement(symbol)]
 
 func _select_slot(index: int) -> void:
+	if color_tools.visible:
+		var symbol: String=slots[index]
+		if symbol.is_empty():return
+		if color_selection.has(symbol):color_selection.erase(symbol)
+		else:color_selection[symbol]=true
+		_render_keys.call_deferred()
+		return
 	selected_slot=index
 	if not slots[index].is_empty():_inspect(slots[index])
 	_render.call_deferred()
@@ -342,7 +442,7 @@ func _replace(layout: Array,features: Dictionary,message: String) -> void:
 	_publish(message)
 
 func _record() -> Dictionary:
-	return {"slots":slots.duplicate(),"hardware":hardware.duplicate()}
+	return {"slots":slots.duplicate(),"hardware":hardware.duplicate(),"colors":key_colors.duplicate()}
 
 func _remember() -> void:
 	undo_steps.append(_record())
@@ -362,14 +462,19 @@ func redo() -> void:
 func _restore(record: Dictionary,message: String) -> void:
 	slots=record.slots
 	hardware=record.hardware
+	key_colors=record.colors
 	selected_slot=-1
 	_publish(message)
 
 func _publish(message: String) -> void:
+	for symbol in key_colors.keys():
+		if symbol not in slots:key_colors.erase(symbol)
+	for symbol in color_selection.keys():
+		if symbol not in slots:color_selection.erase(symbol)
 	var missing:=PackedStringArray()
 	for key in Catalog.REQUIRED:
 		if key not in slots:missing.append(key)
 	feedback.text=message
 	if not missing.is_empty():feedback.text+=( " " if not message.is_empty() else "")+"Missing common keys: "+", ".join(missing)+"."
 	_render.call_deferred()
-	design_changed.emit(slots.duplicate(),hardware.duplicate())
+	design_changed.emit(slots.duplicate(),hardware.duplicate(),key_colors.duplicate())

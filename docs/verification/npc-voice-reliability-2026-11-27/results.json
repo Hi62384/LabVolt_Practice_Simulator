@@ -718,10 +718,50 @@
         "VOICE_SPEECH_SCHEDULER PASS (concurrency, deduplication, retry, identity, cancellation, bounds)"
       ],
       "evidence_run": "labvolt-final-retry-routing"
+    },
+    {
+      "test": "primary_integration/desktop_calculator",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 2.7,
+      "markers": [
+        "PASS desktop calculator app"
+      ],
+      "evidence_run": "labvolt-integrated-calculator-checks"
+    },
+    {
+      "test": "primary_integration/configured_calculator",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 14.78,
+      "markers": [
+        "CONFIGURED_CALCULATOR PASS"
+      ],
+      "evidence_run": "labvolt-integrated-calculator-checks"
+    },
+    {
+      "test": "primary_integration/paper_workspace",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.91,
+      "markers": [
+        "PAPER_WORKSPACE_RESULT failures=0"
+      ],
+      "evidence_run": "labvolt-integrated-calculator-checks"
+    },
+    {
+      "test": "primary_integration/pencil_calculator",
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 0.81,
+      "markers": [
+        "PASS: automatic parentheses, nested functions, button input, invalid syntax, worksheet script"
+      ],
+      "evidence_run": "labvolt-integrated-calculator-checks"
     }
   ],
-  "native_latest_passed": 72,
-  "native_latest_total": 72,
+  "native_latest_passed": 76,
+  "native_latest_total": 76,
   "http_fixture": [
     {
       "test": "test_host_openai_client",
@@ -974,11 +1014,18 @@
     "relay": "actual relay/worker.mjs through local Wrangler and DurableObject",
     "headless": true,
     "relay_ready": true,
-    "passed": true,
+    "pass_found": true,
+    "expected_pass": "MENU_ROUTES PASS",
     "unexpected_errors": [],
+    "known_environment_errors": [
+      "ERROR: No GDExtension library found for current OS and architecture (linux.x86_64) in configuration file: res://cef_artifacts/gdcef.gdextension",
+      "ERROR: GDExtension dynamic library not found: 'res://cef_artifacts/gdcef.gdextension'.",
+      "ERROR: Error loading extension: 'res://cef_artifacts/gdcef.gdextension'."
+    ],
     "exit_code": 0,
-    "game_seconds": 15.832675554000161,
-    "total_seconds": 20.50351342600061
+    "game_seconds": 17.032357039999624,
+    "passed": true,
+    "total_seconds": 22.11356829000033
   },
   "packaged_resource_verification": {
     "export_type": "Windows preset resource pack only",
@@ -999,13 +1046,14 @@
     "Human-audible output, voice distinctiveness and expressive quality",
     "Acoustic feedback on actual devices",
     "Native Windows executable, CEF and launcher behavior",
-    "Live WAN multiplayer, provider latency, token cost and a Live speech-to-speech comparison"
+    "Live WAN multiplayer, provider latency, token cost and a Live speech-to-speech comparison",
+    "Sustained memory/frame-time profiling and prolonged idle/concurrent live-provider soak tests"
   ],
   "historical_findings": [
-    "New archive durability test failed6 of11 before its repair, then passed11 of11.",
-    "New listen-only no-provider-call assertion failed before repair, then47-check pipeline passed.",
-    "Combined45-case run passed44 initially; inspector network fixture required a real new UI selection after invalidation. Its final rerun passed preserving target/identity/range assertions.",
-    "Voice Studio layout assertions referred to obsolete hierarchy in basec8e50fb; corrected to meaningful containment/scroll reachability and passed."
+    "New archive durability test failed 6 of 11 checks before its repair, then passed 11 of 11.",
+    "New listen-only no-provider-call assertion failed before repair, then the 47-check pipeline passed.",
+    "The combined 45-case run passed 44 initially; the inspector network fixture required a real new UI selection after invalidation. Its final rerun passed while preserving target, identity and range assertions.",
+    "Voice Studio layout assertions referred to an obsolete hierarchy in baseline c8e50fb. Meaningful containment and scroll-reachability checks passed."
   ],
   "editor_import": {
     "passed": true,
@@ -1037,5 +1085,67 @@
       "sdk_discovery_errors": true,
       "reason": "DOTNET_ROOT was set but its directory was missing from PATH; corrected on second import."
     }
+  },
+  "final_implementation_checkpoint": "bb0cb79137bf9fc0b989905cad3ea2320fb24d33",
+  "primary_integration": {
+    "incoming_primary_commit": "a561dcfab33909505454b3769e46fc6393bbcac3",
+    "incoming_changed_files_preserved": 43,
+    "overlapping_production_source_edits": false,
+    "canonical_script_uids_preserved": 19,
+    "image_import_descriptors_preserved": 7,
+    "build": {
+      "passed": true,
+      "exit_code": 0,
+      "seconds": 8.803,
+      "warnings": 0,
+      "errors": 0
+    },
+    "calculator_equation_tests": {
+      "passed": 4,
+      "total": 4,
+      "seconds": 19.2,
+      "unexpected_errors": 0
+    },
+    "initial_import": {
+      "exit_code": 0,
+      "seconds": 23.64,
+      "strict_cleanliness_passed": false,
+      "new_file": "scripts/campus/computers/CalculatorMath.Symbolic.cs.uid",
+      "resolution": "Validated the normal companion UID, included it in the merge and repeated the normal import."
+    },
+    "final_clean_import": {
+      "passed": true,
+      "exit_code": 0,
+      "timed_out": false,
+      "duration_seconds": 24.868,
+      "tracked_files_checked": 7005,
+      "unignored_untracked_files_checked": 0,
+      "total_files_checked": 7005,
+      "modified_tracked_paths": [],
+      "modified_existing_untracked_paths": [],
+      "new_untracked_paths": [],
+      "new_tracked_paths": [],
+      "unexpected_engine_errors": [],
+      "known_linux_cef_messages": 7,
+      "incoming_primary_commit": "a561dcfab33909505454b3769e46fc6393bbcac3",
+      "incoming_changed_files_checked": 43,
+      "incoming_script_uids_checked": 19,
+      "incoming_import_descriptors_checked": 7,
+      "incoming_mismatches_before": [],
+      "incoming_mismatches_after": [],
+      "head_merge_head_and_index_preserved": true,
+      "build_performed": false,
+      "scope": "One normal editor import; all tracked and unignored untracked files hashed; incoming primary changed-file contents verified byte-for-byte before and after. Ignored build/import caches excluded."
+    }
+  },
+  "pre_integration_menu_startup": {
+    "relay": "actual relay/worker.mjs through local Wrangler and DurableObject",
+    "headless": true,
+    "relay_ready": true,
+    "passed": true,
+    "unexpected_errors": [],
+    "exit_code": 0,
+    "game_seconds": 15.832675554000161,
+    "total_seconds": 20.50351342600061
   }
 }

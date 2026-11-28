@@ -235,7 +235,7 @@ static func quote(kind: String,base_price: int,selection: Variant,owned := false
 	var definition:=definitions(kind,version)
 	var custom_body:=version>=VERSION and kind==CALCULATOR
 	var full_design:=version==DESIGN_VERSION and kind==CALCULATOR
-	if definition.is_empty() or selection.size()!=definition.size()+1+int(kind==CALCULATOR)+int(custom_body)+int(selection.has("decoration"))+int(kind==LAPTOP and selection.has("backlight"))+int(selection.has("materials")):return {}
+	if definition.is_empty() or selection.size()!=definition.size()+1+int(kind==CALCULATOR)+int(custom_body)+int(selection.has("decoration"))+int(kind==LAPTOP and selection.has("backlight"))+int(selection.has("materials"))+int(kind==CALCULATOR and selection.has("key_colors")):return {}
 	var hardware_cost:=0
 	var appearance_cost:=0
 	var keypad_cost:=0
@@ -270,12 +270,16 @@ static func quote(kind: String,base_price: int,selection: Variant,owned := false
 				dimensions[field]=snappedf(float(amount),.001)
 			normalized.body=dimensions
 			if not full_design:
-				var optional_count: int=selection.keypad.filter(func(key):return key not in Keypad.REQUIRED).size()
+				var optional_count: int=Keypad.updated_keys(selection.keypad).filter(func(key):return key not in Keypad.REQUIRED).size()
 				keypad_cost=2*optional_count
 		else:
 			var model: String=value(CALCULATOR,normalized,"hardware","model","")
 			if not Keypad.valid(model,selection.get("keypad")):return {}
 		normalized.keypad=Keypad.with_required(selection.keypad) if custom_body and not full_design else selection.keypad.duplicate()
+		if selection.has("key_colors"):
+			var colors: Variant=Keypad.clean_colors(selection.key_colors,Keypad.updated_keys(normalized.keypad))
+			if colors==null:return {}
+			if not colors.is_empty():normalized.key_colors=colors
 	if kind==LAPTOP and selection.has("backlight"):
 		var raw: Variant=selection.backlight
 		if not raw is Array or raw.size()>BACKLIGHT_COLORS.size():return {}

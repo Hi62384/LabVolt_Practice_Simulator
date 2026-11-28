@@ -12,12 +12,13 @@ Work started at `c8e50fb5e046b941fa8ad74d9e01108a77149ef7` on `windows-launcher`
 | `62a37a020788094fad198dd6e3f6314f1f9c0be3` | Require authenticated durable receipts for portable student updates |
 | `16e252089ab43b9473f77a59136b7e618995660f` | Budget optional NPC conversations around players and foreground work |
 | `fcd2ff9e4dbf721731fedb3f86bff77c45a9fc95` | Integrated streaming, microphone, speech, conversation cancellation, accounting and executable acceptance tools |
+| `bb0cb79137bf9fc0b989905cad3ea2320fb24d33` | Distinct speech retry attempts, fixture provenance, standard metadata and complete verification evidence |
 
-The final follow-up also records distinct safe-retry attempt IDs, stable correlations, fixture provenance and this evidence. Its exact commit is the containing Git revision; final branch verification is reported with the handoff. No force-push, unrelated branch deletion or source reset was used.
+The final integration preserves the intervening primary commit described below. Its exact merge commit is the containing Git revision; final branch verification is reported with the handoff. No force-push, unrelated branch deletion or source reset was used.
 
 ## Evidence and scope
 
-- [results.json](results.json) contains the consolidated latest results for **72 distinct native regression cases**, all passing, plus separate HTTP/WebSocket, ENet, recorded-audio, startup, storage and packaged-resource results.
+- [results.json](results.json) contains the consolidated latest results for **76 distinct native regression cases**, all passing (72 NPC/audio cases plus four integration checks for the intervening calculator changes), plus separate HTTP/WebSocket, ENet, recorded-audio, startup, storage and packaged-resource results.
 - [benchmarks.json](benchmarks.json) preserves paired preprocessing samples, the synthetic speech scheduling benchmark and the request-count comparisons.
 - [Student and storage audit](../npc-audio-repair/student-storage-audit.md) records the durable-save, multiplayer, seating and manual-session investigations in more detail.
 - [Voice acceptance instructions](../../../tests/campus/academics/VOICE_ACCEPTANCE.md) describe runnable capture-only, real-provider and complete NPC conversation checks.
@@ -181,6 +182,14 @@ An actual Windows executable export attempt was blocked by missing Godot Windows
 
 The PCK was built at the implementation checkpoint before the final retry-metadata follow-up. It verifies packaging/remaps and scene integration for that snapshot. It does not verify a standalone Windows executable, Windows CEF, native device APIs or launcher behavior on Windows.
 
+## Integration with the current primary branch
+
+While this work was being finalized, `windows-launcher` advanced to `a561dcfab33909505454b3769e46fc6393bbcac3` with calculator and equation-editor changes. There were no overlapping production source edits. The integration preserves all 43 incoming changed files byte for byte, including its 19 canonical script UIDs and seven image import descriptors. The merge also records the normal `CalculatorMath.Symbolic.cs.uid` sidecar required by the new C# source.
+
+The combined native assembly rebuilt successfully in 8.803 seconds with zero warnings and zero errors. All four relevant incoming-feature regressions passed: desktop calculator, configured calculator in Main, paper workspace/equations and pencil calculator. They completed in 19.20 seconds with zero unexpected errors. Both Singleplayer and Host menu routes then passed against the actual local relay; game execution took 17.032 seconds (22.114 seconds including relay setup).
+
+The final normal editor import fingerprinted all **7,005 tracked files** and found zero modified files, zero new files, zero unignored untracked files and zero unexpected errors in 24.868 seconds. All 43 incoming files still matched the primary commit. The prior combined import's strict cleanliness check correctly failed when it first generated the missing C# UID; that metadata was then included before this clean verification. No primary code was overwritten and no ignore rule concealed generated data.
+
 ## Remaining acceptance and reproduction
 
 The implementation is ready for these remaining environment-dependent checks:
@@ -191,6 +200,7 @@ The implementation is ready for these remaining environment-dependent checks:
 4. Several complete conversations with different NPCs and selected models, including memory follow-up, interruption, switching and multiplayer participants.
 5. Standalone Windows export, CEF, launcher, save/reload and runtime-write checks.
 6. Real cold/subsequent latency, token/cache/audio usage and cost comparisons, including any proposed native Live speech-to-speech alternative.
+7. Sustained memory and frame-time profiles, prolonged idle/concurrent-provider workloads and real WAN multiplayer conversations. Short bounded local regressions do not substitute for those soak tests.
 
 The new harness exits with an explicit unavailable result when a required prerequisite is missing. It does not accept an API key on the command line, save raw physical recordings or mark human listening as verified automatically. Set the key in the process environment and run from a built Godot Mono checkout:
 

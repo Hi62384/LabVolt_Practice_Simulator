@@ -17,8 +17,18 @@ public partial class CalculatorMath : RefCounted
         try
         {
             var expression = Read(tree, 0);
-            if (!complex && expression.Contains("i"))
-                throw new ArgumentException("Enable complex numbers to use i.");
+            if (!complex && (expression.Contains("i") || expression.HasOperator("∠")))
+                throw new ArgumentException("Enable complex numbers for imaginary or polar input.");
+            double angle = AngleScale(angles);
+            if (operation is "auto" or "factor" || operation.StartsWith("isolate:", StringComparison.Ordinal))
+                return RunSymbolic(expression, operation, complex, angle);
+            if (operation == "convert")
+            {
+                if (!complex) throw new ArgumentException("Enable complex numbers to convert.");
+                if (!IsComplexLiteral(expression))
+                    throw new ArgumentException("Enter one complex number, such as 3 + 4i or 5∠30°.");
+                operation = expression.HasOperator("∠") ? "rectangular" : "polar";
+            }
             if (operation is "evaluate" or "polar" or "rectangular")
             {
                 Complex value = expression.Evaluate(0, 0, AngleScale(angles), false);
@@ -26,26 +36,18 @@ public partial class CalculatorMath : RefCounted
                 if (!complex && Math.Abs(value.Imaginary) > Epsilon)
                     throw new ArgumentException("Enable complex numbers for this result.");
                 string text = operation == "polar"
-                    ? $"{Format(value.Magnitude)} ∠ {Format(value.Phase / AngleScale(angles))} {angles}"
+                    ? $"{Format(value.Magnitude)} ∠ {Format(value.Phase)}"
                     : Print(value);
                 return new Ast { ["text"] = text, ["real"] = value.Real, ["imaginary"] = value.Imaginary };
             }
             if (operation == "differentiate")
-                return Success(expression.Derivative(AngleScale(angles)).Display());
-            if (operation == "integrate" && expression.Integral(AngleScale(angles)) is Node integral)
-                return Success(integral.Display() + " + C");
+                return DifferentiateSymbolic(expression, angle);
+            if (operation == "integrate")
+                return IntegrateSymbolic(expression, angle);
 
             Complex[] polynomial = expression.Polynomial();
             if (operation is "expand" or "simplify")
                 return Success(PrintPolynomial(polynomial));
-            if (operation == "integrate")
-            {
-                if (polynomial.Length > MaxDegree) throw new ArgumentException("The integral is too large.");
-                var terms = new Complex[polynomial.Length + 1];
-                for (int term = 0; term < polynomial.Length; term++)
-                    terms[term + 1] = polynomial[term] / (term + 1);
-                return Success(PrintPolynomial(terms) + " + C");
-            }
             if (polynomial.Length == 1)
                 return Success(polynomial[0].Magnitude < Epsilon ? "All x satisfy the equation." : "No solutions.");
             Complex[] roots = Roots(polynomial);
@@ -176,8 +178,9 @@ public partial class CalculatorMath : RefCounted
             "atom" => new Node("atom", tree["text"].AsString().ToLowerInvariant()),
             "group" => Read(tree["child"].AsGodotDictionary(), depth + 1),
             "prefix" => new Node("prefix", tree["sign"].AsString(), Read(tree["child"].AsGodotDictionary(), depth + 1)),
+            "degree" => new Node("degree", "", Read(tree["child"].AsGodotDictionary(), depth + 1)),
             "function" => new Node("function", tree["name"].AsString(), Read(tree["child"].AsGodotDictionary(), depth + 1)),
-            "+" or "-" or "*" or "/" or "^" or "ⁿ√" or "=" => new Node(op, "", Read(tree["left"].AsGodotDictionary(), depth + 1), Read(tree["right"].AsGodotDictionary(), depth + 1)),
+            "+" or "-" or "*" or "/" or "^" or "ⁿ√" or "=" or "∠" => new Node(op, "", Read(tree["left"].AsGodotDictionary(), depth + 1), Read(tree["right"].AsGodotDictionary(), depth + 1)),
             _ => throw new ArgumentException("Unsupported operation.")
         };
     }
@@ -287,10 +290,12 @@ public partial class CalculatorMath : RefCounted
         private static Node Op(string op, Node a, Node b) => new(op, "", a, b);
         private static Node Function(string name, Node child) => new("function", name, child);
         public bool Contains(string symbol) => Operator == "atom" && Text == symbol || Left?.Contains(symbol) == true || Right?.Contains(symbol) == true;
+        public bool HasOperator(string op) => Operator == op || Left?.HasOperator(op) == true || Right?.HasOperator(op) == true;
         public string Display() => Operator switch
         {
             "atom" => Text, "prefix" => Text + "(" + Left!.Display() + ")",
             "function" => Text + "(" + Left!.Display() + ")",
+            "degree" => "(" + Left!.Display() + ")°",
             _ => "(" + Left!.Display() + ")" + Operator + "(" + Right!.Display() + ")"
         };
 
@@ -309,6 +314,7 @@ public partial class CalculatorMath : RefCounted
             }
             Complex left = Left!.Evaluate(x, y, angle, variables);
             if (Operator == "prefix") return Text == "-" ? -left : left;
+            if (Operator == "degree") return left * Math.PI / 180;
             if (Operator == "function")
             {
                 return Text switch
@@ -325,6 +331,7 @@ public partial class CalculatorMath : RefCounted
                 "+" => left + right, "-" or "=" => left - right, "*" => left * right, "/" => left / right,
                 "^" => left == Complex.Zero && right == Complex.Zero ? Complex.One : Complex.Pow(left, right),
                 "ⁿ√" => NthRoot(left, right),
+                "∠" => Polar(left, right),
                 _ => throw new ArgumentException("Unsupported operation.")
             };
         }
@@ -340,6 +347,7 @@ public partial class CalculatorMath : RefCounted
             if (Operator == "atom" && Text == "x") return new[] { Complex.Zero, Complex.One };
             Complex[] left = Left!.Polynomial();
             if (Operator == "prefix") return Text == "-" ? left.Select(term => -term).ToArray() : left;
+            if (Operator == "degree") return left.Select(term => term * Math.PI / 180).ToArray();
             if (Operator == "function") throw new ArgumentException("This operation requires a polynomial in x.");
             Complex[] right = Right!.Polynomial();
             if (Operator is "+" or "-" or "=") return Add(left, right, Operator != "+");
@@ -366,6 +374,7 @@ public partial class CalculatorMath : RefCounted
             if (Operator == "atom") return Number(Text == "θ" ? 1 : 0);
             Node left = Left!, d = left.Derivative(angle);
             if (Operator == "prefix") return Text == "-" ? Op("*", Number(-1), d) : d;
+            if (Operator == "degree") return Op("*", Number(Math.PI / 180), d);
             if (Operator == "function")
             {
                 Node outer = Text switch

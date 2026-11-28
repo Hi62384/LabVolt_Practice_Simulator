@@ -1,17 +1,18 @@
 extends RefCounted
 
 const MODELS := ["calculator_basic","calculator","calculator_financial"]
-const REQUIRED := ["7","8","9","4","5","6","1","2","3","0","=","AC"]
+const REQUIRED := ["7","8","9","4","5","6","1","2","3","0","RUN","AC"]
 const NUMERIC_PAD := ["7","8","9","4","5","6","1","2","3","0","."]
-const OPTIONAL := ["Ans","±","ⁿ√","←","→"]
-const ARITHMETIC := ["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","=","+","AC","DEL"]
-const SCIENTIFIC := ["DEG","MC","MR","M+","M−","sin","cos","tan","(",")","asin","acos","atan","ln","log","√","x²","xʸ","ⁿ√","1/x","π","7","8","9","DEL","AC","4","5","6","×","÷","1","2","3","+","−","0",".","±","Ans","=","←","→"]
-const FINANCIAL := ["N","I%","PV","PMT","FV","NPV","IRR","EFF","NOM","%CHG","MU","MAR","SL","BEP",",","7","8","9","÷","DEL","4","5","6","×","AC","1","2","3","−","(","0",".","=","+",")"]
+const CURSOR_KEYS := ["←","→","↑","↓"]
+const OPTIONAL := ["Ans","±","ⁿ√"]
+const ARITHMETIC := ["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","RUN","+","AC","DEL"]
+const SCIENTIFIC := ["°","MC","MR","M+","M−","sin","cos","tan","(",")","asin","acos","atan","ln","log","√","x²","xʸ","ⁿ√","1/x","π","7","8","9","DEL","AC","4","5","6","×","÷","1","2","3","+","−","0",".","±","Ans","RUN"]
+const FINANCIAL := ["N","I%","PV","PMT","FV","NPV","IRR","EFF","NOM","%CHG","MU","MAR","SL","BEP",",","7","8","9","÷","DEL","4","5","6","×","AC","1","2","3","−","(","0",".","RUN","+",")"]
 
 static func keys(model: String) -> Array:
 	if model=="calculator_basic":return ARITHMETIC.duplicate()
 	if model=="calculator_financial":return FINANCIAL.duplicate()
-	return SCIENTIFIC.duplicate()
+	return SCIENTIFIC+CURSOR_KEYS
 
 static func model_for(item: String) -> String:
 	var model := item.get_slice(":",0)
@@ -21,6 +22,7 @@ static func model_for(item: String) -> String:
 	return model if uid.length()==32 and uid==uid.to_lower() and not uid.begins_with("-") and uid.is_valid_hex_number(false) else ""
 
 static func valid(model: String, layout: Variant) -> bool:
+	if layout is Array:layout=updated_keys(layout)
 	var supported := keys(model)
 	if not layout is Array or layout.size()>supported.size():return false
 	var seen := {}
@@ -28,16 +30,17 @@ static func valid(model: String, layout: Variant) -> bool:
 		if not key is String or key not in supported or seen.has(key):return false
 		seen[key]=true
 	for key in supported:
-		if key not in OPTIONAL and not seen.has(key):return false
+		if key not in OPTIONAL and key not in CURSOR_KEYS and not seen.has(key):return false
 	return true
 
 static func available() -> Array:
-	var catalog:=SCIENTIFIC.duplicate()
-	for key in FINANCIAL+["e","τ","φ","x","y","z","i","%","⁻¹"]:
+	var catalog:=keys("calculator")
+	for key in FINANCIAL+["e","τ","φ","x","y","z","i","%","⁻¹","Equality","∠","Convert","∫","d/dx","Factor"]:
 		if key not in catalog:catalog.append(key)
 	return catalog
 
 static func valid_custom(layout: Variant) -> bool:
+	if layout is Array:layout=updated_keys(layout)
 	if not layout is Array or layout.filter(func(key):return key not in REQUIRED).size()>36:return false
 	var supported:=available()
 	var seen:={}
@@ -47,10 +50,28 @@ static func valid_custom(layout: Variant) -> bool:
 	return true
 
 static func with_required(layout: Array) -> Array:
-	var normalized := layout.duplicate()
+	var normalized := updated_keys(layout)
 	for key in REQUIRED:
 		if key not in normalized:normalized.append(key)
 	return normalized
+
+static func updated_keys(layout: Array) -> Array:
+	var updated:=layout.duplicate()
+	if "=" in updated:updated[updated.find("=")]="RUN"
+	if "DEG" in updated:updated[updated.find("DEG")]="" if "°" in updated else "°"
+	return updated
+
+static func caption(symbol: String) -> String:
+	return "=" if symbol=="Equality" else symbol
+
+static func clean_colors(raw: Variant, layout: Array) -> Variant:
+	if not raw is Dictionary or raw.size()>SLOTS:return null
+	var colors:={}
+	for key in raw:
+		var hex: Variant=raw[key]
+		if not key is String or key.is_empty() or key not in layout or not hex is String or hex.length()!=6 or not Color.html_is_valid(hex):return null
+		colors[key]=hex.to_lower()
+	return colors
 
 const SLOTS := 49
 const COLUMNS := 7
@@ -64,11 +85,14 @@ const BUTTONS := {
 	"−":["Subtraction","Find the difference between two values.","7 − 4 = 3",1,2,""],
 	"×":["Multiplication","Multiply two values.","4 × 3 = 12",1,3,""],
 	"÷":["Division","Divide a value by another.","12 ÷ 3 = 4",1,3,""],
-	"=":["Equals","Evaluate the current calculation.","2 + 3 =",2,2,""],
+	"RUN":["Run","Evaluate an expression or solve an equation.","5x + 4 = 2x",2,2,""],
+	"Equality":["Equals sign","Enter an equality to solve with RUN.","5x + 4 = 2x",8,2,"algebra"],
 	"AC":["All clear","Clear the input, result, and pending operation.","AC clears 42",2,1,""],
 	"DEL":["Delete","Remove the character before the cursor.","123 → 12",2,1,""],
 	"←":["Move cursor left","Move left through the equation and its fields.","Move into a fraction or exponent",2,1,"equation"],
 	"→":["Move cursor right","Move right through the equation and its fields.","Leave a fraction or exponent to continue",2,1,"equation"],
+	"↑":["Move cursor up","Move to the numerator, exponent, or root degree.","Denominator → numerator",2,1,"equation"],
+	"↓":["Move cursor down","Move to the denominator, base, or radicand.","Numerator → denominator",2,1,"equation"],
 	"(":[ "Open parenthesis","Start a grouped expression.","(2 + 4) × 3",2,2,"equation"],
 	")":[ "Close parenthesis","End a grouped expression.","(2 + 4) × 3",2,2,"equation"],
 	"±":["Change sign","Change a positive number to negative or the reverse.","5 → −5",2,2,""],
@@ -83,14 +107,14 @@ const BUTTONS := {
 	"1/x":["Reciprocal","Divide one by the current value.","1/4 = 0.25",4,5,"equation"],
 	"⁻¹":["Inverse power","Raise a value to the power of negative one.","4⁻¹ = 0.25",4,5,"equation"],
 	"xʸ":["General exponent","Raise a value to a chosen power.","2³ = 8",4,7,"equation"],
-	"ⁿ√":["Nth root","Enter the radicand, press ⁿ√, then enter the root degree.","27 ⁿ√ 3 = 3",4,7,"equation"],
+	"ⁿ√":["Nth root","Press ⁿ√, enter the degree, then press → or ↓ to enter the number under the root. You can also enter that number first.","ⁿ√ 3 → 27 = 3",4,7,"equation"],
 	"sin":["Sine","Find the sine of an angle.","sin(30°) = 0.5",5,6,"equation"],
 	"cos":["Cosine","Find the cosine of an angle.","cos(60°) = 0.5",5,6,"equation"],
 	"tan":["Tangent","Find the tangent of an angle.","tan(45°) = 1",5,6,"equation"],
-	"asin":["Inverse sine","Find the angle with the given sine.","asin(0.5) = 30°",5,8,"equation"],
-	"acos":["Inverse cosine","Find the angle with the given cosine.","acos(0.5) = 60°",5,8,"equation"],
-	"atan":["Inverse tangent","Find the angle with the given tangent.","atan(1) = 45°",5,8,"equation"],
-	"DEG":["Angle units","Toggle between degrees and radians.","DEG → RAD",5,4,"equation"],
+	"asin":["Inverse sine","Find the angle in radians with the given sine.","asin(0.5) = π/6",5,8,"equation"],
+	"acos":["Inverse cosine","Find the angle in radians with the given cosine.","acos(0.5) = π/3",5,8,"equation"],
+	"atan":["Inverse tangent","Find the angle in radians with the given tangent.","atan(1) = π/4",5,8,"equation"],
+	"°":["Degrees","Mark an angle in degrees. Unmarked angles are radians.","sin(30°) = 0.5",5,4,"equation"],
 	"log":["Common logarithm","Find the base-ten logarithm.","log(1000) = 3",6,7,"equation"],
 	"ln":["Natural logarithm","Find the logarithm to base e.","ln(1) = 0",6,7,"equation"],
 	"π":["Pi","Insert the ratio of circumference to diameter.","2 × π ≈ 6.283",7,3,"equation"],
@@ -98,9 +122,14 @@ const BUTTONS := {
 	"τ":["Tau","Insert the radians in one complete turn.","τ = 2 × π",7,3,"equation"],
 	"φ":["Golden ratio","Insert the ratio (1 + √5) ÷ 2.","φ² = φ + 1",7,3,"equation"],
 	"x":["Variable x","Insert the main symbolic variable.","x + 4 = 10",8,5,"algebra"],
-	"y":["Variable y","Insert the second variable for surfaces.","x² + y²",8,5,"graph"],
-	"z":["Variable z","Label the height of a 3D surface.","z = x² + y²",8,5,"graph"],
+	"y":["Variable y","Enter y in an equation or graph.","x² + y²",8,5,"algebra"],
+	"z":["Variable z","Enter z in an equation or graph.","z = x² + y²",8,5,"algebra"],
+	"∫":["Integrate symbolically","Find an antiderivative.","∫ x² → x³/3",8,6,"algebra"],
+	"d/dx":["Differentiate","Find the symbolic derivative.","d/dx x² → 2x",8,6,"algebra"],
+	"Factor":["Factor","Write the expression as a product using supported factors.","x² − 9 → (x − 3)(x + 3)",8,6,"algebra"],
 	"i":["Imaginary unit","Insert the square root of negative one.","i² = −1",9,8,"complex"],
+	"∠":["Polar angle","Enter magnitude followed by angle. Add ° for degrees.","5∠30°",9,3,"complex"],
+	"Convert":["Convert complex number","Convert one number between rectangular and polar form.","3 + 4i → 5∠0.9273",9,5,"complex"],
 	"N":["Number of periods","Find how long payments or growth take.","N(1, −100, 1000, 0)",10,10,""],
 	"I%":["Interest rate","Solve for the interest rate per period.","I%(12, −100, 1100, 0)",10,12,""],
 	"PV":["Present value","Find today's value of a future amount.","PV(5, 2, 1100)",10,9,""],
@@ -129,7 +158,7 @@ static func catalog(symbol: String) -> Dictionary:
 static func unlocked(symbol: String, hardware: Dictionary) -> bool:
 	var requirement: String=catalog(symbol).get("requires","")
 	if requirement.is_empty():return true
-	return int(hardware.get(requirement,0))>=(2 if symbol in ["y","z"] else 1)
+	return int(hardware.get(requirement,0))>=1
 
 static func occupied_rows(layout: Array,columns: int) -> int:
 	for index in range(layout.size()-1,-1,-1):
@@ -146,7 +175,7 @@ static func new_slots(keys: Array) -> Array:
 
 static func default_slots() -> Array:
 	var layout:=new_slots([])
-	var positions:={0:"7",1:"8",2:"9",6:"AC",7:"4",8:"5",9:"6",14:"1",15:"2",16:"3",21:"0",23:"="}
+	var positions:={0:"7",1:"8",2:"9",6:"AC",7:"4",8:"5",9:"6",14:"1",15:"2",16:"3",21:"0",23:"RUN"}
 	for index in positions:layout[index]=positions[index]
 	return layout
 
@@ -154,7 +183,7 @@ static func design_price(layout: Variant, hardware: Dictionary) -> int:
 	if not layout is Array or layout.size() not in [LEGACY_SLOTS,SLOTS]:return -1
 	var price:=0
 	var seen:={}
-	for symbol in layout:
+	for symbol in updated_keys(layout):
 		if not symbol is String:return -1
 		if symbol.is_empty():continue
 		var data:=catalog(symbol)
@@ -174,7 +203,7 @@ static func preset(name: String) -> Dictionary:
 			return {"keypad":layout,"hardware":hardware}
 		"Scientific":
 			hardware.equation=1
-			keys=SCIENTIFIC.filter(func(symbol):return symbol not in ["MC","MR","M+","M−","←","→"])
+			keys=SCIENTIFIC.filter(func(symbol):return symbol not in ["MC","MR","M+","M−"])
 		"Financial":
 			hardware.equation=1
 			keys=FINANCIAL.duplicate()
@@ -182,10 +211,10 @@ static func preset(name: String) -> Dictionary:
 			hardware.equation=1
 			hardware.algebra=1
 			hardware.complex=1
-			keys.append_array(["(",")","x","i","x²","xʸ","ⁿ√","√","±","Ans","π"])
+			keys.append_array(["(",")","x","i","x²","xʸ","ⁿ√","√","±","Ans","π","Equality","y","z","°","∠","Convert","∫","d/dx","Factor"])
 		"Graphing":
 			hardware.equation=1
 			hardware.algebra=1
 			hardware.graph=2
-			keys.append_array(["(",")","x","y","z","x²","xʸ","ⁿ√","√","±","sin","cos","tan","π","DEG"])
+			keys.append_array(["(",")","x","y","z","x²","xʸ","ⁿ√","√","±","sin","cos","tan","π","°","Equality","∫","d/dx","Factor"])
 	return {"keypad":new_slots(keys),"hardware":hardware}
