@@ -104,7 +104,7 @@ func _process(delta: float) -> void:
   if cancelled and (not current.is_empty() or not turn.is_empty()):cancel_current()
   return
  if not current.is_empty() and not faculty.voice_target_valid(multiplayer.get_unique_id(),current):cancel_current()
- if current.is_empty():diagnostic.state="ready"
+ if current.is_empty() and turn.is_empty():diagnostic.state="ready"
 
 func _choose() -> Dictionary:
  var eye: Vector3=game.player.eyes.global_position
@@ -193,7 +193,7 @@ func _finish_without_submission(token: String,reason: String) -> void:
  remote_turns.erase(multiplayer.get_unique_id())
  if not current.is_empty():faculty.resume_voice_target(current)
  diagnostic.state="ready";diagnostic.reason=reason
- if not current.is_empty():show_hearing(current,"No speech detected",4000)
+ if not current.is_empty():show_hearing(current,"Speech not recognized: "+reason.left(120),5000)
 
 func _send_recording(token: String,wav: PackedByteArray) -> void:
  _upload_begin.rpc_id(1,token,wav.size())

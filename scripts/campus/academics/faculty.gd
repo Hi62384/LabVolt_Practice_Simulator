@@ -1419,6 +1419,9 @@ func _finish_recording() -> void:
  shared_microphone.drain_pending()
  var samples:=record_samples.duplicate()
  var capture_status: Dictionary=shared_microphone.diagnostic.duplicate()
+ if is_instance_valid(natural_voice):
+  natural_voice.diagnostic.capture_duration_ms=Time.get_ticks_msec()-record_started
+  natural_voice.diagnostic.pcm_duration_ms=float(samples.size())/32.
  _cancel_recording()
  if not _require_selected_conversation():return
  if samples.size()<4800:
@@ -1709,7 +1712,7 @@ func _character_context_current(epoch: int,activity: Dictionary) -> bool:
  return false
 
 func _announce_character(room: String,id: String,activity: Dictionary,identity: String,intention: String,_fallback: String,priority: int=2,extensions: Dictionary={}) -> void:
- if not bool(extensions.get("official_communication",false)) and _voice_recipients(room).is_empty():return
+ if not bool(extensions.get("official_communication",false)) and _voice_recipients(room).is_empty() and not game.lecture_classes._inside(multiplayer.get_unique_id(),room):return
  var extra:=extensions.duplicate(true)
  extra.initiate=true;extra.intention=intention;extra.defer_record=true
  var result:=await generate_character_exchange(Characters.teacher(id),identity,activity,"",extra)

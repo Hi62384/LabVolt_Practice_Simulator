@@ -361,9 +361,11 @@ func _restore_voice() -> void:
 	if not _context_current() or busy or batch_active or restore_voice.selected<0:return
 	var version:=int(restore_voice.get_selected_metadata())
 	if version<=0:return
+	var id:=selected_id
+	var scope:=_scope()
 	_confirm("Restore earlier approved voice?","The current approved voice will be archived, not deleted. This restores the exact previously approved speaker and model.",func():
-		if not _context_current():return
-		var error:=Voices.restore_archived(selected_id,_scope(),version,true)
+		if not _context_current() or selected_id!=id or _scope()!=scope:return
+		var error:=Voices.restore_archived(id,scope,version,true)
 		_select(selected_id)
 		status.text="Previous approved voice restored." if error==OK else "Could not restore voice: "+error_string(error))
 

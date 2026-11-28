@@ -61,6 +61,10 @@ static func _initialize_identity(person: Dictionary) -> Dictionary:
 	if Roster.PEOPLE.has(id) and not designed.has(id):last_error=ERR_INVALID_DATA;return {}
 	var value: Dictionary=designed[id].duplicate(true) if designed.has(id) else Design.draft(person)
 	if value.is_empty() or _state.identities.size()>=MAX_IDENTITIES:return {}
+	# Store the complete set of acoustic intentions, including defaults inferred
+	# from existing descriptions, without rewriting an already saved voice.
+	for field: String in ["rhythm","intonation","breathiness","emphasis"]:
+		if not value.has(field):value[field]=Design.vocal_fields(value)[field]
 	# Unapproved presets follow the host's explicitly selected renderer.
 	# The host default and new studio auditions use Realtime Mini; only an
 	# explicitly approved voice audition pins a model to an identity.
@@ -286,6 +290,9 @@ static func approve(character_id: String,voice_id: String,fit_confirmed: bool,mo
 	next.approved_script_hash=script.strip_edges().sha256_text()
 	next.approved_at=int(Time.get_unix_time_from_system())
 	if pending:_archive_current(key)
+	elif _state.identities[key].get("approval_status")=="approved" and str(_state.identities[key].get("preferred_model",""))!=model:
+		_archive_current(key)
+		next.profile_version=int(next.profile_version)+1
 	_state.identities[key]=next
 	if pending:_state.candidates.erase(key)
 	return _commit(prior)

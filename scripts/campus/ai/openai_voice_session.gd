@@ -340,8 +340,11 @@ func receive_event(event: Dictionary) -> void:
 			if _transcript.length()>MAX_TRANSCRIPT_CHARS:_fail(_error("The voice transcript exceeded its budget."));return
 			if early_stream:
 				var matched:=matched_prefix_chars(_expected_text,_transcript)
-				if matched>0:
-					_publish_pcm()
+				if matched>_last_checkpoint_chars:
+					# Retain a short tail while only a prefix is confirmed; the
+					# transcript has no documented exact audio alignment.
+					var available:=_pcm.size() if _matches_output() else maxi(0,_pcm.size()-int(RATE*.06)*2)
+					_publish_pcm(available)
 					_checkpoint(matched)
 		"response.output_audio_transcript.done":
 			if not _blocked:
@@ -377,11 +380,13 @@ func _checkpoint(chars: int) -> void:
 	_last_checkpoint_offset=_published_bytes;_last_checkpoint_chars=chars
 	transcript_checkpoint.emit(_published_bytes,chars,_expected_text.length())
 
-func _publish_pcm() -> void:
+func _publish_pcm(limit: int=-1) -> void:
 	if _blocked or not early_stream:return
-	while _published_bytes<_pcm.size():
+	var ceiling:=_pcm.size() if limit<0 else mini(limit,_pcm.size())
+	ceiling-=ceiling%2
+	while _published_bytes<ceiling:
 		var offset:=_published_bytes
-		var end:=mini(offset+12000,_pcm.size())
+		var end:=mini(offset+12000,ceiling)
 		_published_bytes=end
 		verified_pcm.emit(offset,_pcm.slice(offset,end))
 		if _blocked:return

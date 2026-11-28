@@ -38,6 +38,7 @@ jobs:
           Expand-Archive -Path "$engineDir/engine.zip" -DestinationPath $engineDir
           "GODOT=$engineDir/$engine/$($engine)_console.exe" >> $env:GITHUB_ENV
       - name: Build and import
+        id: build
         shell: pwsh
         run: |
           dotnet build CollegeSimulator.sln --configuration Debug
@@ -51,13 +52,13 @@ jobs:
           python tests/campus/academics/run_voice_pipeline_tests.py --godot "$env:GODOT" --logs "$env:RUNNER_TEMP/npc-logs/targeted" --cases test_voice_meter_input test_subtitle_audibility test_realtime_stream_buffer test_character_voice_studio test_character_worldviews
           if ($LASTEXITCODE) { throw 'Targeted regression failure' }
       - name: Native local provider WebSocket and HTTP tests
-        if: always()
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: pwsh
         run: |
           python tests/campus/ai/run_voice_provider_tests.py --godot "$env:GODOT" 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP/npc-logs/provider.log"
           if ($LASTEXITCODE) { throw 'Provider protocol regression failure' }
       - name: Full NPC voice pipeline regressions
-        if: always()
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: pwsh
         run: |
           python tests/campus/academics/run_voice_pipeline_tests.py --godot "$env:GODOT" --logs "$env:RUNNER_TEMP/npc-logs/full"
