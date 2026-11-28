@@ -367,6 +367,8 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	var queued_at:=Time.get_ticks_msec()
 	if not await _acquire_lane("speech",id,_request_guard(draft)):return _queue_error(id)
 	var session:=VoiceSession.new()
+	# Explicit settings auditions work while the singleplayer menu is paused.
+	if not needs_enabled:session.process_mode=Node.PROCESS_MODE_ALWAYS
 	add_child(session)
 	_voice_requests[id]=session
 	var results: Array=[]
@@ -689,6 +691,9 @@ func _stream_text_exchange(url: String,headers: PackedStringArray,payload: Dicti
 func _http_exchange(url: String,headers: PackedStringArray,method: HTTPClient.Method,body: PackedByteArray,timeout: float,limit: int,id: String,guard: Callable=Callable()) -> Dictionary:
 	if _guard_cancelled(guard):return {"ok":false,"error":"The conversation ended before this request was sent.","canceled":true,"retryable":false}
 	var request:=HTTPRequest.new()
+	# Explicit diagnostics and already dispatched requests must finish or cancel
+	# even when the gameplay tree is paused. This does not schedule new AI work.
+	request.process_mode=Node.PROCESS_MODE_ALWAYS
 	request.timeout=timeout
 	request.body_size_limit=limit
 	request.max_redirects=0

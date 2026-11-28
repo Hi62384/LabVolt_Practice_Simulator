@@ -150,7 +150,7 @@ func _submit_cloud(kind: String,samples: PackedByteArray,generation: int) -> voi
  if not delivery.get("ok",false):stages.text+="\nVoice unavailable: "+str(delivery.get("error","Incompatible voice."));_enable_buttons();return
  request_id="microphone_test_speech_%d_%d"%[get_instance_id(),generation]
  delivery.request_id=request_id
- var audio: Dictionary=await game.host_openai.speak(text,{},delivery.voice,delivery)
+ var audio: Dictionary=await game.host_openai.speak(text,{"request_type":"test","subsystem":"microphone_test"},delivery.voice,delivery)
  if not is_inside_tree() or generation!=epoch:return
  request_id=""
  if not audio.get("ok",false):stages.text+="\nSpeech generation failed: "+str(audio.get("error","No audio."));_enable_buttons();return

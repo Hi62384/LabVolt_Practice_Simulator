@@ -1852,6 +1852,8 @@ func _answer_classmate_inner(entry: Dictionary) -> void:
  extra._timing=timing
  var captured_activity:=activity.duplicate(true)
  extra._valid=func():return _character_context_current(epoch,captured_activity) and str(game.school.identities.get(peer,""))==identity and not students.nearby_member(peer,room,class_id,actor,hearing_range).is_empty() and _voice_context_valid(peer,voice_context)
+ if voice_context.get("mode")=="manual":
+  extra._preview=func(words: String):_context_question_status(peer,room,actor,"Reply (verifying…)\n\n"+words,voice_context)
  var prepared:=await character_interaction.prepare(client,person,identity,activity,question,extra)
  var still_present: bool=not prepared.get("cancelled",false) and bool(extra._valid.call())
  if not still_present:
@@ -2043,6 +2045,8 @@ func _answer_question_inner(peer: int,room: String,id: String,class_id: String,q
  extra._timing=timing.duplicate(true)
  var captured_activity:=activity.duplicate(true)
  extra._valid=func():return _character_context_current(epoch,captured_activity) and game.lecture_classes._inside(peer,room) and str(game.school.identities.get(peer,""))==identity and _voice_context_valid(peer,voice_context)
+ if voice_context.get("mode")=="manual":
+  extra._preview=func(words: String):_context_question_status(peer,room,id,"Reply (verifying…)\n\n"+words,voice_context)
  var client: Node=game.host_openai
  var prepared:=await character_interaction.prepare(client,person,identity,activity,question,extra)
  var current_class:=_ai_activity(room)

@@ -20,7 +20,7 @@ var sequence := 0
 var session_id := Crypto.new().generate_random_bytes(8).hex_encode()
 var diagnostics: Array[Dictionary] = []
 var _pending_audio_measurements: Dictionary={}
-const JOINT_RULES := " Interpret this interaction and generate the same character's response in ONE JSON object. interpretation={event,tone,severity,meaning,topic,domain,difficulty,question_kind,assessment_request,requested_action,memories,sincere,constructive,topic_changed,important,current_information}. event is greeting/insult/apology/compliment/joke/criticism/disagreement/initiative/banter/sarcasm/teasing/manipulation/challenge/help/excitement/disappointment/chat/study/collaboration/competition. tone is friendly/neutral/hostile/playful/sarcastic/vulnerable/mixed; severity and difficulty are 0..1. question_kind is personal_experience/biography/opinion/casual/factual/academic/current_information. Distinguish personal questions from outside expertise, criticism from abuse, banter from hostility, and words from verified events. assessment_request is social/rules/clarification/solution. requested_action must occur in available_actions. Preserve assessment privacy. A person may choose silence, but a permanent refusal needs an established serious conflict. The host validates your proposed reaction; do not assert that any physical action has already occurred. Express current mood plus the bounded effect of this interaction, and include delivery.emotion and delivery.knowledge_mode (personal_conversation/explain/uncertain/tentative_estimate/use_resource/use_tool)."
+const JOINT_RULES := " Interpret this interaction and generate the same character's response in ONE JSON object. interpretation={event,tone,severity,meaning,topic,domain,difficulty,question_kind,assessment_request,requested_action,memories,sincere,constructive,topic_changed,important,current_information}. Include event, tone, severity, meaning (one short clause), domain, question_kind and assessment_request; omit other fields when their default or empty value suffices. event is greeting/insult/apology/compliment/joke/criticism/disagreement/initiative/banter/sarcasm/teasing/manipulation/challenge/help/excitement/disappointment/chat/study/collaboration/competition. tone is friendly/neutral/hostile/playful/sarcastic/vulnerable/mixed; severity and difficulty are 0..1. question_kind is personal_experience/biography/opinion/casual/factual/academic/current_information. Distinguish personal questions from outside expertise, criticism from abuse, banter from hostility, and words from verified events. assessment_request is social/rules/clarification/solution. requested_action must occur in available_actions. Preserve assessment privacy. A person may choose silence, but a permanent refusal needs an established serious conflict. The host validates your proposed reaction; do not assert that any physical action has already occurred. Express current mood plus the bounded effect of this interaction, and include delivery.emotion and delivery.knowledge_mode (personal_conversation/explain/uncertain/tentative_estimate/use_resource/use_tool)."
 
 func bind(next_mind: RefCounted, next_brain: RefCounted) -> void:
 	mind = next_mind
@@ -148,7 +148,7 @@ func prepare(client: Node, person: Dictionary, identity: String, activity: Dicti
 			var wants_visual: bool = bool(extra.get("wants_visual",false)) and activity.get("phase","")=="lesson"
 			var rules := Mind.instructions(person,str(initial_context.emotional_state.emotion),str(activity.get("phase",""))) + Mind.dialogue_rules() + JOINT_RULES
 			if wants_visual:rules += Visuals.instructions()
-			var response: Dictionary = await client.respond_character(rules, _provider_context(initial_context,prepared,"character_turn"), question, wants_visual)
+			var response: Dictionary = await _respond_turn(client,rules,initial_context,prepared,question,wants_visual,"character_turn")
 			_measure(prepared,response,"character_turn")
 			if not _current(prepared): return _cancel(prepared)
 			var draft := Mind.decode_dialogue(str(response.get("text",""))) if response.get("ok",false) else {}
@@ -262,7 +262,7 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 		var can_reuse := attempts==1 and prepared.has("draft_response") and bool(prepared.get("draft_visual",false))==wants_visual and str(prepared.get("initial_action",""))==JSON.stringify(prepared.extra.get("executed_action",{}))
 		if can_reuse:response=prepared.draft_response
 		else:
-			response = await client.respond_character(instructions, _provider_context(prepared.context,prepared,"dialogue_repair" if prepared.has("draft_response") else "character_turn"), str(prepared.safe_question), wants_visual)
+			response = await _respond_turn(client,instructions,prepared.context,prepared,str(prepared.safe_question),wants_visual,"dialogue_repair" if prepared.has("draft_response") else "character_turn")
 			_measure(prepared,response,"dialogue_repair" if prepared.has("draft_response") else "character_turn")
 		if not _current(prepared):
 			_cancel(prepared)
@@ -315,8 +315,7 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 			if not biography_error.is_empty(): instructions += " Biography update was rejected: " + biography_error + ". Keep established facts unchanged. Return biography:null and biography_facts:[] when you have no new grounded detail to save."
 			if not delivery_error.is_empty():instructions += " Delivery rejected: "+delivery_error+". Use the final host decision, emotion and knowledge mode."
 			continue
-		var checked: Dictionary = await _moderate(client,candidate,prepared,"output_moderation")
-		_measure(prepared,checked,"output_moderation")
+		var checked: Dictionary = await _checked_output(client,candidate,prepared)
 		if not _current(prepared):
 			_cancel(prepared)
 			result.line = ""; result.silent = true; result.cancelled = true; result.source = "cancelled"
@@ -409,6 +408,80 @@ static func _biography_proposals(details: Dictionary) -> Array:
 	if details.get("biography") is Dictionary:proposals.append(details.biography)
 	if details.get("biography_facts") is Array:proposals.append_array(details.biography_facts)
 	return proposals
+
+# Only a complete leading JSON speech string may be previewed; no raw
+# model JSON, incomplete escape sequences or trailing metadata enter the UI.
+static func leading_speech(raw: String) -> Variant:
+	var tail:=raw.strip_edges()
+	if not tail.begins_with("{"):return null
+	tail=tail.substr(1).strip_edges()
+	if not tail.begins_with("\"speech\""):return null
+	tail=tail.substr(8).strip_edges()
+	if not tail.begins_with(":"):return null
+	tail=tail.substr(1).strip_edges()
+	if not tail.begins_with("\""):return null
+	var escaped:=false
+	for index in range(1,tail.length()):
+		var ch:=tail[index]
+		if escaped:escaped=false
+		elif ch=="\\":escaped=true
+		elif ch=="\"":
+			var parser:=JSON.new()
+			if parser.parse(tail.substr(0,index+1))==OK and parser.data is String:return parser.data
+			return null
+	return null
+
+func _respond_turn(client: Node,instructions: String,data: Dictionary,prepared: Dictionary,question: String,visual: bool,purpose: String) -> Dictionary:
+	var payload:=_provider_context(data,prepared,purpose)
+	var state: Dictionary={}
+	prepared.erase("stream_moderation")
+	var preview: Variant=prepared.extra.get("_preview")
+	if not visual and prepared.activity.get("phase","")!="assignment" and preview is Callable and preview.is_valid():
+		state={"buffer":"","candidate":"","started":false,"done":false,"preview_open":true}
+		prepared.stream_moderation=state
+		payload._request_metadata._text_progress=_streamed_speech_delta.bind(client,prepared,state)
+	var response: Dictionary=await client.respond_character(instructions,payload,question,visual)
+	# After the terminal event the final pipeline owns the UI. An asynchronous
+	# moderation completion cannot overwrite a newer or final reply.
+	if not state.is_empty():state.preview_open=false
+	return response
+
+func _streamed_speech_delta(delta: String,client: Node,prepared: Dictionary,state: Dictionary) -> void:
+	if state.started or not state.preview_open or not _current(prepared):return
+	state.buffer+=delta
+	if str(state.buffer).length()>10000:state.preview_open=false;state.buffer="";return
+	var speech: Variant=leading_speech(str(state.buffer))
+	if not speech is String:return
+	state.started=true;state.buffer=""
+	var candidate:=TeacherAI.safe_reply(speech)
+	state.candidate=candidate
+	if candidate.is_empty():state.done=true;return
+	# Launch the same output moderation that the completed reply will need.
+	# No extra text generation and no partially moderated tokens.
+	var checked: Dictionary=await _moderate(client,candidate,prepared,"output_moderation")
+	_measure(prepared,checked,"output_moderation")
+	state.checked=checked
+	state.done=true
+	if not state.preview_open or not _current(prepared) or not checked.get("ok",false) or checked.get("flagged",false):return
+	# A preview is private and explicitly provisional. Never preview a claim
+	# needing a gameplay consistency check or a conflict with established life
+	# facts; the authoritative path still validates every final response.
+	if _needs_gameplay_review(candidate):return
+	var consistency:=Life.speech_check(candidate,brain.character_life_records(prepared.person),[],false)
+	if not consistency.get("ok",false) or consistency.get("review",false):return
+	var preview: Variant=prepared.extra.get("_preview")
+	if preview is Callable and preview.is_valid():preview.call(candidate)
+
+func _checked_output(client: Node,candidate: String,prepared: Dictionary) -> Dictionary:
+	var state: Dictionary=prepared.get("stream_moderation",{})
+	if state.get("started",false) and str(state.get("candidate",""))==candidate:
+		while not state.get("done",false) and is_instance_valid(client) and client.is_inside_tree():
+			if not _current(prepared):return {"ok":false,"canceled":true}
+			await client.get_tree().process_frame
+		if state.get("checked") is Dictionary:return state.checked
+	var checked: Dictionary=await _moderate(client,candidate,prepared,"output_moderation")
+	_measure(prepared,checked,"output_moderation")
+	return checked
 
 func _provider_context(data: Dictionary,prepared: Dictionary={},purpose: String="character_turn") -> Dictionary:
 	var safe := data.duplicate(true)

@@ -22,6 +22,7 @@ class FixtureClient extends Node:
 	var generation_count:=0
 	var moderation_count:=0
 	var after_interpret: Callable
+	var stream_fixture:=false
 	func ready_for_class() -> bool:return enabled
 	func moderate(text: String) -> Dictionary:
 		moderation_count+=1
@@ -41,6 +42,11 @@ class FixtureClient extends Node:
 		var emotion:=str(context.get("emotional_state",{}).get("emotion","steady"))
 		if not context.has("decision") and interpretation.get("event","")=="insult":emotion="irritated"
 		reply.delivery={"emotion":emotion,"knowledge_mode":str(context.get("knowledge_restrictions",{}).get("mode","personal_conversation"))}
+		if stream_fixture:
+			var progress: Variant=context.get("_request_metadata",{}).get("_text_progress")
+			if progress is Callable and progress.is_valid():
+				progress.call("{\"speech\":")
+				progress.call(JSON.stringify(reply.speech)+",")
 		return {"ok":true,"text":JSON.stringify(reply)}
 
 func _initialize() -> void:call_deferred("_run")
@@ -175,13 +181,22 @@ func _run() -> void:
 	var first_answer:=await pipeline.generate(client,first_repeat)
 	check(first_answer.source=="ai" and first_answer.line=="All right.","Original ordinary question returns a valid answer")
 	pipeline.record(first_answer)
-	var repeated_question:=await pipeline.prepare(client,repeat_person,"repeat-student",activity,"Is that okay?")
+	var previews: Array[String]=[]
+	client.stream_fixture=true
+	var moderation_before:=client.moderation_count
+	var repeated_question:=await pipeline.prepare(client,repeat_person,"repeat-student",activity,"Is that okay?",{"_preview":func(words: String):previews.append(words)})
+	check(previews==["All right."],"Only the complete moderated speech field becomes an early private preview")
 	# Explicitly ensure the current candidate equals recent retrieved speech.
 	repeated_question.context.prior_turns=[{"student":"Is that okay?","teacher":"All right."}]
 	var before_repeat:=client.generation_count
 	var repeated_answer:=await pipeline.generate(client,repeated_question)
 	check(repeated_answer.source=="ai" and repeated_answer.line=="All right." and client.generation_count==before_repeat,"Identical valid reply is delivered without a paid regeneration")
 	pipeline.record(repeated_answer)
+	check(client.moderation_count==moderation_before+2,"Early output moderation is reused rather than dispatched again")
+	client.stream_fixture=false
+	check(Pipeline.leading_speech("{\"speech\":\"half")==null,"An incomplete string is never displayed")
+	check(Pipeline.leading_speech("{ \"speech\" : \"He said \\\"hello\\\".\", \"delivery\":")== 'He said "hello".',"Streaming parser preserves escaped speech without exposing metadata")
+	check(Pipeline.leading_speech("{\"interpretation\":{\"speech\":\"nested\"}}")==null,"A nested speech key cannot become a preview")
 
 	var long_line:="A complete thought about the experiment. ".repeat(25).strip_edges()
 	check(Speech.complete(long_line)==long_line and long_line.length()>350,"Long complete response is preserved beyond old limit")
