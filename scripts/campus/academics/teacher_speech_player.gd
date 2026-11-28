@@ -47,7 +47,7 @@ func configure(speech: bool,captions: bool) -> void:
 	if disabling:
 		for key in live_buffers.keys():
 			var separator:=str(key).rfind("|")
-			cancel_utterance(str(key).substr(0,separator),int(str(key).substr(separator+1)))
+			finish_live_pcm(str(key).substr(0,separator),int(str(key).substr(separator+1)),false)
 		for channel in active.keys():
 			if not active.has(channel):continue
 			var item: Dictionary=active[channel].item
@@ -347,11 +347,26 @@ func finish_live_pcm(channel: String,serial: int,success: bool,total_bytes: int=
 	var item: Dictionary=awaiting[channel].items[serial]
 	if not item.has("live_buffer"):return false
 	if not success or total_bytes<=0 or item.live_buffer.pcm.size()!=total_bytes:
-		cancel_utterance(channel,serial)
+		# An unavailable rendition is not cancellation of the character's words.
+		# Retain the validated text, stop partial audio and never restart it.
+		item.erase("live_buffer");item.expect_audio=false;item.stream=null
+		_erase_pending(channel,serial)
+		if int(active.get(channel,{}).get("serial",-1))==serial:_stop(channel)
+		for snapshot in suspended.get(channel,[]):
+			if int(snapshot.presentation.get("serial",-1))==serial:
+				_discard_snapshot(snapshot)
+				snapshot.active={};snapshot.subtitle={}
+				snapshot.presentation.waiting=false
+				snapshot.presentation.until=int(snapshot.presentation.started)+maxi(2000,str(item.text).length()*65)
+		if int(presentations.get(channel,{}).get("serial",-1))==serial:_start(channel,item)
 		return true
 	item.live_buffer.finished=true
 	if int(presentations.get(channel,{}).get("serial",-1))==serial and not active.has(channel):_start(channel,item)
 	return true
+
+func add_live_checkpoint(channel: String,serial: int,offset: int,chars: int,total: int) -> void:
+	var buffer: LiveBuffer=live_buffers.get(channel+"|"+str(serial))
+	if buffer!=null:buffer.add_checkpoint(offset,chars,total)
 
 func _start_live(channel: String,item: Dictionary) -> void:
 	var identity:=str(item.options.get("character_id",item.teacher))
@@ -360,7 +375,7 @@ func _start_live(channel: String,item: Dictionary) -> void:
 			presentations[channel].blocked_speaker=true
 			return
 	var anchor: Node3D=item.anchor
-	var buffer: RefCounted=item.live_buffer
+	var buffer: LiveBuffer=item.live_buffer
 	var player:=AudioStreamPlayer3D.new()
 	player.name="NpcStreamingSpeech";player.stream=buffer.create_stream();player.bus=Mixer.NPC_BUS
 	Mixer.configure_spatial(player,item.options.get("delivery",{}))
@@ -475,11 +490,11 @@ func _process(delta: float) -> void:
 			_finished(channel,int(state.serial),false);continue
 		var mouth=state.get("mouth")
 		if state.has("live_buffer"):
-			var buffer: RefCounted=state.live_buffer
+			var buffer: LiveBuffer=state.live_buffer
 			if buffer.pump(player):_finished(channel,int(state.serial));continue
-			if buffer.playback_at>=0 and not state.playback_reported:
+			if buffer.estimated_audible_at>=0 and now>=buffer.estimated_audible_at and not state.playback_reported:
 				state.playback_reported=true
-				playback_started.emit(channel,int(state.serial),int(buffer.playback_at))
+				playback_started.emit(channel,int(state.serial),int(buffer.estimated_audible_at))
 			if is_instance_valid(mouth):Face.speech_level(mouth,buffer.level(),delta)
 		elif is_instance_valid(mouth):
 			var level:=_pcm_level(player.stream,player.get_playback_position())

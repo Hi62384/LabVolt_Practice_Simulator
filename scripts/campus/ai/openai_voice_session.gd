@@ -6,6 +6,7 @@ signal transcript_received(speaker: String, delta: String, start_ms: int, end_ms
 signal delegation_requested(delegation_id: String, history: Array)
 signal audio_received(pcm: PackedByteArray)
 signal verified_pcm(offset: int,pcm: PackedByteArray)
+signal transcript_checkpoint(offset: int,chars: int,total: int)
 signal audio_segment_ready(pcm: PackedByteArray, text: String, utterance_id: String)
 signal speech_completed(result: Dictionary)
 signal failed(details: Dictionary)
@@ -80,6 +81,8 @@ var _completion_mode:=""
 var reusable:=false
 var early_stream:=false
 var _published_bytes:=0
+var _last_checkpoint_chars:=0
+var _last_checkpoint_offset:=0
 var _idle_since:=0
 var _response_id:=""
 var _response_instructions:=""
@@ -261,7 +264,9 @@ func receive_event(event: Dictionary) -> void:
 		if response.get("status","")!="completed":
 			_complete_render(_error("The voice response was interrupted or incomplete."))
 		else:
-			if early_stream and _matches_output():_publish_pcm()
+			if early_stream and _matches_output():
+				_publish_pcm()
+				_checkpoint(_expected_text.length())
 			_validate_output()
 		if reusable and bool(_render_result.get("ok",false)):
 			final_usage_confirmed=usage_observed
@@ -333,7 +338,11 @@ func receive_event(event: Dictionary) -> void:
 			if _blocked:return
 			_transcript+=str(event.get("delta",""))
 			if _transcript.length()>MAX_TRANSCRIPT_CHARS:_fail(_error("The voice transcript exceeded its budget."));return
-			if early_stream and prefix_matches(_expected_text,_transcript):_publish_pcm()
+			if early_stream:
+				var matched:=matched_prefix_chars(_expected_text,_transcript)
+				if matched>0:
+					_publish_pcm()
+					_checkpoint(matched)
 		"response.output_audio_transcript.done":
 			if not _blocked:
 				_transcript=str(event.get("transcript",_transcript))
@@ -342,11 +351,31 @@ func receive_event(event: Dictionary) -> void:
 # For conversational speech only: exact textual prefix, not fuzzy similarity.
 # No timestamps are promised by this API; technical/assessment speech uses
 # the existing complete transcript check before any audio is delivered.
+static func matched_prefix_chars(expected: String,actual: String) -> int:
+	var pattern:=RegEx.create_from_string("[\\p{L}0-9]+(?:'[\\p{L}0-9]+)?")
+	var wanted:=pattern.search_all(expected.replace("’","'"))
+	var heard:=pattern.search_all(actual.replace("’","'"))
+	if heard.is_empty() or heard.size()>wanted.size():return -1
+	var matched:=0
+	var count:=0
+	for index in heard.size():
+		var word:=heard[index].get_string().to_lower()
+		var target:=wanted[index].get_string().to_lower()
+		if word!=target:
+			if index==heard.size()-1 and target.begins_with(word):break
+			return -1
+		matched=wanted[index].get_end()
+		count+=1
+	return matched if count>=2 or count==wanted.size() else 0
+
 static func prefix_matches(expected: String,actual: String) -> bool:
-	var pattern:=RegEx.create_from_string("[^\\p{L}0-9']+")
-	var wanted:=pattern.sub(expected.to_lower().replace("’","'")," ",true).strip_edges()
-	var heard:=pattern.sub(actual.to_lower().replace("’","'")," ",true).strip_edges()
-	return heard.length()>=3 and wanted.begins_with(heard) and (heard.contains(" ") or heard==wanted)
+	return matched_prefix_chars(expected,actual)>0
+
+func _checkpoint(chars: int) -> void:
+	# This is a transcript-arrival estimate, not an API word timestamp.
+	if _published_bytes<=_last_checkpoint_offset or chars<=_last_checkpoint_chars:return
+	_last_checkpoint_offset=_published_bytes;_last_checkpoint_chars=chars
+	transcript_checkpoint.emit(_published_bytes,chars,_expected_text.length())
 
 func _publish_pcm() -> void:
 	if _blocked or not early_stream:return
@@ -498,6 +527,7 @@ func observed_api_metadata() -> Dictionary:
 
 func _reset_output(text: String) -> void:
 	_utterance_epoch+=1
+	_last_checkpoint_chars=0;_last_checkpoint_offset=0
 	_expected_text=text
 	_expected_at=Time.get_ticks_msec()
 	_transcript=""

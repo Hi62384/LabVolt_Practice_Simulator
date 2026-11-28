@@ -428,7 +428,12 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	session.early_stream=bool(delivery.get("early_stream",false)) and chunk_callback.is_valid() and use_pool
 	var pcm_callback:=func(offset: int,pcm: PackedByteArray):
 		if not _cancelled_requests.has(id) and not _guard_cancelled(_request_guard(draft)) and chunk_callback.is_valid():chunk_callback.call(offset,pcm)
-	if session.early_stream:session.verified_pcm.connect(pcm_callback)
+	var timing_callback: Callable=delivery.get("_timing_ready",Callable())
+	var checkpoint_callback:=func(offset: int,chars: int,total: int):
+		if not _cancelled_requests.has(id) and not _guard_cancelled(_request_guard(draft)) and timing_callback.is_valid():timing_callback.call(offset,chars,total)
+	if session.early_stream:
+		session.verified_pcm.connect(pcm_callback)
+		session.transcript_checkpoint.connect(checkpoint_callback)
 	var started:=Time.get_ticks_msec()
 	var begun: Dictionary=session.reuse(text,str(delivery.get("instructions","")),id) if reused else session.begin(choice,voice,voice_type,str(access.key),str(delivery.get("instructions","")),[],text,_test_voice_base,id)
 	if not begun.ok:
@@ -476,6 +481,7 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	if is_instance_valid(session):
 		session.speech_completed.disconnect(completion)
 		if session.verified_pcm.is_connected(pcm_callback):session.verified_pcm.disconnect(pcm_callback)
+		if session.transcript_checkpoint.is_connected(checkpoint_callback):session.transcript_checkpoint.disconnect(checkpoint_callback)
 		if use_pool and result.get("ok",false) and session.can_reuse() and epoch==_connection_epoch:
 			session.process_mode=Node.PROCESS_MODE_ALWAYS
 			_keep_idle_voice(pool_key,session)

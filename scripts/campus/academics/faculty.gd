@@ -143,6 +143,7 @@ func build(owner: Node) -> void:
  speech_synth=SpeechSynth.new();speech_synth.name="TeacherSpeechSynth";add_child(speech_synth)
  speech_synth.completed.connect(_speech_completed)
  speech_synth.pcm_ready.connect(_speech_pcm_ready)
+ speech_synth.timing_ready.connect(_speech_timing_ready)
  speech_synth.segment_completed.connect(_speech_segment_completed)
  speech_synth.configure_provider(game.host_openai)
  shared_microphone=preload("res://scripts/campus/voice/microphone_capture.gd").shared(self)
@@ -2703,7 +2704,7 @@ func _mark_character_response_ready(result: Dictionary,timing: Dictionary) -> vo
  if prepared.get("extra",{}).get("_timing") is Dictionary:
   prepared.extra._timing.host_text_ready_ms=Time.get_ticks_msec()
   var interpretation: Dictionary=result.get("turn",{}).get("interpretation",{})
-  prepared.extra._timing.stream_safe=str(prepared.activity.get("phase",""))!="assignment" and str(interpretation.get("question_kind","")) in ["casual","opinion"] and str(interpretation.get("domain","")) in ["","conversation","social","personal","general"] and str(interpretation.get("event","")) not in ["hazard","threat","help"] and not bool(prepared.extra.get("official_communication",false))
+  prepared.extra._timing.stream_safe=str(prepared.activity.get("phase",""))!="assignment" and str(interpretation.get("question_kind","")) in ["casual","opinion","personal_experience","biography"] and str(interpretation.get("domain","")) not in ["math","electronics","physics","chemistry","engineering","technical","assessment","safety"] and str(interpretation.get("event","")) not in ["hazard","threat","help"] and not bool(prepared.extra.get("official_communication",false))
   timing.merge(prepared.extra._timing,true)
 
 func _track_character_audio(room: String,serial: int,event_id: String,timing: Dictionary) -> void:
@@ -2957,6 +2958,17 @@ func _speech_pcm_ready(channel: String,serial: int,offset: int,pcm: PackedByteAr
   else:
    route.live_departed.append(int(peer))
    if game.session.online and game.session.peer_connected_now(int(peer)):_voice_cancel.rpc_id(int(peer),channel,serial)
+
+func _speech_timing_ready(channel: String,serial: int,offset: int,chars: int,total: int) -> void:
+ var route: Dictionary=speech_routes.get(_voice_key(channel,serial),{})
+ if not _speech_route_current(channel,serial,route):return
+ if bool(route.get("live_local",false)):speech_player.add_live_checkpoint(channel,serial,offset,chars,total)
+ for peer in route.get("live_peers",[]):
+  if int(peer) not in route.get("live_departed",[]) and _speech_route_recipient(int(peer),route):_voice_live_checkpoint.rpc_id(int(peer),channel,serial,offset,chars,total)
+
+@rpc("authority","call_remote","reliable")
+func _voice_live_checkpoint(channel: String,serial: int,offset: int,chars: int,total: int) -> void:
+ if pending_voice.has(_voice_key(channel,serial)):speech_player.add_live_checkpoint(channel,serial,offset,chars,total)
 
 @rpc("authority","call_remote","reliable")
 func _voice_live_pcm(channel: String,serial: int,offset: int,pcm: PackedByteArray,delivery: Dictionary) -> void:
