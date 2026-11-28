@@ -1908,7 +1908,7 @@ func _answer_classmate_inner(entry: Dictionary) -> void:
   if accepted:game.lecture_classes._publish()
  var result:=await character_interaction.generate(client,prepared)
  var valid: bool=not result.get("cancelled",false) and bool(extra._valid.call())
- if valid:_mark_character_response_ready(result)
+ if valid:_mark_character_response_ready(result,timing)
  character_interaction.record(result,valid)
  if not valid:return
  if result.silent:
@@ -2133,7 +2133,7 @@ func _answer_question_inner(peer: int,room: String,id: String,class_id: String,q
   if not applied:
    result.line="";result.source="technical_unavailable";result.technical_status="The display did not accept that change."
  if current_class.has("visual_playback"):game.lecture_classes._publish()
- _mark_character_response_ready(result)
+ _mark_character_response_ready(result,timing)
  character_interaction.record(result,true)
  if not bool(prepared.extra.get("executed_action",{}).get("accepted",prepared.extra.get("executed_action",{}).get("succeeded",false))) and str(turn.get("pose","")) in CharacterMotion.POSES:
   _character_gesture(room,model,str(result.emotion),false,str(turn.pose))
@@ -2698,12 +2698,13 @@ func _prefetch_character_sentence(event_id: String,index: int,text: String,prepa
  var delivery:=Characters.speech(prepared.person,str(game.host_openai.tts_model),3,mood,affect)
  if delivery.get("ok",false):speech_synth.prefetch_sentence(event_id,index,text,delivery,guard)
 
-func _mark_character_response_ready(result: Dictionary) -> void:
+func _mark_character_response_ready(result: Dictionary,timing: Dictionary) -> void:
  var prepared: Dictionary=result.get("prepared",{})
  if prepared.get("extra",{}).get("_timing") is Dictionary:
   prepared.extra._timing.host_text_ready_ms=Time.get_ticks_msec()
   var interpretation: Dictionary=result.get("turn",{}).get("interpretation",{})
   prepared.extra._timing.stream_safe=str(prepared.activity.get("phase",""))!="assignment" and str(interpretation.get("question_kind","")) in ["casual","opinion"] and str(interpretation.get("domain","")) in ["","conversation","social","personal","general"] and str(interpretation.get("event","")) not in ["hazard","threat","help"] and not bool(prepared.extra.get("official_communication",false))
+  timing.merge(prepared.extra._timing,true)
 
 func _track_character_audio(room: String,serial: int,event_id: String,timing: Dictionary) -> void:
  if not multiplayer.is_server() or event_id.is_empty() or not timing.has("host_received_ms"):return
@@ -2942,7 +2943,7 @@ func _speech_pcm_ready(channel: String,serial: int,offset: int,pcm: PackedByteAr
  if pcm.is_empty() or pcm.size()>12000 or pcm.size()%2!=0:return
  if offset==0:
   _character_audio_ready(channel,serial)
-  route.live_peers=[]
+  route.live_peers=[];route.live_departed=[]
   for peer in route.get("peers",[]):
    if _speech_route_recipient(int(peer),route):route.live_peers.append(int(peer))
   route.live_local=speech_player.append_live_pcm(channel,serial,offset,pcm,route.get("live_delivery",{}))
@@ -2951,8 +2952,11 @@ func _speech_pcm_ready(channel: String,serial: int,offset: int,pcm: PackedByteAr
    speech_player.finish_live_pcm(channel,serial,false)
    route.live_local=false;route.live_local_failed=true
  for peer in route.get("live_peers",[]):
+  if int(peer) in route.get("live_departed",[]):continue
   if _speech_route_recipient(int(peer),route):_voice_live_pcm.rpc_id(int(peer),channel,serial,offset,pcm,route.get("live_delivery",{}))
-  elif game.session.online and game.session.peer_connected_now(int(peer)):_voice_cancel.rpc_id(int(peer),channel,serial)
+  else:
+   route.live_departed.append(int(peer))
+   if game.session.online and game.session.peer_connected_now(int(peer)):_voice_cancel.rpc_id(int(peer),channel,serial)
 
 @rpc("authority","call_remote","reliable")
 func _voice_live_pcm(channel: String,serial: int,offset: int,pcm: PackedByteArray,delivery: Dictionary) -> void:
@@ -2960,10 +2964,10 @@ func _voice_live_pcm(channel: String,serial: int,offset: int,pcm: PackedByteArra
  speech_player.append_live_pcm(channel,serial,offset,pcm,delivery)
 
 @rpc("authority","call_remote","reliable")
-func _voice_live_end(channel: String,serial: int,success: bool) -> void:
+func _voice_live_end(channel: String,serial: int,success: bool,total_bytes: int=0) -> void:
  if not pending_voice.has(_voice_key(channel,serial)):return
  pending_voice.erase(_voice_key(channel,serial))
- if not speech_player.finish_live_pcm(channel,serial,success):
+ if not speech_player.finish_live_pcm(channel,serial,success,total_bytes):
   speech_player.fail_stream(channel,serial,"Speech unavailable; written dialogue preserved.")
 
 func _speech_completed(channel: String,serial: int,key: String,stream: AudioStreamWAV,status: String) -> void:
@@ -3001,14 +3005,14 @@ func _speech_completed(channel: String,serial: int,key: String,stream: AudioStre
   route.generation_complete=true
   if int(route.get("sending",0))==0:speech_routes.erase(token)
   return
- if route.get("live_local",false):speech_player.finish_live_pcm(channel,serial,true)
+ if route.get("live_local",false):speech_player.finish_live_pcm(channel,serial,true,stream.data.size())
  elif not route.get("live_local_failed",false):
   _character_audio_ready(channel,serial)
   speech_player.deliver_stream(channel,serial,stream)
  var available: Array=[]
  for peer in recipients:
   if not _speech_route_recipient(int(peer),route):continue
-  if int(peer) in route.get("live_peers",[]):_voice_live_end.rpc_id(int(peer),channel,serial,true)
+  if int(peer) in route.get("live_peers",[]):_voice_live_end.rpc_id(int(peer),channel,serial,true,stream.data.size())
   else:available.append(int(peer))
  route.sending=available.size()
  if available.is_empty():speech_routes.erase(token);return

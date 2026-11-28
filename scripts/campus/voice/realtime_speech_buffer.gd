@@ -14,14 +14,22 @@ var played_frames:=0
 var capacity:=0
 var underruns:=0
 var drained_at:=-1
+var last_packet_at:=-1
+var initial_frames:=INITIAL_FRAMES
+var max_packet_gap_ms:=0
 
 func append(offset: int,chunk: PackedByteArray) -> bool:
 	if finished or offset!=pcm.size() or chunk.is_empty() or chunk.size()%2!=0 or pcm.size()+chunk.size()>MAX_BYTES:return false
-	if received_at<0:received_at=Time.get_ticks_msec()
+	var now:=Time.get_ticks_msec()
+	if received_at<0:received_at=now
+	if last_packet_at>=0:
+		max_packet_gap_ms=maxi(max_packet_gap_ms,now-last_packet_at)
+		if playback_at<0:initial_frames=clampi(maxi(INITIAL_FRAMES,int((max_packet_gap_ms+100)*RATE/1000.)),INITIAL_FRAMES,9600)
+	last_packet_at=now
 	pcm.append_array(chunk)
 	return true
 
-func ready() -> bool:return pcm.size()>=INITIAL_FRAMES*2 or (finished and not pcm.is_empty())
+func ready() -> bool:return pcm.size()>=initial_frames*2 or (finished and not pcm.is_empty())
 
 func create_stream() -> AudioStreamGenerator:
 	var stream:=AudioStreamGenerator.new()
@@ -32,10 +40,10 @@ func create_stream() -> AudioStreamGenerator:
 func pump(player: AudioStreamPlayer3D) -> bool:
 	var playback:=player.get_stream_playback() as AudioStreamGeneratorPlayback
 	if playback==null:return false
-	var free:=playback.get_frames_available()
-	if capacity==0:capacity=free
-	played_frames=maxi(played_frames,sent_frames-maxi(0,capacity-free))
-	var count:=mini(free,pcm.size()/2-sent_frames)
+	var available_frames:=playback.get_frames_available()
+	if capacity==0:capacity=available_frames
+	played_frames=maxi(played_frames,sent_frames-maxi(0,capacity-available_frames))
+	var count:=mini(available_frames,pcm.size()/2-sent_frames)
 	if count>0:
 		var bytes:=pcm.slice(sent_frames*2,(sent_frames+count)*2)
 		var frames: PackedVector2Array
@@ -57,6 +65,7 @@ func pump(player: AudioStreamPlayer3D) -> bool:
 	return false
 
 func level() -> float:
+	if playback_at<0 or played_frames>=sent_frames:return 0.
 	var offset:=maxi(0,played_frames-240)*2
 	var peak:=0.
 	for at in range(offset,mini(pcm.size()-1,offset+960),16):
@@ -66,3 +75,6 @@ func level() -> float:
 func progress(estimated_seconds: float) -> float:
 	var duration:=float(pcm.size())/(RATE*2) if finished else maxf(estimated_seconds,float(pcm.size())/(RATE*2))
 	return clampf(float(played_frames)/RATE/maxf(.1,duration),0.,.9999)
+
+func diagnostics() -> Dictionary:
+	return {"received_bytes":pcm.size(),"frames_submitted":sent_frames,"estimated_frames_consumed":played_frames,"initial_buffer_target_ms":float(initial_frames)*1000./RATE,"first_packet_to_submission_ms":playback_at-received_at if playback_at>=0 and received_at>=0 else -1,"max_packet_gap_ms":max_packet_gap_ms,"generator_skip_count":underruns,"estimated_output_latency_ms":AudioServer.get_output_latency()*1000.,"generation_complete":finished}

@@ -10,6 +10,7 @@ const Face=preload("res://scripts/campus/academics/character_face.gd")
 const Mixer=preload("res://scripts/campus/voice/audio_voice_mixer.gd")
 const LiveBuffer=preload("res://scripts/campus/voice/realtime_speech_buffer.gd")
 var live_buffers: Dictionary={}
+var recent_streaming_diagnostics: Array[Dictionary]=[]
 const MAX_LIVE_BUFFERS:=8
 const MAX_QUEUED:=24
 const MAX_TEXT:=Speech.MAX_TEXT
@@ -44,7 +45,11 @@ func configure(speech: bool,captions: bool) -> void:
 	var enabling_captions:=not subtitles_enabled and captions
 	speech_enabled=speech;subtitles_enabled=captions
 	if disabling:
+		for key in live_buffers.keys():
+			var separator:=str(key).rfind("|")
+			cancel_utterance(str(key).substr(0,separator),int(str(key).substr(separator+1)))
 		for channel in active.keys():
+			if not active.has(channel):continue
 			var item: Dictionary=active[channel].item
 			if item.has("live_buffer"):
 				cancel_utterance(channel,int(item.serial));continue
@@ -337,11 +342,11 @@ func append_live_pcm(channel: String,serial: int,offset: int,pcm: PackedByteArra
 	if int(presentations.get(channel,{}).get("serial",-1))==serial and not active.has(channel) and item.live_buffer.ready():_start(channel,item)
 	return true
 
-func finish_live_pcm(channel: String,serial: int,success: bool) -> bool:
+func finish_live_pcm(channel: String,serial: int,success: bool,total_bytes: int=0) -> bool:
 	if not has_pending(channel,serial):return false
 	var item: Dictionary=awaiting[channel].items[serial]
 	if not item.has("live_buffer"):return false
-	if not success:
+	if not success or total_bytes<=0 or item.live_buffer.pcm.size()!=total_bytes:
 		cancel_utterance(channel,serial)
 		return true
 	item.live_buffer.finished=true
@@ -448,6 +453,7 @@ func fail_stream(channel: String,serial: int,_reason: String="unavailable") -> b
 	return true
 
 func _erase_pending(channel: String,serial: int) -> void:
+	live_buffers.erase(channel+"|"+str(serial))
 	if not awaiting.has(channel):return
 	awaiting[channel].items.erase(serial)
 	if awaiting[channel].items.is_empty():awaiting.erase(channel)
@@ -552,6 +558,11 @@ static func _pcm_level(stream: AudioStreamWAV,seconds: float) -> float:
 func _finished(channel: String,serial: int,delivered: bool=true) -> void:
 	if not active.has(channel) or int(active[channel].serial)!=serial:return
 	var item: Dictionary=active[channel].item
+	if item.has("live_buffer"):
+		var measurement: Dictionary=item.live_buffer.diagnostics()
+		measurement.merge({"channel":channel,"serial":serial,"delivered":delivered})
+		recent_streaming_diagnostics.append(measurement)
+		while recent_streaming_diagnostics.size()>32:recent_streaming_diagnostics.pop_front()
 	live_buffers.erase(channel+"|"+str(serial))
 	_stop(channel);_clear_subtitle(channel)
 	if not delivered:item.segment_failure=true

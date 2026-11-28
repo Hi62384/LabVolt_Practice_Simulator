@@ -48,6 +48,12 @@ func _run() -> void:
 	check(reused.get("ok",false) and reused.get("timing",{}).get("connection_reused",false),"Compatible voice reuses a warm Realtime connection")
 	if reused.get("ok",false):check(reused.stream.data.size()==9600,"Stale response audio is discarded")
 	check(client.voice_diagnostics().idle_pool_size<=3,"Idle pool is bounded")
+	var pcm_events: Array[Dictionary]=[]
+	var streamed: Dictionary=await client.speak("Streaming fixture delivers early audio.",{},"ash",{"early_stream":true,"_pcm_ready":func(offset: int,pcm: PackedByteArray):pcm_events.append({"offset":offset,"size":pcm.size(),"at":Time.get_ticks_msec()})})
+	check(streamed.get("ok",false) and pcm_events.size()==2,"Realtime PCM arrives incrementally in two packets")
+	if pcm_events.size()==2:
+		check(pcm_events[0].offset==0 and pcm_events[1].offset==4800 and pcm_events[0].size+pcm_events[1].size==9600,"Streaming packets preserve exact byte order and total length")
+		check(Time.get_ticks_msec()-int(pcm_events[0].at)>=150,"First PCM arrives before terminal provider event")
 	var wrong: Dictionary=await client.speak("Mismatch this line.",{},"ash")
 	check(not wrong.get("ok",true) and not wrong.has("stream"),"mismatched generated speech never returned")
 	check(not wrong.get("retryable",true),"A billable transcript mismatch cannot automatically regenerate the same speech")

@@ -400,7 +400,7 @@ func _render_voice(text: String,choice: String,voice: Variant,voice_type: String
 	if not await _acquire_lane("speech",id,_request_guard(draft)):return _queue_error(id)
 	var pool_key:=JSON.stringify([choice,voice_type,voice,_account_cache_id(str(access.key)),_test_voice_base,_connection_epoch]).sha256_text()
 	var use_pool:=Models.verified_family(choice) in Models.REALTIME and voice_type=="preset"
-	var session: Node=_take_idle_voice(pool_key) if use_pool else null
+	var session: VoiceSession=_take_idle_voice(pool_key) as VoiceSession if use_pool else null
 	var reused:=is_instance_valid(session)
 	if not reused:
 		session=VoiceSession.new()

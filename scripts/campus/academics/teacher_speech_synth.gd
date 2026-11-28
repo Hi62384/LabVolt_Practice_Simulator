@@ -277,7 +277,7 @@ func _run_cloud(job: Dictionary) -> void:
 		_complete_cloud(job,stream,"ok")
 	else:
 		var reason:=str(result.get("error","speech unavailable"))
-		var retryable:=_safe_to_retry(result)
+		var retryable:=_safe_to_retry(result) and not bool(job.get("published_pcm",false))
 		if retryable and int(job.attempts)<MAX_ATTEMPTS and Time.get_ticks_msec()-int(job.created)<CLOUD_TIMEOUT_MS and cloud_keys.has(job.key):
 			var retry_after:=clampi(int(result.get("retry_after_ms",0)),0,15000)
 			job.ready_at=Time.get_ticks_msec()+maxi(retry_after,500*(1<<int(job.attempts)))
@@ -295,6 +295,7 @@ static func _safe_to_retry(result: Dictionary) -> bool:
 
 func _cloud_pcm_ready(offset: int,pcm: PackedByteArray,job: Dictionary) -> void:
 	if not is_inside_tree() or int(job.epoch)!=session_epoch or not cloud_active.has(job.request_id) or bool(job.get("delivered",false)):return
+	job.published_pcm=true
 	for listener: Dictionary in cloud_keys.get(job.key,[]):
 		pcm_ready.emit(str(listener.room),int(listener.serial),offset,pcm)
 

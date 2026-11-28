@@ -116,7 +116,13 @@ async def voice_ws(request):
                 spoken="Incorrect answer." if "Mismatch" in text else text
                 encoded=base64.b64encode(bytes(len(PCM))).decode() if "Silent audio" in text else ENCODED
                 await ws.send_json({"type":"response.output_audio.delta","response_id":"stale-response","delta":ENCODED})
-                await ws.send_json({"type":"response.output_audio.delta","response_id":response_id,"delta":encoded})
+                if text.startswith("Streaming fixture"):
+                    await ws.send_json({"type":"response.output_audio.delta","response_id":response_id,"delta":base64.b64encode(PCM[:4800]).decode()})
+                    await ws.send_json({"type":"response.output_audio_transcript.delta","response_id":response_id,"delta":"Streaming fixture"})
+                    await asyncio.sleep(.2)
+                    await ws.send_json({"type":"response.output_audio.delta","response_id":response_id,"delta":base64.b64encode(PCM[4800:]).decode()})
+                else:
+                    await ws.send_json({"type":"response.output_audio.delta","response_id":response_id,"delta":encoded})
                 if "Missing transcript" not in text:
                     await ws.send_json({"type":"response.output_audio_transcript.done","response_id":response_id,"transcript":spoken})
                 await ws.send_json({"type":"response.done","response":{"id":response_id,"status":"completed","usage":USAGE}})
