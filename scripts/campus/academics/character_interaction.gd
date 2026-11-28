@@ -305,9 +305,9 @@ func generate(client: Node, prepared: Dictionary) -> Dictionary:
 				if not _current(prepared):return _cancel_result(result,prepared)
 				if not review.get("ok",false):
 					valid=false;biography_error=str(review.get("reason","Personal history could not be verified."));result.fallback_reason="biography_consistency_review"
-		if valid and _repeated(candidate, prepared.context.get("prior_turns", [])):
-			valid = false
-			result.fallback_reason = "repeated_reply"
+		# Repeated wording is not a delivery failure. A player may deliberately
+		# repeat a question, and fixed facts or brief acknowledgements can have
+		# exactly the same answer. Request-token deduplication remains independent.
 		if not valid:
 			result.fallback_reason = "dialogue_validation_failed" if str(result.fallback_reason).is_empty() else result.fallback_reason
 			instructions += " Your previous response failed validation. Return complete in-character JSON with a fresh, complete speech response. Keep to the supplied social and knowledge restrictions."

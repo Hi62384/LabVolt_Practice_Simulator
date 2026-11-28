@@ -83,6 +83,9 @@ func _capture_audio() -> void:
  pass
 
 func _on_microphone_packet(packet: PackedByteArray, activity: Dictionary) -> void:
+ # Signals are delivered even to paused nodes; the local settings meter must
+ # never send a microphone sample to proximity chat or classroom observers.
+ if get_tree().paused or not is_instance_valid(game) or game.front.screen.visible:return
  packet_activity=activity
  if packet.size()!=int(SAMPLE_RATE*PACKET_SECONDS)*2:return
  if not talking:return

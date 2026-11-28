@@ -19,6 +19,7 @@ const MAX_TRANSCRIPT_CHARS:=24000
 const START_TIMEOUT_MS:=20000
 const CLOSE_TIMEOUT_MS:=5000
 const SILENCE_MS:=1100
+const LIVE_SPEECH_START_TIMEOUT_MS:=20000
 const MAX_PACKET_BYTES:=1024*1024
 const MAX_APPEND_BYTES:=480 # A UTF-8 byte ceiling also bounds byte-token count below 500.
 
@@ -59,6 +60,7 @@ var _response_cancel_sent:=false
 var _voice: Variant=""
 var _voice_type:="preset"
 var _server_ready:=false
+var _live_ready_at:=-1
 var _input_muted:=false
 var _blocked:=false
 var _idle_timeout_ms:=180000
@@ -220,6 +222,7 @@ func receive_event(event: Dictionary) -> void:
 			if _live and kind!="session.started":return
 			_server_ready=true
 			state="ready"
+			_live_ready_at=Time.get_ticks_msec() if _live else -1
 			session_id=str(event.get("session",{}).get("id",""))
 			session_ready.emit()
 			if not _live and _render_only:_request_realtime_line()
@@ -251,10 +254,16 @@ func receive_event(event: Dictionary) -> void:
 			var chunk:=Marshalls.base64_to_raw(encoded)
 			if chunk.is_empty() or chunk.size()%2 or _pcm.size()+chunk.size()>MAX_AUDIO_BYTES:
 				_fail(_error("The voice service returned invalid or oversized PCM audio."));return
+			var signal_present:=chunk.count(0)!=chunk.size()
+			# Live emits continuous PCM, including digital silence before it
+			# starts speaking. Retain only a short leading-silence pre-roll.
 			_pcm.append_array(chunk)
+			if _live and not _received_signal and not signal_present:
+				var preroll_bytes:=int(sample_rate/4)*2
+				if _pcm.size()>preroll_bytes:_pcm=_pcm.slice(_pcm.size()-preroll_bytes)
 			_last_audio_at=Time.get_ticks_msec()
 			if _first_audio_at==0:_first_audio_at=_last_audio_at
-			if not _received_signal and chunk.count(0)!=chunk.size():_received_signal=true
+			if signal_present:_received_signal=true
 			if _has_voice(chunk):_last_voice_at=_last_audio_at
 		"response.output_audio_transcript.delta":
 			if _blocked:return
@@ -313,7 +322,19 @@ func close_session(reason: String="finished") -> void:
 		_finish_close(reason,usage_observed if not _live else false)
 
 func _try_finish_live(now: int) -> void:
-	if _expected_text.is_empty() or _pcm.is_empty():return
+	if _expected_text.is_empty() or _live_ready_at<0:return
+	# Zero timestamps are not a period of trailing silence. Until real output
+	# starts, measure the deadline from THIS session's readiness, not game uptime.
+	# A transcript may precede its audio, and silent PCM may arrive first.
+	if not _received_signal or _last_transcript_at==0:
+		if now-_live_ready_at<LIVE_SPEECH_START_TIMEOUT_MS:return
+		# If real speech is still arriving, let the transcript catch up.
+		if _received_signal and _last_voice_at>0 and now-_last_voice_at<3500:return
+		_validate_output()
+		if _render_only:close_session("speech_start_timeout")
+		return
+	if _last_voice_at==0 and not transcript_matches(_expected_text,_transcript):
+		if now-_live_ready_at<LIVE_SPEECH_START_TIMEOUT_MS:return
 	if now-_last_voice_at<SILENCE_MS or now-_last_transcript_at<SILENCE_MS:return
 	if not transcript_matches(_expected_text,_transcript):
 		if now-maxi(_last_voice_at,_last_transcript_at)<3500:return
@@ -324,8 +345,9 @@ func _validate_output() -> void:
 	if _expected_text.is_empty() or _blocked:return
 	if _pcm.is_empty() or not _received_signal or not transcript_matches(_expected_text,_transcript):
 		var silent:=not _pcm.is_empty() and not _received_signal
-		var error:=_error("The voice service returned silent audio. The written dialogue is still available." if silent else "Speech validation could not confirm the supplied words and values. The written dialogue is still available.")
-		error.code="speech_silent_audio" if silent else "speech_transcript_mismatch"
+		var missing:=_pcm.is_empty()
+		var error:=_error("The voice service returned no audio before its deadline. The written dialogue is still available." if missing else "The voice service returned silent audio. The written dialogue is still available." if silent else "Speech validation could not confirm the supplied words and values. The written dialogue is still available.")
+		error.code="speech_no_audio" if missing else "speech_silent_audio" if silent else "speech_transcript_mismatch"
 		if _render_only:_complete_render(error)
 		else:failed.emit(error)
 		_expected_text="";_pcm.clear();_transcript=""

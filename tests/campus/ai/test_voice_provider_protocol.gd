@@ -82,6 +82,32 @@ func _run() -> void:
 	check(close_canceled.get("canceled",false) and not close_canceled.has("stream"),"Cancellation during finalization cannot resurrect a finished but canceled clip")
 	var retired: Dictionary=client.create_live_conversation({},"ash")
 	check(not retired.get("ok",true) and retired.get("code")=="native_live_retired","native Live conversation cannot be reactivated")
+	# A session opened well after game boot must not treat its first silent
+	# output packet as the end of a spoken turn. Test both delayed speech
+	# and genuinely silent output using production event and validation code.
+	var delayed:=Session.new()
+	delayed._live=true;delayed._render_only=true;delayed.state="ready"
+	delayed._expected_text="Hello there.";delayed._live_ready_at=10000
+	var initial_silence:=PackedByteArray();initial_silence.resize(4800)
+	delayed.receive_event({"type":"session.output_audio.delta","delta":Marshalls.raw_to_base64(initial_silence)})
+	delayed._try_finish_live(14000)
+	check(not delayed._render_finished,"Initial Live silence must not finish a render on a long-running game")
+	delayed.receive_event({"type":"session.output_transcript.delta","delta":"Hello there."})
+	delayed._last_transcript_at=14500
+	delayed._try_finish_live(16000)
+	check(not delayed._render_finished,"Transcript before actual audio must still wait for speech")
+	delayed.receive_event({"type":"session.output_audio.delta","delta":Marshalls.raw_to_base64(PackedByteArray([100,0,100,0]))})
+	delayed._last_voice_at=16000
+	delayed._try_finish_live(17200)
+	check(delayed._render_result.get("ok",false),"Delayed non-silent matching output validates after the quiet tail")
+	delayed.free()
+	var silent_live:=Session.new()
+	silent_live._live=true;silent_live._render_only=true;silent_live.state="ready"
+	silent_live._expected_text="Hello there.";silent_live._live_ready_at=10000
+	silent_live.receive_event({"type":"session.output_audio.delta","delta":Marshalls.raw_to_base64(initial_silence)})
+	silent_live._try_finish_live(10000+Session.LIVE_SPEECH_START_TIMEOUT_MS)
+	check(silent_live._render_result.get("code","")=="speech_silent_audio","A genuinely silent Live render still fails at a bounded startup deadline")
+	silent_live.free()
 	var speech_only:=Session.new()
 	check(not speech_only.begin("gpt-live-1.1","ash","preset","sk-fixture-12345678901234567890","",[],"").get("ok",true),"transport refuses sessions without a supplied speech line")
 	check(not speech_only.append_audio(PackedByteArray([1,2])),"speech transport never accepts player microphone audio")

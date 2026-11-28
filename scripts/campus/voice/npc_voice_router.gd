@@ -29,7 +29,7 @@ func build(owner: Node, owner_faculty: Node) -> void:
  game.session.leaving.connect(clear_session)
 
 func _submission_permitted() -> bool:
- if not is_instance_valid(game):return false
+ if not is_instance_valid(game) or get_tree().paused:return false
  var prefs: Dictionary=game.client_preferences.values
  if not prefs.get("teacher_automatic_conversation",false) or prefs.get("microphone_muted",false) or prefs.get("microphone_mode","push_to_talk")=="muted":return false
  if not game.front.in_game or game.front.screen.visible or not game.player.enabled or game.player.chat_typing or not get_window().has_focus():return false

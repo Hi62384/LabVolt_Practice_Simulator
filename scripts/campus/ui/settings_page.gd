@@ -496,6 +496,24 @@ func _clear(parent: Node) -> void:
 		parent.remove_child(child)
 		child.queue_free()
 
+func _refresh_input_devices(pick: OptionButton,devices: Array,note: Label) -> void:
+	if not is_instance_valid(pick) or not is_instance_valid(note):return
+	var selected:=str(prefs.values.microphone_device)
+	devices.clear()
+	devices.append("Default")
+	for device in AudioServer.get_input_device_list():
+		if not str(device).is_empty() and device not in devices:devices.append(str(device))
+	var count:=devices.size()-1
+	var missing:=selected not in devices
+	if missing:devices.append(selected)
+	pick.clear()
+	for index in devices.size():
+		var device:=str(devices[index])
+		pick.add_item(device+" (unavailable)" if missing and device==selected else device)
+		if missing and device==selected:pick.set_item_disabled(index,true)
+	pick.select(devices.find(selected))
+	note.text="%d named input device(s) detected · %s. Refresh after connecting or enabling a microphone in Windows Sound settings."%[count,AudioServer.get_driver_name()]
+
 func _audio_controls() -> void:
 	_label(body,"Output",18)
 	for spec in [["Master","master"],["NPC speech","npc_speech"],["Human voice chat","human_voice"],["Phone calls","phone_calls"],["Sound effects","effects"],["Environmental ambience","ambience"],["UI sounds","interface"]]:
@@ -503,9 +521,16 @@ func _audio_controls() -> void:
 	var outputs:=Array(AudioServer.get_output_device_list())
 	_choice("Output device",outputs,maxi(0,outputs.find(prefs.values.output_device)),func(index):_preference(str(outputs[index]),"output_device"))
 	_label(body,"Microphone",18)
-	var devices:=Array(AudioServer.get_input_device_list())
-	if str(prefs.values.microphone_device) not in devices:devices.append(str(prefs.values.microphone_device))
-	_choice("Input device",devices,maxi(0,devices.find(prefs.values.microphone_device)),func(index):_preference(str(devices[index]),"microphone_device"))
+	# Re-enumerate instead of keeping a stale list for the whole settings visit.
+	# The engine exposes currently usable device names, not every disabled or
+	# unplugged Windows endpoint. Preserve a missing choice without selecting it.
+	var devices: Array=[]
+	var input_pick:=_choice("Input device",[], -1,func(index):
+		if index>=0 and index<devices.size():_preference(str(devices[index]),"microphone_device"))
+	var device_note:=_label(body,"",14);device_note.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
+	var refresh_devices:=func():_refresh_input_devices(input_pick,devices,device_note)
+	refresh_devices.call()
+	_button(body,"Refresh input devices","settings",refresh_devices)
 	var modes:=["push_to_talk","voice_activation","manual","muted"]
 	_choice("Microphone mode",["Push-to-talk (hold your voice key)","Voice activation (open microphone)","Manual (record in character interaction)","Muted"],modes.find(prefs.values.microphone_mode),func(index):_preference(modes[index],"microphone_mode"))
 	_toggle("Mute microphone",prefs.values.microphone_muted,_preference.bind("microphone_muted"))

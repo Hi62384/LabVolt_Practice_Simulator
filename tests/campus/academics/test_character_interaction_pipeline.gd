@@ -165,6 +165,24 @@ func _run() -> void:
 	check(rejected_visual.source=="technical_unavailable" and rejected_visual.fallback_reason=="biography_update_invalid","A conflicting visual biography is rejected before delivery")
 	check(brain.character_biography(bro).get("childhood.first_instrument","")==biography_line,"Rejected visual proposals leave cross-player biography unchanged")
 
+	# A legitimate repeated player question must not trigger a second model
+	# generation or an unavailable response merely because speech is identical.
+	client.interpretation={"event":"chat","tone":"neutral","severity":0.0,"meaning":"A normal social question.","domain":"conversation","difficulty":0.0,"assessment_request":"social","requested_action":"","memories":[]}
+	client.reply_objects.clear()
+	client.replies.assign(["All right.","All right."])
+	var repeat_person:=Profiles.teacher("mr_bro")
+	var first_repeat:=await pipeline.prepare(client,repeat_person,"repeat-student",activity,"Is that okay?")
+	var first_answer:=await pipeline.generate(client,first_repeat)
+	check(first_answer.source=="ai" and first_answer.line=="All right.","Original ordinary question returns a valid answer")
+	pipeline.record(first_answer)
+	var repeated_question:=await pipeline.prepare(client,repeat_person,"repeat-student",activity,"Is that okay?")
+	# Explicitly ensure the current candidate equals recent retrieved speech.
+	repeated_question.context.prior_turns=[{"student":"Is that okay?","teacher":"All right."}]
+	var before_repeat:=client.generation_count
+	var repeated_answer:=await pipeline.generate(client,repeated_question)
+	check(repeated_answer.source=="ai" and repeated_answer.line=="All right." and client.generation_count==before_repeat,"Identical valid reply is delivered without a paid regeneration")
+	pipeline.record(repeated_answer)
+
 	var long_line:="A complete thought about the experiment. ".repeat(25).strip_edges()
 	check(Speech.complete(long_line)==long_line and long_line.length()>350,"Long complete response is preserved beyond old limit")
 	check(" ".join(Speech.pages(long_line))==long_line,"Subtitle pages preserve every sentence")

@@ -1370,6 +1370,7 @@ func _toggle_recording() -> void:
 
 func _manual_capture_packet(pcm: PackedByteArray,_activity: Dictionary) -> void:
  if not recording:return
+ if get_tree().paused or game.front.screen.visible:_cancel_recording();return
  if game.client_preferences.values.get("microphone_muted",false):_cancel_recording();return
  if record_samples.size()+pcm.size()>5760000:_finish_recording.call_deferred();return
  record_samples.append_array(pcm)

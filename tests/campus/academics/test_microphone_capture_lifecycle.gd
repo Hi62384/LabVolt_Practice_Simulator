@@ -23,6 +23,11 @@ func run() -> void:
  device.stream=stream;device.play()
  mic.packet_ready.connect(func(pcm: PackedByteArray,data: Dictionary):packets+=1;pcm_bytes+=pcm.size();peak_rms=maxf(peak_rms,float(data.get("rms",0.0))))
  var generator: AudioStreamGeneratorPlayback=device.get_stream_playback()
+ # Real gameplay settings pause the tree. This synthetic source exercises
+ # the same audio effect and drain while paused (not a physical mic test).
+ paused=true
+ await process_frame
+ assert(mic.can_process() and device.can_process(),"The meter source must remain active while singleplayer is paused")
  for block in 25:
   var frames:=PackedVector2Array();frames.resize(1920)
   for i in frames.size():
@@ -30,7 +35,9 @@ func run() -> void:
    frames[i]=Vector2(value,value)
   generator.push_buffer(frames)
   await create_timer(.04).timeout
- assert(packets>10 and pcm_bytes>6400 and peak_rms>.01,"Actual capture effects must preserve microphone amplitude before monitoring is silenced")
+ assert(packets>10 and pcm_bytes>6400 and peak_rms>.01,"Actual capture effects must preserve microphone amplitude while settings pause gameplay")
+ paused=false
+ await process_frame
  var before:=int(mic.diagnostic.frames_received)
  mic.subscribe("meter_test",false)
  assert(mic.player==device and mic.is_active() and mic.consumers.has("manual_test"))
