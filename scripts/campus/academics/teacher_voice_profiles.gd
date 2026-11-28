@@ -302,7 +302,9 @@ static func _archive_current(key: String) -> void:
 	if active.is_empty() or (active.get("approval_status")!="approved" and active.get("voice_type")=="preset"):return
 	var archives: Dictionary=_state.get_or_add("archived_profiles",{})
 	var versions: Dictionary=archives.get_or_add(key,{})
-	versions[str(active.profile_version)]=active.duplicate(true)
+	# JSON reload represents numeric versions as floats. Canonical archive keys
+	# must always be integer strings or the next save rejects its own archive.
+	versions[str(int(active.profile_version))]=active.duplicate(true)
 
 static func archived_profiles(character_id: String,scope: String="") -> Array:
 	if _load()!=OK:return []
@@ -467,9 +469,11 @@ static func _commit(prior: Dictionary) -> Error:
 
 static func _save() -> Error:
 	if last_error!=OK:return last_error
-	if not _valid_store(_state):last_error=ERR_INVALID_DATA;return last_error
+	# These rejections occur before any write. _commit restores the valid old
+	# state; do not poison that state or block access to existing saved voices.
+	if not _valid_store(_state):return ERR_INVALID_DATA
 	var text:=JSON.stringify(_state,"\t")
-	if text.to_utf8_buffer().size()>MAX_STORE_BYTES:last_error=ERR_OUT_OF_MEMORY;return last_error
+	if text.to_utf8_buffer().size()>MAX_STORE_BYTES:return ERR_OUT_OF_MEMORY
 	var parent:=ProjectSettings.globalize_path(store_path).get_base_dir()
 	var error:=DirAccess.make_dir_recursive_absolute(parent)
 	if error!=OK:last_error=error;return error

@@ -123,8 +123,9 @@ func run() -> void:
 	var tense:=Profiles.speech(chad,"gpt-4o-mini-tts",2,"irritated",{"anger":.8,"embarrassment":.7,"sadness":.2})
 	var subdued:=Profiles.speech(chad,"gpt-4o-mini-tts",2,"sad",{"sadness":.8})
 	assert(tense.voice==subdued.voice and float(tense.speed)>float(subdued.speed))
-	assert("anger 0.8" in tense.instructions and "embarrassment 0.7" in tense.instructions and "dismissive" in tense.instructions)
-	assert("sadness 0.8" in subdued.instructions and tense.instructions!=subdued.instructions)
+	assert("anger 0.8" in tense.instructions and "embarrassment 0.7" in tense.instructions and "arrogant outlook" in tense.instructions)
+	assert("Moderate anger" in tense.instructions and "Embarrassment brings" in tense.instructions,"Mixed affect must reach the actual acting directions")
+	assert("sadness 0.8" in subdued.instructions and "override habitual excitement" in subdued.instructions and tense.instructions!=subdued.instructions)
 	player.clear_session();anchor.queue_free();player.queue_free()
 	await process_frame
 	await process_frame

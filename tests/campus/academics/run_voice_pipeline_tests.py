@@ -72,6 +72,10 @@ def main() -> int:
                             "elapsed_seconds": round(time.monotonic() - began, 3),
                             "warnings": [line for line in output.splitlines() if line.startswith("WARNING:")]})
             print(("FAIL " if failed else "PASS ") + case, flush=True)
+            if failed:
+                # Make actionable errors visible immediately in CI, not only in
+                # a ZIP uploaded after the entire suite finishes.
+                print("\n".join(output.splitlines()[-50:]), flush=True)
     report = {"kind": "deterministic native audio pipeline regression", "live_api": False,
               "microphone_hardware": False, "voice_listening": False, "cases": results}
     (logs / "summary.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

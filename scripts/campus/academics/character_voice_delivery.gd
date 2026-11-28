@@ -123,6 +123,13 @@ static func build(person: Dictionary,model: String,priority: int,mood: String="s
 	var direction_anger:=maxf(float(direction_values.anger),maxf(float(direction_values.irritation)*.72,float(direction_values.frustration)*.8))
 	var direction_sorrow:=maxf(float(direction_values.sadness),float(direction_values.disappointment)*.85)
 	instructions+=_emotional_direction(direction_values,direction_anger,direction_sorrow,float(direction_values.tiredness),restraint,expressiveness)
+	# Keep numeric affect guidance bounded to the primary and two selected
+	# secondary feelings. This exposes the actual blend rather than generic mood labels.
+	var active_feelings: Array[String]=[]
+	if not mood_key.is_empty():active_feelings.append("%s %.1f"%[mood_key,primary_strength])
+	if not audition:
+		for feeling in secondary.slice(0,2):active_feelings.append("%s %.1f"%[feeling,float(values[feeling])])
+	if not active_feelings.is_empty():instructions+=" Active emotional intensities (0–1): "+", ".join(active_feelings)+". "
 	if not audition and not secondary.is_empty():instructions+=" Secondary feelings may color, but never replace, the primary mood. "
 	if _value(traits,"arrogance",0.)>.75:instructions+="Retain the person's arrogant outlook without automatic encouragement. "
 	if _value(traits,"shyness",0.)>.7:instructions+="Retain shyness and ordinary audible speech. "

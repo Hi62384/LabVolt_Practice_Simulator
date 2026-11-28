@@ -2710,7 +2710,7 @@ func _mark_character_response_ready(result: Dictionary,timing: Dictionary) -> vo
  if prepared.get("extra",{}).get("_timing") is Dictionary:
   prepared.extra._timing.host_text_ready_ms=Time.get_ticks_msec()
   var interpretation: Dictionary=result.get("turn",{}).get("interpretation",{})
-  prepared.extra._timing.stream_safe=str(prepared.activity.get("phase",""))!="assignment" and str(interpretation.get("question_kind","")) in ["casual","opinion","personal_experience","biography"] and str(interpretation.get("domain","")) not in ["math","electronics","physics","chemistry","engineering","technical","assessment","safety"] and str(interpretation.get("event","")) not in ["hazard","threat","help"] and not bool(prepared.extra.get("official_communication",false))
+  prepared.extra._timing.stream_safe=str(prepared.get("activity",{}).get("phase",""))!="assignment" and str(interpretation.get("question_kind","")) in ["casual","opinion","personal_experience","biography"] and str(interpretation.get("domain","")) not in ["math","electronics","physics","chemistry","engineering","technical","assessment","safety"] and str(interpretation.get("event","")) not in ["hazard","threat","help"] and not bool(prepared.extra.get("official_communication",false))
   timing.merge(prepared.extra._timing,true)
 
 func _track_character_audio(room: String,serial: int,event_id: String,timing: Dictionary) -> void:

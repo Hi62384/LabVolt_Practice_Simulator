@@ -59,7 +59,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/npc-logs" | Out-Null
-          python tests/campus/academics/run_voice_pipeline_tests.py --godot "$env:GODOT" --logs "$env:RUNNER_TEMP/npc-logs/targeted" --cases test_voice_meter_input test_subtitle_audibility test_realtime_stream_buffer test_character_voice_studio test_character_worldviews
+          python tests/campus/academics/run_voice_pipeline_tests.py --godot "$env:GODOT" --logs "$env:RUNNER_TEMP/npc-logs/targeted" --cases test_character_request_timing test_character_voice_studio test_teacher_speech_long_delivery test_realtime_stream_buffer
           if ($LASTEXITCODE) { throw 'Targeted regression failure' }
       - name: Native local provider WebSocket and HTTP tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

@@ -84,9 +84,20 @@ func run() -> void:
 	var audio: Dictionary=faculty.captured[1].timing
 	check(audio.input_kind=="microphone" and int(audio.transcription_ms)>=110,"Measured transcription delay and microphone input kind reach the answer path")
 	check(int(audio.transcription_finished_ms)>=int(audio.transcription_started_ms) and int(audio.transcription_started_ms)>=int(audio.queue_started_ms),"Recorded stage timestamps retain their actual order")
-	var response := {"prepared":{"extra":{"_timing":audio.duplicate(true)}}}
-	faculty._mark_character_response_ready(response)
+	var response := {"prepared":{"activity":{"phase":"freeplay"},"extra":{"_timing":audio.duplicate(true)}},"turn":{"interpretation":{"question_kind":"casual","domain":"conversation","event":"chat"}}}
+	var updated_timing: Dictionary=audio.duplicate(true)
+	faculty._mark_character_response_ready(response,updated_timing)
+	check(updated_timing.get("stream_safe",false) and updated_timing.host_text_ready_ms==response.prepared.extra._timing.host_text_ready_ms,"Text readiness and safe streaming classification reach the caller")
 	var measured := Interaction._response_timing(response.prepared)
+	for context in [{"phase":"assignment"},{"domain":"electronics"},{"official":true},{"event":"hazard"}]:
+		var restricted: Dictionary=response.duplicate(true)
+		restricted.prepared.activity.phase=context.get("phase","freeplay")
+		restricted.prepared.extra.official_communication=context.get("official",false)
+		restricted.turn.interpretation.domain=context.get("domain","conversation")
+		restricted.turn.interpretation.event=context.get("event","chat")
+		var restricted_timing: Dictionary={}
+		faculty._mark_character_response_ready(restricted,restricted_timing)
+		check(not restricted_timing.get("stream_safe",true),"Assessment, technical, official and hazardous speech require full verification")
 	check(float(measured.host_to_text_ms)>=float(measured.transcription_ms)+float(measured.queue_wait_ms),"Host-receipt-to-reply timing includes both queue and transcription")
 	check(not Interaction._response_timing({}).has("host_to_text_ms"),"Unobserved host receipt stays unknown")
 	check(not Interaction._response_timing({"extra":{"_timing":{"host_received_ms":20,"host_text_ready_ms":10}}}).has("host_to_text_ms"),"Reversed timestamps cannot produce fabricated negative latency")

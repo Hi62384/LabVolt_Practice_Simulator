@@ -39,5 +39,7 @@ func _run() -> void:
 	buffer.finished=true
 	assert(not buffer.append(12000,pcm),"Finalized audio cannot be extended")
 	player.stop();anchor.queue_free()
+	await process_frame
+	await create_timer(.12).timeout
 	print("REALTIME_STREAM_BUFFER PASS")
 	quit(0)

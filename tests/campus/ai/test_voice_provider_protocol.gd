@@ -49,16 +49,28 @@ func _run() -> void:
 	if reused.get("ok",false):check(reused.stream.data.size()==9600,"Stale response audio is discarded")
 	check(client.voice_diagnostics().idle_pool_size<=3,"Idle pool is bounded")
 	var pcm_events: Array[Dictionary]=[]
-	var streamed: Dictionary=await client.speak("Streaming fixture delivers early audio.",{},"ash",{"early_stream":true,"_pcm_ready":func(offset: int,pcm: PackedByteArray):pcm_events.append({"offset":offset,"size":pcm.size(),"at":Time.get_ticks_msec()})})
-	check(streamed.get("ok",false) and pcm_events.size()==2,"Realtime PCM arrives incrementally in two packets")
-	if pcm_events.size()==2:
-		check(pcm_events[0].offset==0 and pcm_events[1].offset==4800 and pcm_events[0].size+pcm_events[1].size==9600,"Streaming packets preserve exact byte order and total length")
-		check(Time.get_ticks_msec()-int(pcm_events[0].at)>=150,"First PCM arrives before terminal provider event")
+	var streamed: Dictionary=await client.speak("Streaming fixture delivers early audio.",{},"ash",{"early_stream":true,"_pcm_ready":func(offset: int,pcm: PackedByteArray):pcm_events.append({"offset":offset,"pcm":pcm.duplicate(),"at":Time.get_ticks_msec()})})
+	check(streamed.get("ok",false) and pcm_events.size()>=2,"Realtime PCM arrives incrementally before completion")
+	var assembled:=PackedByteArray()
+	for packet: Dictionary in pcm_events:
+		var chunk: PackedByteArray=packet.pcm
+		check(int(packet.offset)==assembled.size() and not chunk.is_empty() and chunk.size()%2==0,"PCM offsets are contiguous with complete samples")
+		assembled.append_array(chunk)
+	# A transcript prefix can release a smaller packet than the provider audio
+	# frame because the speech adapter intentionally holds an unverified tail.
+	# The consumer contract is exact contiguous bytes, not WebSocket boundaries.
+	if streamed.get("stream") is AudioStreamWAV:
+		check(assembled.size()==9600 and assembled==streamed.stream.data,"Streaming packets preserve every byte and exact final length")
+		if reused.get("stream") is AudioStreamWAV:check(assembled==reused.stream.data,"Stale-response PCM cannot contaminate the deterministic waveform")
+	if not pcm_events.is_empty():
+		check(pcm_events[0].pcm.size()<=4800 and Time.get_ticks_msec()-int(pcm_events[0].at)>=150,"First verified PCM arrives before terminal provider event")
 	var wrong: Dictionary=await client.speak("Mismatch this line.",{},"ash")
 	check(not wrong.get("ok",true) and not wrong.has("stream"),"mismatched generated speech never returned")
 	check(not wrong.get("retryable",true),"A billable transcript mismatch cannot automatically regenerate the same speech")
 	check(wrong.get("measurement",{}).get("usage",{}).get("input")==100 and wrong.measurement.usage.get("output")==40,"Rejected speech preserves actual provider token usage")
-	var silent: Dictionary=await client.speak("Silent audio fixture.",{},"ash")
+	var silent_pcm: Array[int]=[]
+	var silent: Dictionary=await client.speak("Silent audio fixture.",{},"ash",{"early_stream":true,"_pcm_ready":func(_offset: int,pcm: PackedByteArray):silent_pcm.append(pcm.size())})
+	check(silent_pcm.is_empty(),"Matching text with silent PCM cannot publish early playback")
 	check(not silent.get("ok",true) and silent.get("code")=="speech_silent_audio" and not silent.has("stream"),"A matching transcript does not prove zero PCM is audible speech")
 	check(silent.get("measurement",{}).get("usage",{}).get("output")==40,"Silent waveform rejection retains billable output usage")
 	var missing: Dictionary=await client.speak("Missing transcript.",{},"ash")

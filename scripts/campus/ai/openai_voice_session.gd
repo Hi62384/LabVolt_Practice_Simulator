@@ -381,7 +381,9 @@ func _checkpoint(chars: int) -> void:
 	transcript_checkpoint.emit(_published_bytes,chars,_expected_text.length())
 
 func _publish_pcm(limit: int=-1) -> void:
-	if _blocked or not early_stream:return
+	# Even a matching transcript is not evidence of audible PCM. Keep initial
+	# silence buffered until a real signal arrives; never stream a silent render.
+	if _blocked or not early_stream or not _received_signal:return
 	var ceiling:=_pcm.size() if limit<0 else mini(limit,_pcm.size())
 	ceiling-=ceiling%2
 	while _published_bytes<ceiling:
