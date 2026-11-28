@@ -62,6 +62,8 @@ var conversation_class:=""
 var manual_conversation_nonce:=""
 var manual_turn_serial:=0
 var manual_latest_request:=""
+var manual_detached:=false
+var manual_mic_signal:=false
 var manual_conversations: Dictionary={}
 var manual_retired_nonces: Dictionary={}
 var manual_speech: Dictionary={}
@@ -213,7 +215,7 @@ func _clear_speech() -> void:
  character_generation.cancel()
  _cancel_recording()
  _stop_voice_conversation()
- manual_conversation_nonce="";manual_turn_serial=0;manual_latest_request=""
+ manual_conversation_nonce="";manual_turn_serial=0;manual_latest_request="";manual_detached=false
  manual_conversations.clear();manual_retired_nonces.clear();manual_speech.clear();manual_local_speech.clear()
  ai_stage.clear()
  character_epoch+=1
@@ -1152,6 +1154,7 @@ func open_conversation(room: String, student := "", class_id := "") -> void:
  var member: Dictionary=game.lecture_classes.classroom_students.visible_member(room,class_id,student) if not student.is_empty() else {}
  if (student.is_empty() and not Roster.has(id)) or (not student.is_empty() and member.is_empty()):return
  _cancel_recording()
+ # Switching/reopening creates a fresh UI session; hiding alone does not.
  _close_manual_session()
  conversation_room=room
  conversation_student=student
@@ -1175,17 +1178,20 @@ func open_conversation(room: String, student := "", class_id := "") -> void:
   conversation_actions[intent].visible=student.is_empty() and activity.get("ai_teaching",false) and activity.get("phase","")=="lesson"
  conversation_text.text="Type a message or use the microphone to begin a conversation."
  _stop_voice_conversation()
- conversation.call("open_character");speech_player.subtitle_layer.hide();game.release_mouse()
+ conversation.call("open_character");speech_player.subtitle_layer.show();game.release_mouse()
  _open_manual_session()
-func close_conversation() -> bool:
- _close_manual_session()
- if not voice_room.is_empty():
-  _stop_voice_conversation()
-  return true
- if not is_instance_valid(conversation) or not conversation.visible:return false
+func close_conversation(cancel_submitted: bool=false) -> bool:
+ if not is_instance_valid(conversation) or not conversation.visible:
+  if not voice_room.is_empty():_stop_voice_conversation();return true
+  return false
  _cancel_recording()
- conversation.hide();speech_player.subtitle_layer.show();conversation_room=""
- conversation_student="";conversation_class=""
+ # Closing the inspector returns control to the player, not a cancellation
+ # of a sent message. Explicit Goodbye still ends the conversation.
+ if cancel_submitted or manual_latest_request.is_empty():
+  _close_manual_session()
+  conversation_room="";conversation_student="";conversation_class=""
+ else:manual_detached=true
+ conversation.hide();speech_player.subtitle_layer.show()
  if game.front.in_game:game.capture()
  return true
 func interact(target: Node) -> bool:
@@ -1267,15 +1273,18 @@ func _stop_voice_conversation() -> void:
  if is_instance_valid(voice_hint):voice_hint.hide()
 
 func _voice_conversation_step() -> void:
- # Shared capture and NaturalVoice own lifecycle; no duplicate microphone player.
- pass
+ # A detached turn remains valid only while its original NPC/session exists.
+ if manual_detached and not manual_conversation_nonce.is_empty():
+  if not game.front.in_game or not _selected_conversation_current(false) or game.campus.registry.locate(game.player.global_position)!=conversation_room:
+   _close_manual_session()
+   conversation_room="";conversation_student="";conversation_class=""
 
 func _consume_voice_capture() -> void:
  # Compatibility for test harnesses: only the shared service may consume the device.
  if is_instance_valid(shared_microphone):shared_microphone._process(0.0)
 
-func _selected_conversation_current() -> bool:
- if conversation_room.is_empty() or not is_instance_valid(conversation) or not conversation.visible:return false
+func _selected_conversation_current(require_visible: bool=true) -> bool:
+ if conversation_room.is_empty() or not is_instance_valid(conversation) or (require_visible and not conversation.visible):return false
  var selected:=str(conversation.get_meta("selected_character_id",""))
  var activity:=_ai_activity(conversation_room)
  if conversation_student.is_empty():return not selected.is_empty() and Roster.has(selected) and str(activity.get("teacher",""))==selected and str(activity.get("id",""))==conversation_class
@@ -1293,7 +1302,7 @@ func _require_selected_conversation() -> bool:
 
 func _conversation_choice(intent: String) -> void:
  if conversation_room.is_empty():return
- if intent=="bye":close_conversation();return
+ if intent=="bye":close_conversation(true);return
  if not _require_selected_conversation():return
  if intent=="chat":conversation_input.grab_focus();return
  var selected:=str(conversation.get_meta("selected_character_id",""))
@@ -1360,13 +1369,14 @@ func _toggle_recording() -> void:
  if game.client_preferences.values.get("microphone_muted",false) or game.client_preferences.values.get("microphone_mode","")=="muted":conversation_text.text="Unmute your microphone in Audio settings first.";return
  if is_instance_valid(game.get("smartphones")) and game.smartphones.comm.local_call.get("state","")=="active":conversation_text.text="End your private phone call before recording an NPC question.";return
  shared_microphone.configure(game.client_preferences.values)
- record_samples.clear();recording=true;record_started=Time.get_ticks_msec()
+ record_samples.clear();recording=true;record_started=Time.get_ticks_msec();manual_mic_signal=false
  shared_microphone.subscribe("manual_teacher_question",true)
  if not shared_microphone.is_active():
   var reason:=str(shared_microphone.diagnostic.get("reason","Microphone capture could not start."))
   _cancel_recording();conversation_text.text=reason;return
  record_button.text="Stop and send recording"
  conversation_text.text="Recording this question. Stopping sends it to the host's AI service."
+ if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Listening…",180000)
 
 func _manual_capture_packet(pcm: PackedByteArray,_activity: Dictionary) -> void:
  if not recording:return
@@ -1374,6 +1384,9 @@ func _manual_capture_packet(pcm: PackedByteArray,_activity: Dictionary) -> void:
  if game.client_preferences.values.get("microphone_muted",false):_cancel_recording();return
  if record_samples.size()+pcm.size()>5760000:_finish_recording.call_deferred();return
  record_samples.append_array(pcm)
+ if not manual_mic_signal and float(_activity.get("peak",0.0))>=.003:
+  manual_mic_signal=true
+  if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Hearing…",180000)
 
 func _record_step() -> void:
  if recording and (not conversation.visible or game.client_preferences.values.get("microphone_muted",false)):_cancel_recording()
@@ -1386,7 +1399,8 @@ func _record_step() -> void:
   conversation_text.text=str(shared_microphone.diagnostic.get("reason","No microphone frames received. Check the selected device and microphone permission."))
 
 func _cancel_recording() -> void:
- recording=false;record_samples.clear()
+ if recording and is_instance_valid(natural_voice):natural_voice.clear_hearing()
+ recording=false;record_samples.clear();manual_mic_signal=false
  if is_instance_valid(shared_microphone):shared_microphone.subscribe("manual_teacher_question",false)
  record_player=null
  if is_instance_valid(record_button):record_button.text="Mic"
@@ -1401,6 +1415,7 @@ func _finish_recording() -> void:
   conversation_text.text=str(capture_status.get("reason","Microphone capture did not receive audio.")) if int(capture_status.get("frames_received",0))==0 else "The recording was too short. Record at least a short sentence before sending."
   return
  conversation_text.text="Listening to your question…"
+ if is_instance_valid(natural_voice):natural_voice.show_hearing(_manual_debug_target(),"Transcribing…",30000)
  _send_voice_question(conversation_room,TeacherAI.wav_16k(samples),conversation_student,conversation_class,str(conversation.get_meta("selected_character_id","")))
 
 func _send_voice_question(room: String,wav: PackedByteArray,student: String,class_id: String,expected_teacher: String="") -> void:
@@ -1417,14 +1432,14 @@ func _send_voice_question(room: String,wav: PackedByteArray,student: String,clas
 # duplicate upload cannot enter the queue or bill transcription a second time.
 func _open_manual_session() -> void:
  manual_conversation_nonce=Crypto.new().generate_random_bytes(16).hex_encode()
- manual_turn_serial=0;manual_latest_request=""
+ manual_turn_serial=0;manual_latest_request="";manual_detached=false
  var actor:=str(conversation.get_meta("selected_character_id",""))
  if multiplayer.is_server():_begin_manual_session(multiplayer.get_unique_id(),conversation_room,conversation_class,conversation_student,actor,manual_conversation_nonce)
  elif game.session.online:_begin_manual_conversation.rpc_id(1,conversation_room,conversation_class,conversation_student,actor,manual_conversation_nonce)
 
 func _close_manual_session() -> void:
  var nonce:=manual_conversation_nonce
- manual_conversation_nonce="";manual_turn_serial=0;manual_latest_request=""
+ manual_conversation_nonce="";manual_turn_serial=0;manual_latest_request="";manual_detached=false
  if nonce.is_empty():return
  for key in manual_local_speech.keys():
   var entry: Dictionary=manual_local_speech[key]
@@ -1534,7 +1549,7 @@ func _track_manual_speech(peer: int,context: Dictionary,channel: String,serial: 
 
 @rpc("authority","call_remote","reliable")
 func _manual_speech_started(nonce: String,turn: int,channel: String,serial: int) -> void:
- if nonce!=manual_conversation_nonce or turn<1 or turn>manual_turn_serial or not _selected_conversation_current():
+ if nonce!=manual_conversation_nonce or turn<1 or turn>manual_turn_serial or not _selected_conversation_current(false):
   _voice_cancel(channel,serial);return
  manual_local_speech[_voice_key(channel,serial)]={"token":nonce,"channel":channel,"serial":serial}
  while manual_local_speech.size()>128:manual_local_speech.erase(manual_local_speech.keys()[0])
@@ -1590,8 +1605,8 @@ func _transcribe_question(peer: int,room: String,id: String,class_id: String,wav
   _context_question_status(peer,room,id,str(result.get("error","Speech was not recognized.")),voice_context)
   resume_voice_channel(room,room)
   return
- _report_voice_stage(peer,voice_context,"transcription_received")
  var text:=str(result.get("text",""))
+ _report_voice_stage(peer,voice_context,"transcription_received",text)
  if _natural_voice_context(voice_context) and preload("res://scripts/campus/voice/conversation_targeting.gd").acknowledgement(text):
   _report_voice_stage(peer,voice_context,"intentional_silence")
   if _release_question(peer,epoch):resume_voice_channel(room,room)
@@ -1836,8 +1851,8 @@ func _answer_classmate_inner(entry: Dictionary) -> void:
    _report_voice_stage(peer,voice_context,"transcription_failed",str(transcript.get("error","Speech was not recognized.")))
    _notify_classmate(peer,room,class_id,actor,str(transcript.get("error","Speech was not recognized.")),false,"steady",false,"",{},"",{},voice_context)
    return
-  _report_voice_stage(peer,voice_context,"transcription_received")
   question=str(transcript.get("text","")).strip_edges()
+  _report_voice_stage(peer,voice_context,"transcription_received",question)
  else:question=entry.content
  var activity: Dictionary=game.lecture_classes.classes.get(room,{})
  if activity.get("id","")!=class_id or question.is_empty() or str(game.school.identities.get(peer,""))!=identity or students.nearby_member(peer,room,class_id,actor,hearing_range).is_empty():
@@ -1921,7 +1936,7 @@ func _notify_classmate(peer: int,room: String,class_id: String,actor: String,lin
 @rpc("authority","call_remote","reliable")
 func _classmate_reply(room: String,class_id: String,actor: String,line: String,speak: bool,mood := "steady",raised := false,serial := 0,provider := false,gesture := "",affect: Dictionary={},tracking_only: bool=false,voice_context: Dictionary={}) -> void:
  var manual: bool=voice_context.get("mode")=="manual"
- if manual and not tracking_only and (str(voice_context.get("token",""))!=manual_conversation_nonce or not _selected_conversation_current()):return
+ if manual and not tracking_only and (str(voice_context.get("token",""))!=manual_conversation_nonce or not _selected_conversation_current(false)):return
  var students: Node=game.lecture_classes.classroom_students
  var model: Node3D=students.models.get(class_id+":"+actor)
  var profile:=Classmates.profile_for(actor)
@@ -2997,9 +3012,22 @@ func _voice_chunk(channel: String,serial: int,total: int,offset: int,rate: int,s
    speech_player.deliver_stream(channel,serial,received.stream)
 
 # Shared natural-voice entry points. The host revalidates identity, class and hearing.
+func _manual_debug_target() -> Dictionary:
+ return {"room":conversation_room,"class_id":conversation_class,"student":conversation_student,"id":str(conversation.get_meta("selected_character_id",""))}
+
 func _report_voice_stage(peer: int,context: Dictionary,stage: String,message: String="") -> void:
- if context.get("mode")=="manual":return
+ if context.get("mode")=="manual":
+  if stage not in ["transcription_received","transcription_failed"] or not _manual_context_current(peer,context):return
+  if peer==multiplayer.get_unique_id():_manual_hearing_status(str(context.token),str(context.request_id),stage,message.left(500))
+  elif game.session.online and game.session.peer_connected_now(peer):_manual_hearing_status.rpc_id(peer,str(context.token),str(context.request_id),stage,message.left(500))
+  return
  if is_instance_valid(natural_voice):natural_voice.report_stage(peer,context,stage,message)
+
+@rpc("authority","call_remote","reliable")
+func _manual_hearing_status(nonce: String,request_id: String,stage: String,message: String) -> void:
+ if nonce!=manual_conversation_nonce or request_id!=manual_latest_request or not _selected_conversation_current(false) or not is_instance_valid(natural_voice):return
+ if stage=="transcription_received":natural_voice.show_hearing(_manual_debug_target(),"Heard: "+message.left(500),10000)
+ elif stage=="transcription_failed":natural_voice.show_hearing(_manual_debug_target(),"Not recognized: "+message.left(120),6000)
 
 func _voice_context_valid(peer: int,context: Dictionary) -> bool:
  if context.get("mode")=="manual":return _manual_context_current(peer,context)
@@ -3130,7 +3158,7 @@ func _answer_ambient_voice(peer: int,target: Dictionary,wav: PackedByteArray,con
   if not transcript.get("ok",false):_report_voice_stage(peer,context,"transcription_failed",str(transcript.get("error","Speech was not recognized.")))
   if _release_question(peer,epoch):resume_voice_target(target)
   return
- _report_voice_stage(peer,context,"transcription_received")
+ _report_voice_stage(peer,context,"transcription_received",str(transcript.get("text","")))
  var person:=Characters.teacher(actor)
  var activity:={"id":"","phase":"freeplay","teacher":actor,"room":str(target.room)}
  var identity:=str(game.school.identities.get(peer,""))
