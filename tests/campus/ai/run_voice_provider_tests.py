@@ -33,9 +33,18 @@ with tempfile.TemporaryDirectory(prefix="labvolt_voice_protocol_") as user_dir:
         env=dict(os.environ,XDG_DATA_HOME=user_dir,APPDATA=user_dir,LABVOLT_VOICE_FIXTURE_PORT=str(port),LABVOLT_LIVE_NETWORK_PORT=str(network_port))
         env.pop("OPENAI_API_KEY",None)
         code=0
-        for script in ["test_model_catalog.gd","test_streaming_transcription.gd","test_catalog_voice_http.gd","test_voice_provider_protocol.gd","test_npc_live_bridge.gd"]:
-            result=subprocess.run([args.godot,"--headless","--path",str(repo),"--script","res://tests/campus/ai/"+script],env=env,timeout=45)
-            code=max(code,result.returncode)
+        cases={
+            "test_model_catalog.gd":"MODEL_CATALOG_REGRESSION PASS",
+            "test_streaming_transcription.gd":"STREAMING_TRANSCRIPTION_REGRESSION PASS",
+            "test_catalog_voice_http.gd":"CATALOG_VOICE_HTTP PASS",
+            "test_voice_provider_protocol.gd":"VOICE_PROVIDER_PROTOCOL PASS",
+            "test_npc_live_bridge.gd":"NPC_LIVE_BRIDGE PASS",
+        }
+        for script,marker in cases.items():
+            result=subprocess.run([args.godot,"--headless","--path",str(repo),"--script","res://tests/campus/ai/"+script],env=env,timeout=45,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,encoding="utf-8",errors="replace")
+            print(result.stdout,flush=True)
+            if result.returncode or marker not in result.stdout or "SCRIPT ERROR:" in result.stdout:
+                code=1
         stats=urllib.request.urlopen(f"http://127.0.0.1:{port}/stats",timeout=1).read().decode()
         print("Fixture observations:",stats)
         raise SystemExit(code)
