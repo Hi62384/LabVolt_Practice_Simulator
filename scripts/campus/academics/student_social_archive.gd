@@ -11,14 +11,23 @@ var records: Dictionary={}
 var conflicts: Array=[]
 var blocked:=false
 var last_error:=OK
+var dirty:=false
 
 func configure(identity: String) -> Error:
-	if owner==identity and not path.is_empty():return last_error
+	if identity.is_empty() or identity.length()>128:return ERR_INVALID_PARAMETER
+	if owner==identity and not path.is_empty():return save() if dirty else last_error
+	# A receipt that could not reach disk still belongs to its original device
+	# profile. Do not silently discard it when another profile is selected.
+	if dirty:
+		var pending_error:=save()
+		if pending_error!=OK:return pending_error
 	owner=identity
 	path="user://character_memory/"+identity.sha256_text()+".student-social.json"
-	records.clear();conflicts.clear();blocked=false;last_error=OK
+	records.clear();conflicts.clear();blocked=false;last_error=OK;dirty=false
 	var raw:=_read(path)
-	if raw.is_empty():raw=_read(path+".bak")
+	if raw.is_empty():
+		raw=_read(path+".bak")
+		dirty=not raw.is_empty()
 	if raw.is_empty():
 		blocked=FileAccess.file_exists(path) or FileAccess.file_exists(path+".bak")
 		last_error=ERR_FILE_CORRUPT if blocked else OK
@@ -32,15 +41,16 @@ func observe(character: String,player: String,snapshot: Dictionary) -> Dictionar
 	if not records.has(key) and records.size()>=MAX_RECORDS:return {}
 	var previous: Dictionary=records.get(key,{})
 	var fingerprint:=digest(snapshot)
-	if str(previous.get("digest",""))==fingerprint:return previous.duplicate(true)
+	if str(previous.get("digest",""))==fingerprint:
+		return previous.duplicate(true) if not dirty or save()==OK else {}
 	var parents: Array=previous.get("parents",[]).duplicate()
 	if not previous.is_empty():parents.append(str(previous.digest))
 	while parents.size()>64:parents.pop_front()
 	var entry:={"version":1,"character":character,"player":player,"revision":int(previous.get("revision",0))+1,"digest":fingerprint,"parents":parents,"snapshot":snapshot.duplicate(true)}
 	if not valid(entry):last_error=ERR_INVALID_DATA;return {}
 	records[key]=entry
-	save()
-	return entry.duplicate(true)
+	dirty=true
+	return entry.duplicate(true) if save()==OK else {}
 
 func classify(entry: Dictionary) -> String:
 	if not valid(entry):return "invalid"
@@ -56,11 +66,8 @@ func receive(entry: Dictionary,merged_snapshot: Dictionary) -> bool:
 	if blocked or not valid(entry) or merged_snapshot.is_empty():return false
 	var key:=str(entry.character)+":"+str(entry.player)
 	var kind:=classify(entry)
-	if kind in ["same","older"]:return true
+	if kind in ["same","older"]:return not dirty or save()==OK
 	if not records.has(key) and records.size()>=MAX_RECORDS:return false
-	if kind=="conflict":
-		conflicts.append({"character":entry.character,"local":records[key].digest,"incoming":entry.digest})
-		if conflicts.size()>64:conflicts.pop_front()
 	var parents: Array=entry.parents.duplicate()
 	var previous: Dictionary=records.get(key,{})
 	for digest in previous.get("parents",[])+[previous.get("digest",""),entry.digest]:
@@ -71,7 +78,12 @@ func receive(entry: Dictionary,merged_snapshot: Dictionary) -> bool:
 	next.snapshot=merged_snapshot.duplicate(true)
 	next.digest=digest(merged_snapshot)
 	next.revision=maxi(int(entry.revision),int(previous.get("revision",0)))+1
+	if not valid(next):last_error=ERR_INVALID_DATA;return false
+	if kind=="conflict":
+		conflicts.append({"character":entry.character,"local":records[key].digest,"incoming":entry.digest})
+		if conflicts.size()>64:conflicts.pop_front()
 	records[key]=next
+	dirty=true
 	return save()==OK
 
 static func valid(entry: Dictionary) -> bool:
@@ -89,6 +101,8 @@ static func valid(entry: Dictionary) -> bool:
 	return str(entry.get("digest",""))==digest(entry.snapshot)
 
 func save() -> Error:
+	if owner.is_empty() or not path.begins_with("user://character_memory/"):
+		last_error=ERR_UNCONFIGURED;return last_error
 	if blocked:return ERR_FILE_CORRUPT
 	var old:=_read(path)
 	var backup:=_read(path+".bak")
@@ -113,6 +127,7 @@ func save() -> Error:
 		error=DirAccess.copy_absolute(path,path+".bak")
 		if error!=OK:last_error=error;return last_error
 	last_error=DirAccess.rename_absolute(path+".tmp",path)
+	if last_error==OK:dirty=false
 	return last_error
 
 func _read(source: String) -> Dictionary:
